@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,12 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  adminGetDownloads,
-  type AdminDownloadsResponse,
-  type DownloadCount,
-  type ReleaseInfo,
-} from "@/lib/api";
+import { adminGetDownloads, type DownloadCount, type ReleaseInfo } from "@/lib/api";
 import {
   CHART_TOOLTIP_CURSOR,
   CHART_TOOLTIP_LABEL_STYLE,
@@ -27,6 +22,8 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Download, Globe, User, Box, CheckCircle2, XCircle } from "@/lib/icons";
 import { toast } from "@/store/toast";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const RANGES = [
@@ -175,24 +172,14 @@ function Breakdown({
 }
 
 export function DownloadsContent() {
-  const [data, setData] = useState<AdminDownloadsResponse | null>(null);
   const [days, setDays] = useState<string>("30");
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async (range: string) => {
-    setLoading(true);
-    try {
-      setData(await adminGetDownloads(Number(range)));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't load downloads");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data, loading, error } = useAdminQuery(qk.adminDownloads(days), () =>
+    adminGetDownloads(Number(days)),
+  );
 
   useEffect(() => {
-    void load(days);
-  }, [days, load]);
+    if (error) toast.error("Couldn't load downloads");
+  }, [error]);
 
   if (loading && !data) {
     return (

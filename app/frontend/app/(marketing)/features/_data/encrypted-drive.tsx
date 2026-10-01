@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface EncryptedDrivePageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -27,8 +26,7 @@ export interface EncryptedDrivePageData {
 export const encryptedDrive: EncryptedDrivePageData = {
   hero: {
     eyebrow: "The encrypted drive",
-    headlineTop: "A real drive.",
-    headlineGradient: "Encrypted end to end.",
+    title: "A real drive, locked end to end",
     subtext: (
       <>
         Most &ldquo;encrypted storage&rdquo; gives you a flat list of files. zcrypt gives you a real
@@ -117,7 +115,7 @@ export const encryptedDrive: EncryptedDrivePageData = {
   ],
 
   cta: {
-    heading: "Your files, organized and sealed",
+    heading: "Your files, organized and locked",
     subtext:
       "Free and open source. Bring a storage account you already own and start in under a minute.",
   },

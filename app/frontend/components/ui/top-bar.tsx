@@ -30,6 +30,7 @@ export function TopBar() {
             modalOpen={vault.modalProps.open}
             onUnlock={() => vault.unlock()}
             onLock={vault.lock}
+            tour="vault-lock-mobile"
             className="h-10 w-10 justify-center rounded-full px-0"
           />
         </div>

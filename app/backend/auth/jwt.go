@@ -90,12 +90,23 @@ func GenerateDecoyAccessToken(secret, userID, email, username, role string, toke
 
 // GenerateTempToken creates a short-lived token for 2FA verification.
 func GenerateTempToken(secret, userID string) (string, error) {
+	return generateTempToken(secret, userID, false)
+}
+
+// GenerateDecoyTempToken is GenerateTempToken for a decoy-password login: the
+// flag carries through the 2FA step so the session that follows is a decoy one.
+func GenerateDecoyTempToken(secret, userID string) (string, error) {
+	return generateTempToken(secret, userID, true)
+}
+
+func generateTempToken(secret, userID string, decoy bool) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		Sub: userID,
-		Typ: tokenTypeTemp,
-		Exp: now.Add(TempTokenDuration).Unix(),
-		Iat: now.Unix(),
+		Sub:   userID,
+		Typ:   tokenTypeTemp,
+		Decoy: decoy,
+		Exp:   now.Add(TempTokenDuration).Unix(),
+		Iat:   now.Unix(),
 	}
 	return signJWT(secret, claims)
 }

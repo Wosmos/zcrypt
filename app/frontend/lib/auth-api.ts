@@ -15,6 +15,10 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
+      // Required so the browser sends/accepts the httpOnly refresh-token
+      // cookie (zcrypt_rt) on cross-origin calls to the API host. A no-op for
+      // any endpoint that doesn't set/read cookies.
+      credentials: "include",
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
@@ -75,19 +79,24 @@ export function login(email: string, password: string): Promise<LoginResponse> {
   });
 }
 
+// refresh_token is optional on the web: the backend reads it from the
+// httpOnly zcrypt_rt cookie first (sent automatically via authRequest's
+// credentials:"include") and only falls back to this body field for desktop
+// clients, which have no equivalent cookie jar for their Rust sync worker.
 export function refreshToken(
-  refresh_token: string,
+  refresh_token?: string | null,
 ): Promise<{ access_token: string; refresh_token: string }> {
   return authRequest("/api/auth/refresh", {
     method: "POST",
-    body: JSON.stringify({ refresh_token }),
+    body: JSON.stringify({ refresh_token: refresh_token ?? "" }),
   });
 }
 
-export function logout(refresh_token: string): Promise<void> {
+export function logout(refresh_token?: string | null, access_token?: string | null): Promise<void> {
   return authRequest("/api/auth/logout", {
     method: "POST",
-    body: JSON.stringify({ refresh_token }),
+    headers: access_token ? { Authorization: `Bearer ${access_token}` } : undefined,
+    body: JSON.stringify({ refresh_token: refresh_token ?? "" }),
   });
 }
 

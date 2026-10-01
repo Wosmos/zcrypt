@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/zcrypt/zcrypt/adapters"
@@ -158,6 +159,13 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 	switch req.Platform {
 	case "github", "gitlab", "huggingface", "telegram":
 		// supported
+	case "mock":
+		// Load-testing sandbox only, gated the same way as createAdapter's
+		// "mock" case: rejected outright unless explicitly opted into.
+		if os.Getenv("ZCRYPT_ENABLE_MOCK_ADAPTER") != "true" {
+			http.Error(w, `{"error":"unsupported platform, use github, gitlab, huggingface, or telegram"}`, http.StatusBadRequest)
+			return
+		}
 	default:
 		http.Error(w, `{"error":"unsupported platform, use github, gitlab, huggingface, or telegram"}`, http.StatusBadRequest)
 		return
@@ -305,4 +313,20 @@ func (s *Server) HandleListRepos(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(repos)
+}
+
+// HandleMarkOnboarded records that the user has seen onboarding.
+// POST /api/onboarding/complete
+//
+// Called when they finish connecting storage AND when they choose to carry on
+// with shared storage instead. Both count: the screen's job is to explain the
+// product once, not to force a connection.
+func (s *Server) HandleMarkOnboarded(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r)
+	if err := s.db.MarkUserOnboarded(r.Context(), userID); err != nil {
+		log.Printf("onboarding: mark complete failed: %v", err)
+		http.Error(w, `{"error":"could not save onboarding state"}`, http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }

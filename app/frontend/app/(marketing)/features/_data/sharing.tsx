@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface SharingPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -29,8 +28,7 @@ export interface SharingPageData {
 export const sharing: SharingPageData = {
   hero: {
     eyebrow: "Encrypted sharing",
-    headlineTop: "Share a file.",
-    headlineGradient: "Not the key to your vault.",
+    title: "Share a file, not the keys to everything",
     subtext: (
       <>
         Every share link carries its own decryption key inside the URL fragment: the one piece of a

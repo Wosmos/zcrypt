@@ -14,10 +14,13 @@ import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
+import { SectionHead } from "@/components/marketing/landing/section-head";
+import { IconWell, cardSurface } from "@/components/marketing/ui/card";
+import { cn } from "@/lib/utils";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { transfers } from "../_data/transfers";
 import { SITE_URL } from "@/lib/site";
@@ -100,8 +103,7 @@ export default function TransfersPage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -164,7 +166,7 @@ export default function TransfersPage() {
 
       {/* ═══ RESUME DEEP-DIVE ═══ */}
       <TieInSection
-        sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
+        join
         eyebrow={tieIn.eyebrow}
         heading={tieIn.heading}
         body={tieIn.body}
@@ -172,7 +174,7 @@ export default function TransfersPage() {
           <IconList
             items={tieIn.checklistItems}
             itemClassName="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
-            iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
+            iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--pv2-accent-ink)]"
           />
         }
         linkLabel={tieIn.linkLabel}
@@ -205,30 +207,27 @@ export default function TransfersPage() {
       />
 
       {/* ═══ DEVICE-TO-DEVICE ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="card overflow-hidden">
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-device">
+        <div className="pv2-wrap">
+          <div className={cn(cardSurface, "overflow-hidden")}>
             <div className="grid gap-0 md:grid-cols-2">
               <div className="p-8 md:p-10">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <Smartphone className="h-5 w-5" />
-                </div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                  {deviceToDevice.eyebrow}
-                </p>
-                <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-                  {deviceToDevice.heading}
-                </h2>
-                <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-                  {deviceToDevice.body}
-                </p>
+                <IconWell icon={Smartphone} className="mb-6" />
+                <SectionHead
+                  id="h-device"
+                  eyebrow={deviceToDevice.eyebrow}
+                  title={deviceToDevice.heading}
+                  lede={deviceToDevice.body}
+                  align="left"
+                  className="pv2-head-flush pv2-head-col"
+                />
                 <IconList
                   items={deviceToDevice.checklistItems}
                   icon={Shield}
                   iconStrokeWidth={1.5}
                 />
               </div>
-              <div className="flex items-center justify-center border-t border-[var(--color-border)] bg-[var(--color-bg)] p-8 md:border-l md:border-t-0">
+              <div className="flex items-center justify-center border-t border-[var(--color-border)] bg-[var(--color-bg)]/60 p-8 md:border-l md:border-t-0">
                 <div className="w-full max-w-[240px] text-center">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                     Pairing code
@@ -237,7 +236,7 @@ export default function TransfersPage() {
                     {["4", "8", "2", "1", "0", "7"].map((d, i) => (
                       <span
                         key={i}
-                        className="flex h-11 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] font-mono text-xl font-semibold text-cyan-600 dark:text-cyan-400"
+                        className="flex h-11 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] font-mono text-xl font-semibold text-[var(--pv2-accent-ink)]"
                       >
                         {d}
                       </span>
@@ -255,12 +254,8 @@ export default function TransfersPage() {
       </section>
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

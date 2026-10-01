@@ -8,7 +8,7 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { encryptedDrive } from "../_data/encrypted-drive";
 import { SITE_URL } from "@/lib/site";
 
@@ -63,8 +63,7 @@ export default function EncryptedDrivePage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -124,7 +123,7 @@ export default function EncryptedDrivePage() {
 
       {/* ═══ PRIVACY TIE-IN ═══ */}
       <TieInSection
-        sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
+        join
         eyebrow={tieIn.eyebrow}
         heading={tieIn.heading}
         body={tieIn.body}
@@ -153,12 +152,8 @@ export default function EncryptedDrivePage() {
       />
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

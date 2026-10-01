@@ -1,16 +1,16 @@
 "use client";
 
 import { useTheme } from "@/components/providers/theme-provider";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Shield, BarChart3, Settings, Sun, Moon, Database } from "@/lib/icons";
+import { Shield, Sun, Moon, Database } from "@/lib/icons";
 import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 
-const LINKS = [
-  { href: "/demo", label: "Vault", icon: Shield },
-  { href: "#", label: "Analytics", icon: BarChart3 },
-  { href: "#", label: "Settings", icon: Settings },
-];
+// Only the Vault screen exists in the demo. Analytics and Settings were
+// href="#", which jumps to the top of the page and reads as a broken app on the
+// one surface meant to prove the product works.
+const LINKS = [{ href: "/demo", label: "Vault", icon: Shield }];
 
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -77,6 +77,12 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
                 />
               </div>
             </div>
+            <Link
+              href="/register"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-2 text-[12px] font-semibold text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+            >
+              Start free, no card
+            </Link>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-[var(--color-sidebar-muted)]">zcrypt v0.2</span>
               <button

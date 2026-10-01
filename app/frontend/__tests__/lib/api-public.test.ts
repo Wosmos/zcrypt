@@ -98,6 +98,30 @@ describe("public share access", () => {
     fetchMock.mockResolvedValueOnce(mk(500, {}));
     await expect(api.getShareChunk("tok", 3)).rejects.toThrow("Failed to download chunk");
   });
+
+  it("chunk fetches carry the download ticket and completion posts it", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer }));
+    await api.getShareChunk("tok", 0, undefined, "tk");
+    expect(init().headers!["X-Download-Ticket"]).toBe("tk");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer }));
+    await api.getFolderShareChunk("tok", "f1", 0, "pw", "tk");
+    expect(init(1).headers!["X-Download-Ticket"]).toBe("tk");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { success: true } }));
+    await api.completeShareDownload("tok", "tk", "pw");
+    expect(url(2)).toContain("/api/share/tok/complete");
+    expect(init(2).method).toBe("POST");
+    expect(init(2).body).toBe(JSON.stringify({ ticket: "tk" }));
+    expect(init(2).headers!["X-Share-Password"]).toBe("pw");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { success: true } }));
+    await api.completeFolderShareDownload("tok", "f1", "tk");
+    expect(url(3)).toContain("/api/folder-share/tok/files/f1/complete");
+
+    fetchMock.mockResolvedValueOnce(mk(403, { json: { error: "invalid or expired ticket" } }));
+    await expect(api.completeShareDownload("tok", "bad")).rejects.toThrow("invalid or expired ticket");
+  });
 });
 
 describe("folder-share public access", () => {
@@ -413,5 +437,29 @@ describe("getDownloadTotal", () => {
   it("throws when the endpoint responds with a non-ok status", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     await expect(api.getDownloadTotal()).rejects.toThrow("failed to load download total");
+  });
+});
+
+describe("adminGetBugReportScreenshot", () => {
+  it("returns the image blob and throws on a failed response", async () => {
+    const blob = new Blob(["x"], { type: "image/jpeg" });
+    fetchMock.mockResolvedValueOnce({ ...mk(200, {}), blob: async () => blob } as unknown as Response);
+    expect(await api.adminGetBugReportScreenshot("b1")).toBe(blob);
+    expect(url()).toContain("/api/admin/bug-reports/b1/screenshot");
+
+    fetchMock.mockResolvedValueOnce(mk(404, {}));
+    await expect(api.adminGetBugReportScreenshot("b1")).rejects.toThrow();
+  });
+});
+
+describe("getMyReview", () => {
+  it("unwraps the review and passes null through", async () => {
+    const review = { id: "r1", rating: 5 };
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { review } }));
+    expect(await api.getMyReview()).toEqual(review);
+    expect(url()).toContain("/api/reviews/me");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { review: null } }));
+    expect(await api.getMyReview()).toBeNull();
   });
 });

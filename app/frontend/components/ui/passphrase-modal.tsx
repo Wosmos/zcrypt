@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { usePassphraseStore } from "@/store/passphrase";
 import { Lock, X, Loader2, Fingerprint } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
@@ -31,12 +32,14 @@ export function PassphraseModal({
   open,
   onConfirm,
   onClose,
-  title = "Enter Passphrase",
+  title,
   subtitle,
-  confirmLabel = "Confirm",
+  confirmLabel,
   error,
   verify,
 }: PassphraseModalProps) {
+  const t = useTranslations("passphrase");
+  const tc = useTranslations("common");
   const [passphrase, setPassphrase] = useState("");
   const rememberDevicePref = usePassphraseStore((s) => s.rememberDevice);
   const setRememberDevice = usePassphraseStore((s) => s.setRememberDevice);
@@ -106,7 +109,7 @@ export function PassphraseModal({
         }
         setVerifying(false);
         if (!ok) {
-          setLocalError("That passphrase doesn't match this vault. Check it and try again.");
+          setLocalError(t("mismatch"));
           inputRef.current?.focus();
           inputRef.current?.select();
           return; // keep the modal open; nothing cached, vault stays locked
@@ -121,7 +124,7 @@ export function PassphraseModal({
       onConfirm(candidate);
       setPassphrase("");
     },
-    [verifying, verify, remember, setRememberDevice, cachePassphrase, onConfirm],
+    [verifying, verify, remember, setRememberDevice, cachePassphrase, onConfirm, t],
   );
 
   const handleConfirm = useCallback(
@@ -134,23 +137,23 @@ export function PassphraseModal({
     setBioError(null);
     setBioBusy(true);
     try {
-      const ok = await biometricAuthenticate("Unlock your zcrypt vault");
+      const ok = await biometricAuthenticate(t("biometricPrompt"));
       if (!ok) {
-        setBioError("Touch ID didn't confirm, enter your passphrase instead.");
+        setBioError(t("bioNotConfirmed"));
         return;
       }
       const saved = await loadPassphrase();
       if (!saved) {
-        setBioError("No saved passphrase on this device, enter it instead.");
+        setBioError(t("bioNoSaved"));
         return;
       }
       await confirmWithPassphrase(saved);
     } catch {
-      setBioError("Touch ID failed, enter your passphrase instead.");
+      setBioError(t("bioFailed"));
     } finally {
       setBioBusy(false);
     }
-  }, [bioBusy, verifying, confirmWithPassphrase]);
+  }, [bioBusy, verifying, confirmWithPassphrase, t]);
 
   const handleClose = useCallback(() => {
     if (verifying || bioBusy) return; // don't dismiss mid-check
@@ -178,7 +181,7 @@ export function PassphraseModal({
               <Lock className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold">{title}</h3>
+              <h3 className="text-sm font-semibold">{title ?? t("defaultTitle")}</h3>
               {subtitle && (
                 <p className="text-xs text-[var(--color-text-muted)] max-w-[280px]">{subtitle}</p>
               )}
@@ -211,13 +214,13 @@ export function PassphraseModal({
               ) : (
                 <Fingerprint className="h-4 w-4 text-[var(--color-accent)]" />
               )}
-              {bioBusy ? "Waiting for Touch ID…" : "Unlock with Touch ID"}
+              {bioBusy ? t("bioWaiting") : t("bioUnlock")}
             </button>
             {bioError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>}
             <div className="mt-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-[var(--color-border)]" />
               <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
-                or use your passphrase
+                {t("orPassphrase")}
               </span>
               <div className="h-px flex-1 bg-[var(--color-border)]" />
             </div>
@@ -233,7 +236,7 @@ export function PassphraseModal({
           <input
             ref={inputRef}
             type="password"
-            placeholder="Your encryption passphrase"
+            placeholder={t("placeholder")}
             value={passphrase}
             onChange={(e) => {
               setPassphrase(e.target.value);
@@ -250,9 +253,7 @@ export function PassphraseModal({
               checked={remember}
               onCheckedChange={(checked) => setRemember(checked === true)}
             />
-            <span className="text-xs text-[var(--color-text-secondary)]">
-              Keep me unlocked on this device
-            </span>
+            <span className="text-xs text-[var(--color-text-secondary)]">{t("keepUnlocked")}</span>
           </label>
 
           <div className="flex gap-3 mt-5">
@@ -262,7 +263,7 @@ export function PassphraseModal({
               disabled={verifying || bioBusy}
               className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Cancel
+              {tc("cancel")}
             </button>
             <button
               type="submit"
@@ -270,7 +271,7 @@ export function PassphraseModal({
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {verifying && <Loader2 className="h-4 w-4 animate-spin" />}
-              {verifying ? "Unlocking…" : confirmLabel}
+              {verifying ? tc("unlocking") : (confirmLabel ?? tc("confirm"))}
             </button>
           </div>
         </form>

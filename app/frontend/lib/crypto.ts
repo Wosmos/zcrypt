@@ -78,15 +78,22 @@ export async function deriveKeyBytesCached(
   return bytes;
 }
 
-/** Encrypt a chunk. Returns [12B IV || ciphertext || 16B tag]. */
+function aesParams(iv: Uint8Array, aad?: Uint8Array): AesGcmParams {
+  const params: AesGcmParams = { name: "AES-GCM", iv: iv as BufferSource };
+  if (aad) params.additionalData = aad as BufferSource;
+  return params;
+}
+
+/** Encrypt a chunk. Returns [12B IV || ciphertext || 16B tag]. `aad` is authenticated, not stored. */
 export async function encryptChunk(
   keyBytes: ArrayBuffer,
   plaintext: Uint8Array,
+  aad?: Uint8Array,
 ): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(IV_SIZE));
   const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
   const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    aesParams(iv, aad),
     key,
     plaintext as BufferSource,
   );
@@ -98,12 +105,16 @@ export async function encryptChunk(
 }
 
 /** Decrypt a chunk. Input: [12B IV || ciphertext || 16B tag]. */
-export async function decryptChunk(keyBytes: ArrayBuffer, data: Uint8Array): Promise<Uint8Array> {
+export async function decryptChunk(
+  keyBytes: ArrayBuffer,
+  data: Uint8Array,
+  aad?: Uint8Array,
+): Promise<Uint8Array> {
   const iv = data.slice(0, IV_SIZE);
   const ciphertext = data.slice(IV_SIZE);
   const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
   const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    aesParams(iv, aad),
     key,
     ciphertext as BufferSource,
   );

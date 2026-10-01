@@ -14,6 +14,7 @@ import { generateCEK, resolveFileKey, wrapKey, toBase64, fromBase64 } from "@/li
 import { createFolderShare, getFileMeta, listFolderSubtree } from "@/lib/api";
 import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
 import { sealText, keyFromBytes } from "@/lib/sealed";
+import { sealFileNameForLink } from "@/lib/file-share";
 import { usePassphraseStore } from "@/store/passphrase";
 
 export interface FolderShareOptions {
@@ -103,6 +104,9 @@ export async function createFolderShareLink(
   // exact cloud tree. Needs the name key (folder names are E2E-encrypted). If the
   // subtree can't be loaded we leave paths off (flat zip) and flag it so the
   // caller can warn, never a silently half-nested link.
+  // The same name key also opens each file's name so it can be re-sealed under
+  // the folder-share key for the recipient.
+  let nameKey: CryptoKey | null = null;
   let folderPaths: Map<string, string> | null = null;
   let pathBuildFailed = false;
   try {
@@ -110,16 +114,17 @@ export async function createFolderShareLink(
     // (the auth store reads localStorage at creation).
     const { useAuthStore } = await import("@/store/auth");
     const userId = useAuthStore.getState().user?.id;
-    if (folderId && userId) {
-      const nameKey = await deriveNameKey(passphrase, userId);
-      folderPaths = await buildFolderPaths(folderId, nameKey);
+    if (userId) {
+      nameKey = await deriveNameKey(passphrase, userId);
+      if (folderId) folderPaths = await buildFolderPaths(folderId, nameKey);
     }
   } catch {
-    pathBuildFailed = true;
+    pathBuildFailed = Boolean(folderId);
     folderPaths = null;
   }
+  const linkKey = await keyFromBytes(folderKey);
 
-  const wraps: { file_id: string; wrapped_cek: string }[] = [];
+  const wraps: { file_id: string; wrapped_cek: string; name?: string }[] = [];
   const manifest: Record<string, string> = {}; // file_id -> relative directory (subfolder files only)
   let skipped = 0;
   for (const f of files) {
@@ -133,7 +138,15 @@ export async function createFolderShareLink(
       // the folder-share key so a recipient can decrypt with just the link.
       const cekBuf = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
       const wrapped = await wrapKey(folderKeyBuf, new Uint8Array(cekBuf));
-      wraps.push({ file_id: f.id, wrapped_cek: toBase64(wrapped) });
+      const sealedName = await sealFileNameForLink(
+        {
+          encrypted_name: meta.encrypted_name,
+          original_name: meta.original_name || f.original_name,
+        },
+        nameKey,
+        linkKey,
+      );
+      wraps.push({ file_id: f.id, wrapped_cek: toBase64(wrapped), name: sealedName });
 
       // Record the directory only when the file sits in a subfolder; files in the
       // shared root fall back to their filename on the recipient side.
@@ -153,7 +166,7 @@ export async function createFolderShareLink(
   // someone holding the link can read what the folder was called.
   const { token } = await createFolderShare({
     folder_id: folderId ?? undefined,
-    name: await sealText(name, await keyFromBytes(folderKey)),
+    name: await sealText(name, linkKey),
     files: wraps,
     password: opts.password || undefined,
     expires_in_hours: opts.expiresHours || undefined,

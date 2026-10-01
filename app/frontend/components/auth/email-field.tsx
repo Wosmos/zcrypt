@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Mail } from "@/lib/icons";
 
@@ -11,12 +12,13 @@ export function EmailField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const t = useTranslations("auth");
   return (
     <Input
-      label="Email"
+      label={t("email")}
       type="email"
       name="email"
-      placeholder="you@example.com"
+      placeholder={t("emailPlaceholder")}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       icon={<Mail className="h-4 w-4" />}

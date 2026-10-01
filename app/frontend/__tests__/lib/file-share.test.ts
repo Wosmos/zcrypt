@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createFileShareLink } from "@/lib/file-share";
+import { createFileShareLink, sealFileNameForLink } from "@/lib/file-share";
+import { decryptName } from "@/lib/name-crypto";
+import { userNameKey } from "@/lib/sealed";
 import { getFileMeta, createShare } from "@/lib/api";
 import { resolveFileKey, generateCEK, wrapKey } from "@/lib/crypto";
 import { invalidateShares } from "@/hooks/useShares";
@@ -20,6 +22,14 @@ vi.mock("@/lib/crypto", () => ({
   toBase64: vi.fn(() => "B64"),
   toArrayBuffer: vi.fn((u: Uint8Array) => u.buffer),
 }));
+vi.mock("@/lib/name-crypto", () => ({
+  decryptName: vi.fn(),
+}));
+vi.mock("@/lib/sealed", () => ({
+  sealText: vi.fn(async (t: string) => `enc1:${t}`),
+  keyFromBytes: vi.fn(async () => ({}) as CryptoKey),
+  userNameKey: vi.fn(),
+}));
 vi.mock("@/hooks/useShares", () => ({
   invalidateShares: vi.fn(),
 }));
@@ -31,6 +41,9 @@ const resolveFileKeyMock = vi.mocked(resolveFileKey);
 const generateCEKMock = vi.mocked(generateCEK);
 const wrapKeyMock = vi.mocked(wrapKey);
 const invalidateSharesMock = vi.mocked(invalidateShares);
+const decryptNameMock = vi.mocked(decryptName);
+const userNameKeyMock = vi.mocked(userNameKey);
+const nameKey = {} as CryptoKey;
 
 function unlockedWith(passphrase: string | null) {
   getState.mockReturnValue({ getPassphrase: () => passphrase } as ReturnType<
@@ -52,6 +65,27 @@ describe("createFileShareLink", () => {
     createShareMock.mockResolvedValue({ token: "tok123" } as Awaited<
       ReturnType<typeof createShare>
     >);
+    userNameKeyMock.mockResolvedValue(nameKey);
+    decryptNameMock.mockResolvedValue("report.pdf");
+  });
+
+  it("seals the owner's decrypted file name under the link key", async () => {
+    getFileMetaMock.mockResolvedValue({
+      salt: "c2FsdA==",
+      wrapped_cek: "d3JhcHBlZA==",
+      encrypted_name: "ENC",
+      original_name: "",
+    } as Awaited<ReturnType<typeof getFileMeta>>);
+    await createFileShareLink("file-1");
+    expect(decryptNameMock).toHaveBeenCalledWith("ENC", nameKey);
+    expect(createShareMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "enc1:report.pdf" })
+    );
+  });
+
+  it("sends no name when the file has none readable", async () => {
+    await createFileShareLink("file-1");
+    expect(createShareMock).toHaveBeenCalledWith(expect.objectContaining({ name: undefined }));
   });
 
   it("throws a friendly error when the vault is locked", async () => {
@@ -111,5 +145,32 @@ describe("createFileShareLink", () => {
   it("invalidates the shares cache for the file", async () => {
     await createFileShareLink("file-99");
     expect(invalidateSharesMock).toHaveBeenCalledWith("file-99");
+  });
+});
+
+describe("sealFileNameForLink", () => {
+  const linkKey = {} as CryptoKey;
+  beforeEach(() => vi.clearAllMocks());
+
+  it("falls back to the legacy plaintext name when decryption fails", async () => {
+    decryptNameMock.mockRejectedValue(new Error("bad key"));
+    await expect(
+      sealFileNameForLink({ encrypted_name: "ENC", original_name: "old.txt" }, nameKey, linkKey)
+    ).resolves.toBe("enc1:old.txt");
+  });
+
+  it("uses the legacy name when the vault name key is unavailable", async () => {
+    await expect(
+      sealFileNameForLink({ encrypted_name: "ENC", original_name: "old.txt" }, null, linkKey)
+    ).resolves.toBe("enc1:old.txt");
+    expect(decryptNameMock).not.toHaveBeenCalled();
+  });
+
+  it("returns undefined when no name exists at all", async () => {
+    decryptNameMock.mockResolvedValue("");
+    await expect(sealFileNameForLink({ encrypted_name: "ENC" }, nameKey, linkKey)).resolves.toBe(
+      undefined
+    );
+    await expect(sealFileNameForLink({}, nameKey, linkKey)).resolves.toBe(undefined);
   });
 });

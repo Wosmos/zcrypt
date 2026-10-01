@@ -77,6 +77,15 @@ TUI="$ROOT/app/tui"
 DESKTOP="$ROOT/app/desktop"
 CORE="$ROOT/app/core"
 LOGDIR="$(mktemp -d)"
+
+# golangci-lint defaults to one cache dir per machine (~/.cache or
+# ~/Library/Caches/golangci-lint), shared across every local checkout of this
+# repo. A plain (non --new-from-rev) lint run in one checkout can poison that
+# cache such that --new-from-rev in ANOTHER checkout wrongly reports
+# unrelated, untouched files as having "new" issues (observed directly: a
+# file with zero diff against origin/main still showed up as new). Give each
+# checkout its own cache so they can never cross-contaminate.
+export GOLANGCI_LINT_CACHE="$ROOT/.golangci-cache"
 trap 'rm -rf "$LOGDIR"' EXIT
 
 # ── commit-scoped versioning ───────────────────────────────────────────────────
@@ -124,6 +133,7 @@ jlog="$LOGDIR/jscpd.log"
 talog="$LOGDIR/typeaware.log"
 glog="$LOGDIR/golangci.log"
 tglog="$LOGDIR/golangci-tui.log"
+slog="$LOGDIR/gitleaks.log"
 
 hr()      { printf '%s────────────────────────────────────────────────────────────%s\n' "$DIM" "$RST"; }
 step()    { printf '\n%s▸ %s%s\n' "$BOLD" "$1" "$RST"; }
@@ -174,7 +184,7 @@ GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tes
             "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
             "desktop fmt" "desktop clippy" "desktop cargo check")
-INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint")
+INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint" "secret scan")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
               "backend new-code lint" "tui new-code lint")
 
@@ -532,7 +542,7 @@ if [ "$RUN_FE" = 1 ]; then
   step "frontend duplication ${DIM}(inspect · jscpd · ${MODE_LABEL})${RST}"
   jlog="$LOGDIR/jscpd.log"
   (cd "$FE" && bun run dupes) >"$jlog" 2>&1
-  jcount="$(grep -oE 'Found [0-9]+ clones' "$jlog" | grep -oE '[0-9]+' | head -1)"; jcount="${jcount:-0}"
+  jcount="$(grep -oE 'Found [0-9]+ (exact )?clones' "$jlog" | grep -oE '[0-9]+' | head -1)"; jcount="${jcount:-0}"
   jtotal="$(grep -E '^\s*Total:' "$jlog" | head -1 | tr -s ' ')"
   [ "$jcount" -gt 0 ] && { [ -n "$jtotal" ] && note "$jtotal"; note "→ cd app/frontend && bun run dupes"; }
   handle_backlog "frontend duplication" "$jcount"
@@ -560,6 +570,29 @@ if command -v golangci-lint >/dev/null 2>&1; then
 elif [ "$RUN_BE" = 1 ] || [ "$RUN_TUI" = 1 ]; then
   step "go deep lint ${DIM}(inspect)${RST}"
   warnln "golangci-lint not installed, skipping (brew install golangci-lint)"
+fi
+
+# gitleaks: secret scanning, scoped to the commits being pushed (vs $BASE), not
+# the whole repo history. Advisory only, never blocks: a real hit here means
+# rotate the secret and clean history, which is a human decision, not something
+# a push gate should auto-fail on. A separate CI job does a full-repo sweep.
+if command -v gitleaks >/dev/null 2>&1; then
+  step "secret scan ${DIM}(inspect · gitleaks · diff vs ${BASE})${RST}"
+  if (cd "$ROOT" && gitleaks detect --source . --log-opts="${BASE}..HEAD" \
+        --no-banner -v) >"$slog" 2>&1; then
+    PASS+=("secret scan"); ok "no new secrets in pushed commits"
+  else
+    scount="$(grep -cE '^Finding:' "$slog" 2>/dev/null || echo 0)"
+    if [ "$scount" -gt 0 ]; then
+      WARN+=("secret scan"); warnln "${scount} potential secret(s) in pushed commits, advisory: review before pushing"
+      note "→ cd $ROOT && gitleaks detect --source . --log-opts=\"${BASE}..HEAD\" -v"
+    else
+      WARN+=("secret scan"); warnln "gitleaks scan did not complete cleanly, see docs/report.md"
+    fi
+  fi
+else
+  step "secret scan ${DIM}(inspect)${RST}"
+  warnln "gitleaks not installed, skipping (brew install gitleaks)"
 fi
 
 fi  # end: RUN_INSPECT guard
@@ -614,7 +647,7 @@ if [ "$ENFORCE" = 1 ]; then
     step "frontend new-code duplication ${DIM}(harden · jscpd on changed files)${RST}"
     hlog="$LOGDIR/frontend_new-code_duplication.log"
     (cd "$FE" && bunx jscpd --silent "${fe_arr[@]}") >"$hlog" 2>&1
-    hclones="$(grep -oE 'Found [0-9]+ clones' "$hlog" | head -1)"
+    hclones="$(grep -oE 'Found [0-9]+ (exact )?clones' "$hlog" | head -1)"
     if [ -z "$hclones" ] || echo "$hclones" | grep -q 'Found 0 '; then
       PASS+=("frontend new-code duplication"); ok "no copy-paste in changed files"
     else
@@ -738,6 +771,10 @@ write_report() {
     echo "## TUI deep lint, golangci-lint"
     echo
     fence "$tglog"
+    echo
+    echo "## Secret scan, gitleaks"
+    echo
+    fence "$slog"
 
     # failing-gate logs, if any
     if [ "${#FAIL[@]}" -gt 0 ]; then

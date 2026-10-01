@@ -48,6 +48,7 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
@@ -59,8 +60,9 @@ import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
 import { moveFolder, createFolder as apiCreateFolder } from "@/lib/api";
-import { deriveNameKey, encryptName, type CustomStyle } from "@/lib/name-crypto";
-import { updateFileStyle as apiUpdateFileStyle } from "@/store/files";
+import { encryptName, type CustomStyle } from "@/lib/name-crypto";
+import { nameKeyFor } from "@/lib/sealed";
+import { updateFileStyle as apiUpdateFileStyle, renameFile as apiRenameFile } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getFileCategory, cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
@@ -74,6 +76,13 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import { verifyVaultPassphrase } from "@/lib/vault-verify";
 import { FileTypeFilter } from "@/components/files/file-type-filter";
+import {
+  EMPTY_ENTRY_FILTERS,
+  hasActiveFilters,
+  matchesSizeFacet,
+  matchesDateFacet,
+  type EntryFilters,
+} from "./explorer/filter-popover";
 import {
   Dialog,
   DialogContent,
@@ -95,6 +104,8 @@ import {
   ArrowDown,
   CheckSquare,
   Square,
+  Edit,
+  Share2,
 } from "@/lib/icons";
 
 import { ExplorerToolbar } from "./explorer/explorer-toolbar";
@@ -136,6 +147,8 @@ export interface VaultExplorerProps {
 
   onBulkDelete?: (ids: string[]) => void;
   onBulkDownload?: (ids: string[]) => void;
+  onBulkMove?: (ids: string[]) => void;
+  onBulkShare?: (ids: string[]) => void;
 
   onUploadClick?: () => void;
 
@@ -179,12 +192,20 @@ function ColHeader({
   onSort: (f: SortField) => void;
   className?: string;
 }) {
+  const t = useTranslations("explorer");
   const isActive = field === sortField;
   return (
     <button
       type="button"
       onClick={() => onSort(field)}
-      aria-label={`Sort by ${label}${isActive ? `, currently ${sortDir === "asc" ? "ascending" : "descending"}` : ""}`}
+      aria-label={
+        isActive
+          ? t("sortByCurrent", {
+              label,
+              direction: sortDir === "asc" ? t("ascending") : t("descending"),
+            })
+          : t("sortBy", { label })
+      }
       className={cn(
         "flex items-center gap-1.5 rounded text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
         className,
@@ -215,6 +236,8 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       onOpenFile,
       onBulkDelete,
       onBulkDownload,
+      onBulkMove,
+      onBulkShare,
       onUploadClick,
       search: searchProp,
       onSearchChange,
@@ -246,6 +269,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       breadcrumb,
       currentFolderId,
     } = useFolders();
+    const t = useTranslations("explorer");
+    const tc = useTranslations("common");
+    const tp = useTranslations("passphrase");
 
     // Opening a folder is gated by the page when `onOpenFolderRequest` is supplied
     // (a protected folder verifies its password before navigating in). Otherwise
@@ -268,7 +294,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const [internalSearch, setInternalSearch] = useState("");
     const search = searchProp ?? internalSearch;
     const setSearch = onSearchChange ?? setInternalSearch;
-    const [typeFilter, setTypeFilter] = useState<string | null>(null);
+    const [filters, setFilters] = useState<EntryFilters>(EMPTY_ENTRY_FILTERS);
 
     const [selectMode, setSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -332,7 +358,12 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         search
           ? folderFiles.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase()))
           : folderFiles
-      ).filter((f) => (typeFilter ? getFileCategory(f.original_name) === typeFilter : true));
+      )
+        .filter(
+          (f) => filters.types.size === 0 || filters.types.has(getFileCategory(f.original_name)),
+        )
+        .filter((f) => matchesSizeFacet(f.original_size, filters.size))
+        .filter((f) => matchesDateFacet(f.created_at, filters.date));
 
       const dir = sortDir === "asc" ? 1 : -1;
       return matched.slice().sort((a, b) => {
@@ -356,7 +387,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             return 0;
         }
       });
-    }, [folderFiles, search, typeFilter, sortField, sortDir]);
+    }, [folderFiles, search, filters, sortField, sortDir]);
 
     // Folders are filtered by the same search term (their names are decrypted),
     // and always sorted by name. Folders render FIRST, then files.
@@ -364,10 +395,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const matched = search
         ? folders.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
         : folders;
-      // Type filter applies to files only; when active, hide folders.
-      if (typeFilter) return [];
+      // Type/size/date filters apply to files only; when any is active, hide folders.
+      if (hasActiveFilters(filters)) return [];
       return matched.slice().sort((a, b) => a.name.localeCompare(b.name));
-    }, [folders, search, typeFilter]);
+    }, [folders, search, filters]);
 
     const entries: ExplorerEntry[] = useMemo(
       () => [
@@ -669,7 +700,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       moveFolder(item.id, destId)
         .then(() => refreshFolders())
         .catch((err) => {
-          toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
+          toast.error(
+            err instanceof Error ? err.message : t("toastMoveFailed", { name: prevName }),
+          );
           void refreshFolders();
         });
     };
@@ -875,6 +908,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const [busy, setBusy] = useState(false);
     const [renameTarget, setRenameTarget] = useState<DecryptedFolder | null>(null);
     const [renameValue, setRenameValue] = useState("");
+    const [renameFileTarget, setRenameFileTarget] = useState<FileMetadata | null>(null);
+    const [renameFileValue, setRenameFileValue] = useState("");
+    const [renameFileBusy, setRenameFileBusy] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<DecryptedFolder | null>(null);
     // "Get info" target: the folder whose details drawer is open.
     const [detailsFolder, setDetailsFolder] = useState<DecryptedFolder | null>(null);
@@ -937,7 +973,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         setShowCreate(false);
         setNewName("");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to create folder");
+        toast.error(err instanceof Error ? err.message : t("toastCreateFolderFailed"));
       } finally {
         setBusy(false);
       }
@@ -952,9 +988,29 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         await renameFolder(renameTarget.id, name);
         setRenameTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to rename folder");
+        toast.error(err instanceof Error ? err.message : t("toastRenameFolderFailed"));
       } finally {
         setBusy(false);
+      }
+    };
+
+    const startRenameFile = (file: FileMetadata) => {
+      setRenameFileTarget(file);
+      setRenameFileValue(file.original_name);
+    };
+
+    const handleRenameFile = async () => {
+      if (!renameFileTarget) return;
+      const name = renameFileValue.trim();
+      if (!name) return;
+      setRenameFileBusy(true);
+      try {
+        await apiRenameFile(renameFileTarget.id, name);
+        setRenameFileTarget(null);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("toastRenameFileFailed"));
+      } finally {
+        setRenameFileBusy(false);
       }
     };
 
@@ -977,7 +1033,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         }
         setCustomizeTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to update customization");
+        toast.error(err instanceof Error ? err.message : t("toastCustomizeFailed"));
         throw err;
       }
     };
@@ -989,7 +1045,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         await deleteFolder(deleteTarget.id);
         setDeleteTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to delete folder");
+        toast.error(err instanceof Error ? err.message : t("toastDeleteFolderFailed"));
       } finally {
         setBusy(false);
       }
@@ -1006,7 +1062,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const passphrase = usePassphraseStore.getState().getPassphrase();
       const user = useAuthStore.getState().user;
       if (!passphrase || !user) {
-        toast.error("Unlock your vault to create a folder.");
+        toast.error(t("toastUnlockToCreate"));
         throw new Error("locked");
       }
       try {
@@ -1017,7 +1073,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
           throw new Error(`A folder named "${trimmed}" already exists here.`);
         }
-        const key = await deriveNameKey(passphrase, user.id);
+        const key = await nameKeyFor(passphrase, user.id);
         const encrypted_name = await encryptName(trimmed, key);
         const folder = await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
         await refreshFolders();
@@ -1027,21 +1083,26 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         onMoveFile?.(target.id, folder.id);
         setCombinePair(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Couldn't create the folder");
+        toast.error(err instanceof Error ? err.message : t("toastCreateFolderFailedShort"));
         throw err;
       }
     };
 
     // ── Action bundle forwarded to rows/cards ───────────────────────────────────
-    const actions: ExplorerActions = {
-      onPreview,
-      onDownload,
-      onShare,
-      onOpenDetails,
-      onDelete,
-      onMoveFile,
-      onMoveRequest,
-    };
+    // Memoized: the row/card memo comparator checks `actions` by identity, so a
+    // fresh object each render would re-render every item on any state change.
+    const actions = useMemo<ExplorerActions>(
+      () => ({
+        onPreview,
+        onDownload,
+        onShare,
+        onOpenDetails,
+        onDelete,
+        onMoveFile,
+        onMoveRequest,
+      }),
+      [onPreview, onDownload, onShare, onOpenDetails, onDelete, onMoveFile, onMoveRequest],
+    );
 
     // ── Motion (reduced-motion safe stagger) ────────────────────────────────────
     const itemMotion = animateList
@@ -1063,7 +1124,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     //   (a) "truly empty folder", nothing exists at this level AND no filter/
     //       search is narrowing it, or
     //   (b) "no results": a search term or type-filter matched nothing.
-    const hasFilter = search !== "" || typeFilter !== null;
+    const hasFilter = search !== "" || hasActiveFilters(filters);
     const isListingEmpty = !isLoading && entries.length === 0;
     const isNoResults = isListingEmpty && hasFilter;
     const isEmptyFolder = isListingEmpty && !hasFilter;
@@ -1119,6 +1180,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                     currentStyle: file.style ?? null,
                   })
                 }
+                onRenameFile={startRenameFile}
                 drag={dragPropsFor(entry)}
               />
             </motion.div>
@@ -1147,32 +1209,29 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           onGridColsChange={changeGridCols}
           selectMode={selectMode}
           onToggleSelect={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+          files={folderFiles}
+          filters={filters}
+          onFiltersChange={setFilters}
         />
 
-        {/* Type-filter chips (second line). Hidden in select mode for focus.
-          DESKTOP renders the chips exactly as before (bare, nothing when there's
-          ≤1 type). On MOBILE the chips get icon glyphs and stick under the search
-          bar; New folder + Upload live in the floating "+" FAB (VaultFab). */}
-        {!selectMode &&
-          (isMobile ? (
-            // Sticks just under the sticky search bar (top matches its stuck
-            // height). Full-bleed solid bg + border so vault content scrolls
-            // cleanly beneath it with no leak.
-            <div className="sticky top-[55px] z-10 -mx-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-              <FileTypeFilter
-                compact
-                files={folderFiles}
-                activeFilter={typeFilter}
-                onFilter={setTypeFilter}
-              />
-            </div>
-          ) : (
+        {/* Mobile-only type-filter chips: the toolbar's Filter popover (type +
+          size + date) is desktop-only (matches view/density/Select, already
+          hidden on mobile), so mobile keeps its own compact single-select type
+          row, bridged onto the SAME `filters.types` set (at most one entry on
+          mobile) rather than a second, separate piece of state. Sticks just
+          under the sticky search bar; hidden in select mode for focus. */}
+        {!selectMode && isMobile && (
+          <div className="sticky top-[55px] z-10 -mx-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
             <FileTypeFilter
+              compact
               files={folderFiles}
-              activeFilter={typeFilter}
-              onFilter={setTypeFilter}
+              activeFilter={filters.types.size === 1 ? Array.from(filters.types)[0] : null}
+              onFilter={(cat: string | null) =>
+                setFilters((f) => ({ ...f, types: cat ? new Set([cat]) : new Set() }))
+              }
             />
-          ))}
+          </div>
+        )}
 
         {/* Locked hint, non-blocking; listing still works. This is the single
           contextual lock affordance in the listing (M6/L11 removed the noisy
@@ -1213,6 +1272,26 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   onClick={() => onBulkDownload(Array.from(selectedIds))}
                 >
                   <Download className="h-3.5 w-3.5" /> Download
+                </Button>
+              )}
+              {onBulkMove && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => onBulkMove(Array.from(selectedIds))}
+                >
+                  <FolderOpen className="h-3.5 w-3.5" /> Move
+                </Button>
+              )}
+              {onBulkShare && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => onBulkShare(Array.from(selectedIds))}
+                >
+                  <Share2 className="h-3.5 w-3.5" /> Share
                 </Button>
               )}
               {onBulkDelete && (
@@ -1269,17 +1348,17 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         ) : isEmptyFolder ? (
           <EmptyState
             icon={<FolderIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="This folder is empty"
-            description="Upload encrypted files or create a folder to organize them. Names are end-to-end encrypted."
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
             action={
               <div className="flex items-center justify-center gap-2">
                 {onUploadClick && (
                   <Button size="sm" onClick={onUploadClick}>
-                    Upload files
+                    {t("uploadFiles")}
                   </Button>
                 )}
                 <Button variant="secondary" size="sm" onClick={startCreate}>
-                  New folder
+                  {t("newFolder")}
                 </Button>
               </div>
             }
@@ -1287,11 +1366,13 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         ) : isNoResults ? (
           <EmptyState
             icon={<Search className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No matches"
+            title={t("noMatches")}
             description={
-              typeFilter
-                ? `No ${typeFilter.toLowerCase()} items${search ? ` matching "${search}"` : ""} in this folder.`
-                : `Nothing matches "${search}" in this folder.`
+              hasActiveFilters(filters)
+                ? search
+                  ? t("noMatchesFilteredFor", { search })
+                  : t("noMatchesFiltered")
+                : t("noMatchesSearch", { search })
             }
             action={
               <Button
@@ -1299,10 +1380,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 size="sm"
                 onClick={() => {
                   setSearch("");
-                  setTypeFilter(null);
+                  setFilters(EMPTY_ENTRY_FILTERS);
                 }}
               >
-                Clear filters
+                {t("clearFilters")}
               </Button>
             }
           />
@@ -1312,7 +1393,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             <div className="hidden items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5 sm:flex">
               <span className="w-9 flex-shrink-0" />
               <ColHeader
-                label="Name"
+                label={t("colName")}
                 field="name"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1320,7 +1401,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="flex-1"
               />
               <ColHeader
-                label="Type"
+                label={t("colType")}
                 field="type"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1328,7 +1409,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="w-[110px] flex-shrink-0"
               />
               <ColHeader
-                label="Size"
+                label={t("colSize")}
                 field="size"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1336,7 +1417,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="w-[80px] flex-shrink-0 justify-end"
               />
               <ColHeader
-                label="Saved"
+                label={t("colSaved")}
                 field="saved"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1344,7 +1425,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="hidden w-[64px] flex-shrink-0 justify-end md:flex"
               />
               <ColHeader
-                label="Modified"
+                label={t("colModified")}
                 field="date"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1417,14 +1498,14 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         <Dialog open={showCreate} onOpenChange={(o) => !o && setShowCreate(false)}>
           <DialogContent className={DIALOG_PANEL}>
             <DialogHeader>
-              <DialogTitle>New folder</DialogTitle>
+              <DialogTitle>{t("newFolder")}</DialogTitle>
               <DialogDescription className="text-[var(--color-text-secondary)]">
-                The folder name is encrypted end-to-end before it leaves your device.
+                {t("newFolderDescription")}
               </DialogDescription>
             </DialogHeader>
             <Input
               autoFocus
-              placeholder="Folder name"
+              placeholder={t("folderName")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -1437,10 +1518,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 onClick={() => setShowCreate(false)}
                 disabled={busy}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button size="sm" onClick={handleCreate} disabled={busy || !newName.trim()}>
-                {busy ? "Creating..." : "Create"}
+                {busy ? tc("creating") : tc("create")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1450,11 +1531,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         <Dialog open={!!renameTarget} onOpenChange={(o) => !o && setRenameTarget(null)}>
           <DialogContent className={DIALOG_PANEL}>
             <DialogHeader>
-              <DialogTitle>Rename folder</DialogTitle>
+              <DialogTitle>{t("renameFolder")}</DialogTitle>
             </DialogHeader>
             <Input
               autoFocus
-              placeholder="Folder name"
+              placeholder={t("folderName")}
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleRename()}
@@ -1467,10 +1548,44 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 onClick={() => setRenameTarget(null)}
                 disabled={busy}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button size="sm" onClick={handleRename} disabled={busy || !renameValue.trim()}>
-                {busy ? "Saving..." : "Save"}
+                {busy ? tc("saving") : tc("save")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename file dialog */}
+        <Dialog open={!!renameFileTarget} onOpenChange={(o) => !o && setRenameFileTarget(null)}>
+          <DialogContent className={DIALOG_PANEL}>
+            <DialogHeader>
+              <DialogTitle>{t("renameFile")}</DialogTitle>
+            </DialogHeader>
+            <Input
+              autoFocus
+              placeholder={t("fileName")}
+              value={renameFileValue}
+              onChange={(e) => setRenameFileValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleRenameFile()}
+              icon={<Edit className="h-4 w-4" />}
+            />
+            <DialogFooter className="gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setRenameFileTarget(null)}
+                disabled={renameFileBusy}
+              >
+                {tc("cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleRenameFile}
+                disabled={renameFileBusy || !renameFileValue.trim()}
+              >
+                {renameFileBusy ? tc("saving") : tc("save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1492,9 +1607,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           onOpenChange={(o) => !o && setDeleteTarget(null)}
           onConfirm={handleDeleteFolder}
           destructive
-          title="Delete folder?"
-          description="This folder and its contents will be moved to Trash. Files inside can be restored from Deleted Files."
-          confirmLabel="Delete folder"
+          title={t("deleteFolderTitle")}
+          description={t("deleteFolderDescription")}
+          confirmLabel={t("deleteFolderConfirm")}
           loading={busy}
         />
 
@@ -1516,9 +1631,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             setShowUnlock(false);
             pendingAction.current = null;
           }}
-          title="Unlock your vault"
-          subtitle="Enter your passphrase to decrypt, preview, and download your files"
-          confirmLabel="Unlock"
+          title={tp("unlockTitle")}
+          subtitle={tp("unlockSubtitle")}
+          confirmLabel={tc("unlock")}
         />
       </div>
     );

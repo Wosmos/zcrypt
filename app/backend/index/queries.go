@@ -1431,9 +1431,9 @@ func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.File
 // CreateShare inserts a new share link.
 func (db *DB) CreateShare(ctx context.Context, s *types.ShareLink) error {
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO shares (id, file_id, user_id, token, password_hash, wrapped_cek, expires_at, max_downloads)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		s.ID, s.FileID, s.UserID, s.Token, s.PasswordHash, s.WrappedCEK, s.ExpiresAt, s.MaxDownloads,
+		`INSERT INTO shares (id, file_id, user_id, token, password_hash, wrapped_cek, enc_name, expires_at, max_downloads)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		s.ID, s.FileID, s.UserID, s.Token, s.PasswordHash, s.WrappedCEK, s.EncName, s.ExpiresAt, s.MaxDownloads,
 	)
 	if err != nil {
 		return fmt.Errorf("create share: %w", err)
@@ -1445,9 +1445,9 @@ func (db *DB) CreateShare(ctx context.Context, s *types.ShareLink) error {
 func (db *DB) GetShareByToken(ctx context.Context, token string) (*types.ShareLink, error) {
 	s := &types.ShareLink{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, file_id, user_id, token, password_hash, wrapped_cek, expires_at, max_downloads, download_count, revoked, created_at
+		`SELECT id, file_id, user_id, token, password_hash, wrapped_cek, enc_name, expires_at, max_downloads, download_count, revoked, created_at
 		 FROM shares WHERE token = $1`, token,
-	).Scan(&s.ID, &s.FileID, &s.UserID, &s.Token, &s.PasswordHash, &s.WrappedCEK, &s.ExpiresAt, &s.MaxDownloads, &s.DownloadCount, &s.Revoked, &s.CreatedAt)
+	).Scan(&s.ID, &s.FileID, &s.UserID, &s.Token, &s.PasswordHash, &s.WrappedCEK, &s.EncName, &s.ExpiresAt, &s.MaxDownloads, &s.DownloadCount, &s.Revoked, &s.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get share by token: %w", err)
 	}
@@ -1499,13 +1499,9 @@ func (db *DB) RevokeShare(ctx context.Context, userID, shareID string) error {
 	return nil
 }
 
-// IncrementShareDownloads atomically increments the download count.
-func (db *DB) IncrementShareDownloads(ctx context.Context, shareID string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE shares SET download_count = download_count + 1 WHERE id = $1`, shareID,
-	)
-	if err != nil {
-		return fmt.Errorf("increment share downloads: %w", err)
-	}
-	return nil
+// CompleteShareDownload records one finished download for a public file link,
+// keyed by the ticket nonce so retries count once. It reports whether the
+// download was counted; the increment is skipped once the cap is already met.
+func (db *DB) CompleteShareDownload(ctx context.Context, shareID, nonce string) (DownloadCompletion, error) {
+	return db.completeDownload(ctx, "shares", shareID, nonce)
 }

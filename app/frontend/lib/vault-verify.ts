@@ -1,6 +1,7 @@
 import { getFileMeta } from "@/lib/api";
 import { ensureFiles } from "@/store/files";
 import { resolveFileKey, fromBase64, IncorrectPassphraseError } from "@/lib/crypto";
+import { useFolderRegistry } from "@/store/folder-registry";
 
 /**
  * Verify a typed vault passphrase WITHOUT a stored verifier, by reusing an
@@ -30,19 +31,31 @@ export async function verifyVaultPassphrase(passphrase: string): Promise<boolean
   }
   if (!files.length) return true; // empty vault, nothing to verify against yet
 
-  // Probe a few files until one has an envelope CEK we can test against. Most
-  // files are envelope (v2); legacy files (no wrapped_cek) can't be unwrap-tested.
-  for (const file of files.slice(0, 5)) {
+  // Fetch a few candidates' metadata in parallel (the network is the slow part),
+  // then unwrap-test the envelope ones in order. Legacy files (no wrapped_cek)
+  // can't be unwrap-tested. One success is proof. A rejection is proof only for
+  // a file known to sit outside a password-protected folder (such a file rejects
+  // the vault passphrase without it being wrong), so each PBKDF2 derivation past
+  // the first is paid only for files whose folder protection is unknown.
+  const registry = useFolderRegistry.getState();
+  const candidates = files
+    .filter((f) => !f.folder_id || !registry.isProtected(f.folder_id))
+    .sort((a, b) => Number(!!a.folder_id) - Number(!!b.folder_id))
+    .slice(0, 5);
+  const conclusive = (folderId: string | null | undefined) =>
+    !folderId || registry.get(folderId) != null;
+  const metas = await Promise.all(candidates.map((file) => getFileMeta(file.id).catch(() => null)));
+  let rejected = false;
+  for (const [i, meta] of metas.entries()) {
+    if (!meta?.wrapped_cek) continue;
     try {
-      const meta = await getFileMeta(file.id);
-      if (!meta.wrapped_cek) continue; // legacy file: skip, not verifiable this way
-      // Throws IncorrectPassphraseError iff the passphrase is wrong.
       await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
       return true; // unwrap succeeded → passphrase is correct
     } catch (err) {
-      if (err instanceof IncorrectPassphraseError) return false; // definitively wrong
-      // Any other error (network / odd file), try the next candidate.
+      if (!(err instanceof IncorrectPassphraseError)) continue; // odd file, try the next
+      if (conclusive(candidates[i].folder_id)) return false;
+      rejected = true;
     }
   }
-  return true; // couldn't conclusively check any file. Don't block unlock
+  return !rejected; // nothing conclusive either way: don't block unlock
 }

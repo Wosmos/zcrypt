@@ -3,7 +3,7 @@ import { Box, Lock, Server } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
@@ -57,8 +57,7 @@ export default function BringYourOwnStoragePage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -76,7 +75,7 @@ export default function BringYourOwnStoragePage() {
                 key={a.name}
                 className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-3 dark:bg-white/[0.02]"
               >
-                <a.Icon className="h-5 w-5 text-cyan-500" />
+                <a.Mark className="h-5 w-5" />
                 <div className="mt-2 text-xs font-semibold">{a.name}</div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
                   {a.capacity}
@@ -106,40 +105,28 @@ export default function BringYourOwnStoragePage() {
       </FeatureHero>
 
       {/* ═══ ADAPTERS DETAIL ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {adaptersSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">{adaptersSection.subheading}</p>
-          </div>
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
-            {adapters.map((a) => (
-              <li key={a.name}>
-                <article className="card p-6 transition-colors hover:border-cyan-500/30">
-                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <a.Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-sm font-bold">{a.name}</h3>
-                  <p className="mt-1 font-mono text-xs text-cyan-600 dark:text-cyan-400">
-                    {a.capacity}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                    {a.note}
-                  </p>
-                </article>
-              </li>
-            ))}
-          </ul>
-          <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-[var(--color-text-muted)]">
-            {adaptersSection.footnote}
-          </p>
-        </div>
-      </section>
+      <CapabilityGrid
+        eyebrow="Where your files live"
+        heading={adaptersSection.heading}
+        subheading={adaptersSection.subheading}
+        columns={4}
+        footnote={adaptersSection.footnote}
+        items={adapters.map((a) => ({
+          Icon: a.Mark,
+          title: a.name,
+          desc: (
+            <>
+              <span className="mb-1.5 block font-mono text-xs text-[var(--pv2-accent-ink)]">
+                {a.capacity}
+              </span>
+              {a.note}
+            </>
+          ),
+        }))}
+      />
 
       {/* ═══ HOW IT GROWS ═══ */}
-      <CapabilityGrid items={capabilities} sectionClassName="px-4 pb-4" />
+      <CapabilityGrid items={capabilities} join />
 
       {/* ═══ OWNERSHIP TIE-IN ═══ */}
       <TieInSection
@@ -178,12 +165,8 @@ export default function BringYourOwnStoragePage() {
       />
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

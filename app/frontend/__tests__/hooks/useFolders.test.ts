@@ -39,6 +39,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { useFolderStore } from "@/store/folders";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
+import { ensureNames } from "@/lib/file-names";
 import * as nameCrypto from "@/lib/name-crypto";
 import * as api from "@/lib/api";
 import type { Folder } from "@/types";
@@ -65,6 +66,15 @@ const USER: AuthUser = { id: "user-1", email: "a@example.com" } as AuthUser;
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
+// Names resolve a beat after the raw list lands (decrypted into the shared name
+// maps), so wait for both the rows and their names.
+async function settled(result: { current: ReturnType<typeof useFolders> }, n: number) {
+  await waitFor(() => {
+    expect(result.current.folders).toHaveLength(n);
+    expect(result.current.folders.every((f) => f.name !== "")).toBe(true);
+  });
 }
 
 function renderFolders() {
@@ -95,7 +105,7 @@ describe("useFolders", () => {
 
       const { result } = renderFolders();
 
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
       expect(result.current.locked).toBe(true);
       expect(result.current.folders[0].name).toBe("[locked]");
     });
@@ -108,7 +118,7 @@ describe("useFolders", () => {
 
       const { result } = renderFolders();
 
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
       expect(result.current.locked).toBe(true);
       expect(result.current.folders[0].name).toBe("[locked]");
     });
@@ -149,7 +159,7 @@ describe("useFolders", () => {
 
       const { result } = renderFolders();
 
-      await waitFor(() => expect(result.current.folders).toHaveLength(2));
+      await settled(result, 2);
       expect(result.current.locked).toBe(false);
 
       const byId = Object.fromEntries(result.current.folders.map((f) => [f.id, f]));
@@ -190,7 +200,7 @@ describe("useFolders", () => {
 
       const { result } = renderFolders();
 
-      await waitFor(() => expect(result.current.folders).toHaveLength(3));
+      await settled(result, 3);
       // Vault-level lock state is unaffected: the KEY is present and valid.
       expect(result.current.locked).toBe(false);
 
@@ -211,14 +221,14 @@ describe("useFolders", () => {
       ]);
 
       const { result } = renderFolders();
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
       const callsAfterFirstDecrypt = deriveSpy.mock.calls.length;
       expect(callsAfterFirstDecrypt).toBeGreaterThan(0);
 
       await act(async () => {
         await result.current.refresh();
       });
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
 
       // Same passphrase on refresh -> the cached CryptoKey is reused, no re-derive.
       expect(deriveSpy.mock.calls.length).toBe(callsAfterFirstDecrypt);
@@ -340,7 +350,7 @@ describe("useFolders", () => {
       ]);
 
       const { result } = renderFolders();
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
 
       await expect(result.current.createFolder("  docs ")).rejects.toThrow(
         'A folder named "docs" already exists here.'
@@ -394,7 +404,7 @@ describe("useFolders", () => {
       vi.mocked(api.renameFolder).mockResolvedValue({ success: true });
 
       const { result } = renderFolders();
-      await waitFor(() => expect(result.current.folders).toHaveLength(2));
+      await settled(result, 2);
 
       // Colliding with a DIFFERENT folder is rejected.
       await expect(result.current.renameFolder("f2", "alpha")).rejects.toThrow(
@@ -518,7 +528,7 @@ describe("useFolders", () => {
       ]);
 
       const { result } = renderFolders();
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
 
       act(() => {
         result.current.openFolder(result.current.folders[0]);
@@ -537,7 +547,7 @@ describe("useFolders", () => {
       ]);
 
       const { result } = renderFolders();
-      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+      await settled(result, 1);
 
       act(() => {
         result.current.openFolder(result.current.folders[0]);
@@ -573,6 +583,33 @@ describe("useFolders", () => {
       renderFolders();
 
       await waitFor(() => expect(useFolderRegistry.getState().isProtected("f1")).toBe(true));
+    });
+
+    it("does not re-record when only a name decrypts elsewhere (epoch bump)", async () => {
+      useAuthStore.getState().setUser(USER);
+      usePassphraseStore.getState().setPassphrase("vault-pass");
+      const key = await deriveNameKey("vault-pass", USER.id);
+      vi.mocked(api.listFolders).mockResolvedValue([
+        {
+          id: "f1",
+          user_id: USER.id,
+          parent_id: null,
+          encrypted_name: await encryptName("Vault", key),
+          created_at: "t",
+        },
+      ]);
+      const record = vi.spyOn(useFolderRegistry.getState(), "record");
+
+      const { result } = renderFolders();
+      await waitFor(() => expect(result.current.folders[0]?.name).toBe("Vault"));
+      const calls = record.mock.calls.length;
+
+      await act(async () => {
+        await ensureNames([await encryptName("Elsewhere", key)]);
+      });
+
+      expect(record.mock.calls.length).toBe(calls);
+      record.mockRestore();
     });
   });
 });

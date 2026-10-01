@@ -98,12 +98,16 @@ func main() {
 
 	// Graceful shutdown on SIGINT/SIGTERM
 	var srv *http.Server // set after routes are configured
+	streamCtx, cancelStreams := context.WithCancel(context.Background())
+	defer cancelStreams()
+	shutdownDone := make(chan struct{})
 	go func() {
+		defer close(shutdownDone)
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
 		slog.Info("shutting down gracefully", "deadline", "30s")
-		cancel() // cancel background workers
+		cancelStreams() // close SSE/WebSocket streams so the drain is quick
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
@@ -113,6 +117,8 @@ func main() {
 				log.Printf("shutdown error: %v", err)
 			}
 		}
+		server.WaitBackground(shutdownCtx)
+		cancel() // background workers stop after in-flight requests drain
 		db.Close()
 	}()
 
@@ -128,7 +134,7 @@ func main() {
 	} else {
 		rateLimited = cmd.RateLimitMiddleware(200, time.Second, cfg.TrustedProxyCount, mux)
 	}
-	handler := requestLogger(corsMiddleware(exemptLongLived(rateLimited, mux)))
+	handler := requestLogger(corsMiddleware(server.MaintenanceGate(exemptLongLived(streamCtx, rateLimited, mux))))
 
 	// Register every API route. This is the single source of truth for the
 	// route table, shared with the integration test harness (see
@@ -158,13 +164,18 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server: %v", err)
 	}
+	<-shutdownDone
 }
 
 // exemptLongLived bypasses rate limiting for SSE and WebSocket endpoints.
-func exemptLongLived(rateLimited http.Handler, direct http.Handler) http.Handler {
+func exemptLongLived(streamCtx context.Context, rateLimited http.Handler, direct http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/events") || strings.HasPrefix(r.URL.Path, "/api/transfer/ws") {
-			direct.ServeHTTP(w, r)
+			ctx, cancel := context.WithCancel(r.Context())
+			defer cancel()
+			stop := context.AfterFunc(streamCtx, cancel)
+			defer stop()
+			direct.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 		rateLimited.ServeHTTP(w, r)
@@ -237,10 +248,18 @@ func corsMiddleware(next http.Handler) http.Handler {
 		if origin != "" && allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
+			// Required for the browser to send/receive the httpOnly refresh-token
+			// cookie (zcrypt_rt, see cmd/auth.go) on cross-origin requests. Safe
+			// only because the origin above is always a specific reflected value
+			// from the allowlist, never "*".
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password, X-Download-Ticket")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed")
+		// Let the browser (and the desktop webview) cache a preflight for 10
+		// minutes instead of sending an OPTIONS before every authed request.
+		w.Header().Set("Access-Control-Max-Age", "600")
 
 		// Security headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")

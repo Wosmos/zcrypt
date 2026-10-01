@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { StoragePool } from "@/components/settings/storage-pool";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
@@ -47,6 +49,7 @@ import {
   Monitor,
   ChevronDown,
   Globe,
+  Languages,
   User,
   ShieldAlert,
   Eye,
@@ -104,8 +107,6 @@ type SectionId =
 
 interface SectionDef {
   id: SectionId;
-  label: string;
-  desc: string;
   icon: typeof Shield;
   group: string;
   adminOnly?: boolean;
@@ -116,65 +117,57 @@ interface SectionDef {
 const SECTIONS: SectionDef[] = [
   {
     id: "appearance",
-    label: "Appearance",
-    desc: "Theme, colors & advanced mode",
     icon: Sparkles,
     group: "General",
   },
   {
     id: "updates",
-    label: "App updates",
-    desc: "Check for and install new versions",
     icon: Download,
     group: "General",
     desktopOnly: true,
   },
   {
     id: "account",
-    label: "Account access",
-    desc: "Sign-in providers & device key",
     icon: User,
     group: "Account",
   },
   {
     id: "platforms",
-    label: "Platform connections",
-    desc: "Connect your storage backends",
     icon: Box,
     group: "Account",
   },
   {
     id: "storage",
-    label: "Storage & quotas",
-    desc: "Repositories, usage & limits",
     icon: Database,
     group: "Storage",
   },
   {
     id: "privacy",
-    label: "Privacy",
-    desc: "Decoy vault & dead man's switch",
     icon: ShieldAlert,
     group: "Privacy & security",
   },
   {
     id: "backup",
-    label: "Vault backup",
-    desc: "Export or import your metadata",
     icon: Download,
     group: "Privacy & security",
   },
   {
     id: "security",
-    label: "Security activity",
-    desc: "Recent sign-ins & events",
     icon: Shield,
     group: "Privacy & security",
     adminOnly: true,
   },
 ];
 
+const GROUP_KEYS: Record<string, string> = {
+  General: "groupGeneral",
+  Account: "groupAccount",
+  Storage: "groupStorage",
+  "Privacy & security": "groupPrivacy",
+};
+
 export function SettingsContent() {
+  const t = useTranslations("settings");
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
@@ -391,8 +384,6 @@ export function SettingsContent() {
     }
   };
 
-  const activeDef = (id: SectionId) => visibleSections.find((s) => s.id === id)!;
-
   return (
     <div className="animate-fade-in">
       {/* ── MOBILE: grouped index → sub-view with back ─────────────────── */}
@@ -401,14 +392,14 @@ export function SettingsContent() {
           <div className="space-y-6">
             <div className="px-1">
               <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">
-                Configuration
+                {t("configuration")}
               </p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text)]">
-                Settings
+                {t("title")}
               </h1>
             </div>
             {groups.map((g) => (
-              <SettingGroup key={g} label={g}>
+              <SettingGroup key={g} label={t(GROUP_KEYS[g])}>
                 {visibleSections
                   .filter((s) => s.group === g)
                   .map((s) => (
@@ -416,8 +407,8 @@ export function SettingsContent() {
                       key={s.id}
                       onClick={() => setActive(s.id)}
                       icon={<s.icon className="h-4 w-4" />}
-                      title={s.label}
-                      subtitle={s.desc}
+                      title={t(s.id)}
+                      subtitle={t(`${s.id}Desc`)}
                     />
                   ))}
               </SettingGroup>
@@ -430,14 +421,14 @@ export function SettingsContent() {
               onClick={() => setActive(null)}
               className="inline-flex items-center gap-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
             >
-              <ArrowLeft className="h-4 w-4" /> Settings
+              <ArrowLeft className="h-4 w-4 rtl:-scale-x-100" /> {t("title")}
             </button>
             <div className="px-1">
               <h1 className="text-xl font-bold tracking-tight text-[var(--color-text)]">
-                {activeDef(active).label}
+                {t(active)}
               </h1>
               <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
-                {activeDef(active).desc}
+                {t(`${active}Desc`)}
               </p>
             </div>
             {renderSection(active)}
@@ -449,16 +440,16 @@ export function SettingsContent() {
       <div className="hidden md:flex md:gap-8">
         <nav className="w-60 flex-shrink-0">
           <p className="px-3 text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">
-            Configuration
+            {t("configuration")}
           </p>
           <h1 className="mt-1 px-3 text-lg font-bold tracking-tight text-[var(--color-text)]">
-            Settings
+            {t("title")}
           </h1>
           <div className="mt-4 space-y-4">
             {groups.map((g) => (
               <div key={g} className="space-y-1">
                 <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  {g}
+                  {t(GROUP_KEYS[g])}
                 </p>
                 {visibleSections
                   .filter((s) => s.group === g)
@@ -470,14 +461,14 @@ export function SettingsContent() {
                         type="button"
                         onClick={() => setActive(s.id)}
                         className={cn(
-                          "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
+                          "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-start text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                           on
                             ? "bg-[var(--color-accent)]/10 font-medium text-[var(--color-accent)]"
                             : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
                         )}
                       >
                         <s.icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{s.label}</span>
+                        <span className="truncate">{t(s.id)}</span>
                       </button>
                     );
                   })}
@@ -488,10 +479,10 @@ export function SettingsContent() {
         <div className="min-w-0 flex-1">
           <div className="mb-5">
             <h2 className="text-lg font-bold tracking-tight text-[var(--color-text)]">
-              {activeDef(active ?? "appearance").label}
+              {t(active ?? "appearance")}
             </h2>
             <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
-              {activeDef(active ?? "appearance").desc}
+              {t(`${active ?? "appearance"}Desc`)}
             </p>
           </div>
           {renderSection(active ?? "appearance")}
@@ -504,13 +495,16 @@ export function SettingsContent() {
           if (!open) setDisconnectTarget(null);
         }}
         destructive
-        title="Disconnect platform?"
+        title={t("disconnectTitle")}
         description={
           disconnectTarget
-            ? `Disconnect ${platformName(disconnectTarget.platform)} account @${disconnectTarget.username}? Files stored on this platform will remain but may become inaccessible.`
+            ? t("disconnectDescription", {
+                platform: platformName(disconnectTarget.platform),
+                username: disconnectTarget.username,
+              })
             : ""
         }
-        confirmLabel="Disconnect"
+        confirmLabel={t("disconnect")}
         loading={!!disconnecting}
         onConfirm={executeDisconnect}
       />
@@ -536,28 +530,29 @@ function AppearanceContent({
   advancedMode: boolean;
   setAdvancedMode: (v: boolean) => void;
 }) {
+  const t = useTranslations("settings");
   const themeOptions = [
-    { value: "light" as const, icon: Sun, label: "Light" },
-    { value: "dark" as const, icon: Moon, label: "Dark" },
-    { value: "system" as const, icon: Monitor, label: "System" },
+    { value: "light" as const, icon: Sun, label: t("themeLight") },
+    { value: "dark" as const, icon: Moon, label: t("themeDark") },
+    { value: "system" as const, icon: Monitor, label: t("themeSystem") },
   ];
   return (
     <div className="space-y-6">
-      <SettingGroup label="Theme">
+      <SettingGroup label={t("themeGroup")}>
         <ValueRow
           icon={<Sun className="h-4 w-4" />}
-          title="Mode"
-          subtitle="Light, dark, or match your system"
+          title={t("mode")}
+          subtitle={t("modeDesc")}
           trailing={
             <div className="relative">
               <label htmlFor="theme-select" className="sr-only">
-                Theme
+                {t("themeGroup")}
               </label>
               <select
                 id="theme-select"
                 value={theme}
                 onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system")}
-                className="appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 pl-3 pr-8 text-sm font-medium text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
+                className="appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 ps-3 pe-8 text-sm font-medium text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
               >
                 {themeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -565,7 +560,7 @@ function AppearanceContent({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute inset-y-0 right-2 my-auto h-4 w-4 text-[var(--color-text-muted)]" />
+              <ChevronDown className="pointer-events-none absolute inset-y-0 end-2 my-auto h-4 w-4 text-[var(--color-text-muted)]" />
             </div>
           }
         />
@@ -574,18 +569,24 @@ function AppearanceContent({
       {/* ThemePicker renders its own "Color theme" heading. Don't double it. */}
       <ThemePicker />
 
-      <SettingGroup
-        label="Power user"
-        footnote="Snapshots, integrity checks, expiring vaults, and device sync."
-      >
+      <SettingGroup label={t("languageGroup")}>
         <ValueRow
-          title="Advanced mode"
-          subtitle="Show power-user tools across the app"
+          icon={<Languages className="h-4 w-4" />}
+          title={t("languageRow")}
+          subtitle={t("languageDesc")}
+          trailing={<LanguageSwitcher />}
+        />
+      </SettingGroup>
+
+      <SettingGroup label={t("powerUser")} footnote={t("powerUserFootnote")}>
+        <ValueRow
+          title={t("advancedMode")}
+          subtitle={t("advancedModeDesc")}
           trailing={
             <Switch
               checked={advancedMode}
               onCheckedChange={setAdvancedMode}
-              aria-label="Advanced mode"
+              aria-label={t("advancedMode")}
               className="data-[state=checked]:bg-[var(--color-accent)] data-[state=unchecked]:bg-[var(--color-surface-3)]"
             />
           }

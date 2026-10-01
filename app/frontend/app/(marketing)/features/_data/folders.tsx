@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface FoldersPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -27,8 +26,7 @@ export interface FoldersPageData {
 export const folders: FoldersPageData = {
   hero: {
     eyebrow: "Encrypted folders",
-    headlineTop: "Folders that can",
-    headlineGradient: "lock themselves.",
+    title: "Folders that lock themselves",
     subtext: (
       <>
         Organize with real, nestable folders whose names are encrypted on your device. Then give any
@@ -120,6 +118,6 @@ export const folders: FoldersPageData = {
   cta: {
     heading: "Lock the folders that matter most",
     subtext:
-      "Free and open source. Organize your vault and seal any folder with a password of its own.",
+      "Free and open source. Organize your drive and lock any folder with a password of its own.",
   },
 };

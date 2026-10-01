@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zcrypt/zcrypt/adapters"
@@ -70,6 +71,19 @@ type Server struct {
 	transferJoinLimiter *rateLimiter
 	// Desktop-OAuth poll limiter: 30 polls per minute per IP
 	desktopPollLimiter *rateLimiter
+	// Analytics limiter: 100 req per 5 min per USER (not IP), shared across every
+	// /api/analytics/* route. Each new backend aggregation is a real DB query, not
+	// a free cache read, so this is a hard per-account ceiling on top of (not
+	// instead of) the frontend's own refresh cooldown: it holds even against extra
+	// tabs, another device, or a direct API call with a stolen/valid JWT. One page
+	// mount fires 4 parallel requests (doubled to 8 by React Strict Mode in dev),
+	// so 100 leaves headroom for a dozen-plus reloads/range-switches in a 5 min
+	// window without ever being a realistic ceiling for a human clicking around,
+	// while still being nowhere near what a scripted scrape/DoS attempt would want.
+	analyticsLimiter *rateLimiter
+	// Bug-report limiters: per-IP and per-user, 10 reports per hour each
+	bugIPLimiter   *rateLimiter
+	bugUserLimiter *rateLimiter
 
 	// tokenVersions enforces JWT revocation by checking each access token's
 	// version against the user's current token_version (bumped on password
@@ -84,6 +98,8 @@ type Server struct {
 	transferHub *transferHub
 
 	// Desktop OAuth: temporary token store for poll-based auth flow
+	bgWG sync.WaitGroup
+
 	desktopSessionsMu sync.Mutex
 	desktopSessions   map[string]*desktopOAuthResult
 
@@ -98,6 +114,13 @@ type Server struct {
 
 	// devMode disables all per-route rate limiting when DEV_MODE=true.
 	devMode bool
+
+	// maintenanceMode, when set, makes the top-level maintenanceGate wrapper
+	// (main.go) reject mutating requests with 503. Toggled at runtime via
+	// POST /api/internal/maintenance (X-Maintenance-Secret header, checked
+	// against cfg.MaintenanceSecret) — used by scripts/neon-rotate.sh to
+	// freeze writes for the dump→cutover window. See docs/DB_SCALING_100_PROJECTS.md §6.1.
+	maintenanceMode atomic.Bool
 
 	// pushLimiter throttles the sync worker's per-platform push volume to stay
 	// under a platform's rate cap (e.g. GitHub's ~7GB/hour), so a large upload
@@ -117,8 +140,13 @@ func defaultPushLimits() map[string]int64 {
 type desktopOAuthResult struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
+	Requires2FA  bool      `json:"requires_2fa,omitempty"`
+	TempToken    string    `json:"temp_token,omitempty"`
 	Error        string    `json:"error,omitempty"`
 	CreatedAt    time.Time `json:"-"`
+	Challenge    string    `json:"-"`
+	Approved     bool      `json:"-"`
+	ApprovalTok  string    `json:"-"`
 }
 
 // NewServer creates a new API server.
@@ -144,6 +172,9 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		padLimiter:          newRateLimiter(10, time.Hour),
 		transferJoinLimiter: newRateLimiter(5, 10*time.Minute),
 		desktopPollLimiter:  newRateLimiter(30, time.Minute),
+		analyticsLimiter:    newRateLimiter(100, 5*time.Minute),
+		bugIPLimiter:        newRateLimiter(10, time.Hour),
+		bugUserLimiter:      newRateLimiter(10, time.Hour),
 		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
 		transferHub:         newTransferHub(),
 		desktopSessions:     make(map[string]*desktopOAuthResult),
@@ -441,24 +472,49 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 	return nil
 }
 
-// getEffectiveQuota returns the effective storage quota in bytes for a user.
+// sharedStorageQuotaBytes caps a user who is riding somebody else's global
+// token. Storage on your OWN connected account stays unlimited, because it
+// costs us nothing: it is your account and your quota with the platform. The
+// shared pool is different. It runs on an admin's personal token, so every
+// byte a user stores there is a byte charged against a real person's real
+// account, and an unbounded free tier on someone else's credentials is a bill
+// waiting to happen.
 //
-// zcrypt is free and open source: storage is effectively unlimited (0 = no
-// limit). An admin may still set an explicit per-user override for display,
-// which is honored here, but nothing in the upload path consults this value
-// anymore: uploads are bounded only by the real git-platform thresholds.
+// 1 GiB is enough to try the product properly, and connecting your own storage
+// removes the cap entirely, which is exactly the behaviour we want to
+// encourage.
+const sharedStorageQuotaBytes = int64(1) << 30
+
+// getEffectiveQuota returns the effective storage quota in bytes for a user,
+// where 0 means unlimited.
+//
+// Three cases, in priority order:
+//  1. An explicit per-user admin override always wins, including an override
+//     of 0 to grant somebody unlimited shared storage.
+//  2. A user with at least one personal token is unlimited. They are spending
+//     their own platform quota.
+//  3. Everyone else is on the shared pool and gets sharedStorageQuotaBytes.
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return 0 // unlimited
+		// Fail closed onto the shared cap. Failing open here would hand an
+		// unbounded allowance to any request whose user lookup hiccuped.
+		return sharedStorageQuotaBytes
 	}
 
-	// Honor an explicit per-user admin override if one is set (0 = unlimited).
 	if user.StorageQuota != nil {
 		return *user.StorageQuota
 	}
 
-	return 0 // unlimited
+	hasPersonal, err := s.db.UserHasPersonalTokens(ctx, userID)
+	if err != nil {
+		return sharedStorageQuotaBytes
+	}
+	if hasPersonal {
+		return 0 // their own account, their own quota
+	}
+
+	return sharedStorageQuotaBytes
 }
 
 // getGlobalAdapters returns adapters created from global platform tokens (for anonymous send).
@@ -555,7 +611,7 @@ func (s *Server) invalidateGlobalAdapterCache() {
 func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := s.clientIP(r)
-		if !s.sendLimiter.allow(ip) {
+		if !s.devMode && !s.sendLimiter.allow(ip) {
 			http.Error(w, `{"error":"too many send requests, try again later"}`, http.StatusTooManyRequests)
 			return
 		}
@@ -566,7 +622,7 @@ func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc
 func (s *Server) PadRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := s.clientIP(r)
-		if !s.padLimiter.allow(ip) {
+		if !s.devMode && !s.padLimiter.allow(ip) {
 			http.Error(w, `{"error":"too many pad requests, try again later"}`, http.StatusTooManyRequests)
 			return
 		}
@@ -585,6 +641,14 @@ func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
 		return adapters.NewHuggingFaceAdapter(token)
 	case "telegram":
 		return adapters.NewTelegramAdapter(token)
+	case "mock":
+		// Load-testing sandbox only (docker-compose.loadtest.yml). Never
+		// reachable unless the operator explicitly opts in, so this can
+		// never appear in a real deployment by accident.
+		if os.Getenv("ZCRYPT_ENABLE_MOCK_ADAPTER") != "true" {
+			return nil, fmt.Errorf("unsupported platform: %s", platform)
+		}
+		return adapters.NewMockAdapter(token)
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
@@ -616,9 +680,10 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auth/oauth/{provider}", s.HandleOAuthStart)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", s.HandleOAuthCallback)
 	mux.HandleFunc("GET /api/auth/oauth/desktop-poll", s.HandleDesktopOAuthPoll)
+	mux.HandleFunc("POST /api/auth/oauth/desktop-approve", maxJSON(s.HandleDesktopOAuthApprove))
 
 	// Protected auth routes
-	mux.HandleFunc("POST /api/auth/logout", maxJSON(s.AuthMiddleware(s.HandleLogout)))
+	mux.HandleFunc("POST /api/auth/logout", maxJSON(s.OptionalAuthMiddleware(s.HandleLogout)))
 	mux.HandleFunc("POST /api/auth/2fa/setup", maxJSON(s.AuthMiddleware(s.Handle2FASetup)))
 	mux.HandleFunc("POST /api/auth/2fa/enable", maxJSON(s.AuthMiddleware(s.Handle2FAEnable)))
 	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
@@ -626,7 +691,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
 	mux.HandleFunc("PATCH /api/auth/profile", s.AuthMiddleware(s.HandleUpdateProfile))
 	mux.HandleFunc("POST /api/auth/change-password", s.AuthMiddleware(s.HandleChangePassword))
-	mux.HandleFunc("GET /api/auth/activity", s.AdminMiddleware(s.HandleUserActivity))
+	mux.HandleFunc("GET /api/auth/activity", s.AuthMiddleware(s.HandleUserActivity))
 	mux.HandleFunc("GET /api/auth/linked-accounts", s.AuthMiddleware(s.HandleLinkedAccounts))
 	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", s.AuthMiddleware(s.HandleUnlinkAccount))
 
@@ -648,6 +713,15 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
 	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via query param
 	mux.HandleFunc("GET /api/quota", s.AuthMiddleware(s.HandleGetQuota))
+	mux.HandleFunc("POST /api/onboarding/complete", s.AuthMiddleware(s.HandleMarkOnboarded))
+
+	// Insights/analytics: backend-aggregated (not full-file-list-to-client) so
+	// KPIs stay cheap at any vault size. Rate-limited per user on top of auth
+	// (see AnalyticsRateLimitMiddleware) since each hit is a real DB aggregation.
+	mux.HandleFunc("GET /api/analytics/summary", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsSummary)))
+	mux.HandleFunc("GET /api/analytics/timeseries", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsTimeseries)))
+	mux.HandleFunc("GET /api/analytics/storage-growth", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsStorageGrowth)))
+	mux.HandleFunc("GET /api/analytics/file-types", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsFileTypes)))
 
 	// Client-side encrypted upload (chunked)
 	mux.HandleFunc("POST /api/upload/init", maxJSON(s.AuthMiddleware(s.HandleUploadInit)))
@@ -679,6 +753,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
 	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
+	mux.HandleFunc("POST /api/share/{token}/complete", s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload))
 
 	// Folder shares: public link for a whole folder (management is authed;
 	// access mirrors the single-file public share above)
@@ -688,6 +763,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareChunk))
+	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload))
 
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.HandleSendInit)))
@@ -778,6 +854,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/shared-vaults", maxJSON(s.AuthMiddleware(s.HandleCreateSharedVault)))
 	mux.HandleFunc("GET /api/shared-vaults/{id}", s.AuthMiddleware(s.HandleGetSharedVault))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}", s.AuthMiddleware(s.HandleDeleteSharedVault))
+	mux.HandleFunc("PATCH /api/shared-vaults/{id}", maxJSON(s.AuthMiddleware(s.HandleUpdateSharedVault)))
+	mux.HandleFunc("PATCH /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(s.HandleUpdateSharedVaultMemberRole)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultMember)))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", s.AuthMiddleware(s.HandleRemoveSharedVaultMember))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultFile)))
@@ -831,8 +909,41 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/feedback", maxJSON(s.AuthMiddleware(s.HandleSubmitFeedback)))
 	mux.HandleFunc("GET /api/feedback/status", s.AuthMiddleware(s.HandleGetFeedbackStatus))
 
+	// Bug reports: submit works signed-in or signed-out; triage is admin-only.
+	mux.HandleFunc("POST /api/feedback/bug", MaxBodyMiddleware(bugReportMaxBody, s.OptionalAuthMiddleware(s.HandleSubmitBugReport)))
+	mux.HandleFunc("GET /api/admin/bug-reports", s.AdminMiddleware(s.HandleAdminListBugReports))
+	mux.HandleFunc("PATCH /api/admin/bug-reports/{id}", maxJSON(s.AdminMiddleware(s.HandleAdminUpdateBugReport)))
+	mux.HandleFunc("GET /api/admin/bug-reports/{id}/screenshot", s.AdminMiddleware(s.HandleAdminBugReportScreenshot))
+
+	// Reviews: members submit one, admins moderate, only approved public ones are served unauthenticated.
+	mux.HandleFunc("POST /api/reviews", maxJSON(s.AuthMiddleware(s.HandleSubmitReview)))
+	mux.HandleFunc("GET /api/reviews/me", s.AuthMiddleware(s.HandleGetMyReview))
+	mux.HandleFunc("GET /api/reviews/public", s.HandlePublicReviews)
+	mux.HandleFunc("GET /api/admin/reviews", s.AdminMiddleware(s.HandleAdminListReviews))
+	mux.HandleFunc("PATCH /api/admin/reviews/{id}", maxJSON(s.AdminMiddleware(s.HandleAdminUpdateReview)))
+
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", s.HandleHealth)
+
+	// Maintenance-mode toggle for the Neon rotation write-freeze (internal use
+	// only; authenticated by static secret, see HandleMaintenanceToggle).
+	mux.HandleFunc("POST /api/internal/maintenance", maxJSON(s.HandleMaintenanceToggle))
+
+	for _, register := range testRoutes {
+		register(s, mux)
+	}
+}
+
+// testRoutes is populated only by files built under the `integration` tag.
+var testRoutes []func(s *Server, mux *http.ServeMux)
+
+// maintenancePassthroughPaths are exempt from the maintenance-mode 503 gate
+// even during a freeze: the toggle endpoint itself (or it could never be
+// turned back off) and the health check (so monitoring doesn't flap red for
+// the deliberate duration of a rotation).
+var maintenancePassthroughPaths = map[string]bool{
+	"/api/internal/maintenance": true,
+	"/api/health":               true,
 }
 
 // getAdapterUsername extracts the username from any adapter type.
@@ -846,6 +957,31 @@ func getAdapterUsername(adapter adapters.PlatformAdapter) string {
 		return a.GetUsername()
 	case *adapters.TelegramAdapter:
 		return a.GetUsername()
+	case *adapters.MockAdapter:
+		return a.GetUsername()
 	}
 	return "unknown"
+}
+
+// goBackground runs fn on a goroutine that shutdown waits for. Use it for
+// request-spawned work that touches the database and must outlive the request.
+func (s *Server) goBackground(fn func()) {
+	s.bgWG.Add(1)
+	go func() {
+		defer s.bgWG.Done()
+		fn()
+	}()
+}
+
+// WaitBackground blocks until request-spawned background work finishes or ctx ends.
+func (s *Server) WaitBackground(ctx context.Context) {
+	done := make(chan struct{})
+	go func() {
+		s.bgWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }

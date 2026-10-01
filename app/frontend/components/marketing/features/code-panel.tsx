@@ -17,7 +17,7 @@ export interface CodePanelProps {
  */
 export function CodePanel({ comment, success, children }: CodePanelProps) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+    <div className="rounded-[22px] corner-squircle border border-[var(--color-border)] bg-[var(--color-bg)] p-5 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
       <div className="mb-2 text-[var(--color-text-secondary)]">{comment}</div>
       {children}
       <div className="mt-4 text-emerald-500">{success}</div>

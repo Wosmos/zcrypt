@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, readCachedUser } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
-import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
-import { prefetchFileList } from "@/store/files";
-import { ensurePlatformStatus } from "@/store/platform";
+import { tryRefreshToken } from "@/lib/auth-fetch";
+import { prefetchVault } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync } from "@/lib/tauri";
 
@@ -33,24 +32,37 @@ export function AuthGuard({
   useEffect(() => {
     if (initialized) return;
 
-    // Background onboarding check: fetch platform health once (shared/deduped with
-    // usePlatformHealth) and redirect to /onboarding only if nothing is connected.
-    // Never blocks initialization, so the dashboard renders immediately.
+    // Show onboarding to anyone who has never seen it, full stop.
+    //
+    // This used to ask "is any platform connected?" and redirect only when the
+    // answer was no. That answer is always yes: zcrypt runs a shared global
+    // token so a brand new user can upload immediately, and a global token
+    // makes every platform report connected. So the redirect never fired, and
+    // nobody ever saw the one screen that explains what the product is or that
+    // they can plug in their own storage. 22 people verified an email and 8
+    // ever stored a file.
+    //
+    // onboarded_at is a server-side stamp, so this means once per person, not
+    // once per browser. Users who skip still get stamped: the screen's job is
+    // to explain the product once, not to force a connection. Those who carry
+    // on with shared storage are nudged later by the dashboard banner instead.
     const runOnboardingCheck = () => {
       if (skipOnboardingCheck) return;
-      void ensurePlatformStatus().then((statuses) => {
-        // Empty means either nothing connected OR a transient error; only the
-        // genuinely-empty connected set should bounce to onboarding, and an
-        // error resolves to [] which we treat as "leave them where they are".
-        if (statuses.length > 0 && !statuses.some((s) => s.connected)) {
-          setRedirecting(true);
-          router.replace("/onboarding");
-        }
-      });
+      const current = useAuthStore.getState().user;
+      if (current && !current.onboarded_at) {
+        setRedirecting(true);
+        router.replace("/onboarding");
+      }
     };
 
     async function init() {
-      if (!accessToken && !refreshTokenValue) {
+      // Desktop persists refreshTokenValue to localStorage, so its absence
+      // here really does mean "never logged in" — skip straight to login.
+      // Web never persists it (store/auth.ts): a returning user with an
+      // expired access token and no in-memory refresh value may still have
+      // a valid httpOnly session cookie, so fall through and let the
+      // refresh path below try it rather than bouncing them out.
+      if (!accessToken && !refreshTokenValue && isTauri) {
         setInitialized(true);
         router.replace("/login");
         return;
@@ -61,53 +73,75 @@ export function AuthGuard({
       const existingUser = useAuthStore.getState().user;
       if (existingUser && accessToken) {
         setInitialized(true);
-        void prefetchFileList();
+        void prefetchVault();
         runOnboardingCheck();
         return;
       }
 
-      // Resolve a user from the current access token.
-      if (accessToken) {
-        try {
-          const me = await getMe(accessToken);
-          setUser(me);
-          setInitialized(true);
-          void prefetchFileList();
-          runOnboardingCheck();
-          return;
-        } catch {
-          // token might be expired, try refresh
-        }
-      }
-
-      // Refresh path.
-      if (refreshTokenValue) {
-        try {
-          const data = await refreshTokenApi(refreshTokenValue);
-          setTokens(data.access_token, data.refresh_token);
-          const me = await getMe(data.access_token);
-          setUser(me);
-          setInitialized(true);
-          void prefetchFileList();
-          runOnboardingCheck();
-          return;
-        } catch (err) {
-          // Only a DEFINITIVE rejection (refresh token invalid/expired) should
-          // log out. A transient failure on load (offline, 5xx, timeout) must
-          // NOT nuke a valid session. Keep the tokens and let authedFetch
-          // refresh on the next real request. Mirrors the auth-fetch.ts fix.
-          const status = (err as { status?: number })?.status;
-          if (status !== 401 && status !== 403) {
-            setInitialized(true);
-            return;
+      // Resolve the session. Refreshes go through the shared, deduped
+      // tryRefreshToken: the vault prefetch below may hit a 401 and refresh at
+      // the same moment, and refresh tokens rotate on use. It clears auth itself
+      // on a definitive rejection; a transient miss leaves the tokens alone.
+      const resolveUser = async (): Promise<"ok" | "rejected" | "transient"> => {
+        if (accessToken) {
+          try {
+            setUser(await getMe(accessToken));
+            return "ok";
+          } catch {
+            // token might be expired, try refresh
           }
         }
+        // Desktop requires an actual in-memory token (never silently probes
+        // without one); web always attempts it since the httpOnly cookie, not
+        // this value, is what actually carries the session across reloads.
+        if (!refreshTokenValue && isTauri) return "rejected";
+        const fresh = await tryRefreshToken();
+        if (fresh) {
+          try {
+            setUser(await getMe(fresh));
+            return "ok";
+          } catch {
+            return "transient";
+          }
+        }
+        return useAuthStore.getState().accessToken ? "transient" : "rejected";
+      };
+
+      const toLogin = () => {
+        clearAuth();
+        setInitialized(true);
+        router.replace("/login");
+      };
+
+      // Returning user on this device: paint the shell (and the persisted
+      // lists) right away from the cached identity while the session check and
+      // the vault lists load in parallel.
+      const cached = accessToken ? readCachedUser() : null;
+      if (cached) {
+        setUser(cached);
+        setInitialized(true);
+        void prefetchVault();
+        runOnboardingCheck();
+        const result = await resolveUser();
+        if (result === "ok") runOnboardingCheck();
+        else if (result === "rejected") toLogin();
+        return;
       }
 
-      // No credentials at all, or the refresh token was definitively rejected.
-      clearAuth();
-      setInitialized(true);
-      router.replace("/login");
+      if (accessToken) void prefetchVault();
+      const result = await resolveUser();
+      if (result === "ok") {
+        setInitialized(true);
+        runOnboardingCheck();
+        return;
+      }
+      if (result === "transient") {
+        // Only a DEFINITIVE rejection should log out. A transient failure on
+        // load (offline, 5xx, timeout) must NOT nuke a valid session.
+        setInitialized(true);
+        return;
+      }
+      toLogin();
     }
 
     void init();
@@ -123,12 +157,13 @@ export function AuthGuard({
     clearAuth,
   ]);
 
-  // Start desktop sync worker whenever we have a valid token
+  // Start the desktop sync worker as soon as tokens exist, alongside the
+  // session check rather than after it. A rotated token re-runs this.
   useEffect(() => {
-    if (!isTauri || !initialized || !accessToken || !refreshTokenValue) return;
+    if (!isTauri || !accessToken || !refreshTokenValue) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
     startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
-  }, [initialized, accessToken, refreshTokenValue]);
+  }, [accessToken, refreshTokenValue]);
 
   if (!initialized || redirecting) {
     return (

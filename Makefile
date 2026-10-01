@@ -3,6 +3,8 @@
        test test-backend test-frontend test-tui \
        test-integration test-e2e test-load test-all \
        test-load-smoke test-load-auth test-load-upload test-load-stress test-load-soak \
+       loadtest-docker-up loadtest-docker-seed loadtest-docker-smoke loadtest-docker-auth \
+       loadtest-docker-upload loadtest-docker-safe loadtest-docker-down loadtest-docker-reset \
        coverage coverage-backend coverage-frontend \
        lint lint-backend lint-frontend vet-tui \
        security security-go security-frontend \
@@ -145,6 +147,35 @@ test-load-staging:
 	k6 run --env K6_BASE_URL=$(K6_BASE_URL) tests/load/k6/smoke.js
 	k6 run --env K6_BASE_URL=$(K6_BASE_URL) tests/load/k6/auth.js
 	k6 run --env K6_BASE_URL=$(K6_BASE_URL) tests/load/k6/upload.js
+
+# ── Docker load-test sandbox (Railway/Vercel-like, never touches real prod) ──
+# See docs/load-tests-README.md's "Docker sandbox" section.
+
+loadtest-docker-up:
+	@test -f .env.loadtest || (echo "ERROR: .env.loadtest not found. Run: cp .env.loadtest.example .env.loadtest" && exit 1)
+	docker compose -f docker-compose.loadtest.yml --env-file .env.loadtest up -d --wait postgres backend
+
+loadtest-docker-seed:
+	docker compose -f docker-compose.loadtest.yml --env-file .env.loadtest run --rm seed
+
+loadtest-docker-smoke:
+	k6 run --env K6_BASE_URL=http://localhost:8080 tests/load/k6/smoke.js
+
+loadtest-docker-auth:
+	k6 run --env K6_BASE_URL=http://localhost:8080 tests/load/k6/auth.js
+
+loadtest-docker-upload:
+	k6 run --env K6_BASE_URL=http://localhost:8080 tests/load/k6/upload.js
+
+# Deliberately excludes stress/soak -- review this "safe" subset first, then
+# run those two manually against this same stack.
+loadtest-docker-safe: loadtest-docker-up loadtest-docker-seed loadtest-docker-smoke loadtest-docker-auth loadtest-docker-upload
+
+loadtest-docker-down:
+	docker compose -f docker-compose.loadtest.yml down
+
+loadtest-docker-reset:
+	docker compose -f docker-compose.loadtest.yml down -v
 
 # ── Full Suite ────────────────────────────────────────────────────────────────
 

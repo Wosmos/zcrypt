@@ -55,7 +55,7 @@ jobs:
     name: Build frontend static export
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
 
@@ -63,7 +63,7 @@ jobs:
       # (see the comment on build-frontend above), caching install + Next's
       # own build cache shrinks that wait on every run after the first.
       - name: Cache bun install cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('app/frontend/bun.lock') }}
@@ -79,7 +79,7 @@ jobs:
       # lockfile + source hash so it invalidates whenever real code changes,
       # while still speeding up recompilation of everything that didn't.
       - name: Cache Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: app/frontend/.next-export/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('app/frontend/bun.lock') }}-${{ hashFiles('app/frontend/**/*.[jt]s', 'app/frontend/**/*.[jt]sx') }}
@@ -143,14 +143,14 @@ jobs:
           HTMLEOF
 
       - name: Upload frontend-dist artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: app/desktop/frontend-dist
           retention-days: 1
 
   build-desktop:
-    needs: build-frontend
+    needs: [build-frontend, check-updater-signing]
     strategy:
       fail-fast: false
       matrix:
@@ -180,7 +180,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ── System deps (Linux only) ──
       - name: Install Linux dependencies
@@ -224,7 +224,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: Download frontend-dist artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: frontend-dist
           path: app/desktop/frontend-dist
@@ -251,7 +251,7 @@ jobs:
       # Bump the "2" in the key if the version constraint below ever changes.
       - name: Cache Tauri CLI
         id: cache-tauri-cli
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/cargo-tauri*
           key: tauri-cli-${{ env.TAURI_CLI_VERSION }}-${{ runner.os }}-${{ runner.arch }}
@@ -266,18 +266,30 @@ jobs:
       #   1. TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) are non-empty here, and
       #   2. app/desktop/src-tauri/tauri.conf.json has `bundle.createUpdaterArtifacts: true`
       #      and a `plugins.updater.pubkey` + `endpoints` configured.
-      # Neither is set up yet (tauri.conf.json is out of scope for this change.
-      # See blocked_on). Until then these env vars are empty and signing is a
-      # silent no-op: the build still succeeds and produces unsigned installers,
-      # exactly like before this step existed.
+      # Both ARE set up now, which is what makes the step below necessary.
       #
-      # One-time human setup to turn signing on:
-      #   1. `cargo tauri signer generate -w ~/.tauri/zcrypt.key`
-      #   2. Add repo secrets TAURI_SIGNING_PRIVATE_KEY (contents of the .key
-      #      file) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
-      #   3. Put the printed public key + updater endpoint(s) into
-      #      tauri.conf.json's `plugins.updater` block, and set
-      #      `bundle.createUpdaterArtifacts: true`.
+      # With createUpdaterArtifacts on, an EMPTY key is no longer a no-op: tauri
+      # tries to sign, fails to parse "" and kills the build with "failed to
+      # decode secret key: Missing comment in secret key". GitHub withholds
+      # secrets from Dependabot and fork pull requests, so every one of those
+      # runs lost all four desktop legs to a signing key they are never allowed
+      # to have. Nothing was wrong with the code they were testing.
+      #
+      # So when no key is available, turn updater artifacts off for that run.
+      # The build then produces ordinary unsigned installers and still proves
+      # the thing a dependency PR needs proven: that it compiles and bundles.
+      # Signed updater artifacts are only ever needed on a real release, which
+      # runs on main or a tag and does have the secret.
+      - name: Build unsigned when no signing key is available
+        if: needs.check-updater-signing.outputs.configured != 'true'
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          tmp=$(mktemp)
+          jq '.bundle.createUpdaterArtifacts = false' tauri.conf.json > "$tmp"
+          mv "$tmp" tauri.conf.json
+          echo "no TAURI_SIGNING_PRIVATE_KEY (fork or Dependabot run): updater artifacts disabled for this build"
+
       - name: Build Tauri app
         working-directory: app/desktop/src-tauri
         shell: bash
@@ -299,6 +311,7 @@ jobs:
           d="app/desktop/src-tauri/${{ matrix.bundle }}/macos"
           shopt -s nullglob
           for f in "$d"/zcrypt.app.tar.gz "$d"/zcrypt.app.tar.gz.sig; do
+            [ -e "$f" ] || continue
             base="$(basename "$f")"
             mv "$f" "$d/zcrypt_${{ matrix.target }}.${base#zcrypt.}"
             echo "renamed $base -> zcrypt_${{ matrix.target }}.${base#zcrypt.}"
@@ -310,7 +323,7 @@ jobs:
       # unmatched glob entries as long as at least one path in the list hits.
       - name: Upload artifacts (Windows)
         if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zcrypt-windows-${{ matrix.target }}
           path: |
@@ -321,7 +334,7 @@ jobs:
 
       - name: Upload artifacts (macOS)
         if: startsWith(matrix.platform, 'macos')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zcrypt-macos-${{ matrix.target }}
           path: |
@@ -331,7 +344,7 @@ jobs:
 
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zcrypt-linux-${{ matrix.target }}
           path: |
@@ -462,7 +475,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download platform build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: zcrypt-*
           path: artifacts
@@ -551,7 +564,7 @@ jobs:
     needs: [build-frontend, check-android-signing]
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ── Toolchains ──
       - uses: dtolnay/rust-toolchain@stable
@@ -573,7 +586,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: "17"
           distribution: "temurin"
@@ -589,7 +602,7 @@ jobs:
           link-to-sdk: true
 
       - name: Download frontend-dist artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: frontend-dist
           path: app/desktop/frontend-dist
@@ -621,7 +634,7 @@ jobs:
       # leg's cached binary instead of compiling its own copy.
       - name: Cache Tauri CLI
         id: cache-tauri-cli
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/cargo-tauri*
           key: tauri-cli-${{ env.TAURI_CLI_VERSION }}-${{ runner.os }}-${{ runner.arch }}
@@ -834,7 +847,7 @@ jobs:
       # The signed, verified APK from the step above (not the raw Gradle output,
       # which is unsigned and won't install).
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zcrypt-android-apk
           path: ${{ runner.temp }}/zcrypt.apk

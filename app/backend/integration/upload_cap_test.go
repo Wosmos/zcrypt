@@ -5,6 +5,7 @@ package integration_test
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"io"
 	"net/http"
 	"testing"
 
@@ -44,8 +45,10 @@ func TestUploadInitPerFileCap(t *testing.T) {
 
 	t.Run("exactly at the cap is not size-rejected", func(t *testing.T) {
 		resp := ts.POST("/api/upload/init", initReq(tenGiB), token)
-		// Whatever else init decides, it must not be the size guard firing.
-		assert.NotEqual(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		require.NoError(t, err)
+		// Init may still refuse it (e.g. the starter quota), but never via the per-file size guard.
+		assert.NotContains(t, string(body), "per-file limit")
 	})
 }

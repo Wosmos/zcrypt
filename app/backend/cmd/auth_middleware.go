@@ -50,6 +50,28 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// OptionalAuthMiddleware injects Claims when a valid, current Bearer token is
+// present and otherwise passes the request through unauthenticated.
+func (s *Server) OptionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		header := r.Header.Get("Authorization")
+		if !strings.HasPrefix(header, "Bearer ") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		claims, err := auth.ValidateAccessToken(s.cfg.JWTSecret, strings.TrimPrefix(header, "Bearer "))
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if curVer, vErr := s.tokenVersions.current(r.Context(), claims.Sub); vErr != nil || claims.TokenVersion != curVer {
+			next.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userContextKey, claims)))
+	}
+}
+
 // AdminMiddleware validates JWT and checks for admin role.
 func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return s.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +93,27 @@ func (s *Server) ShareRateLimitMiddleware(next http.HandlerFunc) http.HandlerFun
 			w.Header().Set("Retry-After", "5")
 			w.WriteHeader(http.StatusTooManyRequests)
 			w.Write([]byte(`{"error":"too many requests"}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+// AnalyticsRateLimitMiddleware caps how often ANY /api/analytics/* endpoint
+// can run a real DB aggregation for one account, keyed by user ID (not IP) so
+// it can't be sidestepped by extra browser tabs, another device, or a direct
+// API call with a valid JWT — the client-side refresh cooldown only stops a
+// well-behaved tab, this stops the account. Must run AFTER AuthMiddleware so
+// GetUserID(r) is populated. Shared across all analytics routes (one budget,
+// not one per endpoint) since a single page view or refresh legitimately
+// fires several of them at once.
+func (s *Server) AnalyticsRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.devMode && !s.analyticsLimiter.allow(GetUserID(r)) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Retry-After", "60")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":"too many analytics requests, please slow down"}`))
 			return
 		}
 		next.ServeHTTP(w, r)

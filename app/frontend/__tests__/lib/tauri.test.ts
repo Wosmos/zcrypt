@@ -10,6 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock, save: saveMock }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: openUrlMock }));
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "9.9.9" }));
 
 describe("tauri (outside the Tauri runtime)", () => {
   beforeEach(() => {
@@ -20,6 +21,11 @@ describe("tauri (outside the Tauri runtime)", () => {
     listenMock.mockReset();
     openUrlMock.mockReset();
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it("getAppVersion is null", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.getAppVersion()).resolves.toBeNull();
   });
 
   it("isTauri is false", async () => {
@@ -145,6 +151,11 @@ describe("tauri (inside the Tauri runtime)", () => {
 
   afterEach(() => {
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it("getAppVersion reads the shell version", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.getAppVersion()).resolves.toBe("9.9.9");
   });
 
   it("isTauri is true", async () => {
@@ -462,5 +473,98 @@ describe("tauri (inside the Tauri runtime)", () => {
     handler?.({ payload });
     expect(cb).toHaveBeenCalledWith(payload);
     expect(typeof unlisten).toBe("function");
+  });
+});
+
+describe("checkAndroidUpdate", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const release = (tag_name: unknown) =>
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ tag_name }) });
+
+  it("reports a newer tagged release as available", async () => {
+    release("v0.1.7");
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.1.6")).resolves.toEqual({
+      available: true,
+      latest: "0.1.7",
+      devBuild: null,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.github.com/repos/Wosmos/zcrypt/releases/latest",
+      { headers: { Accept: "application/vnd.github+json" } },
+    );
+  });
+
+  it("is current on the same release, or ahead of it", async () => {
+    release("v0.1.7");
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.1.7")).resolves.toMatchObject({ available: false });
+    await expect(checkAndroidUpdate("1.0.0")).resolves.toMatchObject({ available: false });
+  });
+
+  it("compares every core field, not just the patch", async () => {
+    release("v1.0.0");
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.9.9")).resolves.toMatchObject({ available: true });
+  });
+
+  it("treats a -dev.<sha> build as past the release it was cut from", async () => {
+    release("v0.1.6");
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.1.6-dev.abc1234")).resolves.toEqual({
+      available: false,
+      latest: "0.1.6",
+      devBuild: "abc1234",
+    });
+  });
+
+  it("flags a -dev build once a newer release exists", async () => {
+    release("v0.1.7");
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.1.6-dev.abc1234")).resolves.toEqual({
+      available: true,
+      latest: "0.1.7",
+      devBuild: "abc1234",
+    });
+  });
+
+  it("puts any other prerelease behind its own final release", async () => {
+    release("v0.1.7");
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.1.7-rc.1")).resolves.toMatchObject({
+      available: true,
+      devBuild: null,
+    });
+  });
+
+  it("rejects an unparseable running version without fetching", async () => {
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("nightly")).rejects.toThrow('unrecognised app version "nightly"');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects on an HTTP error so the UI never claims up to date", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 403 });
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    await expect(checkAndroidUpdate("0.1.6")).rejects.toThrow("release check failed (HTTP 403)");
+  });
+
+  it("rejects when the release carries no usable tag", async () => {
+    const { checkAndroidUpdate } = await import("@/lib/tauri");
+    release(undefined);
+    await expect(checkAndroidUpdate("0.1.6")).rejects.toThrow("release check returned no version");
+    release("android-latest");
+    await expect(checkAndroidUpdate("0.1.6")).rejects.toThrow("release check returned no version");
   });
 });

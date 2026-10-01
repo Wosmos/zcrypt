@@ -355,6 +355,20 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAUL
 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
 
+-- When the user finished (or deliberately skipped) onboarding. NULL means they
+-- have never seen it. This has to live on the server, not in localStorage:
+-- onboarding is the only screen that explains what zcrypt is, so "show it once"
+-- must mean once per person, not once per browser.
+--
+-- It also has to be its own column rather than being inferred from connected
+-- storage. A shared global token makes every platform report connected, so
+-- every new account looked finished and nobody ever saw the screen.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMPTZ DEFAULT NULL;
+
+-- Existing accounts are treated as already onboarded. They have been using the
+-- product for months; showing them a welcome screen now would be absurd.
+UPDATE users SET onboarded_at = created_at WHERE onboarded_at IS NULL;
+
 -- TOTP replay protection: the last accepted time-step counter (RFC 6238 §5.2).
 -- A code is one-time-use: verification only succeeds if its counter is
 -- strictly greater than this value.
@@ -386,6 +400,38 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_time ON feedback(created_at DESC);
 
+-- In-app bug reports (user optional so signed-out failures can still be filed)
+CREATE TABLE IF NOT EXISTS bug_reports (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+	description TEXT NOT NULL,
+	screenshot  BYTEA,
+	app_version TEXT NOT NULL DEFAULT '',
+	platform    TEXT NOT NULL DEFAULT '',
+	route       TEXT NOT NULL DEFAULT '',
+	user_agent  TEXT NOT NULL DEFAULT '',
+	status      TEXT NOT NULL DEFAULT 'open',
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bug_reports_status_time ON bug_reports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_time ON bug_reports(created_at DESC);
+
+-- In-app reviews; one per user, shown on the landing page once approved
+CREATE TABLE IF NOT EXISTS reviews (
+	id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id      UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+	rating       INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+	quote        TEXT NOT NULL,
+	display_name TEXT NOT NULL,
+	public_ok    BOOLEAN NOT NULL DEFAULT FALSE,
+	status       TEXT NOT NULL DEFAULT 'pending',
+	created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_status_time ON reviews(status, updated_at DESC);
+
 -- File sharing via public links
 CREATE TABLE IF NOT EXISTS shares (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -408,6 +454,10 @@ CREATE INDEX IF NOT EXISTS idx_shares_file ON shares(file_id);
 -- Envelope-encryption: the file's CEK wrapped under the share's random key
 -- (the key itself travels only in the share URL fragment, never to the server).
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
+
+-- The file name sealed (enc1:) under the share's link key, so a recipient can
+-- save the file under its real name. Opaque to the server; '' on older links.
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS enc_name TEXT NOT NULL DEFAULT '';
 
 -- Anonymous encrypted file sharing (zcrypt Send)
 CREATE TABLE IF NOT EXISTS send_transfers (
@@ -645,6 +695,10 @@ ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS size_limit_bytes BIGINT NOT N
 -- is sealed under the space key at share time, exactly like the CEK.
 ALTER TABLE shared_vault_files ADD COLUMN IF NOT EXISTS wrapped_name TEXT NOT NULL DEFAULT '';
 
+-- Set when a member is removed; cleared by the next key rotation. Until then new
+-- files are refused so nothing is wrapped under a key the removed member may hold.
+ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS needs_rotation BOOLEAN NOT NULL DEFAULT false;
+
 -- Public folder share links. Mirrors single-file shares (shares table) but for a
 -- whole folder: one random folder-share key (kept only in the URL #fragment,
 -- never sent here) wraps each contained file's CEK. Anyone with the link + key
@@ -682,6 +736,9 @@ CREATE TABLE IF NOT EXISTS folder_share_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_folder_share_files_file ON folder_share_files(file_id);
+
+-- Per-file name sealed (enc1:) under the folder-share key; '' on older links.
+ALTER TABLE folder_share_files ADD COLUMN IF NOT EXISTS enc_name TEXT NOT NULL DEFAULT '';
 
 -- Offline vault (pinned files for offline access)
 CREATE TABLE IF NOT EXISTS offline_pins (
@@ -761,6 +818,17 @@ CREATE TABLE IF NOT EXISTS user_keys (
 	created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Insights analytics aggregation at scale: a covering index lets Postgres
+-- answer the summary/timeseries SUM() queries via an index-only scan (no heap
+-- fetch per row). idx_files_user_created_complete above already serves the
+-- user_id+created_at access pattern; this variant adds the deleted_at
+-- predicate (analytics excludes trashed files) and INCLUDEs the summed
+-- columns. Additive and backward-compatible; not required for correctness.
+CREATE INDEX IF NOT EXISTS idx_files_user_created_complete_covering
+  ON files(user_id, created_at)
+  INCLUDE (original_size, encrypted_size, compressed_size, chunk_count)
+  WHERE status = 'complete' AND deleted_at IS NULL;
 
 ` + dedupeChunksSQL
 
@@ -853,4 +921,25 @@ CREATE TABLE IF NOT EXISTS app_downloads (
 CREATE INDEX IF NOT EXISTS idx_app_downloads_time ON app_downloads(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_app_downloads_platform ON app_downloads(platform);
 CREATE INDEX IF NOT EXISTS idx_app_downloads_target ON app_downloads(target);
+
+-- One row per completed public-link download. The nonce comes from the signed
+-- download ticket issued at /meta, so a retried or replayed completion counts
+-- once. No FK: the row only needs to outlive the ticket's lifetime.
+CREATE TABLE IF NOT EXISTS share_download_tickets (
+	nonce      TEXT PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_download_tickets_time ON share_download_tickets(created_at);
+
+-- Which chunks a download ticket has been served. A download counts once every
+-- chunk of the file went out under the ticket, so the cap holds server-side.
+CREATE TABLE IF NOT EXISTS share_ticket_chunks (
+	nonce      TEXT NOT NULL,
+	idx        INT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (nonce, idx)
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_ticket_chunks_time ON share_ticket_chunks(created_at);
 `

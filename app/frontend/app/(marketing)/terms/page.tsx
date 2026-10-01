@@ -1,7 +1,12 @@
 import Link from "next/link";
-import { LegalPage, LegalCta } from "@/components/marketing/legal-page";
-import { PullQuote, BulletList } from "@/components/marketing/prose";
-import { Section } from "@/components/marketing/section-reveal";
+import { LegalPage } from "@/components/marketing/legal-page";
+import {
+  BulletList,
+  ProseSection,
+  PullQuote,
+  proseBody,
+  proseLink,
+} from "@/components/marketing/prose";
 import { LEGAL_EMAIL } from "@/lib/site";
 
 export default function TermsPage() {
@@ -10,11 +15,10 @@ export default function TermsPage() {
       eyebrow="Legal"
       title="Terms of Service"
       lead="The rules of engagement. Plain language, no legalese traps. Last updated March 2026."
+      seeAlso={{ href: "/privacy", label: "Privacy Policy" }}
     >
-      {/* Service Description */}
-      <Section className="mt-16">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">1. Service Description</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="terms-service-description" eyebrow="Section 1" title="Service description">
+        <div className={proseBody}>
           <p>
             zcrypt is a zero-knowledge encrypted cloud storage platform. Files are encrypted
             client-side using AES-256-GCM before upload. We do not have access to your encryption
@@ -27,11 +31,9 @@ export default function TermsPage() {
             Terms.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Accounts */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">2. Accounts</h2>
+      <ProseSection id="terms-accounts" eyebrow="Section 2" title="Accounts">
         <BulletList
           items={[
             "You must provide accurate information when creating an account.",
@@ -40,24 +42,24 @@ export default function TermsPage() {
             "One person or entity may not maintain more than one account.",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* Free and Open Source */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">3. Free and Open Source</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection
+        id="terms-free-and-open-source"
+        eyebrow="Section 3"
+        title="Free and open source"
+      >
+        <div className={proseBody}>
           <p>
             zcrypt is free and open source. There are no paid plans, subscriptions, or billing. Your
             storage capacity is bounded only by the free space available on the platform account you
-            connect &mdash; there are no artificial limits imposed by zcrypt.
+            connect. There are no artificial limits imposed by zcrypt.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Acceptable Use */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">4. Acceptable Use</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="terms-acceptable-use" eyebrow="Section 4" title="Acceptable use">
+        <div className={proseBody}>
           <p>You agree not to:</p>
         </div>
         <BulletList
@@ -69,12 +71,14 @@ export default function TermsPage() {
             "Use automated systems to create accounts or upload content in bulk beyond normal usage.",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* BYOB */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">5. Bring Your Own Backend</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection
+        id="terms-bring-your-own-backend"
+        eyebrow="Section 5"
+        title="Bring your own backend"
+      >
+        <div className={proseBody}>
           <p>
             All users may connect their own storage accounts (GitHub, GitLab, Hugging Face, or
             Telegram). When using BYOB:
@@ -87,14 +91,14 @@ export default function TermsPage() {
             "We are not liable for data loss caused by third-party platform changes, outages, or account suspensions.",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* Zero-Knowledge */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          6. Zero-Knowledge Disclaimer
-        </h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection
+        id="terms-zero-knowledge-disclaimer"
+        eyebrow="Section 6"
+        title="Zero-knowledge disclaimer"
+      >
+        <div className={proseBody}>
           <p>
             zcrypt uses client-side encryption. We{" "}
             <strong className="text-[var(--color-text)]">cannot</strong> access, read, recover, or
@@ -107,42 +111,39 @@ export default function TermsPage() {
         <PullQuote>
           If you lose your passphrase, no one can help you. Not even us. That&apos;s the point.
         </PullQuote>
-      </Section>
+      </ProseSection>
 
-      {/* Data & Privacy */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">7. Data & Privacy</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="terms-data-privacy" eyebrow="Section 7" title="Data & privacy">
+        <div className={proseBody}>
           <p>
             Your use of the Service is also governed by our{" "}
-            <Link
-              href="/privacy"
-              className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-            >
+            <Link href="/privacy" className={proseLink}>
               Privacy Policy
             </Link>
             . We collect minimal account information and cannot access your encrypted file contents.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Intellectual Property */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">8. Intellectual Property</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection
+        id="terms-intellectual-property"
+        eyebrow="Section 8"
+        title="Intellectual property"
+      >
+        <div className={proseBody}>
           <p>
             You retain all rights to your files. zcrypt&apos;s source code is open source. The
             zcrypt name, logo, and branding are our intellectual property.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Liability */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          9. Limitation of Liability
-        </h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection
+        id="terms-limitation-of-liability"
+        eyebrow="Section 9"
+        title="Limitation of liability"
+      >
+        <div className={proseBody}>
           <p>
             The Service is provided &ldquo;as is&rdquo; without warranties of any kind. To the
             maximum extent permitted by law:
@@ -155,11 +156,9 @@ export default function TermsPage() {
             "We are not liable for indirect, incidental, or consequential damages.",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* Termination */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">10. Termination</h2>
+      <ProseSection id="terms-termination" eyebrow="Section 10" title="Termination">
         <BulletList
           items={[
             "You may delete your account at any time.",
@@ -167,38 +166,28 @@ export default function TermsPage() {
             "Upon termination, your encrypted data on managed storage will be deleted within 30 days. BYOB data remains on your own infrastructure.",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* Changes */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">11. Changes to Terms</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="terms-changes-to-terms" eyebrow="Section 11" title="Changes to terms">
+        <div className={proseBody}>
           <p>
             We may update these Terms with 30 days notice via email or in-app notification.
             Continued use after changes take effect constitutes acceptance.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Contact */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">12. Contact</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="terms-contact" eyebrow="Section 12" title="Contact">
+        <div className={proseBody}>
           <p>
             Questions about these Terms? Contact us at{" "}
-            <a
-              href={`mailto:${LEGAL_EMAIL}`}
-              className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-            >
+            <a href={`mailto:${LEGAL_EMAIL}`} className={proseLink}>
               {LEGAL_EMAIL}
             </a>
             .
           </p>
         </div>
-      </Section>
-
-      {/* CTA */}
-      <LegalCta seeAlsoHref="/privacy" seeAlsoLabel="Privacy Policy" />
+      </ProseSection>
     </LegalPage>
   );
 }

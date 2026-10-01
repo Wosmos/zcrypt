@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { adminGetPlans, adminSetPlans } from "@/lib/api";
 import { toast } from "@/store/toast";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Role } from "@/types";
 import type { PlanConfig, PlanFeature } from "@/types";
@@ -83,7 +86,6 @@ function UnitInputField({
 export default function AdminPricingPage() {
   const { user } = useAuthStore();
   const [plans, setPlans] = useState<PlanConfig[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PlanConfig | null>(null);
@@ -94,32 +96,37 @@ export default function AdminPricingPage() {
   const [fileSizeInputs, setFileSizeInputs] = useState<Record<string, string>>({});
   const [fileSizeUnits, setFileSizeUnits] = useState<Record<string, "MB" | "GB" | "TB">>({});
 
+  // The form edits a local copy, seeded once from the cached plans so a
+  // background refetch never clobbers unsaved edits.
+  const plansQuery = useAdminQuery(qk.adminPlans, adminGetPlans);
+  const seeded = useRef(false);
+  const loaded = plansQuery.data;
   useEffect(() => {
-    if (user?.role === Role.Admin) {
-      adminGetPlans()
-        .then((res) => {
-          setPlans(res.plans);
-          const sInputs: Record<string, string> = {};
-          const sUnits: Record<string, "MB" | "GB" | "TB"> = {};
-          const fInputs: Record<string, string> = {};
-          const fUnits: Record<string, "MB" | "GB" | "TB"> = {};
-          for (const p of res.plans) {
-            const s = bytesToMBOrGB(p.storage_bytes);
-            sInputs[p.id] = s.value.toString();
-            sUnits[p.id] = s.unit;
-            const f = bytesToMBOrGB(p.max_file_bytes);
-            fInputs[p.id] = f.value.toString();
-            fUnits[p.id] = f.unit;
-          }
-          setStorageInputs(sInputs);
-          setStorageUnits(sUnits);
-          setFileSizeInputs(fInputs);
-          setFileSizeUnits(fUnits);
-        })
-        .catch(() => toast.error("Failed to load plans"))
-        .finally(() => setLoading(false));
+    if (!loaded || seeded.current) return;
+    seeded.current = true;
+    setPlans(loaded.plans);
+    const sInputs: Record<string, string> = {};
+    const sUnits: Record<string, "MB" | "GB" | "TB"> = {};
+    const fInputs: Record<string, string> = {};
+    const fUnits: Record<string, "MB" | "GB" | "TB"> = {};
+    for (const p of loaded.plans) {
+      const s = bytesToMBOrGB(p.storage_bytes);
+      sInputs[p.id] = s.value.toString();
+      sUnits[p.id] = s.unit;
+      const f = bytesToMBOrGB(p.max_file_bytes);
+      fInputs[p.id] = f.value.toString();
+      fUnits[p.id] = f.unit;
     }
-  }, [user]);
+    setStorageInputs(sInputs);
+    setStorageUnits(sUnits);
+    setFileSizeInputs(fInputs);
+    setFileSizeUnits(fUnits);
+  }, [loaded]);
+  const loadError = plansQuery.error;
+  useEffect(() => {
+    if (loadError) toast.error("Failed to load plans");
+  }, [loadError]);
+  const loading = plansQuery.loading && !loadError;
 
   if (!user || user.role !== Role.Admin) return null;
   if (loading) return <PricingSkeleton />;
@@ -237,6 +244,7 @@ export default function AdminPricingPage() {
     setSaving(true);
     try {
       await adminSetPlans({ plans });
+      queryClient.setQueryData(qk.adminPlans, { plans });
       setConfirmSave(false);
       toast.success("Plans saved successfully");
     } catch (err) {

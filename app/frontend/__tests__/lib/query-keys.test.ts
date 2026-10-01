@@ -34,4 +34,41 @@ describe("qk", () => {
   it("folderShares(folderId) keys by folder id", () => {
     expect(qk.folderShares("folder-1")).toEqual(["folder-shares", "folder-1"]);
   });
+
+  it("analytics keys use the range's stable key, never millisecond bounds", () => {
+    expect(qk.analyticsSummary("30d:2026-1-5")).toEqual(["analytics", "summary", "30d:2026-1-5"]);
+    expect(qk.analyticsTimeseries("30d:2026-1-5", "day")).toEqual([
+      "analytics",
+      "timeseries",
+      "30d:2026-1-5",
+      "day",
+    ]);
+    expect(qk.analyticsFileTypes("all:2026-1-5")).toEqual(["analytics", "file-types", "all:2026-1-5"]);
+  });
+
+  it("exposes analyticsStorageGrowth as a fixed tuple", () => {
+    expect(qk.analyticsStorageGrowth).toEqual(["analytics", "storage-growth"]);
+  });
+
+  it("recentUploads(limit) keys by limit", () => {
+    expect(qk.recentUploads(8)).toEqual(["analytics", "recent", 8]);
+  });
+
+  it("admin keys share one root; settings/tools keys stay out of the persisted roots", () => {
+    expect(qk.adminOverview[0]).toBe("admin");
+    expect(qk.adminUsers).toEqual(["admin", "users"]);
+    expect(qk.adminUser("u1")).toEqual(["admin", "user", "u1"]);
+    expect(qk.adminAudit(2, "login")).toEqual(["admin", "audit", 2, "login"]);
+    expect(qk.adminDownloads("30")).toEqual(["admin", "downloads", "30"]);
+    expect(qk.adminFeedback(20)).toEqual(["admin", "feedback", 20]);
+    expect(qk.adminBugReports("open", 20)).toEqual(["admin", "bug-reports", "open", 20]);
+    expect(qk.adminReviews("pending", 20)).toEqual(["admin", "reviews", "pending", 20]);
+    expect(qk.myReview).toEqual(["review", "mine"]);
+    expect(qk.adminPlans).toEqual(["admin", "plans"]);
+    expect(qk.devices("d1")).toEqual(["tools", "devices", "d1"]);
+    for (const k of [qk.syncFolders, qk.expiring, qk.integrity, qk.snapshots]) expect(k[0]).toBe("tools");
+    for (const k of [qk.securityActivity, qk.linkedAccounts, qk.deadman, qk.decoy])
+      expect(k[0]).toBe("settings");
+    expect(qk.incompleteUploads).toEqual(["uploads", "incomplete"]);
+  });
 });

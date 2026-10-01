@@ -11,8 +11,16 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import { useNotifications } from "@/hooks/useNotifications";
 import { notifications as notifActions } from "@/store/notifications";
-import { deleteFile, bulkDeleteFiles, moveFile, type IncompleteUpload } from "@/lib/api";
+import {
+  deleteFile,
+  bulkDeleteFiles,
+  moveFile,
+  restoreFile,
+  bulkRestoreFiles,
+  type IncompleteUpload,
+} from "@/lib/api";
 import { invalidateTrash } from "@/store/trash";
+import { invalidateFilesViews } from "@/lib/invalidate";
 import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
 import { formatBytes } from "@/lib/utils";
@@ -133,10 +141,24 @@ export function useVaultActions({
     if (passphrase) {
       // Arm lazy generation; each card generates its own thumbnail on render.
       primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
-      // Ensure this account has an X25519 keypair (foundation for sharing).
-      void ensureUserKeypair(passphrase);
     }
   }, [files, vaultUnlocked, folderPwCache, thumbnailResolver, fileById]);
+
+  // Ensure this account has an X25519 keypair (foundation for sharing), but off
+  // the vault's critical path: once per unlock, when the browser is idle.
+  useEffect(() => {
+    if (!vaultUnlocked) return;
+    const run = () => {
+      const passphrase = usePassphraseStore.getState().getPassphrase();
+      if (passphrase) void ensureUserKeypair(passphrase);
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(run, { timeout: 5000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(run, 2000);
+    return () => clearTimeout(t);
+  }, [vaultUnlocked]);
 
   // ── SSE events from the backend pipeline → upload store ─────────────────────
   // TERMINAL events only (done / error). Intermediate progress events are
@@ -552,6 +574,7 @@ export function useVaultActions({
         folderId === null
           ? `Moved "${file.original_name}" to Root`
           : `Moved "${file.original_name}"`,
+        { label: "Undo", onClick: () => handleMoveFileTo(fileId, originalFolderId) },
       );
       // Revert THIS file only (functionally) on failure, never a whole-list
       // snapshot, which would undo sibling moves still in flight from the same
@@ -582,14 +605,22 @@ export function useVaultActions({
     (target: FileMetadata) => {
       setFiles((cur) => cur.filter((f) => f.id !== target.id));
       clearDecryptCacheForFile(target.id);
-      toast.success("File deleted");
       void refreshQuota();
       // Fire-and-forget; reconcile against the server on failure (refresh, not a
       // captured snapshot, to avoid resurrecting a concurrently-deleted file).
+      // The toast (and its Undo) waits for the delete to actually land, so an
+      // undo click always finds a real, restorable Trash row.
       deleteFile(target.id)
         .then(() => {
-          // The row now lives in Trash. Keep that view in sync.
           void invalidateTrash();
+          toast.success("File deleted", {
+            label: "Undo",
+            onClick: () => {
+              restoreFile(target.id)
+                .then(() => invalidateFilesViews())
+                .catch(() => toast.error("Failed to undo delete"));
+            },
+          });
         })
         .catch((err) => {
           toast.error(err instanceof Error ? err.message : "Delete failed");
@@ -613,7 +644,14 @@ export function useVaultActions({
           toast.warning(`${result.deleted} deleted, ${result.failed} failed`);
           void refresh(); // reconcile the partial failure against the server
         } else {
-          toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`);
+          toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`, {
+            label: "Undo",
+            onClick: () => {
+              bulkRestoreFiles(ids)
+                .then(() => invalidateFilesViews())
+                .catch(() => toast.error("Failed to undo delete"));
+            },
+          });
         }
         // Deleted rows now live in Trash.
         void invalidateTrash();

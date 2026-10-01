@@ -1,12 +1,62 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
+
+// Space roles, weakest to strongest. The owner is an admin member who also owns
+// the space, so they alone can delete it, grant admin and act on other admins.
+//
+//	viewer  read and download
+//	editor  viewer + add and remove files
+//	admin   editor + invite/remove viewers and editors, change their roles,
+//	        rename and re-limit the space, rotate its key
+//	owner   admin + grant admin, act on admins, delete the space
+const (
+	spaceRoleNone = iota
+	spaceRoleViewer
+	spaceRoleEditor
+	spaceRoleAdmin
+	spaceRoleOwner
+)
+
+func spaceRank(role string) int {
+	switch role {
+	case "viewer":
+		return spaceRoleViewer
+	case "editor":
+		return spaceRoleEditor
+	case "admin":
+		return spaceRoleAdmin
+	case "owner":
+		return spaceRoleOwner
+	}
+	return spaceRoleNone
+}
+
+// spaceActorRank resolves the caller's effective rank in a space (none when
+// they are not a member, which includes a just-removed member).
+func (s *Server) spaceActorRank(ctx context.Context, vaultID, userID string) int {
+	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
+	if err != nil {
+		return spaceRoleNone
+	}
+	if owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID); err == nil && owner {
+		return spaceRoleOwner
+	}
+	return spaceRank(role)
+}
+
+func validSpaceRole(role string) bool {
+	return role == "viewer" || role == "editor" || role == "admin"
+}
 
 // HandleListSharedVaults returns all shared vaults the user is a member of.
 // GET /api/shared-vaults
@@ -41,10 +91,12 @@ func (s *Server) HandleCreateSharedVault(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if req.Name == "" {
-		http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+	name, ok := boundedField(req.Name, 120)
+	if !ok || name == "" {
+		http.Error(w, `{"error":"name is required and must be under 120 characters"}`, http.StatusBadRequest)
 		return
 	}
+	req.Name = name
 
 	vault, err := s.db.CreateSharedVault(ctx, userID, req)
 	if err != nil {
@@ -82,11 +134,9 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
-	// Membership changes are owner-only: an admin must not be able to invite
-	// arbitrary accounts or demote/remove the owner.
-	owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID)
-	if err != nil || !owner {
-		http.Error(w, `{"error":"only the vault owner can add members"}`, http.StatusForbidden)
+	actor := s.spaceActorRank(ctx, vaultID, userID)
+	if actor < spaceRoleAdmin {
+		http.Error(w, `{"error":"only the owner or an admin can add members"}`, http.StatusForbidden)
 		return
 	}
 
@@ -103,9 +153,24 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	if req.Role == "" {
 		req.Role = "viewer"
 	}
-	if req.Role != "viewer" && req.Role != "editor" && req.Role != "admin" {
+	if !validSpaceRole(req.Role) {
 		http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
 		return
+	}
+	if actor < spaceRoleOwner {
+		if req.Role == "admin" {
+			http.Error(w, `{"error":"only the owner can grant the admin role"}`, http.StatusForbidden)
+			return
+		}
+		existing, err := s.db.SharedVaultMemberRoleByEmail(ctx, vaultID, req.Email)
+		if err != nil {
+			http.Error(w, `{"error":"failed to add member"}`, http.StatusInternalServerError)
+			return
+		}
+		if existing == "admin" {
+			http.Error(w, `{"error":"only the owner can change an admin"}`, http.StatusForbidden)
+			return
+		}
 	}
 
 	member, err := s.db.AddSharedVaultMember(ctx, vaultID, req.Email, req.Role, req.WrappedSpaceKey)
@@ -133,6 +198,16 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
 	if err != nil || (role != "admin" && role != "editor") {
 		http.Error(w, `{"error":"only editors or admins can add files"}`, http.StatusForbidden)
+		return
+	}
+
+	need, err := s.db.SharedVaultNeedsRotation(ctx, vaultID)
+	if err != nil {
+		internalError(w, "check rotation", err)
+		return
+	}
+	if need {
+		http.Error(w, `{"error":"space key must be rotated before adding files"}`, http.StatusConflict)
 		return
 	}
 
@@ -181,7 +256,7 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // HandleRemoveSharedVaultFile unshares a file from a space (editor/admin only).
@@ -205,7 +280,7 @@ func (s *Server) HandleRemoveSharedVaultFile(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // HandleRemoveSharedVaultMember removes a member from a shared vault.
@@ -216,25 +291,39 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 	vaultID := r.PathValue("id")
 	memberUID := r.PathValue("uid")
 
-	// Membership changes are owner-only.
-	owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID)
-	if err != nil || !owner {
-		http.Error(w, `{"error":"only the vault owner can remove members"}`, http.StatusForbidden)
+	actor := s.spaceActorRank(ctx, vaultID, userID)
+	if actor == spaceRoleNone {
+		http.Error(w, `{"error":"vault not found or access denied"}`, http.StatusNotFound)
 		return
 	}
+	if memberUID != userID {
+		if actor < spaceRoleAdmin {
+			http.Error(w, `{"error":"only the owner or an admin can remove members"}`, http.StatusForbidden)
+			return
+		}
+		if actor < spaceRoleOwner && s.spaceActorRank(ctx, vaultID, memberUID) >= spaceRoleAdmin {
+			http.Error(w, `{"error":"only the owner can remove an admin"}`, http.StatusForbidden)
+			return
+		}
+	}
 
-	if err := s.db.RemoveSharedVaultMember(ctx, vaultID, memberUID); err != nil {
+	removed, err := s.db.RemoveSharedVaultMember(ctx, vaultID, memberUID)
+	if err != nil {
 		log.Printf("shared-vaults: remove member: %v", err)
 		http.Error(w, `{"error":"failed to remove member"}`, http.StatusInternalServerError)
 		return
 	}
+	if !removed {
+		http.Error(w, `{"error":"member not found or cannot be removed"}`, http.StatusNotFound)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // HandleRotateSharedVault re-keys a space after a membership change. The caller
-// (admin) generates a new space key client-side, seals it to every remaining
+// (owner) generates a new space key client-side, seals it to every remaining
 // member, and re-wraps every shared file's CEK under it; this endpoint just
 // stores the opaque results atomically. This is what makes member removal a
 // true revocation: a removed member gets no new grant and the re-wrapped files
@@ -245,10 +334,7 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
-	// Owner-only: a re-key that supplies member grants could otherwise be used by
-	// a non-owner admin to hand out garbage grants and lock members out.
-	owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID)
-	if err != nil || !owner {
+	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleOwner {
 		http.Error(w, `{"error":"only the vault owner can rotate the space key"}`, http.StatusForbidden)
 		return
 	}
@@ -260,13 +346,17 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.Members, req.Files); err != nil {
+		if errors.Is(err, index.ErrRotationIncomplete) {
+			http.Error(w, `{"error":"rotation must cover every member and file"}`, http.StatusConflict)
+			return
+		}
 		log.Printf("shared-vaults: rotate: %v", err)
 		http.Error(w, `{"error":"failed to rotate space key"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // HandleDeleteSharedVault deletes a shared vault (owner only).
@@ -276,6 +366,11 @@ func (s *Server) HandleDeleteSharedVault(w http.ResponseWriter, r *http.Request)
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
+	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleOwner {
+		http.Error(w, `{"error":"only the vault owner can delete the space"}`, http.StatusForbidden)
+		return
+	}
+
 	if err := s.db.DeleteSharedVault(ctx, userID, vaultID); err != nil {
 		log.Printf("shared-vaults: delete: %v", err)
 		http.Error(w, `{"error":"failed to delete vault"}`, http.StatusInternalServerError)
@@ -283,5 +378,100 @@ func (s *Server) HandleDeleteSharedVault(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// HandleUpdateSharedVault renames / re-limits a space (owner or admin).
+// PATCH /api/shared-vaults/{id}
+func (s *Server) HandleUpdateSharedVault(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	vaultID := r.PathValue("id")
+
+	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleAdmin {
+		http.Error(w, `{"error":"only the owner or an admin can edit the space"}`, http.StatusForbidden)
+		return
+	}
+
+	var req types.SharedVaultUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Name != nil {
+		n, ok := boundedField(*req.Name, 120)
+		if !ok || n == "" {
+			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			return
+		}
+		req.Name = &n
+	}
+	if req.Description != nil {
+		d, ok := boundedField(*req.Description, 1000)
+		if !ok {
+			http.Error(w, `{"error":"description is too long"}`, http.StatusBadRequest)
+			return
+		}
+		req.Description = &d
+	}
+	if req.SizeLimitBytes != nil && *req.SizeLimitBytes < 0 {
+		http.Error(w, `{"error":"invalid size limit"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.db.UpdateSharedVault(ctx, vaultID, req); err != nil {
+		log.Printf("shared-vaults: update: %v", err)
+		http.Error(w, `{"error":"failed to update space"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// HandleUpdateSharedVaultMemberRole changes a member's role. Admins can move
+// viewers and editors between viewer and editor; only the owner can grant admin
+// or change an admin.
+// PATCH /api/shared-vaults/{id}/members/{uid}
+func (s *Server) HandleUpdateSharedVaultMemberRole(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	vaultID := r.PathValue("id")
+	memberUID := r.PathValue("uid")
+
+	actor := s.spaceActorRank(ctx, vaultID, userID)
+	if actor < spaceRoleAdmin {
+		http.Error(w, `{"error":"only the owner or an admin can change roles"}`, http.StatusForbidden)
+		return
+	}
+
+	var req types.SharedVaultRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !validSpaceRole(req.Role) {
+		http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
+		return
+	}
+	if actor < spaceRoleOwner {
+		if req.Role == "admin" {
+			http.Error(w, `{"error":"only the owner can grant the admin role"}`, http.StatusForbidden)
+			return
+		}
+		if s.spaceActorRank(ctx, vaultID, memberUID) >= spaceRoleAdmin {
+			http.Error(w, `{"error":"only the owner can change an admin"}`, http.StatusForbidden)
+			return
+		}
+	}
+
+	changed, err := s.db.UpdateSharedVaultMemberRole(ctx, vaultID, memberUID, req.Role)
+	if err != nil {
+		log.Printf("shared-vaults: update role: %v", err)
+		http.Error(w, `{"error":"failed to change role"}`, http.StatusInternalServerError)
+		return
+	}
+	if !changed {
+		http.Error(w, `{"error":"member not found or cannot be changed"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }

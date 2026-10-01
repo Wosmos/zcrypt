@@ -51,13 +51,13 @@ func (s *Server) audit(r *http.Request, userID *string, eventType string, metada
 	// Emit to SSE subscribers in real-time
 	s.progress.EmitAudit(e)
 	// Persist to DB asynchronously
-	go func() {
+	s.goBackground(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.db.InsertAuditEvent(ctx, &e); err != nil {
 			log.Printf("audit: %v", err)
 		}
-	}()
+	})
 }
 
 // validatePassword enforces password complexity: min 8 chars, 1 uppercase, 1 digit, 1 special char.
@@ -277,6 +277,18 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		if decoyErr == nil && decoy.Enabled {
 			if auth.CheckPassword(req.Password, decoy.DecoyPasswordHash) == nil {
 				// Decoy password match, issue decoy tokens
+				if user.TOTPEnabled {
+					tempToken, err := auth.GenerateDecoyTempToken(s.cfg.JWTSecret, user.ID)
+					if err != nil {
+						http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+						return
+					}
+					writeJSON(w, http.StatusOK, map[string]interface{}{
+						"requires_2fa": true,
+						"temp_token":   tempToken,
+					})
+					return
+				}
 				s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email})
 				s.issueDecoyTokens(w, r, user)
 				return
@@ -315,15 +327,13 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+	refreshToken := extractRefreshToken(r)
+	if refreshToken == "" {
+		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
 		return
 	}
 
-	hash := auth.HashToken(req.RefreshToken)
+	hash := auth.HashToken(refreshToken)
 	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
 	if err != nil {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
@@ -357,19 +367,15 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req struct {
-		RefreshToken string `json:"refresh_token"`
+	refreshToken := extractRefreshToken(r)
+	if refreshToken != "" {
+		hash := auth.HashToken(refreshToken)
+		rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
+		if err == nil {
+			_ = s.db.DeleteRefreshToken(ctx, rt.ID)
+		}
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
-		return
-	}
-
-	hash := auth.HashToken(req.RefreshToken)
-	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
-	if err == nil {
-		s.db.DeleteRefreshToken(ctx, rt.ID)
-	}
+	clearRefreshCookie(w)
 
 	userID := GetUserID(r)
 	if userID != "" {
@@ -923,6 +929,11 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		remaining, _ := s.db.CountUnusedBackupCodes(ctx, user.ID)
+		if claims.Decoy {
+			s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email, "method": "backup_code"})
+			s.issueDecoyTokens(w, r, user)
+			return
+		}
 		s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "backup_code", "backup_codes_remaining": remaining})
 		s.issueTokens(w, r, user)
 		return
@@ -953,6 +964,11 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if claims.Decoy {
+		s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email, "method": "2fa"})
+		s.issueDecoyTokens(w, r, user)
+		return
+	}
 	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "2fa"})
 	s.issueTokens(w, r, user)
 }
@@ -1346,50 +1362,106 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 
 	s.audit(r, &user.ID, "magic_link_used", map[string]interface{}{"email": user.Email})
 
+	if user.TOTPEnabled {
+		tempToken, err := auth.GenerateTempToken(s.cfg.JWTSecret, user.ID)
+		if err != nil {
+			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"requires_2fa": true,
+			"temp_token":   tempToken,
+		})
+		return
+	}
+
 	s.issueTokens(w, r, user)
 }
 
-// issueTokens generates JWT + refresh token and writes them as JSON response.
-func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	ctx := r.Context()
+// refreshCookieName is the httpOnly cookie carrying the refresh token for
+// browser (web) clients. Scoped to /api/auth so it's only ever sent on
+// refresh/logout, not on every API request. SameSite=None because the web
+// SPA calls a genuinely cross-origin API host (confirmed: NEXT_PUBLIC_API_URL
+// is called directly, not via the same-origin /api/* rewrite) — SameSite=None
+// requires Secure, set unconditionally since the app is never served over
+// plain HTTP in any real deployment.
+//
+// This is ADDITIVE, not a replacement for the refresh_token JSON field: the
+// desktop (Tauri) app forwards the raw refresh token into its Rust sync
+// worker and has no browser-equivalent cookie trust boundary, so it keeps
+// reading refresh_token from the response body exactly as before. The
+// security fix is entirely on the frontend side (store/auth.ts no longer
+// persists the refresh token to localStorage for the web case), not in
+// removing it from this response.
+const refreshCookieName = "zcrypt_rt"
 
+func setRefreshCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // SameSite=None is deliberate (see comment above) and already paired with Secure+HttpOnly
+		Name:     refreshCookieName,
+		Value:    token,
+		Path:     "/api/auth",
+		MaxAge:   int(auth.RefreshTokenDuration.Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
+// extractRefreshToken reads the refresh token from the httpOnly cookie
+// (web clients) first, falling back to the JSON body's refresh_token field
+// (desktop/native clients, which never receive the cookie flow). An absent
+// or empty body is not an error here: a web client relying solely on the
+// cookie may send no body at all.
+func extractRefreshToken(r *http.Request) string {
+	if c, err := r.Cookie(refreshCookieName); err == nil && c.Value != "" {
+		return c.Value
+	}
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	return req.RefreshToken
+}
+
+func clearRefreshCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // SameSite=None is deliberate (see setRefreshCookie comment) and already paired with Secure+HttpOnly
+		Name:     refreshCookieName,
+		Value:    "",
+		Path:     "/api/auth",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
+// issueTokens generates JWT + refresh token, sets the refresh-token cookie
+// for web clients, and writes both tokens as a JSON response (still needed
+// by the desktop/Tauri client — see refreshCookieName's comment).
+func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
 	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-
-	refreshToken, err := auth.GenerateRandomToken()
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
-	}
-
-	s.db.InsertRefreshToken(ctx, &types.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		TokenHash: auth.HashToken(refreshToken),
-		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        s.clientIP(r),
-		UserAgent: r.UserAgent(),
-	})
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"user":          user,
-	})
+	s.writeTokenResponse(w, r, user, accessToken)
 }
 
 // issueDecoyTokens issues JWT tokens with the decoy flag set.
 func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	ctx := r.Context()
-
 	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
+	s.writeTokenResponse(w, r, user, accessToken)
+}
+
+// writeTokenResponse generates a refresh token for an already-generated access
+// token, persists it, sets the web refresh cookie, and writes the JSON
+// response shared by issueTokens and issueDecoyTokens.
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string) {
+	ctx := r.Context()
 
 	refreshToken, err := auth.GenerateRandomToken()
 	if err != nil {
@@ -1406,6 +1478,7 @@ func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *
 		UserAgent: r.UserAgent(),
 	})
 
+	setRefreshCookie(w, refreshToken)
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,

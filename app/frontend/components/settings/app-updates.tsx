@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SettingGroup } from "@/components/settings/settings-primitives";
 import {
+  checkAndroidUpdate,
   checkForUpdates,
   installUpdate,
+  openExternal,
   onUpdateProgress,
   type UpdateInfo,
   type UpdateProgress,
@@ -14,6 +16,16 @@ import { toast } from "@/store/toast";
 import { SITE_URL } from "@/lib/site";
 
 type Phase = "idle" | "checking" | "installing";
+
+const REINSTALL_NOTE_KEY = "zcrypt:android-reinstall-note-dismissed";
+
+function readNoteDismissed() {
+  try {
+    return localStorage.getItem(REINSTALL_NOTE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function formatMB(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -24,12 +36,33 @@ export function AppUpdates() {
   const [checkError, setCheckError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<UpdateProgress | null>(null);
+  const [devBuild, setDevBuild] = useState<string | null>(null);
+  const [noteDismissed, setNoteDismissed] = useState(true);
+
+  useEffect(() => {
+    setNoteDismissed(readNoteDismissed());
+  }, []);
+
+  const dismissNote = () => {
+    setNoteDismissed(true);
+    try {
+      localStorage.setItem(REINSTALL_NOTE_KEY, "1");
+    } catch {}
+  };
 
   const check = async () => {
     setPhase("checking");
     setCheckError(null);
+    setDevBuild(null);
     try {
-      setInfo(await checkForUpdates());
+      const next = await checkForUpdates();
+      if (next.channel === "android") {
+        const android = await checkAndroidUpdate(next.current_version);
+        setDevBuild(android.devBuild);
+        setInfo({ ...next, available: android.available, version: android.latest });
+      } else {
+        setInfo(next);
+      }
     } catch (err) {
       setCheckError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -42,6 +75,14 @@ export function AppUpdates() {
   useEffect(() => {
     void check();
   }, []);
+
+  const downloadAndroid = async () => {
+    try {
+      await openExternal(`${SITE_URL}/dl/android`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't open the download");
+    }
+  };
 
   const install = async () => {
     setPhase("installing");
@@ -61,7 +102,9 @@ export function AppUpdates() {
   // A .deb/.rpm install manages its own updates via the system package
   // manager: the in-app updater only knows how to replace a running
   // AppImage, so there's nothing meaningful to check or install here.
-  if (info && !info.updatable) {
+  const isAndroid = info?.channel === "android";
+
+  if (info && !info.updatable && !info.channel) {
     return (
       <SettingGroup label="App updates">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -91,6 +134,7 @@ export function AppUpdates() {
     if (phase === "checking") return "Checking for updates…";
     if (checkError) return "Couldn't check for updates";
     if (!info) return "";
+    if (info.channel === "ios") return "Updates come from the App Store";
     return info.available ? `Version ${info.version} is available` : "You're on the latest version";
   })();
 
@@ -102,7 +146,11 @@ export function AppUpdates() {
   return (
     <SettingGroup
       label="App updates"
-      footnote="Updates are signed with zcrypt's release key and verified before install. Only builds signed with that key are ever accepted."
+      footnote={
+        isAndroid
+          ? "Android updates download as a signed APK. Open it to install over this copy; your vault stays in the cloud."
+          : "Updates are signed with zcrypt's release key and verified before install. Only builds signed with that key are ever accepted."
+      }
     >
       <div className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,6 +158,11 @@ export function AppUpdates() {
             <p className="text-sm font-medium text-[var(--color-text)]">
               zcrypt {info?.current_version ? `v${info.current_version}` : ""}
             </p>
+            {devBuild && !info?.available && !checkError && (
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                Development build ({devBuild}), ahead of v{info?.version}
+              </p>
+            )}
             <p
               className={`mt-0.5 text-xs ${
                 checkError
@@ -131,13 +184,36 @@ export function AppUpdates() {
             <Button variant="secondary" onClick={() => void check()} disabled={phase !== "idle"}>
               {phase === "checking" ? "Checking…" : "Check again"}
             </Button>
-            {info?.available && (
+            {info?.available && isAndroid && (
+              <Button onClick={() => void downloadAndroid()} disabled={phase !== "idle"}>
+                Download update
+              </Button>
+            )}
+            {info?.available && !isAndroid && (
               <Button onClick={() => void install()} disabled={phase !== "idle"}>
                 {phase === "installing" ? "Installing…" : "Install & restart"}
               </Button>
             )}
           </div>
         </div>
+
+        {isAndroid && !noteDismissed && (
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
+            <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+              <span className="font-medium text-[var(--color-text)]">Installed before v0.1.7?</span>{" "}
+              Older copies were signed with a different key, so Android will refuse the update with
+              &quot;App not installed&quot;. Let pending uploads finish, uninstall zcrypt once, then
+              install the download and sign back in. Every update after that installs in place.
+            </p>
+            <button
+              type="button"
+              onClick={dismissNote}
+              className="shrink-0 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            >
+              Got it
+            </button>
+          </div>
+        )}
 
         {phase === "installing" && (
           <div className="space-y-1.5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,12 +16,12 @@ import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } fro
 import { EVENT_ICONS } from "@/lib/audit-events";
 import { toast } from "@/store/toast";
 import { Role } from "@/types";
-import type { AdminUserDetail, PlanConfig } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
 import { RoleBadge, PlanBadge } from "@/components/admin/badges";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
-import { useAdminGuardedFetch } from "@/hooks/useAdminGuardedFetch";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { qk } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -52,8 +52,6 @@ const eventColors: Record<string, string> = {
 export function AdminUserDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [data, setData] = useState<AdminUserDetail | null>(null);
-  const [planConfigs, setPlanConfigs] = useState<PlanConfig[]>([]);
   const [busy, setBusy] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState<{
@@ -66,12 +64,23 @@ export function AdminUserDetailContent() {
   const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
   const [quotaInput, setQuotaInput] = useState("");
 
-  const fetcher = useCallback(async () => {
-    const [res, plans] = await Promise.all([adminGetUser(id), adminGetPlans()]);
-    setData(res);
-    setPlanConfigs(plans.plans);
-  }, [id]);
-  const { user: currentUser, loading, error, refresh: fetchUser } = useAdminGuardedFetch(fetcher);
+  const {
+    user: currentUser,
+    data: detail,
+    loading,
+    error,
+    refresh: fetchUser,
+  } = useAdminQuery(
+    qk.adminUser(id),
+    async () => {
+      const [res, plans] = await Promise.all([adminGetUser(id), adminGetPlans()]);
+      return { res, planConfigs: plans.plans };
+    },
+    // Never show another user's details while this one loads.
+    { keepPrevious: false },
+  );
+  const data = detail?.res ?? null;
+  const planConfigs = detail?.planConfigs ?? [];
 
   if (!currentUser || currentUser.role !== Role.Admin) return null;
   if (loading) return <UserDetailSkeleton />;

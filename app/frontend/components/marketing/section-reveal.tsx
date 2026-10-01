@@ -10,15 +10,20 @@ import { cn } from "@/lib/utils";
 export function Section({
   children,
   className,
+  as: Tag = "section",
+  delay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
+  as?: "section" | "div";
+  delay?: number;
 }) {
-  const { ref, isVisible } = useInViewOnce<HTMLElement>("-80px");
+  const { ref, isVisible } = useInViewOnce<HTMLDivElement>("-80px");
 
   return (
-    <section
+    <Tag
       ref={ref}
+      style={delay ? { transitionDelay: `${delay}s` } : undefined}
       className={cn(
         "transition-[opacity,transform] duration-700 ease-out",
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10",
@@ -26,6 +31,6 @@ export function Section({
       )}
     >
       {children}
-    </section>
+    </Tag>
   );
 }

@@ -90,7 +90,7 @@ function applyColorTheme(id: string) {
  *  the choice locally. */
 function syncPreferenceToServer(colorTheme: string, mode: string) {
   if (typeof window === "undefined") return;
-  if (!useAuthStore.getState().accessToken) return;
+  if (!useAuthStore.getState().user) return;
   saveDevicePreference({
     device_id: getDeviceId(),
     color_theme: colorTheme,
@@ -104,7 +104,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [colorTheme, setColorThemeState] = useState<string>(DEFAULT_COLOR_THEME);
   const [customTheme, setCustomThemeState] = useState<CustomThemeValues>(DEFAULT_CUSTOM_THEME);
   const [mounted, setMounted] = useState(false);
-  const accessToken = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
   const pulledRef = useRef(false);
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // If the server has a saved row, it wins (this device's durable choice);
   // if not, seed it from the current local choice. Runs at most once.
   useEffect(() => {
-    if (!mounted || !accessToken || pulledRef.current) return;
+    if (!mounted || !user || pulledRef.current) return;
     pulledRef.current = true;
     let cancelled = false;
     getDevicePreference(getDeviceId())
@@ -178,7 +178,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [mounted, accessToken]);
+  }, [mounted, user]);
 
   /** Apply the mode to React state and <html> in one pass. resolvedTheme is
    *  set in the same update as theme so consumers render once per change; the

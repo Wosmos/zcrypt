@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { login, requestMagicLink, getMe } from "@/lib/auth-api";
 import { OAuthButtons, DESKTOP_OAUTH_SESSION_KEY } from "@/components/auth/oauth-buttons";
@@ -16,6 +17,8 @@ import { isTauri } from "@/lib/tauri";
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
+  const tl = useTranslations("auth.login");
   const { setUser, setTokens } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,6 +26,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [approvalCode, setApprovalCode] = useState("");
 
   // Desktop OAuth: poll backend for tokens after user completes login in browser
   useEffect(() => {
@@ -32,23 +36,42 @@ export default function LoginPage() {
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     function startPolling() {
-      const session = sessionStorage.getItem(DESKTOP_OAUTH_SESSION_KEY);
-      if (!session) return;
+      let session = "";
+      let verifier = "";
+      let code = "";
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(DESKTOP_OAUTH_SESSION_KEY) || "null");
+        session = stored?.session ?? "";
+        verifier = stored?.verifier ?? "";
+        code = stored?.code ?? "";
+      } catch {
+        /* malformed entry */
+      }
+      if (!session || !verifier) return;
+      setApprovalCode(code);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const poll = async () => {
         if (stopped) return;
         try {
-          const res = await fetch(`${apiUrl}/api/auth/oauth/desktop-poll?session=${session}`);
+          const res = await fetch(
+            `${apiUrl}/api/auth/oauth/desktop-poll?session=${session}&verifier=${verifier}`,
+          );
           if (res.status === 404) return; // still pending
           if (!res.ok) return;
 
           const data = await res.json();
           sessionStorage.removeItem(DESKTOP_OAUTH_SESSION_KEY);
+          setApprovalCode("");
           if (intervalId) clearInterval(intervalId);
 
           if (data.error) {
             toast.error(data.error);
+            return;
+          }
+          if (data.requires_2fa && data.temp_token) {
+            sessionStorage.setItem("zcrypt-temp-token", data.temp_token);
+            router.replace("/2fa-verify");
             return;
           }
           if (data.access_token && data.refresh_token) {
@@ -109,7 +132,7 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Login failed");
+      toast.error(err instanceof Error ? err.message : tl("failed"));
     } finally {
       setLoading(false);
     }
@@ -118,16 +141,16 @@ export default function LoginPage() {
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      toast.error("Enter your email first");
+      toast.error(tl("enterEmailFirst"));
       return;
     }
     setMagicLinkLoading(true);
     try {
       await requestMagicLink(email.trim());
       setMagicLinkSent(true);
-      toast.success("Login link sent! Check your inbox.");
+      toast.success(tl("linkSent"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send login link");
+      toast.error(err instanceof Error ? err.message : tl("linkFailed"));
     } finally {
       setMagicLinkLoading(false);
     }
@@ -138,7 +161,7 @@ export default function LoginPage() {
       <AuthStatusCard
         icon={Mail}
         tone="cyan"
-        title="Check your email"
+        title={t("checkEmail")}
         action={
           <div className="flex flex-col items-center gap-2 mt-5">
             <AuthLink
@@ -148,7 +171,7 @@ export default function LoginPage() {
               }}
               className={`text-sm ${AUTH_LINK_CLASS}`}
             >
-              Send again
+              {tl("sendAgain")}
             </AuthLink>
             <button
               onClick={() => {
@@ -157,18 +180,18 @@ export default function LoginPage() {
               }}
               className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
             >
-              Back to login
+              {t("backToLogin")}
             </button>
           </div>
         }
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
-          We sent a login link to <strong className="text-[var(--color-text)]">{email}</strong>.
-          Click it to sign in.
+          {tl.rich("sentTo", {
+            email,
+            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+          })}
         </p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">
-          Didn&apos;t get it? Check your spam folder.
-        </p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">{tl("spam")}</p>
       </AuthStatusCard>
     );
   }
@@ -177,6 +200,15 @@ export default function LoginPage() {
     <div className="animate-fade-in">
       <div className="space-y-4">
         <OAuthButtons />
+        {approvalCode && (
+          <div className="rounded-xl border border-[var(--color-border)] p-3 text-center">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              After you sign in, your browser asks you to approve. Approve only if it shows this
+              code
+            </p>
+            <p className="mt-1 font-mono text-xl tracking-[0.2em]">{approvalCode}</p>
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div className="flex gap-1 p-1 rounded-xl bg-[var(--color-surface-1)]">
@@ -190,7 +222,7 @@ export default function LoginPage() {
             }`}
           >
             <Lock className="h-3 w-3" />
-            Password
+            {tl("modePassword")}
           </button>
           <button
             type="button"
@@ -202,7 +234,7 @@ export default function LoginPage() {
             }`}
           >
             <Wand2 className="h-3 w-3" />
-            Magic Link
+            {tl("modeMagic")}
           </button>
         </div>
 
@@ -210,10 +242,10 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in">
             <EmailField value={email} onChange={setEmail} />
             <Input
-              label="Password"
+              label={t("password")}
               type="password"
               name="password"
-              placeholder="Your password"
+              placeholder={t("passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               icon={<Lock className="h-4 w-4" />}
@@ -226,7 +258,7 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className={`text-xs ${AUTH_LINK_COLORS} transition-colors`}
               >
-                Forgot password?
+                {tl("forgot")}
               </AuthLink>
             </div>
 
@@ -234,18 +266,18 @@ export default function LoginPage() {
               type="submit"
               loading={loading}
               disabled={loading || !email.trim() || !password}
-              loadingLabel="Signing in..."
+              loadingLabel={tl("signingIn")}
               icon={ArrowRight}
             >
-              Sign in
+              {tl("signIn")}
             </SubmitButton>
           </form>
         ) : (
           <form onSubmit={handleMagicLink} className="space-y-3 animate-fade-in">
             <Input
-              label="Email"
+              label={t("email")}
               type="email"
-              placeholder="you@example.com"
+              placeholder={t("emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               icon={<Mail className="h-4 w-4" />}
@@ -254,25 +286,27 @@ export default function LoginPage() {
             />
 
             <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-              We&apos;ll send a one-time login link to your email. No password needed.
+              {tl("magicNote")}
             </p>
 
             <SubmitButton
               type="submit"
               loading={magicLinkLoading}
               disabled={magicLinkLoading || !email.trim()}
-              loadingLabel="Sending link..."
+              loadingLabel={tl("sendingLink")}
               icon={Wand2}
               iconPosition="before"
             >
-              Send login link
+              {tl("sendLink")}
             </SubmitButton>
           </form>
         )}
       </div>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
-        Don&apos;t have an account? <AuthLink href="/register">Sign up</AuthLink>
+        {tl.rich("noAccount", {
+          link: (chunks) => <AuthLink href="/register">{chunks}</AuthLink>,
+        })}
       </p>
     </div>
   );

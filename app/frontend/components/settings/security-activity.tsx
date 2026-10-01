@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { qk } from "@/lib/query-keys";
 import { getUserActivity, type AuditEvent } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
@@ -11,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Shield, Activity } from "@/lib/icons";
 
 const PAGE_SIZE = 10;
+const EMPTY_EVENTS: AuditEvent[] = [];
 
 const eventLabels: Record<string, string> = {
   login: "Signed in",
@@ -28,6 +31,36 @@ const eventLabels: Record<string, string> = {
   email_verify: "Email verified",
   password_reset_requested: "Password reset requested",
   password_reset: "Password reset",
+  password_changed: "Password changed",
+  password_change_failed: "Failed password change",
+  "2fa_failed": "Failed 2FA attempt",
+  "2fa_ratelimited": "2FA attempts rate limited",
+  "2fa_replay": "2FA code reuse blocked",
+  "2fa_backup_codes_regenerated": "2FA backup codes regenerated",
+  oauth_link_rejected: "OAuth link rejected",
+  login_decoy: "Decoy vault sign in",
+  profile_update: "Profile updated",
+  platform_connect: "Storage platform connected",
+  platform_disconnect: "Storage platform disconnected",
+  token_scope_change: "Access token scope changed",
+  file_delete: "File deleted",
+  file_restore: "File restored",
+  file_purge: "File permanently deleted",
+  file_purge_client: "File permanently deleted",
+  file_rekey: "File re-encrypted",
+  folder_delete: "Folder deleted",
+  folder_password_set: "Folder password set",
+  folder_password_remove: "Folder password removed",
+  upload_init: "Upload started",
+  upload_resume: "Upload resumed",
+  upload_complete: "Upload completed",
+  send_init: "Send started",
+  send_complete: "Send completed",
+  repo_register: "Repository registered",
+  repo_deactivate: "Repository deactivated",
+  bug_report: "Bug report submitted",
+  review_submit: "Review submitted",
+  user_feedback: "Feedback submitted",
 };
 
 /** Short "Browser · OS" summary for a table cell; the full string stays in a tooltip. */
@@ -51,18 +84,15 @@ function parseUserAgent(ua: string): string {
 }
 
 export function SecurityActivity() {
-  const { accessToken } = useAuthStore();
-  const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasToken = useAuthStore((s) => !!s.accessToken);
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    if (!accessToken) return;
-    getUserActivity(accessToken)
-      .then(setEvents)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [accessToken]);
+  const query = useQuery({
+    queryKey: qk.securityActivity,
+    queryFn: () => getUserActivity(useAuthStore.getState().accessToken ?? ""),
+    enabled: hasToken,
+  });
+  const events: AuditEvent[] = query.data ?? EMPTY_EVENTS;
+  const loading = query.isPending;
 
   const totalPages = Math.max(1, Math.ceil(events.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -75,6 +105,23 @@ export function SecurityActivity() {
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonRow key={i} />
           ))}
+        </div>
+      ) : query.isError ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center"
+        >
+          <Shield className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Could not load your security activity
+          </p>
+          <button
+            type="button"
+            onClick={() => query.refetch()}
+            className="mt-3 text-xs font-medium text-[var(--color-text)] underline underline-offset-2"
+          >
+            Try again
+          </button>
         </div>
       ) : events.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">

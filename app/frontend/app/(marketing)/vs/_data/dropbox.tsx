@@ -1,37 +1,7 @@
-import { Lock, Shield, HardDrive, Eye, FolderOpen, Github } from "@/lib/icons";
+import { Lock, Shield, HardDrive, Github } from "@/lib/icons";
+import type { VsData } from "@/components/marketing/features/comparison-page";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
-import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
-import type { RelatedLinkItem } from "@/components/marketing/features/related-links";
-import type { ReactNode } from "react";
-import { SITE_URL } from "@/lib/site";
-// RelatedLinkItem is used in the VsData interface below.
-
-export interface VsData {
-  slug: string;
-  otherName: string;
-  hero: {
-    eyebrow: string;
-    headlineTop: ReactNode;
-    headlineGradient: ReactNode;
-    subtext: ReactNode;
-    secondaryLabel: ReactNode;
-    secondaryHref: string;
-  };
-  respectNote?: ReactNode;
-  pillarsHeading?: ReactNode;
-  pillarsSubheading?: ReactNode;
-  pillars: CapabilityItem[];
-  table: {
-    heading: ReactNode;
-    subheading: ReactNode;
-    footnote: ReactNode;
-    rows: ComparisonRow[];
-  };
-  whenBetter: { eyebrow?: ReactNode; heading: ReactNode; paragraphs: ReactNode[] };
-  related: RelatedLinkItem[];
-  closing: { heading: ReactNode; subtext: ReactNode };
-  breadcrumb: { name: string; url: string }[];
-}
+import { VS_RELATED_LINKS, vsBreadcrumb } from "./shared";
 
 const rows: ComparisonRow[] = [
   {
@@ -134,7 +104,7 @@ const rows: ComparisonRow[] = [
   },
 ];
 
-const pillars: CapabilityItem[] = [
+const pillars: VsData["pillars"] = [
   {
     Icon: Lock,
     title: "You hold the keys",
@@ -142,7 +112,7 @@ const pillars: CapabilityItem[] = [
   },
   {
     Icon: Shield,
-    title: "Zero-knowledge by default",
+    title: "Locked before it leaves",
     desc: "Files are encrypted with AES-256-GCM before they leave your device. Even folder names are sealed, so the server stores opaque ciphertext and nothing else.",
   },
   {
@@ -152,49 +122,35 @@ const pillars: CapabilityItem[] = [
   },
   {
     Icon: Github,
-    title: "Open source & self-hostable",
+    title: "Open source, run it yourself",
     desc: "Read the code, audit the crypto, or run the whole thing yourself. Nothing about how your files are handled is hidden behind a proprietary client.",
   },
 ];
 
-/** "Go deeper" links shown at the bottom of every vs/* page, the same two
- *  feature deep-dives regardless of which competitor the page compares against. */
-export const VS_RELATED_LINKS: RelatedLinkItem[] = [
-  {
-    href: "/features/encrypted-drive",
-    Icon: FolderOpen,
-    title: "The encrypted drive",
-    desc: "Real folders, search, and previews: with a zero-knowledge layer underneath.",
-  },
-  {
-    href: "/features/encryption",
-    Icon: Eye,
-    title: "How the encryption works",
-    desc: "AES-256-GCM, client-side keys, and what the server can and can't see.",
-  },
-];
-
 export const dropbox: VsData = {
-  slug: "dropbox",
   otherName: "Dropbox",
   hero: {
     eyebrow: "zcrypt vs Dropbox",
-    headlineTop: "Dropbox is convenient.",
-    headlineGradient: "zcrypt is private.",
-    subtext: (
+    title: "Dropbox is convenient. zcrypt is private",
+    lede: (
       <>
         Dropbox is a polished, friction-free place to keep files, but it holds the keys and can read
         what you store. zcrypt is a real encrypted drive where everything is encrypted on your
         device, stored in accounts you already own, and the code is open for anyone to audit.
       </>
     ),
-    secondaryLabel: "See the encrypted drive",
+    secondaryLabel: "See the drive",
     secondaryHref: "/features/encrypted-drive",
+  },
+  pillarsHead: {
+    eyebrow: "Why switch",
+    title: "What you get that Dropbox won't give you",
   },
   pillars,
   table: {
-    heading: "zcrypt vs Dropbox, side by side",
-    subheading: (
+    eyebrow: "Side by side",
+    title: "zcrypt and Dropbox, row by row",
+    lede: (
       <>
         An honest look at where each one fits. Dropbox wins on polish and ecosystem; zcrypt wins on
         privacy, ownership, and openness.
@@ -209,7 +165,8 @@ export const dropbox: VsData = {
     rows,
   },
   whenBetter: {
-    heading: "When Dropbox is the better choice",
+    eyebrow: "The honest part",
+    title: "When Dropbox is the better choice",
     paragraphs: [
       <>
         We&apos;re not going to pretend zcrypt wins for everyone. Dropbox is genuinely excellent at
@@ -235,8 +192,8 @@ export const dropbox: VsData = {
         And if you need polished mobile apps today,{" "}
         <strong className="text-[var(--color-text)]">
           zcrypt&apos;s native mobile apps are still on the roadmap
-        </strong>{" "}
-        : we ship web, desktop, and a terminal app right now. Dropbox&apos;s mobile experience is
+        </strong>
+        . We ship web, desktop, and a terminal app right now. Dropbox&apos;s mobile experience is
         mature and complete.
       </>,
       <>
@@ -247,14 +204,5 @@ export const dropbox: VsData = {
     ],
   },
   related: VS_RELATED_LINKS,
-  closing: {
-    heading: "Keep the convenience. Drop the access.",
-    subtext:
-      "Free and open source. Bring a storage account you already own and start in under a minute.",
-  },
-  breadcrumb: [
-    { name: "Home", url: SITE_URL },
-    { name: "Compare", url: `${SITE_URL}/vs/dropbox` },
-    { name: "zcrypt vs Dropbox", url: `${SITE_URL}/vs/dropbox` },
-  ],
+  breadcrumb: vsBreadcrumb("dropbox", "zcrypt vs Dropbox"),
 };

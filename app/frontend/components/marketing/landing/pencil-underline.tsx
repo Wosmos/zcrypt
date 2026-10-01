@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { useInViewOnce } from "@/hooks/useInViewOnce";
 
 /**
@@ -12,14 +13,14 @@ import { useInViewOnce } from "@/hooks/useInViewOnce";
  * - "circle"   : loose oval around the word (low-opacity fill + visible stroke)
  */
 
-function InkBleedFilter() {
+function InkBleedFilter({ id }: { id: string }) {
   return (
     <svg
       aria-hidden
       style={{ position: "absolute", width: 0, height: 0, visibility: "hidden" as const }}
     >
       <defs>
-        <filter id="ink-bleed">
+        <filter id={id}>
           <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" />
           <feGaussianBlur stdDeviation="0.3" />
@@ -28,8 +29,6 @@ function InkBleedFilter() {
     </svg>
   );
 }
-
-let filterRendered = false;
 
 function PencilUnderline({
   variant = "ink",
@@ -45,8 +44,7 @@ function PencilUnderline({
   width?: string;
 }) {
   const { ref, isVisible } = useInViewOnce<SVGPathElement | SVGEllipseElement>("0px");
-  const showFilter = !filterRendered;
-  if (showFilter) filterRendered = true;
+  const fid = `ink-${useId().replace(/:/g, "")}`;
 
   if (variant === "highlight") {
     return (
@@ -54,7 +52,7 @@ function PencilUnderline({
         className={`absolute left-[-2%] right-[-2%] -z-10 ${className ?? ""}`}
         style={{ bottom: "2px" }}
       >
-        {showFilter && <InkBleedFilter />}
+        <InkBleedFilter id={fid} />
         <svg
           viewBox="0 0 200 20"
           preserveAspectRatio="none"
@@ -65,7 +63,7 @@ function PencilUnderline({
             d="M0,4 C30,2 60,6 100,3 C140,0 170,5 200,3 L200,17 C170,19 140,14 100,17 C60,20 30,15 0,17 Z"
             fill={color}
             opacity="0.25"
-            filter="url(#ink-bleed)"
+            filter={`url(#${fid})`}
             className="pencil-reveal"
             style={{
               transformOrigin: "left",
@@ -84,7 +82,7 @@ function PencilUnderline({
         className={`absolute -z-10 ${className ?? ""}`}
         style={{ inset: "-10% -8%", pointerEvents: "none" }}
       >
-        {showFilter && <InkBleedFilter />}
+        <InkBleedFilter id={fid} />
         <svg
           viewBox="0 0 200 100"
           preserveAspectRatio="none"
@@ -121,7 +119,7 @@ function PencilUnderline({
       className={`absolute left-[-2%] right-[-2%] ${className ?? ""}`}
       style={{ bottom: "-5px", pointerEvents: "none" }}
     >
-      {showFilter && <InkBleedFilter />}
+      <InkBleedFilter id={fid} />
       <svg
         viewBox="0 0 200 30"
         preserveAspectRatio="none"
@@ -129,7 +127,7 @@ function PencilUnderline({
           width,
           height: "0.22em",
           display: "block",
-          filter: "url(#ink-bleed)",
+          filter: `url(#${fid})`,
           transform: "rotate(-0.5deg)",
         }}
       >

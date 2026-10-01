@@ -4,10 +4,11 @@ import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatBytes } from "@/lib/utils";
 import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "./chart-theme";
-import type { FileMetadata } from "@/types";
+import type { AnalyticsFileTypeItem } from "@/lib/api";
 
 interface FileTypeChartProps {
-  files: FileMetadata[];
+  /** Lifetime (all-time) lean file items — see /api/analytics/file-types. */
+  items: AnalyticsFileTypeItem[];
 }
 
 const FILE_CATEGORIES: { label: string; color: string; extensions: string[] }[] = [
@@ -32,17 +33,17 @@ const FILE_CATEGORIES: { label: string; color: string; extensions: string[] }[] 
   { label: "Other", color: "#14b8a6", extensions: [] },
 ];
 
-export function FileTypeChart({ files }: FileTypeChartProps) {
+export function FileTypeChart({ items }: FileTypeChartProps) {
   const data = useMemo(() => {
     const knownExts = new Set(FILE_CATEGORIES.flatMap((c) => c.extensions));
 
     return FILE_CATEGORIES.map((cat) => {
       const matched =
         cat.extensions.length > 0
-          ? files.filter((f) =>
+          ? items.filter((f) =>
               cat.extensions.includes(f.original_name.split(".").pop()?.toLowerCase() || ""),
             )
-          : files.filter(
+          : items.filter(
               (f) => !knownExts.has(f.original_name.split(".").pop()?.toLowerCase() || ""),
             );
 
@@ -53,7 +54,7 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
         color: cat.color,
       };
     }).filter((d) => d.value > 0);
-  }, [files]);
+  }, [items]);
 
   if (data.length === 0) {
     return (

@@ -24,6 +24,7 @@ vi.mock("@/lib/api", () => ({
 
 vi.mock("@/lib/invalidate", () => ({
   invalidateFilesViews: vi.fn(() => Promise.resolve()),
+  applyFileEvents: vi.fn(() => Promise.resolve()),
 }));
 
 let mockAccessToken: string | null = "token";
@@ -34,7 +35,7 @@ vi.mock("@/store/auth", () => ({
 
 import { useFileEvents } from "@/hooks/useFileEvents";
 import { createEventSource } from "@/lib/api";
-import { invalidateFilesViews } from "@/lib/invalidate";
+import { invalidateFilesViews, applyFileEvents } from "@/lib/invalidate";
 
 type FakeES = {
   onopen: (() => void) | null;
@@ -79,9 +80,9 @@ describe("useFileEvents", () => {
     renderHook(() => useFileEvents());
     latestES().emit("file", JSON.stringify({ op: "added", file_id: "f1", rev: 1 }));
 
-    expect(invalidateFilesViews).not.toHaveBeenCalled();
+    expect(applyFileEvents).not.toHaveBeenCalled();
     vi.advanceTimersByTime(300);
-    expect(invalidateFilesViews).toHaveBeenCalledTimes(1);
+    expect(applyFileEvents).toHaveBeenCalledTimes(1);
   });
 
   it("coalesces a burst of file events into a single invalidation", () => {
@@ -94,16 +95,18 @@ describe("useFileEvents", () => {
     es.emit("file", JSON.stringify({ op: "renamed", file_id: "f1", rev: 3 }));
 
     vi.advanceTimersByTime(299);
-    expect(invalidateFilesViews).not.toHaveBeenCalled();
+    expect(applyFileEvents).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
-    expect(invalidateFilesViews).toHaveBeenCalledTimes(1);
+    expect(applyFileEvents).toHaveBeenCalledTimes(1);
   });
 
   it("does not throw on a malformed file event payload", () => {
     renderHook(() => useFileEvents());
     expect(() => latestES().emit("file", "{not json")).not.toThrow();
     vi.advanceTimersByTime(300);
-    expect(invalidateFilesViews).toHaveBeenCalledTimes(1);
+    expect(applyFileEvents).toHaveBeenCalledWith([null]);
+    vi.advanceTimersByTime(300);
+    expect(applyFileEvents).toHaveBeenCalledTimes(1);
   });
 
   it("does not invalidate on the very first successful open", () => {

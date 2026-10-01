@@ -1,31 +1,26 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { UserTable } from "@/components/admin/user-table";
 import { adminListUsers, adminGetDefaultQuota, adminGetPlans } from "@/lib/api";
 import { Role } from "@/types";
-import type { AdminUser, PlanConfig } from "@/types";
 import { UserTableSkeleton } from "@/components/admin/skeletons";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
-import { useAdminGuardedFetch } from "@/hooks/useAdminGuardedFetch";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { qk } from "@/lib/query-keys";
 import { AlertTriangle } from "@/lib/icons";
 
 export function AdminUsersContent() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [defaultQuotaBytes, setDefaultQuotaBytes] = useState(0);
-  const [planConfigs, setPlanConfigs] = useState<PlanConfig[]>([]);
-
-  const fetcher = useCallback(async () => {
-    const [u, q, p] = await Promise.all([
+  const { user, data, loading, error, refresh } = useAdminQuery(qk.adminUsers, async () => {
+    const [users, q, p] = await Promise.all([
       adminListUsers(),
       adminGetDefaultQuota(),
       adminGetPlans(),
     ]);
-    setUsers(u);
-    setDefaultQuotaBytes(q.default_quota_bytes);
-    setPlanConfigs(p.plans);
-  }, []);
-  const { user, loading, error, refresh } = useAdminGuardedFetch(fetcher);
+    return { users, defaultQuotaBytes: q.default_quota_bytes, planConfigs: p.plans };
+  });
+  const users = data?.users ?? [];
+  const defaultQuotaBytes = data?.defaultQuotaBytes ?? 0;
+  const planConfigs = data?.planConfigs ?? [];
 
   if (!user || user.role !== Role.Admin) return null;
   if (loading) return <UserTableSkeleton />;

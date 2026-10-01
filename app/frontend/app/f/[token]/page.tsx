@@ -6,6 +6,7 @@ import {
   getFolderShareInfo,
   getFolderShareFileMeta,
   getFolderShareChunk,
+  completeFolderShareDownload,
   type FolderShareInfo,
   type FolderShareFileEntry,
 } from "@/lib/api";
@@ -23,18 +24,36 @@ import {
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { keyFromFragment, pathManifestFromFragment } from "@/lib/share-link";
-import { isSealed, openText, keyFromBytes } from "@/lib/sealed";
+import { isSealed, openText, keyFromBytes, LOCKED } from "@/lib/sealed";
 import { fromBase64 } from "@/lib/crypto";
+import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
 
-// The share name is sealed (enc1:) under the folder-share key from the URL fragment.
-async function openShareName<T extends { name: string }>(info: T, key: string | null): Promise<T> {
-  if (!key || !isSealed(info.name)) return info;
-  return { ...info, name: await openText(info.name, await keyFromBytes(fromBase64(key))) };
+// Names are sealed (enc1:) under the folder-share key from the URL fragment. An
+// unopenable name reads as empty so downloads fall back to a sniffed one.
+async function openName(raw: string | undefined, key: CryptoKey | null): Promise<string> {
+  if (!raw) return "";
+  if (!isSealed(raw)) return raw;
+  const name = await openText(raw, key);
+  return name === LOCKED ? "" : name;
+}
+
+// Opens the share name and every listed file name, then sorts by the real name
+// (the server can only order by ciphertext).
+async function openShareName<T extends { name: string; files?: FolderShareFileEntry[] }>(
+  info: T,
+  key: string | null,
+): Promise<T> {
+  const ck = key ? await keyFromBytes(fromBase64(key)) : null;
+  const files = info.files
+    ? await Promise.all(info.files.map(async (f) => ({ ...f, name: await openName(f.name, ck) })))
+    : undefined;
+  files?.sort((a, b) => a.name.localeCompare(b.name));
+  return { ...info, name: isSealed(info.name) ? await openName(info.name, ck) : info.name, files };
 }
 
 type PageState = "loading" | "password" | "ready" | "error";
 
-function mimeForFile(filename: string): string {
+function mimeForFile(filename: string, bytes: Uint8Array): string {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
     jpg: "image/jpeg",
@@ -48,7 +67,7 @@ function mimeForFile(filename: string): string {
     mp3: "audio/mpeg",
     zip: "application/zip",
   };
-  return map[ext] || "application/octet-stream";
+  return map[ext] || sniffFileType(bytes)?.mime || "application/octet-stream";
 }
 
 /** Trigger a browser "save as" for a set of bytes. */
@@ -145,6 +164,7 @@ export default function FolderSharePage() {
           file.file_id,
           i,
           password || undefined,
+          meta.download_ticket,
         );
         let plain = await decryptChunk(keyBytes, new Uint8Array(data));
         if (compressed && zstd) plain = zstd.ZstdStream.decompress(plain);
@@ -161,10 +181,20 @@ export default function FolderSharePage() {
       // 'hmac_v1' files store a per-user KEYED MAC only the owner can recompute;
       // a public folder-share recipient has no passphrase, so skip the file-level
       // compare and rely on per-chunk AES-GCM. Legacy 'plain' files still verify.
+      const opened = await openName(meta.original_name, await keyFromBytes(fk));
+      const name = resolveDownloadName(opened || file.name || "", full, "file");
       if (meta.sha256_scheme !== "hmac_v1" && (await sha256Hex(full)) !== meta.sha256) {
-        throw new Error("Integrity check failed for " + meta.original_name);
+        throw new Error("Integrity check failed for " + name);
       }
-      return { name: meta.original_name, bytes: full };
+      if (meta.download_ticket) {
+        await completeFolderShareDownload(
+          token,
+          file.file_id,
+          meta.download_ticket,
+          password || undefined,
+        ).catch(() => {});
+      }
+      return { name, bytes: full };
     },
     [token, folderKey, password],
   );
@@ -173,7 +203,7 @@ export default function FolderSharePage() {
   const downloadFile = useCallback(
     async (file: FolderShareFileEntry) => {
       const { name, bytes } = await fetchDecryptFile(file);
-      saveBlob(name, bytes, mimeForFile(name));
+      saveBlob(name, bytes, mimeForFile(name, bytes));
     },
     [fetchDecryptFile],
   );
@@ -363,7 +393,7 @@ export default function FolderSharePage() {
                   <div className="flex min-w-0 items-center gap-2">
                     <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                     <span className="truncate text-sm text-[var(--color-text)]">
-                      {f.name || f.file_id}
+                      {f.name || "Unnamed file"}
                     </span>
                     {typeof f.size === "number" && (
                       <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
@@ -391,6 +421,13 @@ export default function FolderSharePage() {
             {noticeMsg && (
               <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
                 {noticeMsg}
+              </p>
+            )}
+
+            {info.files?.some((f) => !f.name) && (
+              <p className="text-xs text-[var(--color-text-muted)]">
+                This link was created before zcrypt kept file names in links, so some names are
+                guessed on download. Ask the sender to create a new link to get the original names.
               </p>
             )}
 

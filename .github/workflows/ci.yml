@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
     branches: [main]
 
@@ -18,6 +18,7 @@ jobs:
   # ── Detect what changed ──────────────────────────────────────────────────────
   changes:
     name: Detect Changes
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
@@ -26,10 +27,11 @@ jobs:
       desktop: ${{ steps.filter.outputs.desktop }}
       core: ${{ steps.filter.outputs.core }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
+          base: ${{ github.ref == 'refs/heads/main' && '' || 'main' }}
           filters: |
             backend:
               - 'app/backend/**'
@@ -55,22 +57,18 @@ jobs:
               - 'docs/CRYPTO_FORMAT.md'
 
   # ── Backend: unit tests ──────────────────────────────────────────────────────
-  # gofmt/vet/build/test already ran locally via the (now-installed) pre-push
-  # hook before this commit could even be pushed: re-running them here on a
-  # plain `push` is pure duplicate work. The one thing the hook DOESN'T do
-  # (too slow for a fast local gate) is the race detector, so that step always
-  # runs. Everything else is gated to `pull_request` only, since a PR from a
-  # fork (this is AGPL/open source) never ran your local hook at all and needs
-  # the full independent check.
+  # Every gate runs here, on every branch push. Nothing heavy runs on the
+  # laptop: the pre-push hook is opt-in (PREPUSH_LOCAL=1). Our own PRs reuse the
+  # push run's checks; only fork PRs trigger a separate pull_request run.
   backend:
     name: Go Backend (unit)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.6"
 
@@ -79,12 +77,10 @@ jobs:
         run: go mod download
 
       - name: Vet
-        if: github.event_name == 'pull_request'
         working-directory: app/backend
         run: go vet ./...
 
       - name: Build
-        if: github.event_name == 'pull_request'
         working-directory: app/backend
         run: go build -o zcrypt-server .
 
@@ -93,7 +89,7 @@ jobs:
         run: go test -race -coverprofile=coverage.out ./...
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: app/backend/coverage.out
@@ -119,9 +115,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.6"
 
@@ -150,12 +146,11 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
@@ -165,7 +160,6 @@ jobs:
       # @typescript/native-preview is a dated nightly pin that can be pruned or
       # break upstream; `next build`'s classic tsc remains the blocking authority.
       - name: Type check
-        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         continue-on-error: true
         run: bunx tsgo --noEmit
@@ -173,24 +167,113 @@ jobs:
       # Rust toolchain gates, both sub-second. Fork PRs never ran the local
       # pre-push hook, so this is the only place their lint/format is checked.
       - name: Lint (oxlint)
-        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bunx oxlint app components lib hooks store
 
       - name: Format check (biome)
-        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bunx biome format .
 
       - name: Unit tests (with coverage)
-        if: github.event_name == 'pull_request'
         working-directory: app/frontend
-        run: bun run test -- --coverage --reporter=json
+        run: bun run test -- --coverage --coverage.reporter=text --coverage.skipFull --reporter=dot
 
       - name: Build
-        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bun run build
+
+  # ── Hardening: new-code-only checks, diff-scoped ─────────────────────────────
+  # Fails only on problems the change introduces: oxlint warnings and copy-paste
+  # in the changed files, new golangci findings, and repo-wide duplication
+  # growing past .github/quality-baseline.env (lower that number as clones go).
+  hardening-frontend:
+    name: Hardening (frontend)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: bun install --frozen-lockfile
+
+      - name: New-code lint and duplication
+        working-directory: app/frontend
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" = "refs/heads/main" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            base="$BEFORE"
+          else
+            base="$(git merge-base origin/main HEAD)"
+          fi
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$base" HEAD -- . \
+            | sed 's#^app/frontend/##' \
+            | grep -E '^(app|components|lib|hooks|store)/.*\.(ts|tsx|js|jsx)$' || true)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No changed frontend source files."
+            exit 0
+          fi
+          printf '%s\n' "${files[@]}"
+          bunx oxlint --max-warnings=0 "${files[@]}"
+          out="$(bunx jscpd --silent "${files[@]}" 2>&1)"
+          echo "$out"
+          n="$(echo "$out" | grep -oE 'Found [0-9]+ (exact )?clones' | grep -oE '[0-9]+' | head -1)"
+          [ -n "$n" ] || { echo "::error::could not read the jscpd clone count"; exit 1; }
+          [ "$n" -eq 0 ] || { echo "::error::$n copy-paste clone(s) in the changed files"; bunx jscpd "${files[@]}"; exit 1; }
+
+      - name: Repo-wide duplication ratchet
+        working-directory: app/frontend
+        run: |
+          set -euo pipefail
+          source ../../.github/quality-baseline.env
+          out="$(bunx jscpd --silent 2>&1)"
+          echo "$out"
+          n="$(echo "$out" | grep -oE 'Found [0-9]+ (exact )?clones' | grep -oE '[0-9]+' | head -1)"
+          [ -n "$n" ] || { echo "::error::could not read the jscpd clone count"; exit 1; }
+          if [ "$n" -gt "$FRONTEND_DUPES_MAX" ]; then
+            echo "::error::duplication grew to $n clones (max $FRONTEND_DUPES_MAX)"
+            exit 1
+          fi
+          [ "$n" -lt "$FRONTEND_DUPES_MAX" ] && echo "::notice::clones dropped to $n; lower FRONTEND_DUPES_MAX in .github/quality-baseline.env"
+          true
+
+  hardening-backend:
+    name: Hardening (backend)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.6"
+
+      - name: Diff base
+        id: base
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_REF" = "refs/heads/main" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            echo "rev=$BEFORE" >> "$GITHUB_OUTPUT"
+          else
+            echo "rev=$(git merge-base origin/main HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: app/backend
+          args: --new-from-rev=${{ steps.base.outputs.rev }}
 
   # ── Frontend: E2E tests (Playwright) ─────────────────────────────────────────
   # Runs on main branch pushes only: too slow for every PR
@@ -224,9 +307,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.6"
 
@@ -246,7 +329,7 @@ jobs:
           # Disable per-IP rate limiting so the serial E2E suite can register and
           # log in many users from a single IP without being throttled.
           DEV_MODE: "true"
-        run: go run . &
+        run: go run -tags=integration . &
 
       - name: Install frontend dependencies
         working-directory: app/frontend
@@ -254,6 +337,8 @@ jobs:
 
       - name: Start frontend
         working-directory: app/frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8080
         run: bun run dev &
 
       - name: Install Playwright browsers
@@ -275,7 +360,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: tests/e2e/playwright-report/
@@ -295,7 +380,7 @@ jobs:
     if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -306,17 +391,14 @@ jobs:
           workspaces: app/core
 
       - name: Format check
-        if: github.event_name == 'pull_request'
         working-directory: app/core
         run: cargo fmt --check
 
       - name: Clippy (deny warnings)
-        if: github.event_name == 'pull_request'
         working-directory: app/core
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Tests (incl. cross-implementation conformance)
-        if: github.event_name == 'pull_request'
         working-directory: app/core
         run: cargo test
 
@@ -331,9 +413,9 @@ jobs:
     if: needs.changes.outputs.tui == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.6"
           cache-dependency-path: app/tui/go.sum
@@ -343,17 +425,14 @@ jobs:
         run: go mod download
 
       - name: Vet
-        if: github.event_name == 'pull_request'
         working-directory: app/tui
         run: go vet ./...
 
       - name: Build
-        if: github.event_name == 'pull_request'
         working-directory: app/tui
         run: CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=ci" -o zcrypt .
 
       - name: Test
-        if: github.event_name == 'pull_request'
         working-directory: app/tui
         run: go test ./...
 
@@ -416,7 +495,7 @@ jobs:
     if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Vercel's build detects bun.lock and installs deps with bun, so bun
       # must be on the runner or `vercel build` fails with `spawn bun ENOENT`.

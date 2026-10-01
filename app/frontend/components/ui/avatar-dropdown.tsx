@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -9,7 +10,10 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { useAuthStore } from "@/store/auth";
 import { usePreferencesStore } from "@/store/preferences";
 import { logout as logoutApi } from "@/lib/auth-api";
-import { Sun, Moon, LogOut, Settings, Cog } from "@/lib/icons";
+import { Sun, Moon, LogOut, Settings, Cog, AlertTriangle, Star, Compass } from "@/lib/icons";
+import { useTour } from "@/components/onboarding/tour-provider";
+import { BugReportDialog } from "@/components/feedback/bug-report-dialog";
+import { ReviewDialog } from "@/components/feedback/review-dialog";
 import { Role } from "@/types";
 import Link from "next/link";
 
@@ -23,8 +27,8 @@ function ToggleSwitch({ enabled }: { enabled: boolean }) {
     >
       <span
         className={cn(
-          "pointer-events-none absolute top-[3px] left-[3px] inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-          enabled ? "translate-x-[18px]" : "translate-x-0",
+          "pointer-events-none absolute top-[3px] start-[3px] inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+          enabled ? "translate-x-[18px] rtl:-translate-x-[18px]" : "translate-x-0",
         )}
       />
     </div>
@@ -32,9 +36,13 @@ function ToggleSwitch({ enabled }: { enabled: boolean }) {
 }
 
 export function AvatarDropdown() {
+  const t = useTranslations("shell");
   const [open, setOpen] = useState(false);
+  const [bugOpen, setBugOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { replay } = useTour();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { user, refreshTokenValue, clearAuth } = useAuthStore();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
@@ -47,7 +55,10 @@ export function AvatarDropdown() {
 
   const handleLogout = async () => {
     try {
-      if (refreshTokenValue) await logoutApi(refreshTokenValue);
+      // Always call, even with refreshTokenValue null (web, no refresh has
+      // happened yet this session): authRequest sends credentials, so the
+      // httpOnly cookie still reaches the backend and gets revoked/cleared.
+      await logoutApi(refreshTokenValue, useAuthStore.getState().accessToken);
     } catch {
       /* ignore */
     }
@@ -64,7 +75,7 @@ export function AvatarDropdown() {
       {/* Compact round avatar button */}
       <button
         onClick={() => setOpen(!open)}
-        aria-label="Account menu"
+        aria-label={t("accountMenu")}
         aria-haspopup="menu"
         aria-expanded={open}
         style={{
@@ -93,7 +104,7 @@ export function AvatarDropdown() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl shadow-black/10 z-50 overflow-hidden"
+            className="absolute end-0 top-full mt-2 w-56 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl shadow-black/10 z-50 overflow-hidden"
           >
             {/* User info */}
             <div className="px-4 py-3 border-b border-[var(--color-border)]">
@@ -101,7 +112,7 @@ export function AvatarDropdown() {
               <p className="text-xs text-[var(--color-text-muted)] truncate">{user.email}</p>
               {isAdmin && (
                 <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-px rounded bg-amber-500/15 text-amber-500">
-                  Admin
+                  {t("admin")}
                 </span>
               )}
             </div>
@@ -114,7 +125,7 @@ export function AvatarDropdown() {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
               >
                 <Settings className="h-4 w-4 text-[var(--color-text-muted)]" />
-                Settings
+                {t("settings")}
               </Link>
 
               {/* Dark mode toggle */}
@@ -128,7 +139,7 @@ export function AvatarDropdown() {
                   ) : (
                     <Sun className="h-4 w-4 text-[var(--color-text-muted)]" />
                   )}
-                  Dark Mode
+                  {t("darkMode")}
                 </span>
                 <ToggleSwitch enabled={isDark} />
               </button>
@@ -140,9 +151,42 @@ export function AvatarDropdown() {
               >
                 <span className="flex items-center gap-3">
                   <Cog className="h-4 w-4 text-[var(--color-text-muted)]" />
-                  Advanced
+                  {t("advanced")}
                 </span>
                 <ToggleSwitch enabled={advancedMode} />
+              </button>
+            </div>
+
+            <div className="border-t border-[var(--color-border)] py-1">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  replay();
+                }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
+              >
+                <Compass className="h-4 w-4 text-[var(--color-text-muted)]" />
+                {t("takeTour")}
+              </button>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setReviewOpen(true);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
+              >
+                <Star className="h-4 w-4 text-[var(--color-text-muted)]" />
+                {t("rate")}
+              </button>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setBugOpen(true);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
+              >
+                <AlertTriangle className="h-4 w-4 text-[var(--color-text-muted)]" />
+                {t("reportBug")}
               </button>
             </div>
 
@@ -153,16 +197,18 @@ export function AvatarDropdown() {
                   void handleLogout();
                   setOpen(false);
                 }}
-                aria-label="Log out"
+                aria-label={t("logOut")}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
-                Log out
+                {t("logOut")}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      <BugReportDialog open={bugOpen} onOpenChange={setBugOpen} />
+      <ReviewDialog open={reviewOpen} onOpenChange={setReviewOpen} />
     </div>
   );
 }

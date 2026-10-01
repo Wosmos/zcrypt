@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/index"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/zcrypt/zcrypt/types"
@@ -27,6 +32,7 @@ func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		FileID       string `json:"file_id"`
 		WrappedCEK   string `json:"wrapped_cek,omitempty"` // file CEK wrapped under the share key
+		Name         string `json:"name,omitempty"`        // file name sealed (enc1:) under the share key
 		Password     string `json:"password,omitempty"`
 		ExpiresHours int    `json:"expires_in_hours,omitempty"`
 		MaxDownloads int    `json:"max_downloads,omitempty"`
@@ -38,6 +44,10 @@ func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 
 	if req.FileID == "" {
 		http.Error(w, `{"error":"file_id required"}`, http.StatusBadRequest)
+		return
+	}
+	if !isSealedLinkName(req.Name) {
+		http.Error(w, `{"error":"name must be sealed under the link key"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -61,6 +71,7 @@ func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 		UserID:       userID,
 		Token:        token,
 		WrappedCEK:   req.WrappedCEK,
+		EncName:      req.Name,
 		MaxDownloads: req.MaxDownloads,
 	}
 
@@ -194,7 +205,7 @@ func (s *Server) HandleGetShareInfo(w http.ResponseWriter, r *http.Request) {
 	// Only reveal file metadata if no password is set, password-protected shares
 	// must not leak filename/size until the password is provided via /meta endpoint.
 	if !share.HasPassword {
-		resp["file_name"] = file.OriginalName
+		resp["file_name"] = shareFileName(share, file)
 		resp["file_size"] = SizeBucket(file.OriginalSize) // coarse band on a public endpoint
 		resp["chunk_count"] = file.ChunkCount
 	}
@@ -237,13 +248,10 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Increment download count
-	_ = s.db.IncrementShareDownloads(ctx, share.ID)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":            file.ID,
-		"original_name": file.OriginalName,
+		"original_name": shareFileName(share, file),
 		// Public endpoint: coarsen the size to a band and DROP compressed_size /
 		// encrypted_size (they'd let a link-holder reconstruct the exact size).
 		// chunk_count stays: the recipient needs it to download.
@@ -258,6 +266,21 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		"wrapped_cek": share.WrappedCEK,
 		"status":      file.Status,
 		"created_at":  CoarsenTimeUTC(file.CreatedAt),
+		// The download counts only when the client confirms completion with this.
+		"download_ticket": s.issueShareTicket(share.ID, ""),
+	})
+}
+
+// HandleCompleteShareDownload counts one finished download of a file link.
+// POST /api/share/{token}/complete
+func (s *Server) HandleCompleteShareDownload(w http.ResponseWriter, r *http.Request) {
+	share, err := s.db.GetShareByToken(r.Context(), r.PathValue("token"))
+	if err != nil {
+		http.Error(w, `{"error":"share not found"}`, http.StatusNotFound)
+		return
+	}
+	s.completeShareDownload(w, r, share.ID, "", func(nonce string) (index.DownloadCompletion, error) {
+		return s.db.CompleteShareDownload(r.Context(), share.ID, nonce)
 	})
 }
 
@@ -280,7 +303,8 @@ func (s *Server) HandleGetShareChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reason, valid := validateShare(share); !valid {
+	if reason, valid := validateShare(share); !valid &&
+		!linkOpenForChunk(share.Revoked, share.ExpiresAt, true, s.shareTicketLive(r, share.ID, "")) {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusForbidden)
 		return
 	}
@@ -309,18 +333,82 @@ func (s *Server) HandleGetShareChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve adapter using the FILE OWNER's platform credentials
-	adapter := s.resolveAdapterForUser(ctx, share.UserID, chunk.Platform, chunk.Account)
-	if adapter == nil {
-		http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
-		return
+	commit := s.linkChunkCommit(r, share.ID, "", chunkIndex, file.ChunkCount, share.MaxDownloads > 0, func(nonce string) (index.DownloadCompletion, error) {
+		return s.db.CompleteShareDownload(ctx, share.ID, nonce)
+	})
+	s.serveLinkChunk(w, r, share.UserID, chunk, "shares", commit)
+}
+
+// isSealedLinkName accepts an empty name (older clients) or one sealed with the
+// enc1: prefix, so a plaintext file name can never be stored on a public link.
+func isSealedLinkName(name string) bool {
+	return name == "" || (strings.HasPrefix(name, "enc1:") && len(name) <= maxSealedLinkName)
+}
+
+const maxSealedLinkName = 4096
+
+// shareFileName is the name a recipient opens: the link-sealed name, falling back
+// to the file's legacy plaintext name for links created before names were sealed.
+func shareFileName(share *types.ShareLink, file *types.FileMetadata) string {
+	if share.EncName != "" {
+		return share.EncName
+	}
+	return file.OriginalName
+}
+
+// serveLinkChunk streams a chunk's ciphertext for a public link, resolved the
+// same way the owner download does: staging while the chunk is unsynced, then
+// the local ciphertext cache, then the OWNER's storage adapter (write-through).
+func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID string, chunk *types.ChunkRef, logPrefix string, commit func() (bool, error)) {
+	var data []byte
+	if chunk.RemotePath == "" {
+		stagingDir, err := config.StagingDir()
+		if err != nil {
+			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+			return
+		}
+		name := filepath.Base(chunk.ChunkID) + ".enc"
+		data, err = os.ReadFile(filepath.Clean(filepath.Join(stagingDir, name)))
+		if err != nil {
+			log.Printf("%s: read staging file failed: %v", logPrefix, err)
+			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
+			return
+		}
+	} else if data = readCachedChunk(chunk.ChunkID); data == nil {
+		adapter := s.resolveAdapterForUser(r.Context(), ownerID, chunk.Platform, chunk.Account)
+		if adapter == nil {
+			if reason := s.adapterError(ownerID, chunk.Platform); reason != "" {
+				writeJSON(w, http.StatusBadGateway, map[string]string{
+					"error":    chunk.Platform + " is unreachable from the server",
+					"platform": chunk.Platform,
+					"reason":   "adapter_unavailable",
+				})
+				return
+			}
+			http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
+			return
+		}
+		var err error
+		data, err = adapter.Download(r.Context(), *chunk)
+		if err != nil {
+			log.Printf("%s: download chunk failed: %v", logPrefix, err)
+			http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+			return
+		}
+		writeCachedChunk(chunk.ChunkID, data)
 	}
 
-	data, err := adapter.Download(ctx, *chunk)
-	if err != nil {
-		log.Printf("shares: download chunk failed: %v", err)
-		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
-		return
+	if commit != nil {
+		ok, err := commit()
+		if err != nil {
+			log.Printf("%s: record download failed: %v", logPrefix, err)
+			http.Error(w, `{"error":"failed to record download"}`, http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			http.Error(w, `{"error":"download limit reached"}`, http.StatusForbidden)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/octet-stream")

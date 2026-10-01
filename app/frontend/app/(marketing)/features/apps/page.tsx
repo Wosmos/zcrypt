@@ -13,7 +13,10 @@ import {
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
+import { SectionHead } from "@/components/marketing/landing/section-head";
+import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
+import { cn } from "@/lib/utils";
 import { apps } from "../_data/apps";
 import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
@@ -69,8 +72,7 @@ export default function AppsPage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -79,7 +81,7 @@ export default function AppsPage() {
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {/* browser */}
-            <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl shadow-black/10 dark:shadow-black/30">
+            <div className={cn(cardSurfaceSm, "overflow-hidden")}>
               <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]">
                 <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
                 <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
@@ -89,7 +91,7 @@ export default function AppsPage() {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">
-                <Globe className="h-7 w-7 text-cyan-500" />
+                <Globe className="h-7 w-7 text-[var(--pv2-accent-ink)]" />
                 <div className="text-xs font-bold">Web</div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
                   any browser
@@ -98,7 +100,7 @@ export default function AppsPage() {
             </div>
 
             {/* desktop */}
-            <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl shadow-black/10 dark:shadow-black/30">
+            <div className={cn(cardSurfaceSm, "overflow-hidden")}>
               <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]">
                 <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
                 <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
@@ -108,7 +110,7 @@ export default function AppsPage() {
                 </span>
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">
-                <Monitor className="h-7 w-7 text-cyan-500" />
+                <Monitor className="h-7 w-7 text-[var(--pv2-accent-ink)]" />
                 <div className="text-xs font-bold">Desktop</div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
                   macOS · Win · Linux
@@ -117,7 +119,7 @@ export default function AppsPage() {
             </div>
 
             {/* android phone */}
-            <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl shadow-black/10 dark:shadow-black/30">
+            <div className={cn(cardSurfaceSm, "overflow-hidden")}>
               <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]">
                 <span className="font-mono text-[9px] text-[var(--color-text-muted)]">9:41</span>
                 <span className="flex items-center gap-1">
@@ -136,7 +138,7 @@ export default function AppsPage() {
             </div>
 
             {/* terminal */}
-            <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[#09090b] shadow-xl shadow-black/30">
+            <div className="overflow-hidden rounded-[22px] corner-squircle border border-[var(--color-border)] bg-[#09090b] shadow-xl shadow-black/30">
               <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.02] px-3 py-2.5">
                 <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
                 <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
@@ -150,69 +152,58 @@ export default function AppsPage() {
               </div>
             </div>
           </div>
+          <div
+            className={cn(
+              cardSurfaceSm,
+              "mt-4 flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left",
+            )}
+          >
+            <IconWell icon={ShieldCheck} />
+            <p className="pv2-body">{sharedCoreNote}</p>
+          </div>
         </div>
       </FeatureHero>
 
-      {/* ═══ SHARED CORE ═══ */}
-      <section className="px-4 pb-4 pt-8">
-        <div className="mx-auto max-w-4xl">
-          <div className="card flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
-            <div className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              {sharedCoreNote}
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* ═══ THE THREE SURFACES ═══ */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {surfacesSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">{surfacesSection.subheading}</p>
-          </div>
+      <section className="pv2-sec" aria-labelledby="h-surfaces">
+        <div className="pv2-wrap">
+          <SectionHead
+            id="h-surfaces"
+            eyebrow="Pick your surface"
+            title={surfacesSection.heading}
+            lede={surfacesSection.subheading}
+          />
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
             {surfaces.map((s) => (
-              <li
-                key={s.name}
-                className="card flex flex-col p-6 transition-colors hover:border-cyan-500/30"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <s.Icon className="h-5 w-5" />
-                </div>
+              <li key={s.name} className={cn(cardSurfaceSm, "flex flex-col p-6")}>
+                <IconWell icon={s.Icon} className="mb-5" />
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold">{s.name}</h3>
+                  <h3 className="pv2-h3 text-lg">{s.name}</h3>
                   {s.badge && (
                     <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
                       {s.badge}
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs font-medium text-cyan-600 dark:text-cyan-400">
-                  {s.tagline}
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {s.desc}
-                </p>
+                <p className="mt-1 text-xs font-medium text-[var(--pv2-accent-ink)]">{s.tagline}</p>
+                <p className="pv2-body mt-3 text-sm">{s.desc}</p>
                 <ul className="mt-4 space-y-2">
                   {s.points.map((p) => (
                     <li
                       key={p}
                       className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]"
                     >
-                      <Check className="h-3.5 w-3.5 flex-shrink-0 text-cyan-500" strokeWidth={3} />
+                      <Check
+                        className="h-3.5 w-3.5 flex-shrink-0 text-[var(--pv2-accent-ink)]"
+                        strokeWidth={3}
+                      />
                       {p}
                     </li>
                   ))}
                 </ul>
                 <Link
                   href={s.href}
-                  className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
+                  className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
                   {s.cta}
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -224,20 +215,18 @@ export default function AppsPage() {
       </section>
 
       {/* ═══ COMPARISON ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-10 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {comparisonSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {comparisonSection.subheading}
-            </p>
-          </div>
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-compare">
+        <div className="pv2-wrap">
+          <SectionHead
+            id="h-compare"
+            eyebrow="Side by side"
+            title={comparisonSection.heading}
+            lede={comparisonSection.subheading}
+          />
 
           {/* table on md+, cards on mobile */}
-          <div className="overflow-x-auto">
-            <table className="hidden w-full border-collapse text-left text-sm md:table">
+          <div className={cn(cardSurface, "hidden overflow-x-auto px-8 py-4 md:block")}>
+            <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
                   <th className="py-3 pr-4 font-heading text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -256,7 +245,10 @@ export default function AppsPage() {
               </thead>
               <tbody>
                 {comparison.map((row) => (
-                  <tr key={row.surface} className="border-b border-[var(--color-border)]">
+                  <tr
+                    key={row.surface}
+                    className="border-b border-[var(--color-border)] last:border-0"
+                  >
                     <td className="py-4 pr-4 font-semibold">{row.surface}</td>
                     <td className="py-4 pr-4 text-[var(--color-text-secondary)]">{row.bestFor}</td>
                     <td className="py-4 pr-4 text-[var(--color-text-secondary)]">{row.install}</td>
@@ -269,8 +261,8 @@ export default function AppsPage() {
 
           <div className="grid grid-cols-1 gap-4 md:hidden">
             {comparison.map((row) => (
-              <div key={row.surface} className="card p-5">
-                <h3 className="text-sm font-bold">{row.surface}</h3>
+              <div key={row.surface} className={cn(cardSurfaceSm, "p-5")}>
+                <h3 className="pv2-h3 text-base">{row.surface}</h3>
                 <dl className="mt-3 space-y-1.5 text-xs">
                   <div className="flex justify-between gap-4">
                     <dt className="text-[var(--color-text-muted)]">Best for</dt>
@@ -297,12 +289,8 @@ export default function AppsPage() {
       </section>
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

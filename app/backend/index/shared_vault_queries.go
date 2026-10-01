@@ -2,10 +2,17 @@ package index
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/zcrypt/zcrypt/types"
 )
+
+// ErrRotationIncomplete means a re-key did not cover every member or file and
+// was refused, because applying it would strand them on the old key.
+var ErrRotationIncomplete = errors.New("rotation incomplete")
 
 // CreateSharedVault creates a new shared vault.
 func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.SharedVaultRequest) (*types.SharedVault, error) {
@@ -37,7 +44,11 @@ func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.S
 func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.SharedVault, error) {
 	rows, err := db.pool.Query(ctx, `
 		SELECT sv.id, sv.name, sv.owner_id, sv.description, sv.file_ids, sv.created_at, sv.updated_at,
-		       svm.wrapped_space_key, svm.role, sv.size_limit_bytes
+		       svm.wrapped_space_key, svm.role, sv.size_limit_bytes, sv.needs_rotation,
+		       (SELECT COUNT(*) FROM shared_vault_members m WHERE m.vault_id = sv.id),
+		       (SELECT COUNT(*) FROM shared_vault_files f WHERE f.vault_id = sv.id),
+		       COALESCE((SELECT SUM(fl.original_size) FROM shared_vault_files f
+		                 JOIN files fl ON fl.id = f.file_id WHERE f.vault_id = sv.id), 0)
 		FROM shared_vaults sv
 		JOIN shared_vault_members svm ON sv.id = svm.vault_id
 		WHERE svm.user_id = $1
@@ -48,12 +59,49 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	defer rows.Close()
 
 	var vaults []types.SharedVault
+	ids := []string{}
 	for rows.Next() {
 		var v types.SharedVault
-		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt, &v.WrappedSpaceKey, &v.Role, &v.SizeLimitBytes); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt,
+			&v.WrappedSpaceKey, &v.Role, &v.SizeLimitBytes, &v.NeedsRotation, &v.MemberCount, &v.FileCount, &v.UsedBytes); err != nil {
 			return nil, err
 		}
 		vaults = append(vaults, v)
+		ids = append(ids, v.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	if len(vaults) == 0 {
+		return vaults, nil
+	}
+
+	prev, err := db.pool.Query(ctx, `
+		SELECT m.vault_id::text, m.user_id::text, u.username
+		FROM shared_vault_members m JOIN users u ON u.id = m.user_id
+		WHERE m.vault_id::text = ANY($1)
+		ORDER BY m.joined_at`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer prev.Close()
+	byVault := map[string][]types.SharedVaultPreview{}
+	for prev.Next() {
+		var vid string
+		var p types.SharedVaultPreview
+		if err := prev.Scan(&vid, &p.UserID, &p.Username); err != nil {
+			return nil, err
+		}
+		if len(byVault[vid]) < 4 {
+			byVault[vid] = append(byVault[vid], p)
+		}
+	}
+	if err := prev.Err(); err != nil {
+		return nil, err
+	}
+	for i := range vaults {
+		vaults[i].MemberPreview = byVault[vaults[i].ID]
 	}
 	return vaults, nil
 }
@@ -71,9 +119,9 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	vault := &types.SharedVaultDetail{}
 	err = db.pool.QueryRow(ctx, `
-		SELECT id, name, owner_id, description, file_ids, created_at, updated_at, size_limit_bytes
+		SELECT id, name, owner_id, description, file_ids, created_at, updated_at, size_limit_bytes, needs_rotation
 		FROM shared_vaults WHERE id = $1`, vaultID,
-	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt, &vault.SizeLimitBytes)
+	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt, &vault.SizeLimitBytes, &vault.NeedsRotation)
 	if err != nil {
 		return nil, err
 	}
@@ -176,39 +224,80 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 	defer tx.Rollback(ctx)
 
 	// Anti-lockout: the re-key MUST provide a fresh grant for every current
-	// member. Re-wrapping files under a new key while leaving any member on the
-	// old key would permanently lock them out, so reject a partial member set.
+	// member who has a published key, and a fresh wrap for every shared file.
+	// Re-wrapping under a new key while leaving anyone on the old one would
+	// lock them out. A member with NO published key can be omitted (decided
+	// here from the database, so a transient client error can't pose as a
+	// missing key); they are cleared of their grant and so of access.
 	provided := make(map[string]bool, len(members))
 	for _, m := range members {
 		provided[m.UserID] = true
 	}
-	rows, err := tx.Query(ctx, `SELECT user_id FROM shared_vault_members WHERE vault_id = $1`, vaultID)
+	rows, err := tx.Query(ctx, `
+		SELECT svm.user_id::text, uk.user_id IS NOT NULL
+		FROM shared_vault_members svm
+		LEFT JOIN user_keys uk ON uk.user_id = svm.user_id
+		WHERE svm.vault_id = $1`, vaultID)
 	if err != nil {
 		return err
 	}
-	var current []string
+	var keyless []string
 	for rows.Next() {
 		var uid string
-		if err := rows.Scan(&uid); err != nil {
+		var hasKey bool
+		if err := rows.Scan(&uid, &hasKey); err != nil {
 			rows.Close()
 			return err
 		}
-		current = append(current, uid)
+		if provided[uid] {
+			continue
+		}
+		if hasKey {
+			rows.Close()
+			return fmt.Errorf("%w: missing grant for member %s", ErrRotationIncomplete, uid)
+		}
+		keyless = append(keyless, uid)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	for _, uid := range current {
-		if !provided[uid] {
-			return fmt.Errorf("rotation must re-key all %d members (missing %s)", len(current), uid)
+
+	frows, err := tx.Query(ctx, `SELECT file_id::text FROM shared_vault_files WHERE vault_id = $1`, vaultID)
+	if err != nil {
+		return err
+	}
+	wrapped := make(map[string]bool, len(files))
+	for _, f := range files {
+		wrapped[f.FileID] = true
+	}
+	for frows.Next() {
+		var fid string
+		if err := frows.Scan(&fid); err != nil {
+			frows.Close()
+			return err
 		}
+		if !wrapped[fid] {
+			frows.Close()
+			return fmt.Errorf("%w: missing wrap for file %s", ErrRotationIncomplete, fid)
+		}
+	}
+	frows.Close()
+	if err := frows.Err(); err != nil {
+		return err
 	}
 
 	for _, m := range members {
 		if _, err := tx.Exec(ctx,
 			`UPDATE shared_vault_members SET wrapped_space_key = $3 WHERE vault_id = $1 AND user_id = $2`,
 			vaultID, m.UserID, m.WrappedSpaceKey); err != nil {
+			return err
+		}
+	}
+	for _, uid := range keyless {
+		if _, err := tx.Exec(ctx,
+			`UPDATE shared_vault_members SET wrapped_space_key = '' WHERE vault_id = $1 AND user_id::text = $2`,
+			vaultID, uid); err != nil {
 			return err
 		}
 	}
@@ -219,20 +308,81 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 			return err
 		}
 	}
-	if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET updated_at = NOW() WHERE id = $1`, vaultID); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET updated_at = NOW(), needs_rotation = false WHERE id = $1`, vaultID); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
 }
 
-// RemoveSharedVaultMember removes a user from a shared vault. The owner can
-// never be removed (they'd lose access to their own space); use DeleteSharedVault.
-func (db *DB) RemoveSharedVaultMember(ctx context.Context, vaultID, memberUserID string) error {
-	_, err := db.pool.Exec(ctx, `
+// RemoveSharedVaultMember removes a user from a shared vault and flags the space
+// as needing a key rotation. The owner can never be removed (they'd lose access
+// to their own space); use DeleteSharedVault. Reports whether a row was removed.
+func (db *DB) RemoveSharedVaultMember(ctx context.Context, vaultID, memberUserID string) (bool, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	tag, err := tx.Exec(ctx, `
 		DELETE FROM shared_vault_members
 		WHERE vault_id = $1 AND user_id = $2
 		  AND user_id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)`, vaultID, memberUserID)
+	if err != nil {
+		return false, err
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET needs_rotation = true, updated_at = NOW() WHERE id = $1`, vaultID); err != nil {
+		return false, err
+	}
+	return true, tx.Commit(ctx)
+}
+
+// UpdateSharedVault renames / re-limits a space. Nil fields are left unchanged.
+func (db *DB) UpdateSharedVault(ctx context.Context, vaultID string, req types.SharedVaultUpdateRequest) error {
+	_, err := db.pool.Exec(ctx, `
+		UPDATE shared_vaults SET
+			name = COALESCE($2, name),
+			description = COALESCE($3, description),
+			size_limit_bytes = COALESCE($4, size_limit_bytes),
+			updated_at = NOW()
+		WHERE id = $1`, vaultID, req.Name, req.Description, req.SizeLimitBytes)
 	return err
+}
+
+// UpdateSharedVaultMemberRole changes a non-owner member's role. Reports
+// whether a row changed.
+func (db *DB) UpdateSharedVaultMemberRole(ctx context.Context, vaultID, memberUserID, role string) (bool, error) {
+	tag, err := db.pool.Exec(ctx, `
+		UPDATE shared_vault_members SET role = $3
+		WHERE vault_id = $1 AND user_id = $2
+		  AND user_id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)`, vaultID, memberUserID, role)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// SharedVaultMemberRoleByEmail returns the current role of the member with this
+// email, or "" when that email is not (yet) a member.
+func (db *DB) SharedVaultMemberRoleByEmail(ctx context.Context, vaultID, email string) (string, error) {
+	var role string
+	err := db.pool.QueryRow(ctx, `
+		SELECT svm.role FROM shared_vault_members svm JOIN users u ON u.id = svm.user_id
+		WHERE svm.vault_id = $1 AND u.email = $2`, vaultID, email).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return role, err
+}
+
+// SharedVaultNeedsRotation reports whether a removed member's key is still live.
+func (db *DB) SharedVaultNeedsRotation(ctx context.Context, vaultID string) (bool, error) {
+	var need bool
+	err := db.pool.QueryRow(ctx, `SELECT needs_rotation FROM shared_vaults WHERE id = $1`, vaultID).Scan(&need)
+	return need, err
 }
 
 // UpdateSharedVaultFiles updates the file list of a shared vault.

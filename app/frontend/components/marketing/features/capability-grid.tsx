@@ -1,106 +1,96 @@
 import type { ComponentType, ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { SectionHead, headId } from "@/components/marketing/landing/section-head";
+import { IconWell, cardSurfaceSm } from "@/components/marketing/ui/card";
 
 export interface CapabilityItem {
   Icon: ComponentType<{ className?: string; strokeWidth?: number }>;
   title: ReactNode;
   desc: ReactNode;
-  /** Shape-2 ("accent") only: gradient classes e.g. "from-cyan-500/15 to-cyan-500/5". */
-  accent?: string;
-  /** Shape-2 ("accent") only: icon color class e.g. "text-cyan-500". */
-  color?: string;
 }
 
-export interface CapabilityGridProps {
+const COLS = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-2 lg:grid-cols-3",
+  4: "sm:grid-cols-2 lg:grid-cols-4",
+} as const;
+
+function CapabilityCards({
+  items,
+  columns = 3,
+  titleAs: Title = "h3",
+}: {
   items: CapabilityItem[];
-  /** Optional centered section heading. Omit both to render the grid only. */
-  heading?: ReactNode;
-  subheading?: ReactNode;
-  /** "simple" (default) icon-tile card, or "accent" gradient-tile card. */
-  variant?: "simple" | "accent";
-  /** Grid column classes. Default 3-up responsive grid. */
-  gridClassName?: string;
-  /**
-   * Section background. `false` (default) = plain px-4 py-20; `true` adds the
-   * border-y + surface treatment used on alternating sections.
-   */
-  surface?: boolean;
-  /** Max-width of the inner wrapper. Default "max-w-5xl". */
-  className?: string;
-  /** Override the outer `<section>` className entirely (ignores `surface`). */
-  sectionClassName?: string;
+  columns?: keyof typeof COLS;
+  titleAs?: "h2" | "h3";
+}) {
+  return (
+    <ul className={cn("grid list-none grid-cols-1 gap-4", COLS[columns])}>
+      {items.map(({ Icon, title, desc }, i) => (
+        <li key={i}>
+          <article className={cn(cardSurfaceSm, "h-full p-6 sm:p-7")}>
+            <IconWell icon={Icon} />
+            <Title className="pv2-h3 mt-5 text-lg">{title}</Title>
+            <p className="pv2-body mt-2 text-[15px]">{desc}</p>
+          </article>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
-/**
- * The repeated capability/pillar card grid used across features/* pages. Renders
- * an optional centered heading block above a responsive grid of icon cards.
- * Supports two card shapes: "simple" (flat cyan icon tile) and "accent"
- * (per-item gradient tile that scales on hover).
- */
+/** Numbered step cards, four across on wide screens. */
+export function StepCards({
+  steps,
+}: {
+  steps: { step: ReactNode; title: ReactNode; desc: ReactNode }[];
+}) {
+  return (
+    <ol className="grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {steps.map(({ step, title, desc }, i) => (
+        <li key={i} className={cn(cardSurfaceSm, "p-6 sm:p-7")}>
+          <div className="font-mono text-[13px] font-semibold tracking-[0.08em] text-[var(--pv2-accent-ink)]">
+            {step}
+          </div>
+          <h3 className="pv2-h3 mt-4 text-lg">{title}</h3>
+          <p className="pv2-body mt-2">{desc}</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** A section of icon cards on the homepage card surface, with an optional SectionHead. */
 export function CapabilityGrid({
   items,
+  eyebrow,
   heading,
   subheading,
-  variant = "simple",
-  gridClassName = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
-  surface = false,
-  className = "max-w-5xl",
-  sectionClassName,
-}: CapabilityGridProps) {
-  const resolvedSectionClassName =
-    sectionClassName ??
-    (surface
-      ? "border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
-      : "px-4 py-20");
-
+  columns = 3,
+  join = false,
+  footnote,
+}: {
+  items: CapabilityItem[];
+  eyebrow?: ReactNode;
+  heading?: ReactNode;
+  subheading?: ReactNode;
+  columns?: keyof typeof COLS;
+  join?: boolean;
+  footnote?: ReactNode;
+}) {
+  const id = heading ? headId(heading) : undefined;
   return (
-    <section className={resolvedSectionClassName}>
-      <div className={`mx-auto ${className}`}>
-        {(heading || subheading) && (
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            {heading && (
-              <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-                {heading}
-              </h2>
-            )}
-            {subheading && <p className="mt-3 text-[var(--color-text-secondary)]">{subheading}</p>}
-          </div>
-        )}
-
-        <ul className={`${gridClassName} list-none`}>
-          {items.map((item, i) => {
-            const { Icon } = item;
-            if (variant === "accent") {
-              return (
-                <li key={i}>
-                  <article className="card group p-6 transition-colors hover:border-cyan-500/30">
-                    <div
-                      className={`mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${item.accent ?? ""} ${item.color ?? ""} transition-transform group-hover:scale-110`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-sm font-bold">{item.title}</h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                      {item.desc}
-                    </p>
-                  </article>
-                </li>
-              );
-            }
-            return (
-              <li key={i}>
-                <article className="card p-6 transition-colors hover:border-cyan-500/30">
-                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-sm font-bold">{item.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                    {item.desc}
-                  </p>
-                </article>
-              </li>
-            );
-          })}
-        </ul>
+    <section className={cn("pv2-sec", join && "pv2-sec-join")} aria-labelledby={id}>
+      <div className="pv2-wrap">
+        {heading ? (
+          <SectionHead id={id} eyebrow={eyebrow} title={heading} lede={subheading} />
+        ) : null}
+        <CapabilityCards items={items} columns={columns} />
+        {footnote ? (
+          <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-[var(--color-text-muted)]">
+            {footnote}
+          </p>
+        ) : null}
       </div>
     </section>
   );

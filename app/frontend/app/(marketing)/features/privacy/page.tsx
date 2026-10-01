@@ -13,9 +13,14 @@ import {
   X,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { TieInSection } from "@/components/marketing/features/tie-in-section";
+import { IconList } from "@/components/marketing/features/icon-list";
+import { SectionHead } from "@/components/marketing/landing/section-head";
+import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
+import { cn } from "@/lib/utils";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { privacy } from "../_data/privacy";
 import { SITE_URL } from "@/lib/site";
 
@@ -68,8 +73,7 @@ export default function PrivacyToolsPage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -77,39 +81,22 @@ export default function PrivacyToolsPage() {
       />
 
       {/* ═══ DECOY PROFILE ═══ */}
-      <section className="px-4 py-16">
-        <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              {decoy.eyebrow}
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {decoy.heading}
-            </h2>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">{decoy.body}</p>
-            <ul className="mt-6 space-y-2.5">
-              {decoy.points.map((c) => (
-                <li
-                  key={c}
-                  className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
-                >
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" strokeWidth={3} />
-                  {c}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/docs/decoy-profile"
-              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
-            >
-              How decoy profiles work
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          {/* Two-login mock */}
+      <TieInSection
+        eyebrow={decoy.eyebrow}
+        heading={decoy.heading}
+        body={decoy.body}
+        checklist={
+          <IconList
+            items={decoy.points}
+            itemClassName="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
+            iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--pv2-accent-ink)]"
+          />
+        }
+        linkLabel="How decoy profiles work"
+        linkHref="/docs/decoy-profile"
+        panel={
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5">
+            <div className={cn(cardSurfaceSm, "p-5")}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)]">
                   <Eye className="h-3.5 w-3.5" />
@@ -132,7 +119,7 @@ export default function PrivacyToolsPage() {
                 Looks ordinary
               </p>
             </div>
-            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.04] p-5">
+            <div className={cn(cardSurfaceSm, "p-5")}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500">
                   <Lock className="h-3.5 w-3.5" />
@@ -156,52 +143,43 @@ export default function PrivacyToolsPage() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* ═══ DEAD MAN'S SWITCH ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-16">
-        <div className="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-2">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              {deadMansSwitch.eyebrow}
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {deadMansSwitch.heading}
-            </h2>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              {deadMansSwitch.body}
-            </p>
-
-            {/* Check-in timeline */}
-            <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5">
-              <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
-                <Clock className="h-3.5 w-3.5 text-cyan-500" />
-                Check-in window
-                <span className="ml-auto font-mono text-[var(--color-text-muted)]">
-                  7&ndash;365 days
-                </span>
-              </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-1)]">
-                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400" />
-              </div>
-              <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
-                <span>last login resets it</span>
-                <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
-                  <Bell className="h-3 w-3" /> contact notified
-                </span>
-              </div>
+      <TieInSection
+        join
+        eyebrow={deadMansSwitch.eyebrow}
+        heading={deadMansSwitch.heading}
+        body={deadMansSwitch.body}
+        checklist={
+          <div className={cn(cardSurfaceSm, "mt-7 p-5")}>
+            <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
+              <Clock className="h-3.5 w-3.5 text-cyan-500" />
+              Check-in window
+              <span className="ml-auto font-mono text-[var(--color-text-muted)]">
+                7 to 365 days
+              </span>
+            </div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-1)]">
+              <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400" />
+            </div>
+            <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
+              <span>last login resets it</span>
+              <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
+                <Bell className="h-3 w-3" /> contact notified
+              </span>
             </div>
           </div>
-
-          {/* Does / does-not honesty card */}
+        }
+        panel={
           <div className="space-y-4">
-            <div className="card p-6">
+            <div className={cn(cardSurfaceSm, "p-6")}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
                   <Mail className="h-4 w-4" />
                 </span>
-                <h3 className="text-sm font-bold">What it does</h3>
+                <h3 className="pv2-h3 text-base">What it does</h3>
               </div>
               <ul className="space-y-2.5">
                 {deadMansSwitch.does.map((c) => (
@@ -219,12 +197,12 @@ export default function PrivacyToolsPage() {
               </ul>
             </div>
 
-            <div className="card border-amber-500/30 bg-amber-500/[0.04] p-6">
+            <div className={cn(cardSurfaceSm, "p-6")}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
                 </span>
-                <h3 className="text-sm font-bold">What it doesn&apos;t do</h3>
+                <h3 className="pv2-h3 text-base">What it doesn&apos;t do</h3>
               </div>
               <ul className="space-y-2.5">
                 {deadMansSwitch.doesNot.map((c) => (
@@ -242,37 +220,29 @@ export default function PrivacyToolsPage() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* ═══ IN BETA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="h-3 w-3" />
-              In beta
-            </span>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {betaSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">{betaSection.subheading}</p>
-          </div>
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-beta">
+        <div className="pv2-wrap">
+          <SectionHead
+            id="h-beta"
+            eyebrow="In beta"
+            title={betaSection.heading}
+            lede={betaSection.subheading}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {betaTools.map(({ Icon, title, desc, caveat, href }) => (
-              <article key={title} className="card p-6">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <Icon className="h-5 w-5" />
-                  </span>
+              <article key={title} className={cn(cardSurfaceSm, "p-6 sm:p-7")}>
+                <div className="mb-5 flex items-center justify-between">
+                  <IconWell icon={Icon} />
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                     Beta
                   </span>
                 </div>
-                <h3 className="text-base font-bold">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {desc}
-                </p>
+                <h3 className="pv2-h3 text-lg">{title}</h3>
+                <p className="pv2-body mt-2">{desc}</p>
                 <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
                   <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
@@ -281,7 +251,7 @@ export default function PrivacyToolsPage() {
                 </div>
                 <Link
                   href={href}
-                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
                   Read the docs
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -293,34 +263,30 @@ export default function PrivacyToolsPage() {
       </section>
 
       {/* ═══ ZERO-KNOWLEDGE TIE-IN ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <div className="mx-auto mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-500">
-            <Shield className="h-6 w-6" />
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-core">
+        <div className="pv2-wrap pv2-wrap-narrow">
+          <div className={cn(cardSurface, "p-8 text-center sm:p-12")}>
+            <IconWell icon={Shield} className="mx-auto mb-5" />
+            <SectionHead
+              id="h-core"
+              title={zeroKnowledgeTieIn.heading}
+              lede={zeroKnowledgeTieIn.body}
+              className="pv2-head-flush"
+            />
+            <Link
+              href="/docs/how-it-works"
+              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
+            >
+              How the encryption works
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
-          <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-            {zeroKnowledgeTieIn.heading}
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
-            {zeroKnowledgeTieIn.body}
-          </p>
-          <Link
-            href="/docs/how-it-works"
-            className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
-          >
-            How the encryption works
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
         </div>
       </section>
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

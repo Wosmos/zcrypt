@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { listExpiringVaults, createExpiringVault, deleteExpiringVault } from "@/lib/api";
-import { ensureFiles } from "@/store/files";
+import { useFilesQuery } from "@/store/files";
+import { useQuery } from "@tanstack/react-query";
+import { qk } from "@/lib/query-keys";
+import { setListData } from "@/lib/query-cache";
 import type { ExpiringVault, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -27,11 +30,18 @@ const inputClass =
   "h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10";
 const labelClass = "text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]";
 
+const NO_VAULTS: ExpiringVault[] = [];
+const NO_FILES: FileMetadata[] = [];
+
 export function ExpiringTab() {
   const reduceMotion = useReducedMotion();
-  const [vaults, setVaults] = useState<ExpiringVault[]>([]);
-  const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const vaultsQuery = useQuery({ queryKey: qk.expiring, queryFn: listExpiringVaults });
+  const vaults = vaultsQuery.data ?? NO_VAULTS;
+  const setVaults = (fn: (prev: ExpiringVault[]) => ExpiringVault[]) =>
+    setListData<ExpiringVault>(qk.expiring, fn);
+  const filesQuery = useFilesQuery();
+  const files = filesQuery.data ?? NO_FILES;
+  const loading = vaultsQuery.isPending || filesQuery.isPending;
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -41,16 +51,6 @@ export function ExpiringTab() {
   const [error, setError] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ExpiringVault | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    Promise.all([listExpiringVaults(), ensureFiles()])
-      .then(([v, f]) => {
-        setVaults(v);
-        setFiles(f);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleCreate = async () => {
     setError("");

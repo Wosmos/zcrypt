@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import type { ViewMode, GridCols } from "./types";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, TableProperties, CheckSquare, Check } from "@/lib/icons";
@@ -11,6 +12,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { FilterPopover, type EntryFilters } from "./filter-popover";
+import type { FileMetadata } from "@/types";
 
 const COL_OPTIONS: GridCols[] = ["auto", 1, 2, 4, 6, 8, 10, 12];
 
@@ -22,6 +25,9 @@ interface ExplorerToolbarProps {
   onGridColsChange: (cols: GridCols) => void;
   selectMode: boolean;
   onToggleSelect: () => void;
+  files: FileMetadata[];
+  filters: EntryFilters;
+  onFiltersChange: (filters: EntryFilters) => void;
 }
 
 /**
@@ -37,16 +43,21 @@ export function ExplorerToolbar({
   onGridColsChange,
   selectMode,
   onToggleSelect,
+  files,
+  filters,
+  onFiltersChange,
 }: ExplorerToolbarProps) {
+  const t = useTranslations("explorer");
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
       {/* Row 1 (mobile) / left side (desktop): breadcrumb */}
       <div className="min-w-0 flex-1">{breadcrumb}</div>
 
-      {/* Right side (desktop only): grid density, view toggle, Select. Hidden on
-          mobile. Select/bulk starts from a file's long-press → "Select" there,
-          and grid/view were already desktop-only. */}
+      {/* Right side (desktop only): filter, grid density, view toggle, Select.
+          Hidden on mobile. Select/bulk starts from a file's long-press →
+          "Select" there, and grid/view were already desktop-only. */}
       <div className="hidden items-center gap-2 sm:flex sm:w-auto sm:flex-shrink-0">
+        <FilterPopover files={files} filters={filters} onFiltersChange={onFiltersChange} />
         {/* Grid density: user picks the column count (Auto / 1–4). Only in grid
             view; the choice is persisted by the explorer. */}
         {view === "grid" && (
@@ -55,8 +66,10 @@ export function ExplorerToolbar({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label={`Grid columns: ${gridCols === "auto" ? "auto" : gridCols}`}
-                  title="Grid columns"
+                  aria-label={t("gridColumnsValue", {
+                    value: gridCols === "auto" ? t("auto") : gridCols,
+                  })}
+                  title={t("gridColumns")}
                   className={cn(
                     "flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
@@ -64,18 +77,16 @@ export function ExplorerToolbar({
                 >
                   <LayoutGrid className="h-4 w-4" />
                   <span className="text-xs font-medium tabular-nums">
-                    {gridCols === "auto" ? "Auto" : gridCols}
+                    {gridCols === "auto" ? t("auto") : gridCols}
                   </span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
                 {COL_OPTIONS.map((opt) => (
                   <DropdownMenuItem key={String(opt)} onClick={() => onGridColsChange(opt)}>
-                    {opt === "auto"
-                      ? "Auto (responsive)"
-                      : `${opt} ${opt === 1 ? "column" : "columns"}`}
+                    {opt === "auto" ? t("autoResponsive") : t("columns", { count: opt })}
                     {gridCols === opt && (
-                      <Check className="ml-auto h-4 w-4 text-[var(--color-accent)]" />
+                      <Check className="ms-auto h-4 w-4 text-[var(--color-accent)]" />
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -87,12 +98,12 @@ export function ExplorerToolbar({
         {/* View toggle */}
         <div
           role="group"
-          aria-label="View mode"
+          aria-label={t("viewMode")}
           className="hidden sm:flex flex-shrink-0 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
         >
           {[
-            { mode: "list" as const, icon: TableProperties, title: "List view" },
-            { mode: "grid" as const, icon: LayoutGrid, title: "Grid view" },
+            { mode: "list" as const, icon: TableProperties, title: t("listView") },
+            { mode: "grid" as const, icon: LayoutGrid, title: t("gridView") },
           ].map(({ mode, icon: Icon, title }) => (
             <button
               key={mode}
@@ -122,7 +133,7 @@ export function ExplorerToolbar({
           className="flex-shrink-0"
         >
           <CheckSquare className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Select</span>
+          <span className="hidden sm:inline">{t("select")}</span>
         </Button>
       </div>
     </div>

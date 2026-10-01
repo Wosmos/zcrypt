@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePassphraseStore } from "@/store/passphrase";
 
 /**
@@ -177,27 +177,46 @@ export function useVaultLock(opts?: {
     setOpen(false);
   }, []);
 
-  const modalProps: VaultLockModalProps = {
-    open,
-    title: MODAL_TITLE,
-    subtitle: MODAL_SUBTITLE,
-    confirmLabel: MODAL_CONFIRM,
-    error,
-    verify: opts?.verify,
-    onConfirm,
-    onClose,
-  };
+  const verify = opts?.verify;
+  const modalProps = useMemo<VaultLockModalProps>(
+    () => ({
+      open,
+      title: MODAL_TITLE,
+      subtitle: MODAL_SUBTITLE,
+      confirmLabel: MODAL_CONFIRM,
+      error,
+      verify,
+      onConfirm,
+      onClose,
+    }),
+    [open, error, verify, onConfirm, onClose],
+  );
 
-  return {
-    unlocked,
-    persistent,
-    remainingMinutes,
-    remainingSeconds,
-    unlock,
-    lock,
-    withPassphrase,
-    modalProps,
-    setError,
-    reopen: openModal,
-  };
+  // A stable object: consumers of the shared provider only re-render when a
+  // field they can see actually changed.
+  return useMemo(
+    () => ({
+      unlocked,
+      persistent,
+      remainingMinutes,
+      remainingSeconds,
+      unlock,
+      lock,
+      withPassphrase,
+      modalProps,
+      setError,
+      reopen: openModal,
+    }),
+    [
+      unlocked,
+      persistent,
+      remainingMinutes,
+      remainingSeconds,
+      unlock,
+      lock,
+      withPassphrase,
+      modalProps,
+      openModal,
+    ],
+  );
 }

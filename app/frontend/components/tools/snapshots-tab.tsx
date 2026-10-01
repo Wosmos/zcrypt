@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import { listVaultSnapshots, createVaultSnapshot, deleteVaultSnapshot } from "@/lib/api";
-import { ensureFiles } from "@/store/files";
+import { useFilesQuery } from "@/store/files";
+import { useQuery } from "@tanstack/react-query";
+import { qk } from "@/lib/query-keys";
+import { setListData } from "@/lib/query-cache";
 import type { VaultSnapshot, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -14,25 +17,22 @@ import { SkeletonRow } from "@/components/ui/skeletons";
 import { Layers, Trash2, ChevronDown } from "@/lib/icons";
 import { cn, formatBytes, formatDateTime, fileNameById } from "@/lib/utils";
 
+const NO_SNAPSHOTS: VaultSnapshot[] = [];
+const NO_FILES: FileMetadata[] = [];
+
 export function SnapshotsTab() {
-  const [snapshots, setSnapshots] = useState<VaultSnapshot[]>([]);
-  const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const snapsQuery = useQuery({ queryKey: qk.snapshots, queryFn: listVaultSnapshots });
+  const snapshots = snapsQuery.data ?? NO_SNAPSHOTS;
+  const setSnapshots = (fn: (prev: VaultSnapshot[]) => VaultSnapshot[]) =>
+    setListData<VaultSnapshot>(qk.snapshots, fn);
+  const filesQuery = useFilesQuery();
+  const files = filesQuery.data ?? NO_FILES;
+  const loading = snapsQuery.isPending || filesQuery.isPending;
   const [label, setLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<VaultSnapshot | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    Promise.all([listVaultSnapshots(), ensureFiles()])
-      .then(([snaps, f]) => {
-        setSnapshots(snaps);
-        setFiles(f);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleCreate = async () => {
     setCreating(true);

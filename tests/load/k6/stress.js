@@ -3,12 +3,18 @@
  * Run this to find the maximum load your architecture handles
  * before errors exceed 1% or p95 latency exceeds 1s.
  *
+ * Target: sustain a workload well beyond a 500-1,000 hourly-active-user
+ * bar (which, by Little's Law at ~10-30s/request-cycle, needs only
+ * roughly 5-10 concurrent VUs) — this profile pushes to 1,000 concurrent
+ * VUs to find the actual ceiling with real margin, not just clear the bar.
+ *
  * Stages:
- *   0 → 50 VUs over 2 min    (warm-up)
- *   50 → 100 VUs over 3 min  (normal load)
- *   100 → 200 VUs over 3 min (high load)
- *   200 → 300 VUs over 2 min (stress)
- *   300 → 0 over 2 min       (recovery)
+ *   0    → 50   VUs over 2 min  (warm-up)
+ *   50   → 100  VUs over 2 min  (normal load, ~500-1k hourly users territory)
+ *   100  → 300  VUs over 3 min  (high load)
+ *   300  → 600  VUs over 3 min  (stress)
+ *   600  → 1000 VUs over 3 min  (breaking-point search)
+ *   1000 → 0    over 2 min      (recovery)
  *
  * Watch for:
  *   - The VU count where error rate first exceeds 1%
@@ -17,7 +23,8 @@
  *   - Neon connection pool exhaustion (max 5 connections)
  *
  * Usage: k6 run tests/load/k6/stress.js
- * DO NOT run against production. Use staging only.
+ * DO NOT run against production or real Neon/GitHub/GitLab/HF/Telegram.
+ * Run only against the Dockerized sandbox (docker-compose.loadtest.yml).
  */
 import http from "k6/http";
 import { check, sleep } from "k6";
@@ -30,9 +37,10 @@ const errors = new Rate("errors");
 export const options = {
   stages: [
     { duration: "2m", target: 50 },
-    { duration: "3m", target: 100 },
-    { duration: "3m", target: 200 },
-    { duration: "2m", target: 300 },
+    { duration: "2m", target: 100 },
+    { duration: "3m", target: 300 },
+    { duration: "3m", target: 600 },
+    { duration: "3m", target: 1000 },
     { duration: "2m", target: 0 },
   ],
   thresholds: {

@@ -14,7 +14,8 @@ import {
   toBase64,
   fromBase64,
 } from "@/lib/crypto";
-import { deriveNameKey, encryptName } from "@/lib/name-crypto";
+import { encryptName } from "@/lib/name-crypto";
+import { nameKeyFor } from "@/lib/sealed";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import {
@@ -613,7 +614,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // user id isn't available, fall back to the legacy plaintext filename.
       const vaultPass = usePassphraseStore.getState().getPassphrase();
       if (dedupUserId && vaultPass) {
-        const nameKey = await deriveNameKey(vaultPass, dedupUserId);
+        const nameKey = await nameKeyFor(vaultPass, dedupUserId);
         encryptedName = await encryptName(file.name, nameKey);
       }
 

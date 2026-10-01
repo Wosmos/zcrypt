@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ import { Lock, User, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
+  const tr = useTranslations("auth.register");
   const { setUser, setTokens } = useAuthStore();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -49,18 +52,18 @@ export default function RegisterPage() {
           if (loginRes.user) {
             setUser(loginRes.user);
           }
-          toast.success("Account created! Welcome aboard.");
+          toast.success(tr("welcome"));
           router.push("/dashboard");
           return;
         }
         setSuccess("verified");
-        toast.success("Account created! You can now sign in.");
+        toast.success(tr("created"));
         setTimeout(() => router.push("/login"), 1500);
       } else {
         setSuccess("pending");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Registration failed");
+      toast.error(err instanceof Error ? err.message : tr("failed"));
     } finally {
       setLoading(false);
     }
@@ -71,7 +74,7 @@ export default function RegisterPage() {
     if (!email || !username || !password) return;
 
     if (password !== confirmPassword) {
-      toast.error("Passwords don't match");
+      toast.error(tr("mismatch"));
       return;
     }
 
@@ -83,17 +86,17 @@ export default function RegisterPage() {
       <AuthStatusCard
         icon={CheckCircle2}
         tone="cyan"
-        title="Account created!"
+        title={tr("createdTitle")}
         action={
           <Link href="/login">
             <Button className="mt-5">
-              Sign in <ArrowRight className="h-4 w-4" />
+              {tr("signIn")} <ArrowRight className="h-4 w-4 rtl:-scale-x-100" />
             </Button>
           </Link>
         }
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
-          Redirecting you to sign in...
+          {tr("redirecting")}
         </p>
       </AuthStatusCard>
     );
@@ -104,19 +107,20 @@ export default function RegisterPage() {
       <AuthStatusCard
         icon={CheckCircle2}
         tone="cyan"
-        title="Check your email"
+        title={t("checkEmail")}
         action={
           <Link href="/login">
             <Button variant="secondary" className="mt-5">
-              Back to login
+              {t("backToLogin")}
             </Button>
           </Link>
         }
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
-          We sent a verification link to{" "}
-          <strong className="text-[var(--color-text)]">{email}</strong>. Click it to activate your
-          account.
+          {tr.rich("verifySent", {
+            email,
+            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+          })}
         </p>
       </AuthStatusCard>
     );
@@ -130,10 +134,10 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-3">
           <EmailField value={email} onChange={setEmail} />
           <Input
-            label="Username"
+            label={tr("username")}
             type="text"
             name="username"
-            placeholder="Choose a username"
+            placeholder={tr("usernamePlaceholder")}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             icon={<User className="h-4 w-4" />}
@@ -141,10 +145,10 @@ export default function RegisterPage() {
             autoComplete="username"
           />
           <Input
-            label="Password"
+            label={t("password")}
             type="password"
             name="password"
-            placeholder="Your password"
+            placeholder={t("passwordPlaceholder")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             icon={<Lock className="h-4 w-4" />}
@@ -152,10 +156,10 @@ export default function RegisterPage() {
             autoComplete="new-password"
           />
           <Input
-            label="Confirm Password"
+            label={tr("confirmPassword")}
             type="password"
             name="confirmPassword"
-            placeholder="Type it again"
+            placeholder={tr("confirmPlaceholder")}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             icon={<Lock className="h-4 w-4" />}
@@ -169,11 +173,10 @@ export default function RegisterPage() {
               <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                  Password found in {breachWarning.count.toLocaleString()} data breach
-                  {breachWarning.count !== 1 ? "es" : ""}
+                  {tr("breach", { count: breachWarning.count })}
                 </p>
                 <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                  Consider using a different password.
+                  {tr("breachHint")}
                 </p>
                 <button
                   type="button"
@@ -181,7 +184,7 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 underline hover:no-underline transition-colors"
                 >
-                  Use this password anyway
+                  {tr("useAnyway")}
                 </button>
               </div>
             </div>
@@ -191,16 +194,18 @@ export default function RegisterPage() {
             type="submit"
             loading={loading}
             disabled={loading || !email.trim() || !username.trim() || !password || !confirmPassword}
-            loadingLabel="Creating account..."
+            loadingLabel={tr("creating")}
             icon={ArrowRight}
           >
-            Create account
+            {tr("createAccount")}
           </SubmitButton>
         </form>
       </div>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-5">
-        Already have an account? <AuthLink href="/login">Sign in</AuthLink>
+        {tr.rich("haveAccount", {
+          link: (chunks) => <AuthLink href="/login">{chunks}</AuthLink>,
+        })}
       </p>
     </div>
   );

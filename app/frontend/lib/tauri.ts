@@ -9,6 +9,13 @@
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** The shell's app version (tauri.conf), or null outside Tauri. */
+export async function getAppVersion(): Promise<string | null> {
+  if (!isTauri) return null;
+  const { getVersion } = await import("@tauri-apps/api/app");
+  return getVersion();
+}
+
 /** Invoke a Tauri command. No-op if not in Tauri. */
 export async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauri) {
@@ -306,6 +313,61 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
   return tauriInvoke("check_for_updates");
 }
 
+const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/latest";
+
+/** Parsed `X.Y.Z[-pre]` version. `dev` is the short sha of a rolling
+ *  `-dev.<sha>` build, which CI stamps on top of the last released version. */
+interface ParsedVersion {
+  core: [number, number, number];
+  pre: string | null;
+  dev: string | null;
+}
+
+function parseVersion(raw: string): ParsedVersion | null {
+  const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(raw.trim());
+  if (!m) return null;
+  const pre = m[4] ?? null;
+  const dev = pre ? (/^dev\.([0-9a-f]+)$/i.exec(pre)?.[1] ?? null) : null;
+  return { core: [Number(m[1]), Number(m[2]), Number(m[3])], pre, dev };
+}
+
+function compareCore(a: ParsedVersion["core"], b: ParsedVersion["core"]): number {
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
+export interface AndroidUpdateInfo {
+  available: boolean;
+  /** Newest tagged release, without the leading "v". */
+  latest: string;
+  /** Short sha when this install is a rolling `-dev.<sha>` build. */
+  devBuild: string | null;
+}
+
+/**
+ * Android has no in-app updater: compare the running version with the newest
+ * tagged release. A `-dev.<sha>` build is already past the release it was cut
+ * from, so it only counts as behind once a newer release core exists; any
+ * other prerelease is behind its own final release.
+ */
+export async function checkAndroidUpdate(currentVersion: string): Promise<AndroidUpdateInfo> {
+  const current = parseVersion(currentVersion);
+  if (!current) throw new Error(`unrecognised app version "${currentVersion}"`);
+  const res = await fetch(LATEST_RELEASE_API, {
+    headers: { Accept: "application/vnd.github+json" },
+  });
+  if (!res.ok) throw new Error(`release check failed (HTTP ${res.status})`);
+  const body = (await res.json()) as { tag_name?: unknown };
+  const tag = typeof body.tag_name === "string" ? body.tag_name : "";
+  const latest = parseVersion(tag);
+  if (!latest) throw new Error("release check returned no version");
+  const diff = compareCore(latest.core, current.core);
+  const available = diff > 0 || (diff === 0 && current.pre !== null && current.dev === null);
+  return { available, latest: latest.core.join("."), devBuild: current.dev };
+}
+
 /** Download, install and relaunch. Resolves only on failure, on success the
  *  process is replaced. Subscribe with onUpdateProgress() for the bytes. */
 export async function installUpdate(): Promise<void> {
@@ -388,6 +450,8 @@ export interface UpdateInfo {
    *  `.deb`/`.rpm` package): those update via the system package manager,
    *  not this app. Always true on macOS/Windows. */
   updatable: boolean;
+  /** Set on mobile shells, which have no in-app updater. */
+  channel?: "android" | "ios";
 }
 
 export interface UpdateProgress {

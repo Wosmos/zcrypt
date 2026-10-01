@@ -127,7 +127,7 @@ export function ToastContainer() {
             // Mobile: near-full-width, pinned near the top clear of the notch.
             "fixed top-[calc(var(--safe-top)+0.75rem)] inset-x-3 z-[100] flex flex-col gap-2",
             // Desktop: compact deck in the top-right.
-            "sm:inset-x-auto sm:right-6 sm:top-5 sm:w-[380px]",
+            "sm:inset-x-auto sm:end-6 sm:top-5 sm:w-[380px]",
           )}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
@@ -204,9 +204,25 @@ export function ToastContainer() {
                   </span>
 
                   {/* Body */}
-                  <p className="min-w-0 flex-1 break-words pt-1 text-sm font-medium leading-snug text-[var(--color-text)]">
-                    {t.message}
-                  </p>
+                  <div className="min-w-0 flex-1 pt-1">
+                    <p className="break-words text-sm font-medium leading-snug text-[var(--color-text)]">
+                      {t.message}
+                    </p>
+                    {t.action && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          t.action?.onClick();
+                          remove(t.id);
+                        }}
+                        className="mt-1 text-sm font-semibold underline-offset-2 hover:underline"
+                        style={{ color: type.color }}
+                      >
+                        {t.action.label}
+                      </button>
+                    )}
+                  </div>
 
                   {/* Dismiss */}
                   <button
@@ -216,7 +232,7 @@ export function ToastContainer() {
                       remove(t.id);
                     }}
                     aria-label={`Dismiss notification: ${t.message}`}
-                    className="-mr-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                    className="-me-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -224,7 +240,7 @@ export function ToastContainer() {
                   {/* Countdown drain */}
                   <span
                     aria-hidden
-                    className="absolute bottom-0 left-0 h-[3px] w-full origin-left motion-reduce:!animate-none"
+                    className="absolute bottom-0 start-0 h-[3px] w-full origin-left rtl:origin-right motion-reduce:!animate-none"
                     style={{
                       background: type.color,
                       animation: `toast-drain ${DUR}ms linear forwards`,

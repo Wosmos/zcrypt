@@ -20,14 +20,30 @@
 // The tool is safe to re-run: a row already re-sealed under NEW (e.g. after a
 // partial/interrupted apply) is detected and skipped rather than double-encrypted.
 // After -apply succeeds, set MASTER_KEY=<new> in the backend environment and redeploy.
+//
+// Write-freeze (recommended, same rationale as scripts/neon-rotate.sh's Neon
+// write-freeze): a platform-token connect or a fresh TOTP secret written by
+// the LIVE app between this tool's SELECT and its UPDATE would be encrypted
+// under OLD by the still-running app but never re-encrypted here — the exact
+// same class of lost-write race the Neon rotation had. Set BACKEND_URL and
+// MAINTENANCE_SECRET (matching cmd/maintenance.go's env vars) and -apply
+// will freeze writes (POST /api/internal/maintenance) before starting and
+// unfreeze after, success or failure. Without them, -apply proceeds anyway
+// (loud warning, not a hard refusal — key rotation is sometimes an emergency
+// response to a leak, where speed matters more than a perfect freeze), but
+// the race above is then a real, if narrow, possibility.
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -68,6 +84,12 @@ func run(ctx context.Context, apply bool) error {
 	}
 	defer pool.Close()
 
+	if apply {
+		if frozen := maintenanceToggle(true); frozen {
+			defer maintenanceToggle(false)
+		}
+	}
+
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -98,6 +120,64 @@ func run(ctx context.Context, apply bool) error {
 		fmt.Printf("\nRe-run with -apply to write these changes, then set MASTER_KEY=<new> and redeploy.\n")
 	}
 	return nil
+}
+
+// maintenanceToggle mirrors scripts/neon-rotate.sh's freeze_writes/
+// unfreeze_writes: same endpoint, same secret, same fail-open-with-noise
+// philosophy. Returns true if the freeze call succeeded (so the caller knows
+// whether an unfreeze is owed).
+func maintenanceToggle(enabled bool) bool {
+	backendURL := strings.TrimRight(os.Getenv("BACKEND_URL"), "/")
+	secret := os.Getenv("MAINTENANCE_SECRET")
+	action := "unfreeze"
+	if enabled {
+		action = "freeze"
+	}
+	if backendURL == "" || secret == "" {
+		if enabled {
+			fmt.Fprintln(os.Stderr, "WARNING: BACKEND_URL/MAINTENANCE_SECRET not set — proceeding WITHOUT a write-freeze. "+
+				"A platform-token connect or TOTP enable by the live app during this run could be missed. See this tool's header comment.")
+		}
+		return false
+	}
+
+	body := `{"enabled": false}`
+	if enabled {
+		body = `{"enabled": true}`
+	}
+	req, err := http.NewRequest(http.MethodPost, backendURL+"/api/internal/maintenance", bytes.NewBufferString(body)) //nolint:gosec // backendURL is an operator-set env var for this CLI ops tool, not request input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not build %s request: %v\n", action, err)
+		return false
+	}
+	req.Header.Set("X-Maintenance-Secret", secret)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req) //nolint:gosec // same operator-controlled backendURL as above
+	if err != nil || resp.StatusCode != http.StatusOK {
+		status := 0
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		fmt.Fprintf(os.Stderr, "WARNING: %s call failed (status=%d, err=%v). ", action, status, err)
+		if enabled {
+			fmt.Fprintln(os.Stderr, "Proceeding WITHOUT a write-freeze.")
+		} else {
+			fmt.Fprintln(os.Stderr, "The app may be stuck in maintenance mode — clear it manually: "+
+				`curl -X POST `+backendURL+`/api/internal/maintenance -H "X-Maintenance-Secret: ..." -d '{"enabled": false}'`)
+		}
+		return false
+	}
+	if resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+	if enabled {
+		fmt.Printf("write-freeze engaged via %s\n", backendURL)
+	} else {
+		fmt.Printf("write-freeze released via %s\n", backendURL)
+	}
+	return true
 }
 
 type counts struct{ migrated, skipped int }

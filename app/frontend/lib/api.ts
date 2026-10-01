@@ -198,6 +198,7 @@ export interface FileMetaResponse {
   wrapped_cek?: string; // base64 envelope-wrapped Content Encryption Key (empty for legacy files)
   status: string;
   created_at: string;
+  download_ticket?: string; // public links only: present it on chunk fetches and confirm it on completion
 }
 
 export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
@@ -259,9 +260,106 @@ export async function getFileChunk(
   }
 }
 
-export function listFiles(filter?: string): Promise<FileMetadata[]> {
-  const params = filter ? `?filter=${encodeURIComponent(filter)}` : "";
-  return request<FileMetadata[]>(`/api/files${params}`);
+export function listFiles(filter?: string, limit?: number): Promise<FileMetadata[]> {
+  const params = new URLSearchParams();
+  if (filter) params.set("filter", filter);
+  if (limit) params.set("limit", String(limit));
+  const qs = params.toString();
+  return request<FileMetadata[]>(`/api/files${qs ? `?${qs}` : ""}`);
+}
+
+// --- Insights / analytics (server-aggregated: see app/backend/cmd/analytics.go) ---
+
+interface AnalyticsLargestFile {
+  id: string;
+  original_name: string;
+  encrypted_name: string;
+  original_size: number;
+  created_at: string;
+}
+
+export interface AnalyticsSummary {
+  file_count: number;
+  prev_file_count: number;
+  original_bytes: number;
+  prev_original_bytes: number;
+  encrypted_bytes: number;
+  prev_encrypted_bytes: number;
+  compressed_bytes: number;
+  chunk_count: number;
+  median_size: number;
+  avg_chunks_per_file: number;
+  oldest_upload?: string;
+  newest_upload?: string;
+  largest_file?: AnalyticsLargestFile;
+}
+
+export interface AnalyticsTimeseriesPoint {
+  bucket: string;
+  uploads: number;
+  bytes: number;
+}
+
+export interface AnalyticsTimeseriesResponse {
+  bucket: "hour" | "day" | "month";
+  points: AnalyticsTimeseriesPoint[];
+}
+
+export interface AnalyticsGrowthPoint {
+  bucket: string;
+  cumulative_bytes: number;
+}
+
+/** Lean per-file shape for the client-side file-type/extension breakdown: the
+ *  server can't GROUP BY extension itself since newer uploads' names are
+ *  zero-knowledge encrypted. Bounded to a date range unless allTime. */
+export interface AnalyticsFileTypeItem {
+  id: string;
+  original_name: string;
+  encrypted_name: string;
+  original_size: number;
+  encrypted_size: number;
+  created_at: string;
+}
+
+export interface AnalyticsRangeParams {
+  start?: string;
+  end?: string;
+  allTime?: boolean;
+}
+
+function rangeQuery({ start, end, allTime }: AnalyticsRangeParams): string {
+  const params = new URLSearchParams();
+  if (allTime) {
+    params.set("range", "all");
+  } else {
+    if (start) params.set("start", start);
+    if (end) params.set("end", end);
+  }
+  return params.toString();
+}
+
+export function getAnalyticsSummary(range: AnalyticsRangeParams): Promise<AnalyticsSummary> {
+  return request<AnalyticsSummary>(`/api/analytics/summary?${rangeQuery(range)}`);
+}
+
+export function getAnalyticsTimeseries(
+  start: string,
+  end: string,
+  bucket: "hour" | "day" | "month",
+): Promise<AnalyticsTimeseriesResponse> {
+  const params = new URLSearchParams({ start, end, bucket });
+  return request<AnalyticsTimeseriesResponse>(`/api/analytics/timeseries?${params.toString()}`);
+}
+
+export function getAnalyticsStorageGrowth(): Promise<AnalyticsGrowthPoint[]> {
+  return request<AnalyticsGrowthPoint[]>(`/api/analytics/storage-growth`);
+}
+
+export function getAnalyticsFileTypes(
+  range: AnalyticsRangeParams,
+): Promise<AnalyticsFileTypeItem[]> {
+  return request<AnalyticsFileTypeItem[]>(`/api/analytics/file-types?${rangeQuery(range)}`);
 }
 
 /** An upload that was started but never finished, the data behind the
@@ -609,6 +707,19 @@ export interface AdminDownloadsResponse {
   release: ReleaseInfo | null;
 }
 
+/**
+ * Stamp that the user has seen onboarding, so it is never shown again.
+ *
+ * Called from BOTH exits of the flow, finishing and skipping, because the
+ * screen's job is to explain the product once rather than to force a storage
+ * connection. Users who carry on with shared storage get the dashboard banner
+ * instead. Fire and forget: a failure here must never trap someone on the
+ * onboarding screen.
+ */
+export function markOnboarded(): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/onboarding/complete", { method: "POST" });
+}
+
 export function adminGetDownloads(days = 30): Promise<AdminDownloadsResponse> {
   return request<AdminDownloadsResponse>(`/api/admin/downloads?days=${days}`);
 }
@@ -703,6 +814,132 @@ export function adminSetUserQuota(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ quota_bytes: quotaBytes }),
+  });
+}
+
+// ─── Bug reports ───
+
+export type BugReportStatus = "open" | "triaged" | "fixed" | "wontfix";
+
+export interface BugReportInput {
+  description: string;
+  screenshot?: string;
+  app_version: string;
+  platform: string;
+  route: string;
+  user_agent: string;
+}
+
+export function submitBugReport(data: BugReportInput): Promise<{ success: boolean; id: string }> {
+  return request<{ success: boolean; id: string }>("/api/feedback/bug", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export interface AdminBugReport {
+  id: string;
+  user_id: string | null;
+  email: string;
+  username: string;
+  description: string;
+  has_screenshot: boolean;
+  app_version: string;
+  platform: string;
+  route: string;
+  user_agent: string;
+  status: BugReportStatus;
+  created_at: string;
+}
+
+export interface AdminBugReportsResponse {
+  reports: AdminBugReport[];
+  total: number;
+}
+
+export function adminListBugReports(
+  status: BugReportStatus | "",
+  limit = 20,
+  offset = 0,
+): Promise<AdminBugReportsResponse> {
+  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (status) q.set("status", status);
+  return request<AdminBugReportsResponse>(`/api/admin/bug-reports?${q}`);
+}
+
+export function adminUpdateBugReport(
+  id: string,
+  status: BugReportStatus,
+): Promise<{ id: string; status: BugReportStatus }> {
+  return request<{ id: string; status: BugReportStatus }>(`/api/admin/bug-reports/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function adminGetBugReportScreenshot(id: string): Promise<Blob> {
+  const res = await authedFetch(`${API_BASE}/api/admin/bug-reports/${id}/screenshot`);
+  if (!res.ok) await throwResponseError(res);
+  return res.blob();
+}
+
+// ─── Reviews ───
+
+export type ReviewStatus = "pending" | "approved" | "rejected";
+
+export interface ReviewInput {
+  rating: number;
+  quote: string;
+  display_name: string;
+  public_ok: boolean;
+}
+
+export interface Review extends ReviewInput {
+  id: string;
+  status: ReviewStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminReview extends Review {
+  user_id: string;
+  email: string;
+  username: string;
+}
+
+export function submitReview(data: ReviewInput): Promise<Review> {
+  return request<Review>("/api/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getMyReview(): Promise<Review | null> {
+  const res = await request<{ review: Review | null }>("/api/reviews/me");
+  return res.review;
+}
+
+export function adminListReviews(
+  status: ReviewStatus | "",
+  limit = 20,
+  offset = 0,
+): Promise<{ reviews: AdminReview[]; total: number }> {
+  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (status) q.set("status", status);
+  return request<{ reviews: AdminReview[]; total: number }>(`/api/admin/reviews?${q}`);
+}
+
+export function adminUpdateReview(
+  id: string,
+  status: ReviewStatus,
+): Promise<{ id: string; status: ReviewStatus }> {
+  return request<{ id: string; status: ReviewStatus }>(`/api/admin/reviews/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
   });
 }
 
@@ -805,6 +1042,8 @@ export function adminGetUser(userId: string): Promise<AdminUserDetail> {
 export function createShare(data: {
   file_id: string;
   wrapped_cek?: string;
+  /** File name sealed (enc1:) under the link key; opaque to the server. */
+  name?: string;
   password?: string;
   expires_in_hours?: number;
   max_downloads?: number;
@@ -844,17 +1083,38 @@ export async function getShareFileMeta(
   return res.json();
 }
 
+function publicLinkHeaders(password?: string, ticket?: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  if (ticket) headers["X-Download-Ticket"] = ticket;
+  return headers;
+}
+
+async function postLinkComplete(url: string, ticket: string, password?: string): Promise<void> {
+  const res = await shareFetchRetry(
+    url,
+    { ...publicLinkHeaders(password), "Content-Type": "application/json" },
+    { method: "POST", body: JSON.stringify({ ticket }) },
+  );
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to confirm download"));
+}
+
+/** Confirm a finished public-link download so it counts once against max_downloads. */
+export function completeShareDownload(token: string, ticket: string, password?: string) {
+  return postLinkComplete(`${API_BASE}/api/share/${token}/complete`, ticket, password);
+}
+
 export async function getShareChunk(
   token: string,
   index: number,
   password?: string,
+  ticket?: string,
 ): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
 }> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
+  const headers = publicLinkHeaders(password, ticket);
   const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
   if (!res.ok) throw new Error("Failed to download chunk");
   return readChunkResponse(res);
@@ -895,7 +1155,7 @@ export interface FolderShareLink {
 export function createFolderShare(body: {
   folder_id?: string;
   name: string;
-  files: { file_id: string; wrapped_cek: string }[];
+  files: { file_id: string; wrapped_cek: string; name?: string }[];
   password?: string;
   expires_in_hours?: number;
   max_downloads?: number;
@@ -927,7 +1187,11 @@ const shareSleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   - other    → returned as-is (a real 4xx/5xx like a missing chunk fails fast,
  *                so the caller can skip it immediately).
  */
-async function shareFetchRetry(url: string, headers: Record<string, string>): Promise<Response> {
+async function shareFetchRetry(
+  url: string,
+  headers: Record<string, string>,
+  init: RequestInit = {},
+): Promise<Response> {
   const RL_MAX = 5; // rate-limit retries
   const ERR_MAX = 2; // transient network retries
   let rl = 0;
@@ -935,7 +1199,7 @@ async function shareFetchRetry(url: string, headers: Record<string, string>): Pr
   for (;;) {
     let res: Response;
     try {
-      res = await fetch(url, { headers });
+      res = await fetch(url, { ...init, headers });
     } catch (e) {
       if (err++ >= ERR_MAX) throw e;
       await shareSleep(Math.min(4000, 400 * 2 ** err));
@@ -980,14 +1244,28 @@ export async function getFolderShareFileMeta(
   return res.json();
 }
 
+/** Confirm one finished folder-link file download so it counts once. */
+export function completeFolderShareDownload(
+  token: string,
+  fileId: string,
+  ticket: string,
+  password?: string,
+) {
+  return postLinkComplete(
+    `${API_BASE}/api/folder-share/${token}/files/${fileId}/complete`,
+    ticket,
+    password,
+  );
+}
+
 export async function getFolderShareChunk(
   token: string,
   fileId: string,
   index: number,
   password?: string,
+  ticket?: string,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
+  const headers = publicLinkHeaders(password, ticket);
   const res = await shareFetchRetry(
     `${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`,
     headers,
@@ -1372,6 +1650,31 @@ export function removeSharedVaultMember(
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, {
     method: "DELETE",
+  });
+}
+
+/** Rename / re-limit a space (owner or admin). Omitted fields are unchanged. */
+export function updateSharedVault(
+  id: string,
+  patch: { name?: string; description?: string; size_limit_bytes?: number },
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+/** Change a member's role (owner or admin; only the owner may touch admins). */
+export function updateSharedVaultMemberRole(
+  vaultId: string,
+  userId: string,
+  role: "viewer" | "editor" | "admin",
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
   });
 }
 

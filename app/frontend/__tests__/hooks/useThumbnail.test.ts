@@ -868,10 +868,9 @@ describe("useThumbnail", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     const mod2 = await loadModule(); // fresh module singletons, same fake IndexedDB
-    await new Promise((r) => setTimeout(r, 0));
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(mod2.hasCachedThumbnail("f1")).toBe(true);
+    // Hydration is a couple of async IndexedDB round-trips; under a loaded
+    // parallel run two fixed ticks aren't always enough, so wait for it.
+    await vi.waitFor(() => expect(mod2.hasCachedThumbnail("f1")).toBe(true));
   });
 
   it("does not hydrate at import time in a non-browser (SSR) context", async () => {
@@ -1057,6 +1056,29 @@ describe("useThumbnail", () => {
     expect(result.current.pending).toBe(false);
   });
 
+  it("wakes only the card whose file changed, and every card showing that file", async () => {
+    const { useThumbnail, seedThumbnailFromFile } = await loadModule();
+    let otherRenders = 0;
+    const a1 = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    const a2 = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    renderHook(() => {
+      otherRenders++;
+      return useThumbnail("f2", "other.jpg");
+    });
+    const before = otherRenders;
+
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["b"], "photo.jpg"), "photo.jpg");
+    });
+    expect(a1.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+    expect(a2.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+    expect(otherRenders).toBe(before);
+
+    // One of two cards for f1 unmounts: the other keeps its subscription.
+    a1.unmount();
+    a2.unmount();
+  });
+
   it("seedThumbnailFromFile caches a video poster frame from local bytes", async () => {
     const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
 
@@ -1240,7 +1262,9 @@ describe("useThumbnail", () => {
       return req;
     };
     const db = {
-      transaction: () => ({ objectStore: () => ({ openCursor: failingCursor }) }),
+      transaction: () => ({
+        objectStore: () => ({ getAllKeys: failingCursor, getAll: failingCursor }),
+      }),
       close: () => {},
       objectStoreNames: { contains: () => false },
     };

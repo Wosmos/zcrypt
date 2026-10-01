@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface BringYourOwnStoragePageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -27,8 +26,7 @@ export interface BringYourOwnStoragePageData {
 export const bringYourOwnStorage: BringYourOwnStoragePageData = {
   hero: {
     eyebrow: "Bring your own storage",
-    headlineTop: "We don't sell you storage.",
-    headlineGradient: "You already have it.",
+    title: "Use the storage you already have",
     subtext: (
       <>
         Connect accounts you own (GitHub, GitLab, Hugging Face, Telegram) and your encrypted files

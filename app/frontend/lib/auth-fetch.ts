@@ -1,5 +1,6 @@
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
+import { isTauri } from "@/lib/tauri";
 
 // Shared across the JSON API client (lib/api.ts) and the chunked-upload path
 // (lib/upload-session.ts) so refreshes are deduped. This is critical: refresh
@@ -9,7 +10,11 @@ let refreshPromise: Promise<string | null> | null = null;
 
 export async function tryRefreshToken(): Promise<string | null> {
   const { refreshTokenValue, setTokens, clearAuth } = useAuthStore.getState();
-  if (!refreshTokenValue) return null;
+  // Desktop keeps the token in memory/localStorage and must have it to try.
+  // Web never persists it (store/auth.ts) — refreshTokenValue is null after
+  // any reload even for a logged-in user, so the web path always attempts
+  // the call and relies on the httpOnly zcrypt_rt cookie instead.
+  if (!refreshTokenValue && isTauri) return null;
 
   if (refreshPromise) return refreshPromise;
 

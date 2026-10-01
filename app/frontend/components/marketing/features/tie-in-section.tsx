@@ -1,30 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "@/lib/icons";
+import { cn } from "@/lib/utils";
+import { SectionHead, headId } from "@/components/marketing/landing/section-head";
 
-export interface TieInSectionProps {
-  eyebrow: ReactNode;
-  heading: ReactNode;
-  body: ReactNode;
-  /** The left column's checklist/callout, typically an <IconList />. */
-  checklist?: ReactNode;
-  linkLabel?: ReactNode;
-  linkHref?: string;
-  /** The right column: typically a <CodePanel /> or other mock. */
-  panel: ReactNode;
-  /** Section background. `true` (default) adds the border-y + surface
-   *  treatment; `false` renders a plain section. */
-  surface?: boolean;
-  /** Override the outer `<section>` className entirely (ignores `surface`). */
-  sectionClassName?: string;
-}
-
-/**
- * The 2-column "tie a feature into the bigger story" section repeated across
- * features/* pages: eyebrow + heading + body + optional checklist + link on
- * the left, a mock panel on the right. Only the copy and the panel contents
- * are page-specific.
- */
+/** Two columns: a left-aligned SectionHead with body, checklist and link, and a panel. */
 export function TieInSection({
   eyebrow,
   heading,
@@ -33,34 +13,40 @@ export function TieInSection({
   linkLabel,
   linkHref,
   panel,
-  surface = true,
-  sectionClassName,
-}: TieInSectionProps) {
-  const resolvedSectionClassName =
-    sectionClassName ??
-    (surface
-      ? "mt-16 border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
-      : "px-4 py-20");
-
+  join = false,
+}: {
+  eyebrow?: ReactNode;
+  heading: ReactNode;
+  body: ReactNode;
+  checklist?: ReactNode;
+  linkLabel?: ReactNode;
+  linkHref?: string;
+  panel: ReactNode;
+  join?: boolean;
+}) {
+  const id = headId(heading, "tie-in");
   return (
-    <section className={resolvedSectionClassName}>
-      <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
+    <section className={cn("pv2-sec", join && "pv2-sec-join")} aria-labelledby={id}>
+      <div className="pv2-wrap grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            {eyebrow}
-          </p>
-          <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">{heading}</h2>
-          <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">{body}</p>
+          <SectionHead
+            id={id}
+            eyebrow={eyebrow}
+            title={heading}
+            lede={body}
+            align="left"
+            className="pv2-head-flush pv2-head-col"
+          />
           {checklist}
-          {linkLabel && linkHref && (
+          {linkLabel && linkHref ? (
             <Link
               href={linkHref}
-              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
+              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
             >
               {linkLabel}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          )}
+          ) : null}
         </div>
         {panel}
       </div>

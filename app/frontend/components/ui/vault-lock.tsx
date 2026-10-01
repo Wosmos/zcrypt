@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { LockKey, LockKeyOpen } from "@phosphor-icons/react";
 import { Toggle } from "@/components/ui/toggle";
 import { cn, formatDuration } from "@/lib/utils";
@@ -38,6 +39,7 @@ export interface VaultLockProps {
   /** Clear the cached passphrase (re-lock). */
   onLock: () => void;
   className?: string;
+  tour?: string;
 }
 
 const formatCountdown = (totalSeconds: number) =>
@@ -51,7 +53,10 @@ export function VaultLock({
   onUnlock,
   onLock,
   className,
+  tour,
 }: VaultLockProps) {
+  const t = useTranslations("vaultLock");
+  const tc = useTranslations("common");
   // Optimistic "on" while the unlock modal is up. The button's resting position
   // is `unlocked`; `pending` carries the in-between (modal open, not yet unlocked).
   const [pending, setPending] = useState(false);
@@ -92,14 +97,15 @@ export function VaultLock({
       pressed={on}
       onPressedChange={handlePressedChange}
       variant="default"
+      data-tour={tour}
       aria-label={
         unlocked
           ? persistent
-            ? "Vault unlocked on this device, click to lock"
-            : `Vault unlocked, locks in ${formatCountdown(remainingSeconds)}, click to lock`
+            ? t("ariaUnlockedDevice")
+            : t("ariaUnlockedTimer", { time: formatCountdown(remainingSeconds) })
           : pending
-            ? "Unlocking vault"
-            : "Vault locked, click to unlock"
+            ? t("ariaUnlocking")
+            : t("ariaLocked")
       }
       className={cn(
         "h-9 gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
@@ -119,14 +125,14 @@ export function VaultLock({
       <span className="hidden items-center sm:inline-flex">
         {unlocked ? (
           persistent ? (
-            <span>this device</span>
+            <span>{t("thisDevice")}</span>
           ) : (
             <span className="tabular-nums">{formatCountdown(remainingSeconds)}</span>
           )
         ) : pending ? (
-          <span>Unlocking…</span>
+          <span>{tc("unlocking")}</span>
         ) : (
-          <span>Locked</span>
+          <span>{t("locked")}</span>
         )}
       </span>
     </Toggle>
