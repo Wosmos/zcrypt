@@ -102,7 +102,7 @@ export default function TransferPublicPage() {
         badgeLabel="Peer-to-peer encrypted"
         titleLead="Transfer files between devices."
         titleAccent="Encrypted in real time."
-        subtitle="Stream encrypted files directly from one device to another. No storage, no accounts. Found by a 6-digit code, encrypted with a key the server never sees."
+        subtitle="Send encrypted files from one device to another through a relay that stores nothing. No accounts. Found by a 6-digit code, encrypted with a key the server never sees."
       />
 
       {/* Tool */}

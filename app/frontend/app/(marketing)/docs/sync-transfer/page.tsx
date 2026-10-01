@@ -126,8 +126,8 @@ export default function SyncTransferDocPage() {
 
       <DocSection id="transfer" title="Device-to-device transfer">
         <DocP>
-          The separate <strong>Transfer</strong> tab streams a file directly from one device to
-          another in real time through a relay. The sending device gets a{" "}
+          The separate <strong>Transfer</strong> tab streams a file from one device to another in
+          real time through a relay that stores nothing. The sending device gets a{" "}
           <strong>6-digit room code</strong> and a separate <strong>pairing key</strong>. Scan the
           QR code (or open the link), or type both on the receiving device, and the file flows while
           both stay connected.

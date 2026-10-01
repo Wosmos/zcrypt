@@ -377,8 +377,8 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
       ws.send(JSON.stringify({ type: "join", data: code }));
     };
 
-    ws.onmessage = async (e) => {
-      const msg = JSON.parse(e.data);
+    const handle = async (raw: string) => {
+      const msg = JSON.parse(raw);
       switch (msg.type) {
         case "paired":
           setState("paired");
@@ -448,6 +448,16 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           setErrorMsg(msg.data || "Transfer error");
           break;
       }
+    };
+    let queue = Promise.resolve();
+    ws.onmessage = (e) => {
+      queue = queue
+        .then(() => handle(e.data))
+        .catch(() => {
+          setState("error");
+          setErrorMsg("Transfer error");
+          ws.close();
+        });
     };
 
     attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
