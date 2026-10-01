@@ -45,6 +45,9 @@ func TestPresignHealDeadRepoRotatesSession(t *testing.T) {
 	require.True(t, init.DirectUpload, "a DirectUploader-capable adapter must route this upload direct (presign), not relay")
 	oldRepoURL := init.RepoURL
 	require.NotEmpty(t, oldRepoURL)
+	before, err := ts.db.GetUploadSession(ctx, init.SessionID, user.ID)
+	require.NoError(t, err)
+	oldRepoID := before.RepoID
 
 	// The platform has removed this repo out from under the session.
 	direct.setDeadRepo(oldRepoURL)
@@ -65,7 +68,7 @@ func TestPresignHealDeadRepoRotatesSession(t *testing.T) {
 
 	// The old repo is deactivated so the pool never routes to it again.
 	var oldActive bool
-	require.NoError(t, ts.db.Pool().QueryRow(ctx, `SELECT active FROM repos WHERE url=$1`, oldRepoURL).Scan(&oldActive))
+	require.NoError(t, ts.db.Pool().QueryRow(ctx, `SELECT active FROM repos WHERE id=$1`, oldRepoID).Scan(&oldActive))
 	assert.False(t, oldActive, "the dead repo must be deactivated")
 
 	// A second presign for the next chunk goes straight to the new repo, no

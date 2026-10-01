@@ -198,6 +198,7 @@ export interface FileMetaResponse {
   wrapped_cek?: string; // base64 envelope-wrapped Content Encryption Key (empty for legacy files)
   status: string;
   created_at: string;
+  download_ticket?: string; // public links only: present it on chunk fetches and confirm it on completion
 }
 
 export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
@@ -1082,17 +1083,38 @@ export async function getShareFileMeta(
   return res.json();
 }
 
+function publicLinkHeaders(password?: string, ticket?: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  if (ticket) headers["X-Download-Ticket"] = ticket;
+  return headers;
+}
+
+async function postLinkComplete(url: string, ticket: string, password?: string): Promise<void> {
+  const res = await shareFetchRetry(
+    url,
+    { ...publicLinkHeaders(password), "Content-Type": "application/json" },
+    { method: "POST", body: JSON.stringify({ ticket }) },
+  );
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to confirm download"));
+}
+
+/** Confirm a finished public-link download so it counts once against max_downloads. */
+export function completeShareDownload(token: string, ticket: string, password?: string) {
+  return postLinkComplete(`${API_BASE}/api/share/${token}/complete`, ticket, password);
+}
+
 export async function getShareChunk(
   token: string,
   index: number,
   password?: string,
+  ticket?: string,
 ): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
 }> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
+  const headers = publicLinkHeaders(password, ticket);
   const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
   if (!res.ok) throw new Error("Failed to download chunk");
   return readChunkResponse(res);
@@ -1165,7 +1187,11 @@ const shareSleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   - other    → returned as-is (a real 4xx/5xx like a missing chunk fails fast,
  *                so the caller can skip it immediately).
  */
-async function shareFetchRetry(url: string, headers: Record<string, string>): Promise<Response> {
+async function shareFetchRetry(
+  url: string,
+  headers: Record<string, string>,
+  init: RequestInit = {},
+): Promise<Response> {
   const RL_MAX = 5; // rate-limit retries
   const ERR_MAX = 2; // transient network retries
   let rl = 0;
@@ -1173,7 +1199,7 @@ async function shareFetchRetry(url: string, headers: Record<string, string>): Pr
   for (;;) {
     let res: Response;
     try {
-      res = await fetch(url, { headers });
+      res = await fetch(url, { ...init, headers });
     } catch (e) {
       if (err++ >= ERR_MAX) throw e;
       await shareSleep(Math.min(4000, 400 * 2 ** err));
@@ -1218,14 +1244,28 @@ export async function getFolderShareFileMeta(
   return res.json();
 }
 
+/** Confirm one finished folder-link file download so it counts once. */
+export function completeFolderShareDownload(
+  token: string,
+  fileId: string,
+  ticket: string,
+  password?: string,
+) {
+  return postLinkComplete(
+    `${API_BASE}/api/folder-share/${token}/files/${fileId}/complete`,
+    ticket,
+    password,
+  );
+}
+
 export async function getFolderShareChunk(
   token: string,
   fileId: string,
   index: number,
   password?: string,
+  ticket?: string,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
+  const headers = publicLinkHeaders(password, ticket);
   const res = await shareFetchRetry(
     `${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`,
     headers,

@@ -107,10 +107,10 @@ export const transfers: TransfersPageData = {
     heading: "Send a file straight to another device",
     body: (
       <>
-        Separate from the vault, zcrypt can stream a file directly from one device to another. The
-        sender gets a six-digit code; whoever enters it on the other end starts receiving. The data
-        is end-to-end encrypted: our server is a blind relay that passes along ciphertext it
-        can&apos;t read.
+        Separate from the vault, zcrypt can stream a file from one device to another through a relay
+        that stores nothing. The sender gets a six-digit code and a pairing key; the receiver needs
+        both. The data is end-to-end encrypted with that key, so the relay only passes along
+        ciphertext it can&apos;t read.
       </>
     ),
     checklistItems: [

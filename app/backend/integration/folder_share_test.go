@@ -176,18 +176,6 @@ func TestFolderSharePasswordAndLimits(t *testing.T) {
 		assert.Len(t, opened.Files, 1)
 	})
 
-	t.Run("max_downloads caps access across files", func(t *testing.T) {
-		body := createFolderShareBody("Capped", []string{f1})
-		body["max_downloads"] = 1
-		token := tokenOf(body)
-
-		// First meta fetch succeeds and counts as a download; the next is blocked.
-		assert.Equal(t, http.StatusOK,
-			ts.getShared("/api/folder-share/"+token+"/files/"+f1+"/meta", "").StatusCode)
-		assert.Equal(t, http.StatusForbidden,
-			ts.getShared("/api/folder-share/"+token+"/files/"+f1+"/meta", "").StatusCode)
-	})
-
 	t.Run("revoking a link kills access", func(t *testing.T) {
 		token := tokenOf(createFolderShareBody("Revokable", []string{f1}))
 

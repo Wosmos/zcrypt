@@ -585,7 +585,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	bgSession := session
 	compressedSize := req.CompressedSize
 	encryptedSize := req.EncryptedSize
-	go func() {
+	s.goBackground(func() {
 		bgCtx := context.Background()
 
 		// Commit + VERIFY this file's uploaded-but-uncommitted chunks (HuggingFace
@@ -635,7 +635,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		if pool, ok := pools[key]; ok {
 			pool.UpdateUsage(bgSession.RepoID, usageBytes)
 		}
-	}()
+	})
 }
 
 // HandleListIncompleteUploads returns the caller's active (not-yet-complete,

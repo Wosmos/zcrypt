@@ -98,6 +98,30 @@ describe("public share access", () => {
     fetchMock.mockResolvedValueOnce(mk(500, {}));
     await expect(api.getShareChunk("tok", 3)).rejects.toThrow("Failed to download chunk");
   });
+
+  it("chunk fetches carry the download ticket and completion posts it", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer }));
+    await api.getShareChunk("tok", 0, undefined, "tk");
+    expect(init().headers!["X-Download-Ticket"]).toBe("tk");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer }));
+    await api.getFolderShareChunk("tok", "f1", 0, "pw", "tk");
+    expect(init(1).headers!["X-Download-Ticket"]).toBe("tk");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { success: true } }));
+    await api.completeShareDownload("tok", "tk", "pw");
+    expect(url(2)).toContain("/api/share/tok/complete");
+    expect(init(2).method).toBe("POST");
+    expect(init(2).body).toBe(JSON.stringify({ ticket: "tk" }));
+    expect(init(2).headers!["X-Share-Password"]).toBe("pw");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { success: true } }));
+    await api.completeFolderShareDownload("tok", "f1", "tk");
+    expect(url(3)).toContain("/api/folder-share/tok/files/f1/complete");
+
+    fetchMock.mockResolvedValueOnce(mk(403, { json: { error: "invalid or expired ticket" } }));
+    await expect(api.completeShareDownload("tok", "bad")).rejects.toThrow("invalid or expired ticket");
+  });
 });
 
 describe("folder-share public access", () => {

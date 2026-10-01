@@ -24,6 +24,7 @@ export default function OAuthCallbackPage() {
     const accessToken = fragmentParams.get("access_token");
     const refreshToken = fragmentParams.get("refresh_token");
     const error = searchParams.get("error");
+    const tempToken = fragmentParams.get("temp_token");
 
     // Clear sensitive tokens from URL immediately
     window.history.replaceState({}, "", "/oauth/callback");
@@ -31,6 +32,12 @@ export default function OAuthCallbackPage() {
     if (error) {
       toast.error(error);
       router.replace("/login");
+      return;
+    }
+
+    if (fragmentParams.get("requires_2fa") === "1" && tempToken) {
+      sessionStorage.setItem("zcrypt-temp-token", tempToken);
+      router.replace("/2fa-verify");
       return;
     }
 

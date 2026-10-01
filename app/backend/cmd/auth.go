@@ -51,13 +51,13 @@ func (s *Server) audit(r *http.Request, userID *string, eventType string, metada
 	// Emit to SSE subscribers in real-time
 	s.progress.EmitAudit(e)
 	// Persist to DB asynchronously
-	go func() {
+	s.goBackground(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.db.InsertAuditEvent(ctx, &e); err != nil {
 			log.Printf("audit: %v", err)
 		}
-	}()
+	})
 }
 
 // validatePassword enforces password complexity: min 8 chars, 1 uppercase, 1 digit, 1 special char.
@@ -277,6 +277,18 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		if decoyErr == nil && decoy.Enabled {
 			if auth.CheckPassword(req.Password, decoy.DecoyPasswordHash) == nil {
 				// Decoy password match, issue decoy tokens
+				if user.TOTPEnabled {
+					tempToken, err := auth.GenerateDecoyTempToken(s.cfg.JWTSecret, user.ID)
+					if err != nil {
+						http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+						return
+					}
+					writeJSON(w, http.StatusOK, map[string]interface{}{
+						"requires_2fa": true,
+						"temp_token":   tempToken,
+					})
+					return
+				}
 				s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email})
 				s.issueDecoyTokens(w, r, user)
 				return
@@ -917,6 +929,11 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		remaining, _ := s.db.CountUnusedBackupCodes(ctx, user.ID)
+		if claims.Decoy {
+			s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email, "method": "backup_code"})
+			s.issueDecoyTokens(w, r, user)
+			return
+		}
 		s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "backup_code", "backup_codes_remaining": remaining})
 		s.issueTokens(w, r, user)
 		return
@@ -947,6 +964,11 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if claims.Decoy {
+		s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email, "method": "2fa"})
+		s.issueDecoyTokens(w, r, user)
+		return
+	}
 	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "2fa"})
 	s.issueTokens(w, r, user)
 }
@@ -1339,6 +1361,19 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	s.db.DeleteEmailToken(ctx, et.ID)
 
 	s.audit(r, &user.ID, "magic_link_used", map[string]interface{}{"email": user.Email})
+
+	if user.TOTPEnabled {
+		tempToken, err := auth.GenerateTempToken(s.cfg.JWTSecret, user.ID)
+		if err != nil {
+			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"requires_2fa": true,
+			"temp_token":   tempToken,
+		})
+		return
+	}
 
 	s.issueTokens(w, r, user)
 }

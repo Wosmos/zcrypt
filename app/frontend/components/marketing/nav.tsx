@@ -28,6 +28,7 @@ import {
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { LiquidGlassFilter } from "@/components/marketing/liquid-glass-filter";
 import { useAuthStore } from "@/store/auth";
 import "@/components/marketing/landing/chrome.css";
@@ -617,6 +618,7 @@ export function MarketingNav() {
               </nav>
 
               <div className="flex items-center gap-0.5">
+                <LanguageSwitcher variant="nav" className="max-md:h-11 max-md:w-11" />
                 <ThemeToggle className={cn("max-md:h-11 max-md:w-11", FOCUS_RING)} />
 
                 {signedIn ? null : (

@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -57,14 +60,18 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	state := hex.EncodeToString(stateBytes)
 	if r.URL.Query().Get("platform") == "desktop" {
 		session := r.URL.Query().Get("session")
-		// Require a high-entropy hex session id (>=128-bit). A weak/guessable session
-		// could be polled by an attacker to steal the victim's tokens. The desktop
-		// client generates 16 random bytes (32 hex chars).
-		if d, err := hex.DecodeString(session); err != nil || len(d) < 16 {
+		challenge := strings.ToLower(r.URL.Query().Get("challenge"))
+		if !validHexLen(session, 16) {
 			http.Error(w, `{"error":"invalid session"}`, http.StatusBadRequest)
 			return
 		}
-		state = "desktop:" + session + ":" + state
+		if challenge == "" {
+			challenge = desktopLegacyChallenge
+		} else if !validHexLen(challenge, 32) {
+			http.Error(w, `{"error":"invalid challenge"}`, http.StatusBadRequest)
+			return
+		}
+		state = "desktop:" + session + ":" + challenge + ":" + state
 	}
 
 	// Set state in cookie (HttpOnly, SameSite=Lax for OAuth redirect)
@@ -116,13 +123,16 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Detect desktop platform and session from state prefix: "desktop:<session>:<random>"
+	// Desktop state: "desktop:<session>:<challenge>:<random>". The session key handed
+	// to oauthRedirect/oauthError is "<session>:<challenge>".
 	isDesktop := strings.HasPrefix(stateCookie.Value, "desktop:")
 	var desktopSession string
 	if isDesktop {
-		parts := strings.SplitN(stateCookie.Value, ":", 3)
-		if len(parts) >= 2 {
-			desktopSession = parts[1]
+		parts := strings.SplitN(stateCookie.Value, ":", 4)
+		if len(parts) == 4 {
+			desktopSession = parts[1] + ":" + parts[2]
+		} else {
+			isDesktop = false
 		}
 	}
 
@@ -389,6 +399,29 @@ func (s *Server) HandleOAuthConfig(w http.ResponseWriter, r *http.Request) {
 
 // oauthRedirect generates tokens and either redirects (web) or stores for polling (desktop).
 func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *types.User, desktop bool, session string) {
+	frontendURL := strings.TrimRight(s.cfg.FrontendURL, "/")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	if user.TOTPEnabled {
+		tempToken, err := auth.GenerateTempToken(s.cfg.JWTSecret, user.ID)
+		if err != nil {
+			s.oauthError(w, r, "internal error", desktop, session)
+			return
+		}
+		if desktop && session != "" {
+			s.desktopRelayRedirect(w, r, frontendURL, session, &desktopOAuthResult{
+				Requires2FA: true,
+				TempToken:   tempToken,
+				CreatedAt:   time.Now(),
+			})
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("%s/oauth/callback#requires_2fa=1&temp_token=%s", frontendURL, tempToken), http.StatusTemporaryRedirect) //nolint:gosec // frontendURL is server config
+		return
+	}
+
 	jwtToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		s.oauthError(w, r, "internal error", desktop, session)
@@ -410,23 +443,12 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		UserAgent: r.UserAgent(),
 	})
 
-	frontendURL := strings.TrimRight(s.cfg.FrontendURL, "/")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
-
 	if desktop && session != "" {
-		// Store tokens for the desktop app to poll
-		s.desktopSessionsMu.Lock()
-		s.desktopSessions[session] = &desktopOAuthResult{
+		s.desktopRelayRedirect(w, r, frontendURL, session, &desktopOAuthResult{
 			AccessToken:  jwtToken,
 			RefreshToken: refreshToken,
 			CreatedAt:    time.Now(),
-		}
-		s.desktopSessionsMu.Unlock()
-
-		// Show success page in browser
-		http.Redirect(w, r, fmt.Sprintf("%s/oauth/desktop-relay", frontendURL), http.StatusTemporaryRedirect)
+		})
 		return
 	}
 
@@ -448,12 +470,11 @@ func (s *Server) oauthError(w http.ResponseWriter, r *http.Request, errMsg strin
 	}
 
 	if desktop && session != "" {
-		s.desktopSessionsMu.Lock()
-		s.desktopSessions[session] = &desktopOAuthResult{
+		s.storeDesktopResult(session, &desktopOAuthResult{
 			Error:     errMsg,
 			CreatedAt: time.Now(),
-		}
-		s.desktopSessionsMu.Unlock()
+			Approved:  true,
+		})
 		http.Redirect(w, r, fmt.Sprintf("%s/oauth/desktop-relay?error=%s", frontendURL, errMsg), http.StatusTemporaryRedirect)
 		return
 	}
@@ -461,25 +482,120 @@ func (s *Server) oauthError(w http.ResponseWriter, r *http.Request, errMsg strin
 	http.Redirect(w, r, fmt.Sprintf("%s/oauth/callback?error=%s", frontendURL, errMsg), http.StatusTemporaryRedirect)
 }
 
-// HandleDesktopOAuthPoll returns stored OAuth tokens for a desktop session.
-// GET /api/auth/oauth/desktop-poll?session=<id>
+// validHexLen reports whether v is hex-encoded and decodes to exactly n bytes.
+func validHexLen(v string, n int) bool {
+	d, err := hex.DecodeString(v)
+	return err == nil && len(d) == n
+}
+
+const desktopLegacyChallenge = "-"
+
+// desktopApprovalCode is the short code the desktop app shows and the relay page
+// repeats, so the person can confirm the browser sign-in belongs to their app.
+func desktopApprovalCode(challenge string) string {
+	if len(challenge) < 6 || challenge == desktopLegacyChallenge {
+		return ""
+	}
+	return strings.ToUpper(challenge[:6])
+}
+
+// storeDesktopResult stores a result under the public session id and binds it to the
+// PKCE challenge carried in key ("<session>:<challenge>"). A result carrying tokens
+// stays unreleased until the person approves it from the browser that signed in.
+func (s *Server) storeDesktopResult(key string, res *desktopOAuthResult) {
+	session, challenge, ok := strings.Cut(key, ":")
+	if !ok {
+		return
+	}
+	if challenge == desktopLegacyChallenge {
+		challenge = ""
+	}
+	res.Challenge = challenge
+	s.desktopSessionsMu.Lock()
+	s.desktopSessions[session] = res
+	s.desktopSessionsMu.Unlock()
+}
+
+// desktopRelayRedirect stores a pending result and sends the browser to the relay
+// page with a one-time approval token in the fragment. Only the browser that
+// completed the sign-in ever sees that token.
+func (s *Server) desktopRelayRedirect(w http.ResponseWriter, r *http.Request, frontendURL, key string, res *desktopOAuthResult) {
+	tok := make([]byte, 16)
+	if _, err := rand.Read(tok); err != nil {
+		s.oauthError(w, r, "internal error", true, key)
+		return
+	}
+	res.ApprovalTok = hex.EncodeToString(tok)
+	s.storeDesktopResult(key, res)
+	session, challenge, _ := strings.Cut(key, ":")
+	http.Redirect(w, r, fmt.Sprintf("%s/oauth/desktop-relay#session=%s&approve=%s&code=%s", //nolint:gosec // frontendURL is server config
+		frontendURL, session, res.ApprovalTok, desktopApprovalCode(challenge)), http.StatusTemporaryRedirect)
+}
+
+// HandleDesktopOAuthApprove releases a pending desktop sign-in. The approval token
+// only reaches the browser that finished the provider login, which is what binds
+// the result to a person who chose to hand it to the desktop app.
+// POST /api/auth/oauth/desktop-approve {session, token}
+func (s *Server) HandleDesktopOAuthApprove(w http.ResponseWriter, r *http.Request) {
+	if !s.devMode && !s.desktopPollLimiter.allow(s.clientIP(r)) {
+		http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+		return
+	}
+	var req struct {
+		Session string `json:"session"`
+		Token   string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !validHexLen(req.Session, 16) || !validHexLen(req.Token, 16) {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	s.desktopSessionsMu.Lock()
+	result, ok := s.desktopSessions[req.Session]
+	ok = ok && result.ApprovalTok != "" && subtle.ConstantTimeCompare([]byte(req.Token), []byte(result.ApprovalTok)) == 1
+	if ok {
+		result.Approved = true
+	}
+	s.desktopSessionsMu.Unlock()
+	if !ok {
+		http.Error(w, `{"error":"no pending sign-in for this approval"}`, http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleDesktopOAuthPoll returns stored OAuth tokens for a desktop session once the
+// sign-in was approved in the browser. A session started with a PKCE challenge also
+// needs the verifier; sessions from older apps (no challenge) rely on approval alone.
+// GET /api/auth/oauth/desktop-poll?session=<id>[&verifier=<secret>]
 func (s *Server) HandleDesktopOAuthPoll(w http.ResponseWriter, r *http.Request) {
 	if !s.devMode && !s.desktopPollLimiter.allow(s.clientIP(r)) {
 		http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
 		return
 	}
 	session := r.URL.Query().Get("session")
-	if d, err := hex.DecodeString(session); err != nil || len(d) < 16 {
+	if !validHexLen(session, 16) {
 		http.Error(w, `{"error":"invalid session"}`, http.StatusBadRequest)
 		return
+	}
+	verifier := r.URL.Query().Get("verifier")
+	want := ""
+	if verifier != "" {
+		if !validHexLen(verifier, 32) {
+			http.Error(w, `{"error":"invalid verifier"}`, http.StatusBadRequest)
+			return
+		}
+		sum := sha256.Sum256([]byte(verifier))
+		want = hex.EncodeToString(sum[:])
 	}
 
 	s.desktopSessionsMu.Lock()
 	result, ok := s.desktopSessions[session]
-	if ok {
+	if ok && result.Approved &&
+		(result.Challenge == "" || subtle.ConstantTimeCompare([]byte(want), []byte(result.Challenge)) == 1) {
 		delete(s.desktopSessions, session)
+	} else {
+		ok = false
 	}
-	// Clean up expired sessions (older than 5 minutes)
 	for k, v := range s.desktopSessions {
 		if time.Since(v.CreatedAt) > 5*time.Minute {
 			delete(s.desktopSessions, k)

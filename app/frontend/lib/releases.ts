@@ -1,6 +1,5 @@
 // Runtime lookup of the latest GitHub release so the /download page always
 // reflects what's actually published, no hardcoded version or filenames.
-// All three download islands share a single cached fetch.
 
 import { GITHUB_REPO } from "@/lib/data";
 
@@ -298,24 +297,17 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   };
 }
 
-let cache: Promise<ReleaseData> | null = null;
-
 /**
  * Fetch the latest release's download data.
  *
- * The response is cached for an hour (`next.revalidate`): unauthenticated
- * GitHub API calls are capped at 60/hour per IP, and Next no longer caches
- * `fetch` by default, so an uncached call here means every visit to /download
- * spends one of those 60: after which everyone is served the stale fallback
- * version instead of the real latest release.
- *
- * A failed lookup is deliberately NOT memoised: caching the rejection would
- * pin this server instance to the fallback until it recycled, long after
- * GitHub started answering again.
+ * Next's data cache holds the response for an hour (`next.revalidate`):
+ * unauthenticated GitHub API calls are capped at 60/hour per IP, and Next no
+ * longer caches `fetch` by default. Nothing is memoised in module scope: a
+ * process-lifetime copy outlived that revalidation and kept serving the
+ * previous release long after a new one shipped.
  */
 export function getLatestRelease(): Promise<ReleaseData> {
-  if (cache) return cache;
-  const pending = fetch(LATEST_RELEASE_API, {
+  return fetch(LATEST_RELEASE_API, {
     headers: { Accept: "application/vnd.github+json" },
     next: { revalidate: 3600 },
   })
@@ -329,12 +321,7 @@ export function getLatestRelease(): Promise<ReleaseData> {
       // fall back so users still get working downloads.
       return parsed.desktop.length > 0 ? parsed : buildFallbackRelease();
     })
-    .catch(() => {
-      cache = null; // let the next request try GitHub again
-      return buildFallbackRelease();
-    });
-  cache = pending;
-  return pending;
+    .catch(() => buildFallbackRelease());
 }
 
 /** Where to send people when the API is unavailable. */

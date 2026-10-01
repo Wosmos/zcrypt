@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [approvalCode, setApprovalCode] = useState("");
 
   // Desktop OAuth: poll backend for tokens after user completes login in browser
   useEffect(() => {
@@ -35,23 +36,42 @@ export default function LoginPage() {
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     function startPolling() {
-      const session = sessionStorage.getItem(DESKTOP_OAUTH_SESSION_KEY);
-      if (!session) return;
+      let session = "";
+      let verifier = "";
+      let code = "";
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(DESKTOP_OAUTH_SESSION_KEY) || "null");
+        session = stored?.session ?? "";
+        verifier = stored?.verifier ?? "";
+        code = stored?.code ?? "";
+      } catch {
+        /* malformed entry */
+      }
+      if (!session || !verifier) return;
+      setApprovalCode(code);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const poll = async () => {
         if (stopped) return;
         try {
-          const res = await fetch(`${apiUrl}/api/auth/oauth/desktop-poll?session=${session}`);
+          const res = await fetch(
+            `${apiUrl}/api/auth/oauth/desktop-poll?session=${session}&verifier=${verifier}`,
+          );
           if (res.status === 404) return; // still pending
           if (!res.ok) return;
 
           const data = await res.json();
           sessionStorage.removeItem(DESKTOP_OAUTH_SESSION_KEY);
+          setApprovalCode("");
           if (intervalId) clearInterval(intervalId);
 
           if (data.error) {
             toast.error(data.error);
+            return;
+          }
+          if (data.requires_2fa && data.temp_token) {
+            sessionStorage.setItem("zcrypt-temp-token", data.temp_token);
+            router.replace("/2fa-verify");
             return;
           }
           if (data.access_token && data.refresh_token) {
@@ -180,6 +200,15 @@ export default function LoginPage() {
     <div className="animate-fade-in">
       <div className="space-y-4">
         <OAuthButtons />
+        {approvalCode && (
+          <div className="rounded-xl border border-[var(--color-border)] p-3 text-center">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              After you sign in, your browser asks you to approve. Approve only if it shows this
+              code
+            </p>
+            <p className="mt-1 font-mono text-xl tracking-[0.2em]">{approvalCode}</p>
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div className="flex gap-1 p-1 rounded-xl bg-[var(--color-surface-1)]">

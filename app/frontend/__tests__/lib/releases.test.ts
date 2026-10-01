@@ -121,7 +121,7 @@ describe("getLatestRelease", () => {
     vi.unstubAllGlobals();
   });
 
-  it("returns parsed data from a successful fetch and caches it across calls", async () => {
+  it("returns parsed data and asks Next to cache the fetch, not the module", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -139,8 +139,8 @@ describe("getLatestRelease", () => {
 
     expect(first?.version).toBe("9.9.9");
     expect(first?.isFallback).toBeUndefined();
-    expect(second).toBe(first);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(second.version).toBe("9.9.9");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.github.com/repos/Wosmos/zcrypt/releases/latest",
       {
@@ -153,8 +153,6 @@ describe("getLatestRelease", () => {
   });
 
   it("does not memoise a failure: the next call retries GitHub", async () => {
-    // Caching the rejection would pin the server instance to the stale fallback
-    // long after GitHub started answering again.
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 403 })

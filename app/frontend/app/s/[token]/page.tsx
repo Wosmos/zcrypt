@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { getShareInfo, getShareFileMeta, getShareChunk } from "@/lib/api";
+import { getShareInfo, getShareFileMeta, getShareChunk, completeShareDownload } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Lock, Download, Eye } from "@/lib/icons";
@@ -185,7 +185,12 @@ export default function SharePage() {
     const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
 
     const processChunk = async (index: number) => {
-      const { data, compressed } = await getShareChunk(token, index, sharePassword || undefined);
+      const { data, compressed } = await getShareChunk(
+        token,
+        index,
+        sharePassword || undefined,
+        meta.download_ticket,
+      );
       const encrypted = new Uint8Array(data);
 
       let plaintext: Uint8Array;
@@ -231,6 +236,12 @@ export default function SharePage() {
       if (actualHash !== meta.sha256) {
         throw new Error("File integrity check failed. SHA-256 mismatch");
       }
+    }
+
+    if (meta.download_ticket) {
+      await completeShareDownload(token, meta.download_ticket, sharePassword || undefined).catch(
+        () => {},
+      );
     }
 
     const openedName = await openLinkName(meta.original_name, shareKey);
