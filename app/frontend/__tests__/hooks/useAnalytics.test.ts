@@ -305,14 +305,14 @@ describe("useRecentUploads", () => {
     (listFiles as ReturnType<typeof vi.fn>).mockResolvedValue(files);
     const { result } = renderHook(() => useRecentUploads(), { wrapper });
     await waitFor(() => expect(result.current.files).toEqual(files));
-    expect(listFiles).toHaveBeenCalledWith(undefined, 8);
+    expect(listFiles).toHaveBeenCalledWith(8);
     expect(resolveFileNames).toHaveBeenCalled();
   });
 
   it("passes a custom limit through to listFiles", async () => {
     (listFiles as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     renderHook(() => useRecentUploads(3), { wrapper });
-    await waitFor(() => expect(listFiles).toHaveBeenCalledWith(undefined, 3));
+    await waitFor(() => expect(listFiles).toHaveBeenCalledWith(3));
   });
 
   it("defaults to an empty array before the query resolves", () => {

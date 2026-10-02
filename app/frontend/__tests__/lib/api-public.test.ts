@@ -340,11 +340,11 @@ describe("error-fallback + remaining branches", () => {
     await expect(api.getFileChunk("f", 1)).rejects.toThrow('{"message":"gone"}');
   });
 
-  it("listFiles (no filter) and listFolders (with parentId) hit both optional-param sides", async () => {
+  it("listFiles (no limit) and listFolders (with parentId) hit both optional-param sides", async () => {
     fetchMock.mockResolvedValueOnce(mk(200, { json: [] }));
-    await api.listFiles(); // false side of the filter ternary (line 198)
+    await api.listFiles();
     expect(url()).toContain("/api/files");
-    expect(url()).not.toContain("?filter=");
+    expect(url()).not.toContain("?");
 
     fetchMock.mockResolvedValueOnce(mk(200, { json: [] }));
     await api.listFolders("parent-1"); // true side of the parentId ternary (line 221)

@@ -324,7 +324,7 @@ describe("shared-space + key API wrappers", () => {
     { name: "getUserPublicKey", run: () => getUserPublicKey("u 1"), path: "/api/keys/user/u%201" },
     { name: "lookupUserKey", run: () => lookupUserKey("a@b.com"), path: "/api/keys/lookup?identifier=a%40b.com" },
     { name: "getFileMeta", run: () => getFileMeta("f5"), path: "/api/files/f5/meta" },
-    { name: "listFiles (filtered)", run: () => listFiles("trash"), path: "/api/files?filter=trash" },
+    { name: "listFiles (limited)", run: () => listFiles(5), path: "/api/files?limit=5" },
     { name: "deleteFile", run: () => deleteFile("f5"), path: "/api/files/f5", method: "DELETE" },
     { name: "bulkDeleteFiles", run: () => bulkDeleteFiles(["a", "b"]), path: "/api/files/bulk-delete", method: "POST", body: { ids: ["a", "b"] } },
     { name: "getDevicePreference", run: () => getDevicePreference("dev 1"), path: "/api/preferences?device_id=dev%201" },

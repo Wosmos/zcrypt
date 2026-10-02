@@ -55,7 +55,16 @@ async function readChunkResponse(
   };
 }
 
-async function request<T>(path: string, options?: RequestInit, retries = 2): Promise<T> {
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await requestResponse(path, options);
+  return res.json() as Promise<T>;
+}
+
+async function requestResponse(
+  path: string,
+  options?: RequestInit,
+  retries = 2,
+): Promise<Response> {
   const { accessToken } = useAuthStore.getState();
 
   const headers: Record<string, string> = {
@@ -104,12 +113,12 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
   // Retry on 5xx server errors with backoff
   if (res.status >= 500 && retries > 0) {
     await new Promise((r) => setTimeout(r, 1000 * (3 - retries)));
-    return request<T>(path, options, retries - 1);
+    return requestResponse(path, options, retries - 1);
   }
 
   if (!res.ok) await throwResponseError(res);
 
-  return res.json() as Promise<T>;
+  return res;
 }
 
 // ─── Per-device UI preferences (color theme + light/dark mode) ───
@@ -260,12 +269,19 @@ export async function getFileChunk(
   }
 }
 
-export function listFiles(filter?: string, limit?: number): Promise<FileMetadata[]> {
-  const params = new URLSearchParams();
-  if (filter) params.set("filter", filter);
-  if (limit) params.set("limit", String(limit));
-  const qs = params.toString();
-  return request<FileMetadata[]>(`/api/files${qs ? `?${qs}` : ""}`);
+/** With a limit, the newest `limit` files. Without one, the whole library,
+ *  following the server's X-Next-Cursor pages until the last one. */
+export async function listFiles(limit?: number): Promise<FileMetadata[]> {
+  if (limit) return request<FileMetadata[]>(`/api/files?limit=${limit}`);
+  const files: FileMetadata[] = [];
+  let cursor: string | null = null;
+  do {
+    const qs: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const res = await requestResponse(`/api/files${qs}`);
+    files.push(...((await res.json()) as FileMetadata[]));
+    cursor = res.headers.get("X-Next-Cursor");
+  } while (cursor);
+  return files;
 }
 
 // --- Insights / analytics (server-aggregated: see app/backend/cmd/analytics.go) ---
@@ -628,6 +644,19 @@ export function updateConfig(updates: Record<string, unknown>): Promise<{ succes
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
+}
+
+export interface FileChange {
+  file_id: string;
+  rev: number;
+  deleted: boolean;
+  folder_id?: string;
+}
+
+export const CHANGES_PAGE_LIMIT = 1000;
+
+export function getChanges(since: number): Promise<{ changes: FileChange[]; cursor: number }> {
+  return request(`/api/changes?since=${since}`);
 }
 
 export function createEventSource(): EventSource {

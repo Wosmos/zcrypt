@@ -99,7 +99,10 @@ vi.mock("@/store/upload", () => ({
   ),
 }));
 
+const mockCanStreamToDisk = vi.fn(() => false);
 vi.mock("@/store/download", () => ({
+  ZIP_IN_MEMORY_MAX_BYTES: 2 * 1024 * 1024 * 1024,
+  canStreamToDisk: () => mockCanStreamToDisk(),
   useDownloadStore: Object.assign(
     (selector?: (s: typeof mockDownloadStoreState) => unknown) =>
       selector ? selector(mockDownloadStoreState) : mockDownloadStoreState,
@@ -690,6 +693,20 @@ describe("handleBulkDownload", () => {
 
     expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("too large for ZIP"));
     expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+  });
+
+  it("allows a ZIP over the cap when the browser can stream it to disk", () => {
+    mockCanStreamToDisk.mockReturnValueOnce(true);
+    const bigFile = makeFile({ id: "big", original_size: 3 * 1024 * 1024 * 1024 });
+    const args = makeArgs({ files: [bigFile] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["big"]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockDownloadStoreState.startBulkZipDownload).toHaveBeenCalled();
   });
 
   it("starts the bulk zip download when under the cap", () => {
