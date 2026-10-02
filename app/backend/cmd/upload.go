@@ -22,6 +22,7 @@ import (
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -34,6 +35,57 @@ const maxChunkSize = 17 * 1024 * 1024
 // eviction mid-upload) and repos rotate long before one file that size pays
 // off. A future desktop/MTProto path can lift this per-client.
 const maxUploadBytes = int64(10) << 30
+
+// minChunkBytes is the smallest plaintext chunk a real client slices with.
+// Per-chunk overhead is only credited for this many chunks, so splitting a file
+// into tiny chunks cannot inflate what the declared size allows.
+const minChunkBytes = int64(64) << 10
+
+// chunkLayoutValid reports whether chunk_count is consistent with the declared
+// size: every chunk carries at least one plaintext byte, and the count is
+// exactly ceil(size / chunk_size) when the client sends its chunk size.
+func chunkLayoutValid(size int64, count int, chunkSize int64) bool {
+	if int64(count) > size {
+		return false
+	}
+	return chunkSize == 0 || int64(count) == (size+chunkSize-1)/chunkSize
+}
+
+// maxEncryptedTotal is the most ciphertext a file of the declared size can
+// produce. Compression is only kept when it shrinks a chunk, so each chunk is at
+// most its plaintext plus the 28-byte AES-GCM envelope; the slack also covers
+// legacy clients that always compressed (zstd's worst-case expansion).
+func maxEncryptedTotal(size int64, count int) int64 {
+	credited := min(int64(count), (size+minChunkBytes-1)/minChunkBytes)
+	return size + size/64 + credited*64
+}
+
+// chunkFitsDeclaredSize refuses a chunk that would push the file's stored
+// ciphertext past what its declared size allows, so a client cannot declare a
+// tiny file to pass the quota check and then upload far more.
+func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWriter, session *types.UploadSession, n int64) bool {
+	received, err := s.db.GetTotalReceivedChunkSize(ctx, session.FileID)
+	if err != nil {
+		internalError(w, "upload: received size", err)
+		return false
+	}
+	if received+n > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
+		writeError(w, http.StatusRequestEntityTooLarge, "chunk data exceeds the declared file size")
+		return false
+	}
+	return true
+}
+
+func writeSharedStorageFull(w http.ResponseWriter, used, quota, needed int64) {
+	writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
+		"error":        "shared storage is full",
+		"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
+		"used_bytes":   used,
+		"quota_bytes":  quota,
+		"needed_bytes": needed,
+		"remedy":       "connect_own_storage",
+	})
+}
 
 // chunkUploadSem limits concurrent chunk uploads being processed server-wide.
 // Each chunk can use ~35MB (raw data + base64 for GitHub API), so 10 concurrent = ~350MB.
@@ -86,6 +138,10 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	// not be negative. It is persisted for cross-device resume.
 	if req.ChunkSize < 0 {
 		http.Error(w, `{"error":"chunk_size must be non-negative"}`, http.StatusBadRequest)
+		return
+	}
+	if !chunkLayoutValid(req.OriginalSize, req.ChunkCount, req.ChunkSize) {
+		http.Error(w, `{"error":"chunk_count does not match original_size and chunk_size"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -166,6 +222,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	var platform, account, repoID, repoURL string
 	var directUpload bool
+	var quota int64
 
 	if mode == "byos-direct" {
 		if req.Platform == "" || !byosPlatforms[req.Platform] {
@@ -195,7 +252,9 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// carries a cap (see getEffectiveQuota). Check it before reserving a
 		// session, not after, so a user who is over the line never starts an
 		// upload that cannot finish.
-		if quota := s.getEffectiveQuota(ctx, userID); quota > 0 {
+		// The file insert below re-checks under a lock, so concurrent inits
+		// cannot share the same headroom.
+		if quota = s.getEffectiveQuota(ctx, userID); quota > 0 {
 			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
 			if uErr != nil {
 				log.Printf("upload: storage usage lookup failed: %v", uErr)
@@ -203,14 +262,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if used+req.OriginalSize > quota {
-				writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
-					"error":        "shared storage is full",
-					"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
-					"used_bytes":   used,
-					"quota_bytes":  quota,
-					"needed_bytes": req.OriginalSize,
-					"remedy":       "connect_own_storage",
-				})
+				writeSharedStorageFull(w, used, quota, req.OriginalSize)
 				return
 			}
 		}
@@ -270,7 +322,18 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		FolderID:      req.FolderID,
 	}
 
-	if err := s.db.InsertFile(ctx, userID, fileMeta); err != nil {
+	insert := s.db.InsertFile
+	if quota > 0 {
+		insert = func(ctx context.Context, userID string, f *types.FileMetadata) error {
+			return s.db.InsertFileWithinQuota(ctx, userID, f, quota)
+		}
+	}
+	if err := insert(ctx, userID, fileMeta); err != nil {
+		var full *index.QuotaExceededError
+		if errors.As(err, &full) {
+			writeSharedStorageFull(w, full.Used, quota, req.OriginalSize)
+			return
+		}
 		log.Printf("upload: create file record failed for user %s: %v", userID, err)
 		http.Error(w, `{"error":"create file record failed"}`, http.StatusInternalServerError)
 		return
@@ -417,6 +480,9 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk too small"}`, http.StatusBadRequest)
 		return
 	}
+	if !s.chunkFitsDeclaredSize(ctx, w, session, int64(len(data))) {
+		return
+	}
 
 	// Verify SHA-256
 	hash := sha256.Sum256(data)
@@ -535,6 +601,15 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(uploadedIndices) != session.ChunkCount {
 		http.Error(w, `{"error":"not all chunks have been uploaded"}`, http.StatusBadRequest)
+		return
+	}
+	received, err := s.db.GetTotalReceivedChunkSize(ctx, session.FileID)
+	if err != nil {
+		internalError(w, "upload: received size", err)
+		return
+	}
+	if received > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
+		writeError(w, http.StatusBadRequest, "uploaded data exceeds the declared file size")
 		return
 	}
 
@@ -801,6 +876,9 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk index out of range"}`, http.StatusBadRequest)
 		return
 	}
+	if !s.chunkFitsDeclaredSize(ctx, w, session, req.Size) {
+		return
+	}
 
 	// Resolve adapter and check DirectUploader support
 	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
@@ -980,6 +1058,9 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			"stored":      true,
 			"duplicate":   true,
 		})
+		return
+	}
+	if !s.chunkFitsDeclaredSize(ctx, w, session, req.Size) {
 		return
 	}
 

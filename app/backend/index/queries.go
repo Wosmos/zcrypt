@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -28,11 +29,57 @@ const deletionLocatorExpr = `CASE WHEN platform = 'telegram' ` +
 // nil f.FolderID means Root, exactly as before, so existing callers that never
 // set FolderID are unaffected (backward compatible).
 func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetadata) error {
+	return insertFile(ctx, db.pool, userID, f)
+}
+
+type execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+// QuotaExceededError reports a reservation refused by InsertFileWithinQuota.
+type QuotaExceededError struct {
+	Used int64
+}
+
+func (e *QuotaExceededError) Error() string {
+	return fmt.Sprintf("storage quota exceeded (%d bytes used)", e.Used)
+}
+
+// InsertFileWithinQuota inserts f only if the user's usage plus f.OriginalSize
+// stays within quota. A per-user advisory lock serialises the check and the
+// insert, so concurrent inits cannot each pass against the same headroom.
+func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types.FileMetadata, quota int64) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('quota:' || $1, 0))`, userID); err != nil {
+		return fmt.Errorf("lock quota: %w", err)
+	}
+	var used int64
+	if err := tx.QueryRow(ctx,
+		`SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`,
+		userID,
+	).Scan(&used); err != nil {
+		return fmt.Errorf("storage used: %w", err)
+	}
+	if used+f.OriginalSize > quota {
+		return &QuotaExceededError{Used: used}
+	}
+	if err := insertFile(ctx, tx, userID, f); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func insertFile(ctx context.Context, q execer, userID string, f *types.FileMetadata) error {
 	status := f.Status
 	if status == "" {
 		status = "complete"
 	}
-	_, err := db.pool.Exec(ctx,
+	_, err := q.Exec(ctx,
 		`INSERT INTO files (id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, folder_id)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
 		         (SELECT id FROM folders WHERE id = $15::uuid AND user_id = $2 AND deleted_at IS NULL))`,
