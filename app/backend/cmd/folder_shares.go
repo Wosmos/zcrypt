@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -207,7 +206,7 @@ func (s *Server) authorizeFolderShareFile(w http.ResponseWriter, r *http.Request
 	}
 	if reason, valid := validateFolderShare(share); !valid &&
 		(!allowTicket || !linkOpenForChunk(share.Revoked, share.ExpiresAt, true, s.shareTicketLive(r, share.ID, fileID))) {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusForbidden)
+		writeError(w, http.StatusForbidden, reason)
 		return nil, nil, "", "", false
 	}
 	if !validateFolderSharePassword(share, r.Header.Get("X-Share-Password")) {

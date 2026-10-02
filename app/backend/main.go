@@ -216,32 +216,7 @@ func requestLogger(next http.Handler) http.Handler {
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
-	// Build allowed origins from ALLOWED_ORIGINS env var (comma-separated) or FRONTEND_URL fallback
-	allowedOrigins := map[string]bool{}
-	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
-		for _, o := range strings.Split(origins, ",") {
-			allowedOrigins[strings.TrimSpace(o)] = true
-		}
-	}
-	if frontend := os.Getenv("FRONTEND_URL"); frontend != "" {
-		allowedOrigins[strings.TrimRight(frontend, "/")] = true
-	}
-	// Fallback for local development
-	if len(allowedOrigins) == 0 {
-		allowedOrigins["http://localhost:3000"] = true
-		allowedOrigins["http://localhost:8080"] = true
-	}
-	// Desktop (Tauri) app webview origins are fixed and first-party. Without
-	// these the desktop app's fetches are blocked by CORS ("Load failed" on
-	// login, OAuth poll never completes). macOS/Linux use the tauri:// scheme;
-	// Windows (WebView2) uses http(s)://tauri.localhost.
-	for _, o := range []string{
-		"tauri://localhost",
-		"http://tauri.localhost",
-		"https://tauri.localhost",
-	} {
-		allowedOrigins[o] = true
-	}
+	allowedOrigins := cmd.AllowedOrigins()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")

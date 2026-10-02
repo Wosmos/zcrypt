@@ -153,7 +153,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validatePassword(req.Password); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -329,6 +329,10 @@ const refreshReuseGrace = 60 * time.Second
 // HandleRefreshToken exchanges a refresh token for a new access token.
 func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if s.refreshCookieCrossSite(r) {
+		writeError(w, http.StatusForbidden, "cross-site request refused")
+		return
+	}
 
 	refreshToken := extractRefreshToken(r)
 	if refreshToken == "" {
@@ -377,6 +381,10 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 // HandleLogout invalidates the refresh token.
 func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if s.refreshCookieCrossSite(r) {
+		writeError(w, http.StatusForbidden, "cross-site request refused")
+		return
+	}
 
 	refreshToken := extractRefreshToken(r)
 	if refreshToken != "" {
@@ -484,7 +492,7 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validatePassword(req.NewPassword); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -1156,7 +1164,7 @@ func (s *Server) HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	req.AvatarURL = strings.TrimSpace(req.AvatarURL)
 	if req.AvatarURL != "" {
 		if err := validateAvatar(req.AvatarURL); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
@@ -1217,7 +1225,7 @@ func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validatePassword(req.NewPassword); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

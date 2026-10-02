@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -19,7 +18,7 @@ func (s *Server) HandleListSyncFolders(w http.ResponseWriter, r *http.Request) {
 
 	folders, err := s.db.ListSyncFolders(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"list sync folders: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "list sync folders", err)
 		return
 	}
 
@@ -78,7 +77,7 @@ func (s *Server) HandleCreateSyncFolder(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, `{"error":"folder already registered for this device"}`, http.StatusConflict)
 			return
 		}
-		http.Error(w, fmt.Sprintf(`{"error":"create sync folder: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "create sync folder", err)
 		return
 	}
 
@@ -115,7 +114,7 @@ func (s *Server) HandleUpdateSyncFolder(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.db.UpdateSyncFolder(r.Context(), folderID, userID, enabled, label); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"update sync folder: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "update sync folder", err)
 		return
 	}
 
@@ -138,7 +137,7 @@ func (s *Server) HandleUpdateSyncFolderStats(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := s.db.UpdateSyncFolderStats(r.Context(), folderID, userID, req.FileCount, req.TotalSize); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"update stats: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "update stats", err)
 		return
 	}
 

@@ -136,7 +136,7 @@ func (s *Server) HandleAdminReconcile(w http.ResponseWriter, r *http.Request) {
 
 	report, err := s.ReconcileUserOrphans(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminReconcile", err)
 		return
 	}
 

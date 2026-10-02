@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -112,7 +111,7 @@ func (s *Server) SeedPlanConfigs(ctx context.Context) {
 func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := s.db.ListUsers(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminListUsers", err)
 		return
 	}
 
@@ -129,7 +128,7 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleAdminStats(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.db.GetSystemStats(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminStats", err)
 		return
 	}
 
@@ -168,7 +167,7 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.SetUserRole(ctx, userID, role); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminSetRole", err)
 		return
 	}
 
@@ -214,12 +213,12 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := s.reauthActingUser(ctx, r, body.Password, body.Code); err != nil {
 		adminID := GetUserID(r)
 		s.audit(r, &adminID, "admin_user_delete_denied", map[string]interface{}{"target_user": userID, "reason": err.Error()})
-		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "re-authentication required: "+err.Error())
 		return
 	}
 
 	if err := s.db.DeleteUser(ctx, userID); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminDeleteUser", err)
 		return
 	}
 
@@ -244,12 +243,12 @@ func (s *Server) HandleAdminListTokens(w http.ResponseWriter, r *http.Request) {
 	adminID := GetUserID(r)
 	tokens, err := s.db.ListOwnPlatformTokens(r.Context(), adminID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminListTokens", err)
 		return
 	}
 	others, err := s.db.CountOtherPlatformTokens(r.Context(), adminID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminListTokens", err)
 		return
 	}
 
@@ -297,7 +296,7 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 	// Validate the token by creating an adapter
 	adapter, err := createAdapter(req.Platform, req.Token)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"invalid token: %s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid token: "+err.Error())
 		return
 	}
 
@@ -317,7 +316,7 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.db.InsertPlatformToken(ctx, ownerID, req.Platform, username, encrypted, nonce, req.IsGlobal); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"store token: %s"}`, err), http.StatusInternalServerError)
+		internalError(w, "store token", err)
 		return
 	}
 
@@ -426,7 +425,7 @@ func (s *Server) HandleAdminSetDefaultQuota(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := s.db.SetSystemSetting(r.Context(), "default_storage_quota_bytes", strconv.FormatInt(req.DefaultQuotaBytes, 10)); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminSetDefaultQuota", err)
 		return
 	}
 
@@ -456,7 +455,7 @@ func (s *Server) HandleAdminSetUserQuota(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := s.db.SetUserQuota(r.Context(), userID, req.QuotaBytes); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminSetUserQuota", err)
 		return
 	}
 
@@ -550,7 +549,7 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.SetUserPlan(ctx, userID, req.Plan); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminSetPlan", err)
 		return
 	}
 
@@ -581,7 +580,7 @@ func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
 
 	events, total, err := s.db.ListAuditEvents(r.Context(), limit, offset, eventType, userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminAuditLog", err)
 		return
 	}
 
@@ -604,7 +603,7 @@ func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleAdminVerifyAuditChain(w http.ResponseWriter, r *http.Request) {
 	res, err := s.db.VerifyAuditChain(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminVerifyAuditChain", err)
 		return
 	}
 	adminID := GetUserID(r)
@@ -628,7 +627,7 @@ func (s *Server) HandleUserActivity(w http.ResponseWriter, r *http.Request) {
 
 	events, err := s.db.ListUserAuditEvents(r.Context(), userID, 20)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "UserActivity", err)
 		return
 	}
 
@@ -667,7 +666,7 @@ func (s *Server) HandleSubmitFeedback(w http.ResponseWriter, r *http.Request) {
 		Context: req.Context,
 	}
 	if err := s.db.InsertFeedback(ctx, fb); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "SubmitFeedback", err)
 		return
 	}
 
@@ -702,7 +701,7 @@ func (s *Server) HandleAdminListFeedback(w http.ResponseWriter, r *http.Request)
 
 	items, total, err := s.db.ListFeedback(r.Context(), limit, offset)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminListFeedback", err)
 		return
 	}
 	if items == nil {
@@ -753,7 +752,7 @@ func (s *Server) HandleAdminSetPlans(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if ids[p.ID] {
-			http.Error(w, fmt.Sprintf(`{"error":"duplicate plan id: %s"}`, p.ID), http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, "duplicate plan id: "+p.ID)
 			return
 		}
 		ids[p.ID] = true
@@ -773,7 +772,7 @@ func (s *Server) HandleAdminSetPlans(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.SetSystemSetting(r.Context(), "plan_configs", string(data)); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminSetPlans", err)
 		return
 	}
 

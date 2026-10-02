@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -232,7 +231,7 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if reason, valid := validateShare(share); !valid {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusForbidden)
+		writeError(w, http.StatusForbidden, reason)
 		return
 	}
 
@@ -305,7 +304,7 @@ func (s *Server) HandleGetShareChunk(w http.ResponseWriter, r *http.Request) {
 
 	if reason, valid := validateShare(share); !valid &&
 		!linkOpenForChunk(share.Revoked, share.ExpiresAt, true, s.shareTicketLive(r, share.ID, "")) {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusForbidden)
+		writeError(w, http.StatusForbidden, reason)
 		return
 	}
 
