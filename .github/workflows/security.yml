@@ -1,14 +1,25 @@
 name: Security Scan
 
-# govulncheck (Go dependency CVE scanning) doesn't need to run on every push:
-# a new vulnerability shows up because of an upstream advisory, not because of
-# your own commit, so checking on every push just re-ran the same scan for no
-# new information. Weekly + on-demand catches new advisories just as fast in
-# practice while cutting this from N-times-a-day to once a week.
+# Dependency CVE scanning doesn't need to run on every push: a new
+# vulnerability shows up because of an upstream advisory, not because of your
+# own commit. It runs weekly for new advisories, and on any push that changes a
+# dependency manifest or lockfile, since that is the moment a commit CAN bring
+# one in. Tool versions are pinned so a scanner release can't change the verdict.
 on:
   schedule:
     - cron: "0 3 * * 1" # Mondays 03:00 UTC
   workflow_dispatch:
+  push:
+    paths:
+      - "app/backend/go.mod"
+      - "app/backend/go.sum"
+      - "app/frontend/package.json"
+      - "app/frontend/bun.lock"
+      - "app/core/Cargo.toml"
+      - "app/core/Cargo.lock"
+      - "app/desktop/src-tauri/Cargo.toml"
+      - "app/desktop/src-tauri/Cargo.lock"
+      - ".github/workflows/security.yml"
 
 jobs:
   govulncheck:
@@ -22,7 +33,7 @@ jobs:
           go-version: "1.26.6"
 
       - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
       - name: Check backend vulnerabilities
         working-directory: app/backend
@@ -45,13 +56,55 @@ jobs:
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
             | tar -xz -C /usr/local/bin gitleaks
 
-      # Full-repo, working-tree sweep: the periodic backstop for whatever the
-      # diff-scoped prepush check (scripts/prepush.sh) can't see, e.g. a secret
-      # that landed before this check existed. Known placeholder/test-fixture
-      # matches are allowlisted by fingerprint in .gitleaksignore (metadata
-      # only, never raw secret values). Advisory only for now: a real finding
-      # means rotate + clean history, not something CI should auto-block until
-      # a clean baseline is established and this job is deliberately promoted.
+      # Full-history sweep: the backstop for whatever the diff-scoped prepush
+      # check (scripts/prepush.sh) can't see, e.g. a secret that landed before
+      # this check existed. Known placeholder/test-fixture matches are
+      # allowlisted by fingerprint in .gitleaksignore (metadata only, never raw
+      # secret values). Blocking: a finding means rotate the secret, then
+      # allowlist that fingerprint once it is dead.
       - name: Scan for secrets
-        run: gitleaks detect --source . --no-banner -v
-        continue-on-error: true
+        run: gitleaks detect --source . --no-banner --redact -v
+
+  bun-audit:
+    name: Frontend Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.12"
+
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: bun install --frozen-lockfile
+
+      # Fails on high and critical advisories; moderate and low are printed by
+      # the full report below but don't block.
+      - name: Audit (high and above)
+        working-directory: app/frontend
+        run: bun audit --audit-level=high
+
+      - name: Full report
+        if: always()
+        working-directory: app/frontend
+        run: bun audit || true
+
+  cargo-deny:
+    name: Rust Dependency Audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        manifest:
+          - app/core/Cargo.toml
+          - app/desktop/src-tauri/Cargo.toml
+    steps:
+      - uses: actions/checkout@v7
+
+      # RustSec advisories (known CVEs, yanked and unsound crates) for the
+      # shared core and the desktop/Android shell that embeds it.
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: ${{ matrix.manifest }}
+          command: check advisories

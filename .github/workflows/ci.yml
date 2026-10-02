@@ -56,6 +56,17 @@ jobs:
               - 'app/backend/crypto/testvectors/**'
               - 'docs/CRYPTO_FORMAT.md'
 
+  # ── Version sync ─────────────────────────────────────────────────────────────
+  # tauri.conf.json, the desktop crate and the frontend package each carry the
+  # app version; this fails the moment one is bumped without the others.
+  versions:
+    name: Version Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check versions
+        run: bash scripts/check-versions.sh
+
   # ── Backend: unit tests ──────────────────────────────────────────────────────
   # Every gate runs here, on every branch push. Nothing heavy runs on the
   # laptop: the pre-push hook is opt-in (PREPUSH_LOCAL=1). Our own PRs reuse the
@@ -87,6 +98,20 @@ jobs:
       - name: Unit tests (with race detector)
         working-directory: app/backend
         run: go test -race -coverprofile=coverage.out ./...
+
+      # Unit-test coverage must not drop below the floor in
+      # .github/quality-baseline.env. Raise the floor as coverage grows.
+      - name: Coverage floor
+        working-directory: app/backend
+        run: |
+          set -euo pipefail
+          source ../../.github/quality-baseline.env
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%", "", $3); print $3}')"
+          echo "unit coverage: ${total}% (floor ${BACKEND_UNIT_COVERAGE_MIN}%)"
+          if awk -v t="$total" -v m="$BACKEND_UNIT_COVERAGE_MIN" 'BEGIN { exit !(t < m) }'; then
+            echo "::error::backend unit coverage ${total}% fell below the ${BACKEND_UNIT_COVERAGE_MIN}% floor"
+            exit 1
+          fi
 
       - name: Upload coverage
         uses: actions/upload-artifact@v7
