@@ -1529,8 +1529,8 @@ describe("useUploadStore", () => {
 
       // Streaming upload resolves only when the bytes are confirmed remote.
       // The 4th arg is the queue id passed as the cancellable transfer id.
-      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String));
-      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/b.bin", "pw", undefined, expect.any(String));
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/b.bin", "pw", undefined, expect.any(String), null);
       expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
       // Items are flagged desktop so pause is hidden and retry stays on the core.
       expect(useUploadStore.getState().queue.every((i) => i.desktop === true)).toBe(true);
@@ -1572,7 +1572,7 @@ describe("useUploadStore", () => {
       });
       // Retry re-drives the streaming core with the desktop path, the item's
       // 0-byte placeholder File never reached the web pipeline's init.
-      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String));
+      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
     });
 
     it("pauseUpload is a no-op for desktop items (the core has no pause)", async () => {
@@ -1762,7 +1762,7 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("done");
       // Re-driven through the core with the original path, never initUpload
       // (the item's File is a 0-byte placeholder the web pipeline would reject).
-      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, id);
+      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, id, null);
       expect(initUpload).not.toHaveBeenCalled();
     });
 
@@ -2699,7 +2699,7 @@ describe("useUploadStore", () => {
       await useUploadStore.getState().startDesktopUpload("pw", undefined, []);
 
       expect(pickFiles).toHaveBeenCalled();
-      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/picked.bin", "pw", undefined, expect.any(String));
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/picked.bin", "pw", undefined, expect.any(String), null);
     });
 
     it("uses the paths the caller already picked instead of opening a picker", async () => {
@@ -2713,7 +2713,7 @@ describe("useUploadStore", () => {
       await useUploadStore.getState().startDesktopUpload("pw", undefined, ["/tmp/given.bin"]);
 
       expect(pickFiles).not.toHaveBeenCalled();
-      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/given.bin", "pw", undefined, expect.any(String));
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/given.bin", "pw", undefined, expect.any(String), null);
     });
 
     it("falls back to the whole path when it ends in a separator", async () => {

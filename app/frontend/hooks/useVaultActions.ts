@@ -225,9 +225,9 @@ export function useVaultActions({
         // backend's Auto default (Telegram-first) ignoring the selection).
         const desktopPlatform = platformOverride ?? selectedPlatform ?? undefined;
         if (paths.length > 0) {
-          void startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform);
+          void startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform, folderId);
         } else {
-          void startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform);
+          void startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform, folderId);
         }
         return;
       }

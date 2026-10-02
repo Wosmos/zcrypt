@@ -4,9 +4,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // JSON api client (lib/api.ts) and the chunked-upload path (lib/upload-session.ts).
 // Mock the auth store and the refresh HTTP call so we can drive every branch
 // directly, rather than through a caller.
-const { getState, refreshTokenApi, tauriFlag } = vi.hoisted(() => ({
+const { getState, refreshTokenApi, refreshSession, tauriFlag } = vi.hoisted(() => ({
   getState: vi.fn(),
   refreshTokenApi: vi.fn(),
+  refreshSession: vi.fn(),
   // Mutable box so individual tests can flip isTauri without needing
   // vi.resetModules()+dynamic import for every test in this file.
   tauriFlag: { isTauri: false },
@@ -17,6 +18,7 @@ vi.mock("@/lib/tauri", () => ({
   get isTauri() {
     return tauriFlag.isTauri;
   },
+  refreshSession,
 }));
 
 import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
@@ -191,5 +193,37 @@ describe("authedFetch", () => {
     expect(res.status).toBe(401);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(refreshTokenApi).not.toHaveBeenCalled();
+  });
+});
+
+describe("tryRefreshToken on desktop", () => {
+  beforeEach(() => {
+    tauriFlag.isTauri = true;
+  });
+
+  it("rotates through the engine instead of calling the API itself", async () => {
+    refreshSession.mockResolvedValueOnce({ access_token: "a2", refresh_token: "r2" });
+    await expect(tryRefreshToken()).resolves.toBe("a2");
+    expect(setTokens).toHaveBeenCalledWith("a2", "r2");
+    expect(refreshTokenApi).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the API before the engine is connected", async () => {
+    refreshSession.mockRejectedValueOnce("engine not connected. Call start_sync first");
+    refreshTokenApi.mockResolvedValueOnce({ access_token: "a3", refresh_token: "r3" });
+    await expect(tryRefreshToken()).resolves.toBe("a3");
+    expect(refreshTokenApi).toHaveBeenCalledWith("refresh-tok");
+  });
+
+  it("logs out when the engine's refresh was rejected by the server", async () => {
+    refreshSession.mockRejectedValueOnce(new Error("unauthorized, token refresh failed"));
+    await expect(tryRefreshToken()).resolves.toBeNull();
+    expect(clearAuth).toHaveBeenCalled();
+  });
+
+  it("keeps the session on a transient engine failure", async () => {
+    refreshSession.mockRejectedValueOnce(new Error("network: timed out"));
+    await expect(tryRefreshToken()).resolves.toBeNull();
+    expect(clearAuth).not.toHaveBeenCalled();
   });
 });

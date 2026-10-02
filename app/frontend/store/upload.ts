@@ -35,6 +35,7 @@ import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-pro
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
 import { formatBytes } from "@/lib/utils";
 import { createSemaphore } from "@/lib/async/semaphore";
+import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
 import { extOf } from "@/lib/media-formats";
@@ -208,6 +209,7 @@ interface UploadStore {
     onRefresh?: () => void | Promise<void>,
     preSelectedPaths?: string[],
     platform?: string,
+    folderId?: string | null,
   ) => Promise<void>;
 }
 
@@ -1481,7 +1483,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           updateStatus(id, "encrypting", undefined, "Uploading...");
           // Pass the queue id as the transfer id so an explicit Cancel
           // (removeFromQueue) can abort this in-flight core upload.
-          await sidecarUpload(desktopPath, passphrase, meta.platform, id);
+          await sidecarUpload(desktopPath, passphrase, meta.platform, id, meta.folderId);
+          forgetUploadPath(desktopPath);
           updateStatus(id, "done", 100, "Done");
           void meta.onRefresh?.();
         } catch (err) {
@@ -1590,7 +1593,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   // ("Preparing…") but nothing was ever attached, and only the retry, which
   // landed on a since-settled dialog stack, worked. Falls back to opening the
   // picker here only when no paths were supplied (e.g. a direct/legacy call).
-  startDesktopUpload: async (passphrase, onRefresh, preSelectedPaths, platform) => {
+  startDesktopUpload: async (
+    passphrase,
+    onRefresh,
+    preSelectedPaths,
+    platform,
+    folderId = null,
+  ) => {
     const { addToQueue, updateStatus, setError } = get();
 
     const {
@@ -1644,7 +1653,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         // Mark the item core-driven: retry re-drives the core (the placeholder
         // File has 0 bytes, so the web pipeline must never see it), and the UI
         // hides pause.
-        patchMeta(id, { desktopPath: filePath, onRefresh, platform });
+        patchMeta(id, { desktopPath: filePath, onRefresh, platform, folderId });
+        rememberUploadPath(filePath);
         set((state) => ({
           queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
         }));
@@ -1659,7 +1669,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           updateStatus(id, "encrypting", undefined, "Uploading...");
           // Queue id doubles as the transfer id so an explicit Cancel can abort
           // this core upload mid-flight (see removeFromQueue).
-          await sidecarUpload(filePath, passphrase, platform, id);
+          await sidecarUpload(filePath, passphrase, platform, id, folderId);
+          forgetUploadPath(filePath);
           updateStatus(id, "done", 100, "Done");
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Upload failed";

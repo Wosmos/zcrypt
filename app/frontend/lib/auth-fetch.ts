@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
-import { isTauri } from "@/lib/tauri";
+import { isTauri, refreshSession } from "@/lib/tauri";
 
 // Shared across the JSON API client (lib/api.ts) and the chunked-upload path
 // (lib/upload-session.ts) so refreshes are deduped. This is critical: refresh
@@ -18,7 +18,20 @@ export async function tryRefreshToken(): Promise<string | null> {
 
   if (refreshPromise) return refreshPromise;
 
-  refreshPromise = refreshTokenApi(refreshTokenValue)
+  // Desktop: the Rust engine owns the refresh chain (uploads and sync hold the
+  // same session), so rotate through it. Refreshing here as well would spend a
+  // token the engine still holds and log the user out. Before the engine is
+  // connected there is nothing to race, so fall back to the plain call.
+  const rotate = isTauri
+    ? refreshSession().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("not connected")) return refreshTokenApi(refreshTokenValue);
+        if (msg.includes("unauthorized")) throw Object.assign(new Error(msg), { status: 401 });
+        throw err;
+      })
+    : refreshTokenApi(refreshTokenValue);
+
+  refreshPromise = rotate
     .then((data) => {
       setTokens(data.access_token, data.refresh_token);
       return data.access_token;

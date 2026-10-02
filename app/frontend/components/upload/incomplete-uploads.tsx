@@ -13,6 +13,8 @@ import { useUploadStore } from "@/store/upload";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
 import { platformName } from "@/lib/platforms";
 import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
+import { uploadPathFor } from "@/lib/desktop-paths";
+import { startedOnThisDevice } from "@/lib/upload-origin";
 
 // Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
 // uploads for 7 days, so natural units run from minutes up to about a week.
@@ -86,13 +88,18 @@ export function IncompleteUploads({
     void refresh();
   }, [doneCount, refresh]);
 
-  const visible = uploads.filter((u) => !liveKeys.has(`${u.filename}::${u.original_size}`));
+  const visible = uploads.filter(
+    (u) => !liveKeys.has(`${u.filename}::${u.original_size}`) && startedOnThisDevice(u),
+  );
 
   // Hand a picked file to the resume flow, guarding against the wrong file (the
   // server chunks belong to a specific file: a mismatch would corrupt it).
   const resumeWithFile = useCallback(
     (file: File, target: IncompleteUpload) => {
-      if (file.name !== target.filename || file.size !== target.original_size) {
+      // A desktop pick is a 0-byte placeholder carrying the real path, so only
+      // its name can be checked here; the engine re-hashes the file on disk.
+      const isDesktopPick = "path" in file;
+      if (file.name !== target.filename || (!isDesktopPick && file.size !== target.original_size)) {
         toast.warning(
           `That's not the same file. Pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`,
         );
@@ -111,6 +118,11 @@ export function IncompleteUploads({
     // NO path, which makes the desktop upload flow open a SECOND native dialog
     // to re-acquire the path. Web keeps the hidden-input path (no disk paths).
     if (isTauri) {
+      const known = uploadPathFor(u.filename);
+      if (known) {
+        resumeWithFile(toDesktopFile(known), u);
+        return;
+      }
       const [p] = await pickFiles({ multiple: false, title: `Select "${u.filename}" to resume` });
       if (!p) return;
       resumeWithFile(toDesktopFile(p), u);
@@ -144,25 +156,43 @@ export function IncompleteUploads({
 
   if (visible.length === 0) return null;
 
+  // Desktop uploads started on this device remember their source path, so they
+  // can all resume at once with no picker.
+  const resumable = isTauri ? visible : [];
+  const resumeAll = () => {
+    for (const u of resumable) void onResumeClick(u);
+  };
+
   const now = Date.now();
 
   return (
     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] overflow-hidden">
       <input ref={fileInputRef} type="file" className="hidden" onChange={onFilePicked} />
 
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2.5 px-4 py-3 text-left"
-      >
-        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
-        <span className="text-sm font-medium text-[var(--color-text)]">
-          {visible.length} unfinished upload{visible.length > 1 ? "s" : ""}
-        </span>
-        <span className="text-xs text-[var(--color-text-muted)]">resume or discard</span>
-        <ChevronDown
-          className={`ml-auto h-4 w-4 text-[var(--color-text-muted)] transition-transform ${expanded ? "rotate-180" : ""}`}
-        />
-      </button>
+      <div className="flex items-center">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left"
+        >
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
+          <span className="text-sm font-medium text-[var(--color-text)]">
+            {visible.length} unfinished upload{visible.length > 1 ? "s" : ""}
+          </span>
+          <span className="text-xs text-[var(--color-text-muted)]">resume or discard</span>
+          <ChevronDown
+            className={`ml-auto h-4 w-4 text-[var(--color-text-muted)] transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
+        {resumable.length > 1 && (
+          <button
+            onClick={resumeAll}
+            className="mr-3 flex flex-shrink-0 items-center gap-1 rounded-lg bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+          >
+            <Play className="h-3.5 w-3.5" />
+            Resume all
+          </button>
+        )}
+      </div>
 
       {expanded && (
         <div className="border-t border-amber-500/20">
@@ -209,8 +239,8 @@ export function IncompleteUploads({
                     <div className="flex flex-shrink-0 items-center gap-1.5">
                       <button
                         onClick={() => void onResumeClick(u)}
-                        className="flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
-                        title="Re-select this file to continue the upload"
+                        className="flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+                        title="Continue the upload"
                       >
                         <Play className="h-3.5 w-3.5" />
                         Resume

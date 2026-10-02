@@ -53,6 +53,13 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(saveMock).not.toHaveBeenCalled();
   });
 
+  it("subscribeTokens resolves a no-op unlisten outside Tauri", async () => {
+    const mod = await import("@/lib/tauri");
+    const unlisten = await mod.subscribeTokens(() => {});
+    expect(listenMock).not.toHaveBeenCalled();
+    expect(() => unlisten()).not.toThrow();
+  });
+
   it("subscribeProgress resolves a no-op unlisten without touching the event bridge", async () => {
     const mod = await import("@/lib/tauri");
     const unlisten = await mod.subscribeProgress(() => {});
@@ -447,6 +454,27 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("biometric_authenticate", {
       reason: "unlock your vault",
     });
+  });
+
+  it("refreshSession invokes refresh_session", async () => {
+    invokeMock.mockResolvedValueOnce({ access_token: "a", refresh_token: "r" });
+    const mod = await import("@/lib/tauri");
+    await expect(mod.refreshSession()).resolves.toEqual({ access_token: "a", refresh_token: "r" });
+    expect(invokeMock).toHaveBeenCalledWith("refresh_session", undefined);
+  });
+
+  it("subscribeTokens listens on zcrypt://tokens and forwards payloads", async () => {
+    let handler: ((event: { payload: unknown }) => void) | undefined;
+    listenMock.mockImplementation((_event: string, cb: (event: { payload: unknown }) => void) => {
+      handler = cb;
+      return Promise.resolve(() => {});
+    });
+    const mod = await import("@/lib/tauri");
+    const cb = vi.fn();
+    await mod.subscribeTokens(cb);
+    expect(listenMock).toHaveBeenCalledWith("zcrypt://tokens", expect.any(Function));
+    handler?.({ payload: { access_token: "a", refresh_token: "r" } });
+    expect(cb).toHaveBeenCalledWith({ access_token: "a", refresh_token: "r" });
   });
 
   it("subscribeProgress listens on zcrypt://progress and forwards payloads", async () => {

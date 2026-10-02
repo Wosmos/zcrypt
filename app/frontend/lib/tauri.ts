@@ -100,13 +100,14 @@ export async function sidecarUpload(
   passphrase: string,
   platform?: string,
   transferId?: string,
-  _onProgress?: (progress: SidecarProgress) => void,
+  folderId?: string | null,
 ): Promise<void> {
   return tauriInvoke("upload_file", {
     filePath,
     passphrase,
     platform,
     transferId,
+    folderId: folderId ?? undefined,
   });
 }
 
@@ -152,6 +153,23 @@ export async function startSync(
 }
 
 /** Stop the background sync worker in the core. */
+/** Rotate the session through the engine (desktop owns refresh). Rejects with
+ *  "engine not connected" before startSync has run. */
+export async function refreshSession(): Promise<{ access_token: string; refresh_token: string }> {
+  return tauriInvoke("refresh_session");
+}
+
+/** Subscribe to token pairs the engine rotated on its own. */
+export async function subscribeTokens(
+  cb: (tokens: { access_token: string; refresh_token: string }) => void,
+): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<{ access_token: string; refresh_token: string }>("zcrypt://tokens", (event) => {
+    cb(event.payload);
+  });
+}
+
 export async function stopSync(): Promise<void> {
   return tauriInvoke("stop_sync");
 }

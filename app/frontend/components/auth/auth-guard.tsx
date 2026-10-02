@@ -7,7 +7,7 @@ import { getMe } from "@/lib/auth-api";
 import { tryRefreshToken } from "@/lib/auth-fetch";
 import { prefetchVault } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { isTauri, startSync } from "@/lib/tauri";
+import { isTauri, startSync, subscribeTokens } from "@/lib/tauri";
 
 export function AuthGuard({
   children,
@@ -156,6 +156,22 @@ export function AuthGuard({
     setInitialized,
     clearAuth,
   ]);
+
+  // The engine rotates on its own during uploads and sync: adopt its pair so
+  // the webview never refreshes with a token the engine already spent.
+  useEffect(() => {
+    if (!isTauri) return;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void subscribeTokens((t) => setTokens(t.access_token, t.refresh_token)).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [setTokens]);
 
   // Start the desktop sync worker as soon as tokens exist, alongside the
   // session check rather than after it. A rotated token re-runs this.
