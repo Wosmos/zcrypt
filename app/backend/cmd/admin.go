@@ -469,9 +469,13 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
 
-	used, err := s.db.GetUserStorageUsed(ctx, userID)
+	usedFn := s.db.GetUserStorageUsed
+	if IsDecoy(r) {
+		usedFn = s.db.GetDecoyStorageUsed
+	}
+	used, err := usedFn(ctx, userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "quota: storage used", err)
 		return
 	}
 

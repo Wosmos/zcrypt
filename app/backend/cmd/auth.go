@@ -367,6 +367,10 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.RetireRefreshToken(ctx, rt.ID, refreshReuseGrace); err != nil {
 		log.Printf("refresh: retire token: %v", err)
 	}
+	if rt.Decoy {
+		s.issueDecoyTokens(w, r, user)
+		return
+	}
 	s.issueTokens(w, r, user)
 }
 
@@ -1059,6 +1063,9 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
+	if claims.Decoy {
+		user = decoyView(user)
+	}
 
 	writeJSON(w, http.StatusOK, user)
 }
@@ -1451,23 +1458,33 @@ func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, user, accessToken, false)
 }
 
-// issueDecoyTokens issues JWT tokens with the decoy flag set.
+// issueDecoyTokens issues JWT tokens with the decoy flag set. The session
+// presents as a plain user, and its refresh token stays decoy so refreshing can
+// never upgrade it to the real vault.
 func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
+	shown := decoyView(user)
+	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, shown.ID, shown.Email, shown.Username, shown.Role.String(), shown.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, shown, accessToken, true)
+}
+
+// decoyView is the account as a decoy session is allowed to see it.
+func decoyView(user *types.User) *types.User {
+	shown := *user
+	shown.Role = types.RoleUser
+	return &shown
 }
 
 // writeTokenResponse generates a refresh token for an already-generated access
 // token, persists it, sets the web refresh cookie, and writes the JSON
 // response shared by issueTokens and issueDecoyTokens.
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string) {
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string, decoy bool) {
 	ctx := r.Context()
 
 	refreshToken, err := auth.GenerateRandomToken()
@@ -1483,6 +1500,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
 		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
+		Decoy:     decoy,
 	})
 
 	setRefreshCookie(w, refreshToken)

@@ -237,6 +237,7 @@ type RefreshToken struct {
 	CreatedAt time.Time
 	IP        string
 	UserAgent string
+	Decoy     bool
 }
 
 // EmailToken is a one-time token for email verification, password reset, or magic link.

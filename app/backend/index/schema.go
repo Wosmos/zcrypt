@@ -344,6 +344,7 @@ ALTER TABLE pending_deletions ALTER COLUMN user_id DROP NOT NULL;
 -- Refresh token client binding (IP + User-Agent)
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip TEXT NOT NULL DEFAULT '';
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEFAULT '';
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS decoy BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Token version for JWT revocation
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
