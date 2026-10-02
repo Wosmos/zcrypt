@@ -255,13 +255,22 @@ async fn upload_file(
     // Optional stable id the frontend can later pass to `cancel_transfer` to
     // abort this upload. Omit it and the upload runs exactly as before.
     transfer_id: Option<String>,
+    // Vault folder to file the upload into; None = Root.
+    folder_id: Option<String>,
 ) -> Result<(), String> {
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(id) = &transfer_id {
         ctx.cancel = state.register_transfer(id);
     }
-    let res = engines::upload(&ctx, Path::new(&file_path), &passphrase, platform).await;
+    let res = engines::upload(
+        &ctx,
+        Path::new(&file_path),
+        &passphrase,
+        platform,
+        folder_id,
+    )
+    .await;
     if let Some(id) = &transfer_id {
         state.finish_transfer(id);
     }
@@ -491,18 +500,47 @@ async fn start_sync(
     access_token: String,
     refresh_token: String,
 ) -> Result<(), String> {
-    let rotate_hook: RotateHook = Arc::new(|access, refresh| {
-        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.access") {
-            let _ = entry.set_password(access);
+    // One client for the life of the app: every transfer shares its token
+    // state, so a new pair from the webview (a fresh login) reaches uploads
+    // already in flight instead of stranding them on a dead refresh token.
+    let existing = state.client.read().await.clone();
+    let client = match existing {
+        Some(c) if c.base_url == base_url.trim_end_matches('/') => {
+            if c.tokens().await != (access_token.clone(), refresh_token.clone()) {
+                c.set_tokens(&access_token, &refresh_token).await;
+            }
+            if state.sync_cancel.lock().unwrap().is_some() {
+                return Ok(());
+            }
+            c
         }
-        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.refresh") {
-            let _ = entry.set_password(refresh);
+        _ => {
+            let app_for_hook = app.clone();
+            let rotate_hook: RotateHook = Arc::new(move |access, refresh| {
+                if let Err(e) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.access")
+                    .and_then(|entry| entry.set_password(access))
+                {
+                    eprintln!("keychain: save access token: {e}");
+                }
+                if let Err(e) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.refresh")
+                    .and_then(|entry| entry.set_password(refresh))
+                {
+                    eprintln!("keychain: save refresh token: {e}");
+                }
+                // The engine owns rotation on desktop: hand the new pair to the
+                // webview so it never refreshes with a token we just retired.
+                let _ = app_for_hook.emit(
+                    "zcrypt://tokens",
+                    serde_json::json!({ "access_token": access, "refresh_token": refresh }),
+                );
+            });
+            let c = Arc::new(
+                Client::new(&base_url, &access_token, &refresh_token).with_rotate_hook(rotate_hook),
+            );
+            *state.client.write().await = Some(c.clone());
+            c
         }
-    });
-    let client = Arc::new(
-        Client::new(&base_url, &access_token, &refresh_token).with_rotate_hook(rotate_hook),
-    );
-    *state.client.write().await = Some(client.clone());
+    };
 
     let db = state.db()?;
 
@@ -530,6 +568,18 @@ async fn start_sync(
         engines::run_sync(ctx, cancel_rx).await;
     });
     Ok(())
+}
+
+/// Rotate the session through the engine and return the new pair. The webview
+/// calls this instead of POSTing /api/auth/refresh itself, so the engine and
+/// the webview never spend the same refresh token twice.
+#[tauri::command]
+async fn refresh_session(
+    state: tauri::State<'_, EngineState>,
+) -> Result<serde_json::Value, String> {
+    let client = state.client().await?;
+    let (access, refresh) = client.force_refresh().await.map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({ "access_token": access, "refresh_token": refresh }))
 }
 
 #[tauri::command]
@@ -1032,6 +1082,7 @@ pub fn run() {
             set_passphrase,
             clear_passphrase,
             start_folder_watch,
+            refresh_session,
             stop_folder_watch,
             biometric_available,
             biometric_authenticate,

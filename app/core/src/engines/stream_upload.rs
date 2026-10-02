@@ -38,6 +38,7 @@ pub async fn run(
     file_path: &std::path::Path,
     passphrase: &str,
     platform: Option<String>,
+    folder_id: Option<String>,
 ) -> Result<(), EngineError> {
     let t0 = Instant::now();
     let file_name = file_path
@@ -127,6 +128,7 @@ pub async fn run(
         } else {
             String::new()
         },
+        folder_id,
         ..Default::default()
     };
     let resp = ctx.client.init_upload(&req).await?;

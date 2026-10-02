@@ -28,6 +28,8 @@ pub struct UploadInitRequest {
     /// "" (relay) or "byos-direct". See docs/DESKTOP_ARCHITECTURE.md.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folder_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

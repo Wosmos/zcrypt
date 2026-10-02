@@ -153,10 +153,37 @@ impl Client {
         self.tokens.lock().await.access.clone()
     }
 
+    pub async fn tokens(&self) -> (String, String) {
+        let t = self.tokens.lock().await;
+        (t.access.clone(), t.refresh.clone())
+    }
+
+    /// Replace the tokens in place, so every in-flight transfer holding this
+    /// client picks them up (a fresh login in the webview, say).
+    pub async fn set_tokens(&self, access: &str, refresh: &str) {
+        let mut t = self.tokens.lock().await;
+        t.access = access.into();
+        t.refresh = refresh.into();
+    }
+
+    /// Rotate now and return the new (access, refresh) pair. The webview calls
+    /// this instead of refreshing on its own, so one chain serves both.
+    pub async fn force_refresh(&self) -> Result<(String, String), ApiError> {
+        let stale = self.access_token().await;
+        self.refresh(&stale).await?;
+        Ok(self.tokens().await)
+    }
+
     /// Refresh the access token once (single-flight via the token mutex).
+    /// `stale` is the access token the caller saw rejected: if another task
+    /// already rotated past it while we waited for the lock, reuse that result
+    /// instead of rotating again.
     /// Mirrors `client.go refreshToken` → POST /api/auth/refresh.
-    async fn refresh(&self) -> Result<(), ApiError> {
+    async fn refresh(&self, stale: &str) -> Result<(), ApiError> {
         let mut tokens = self.tokens.lock().await;
+        if tokens.access != stale {
+            return Ok(());
+        }
         if tokens.refresh.is_empty() {
             return Err(ApiError::Unauthorized);
         }
@@ -196,7 +223,7 @@ impl Client {
         if resp.status().as_u16() != 401 {
             return Ok(resp);
         }
-        self.refresh().await?;
+        self.refresh(&token).await?;
         let token = self.access_token().await;
         Ok(build(&self.http, &self.base_url)
             .bearer_auth(&token)

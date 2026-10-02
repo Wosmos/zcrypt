@@ -155,8 +155,9 @@ pub async fn upload(
     file_path: &Path,
     passphrase: &str,
     platform: Option<String>,
+    folder_id: Option<String>,
 ) -> Result<(), EngineError> {
-    stream_upload::run(ctx, file_path, passphrase, platform).await
+    stream_upload::run(ctx, file_path, passphrase, platform, folder_id).await
 }
 
 /// Drive an already-locally-uploaded file (see `local_upload` above) to full
