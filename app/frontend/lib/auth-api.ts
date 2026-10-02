@@ -289,6 +289,65 @@ export function getUserActivity(accessToken: string): Promise<AuditEvent[]> {
   });
 }
 
+// --- Signed-in devices ---
+
+export interface SessionInfo {
+  id: string;
+  ip: string;
+  user_agent: string;
+  started_at: string;
+  last_active: string;
+  expires_at: string;
+  current: boolean;
+}
+
+export function listSessions(accessToken: string): Promise<SessionInfo[]> {
+  return authRequest("/api/auth/sessions", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function revokeSession(accessToken: string, id: string): Promise<{ success: boolean }> {
+  return authRequest(`/api/auth/sessions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function revokeOtherSessions(accessToken: string): Promise<{ revoked: number }> {
+  return authRequest("/api/auth/sessions/revoke-others", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+// --- Account data and deletion ---
+
+export function deleteAccount(
+  accessToken: string,
+  password: string,
+  code = "",
+): Promise<{ deletion_scheduled_at: string }> {
+  return authRequest("/api/auth/me", {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ password, code }),
+  });
+}
+
+export function cancelAccountDeletion(accessToken: string): Promise<{ success: boolean }> {
+  return authRequest("/api/auth/me/deletion/cancel", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function exportAccount(accessToken: string): Promise<Record<string, unknown>> {
+  return authRequest("/api/auth/me/export", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 // --- OAuth ---
 
 /**

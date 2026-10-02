@@ -125,6 +125,8 @@ export interface AuthUser {
    * one screen that explains what zcrypt is.
    */
   onboarded_at?: string;
+  /** Set while a self-serve account deletion is pending. */
+  deletion_scheduled_at?: string;
   created_at: string;
   updated_at: string;
 }
