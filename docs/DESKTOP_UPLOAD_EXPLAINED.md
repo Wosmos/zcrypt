@@ -67,7 +67,7 @@ flowchart TB
 - **`crypto.rs`**: the encryption. Your passphrase → key (PBKDF2-SHA256, 600k
   rounds), then AES-256-GCM per chunk. *Byte-identical* to the old web + Go
   crypto, so a file encrypted on desktop still opens on the web app.
-- **`compression/`**: zstd; keeps compression only if it saves ≥5%.
+- **`compression.rs`**: zstd; keeps compression only if it saves ≥5%.
 - **`engines/local_upload.rs`**: reads your file, hashes it, encrypts every
   chunk, writes them to a local staging folder + records them in the ledger.
 - **`engines/sync.rs`**: pushes staged chunks to the backend (relay) or

@@ -10,7 +10,7 @@ for security problems.**
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Node.js 20+ and [Bun](https://bun.sh)
 - PostgreSQL (or a free [Neon](https://neon.tech) database)
 - Docker (optional)
