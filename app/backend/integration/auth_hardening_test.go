@@ -187,12 +187,12 @@ func TestAdminRoleChangeRequiresReauth(t *testing.T) {
 	}
 
 	resp := put(map[string]string{"role": "admin"})
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	resp.Body.Close()
 	assert.Equal(t, "user", role(), "no password, no promotion")
 
 	resp = put(map[string]string{"role": "admin", "password": "Wrong@Pass1"})
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	resp.Body.Close()
 	assert.Equal(t, "user", role())
 

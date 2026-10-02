@@ -178,7 +178,7 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 	adminID := GetUserID(r)
 	if err := s.reauthActingUser(ctx, r, req.Password, req.Code); err != nil {
 		s.audit(r, &adminID, "admin_role_change_denied", map[string]interface{}{"target_user": userID, "reason": err.Error()})
-		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusForbidden)
 		return
 	}
 
@@ -229,7 +229,7 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := s.reauthActingUser(ctx, r, body.Password, body.Code); err != nil {
 		adminID := GetUserID(r)
 		s.audit(r, &adminID, "admin_user_delete_denied", map[string]interface{}{"target_user": userID, "reason": err.Error()})
-		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusForbidden)
 		return
 	}
 
