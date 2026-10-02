@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -42,12 +45,16 @@ func (s *Server) HandlePinOffline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.FileID == "" {
+	if uuid.Validate(req.FileID) != nil {
 		http.Error(w, `{"error":"file_id is required"}`, http.StatusBadRequest)
 		return
 	}
 
 	pin, err := s.db.PinFileOffline(ctx, userID, req.FileID, req.DeviceID)
+	if errors.Is(err, index.ErrMoveNotFound) {
+		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		log.Printf("offline: pin: %v", err)
 		http.Error(w, `{"error":"failed to pin file"}`, http.StatusInternalServerError)

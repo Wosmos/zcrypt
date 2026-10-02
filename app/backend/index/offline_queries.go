@@ -2,20 +2,27 @@ package index
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/types"
 )
 
-// PinFileOffline pins a file for offline access on a device.
+// PinFileOffline pins a file for offline access on a device. The file must be a
+// live file owned by the user, or ErrMoveNotFound is returned.
 func (db *DB) PinFileOffline(ctx context.Context, userID, fileID, deviceID string) (*types.OfflinePin, error) {
 	pin := &types.OfflinePin{}
 	err := db.pool.QueryRow(ctx, `
 		INSERT INTO offline_pins (user_id, file_id, device_id)
-		VALUES ($1, $2, $3)
+		SELECT $1, $2, $3
+		WHERE EXISTS (SELECT 1 FROM files WHERE id = $2 AND user_id = $1 AND deleted_at IS NULL)
 		ON CONFLICT (user_id, file_id, device_id) DO UPDATE SET pinned_at = NOW()
 		RETURNING id, user_id, file_id, device_id, pinned_at`,
 		userID, fileID, deviceID,
 	).Scan(&pin.ID, &pin.UserID, &pin.FileID, &pin.DeviceID, &pin.PinnedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrMoveNotFound
+	}
 	return pin, err
 }
 
