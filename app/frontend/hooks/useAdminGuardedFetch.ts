@@ -9,7 +9,12 @@ import { Role } from "@/types";
  *  the sidebar's hover prefetch so both fill the same cache entry. */
 export async function fetchAdminOverview() {
   const [stats, owned] = await Promise.all([adminGetStats(), adminListTokens()]);
-  return { stats, tokens: owned.tokens, othersCount: owned.others_count };
+  const legacy = Array.isArray(owned);
+  return {
+    stats,
+    tokens: legacy ? (owned as unknown as typeof owned.tokens) : (owned.tokens ?? []),
+    othersCount: legacy ? 0 : (owned.others_count ?? 0),
+  };
 }
 
 /**

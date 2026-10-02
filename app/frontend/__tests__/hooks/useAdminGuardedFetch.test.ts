@@ -99,4 +99,13 @@ describe("useAdminQuery", () => {
     expect(adminGetStats).toHaveBeenCalled();
     expect(adminListTokens).toHaveBeenCalled();
   });
+
+  it("fetchAdminOverview tolerates a legacy array token response", async () => {
+    vi.mocked(adminListTokens).mockResolvedValueOnce([{ id: "old" }] as never);
+    await expect(fetchAdminOverview()).resolves.toEqual({
+      stats: { users: 1 },
+      tokens: [{ id: "old" }],
+      othersCount: 0,
+    });
+  });
 });
