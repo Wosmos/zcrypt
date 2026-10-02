@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -34,6 +36,36 @@ func (s *Server) authorizeFileRead(ctx context.Context, userID, fileID string) (
 		return nil, "", "", false
 	}
 	return f, grant.OwnerID, grant.WrappedCEK, true
+}
+
+// writeChunkFetchError answers a failed platform download. A chunk the platform
+// says does not exist is lost data: once its commit was verified, the file is
+// marked damaged and the client gets 410 so it stops retrying and can say so. A
+// chunk whose commit was never verified may still be landing, so that stays a
+// retryable 503. Anything else is a generic 500.
+func (s *Server) writeChunkFetchError(ctx context.Context, w http.ResponseWriter, ownerID string, chunk *types.ChunkRef, err error, logPrefix string) {
+	log.Printf("%s: chunk download failed: %v", logPrefix, err)
+	if !errors.Is(err, adapters.ErrNotFound) {
+		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+		return
+	}
+	if !chunk.Committed {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error":  "chunk is not available on storage yet",
+			"reason": "chunk_pending",
+		})
+		return
+	}
+	if changed, merr := s.db.MarkFilesDamaged(ctx, []string{chunk.FileID}); merr != nil {
+		log.Printf("%s: mark file %s damaged: %v", logPrefix, logSafe(chunk.FileID), merr) // #nosec G706 -- control chars stripped via logSafe
+	} else if len(changed) > 0 {
+		log.Printf("%s: file %s marked damaged: chunk %d missing on %s", logPrefix, logSafe(chunk.FileID), chunk.Index, logSafe(chunk.Platform)) // #nosec G706 -- control chars stripped via logSafe
+		s.emitFileChange(ctx, ownerID, chunk.FileID, "updated")
+	}
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":  "this file's data is missing from storage",
+		"reason": "chunk_missing",
+	})
 }
 
 // HandleGetFileMeta returns file metadata needed for client-side decryption.
@@ -130,7 +162,7 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		// Chunk synced: try the local ciphertext cache first. Chunks are
 		// immutable (a re-upload mints a new chunk id), so a hit never goes
 		// stale, and it serves even when the platform is unreachable.
-		data = readCachedChunk(chunk.ChunkID)
+		data = readCachedChunk(chunk.ChunkID, chunk.SHA256)
 
 		if data == nil {
 			// Cache miss: download from git platform using the OWNER's tokens
@@ -153,13 +185,12 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 
 			data, err = adapter.Download(ctx, *chunk)
 			if err != nil {
-				log.Printf("download: chunk download failed: %v", err)
-				http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+				s.writeChunkFetchError(ctx, w, ownerID, chunk, err, "download")
 				return
 			}
 
 			// Write-through cache: best effort, ciphertext only (zero-knowledge safe).
-			writeCachedChunk(chunk.ChunkID, data)
+			writeCachedChunk(chunk.ChunkID, chunk.SHA256, data)
 		}
 	}
 

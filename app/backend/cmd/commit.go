@@ -16,8 +16,13 @@ import (
 // on an object we haven't seen on the platform. Safe to call from both
 // upload-complete and the background reconcile; commits are DB-derived and
 // idempotent, so re-running is harmless.
+//
+// Relay uploads to non-batch platforms are marked committed by the sync worker
+// the moment Upload succeeds, so a non-batch chunk reaching here was pushed by a
+// client (byos-direct) and is trusted only once it is listed. Chunks already
+// present are never re-committed, so a client that committed its own HuggingFace
+// upload doesn't spend a second commit against the platform's hourly cap.
 func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
-	// One commit + one tree-verify per (user, platform, account, repo) group.
 	type groupKey struct{ userID, platform, account, repo string }
 	groups := map[groupKey][]types.ChunkRef{}
 	for _, c := range chunks {
@@ -33,77 +38,102 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 			continue
 		}
 
-		bc, ok := adapter.(adapters.BatchCommitter)
-		if !ok {
-			// Non-batch platforms (GitHub/GitLab/Telegram) are durable the moment
-			// Upload succeeds and should never be committed=FALSE. Defensive: if one
-			// ever is, mark it so it doesn't loop in the reconcile forever.
-			ids := make([]string, len(group))
-			for i, c := range group {
-				ids[i] = c.ChunkID
-			}
-			if err := s.db.MarkChunksCommitted(ctx, ids); err != nil {
-				log.Printf("commit-verify: mark non-batch committed failed: %v", err)
-			}
+		bc, batch := adapter.(adapters.BatchCommitter)
+		if !batch && k.platform == "telegram" {
+			// Telegram cannot be listed, so there is nothing to verify against;
+			// the message the upload created is the durability signal.
+			s.markCommitted(ctx, group)
 			continue
 		}
 
-		files := make([]adapters.CommitFile, len(group))
-		for i, c := range group {
-			files[i] = adapters.CommitFile{Path: c.RemotePath, OID: c.SHA256, Size: c.Size}
-		}
-		if err := bc.CommitChunks(ctx, k.repo, files); err != nil {
-			log.Printf("commit-verify: commit %d chunk(s) to %s repo=%s failed: %v", len(group), k.platform, k.repo, err)
-			s.bumpUncommitted(ctx, group)
-			continue
-		}
-
-		// VERIFY: re-list the repo tree and mark committed ONLY the chunks whose
-		// path is actually present. This is the check that makes "durable" honest:
-		// a commit that returns 200 but whose object never lands (LFS dedup false
-		// positive, etc.) is caught here and retried, not silently trusted.
-		present, err := adapter.ListChunks(ctx, k.repo)
+		confirmed, missing, err := s.splitPresent(ctx, adapter, k.repo, group)
 		if err != nil {
 			log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", k.platform, k.repo, err)
 			s.bumpUncommitted(ctx, group)
 			continue
 		}
-		presentSet := make(map[string]struct{}, len(present))
-		for _, p := range present {
-			presentSet[p.RemotePath] = struct{}{}
+
+		if batch && len(missing) > 0 {
+			files := make([]adapters.CommitFile, len(missing))
+			for i, c := range missing {
+				files[i] = adapters.CommitFile{Path: c.RemotePath, OID: c.SHA256, Size: c.Size}
+			}
+			if err := bc.CommitChunks(ctx, k.repo, files); err != nil {
+				log.Printf("commit-verify: commit %d chunk(s) to %s repo=%s failed: %v", len(missing), k.platform, k.repo, err)
+				s.markCommitted(ctx, confirmed)
+				s.bumpUncommitted(ctx, missing)
+				continue
+			}
+			// VERIFY: re-list and trust ONLY what is actually present. A commit
+			// that returns 200 but whose object never lands (LFS dedup false
+			// positive, etc.) is caught here and retried, not silently trusted.
+			landed, still, err := s.splitPresent(ctx, adapter, k.repo, missing)
+			if err != nil {
+				log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", k.platform, k.repo, err)
+				s.markCommitted(ctx, confirmed)
+				s.bumpUncommitted(ctx, missing)
+				continue
+			}
+			confirmed = append(confirmed, landed...)
+			missing = still
 		}
 
-		var confirmed []string
-		var missing []types.ChunkRef
-		for _, c := range group {
-			if _, ok := presentSet[c.RemotePath]; ok {
-				confirmed = append(confirmed, c.ChunkID)
-			} else {
-				missing = append(missing, c)
-			}
-		}
-		if err := s.db.MarkChunksCommitted(ctx, confirmed); err != nil {
-			log.Printf("commit-verify: mark %d committed failed: %v", len(confirmed), err)
-		}
+		s.markCommitted(ctx, confirmed)
 		if len(missing) > 0 {
-			log.Printf("commit-verify: %d chunk(s) still absent on %s repo=%s after commit, retrying", len(missing), k.platform, k.repo)
+			log.Printf("commit-verify: %d chunk(s) absent on %s repo=%s, retrying", len(missing), k.platform, k.repo)
 			s.bumpUncommitted(ctx, missing)
 		}
 	}
 }
 
+// splitPresent lists a repo and partitions chunks into those whose path is in
+// the platform tree and those that are not.
+func (s *Server) splitPresent(ctx context.Context, adapter adapters.PlatformAdapter, repo string, chunks []types.ChunkRef) (present, absent []types.ChunkRef, err error) {
+	listed, err := adapter.ListChunks(ctx, repo)
+	if err != nil {
+		return nil, nil, err
+	}
+	set := make(map[string]struct{}, len(listed))
+	for _, p := range listed {
+		set[p.RemotePath] = struct{}{}
+	}
+	for _, c := range chunks {
+		if _, ok := set[c.RemotePath]; ok {
+			present = append(present, c)
+		} else {
+			absent = append(absent, c)
+		}
+	}
+	return present, absent, nil
+}
+
+func (s *Server) markCommitted(ctx context.Context, chunks []types.ChunkRef) {
+	if len(chunks) == 0 {
+		return
+	}
+	ids := make([]string, len(chunks))
+	for i, c := range chunks {
+		ids[i] = c.ChunkID
+	}
+	if err := s.db.MarkChunksCommitted(ctx, ids); err != nil {
+		log.Printf("commit-verify: mark %d committed failed: %v", len(ids), err)
+	}
+}
+
 // bumpUncommitted increments sync_attempts on chunks that failed to commit or
-// verify, so the reconcile eventually stops (and loudly logs) a chunk that can
-// never be made durable instead of looping on it forever.
+// verify, schedules their next attempt with backoff, and marks the file degraded
+// once a chunk exhausts the budget, so the reconcile eventually stops (and loudly
+// surfaces) a chunk that can never be made durable instead of looping on it.
 func (s *Server) bumpUncommitted(ctx context.Context, chunks []types.ChunkRef) {
 	for _, c := range chunks {
-		if err := s.db.IncrementChunkSyncAttempts(ctx, c.ChunkID); err != nil {
+		if err := s.db.IncrementChunkSyncAttempts(ctx, c.ChunkID, syncRetryDelay(c.SyncAttempts)); err != nil {
 			log.Printf("commit-verify: bump attempts for %s: %v", c.ChunkID, err)
 			continue
 		}
 		if c.SyncAttempts+1 >= maxSyncAttempts {
 			log.Printf("commit-verify: WARNING chunk %s (file %s idx %d) hit %d commit attempts and is NOT durable on %s, data-loss risk surfaced",
 				c.ChunkID, c.FileID, c.Index, maxSyncAttempts, c.Platform)
+			s.markDegraded(ctx, c.UserID, c.FileID)
 		}
 	}
 }

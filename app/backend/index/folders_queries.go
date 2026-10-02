@@ -162,34 +162,6 @@ func (db *DB) UpdateFolderStyle(ctx context.Context, userID, folderID string, en
 	return nil
 }
 
-// SetFolderPassword stores (or replaces) a folder's opaque password-protection blobs,
-// scoped to the owning user. pwSalt + pwVerifier are client-computed base64 values; the
-// server never derives or sees any key. A non-nil pwSalt marks the folder as protected.
-func (db *DB) SetFolderPassword(ctx context.Context, userID, folderID, pwSalt, pwVerifier string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE folders SET pw_salt = $3, pw_verifier = $4 WHERE id = $1 AND user_id = $2`,
-		folderID, userID, pwSalt, pwVerifier,
-	)
-	if err != nil {
-		return fmt.Errorf("set folder password: %w", err)
-	}
-	return nil
-}
-
-// RemoveFolderPassword clears a folder's password protection (sets both columns NULL),
-// scoped to the owning user, returning it to the unprotected (vault-passphrase) model.
-// The client must re-key the folder's files back to the vault passphrase BEFORE calling this.
-func (db *DB) RemoveFolderPassword(ctx context.Context, userID, folderID string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE folders SET pw_salt = NULL, pw_verifier = NULL WHERE id = $1 AND user_id = $2`,
-		folderID, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("remove folder password: %w", err)
-	}
-	return nil
-}
-
 // MoveFolder reparents a folder, scoped to the owning user. newParentID nil = move to root.
 //
 // Cycle guard (authoritative for both the dialog and drag paths): a folder may not be
@@ -278,18 +250,6 @@ func (db *DB) SoftDeleteFolder(ctx context.Context, userID, folderID string) err
 	}
 
 	return tx.Commit(ctx)
-}
-
-// MoveFile reparents a file into a folder, scoped to the owning user. folderID nil = root.
-func (db *DB) MoveFile(ctx context.Context, userID, fileID string, folderID *string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE files SET folder_id = $3 WHERE id = $1 AND user_id = $2`,
-		fileID, userID, folderID,
-	)
-	if err != nil {
-		return fmt.Errorf("move file: %w", err)
-	}
-	return nil
 }
 
 // ListTrashedFiles returns a user's soft-deleted files (deleted_at IS NOT NULL), newest first.

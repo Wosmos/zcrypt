@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -131,6 +132,11 @@ func (s *Server) HandleAdminStats(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
+	}
+	if hc, herr := s.db.CountHealth(r.Context(), maxSyncAttempts); herr != nil {
+		log.Printf("admin: count file health: %v", herr)
+	} else {
+		stats.DegradedFiles, stats.DamagedFiles, stats.StuckChunks = hc.DegradedFiles, hc.DamagedFiles, hc.StuckChunks
 	}
 
 	w.Header().Set("Content-Type", "application/json")

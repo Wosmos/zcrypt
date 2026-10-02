@@ -2,9 +2,15 @@ package adapters
 
 import (
 	"context"
+	"errors"
 
 	"github.com/zcrypt/zcrypt/types"
 )
+
+// ErrNotFound means the platform answered that the chunk does not exist (HTTP
+// 404), as opposed to a transient, rate-limit or auth failure. Download wraps it
+// so callers can tell lost data from a network blip.
+var ErrNotFound = errors.New("chunk not found on platform")
 
 // PlatformAdapter defines the unified interface for all platform backends.
 type PlatformAdapter interface {

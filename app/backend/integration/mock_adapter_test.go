@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -166,7 +167,7 @@ func (m *mockAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte,
 	defer m.mu.Unlock()
 	data, ok := m.data[blobKey(ref.Repo, ref.RemotePath)]
 	if !ok {
-		return nil, fmt.Errorf("mock: chunk not found at %s", ref.RemotePath)
+		return nil, fmt.Errorf("mock: chunk not found at %s: %w", ref.RemotePath, adapters.ErrNotFound)
 	}
 	return data, nil
 }

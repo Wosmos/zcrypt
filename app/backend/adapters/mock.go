@@ -132,7 +132,7 @@ func (m *MockAdapter) Download(_ context.Context, ref types.ChunkRef) ([]byte, e
 	data, err := os.ReadFile(path) //nolint:gosec // path is confined under baseDir/repoDir by blobPath, which rejects ".."
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("mock adapter: chunk not found: %s", ref.RemotePath)
+			return nil, fmt.Errorf("mock adapter: %s: %w", ref.RemotePath, ErrNotFound)
 		}
 		return nil, fmt.Errorf("mock adapter: read: %w", err)
 	}

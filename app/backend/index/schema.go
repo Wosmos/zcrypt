@@ -942,4 +942,28 @@ CREATE TABLE IF NOT EXISTS share_ticket_chunks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_share_ticket_chunks_time ON share_ticket_chunks(created_at);
+
+-- Sync retry backoff. A failed sync or commit-verify attempt schedules the next
+-- one at next_attempt_at (exponential with jitter), so a short platform outage
+-- no longer burns the whole retry budget in seconds. NULL = due now.
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ;
+
+-- File durability as the user sees it. 'ok' = nothing known wrong. 'degraded' =
+-- a chunk exhausted its sync/commit retries and is not confirmed on any platform
+-- (retryable from the UI). 'damaged' = a chunk is confirmed missing on the
+-- platform (download 404 or a verify sweep), so the file must be re-uploaded.
+ALTER TABLE files ADD COLUMN IF NOT EXISTS health TEXT NOT NULL DEFAULT 'ok';
+
+-- The remote path minted at presign for a direct (HuggingFace LFS) chunk, so the
+-- confirm can be held to it instead of trusting a client-supplied path. One row
+-- per (session, idx); a re-presign of the same index replaces it.
+CREATE TABLE IF NOT EXISTS upload_presigns (
+	session_id  UUID NOT NULL REFERENCES upload_sessions(id) ON DELETE CASCADE,
+	idx         INTEGER NOT NULL,
+	remote_path TEXT NOT NULL,
+	sha256      TEXT NOT NULL,
+	size        BIGINT NOT NULL,
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (session_id, idx)
+);
 `

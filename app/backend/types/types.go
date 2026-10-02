@@ -80,6 +80,7 @@ type FileMetadata struct {
 	EncryptedStyle *string   `json:"encrypted_style,omitempty"` // client-side-encrypted (base64) icon/color style; opaque to server, nil = no custom style
 	DeletedAt      *string   `json:"deleted_at,omitempty"`      // non-nil = in trash
 	Platform       string    `json:"platform,omitempty"`        // storage platform of the file's chunks (telegram/github/…); display-only
+	Health         string    `json:"health,omitempty"`          // ok | degraded (not confirmed durable, retryable) | damaged (missing on the platform)
 }
 
 // ChunkRef identifies a single chunk stored on a platform.
@@ -101,6 +102,7 @@ type ChunkRef struct {
 	PlannedRemotePath string `json:"planned_remote_path,omitempty"`
 	Compressed        bool   `json:"compressed"`
 	SyncAttempts      int    `json:"sync_attempts,omitempty"`
+	Committed         bool   `json:"-"`
 }
 
 // Chunk holds chunk data for upload/download.
@@ -483,6 +485,9 @@ type SystemStats struct {
 	TotalFiles        int   `json:"total_files"`
 	TotalStorageBytes int64 `json:"total_size"`
 	TotalRepos        int   `json:"total_repos"`
+	DegradedFiles     int   `json:"degraded_files"`
+	DamagedFiles      int   `json:"damaged_files"`
+	StuckChunks       int   `json:"stuck_chunks"`
 }
 
 // SendTransfer represents an anonymous encrypted file transfer.
@@ -714,15 +719,32 @@ type FolderMoveRequest struct {
 
 // FileMoveRequest is the JSON body for moving a file. FolderID null = move to root.
 type FileMoveRequest struct {
-	FolderID *string `json:"folder_id"`
+	FolderID   *string `json:"folder_id"`
+	Salt       string  `json:"salt,omitempty"`
+	WrappedCEK string  `json:"wrapped_cek,omitempty"`
 }
 
 // FolderPasswordRequest is the JSON body for setting/replacing a folder password.
 // Both fields are opaque client-computed base64 blobs; the server stores them verbatim
 // and never derives, sees, or logs the underlying folder password or any key.
 type FolderPasswordRequest struct {
-	PwSalt     string `json:"pw_salt"`
-	PwVerifier string `json:"pw_verifier"`
+	PwSalt     string           `json:"pw_salt"`
+	PwVerifier string           `json:"pw_verifier"`
+	Rekeys     []FileRekeyEntry `json:"rekeys,omitempty"`
+}
+
+// FolderUnprotectRequest is the optional JSON body for removing a folder
+// password: the folder's files re-keyed back to the vault passphrase, applied in
+// the same transaction as the protection removal.
+type FolderUnprotectRequest struct {
+	Rekeys []FileRekeyEntry `json:"rekeys,omitempty"`
+}
+
+// FileRekeyEntry is one file's new envelope inside a bulk folder (un)protect.
+type FileRekeyEntry struct {
+	FileID     string `json:"file_id"`
+	Salt       string `json:"salt"`
+	WrappedCEK string `json:"wrapped_cek"`
 }
 
 // FileRekeyRequest is the JSON body for re-keying a single file when it crosses a
