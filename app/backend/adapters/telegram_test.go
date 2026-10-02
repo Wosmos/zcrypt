@@ -151,6 +151,49 @@ func TestTelegramUploadDownloadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestTelegramDownloadToStreamsPartsInOrder(t *testing.T) {
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/getFile"):
+			w.Write([]byte(`{"ok":true,"result":{"file_path":"documents/` + r.URL.Query().Get("file_id") + `"}}`))
+		case strings.HasSuffix(r.URL.Path, "/documents/A"):
+			w.Write([]byte("first-"))
+		case strings.HasSuffix(r.URL.Path, "/documents/B"):
+			w.Write([]byte("second"))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	})
+
+	var buf strings.Builder
+	n, err := tg.DownloadTo(context.Background(), types.ChunkRef{RemotePath: "1:A,2:B"}, &buf)
+	if err != nil {
+		t.Fatalf("DownloadTo: %v", err)
+	}
+	if buf.String() != "first-second" || n != int64(len("first-second")) {
+		t.Errorf("got %q (%d bytes)", buf.String(), n)
+	}
+}
+
+func TestTelegramDownloadToSurfacesAFailedPart(t *testing.T) {
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/getFile") {
+			w.Write([]byte(`{"ok":true,"result":{"file_path":"documents/x"}}`))
+			return
+		}
+		http.Error(w, "gone", http.StatusNotFound)
+	})
+
+	var buf strings.Builder
+	_, err := tg.DownloadTo(context.Background(), types.ChunkRef{RemotePath: "1:A"}, &buf)
+	if err == nil || !strings.Contains(err.Error(), "download returned 404") {
+		t.Fatalf("expected a 404 error, got %v", err)
+	}
+	if _, err := tg.Download(context.Background(), types.ChunkRef{RemotePath: "bad"}); err == nil {
+		t.Fatal("expected a parse error for a malformed part ref")
+	}
+}
+
 func TestTelegramUploadMultiPart(t *testing.T) {
 	// Data larger than maxTelegramPartSize is split into sub-parts, each sent as a
 	// separate document; RemotePath is the comma-joined "msgId:fileId" list.

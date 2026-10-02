@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"io"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -28,6 +29,13 @@ type PlatformAdapter interface {
 
 	// PlatformName returns the name of this platform.
 	PlatformName() string
+}
+
+// ChunkStreamer is an optional interface for adapters that can write a chunk's
+// bytes to w as they arrive, so the relay answers before the whole chunk has
+// landed on the server instead of storing and then forwarding it.
+type ChunkStreamer interface {
+	DownloadTo(ctx context.Context, ref types.ChunkRef, w io.Writer) (int64, error)
 }
 
 // BatchCommitter is an optional interface for adapters that can batch multiple

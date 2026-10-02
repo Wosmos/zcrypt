@@ -161,23 +161,34 @@ func (t *TelegramAdapter) Upload(ctx context.Context, repo string, chunk types.C
 }
 
 func (t *TelegramAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
-	parts := strings.Split(ref.RemotePath, ",")
-	var allData []byte
+	var buf bytes.Buffer
+	if _, err := t.DownloadTo(ctx, ref, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
-	for i, part := range parts {
+// DownloadTo streams every part of a chunk into w in order as the bytes
+// arrive, so a relay can start answering before the whole chunk has landed.
+func (t *TelegramAdapter) DownloadTo(ctx context.Context, ref types.ChunkRef, w io.Writer) (int64, error) {
+	var total int64
+	for i, part := range strings.Split(ref.RemotePath, ",") {
 		_, fileID, err := parsePartRef(part)
 		if err != nil {
-			return nil, fmt.Errorf("parse part ref %d: %w", i, err)
+			return total, fmt.Errorf("parse part ref %d: %w", i, err)
 		}
-
-		data, err := t.downloadFile(ctx, fileID)
+		body, err := t.openFile(ctx, fileID)
 		if err != nil {
-			return nil, fmt.Errorf("download part %d: %w", i, err)
+			return total, fmt.Errorf("download part %d: %w", i, err)
 		}
-		allData = append(allData, data...)
+		n, err := io.Copy(w, body)
+		body.Close()
+		total += n
+		if err != nil {
+			return total, fmt.Errorf("download part %d: read body: %w", i, err)
+		}
 	}
-
-	return allData, nil
+	return total, nil
 }
 
 // Delete removes every message part of a chunk from the chat. Each part is
@@ -407,8 +418,8 @@ func (t *TelegramAdapter) sendDocument(ctx context.Context, data []byte, filenam
 	return result.Result.MessageID, result.Result.Document.FileID, nil
 }
 
-// downloadFile fetches a file by file_id via getFile + HTTP download.
-func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]byte, error) {
+// openFile resolves a file_id via getFile and returns the open download body.
+func (t *TelegramAdapter) openFile(ctx context.Context, fileID string) (io.ReadCloser, error) {
 	// Step 1: Get file path from Telegram servers
 	getFileURL := fmt.Sprintf("%s?file_id=%s", t.apiURL("getFile"), fileID)
 	req, err := http.NewRequestWithContext(ctx, "GET", getFileURL, nil)
@@ -448,19 +459,14 @@ func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
-	defer dlResp.Body.Close()
 
 	if dlResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(dlResp.Body)
+		dlResp.Body.Close()
 		return nil, fmt.Errorf("download returned %d: %s", dlResp.StatusCode, string(body))
 	}
 
-	data, err := io.ReadAll(dlResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read download body: %w", err)
-	}
-
-	return data, nil
+	return dlResp.Body, nil
 }
 
 // deleteMessage deletes a message from the chat.
