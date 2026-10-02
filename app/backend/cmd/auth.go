@@ -60,10 +60,17 @@ func (s *Server) audit(r *http.Request, userID *string, eventType string, metada
 	})
 }
 
-// validatePassword enforces password complexity: min 8 chars, 1 uppercase, 1 digit, 1 special char.
+// maxPasswordBytes is bcrypt's input limit. Longer input is refused with a
+// clear 400 instead of failing in the hasher.
+const maxPasswordBytes = 72
+
+// validatePassword enforces password complexity: min 8 chars, max 72 bytes, 1 uppercase, 1 digit, 1 special char.
 func validatePassword(pw string) error {
 	if len(pw) < 8 {
 		return fmt.Errorf("password must be at least 8 characters")
+	}
+	if len(pw) > maxPasswordBytes {
+		return fmt.Errorf("password must be at most %d bytes", maxPasswordBytes)
 	}
 	var hasUpper, hasDigit, hasSpecial bool
 	for _, c := range pw {
@@ -256,8 +263,8 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-	// Per-email rate limiting: 3 attempts per 15 minutes
-	if !s.devMode && !s.emailLimiter.allow(req.Email) {
+	failKey := req.Email + "|" + clientIP
+	if !s.devMode && s.loginFailLimiter.exceeded(failKey) {
 		http.Error(w, `{"error":"too many attempts for this email, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -265,6 +272,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
+		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed email=%s ip=%s reason=not_found", req.Email, clientIP)
 		s.audit(r, nil, "login_failed", map[string]interface{}{"email": req.Email, "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
@@ -295,6 +303,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed email=%s ip=%s reason=wrong_password", req.Email, clientIP)
 		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"email": req.Email, "reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
@@ -406,8 +415,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-	// Per-email rate limiting
-	if !s.devMode && !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailSendLimiter.allow("reset|"+req.Email) {
 		// Still return generic response to prevent enumeration
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"success": true,
@@ -515,11 +523,19 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.db.UpdateUserPassword(ctx, et.UserID, passwordHash)
-	s.db.DeleteEmailToken(ctx, et.ID)
-	s.db.IncrementTokenVersion(ctx, et.UserID)     // invalidate all existing JWTs
-	s.tokenVersions.invalidate(et.UserID)          // drop cache so revocation is immediate
-	s.db.DeleteRefreshTokensByUser(ctx, et.UserID) // force re-login everywhere
+	// Revoke first and burn the link last: any failure leaves the link valid
+	// so the user can simply retry it.
+	if err := s.revokeSessions(ctx, et.UserID); err != nil {
+		internalError(w, "reset password: revoke sessions", err)
+		return
+	}
+	if err := s.db.UpdateUserPassword(ctx, et.UserID, passwordHash); err != nil {
+		internalError(w, "reset password: update password", err)
+		return
+	}
+	if err := s.db.DeleteEmailToken(ctx, et.ID); err != nil {
+		log.Printf("reset password: delete reset token: %v", err)
+	}
 
 	s.audit(r, &et.UserID, "password_reset", nil)
 
@@ -578,8 +594,7 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 		"message": "if an unverified account exists with that email, a verification link has been sent",
 	}
 
-	// Per-email rate limiting
-	if !s.devMode && !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailSendLimiter.allow("verify|"+req.Email) {
 		writeJSON(w, http.StatusOK, genericResp)
 		return
 	}
@@ -788,7 +803,7 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 
 	s.audit(r, &user.ID, "2fa_enable", nil)
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true, "backup_codes": codes})
+	s.rotateCallerSession(w, r, claims, map[string]interface{}{"success": true, "backup_codes": codes})
 }
 
 // issueBackupCodes generates a fresh set of recovery codes, stores their hashes
@@ -998,6 +1013,13 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit before the password check, or a stolen access token turns this
+	// endpoint into an unthrottled password oracle.
+	if !s.devMode && (!s.twoFAIPLimiter.allow(s.clientIP(r)) || !s.twoFAUserLimiter.allow(claims.Sub)) {
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
 	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
@@ -1006,11 +1028,6 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
 		http.Error(w, `{"error":"wrong password"}`, http.StatusUnauthorized)
-		return
-	}
-
-	if !s.devMode && !s.twoFAUserLimiter.allow(user.ID) {
-		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
 
@@ -1043,7 +1060,7 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 
 	s.audit(r, &user.ID, "2fa_disable", nil)
 
-	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+	s.rotateCallerSession(w, r, claims, map[string]interface{}{"success": true})
 }
 
 // HandleGetMe returns the authenticated user's profile.
@@ -1235,21 +1252,16 @@ func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
+	// A password change must log out every other session. Revoking before the
+	// update means a failure never leaves a new password with old sessions alive.
+	if err := s.revokeSessions(ctx, userID); err != nil {
+		internalError(w, "profile: revoke sessions", err)
+		return
+	}
 	if err := s.db.UpdateUserPassword(ctx, userID, passwordHash); err != nil {
 		log.Printf("profile: change password: %v", err)
 		http.Error(w, `{"error":"failed to change password"}`, http.StatusInternalServerError)
 		return
-	}
-
-	// A password change must log out every other session. Bumping the token
-	// version invalidates all outstanding JWTs, and the refresh tokens are
-	// deleted so nothing can mint a new one.
-	if err := s.db.IncrementTokenVersion(ctx, userID); err != nil {
-		log.Printf("profile: bump token version: %v", err)
-	}
-	s.tokenVersions.invalidate(userID) // drop cache so revocation is immediate
-	if err := s.db.DeleteRefreshTokensByUser(ctx, userID); err != nil {
-		log.Printf("profile: clear refresh tokens: %v", err)
 	}
 
 	s.audit(r, &userID, "password_changed", nil)
@@ -1277,8 +1289,7 @@ func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-	// Per-email rate limiting
-	if !s.devMode && !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailSendLimiter.allow("magic|"+req.Email) {
 		// Anti-enumeration: always 200
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"success": true,
@@ -1451,7 +1462,7 @@ func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, user, accessToken, nil)
 }
 
 // issueDecoyTokens issues JWT tokens with the decoy flag set.
@@ -1461,34 +1472,87 @@ func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, user, accessToken, nil)
 }
 
-// writeTokenResponse generates a refresh token for an already-generated access
-// token, persists it, sets the web refresh cookie, and writes the JSON
-// response shared by issueTokens and issueDecoyTokens.
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string) {
-	ctx := r.Context()
-
+// mintRefreshToken generates a refresh token for userID and persists its hash.
+// A token that was never stored cannot refresh, so a failed insert is an error.
+func (s *Server) mintRefreshToken(r *http.Request, userID string) (string, error) {
 	refreshToken, err := auth.GenerateRandomToken()
 	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
+		return "", fmt.Errorf("generate refresh token: %w", err)
 	}
-
-	s.db.InsertRefreshToken(ctx, &types.RefreshToken{
+	if err := s.db.InsertRefreshToken(r.Context(), &types.RefreshToken{
 		ID:        uuid.New().String(),
-		UserID:    user.ID,
+		UserID:    userID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
 		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
-	})
+	}); err != nil {
+		return "", fmt.Errorf("store refresh token: %w", err)
+	}
+	return refreshToken, nil
+}
+
+// writeTokenResponse generates a refresh token for an already-generated access
+// token, persists it, sets the web refresh cookie, and writes the JSON
+// response shared by issueTokens and issueDecoyTokens. extra fields are merged
+// into the body.
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string, extra map[string]interface{}) {
+	refreshToken, err := s.mintRefreshToken(r, user.ID)
+	if err != nil {
+		internalError(w, "issue tokens", err)
+		return
+	}
+
+	body := map[string]interface{}{}
+	for k, v := range extra {
+		body[k] = v
+	}
+	body["access_token"] = accessToken
+	body["refresh_token"] = refreshToken
+	body["user"] = user
 
 	setRefreshCookie(w, refreshToken)
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"user":          user,
-	})
+	writeJSON(w, http.StatusOK, body)
+}
+
+// revokeSessions signs userID out everywhere: every outstanding access token
+// stops verifying and no refresh token is left to mint a new one.
+func (s *Server) revokeSessions(ctx context.Context, userID string) error {
+	if err := s.db.IncrementTokenVersion(ctx, userID); err != nil {
+		return fmt.Errorf("bump token version: %w", err)
+	}
+	s.tokenVersions.invalidate(userID)
+	if err := s.db.DeleteRefreshTokensByUser(ctx, userID); err != nil {
+		return fmt.Errorf("delete refresh tokens: %w", err)
+	}
+	return nil
+}
+
+// rotateCallerSession revokes every session of the caller and answers with a
+// fresh pair for this device only (decoy stays decoy), so a security change
+// such as toggling 2FA signs out every other device without signing out this one.
+func (s *Server) rotateCallerSession(w http.ResponseWriter, r *http.Request, claims *auth.Claims, extra map[string]interface{}) {
+	ctx := r.Context()
+	if err := s.revokeSessions(ctx, claims.Sub); err != nil {
+		internalError(w, "rotate session", err)
+		return
+	}
+	user, err := s.db.GetUserByID(ctx, claims.Sub)
+	if err != nil {
+		internalError(w, "rotate session: reload user", err)
+		return
+	}
+	mint := auth.GenerateAccessToken
+	if claims.Decoy {
+		mint = auth.GenerateDecoyAccessToken
+	}
+	accessToken, err := mint(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
+	if err != nil {
+		internalError(w, "rotate session: access token", err)
+		return
+	}
+	s.writeTokenResponse(w, r, user, accessToken, extra)
 }

@@ -148,7 +148,9 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Role string `json:"role"`
+		Role     string `json:"role"`
+		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
@@ -167,17 +169,30 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Same friction as deleting a user: a stolen admin token alone must not be
+	// able to mint more admins.
+	if !s.devMode && !s.authLimiter.allow(s.clientIP(r)) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+	adminID := GetUserID(r)
+	if err := s.reauthActingUser(ctx, r, req.Password, req.Code); err != nil {
+		s.audit(r, &adminID, "admin_role_change_denied", map[string]interface{}{"target_user": userID, "reason": err.Error()})
+		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusUnauthorized)
+		return
+	}
+
 	if err := s.db.SetUserRole(ctx, userID, role); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
 	}
 
 	// Invalidate all existing tokens for this user (role change is security-sensitive)
-	_ = s.db.IncrementTokenVersion(ctx, userID)
-	s.tokenVersions.invalidate(userID) // drop cache so the demotion takes effect immediately
-	_ = s.db.DeleteRefreshTokensByUser(ctx, userID)
+	if err := s.revokeSessions(ctx, userID); err != nil {
+		internalError(w, "admin role change: revoke sessions", err)
+		return
+	}
 
-	adminID := GetUserID(r)
 	s.audit(r, &adminID, "admin_role_change", map[string]interface{}{"target_user": userID, "role": req.Role})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})

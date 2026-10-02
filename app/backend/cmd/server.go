@@ -48,8 +48,12 @@ type Server struct {
 
 	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
 	authLimiter *rateLimiter
-	// Per-email rate limiter: 3 req per 15 min for login/magic-link/forgot-password
-	emailLimiter *rateLimiter
+	// Failed-login limiter keyed on (email, IP): counts only failures, so a
+	// stranger's bad guesses cannot lock the owner out from their own IP.
+	loginFailLimiter *rateLimiter
+	// Per-email send limiter for reset, verification and magic-link emails,
+	// keyed on (flow, email) so one flow never starves another or login.
+	emailSendLimiter *rateLimiter
 	// Per-user rate limiter: 100 req per 1 min for authenticated API calls
 	userLimiter *rateLimiter
 	// Share endpoint rate limiter: 30 req per 1 min per IP (prevents brute-force)
@@ -84,6 +88,10 @@ type Server struct {
 	// Bug-report limiters: per-IP and per-user, 10 reports per hour each
 	bugIPLimiter   *rateLimiter
 	bugUserLimiter *rateLimiter
+
+	// sseTickets holds the short-lived, single-use tickets that authenticate
+	// an /api/events stream, so the access token never rides in a URL.
+	sseTickets *sseTicketStore
 
 	// tokenVersions enforces JWT revocation by checking each access token's
 	// version against the user's current token_version (bumped on password
@@ -162,7 +170,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		adapterErrors:       make(map[string]map[string]string),
 		pushLimiter:         newPushLimiter(defaultPushLimits(), time.Hour),
 		authLimiter:         newRateLimiter(5, 5*time.Minute),
-		emailLimiter:        newRateLimiter(3, 15*time.Minute),
+		loginFailLimiter:    newRateLimiter(3, 15*time.Minute),
+		emailSendLimiter:    newRateLimiter(3, 15*time.Minute),
 		userLimiter:         newRateLimiter(600, time.Minute),
 		shareLimiter:        newRateLimiter(30, time.Minute),
 		releases:            newReleaseCache(),
@@ -178,6 +187,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
 		transferHub:         newTransferHub(),
 		desktopSessions:     make(map[string]*desktopOAuthResult),
+		sseTickets:          newSSETicketStore(),
 		syncCh:              make(chan struct{}, 1),
 		deletionCh:          make(chan struct{}, 1),
 		devMode:             os.Getenv("DEV_MODE") == "true",
@@ -711,7 +721,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/repos/{id}/deactivate", s.AuthMiddleware(s.HandleDeactivateRepo))
 	mux.HandleFunc("GET /api/config", s.AuthMiddleware(s.HandleGetConfig))
 	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
-	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via query param
+	mux.HandleFunc("POST /api/sse/ticket", s.AuthMiddleware(s.HandleSSETicket))
+	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via single-use ticket
 	mux.HandleFunc("GET /api/quota", s.AuthMiddleware(s.HandleGetQuota))
 	mux.HandleFunc("POST /api/onboarding/complete", s.AuthMiddleware(s.HandleMarkOnboarded))
 

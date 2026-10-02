@@ -90,6 +90,10 @@ func (s *Server) HandleSetupDecoy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"decoy password must be at least 6 characters"}`, http.StatusBadRequest)
 		return
 	}
+	if len(req.DecoyPassword) > maxPasswordBytes {
+		http.Error(w, fmt.Sprintf(`{"error":"decoy password must be at most %d bytes"}`, maxPasswordBytes), http.StatusBadRequest)
+		return
+	}
 
 	// Make sure decoy password != real password
 	user, err := s.db.GetUserByID(r.Context(), userID)
