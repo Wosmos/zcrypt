@@ -323,6 +323,9 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	s.issueTokens(w, r, user)
 }
 
+// refreshReuseGrace is how long a rotated refresh token keeps working.
+const refreshReuseGrace = 60 * time.Second
+
 // HandleRefreshToken exchanges a refresh token for a new access token.
 func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -358,8 +361,12 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Rotate refresh token
-	s.db.DeleteRefreshToken(ctx, rt.ID)
+	// Rotate, keeping the old token alive for a short grace window (see
+	// RetireRefreshToken). A reuse inside the window lands here again and gets
+	// its own fresh pair; after it, the expiry check above rejects it.
+	if err := s.db.RetireRefreshToken(ctx, rt.ID, refreshReuseGrace); err != nil {
+		log.Printf("refresh: retire token: %v", err)
+	}
 	s.issueTokens(w, r, user)
 }
 

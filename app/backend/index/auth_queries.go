@@ -402,6 +402,18 @@ func (db *DB) DeleteRefreshToken(ctx context.Context, id string) error {
 	return err
 }
 
+// RetireRefreshToken shortens a rotated refresh token's life to `grace` instead
+// of deleting it, so a second client that raced the same token (another tab, or
+// the desktop webview and its Rust engine) still gets a fresh pair rather than a
+// 401 that logs the user out.
+func (db *DB) RetireRefreshToken(ctx context.Context, id string, grace time.Duration) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE refresh_tokens SET expires_at = LEAST(expires_at, $2) WHERE id = $1`,
+		id, time.Now().Add(grace),
+	)
+	return err
+}
+
 // DeleteRefreshTokensByUser removes all refresh tokens for a user.
 func (db *DB) DeleteRefreshTokensByUser(ctx context.Context, userID string) error {
 	_, err := db.pool.Exec(ctx, `DELETE FROM refresh_tokens WHERE user_id = $1`, userID)

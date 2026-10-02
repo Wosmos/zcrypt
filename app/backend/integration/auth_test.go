@@ -160,6 +160,13 @@ func TestTokenRefresh(t *testing.T) {
 		assert.NotEmpty(t, result.AccessToken)
 	})
 
+	t.Run("a just-rotated refresh token still works inside the grace window", func(t *testing.T) {
+		resp := ts.POST("/api/auth/refresh", map[string]string{
+			"refresh_token": tokens.RefreshToken,
+		}, "")
+		requireStatus(t, resp, http.StatusOK)
+	})
+
 	t.Run("invalid refresh token returns 401", func(t *testing.T) {
 		resp := ts.POST("/api/auth/refresh", map[string]string{
 			"refresh_token": "fake-refresh-token-that-does-not-exist",
