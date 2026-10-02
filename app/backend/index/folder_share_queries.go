@@ -72,7 +72,7 @@ func (db *DB) ListFolderShareFiles(ctx context.Context, folderShareID string) ([
 	rows, err := db.pool.Query(ctx, `
 		SELECT fsf.file_id, fsf.wrapped_cek, COALESCE(NULLIF(fsf.enc_name, ''), f.original_name), f.original_size, f.chunk_count
 		FROM folder_share_files fsf
-		JOIN files f ON f.id = fsf.file_id
+		JOIN files f ON f.id = fsf.file_id AND f.deleted_at IS NULL
 		WHERE fsf.folder_share_id = $1
 		ORDER BY f.original_name`, folderShareID)
 	if err != nil {
@@ -100,7 +100,7 @@ func (db *DB) GetFolderShareFileWrap(ctx context.Context, folderShareID, fileID 
 	err := db.pool.QueryRow(ctx, `
 		SELECT fsf.wrapped_cek, COALESCE(NULLIF(fsf.enc_name, ''), f.original_name)
 		FROM folder_share_files fsf
-		JOIN files f ON f.id = fsf.file_id
+		JOIN files f ON f.id = fsf.file_id AND f.deleted_at IS NULL
 		WHERE fsf.folder_share_id = $1 AND fsf.file_id = $2`,
 		folderShareID, fileID).Scan(&wrapped, &name)
 	return wrapped, name, err

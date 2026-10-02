@@ -1414,12 +1414,14 @@ func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string,
 
 // ── Share queries ──
 
-// GetFileByIDUnsafe returns file metadata without user scoping (for share access).
+// GetFileByIDUnsafe returns file metadata without user scoping (for share and
+// space access). Trashed files are excluded: once the owner deletes a file, no
+// link or space member can read it, and restoring it brings access back.
 func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.FileMetadata, error) {
 	f := &types.FileMetadata{}
 	err := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at
-		 FROM files WHERE id = $1`, fileID,
+		 FROM files WHERE id = $1 AND deleted_at IS NULL`, fileID,
 	).Scan(&f.ID, &f.UserID, &f.OriginalName, &f.EncryptedName, &f.OriginalSize, &f.CompressedSize,
 		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {
