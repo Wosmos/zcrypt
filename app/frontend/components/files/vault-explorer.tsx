@@ -575,8 +575,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       }
     };
 
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
     // Per-entry keydown (rows/cards forward their event here). Handles roving
-    // arrows, Space toggle, Shift+arrow range extend, Enter open, Esc clear.
+    // arrows, Space toggle, Shift+arrow range extend, Enter open, Delete/F2,
+    // Esc clear.
     const handleEntryKeyDown = (entry: ExplorerEntry, e: React.KeyboardEvent) => {
       const isFile = entry.kind === "file";
       const id = isFile ? entry.file.id : entry.folder.id;
@@ -628,6 +631,20 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             exitSelectMode();
           }
           return;
+        case "Delete":
+        case "Backspace":
+          if (e.key === "Backspace" && !e.metaKey) return;
+          e.preventDefault();
+          if (!isFile) setDeleteTarget(entry.folder);
+          else if (onBulkDelete && selectedIds.size > 1 && selectedIds.has(id))
+            onBulkDelete(Array.from(selectedIds));
+          else onDelete(id);
+          return;
+        case "F2":
+          e.preventDefault();
+          if (isFile) startRenameFile(entry.file);
+          else startRename(entry.folder);
+          return;
         default:
           return;
       }
@@ -636,10 +653,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // ⌘/Ctrl+A selects every visible file; Esc clears (when something is selected).
     // Scoped to the listing container so it never hijacks page-wide shortcuts.
     const handleContainerKeyDown = (e: React.KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const typing =
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      if (e.key === "?" && !typing) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && (e.key === "a" || e.key === "A")) {
-        const target = e.target as HTMLElement;
-        const typing =
-          target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
         if (typing) return;
         if (sortedFiles.length === 0) return;
         e.preventDefault();
@@ -1243,6 +1265,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           </p>
         )}
 
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {selectedIds.size > 0 ? `${selectedIds.size} selected` : ""}
+        </p>
+
         {/* Select-mode action bar */}
         {selectMode && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2">
@@ -1601,6 +1627,27 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           allowBackgroundDesign={customizeTarget?.type === "folder"}
         />
 
+        <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+          <DialogContent className={DIALOG_PANEL}>
+            <DialogHeader>
+              <DialogTitle>Keyboard shortcuts</DialogTitle>
+              <DialogDescription>Focus a file or folder in the list, then:</DialogDescription>
+            </DialogHeader>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
+                <div key={keys} className="contents">
+                  <dt>
+                    <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-xs">
+                      {keys}
+                    </kbd>
+                  </dt>
+                  <dd className="text-[var(--color-text-secondary)]">{action}</dd>
+                </div>
+              ))}
+            </dl>
+          </DialogContent>
+        </Dialog>
+
         {/* Delete folder confirm */}
         <ConfirmDialog
           open={!!deleteTarget}
@@ -1639,6 +1686,18 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     );
   },
 );
+
+const KEYBOARD_SHORTCUTS: [string, string][] = [
+  ["Arrow keys", "Move between items"],
+  ["Shift + Arrow", "Extend the selection"],
+  ["Space", "Select a file, or open a folder"],
+  ["Enter", "Open"],
+  ["Ctrl/Cmd + A", "Select all files"],
+  ["Delete", "Move to Trash"],
+  ["F2", "Rename"],
+  ["Esc", "Clear the selection"],
+  ["?", "Show these shortcuts"],
+];
 
 /**
  * ── DEVIATIONS FROM SPEC ─────────────────────────────────────────────────────

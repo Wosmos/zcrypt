@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { create } from "zustand";
 import {
@@ -12,6 +12,8 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { useFilesQuery } from "@/store/files";
+import { useAuthStore } from "@/store/auth";
+import { Role } from "@/types";
 import {
   Shield,
   Settings,
@@ -54,15 +56,35 @@ const NAV = [
   { label: "Device Transfer", href: "/transfer", icon: RefreshCcw },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Tools", href: "/tools", icon: Cog },
-  { label: "Admin", href: "/admin", icon: Users },
 ];
+
+const ADMIN_NAV = { label: "Admin", href: "/admin", icon: Users };
+
+// Matches are picked here, from the whole library, before cmdk ranks them, so
+// any file is findable while the list stays small enough to render instantly.
+const MAX_FILE_RESULTS = 50;
 
 export function CommandPalette() {
   const router = useRouter();
   const open = useCommandPalette((s) => s.open);
   const setOpen = useCommandPalette((s) => s.setOpen);
   const toggle = useCommandPalette((s) => s.toggle);
-  const files = useFilesQuery().data ?? [];
+  const files = useFilesQuery().data;
+  const isAdmin = useAuthStore((s) => s.user?.role === Role.Admin);
+  const [search, setSearch] = useState("");
+  const nav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+
+  const fileResults = useMemo(() => {
+    const all = files ?? [];
+    const q = search.trim().toLowerCase();
+    const hits = q ? all.filter((f) => f.original_name.toLowerCase().includes(q)) : all;
+    return hits.slice(0, MAX_FILE_RESULTS);
+  }, [files, search]);
+
+  const onOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSearch("");
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -76,32 +98,36 @@ export function CommandPalette() {
   }, [toggle]);
 
   const go = (href: string) => {
-    setOpen(false);
+    onOpenChange(false);
     router.push(href);
   };
 
   const openFile = (name: string) => {
     useVaultSearch.getState().setQuery(name);
-    setOpen(false);
+    onOpenChange(false);
     router.push("/dashboard");
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search files or jump to…" />
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <CommandInput
+        placeholder="Search files or jump to…"
+        value={search}
+        onValueChange={setSearch}
+      />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Go to">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <CommandItem key={n.href} value={`go ${n.label}`} onSelect={() => go(n.href)}>
               <n.icon className="h-4 w-4 text-[var(--color-text-muted)]" />
               {n.label}
             </CommandItem>
           ))}
         </CommandGroup>
-        {files.length > 0 && (
+        {fileResults.length > 0 && (
           <CommandGroup heading="Files">
-            {files.slice(0, 200).map((f) => (
+            {fileResults.map((f) => (
               <CommandItem
                 key={f.id}
                 value={`file ${f.original_name}`}

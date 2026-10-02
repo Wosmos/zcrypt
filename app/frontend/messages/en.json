@@ -9,7 +9,8 @@
     "creating": "Creating...",
     "unlock": "Unlock",
     "unlocking": "Unlocking…",
-    "language": "Language"
+    "language": "Language",
+    "close": "Close"
   },
   "shell": {
     "vault": "Vault",

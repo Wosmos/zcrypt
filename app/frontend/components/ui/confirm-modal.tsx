@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useRef } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, AlertTriangle, Trash2, Info } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
@@ -70,103 +70,90 @@ export function ConfirmModal({
   const config = variantConfig[variant];
   const Icon = config.icon;
 
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => cancelRef.current?.focus(), 50);
-    }
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
   const handleConfirm = useCallback(() => {
     if (loading) return;
     onConfirm();
   }, [loading, onConfirm]);
 
-  if (!open) return null;
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <DialogPrimitive.Content
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              cancelRef.current?.focus();
+            }}
+            className="w-full max-w-md mx-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl animate-slide-up focus:outline-none"
+          >
+            {/* Header */}
+            <div className="flex items-start gap-3 p-6 pb-0">
+              <div
+                className={cn(
+                  "flex items-center justify-center h-10 w-10 rounded-xl flex-shrink-0",
+                  config.iconBg,
+                )}
+              >
+                <Icon className={cn("h-5 w-5", config.iconColor)} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <DialogPrimitive.Title className="text-sm font-semibold">
+                  {title}
+                </DialogPrimitive.Title>
+                <DialogPrimitive.Description className="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
+                  {description}
+                </DialogPrimitive.Description>
+              </div>
+              <DialogPrimitive.Close
+                aria-label="Close"
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1 -mt-1 flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </DialogPrimitive.Close>
+            </div>
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md mx-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start gap-3 p-6 pb-0">
-          <div
-            className={cn(
-              "flex items-center justify-center h-10 w-10 rounded-xl flex-shrink-0",
-              config.iconBg,
+            {/* Details */}
+            {details && (
+              <div className="mx-6 mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5">
+                <p className="text-xs text-[var(--color-text-muted)] font-mono leading-relaxed">
+                  {details}
+                </p>
+              </div>
             )}
-          >
-            <Icon className={cn("h-5 w-5", config.iconColor)} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold">{title}</h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
-              {description}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1 -mt-1 flex-shrink-0"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
 
-        {/* Details */}
-        {details && (
-          <div className="mx-6 mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5">
-            <p className="text-xs text-[var(--color-text-muted)] font-mono leading-relaxed">
-              {details}
-            </p>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-3 p-6 pt-5">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-50"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={loading}
-            className={cn(
-              "flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50",
-              config.confirmBg,
-            )}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <LogoSpinner size={14} speed="fast" />
-                Processing...
-              </span>
-            ) : (
-              confirmLabel
-            )}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+            {/* Actions */}
+            <div className="flex gap-3 p-6 pt-5">
+              <button
+                ref={cancelRef}
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-50"
+              >
+                {cancelLabel}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={loading}
+                className={cn(
+                  "flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50",
+                  config.confirmBg,
+                )}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <LogoSpinner size={14} speed="fast" />
+                    Processing...
+                  </span>
+                ) : (
+                  confirmLabel
+                )}
+              </button>
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Overlay>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
