@@ -46,7 +46,7 @@ func TestRefreshCookieCrossSite(t *testing.T) {
 	for _, c := range cases {
 		r := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
 		if c.cookie {
-			r.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "rt"})
+			r.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "rt"}) //nolint:gosec // test fixture simulating an incoming request cookie, not a cookie this server sets
 		}
 		if c.origin != "" {
 			r.Header.Set("Origin", c.origin)
@@ -63,7 +63,7 @@ func TestRefreshCookieCrossSite(t *testing.T) {
 func TestLogoutRefusesCrossSiteCookie(t *testing.T) {
 	s := &Server{allowedOrigins: map[string]bool{}}
 	r := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
-	r.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "rt"})
+	r.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "rt"}) //nolint:gosec // test fixture simulating an incoming request cookie, not a cookie this server sets
 	r.Header.Set("Origin", "https://evil.example")
 	rec := httptest.NewRecorder()
 	s.HandleLogout(rec, r)

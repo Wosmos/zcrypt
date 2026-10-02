@@ -209,7 +209,7 @@ func (db *DB) MoveFolder(ctx context.Context, userID, folderID string, newParent
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('folder-move:' || $1, 0))`, userID); err != nil {
 		return fmt.Errorf("lock folder tree: %w", err)

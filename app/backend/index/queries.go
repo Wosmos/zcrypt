@@ -53,7 +53,7 @@ func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('quota:' || $1, 0))`, userID); err != nil {
 		return fmt.Errorf("lock quota: %w", err)

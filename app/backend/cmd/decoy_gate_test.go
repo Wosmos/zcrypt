@@ -166,7 +166,7 @@ func TestDecoyGatePassesRealSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/notes", s.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/notes", s.AuthMiddleware(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
 	req := httptest.NewRequest(http.MethodGet, "/api/notes", nil)
