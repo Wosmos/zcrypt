@@ -13,7 +13,7 @@
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use base64::Engine as _;
@@ -32,6 +32,18 @@ use super::{EngineContext, EngineError};
 /// In-flight RAM window ceiling. `conc` is also capped so `conc * chunk_size`
 /// stays under this, so even a huge chunk size can't blow up memory.
 const RAM_WINDOW_BYTES: i64 = 256 * 1024 * 1024;
+
+/// Chunks in flight across EVERY concurrent upload in this process. The app
+/// runs several files at once, and each file's own `conc` window would
+/// otherwise multiply (6 files x 16 chunks), oversubscribing RAM and the
+/// uplink. Sized by the first upload's `conc`: the profile, and so the chunk
+/// size behind it, is fixed for the process.
+fn global_window(conc: usize) -> Arc<tokio::sync::Semaphore> {
+    static WINDOW: OnceLock<Arc<tokio::sync::Semaphore>> = OnceLock::new();
+    WINDOW
+        .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(conc)))
+        .clone()
+}
 
 pub async fn run(
     ctx: &EngineContext,
@@ -195,6 +207,7 @@ pub async fn run(
 
     emit(Stage::Uploading, have.len() as u32, 0);
     let sem = Arc::new(tokio::sync::Semaphore::new(conc));
+    let window = global_window(conc);
     let done = Arc::new(AtomicU32::new(have.len() as u32));
     let enc_total = Arc::new(AtomicI64::new(0));
     let comp_total = Arc::new(AtomicI64::new(0));
@@ -220,6 +233,7 @@ pub async fn run(
         // resident. This is the RAM window. Reads are serialized (one at a
         // time, here in the loop); encrypt+upload run concurrently in tasks.
         let permit = sem.clone().acquire_owned().await.expect("semaphore");
+        let slot = window.clone().acquire_owned().await.expect("semaphore");
         let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
         f.seek(std::io::SeekFrom::Start((idx * chunk_size) as u64))
             .await?;
@@ -239,6 +253,7 @@ pub async fn run(
         let first_err = first_err.clone();
         join.spawn(async move {
             let _permit = permit;
+            let _slot = slot;
             // Encrypt IN MEMORY (native, off the async runtime).
             let processed = match tokio::task::spawn_blocking(move || {
                 let mut cek = cek;
@@ -386,7 +401,7 @@ async fn upload_one(
     if let Some(repo) = repo {
         let creds = (ctx.creds)(platform)
             .ok_or_else(|| EngineError::Other(format!("no personal token for {platform}")))?;
-        let adapter = adapters::new_adapter(platform, &creds.token, &creds.account)
+        let adapter = adapters::shared_adapter(platform, &creds.token, &creds.account)
             .ok_or_else(|| EngineError::Other(format!("no adapter for {platform}")))?;
         let cref = ChunkRef {
             platform: platform.to_string(),

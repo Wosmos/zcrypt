@@ -260,8 +260,10 @@ impl Client {
             match op().await {
                 Ok(v) => return Ok(v),
                 Err(e) => {
-                    // Don't burn retries on auth failures.
-                    if matches!(e, ApiError::Unauthorized) {
+                    // Don't burn retries on auth failures or a definitive
+                    // client error (404 for a non-owner's locators, a deleted
+                    // file): only transient failures can improve on a retry.
+                    if !is_retryable(&e) {
                         return Err(e);
                     }
                     last = Some(e);
@@ -273,5 +275,38 @@ impl Client {
             }
         }
         Err(last.unwrap_or(ApiError::Other("retry: no attempts".into())))
+    }
+}
+
+fn is_retryable(e: &ApiError) -> bool {
+    match e {
+        ApiError::Unauthorized => false,
+        ApiError::Status { status, .. } => {
+            !(400..500).contains(status) || matches!(status, 408 | 429)
+        }
+        _ => true,
+    }
+}
+
+#[cfg(test)]
+mod retry_tests {
+    use super::*;
+
+    fn status(s: u16) -> ApiError {
+        ApiError::Status {
+            status: s,
+            body: String::new(),
+        }
+    }
+
+    #[test]
+    fn only_transient_errors_retry() {
+        assert!(!is_retryable(&ApiError::Unauthorized));
+        assert!(!is_retryable(&status(404)));
+        assert!(!is_retryable(&status(403)));
+        assert!(is_retryable(&status(408)));
+        assert!(is_retryable(&status(429)));
+        assert!(is_retryable(&status(502)));
+        assert!(is_retryable(&ApiError::Other("x".into())));
     }
 }

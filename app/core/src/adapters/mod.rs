@@ -2,6 +2,9 @@
 //! `app/backend/adapters/*`, used for byos-direct transfers with the USER'S OWN
 //! token (never the managed pool token, which must stay server-side).
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+
 use async_trait::async_trait;
 
 use crate::types::{Chunk, ChunkRef};
@@ -73,5 +76,48 @@ pub fn new_adapter(platform: &str, token: &str, account: &str) -> Option<Box<dyn
         "huggingface" => Some(Box::new(huggingface::HuggingFace::new(token, account))),
         "telegram" => Some(Box::new(telegram::Telegram::new(token, account))),
         _ => None,
+    }
+}
+
+const SHARED_ADAPTER_CAP: usize = 16;
+
+/// Process-wide warm adapter for a platform + token + account. Each adapter
+/// owns a pooled HTTP client, so reusing it keeps TLS connections alive across
+/// opens instead of paying a cold handshake per file (and per chunk on upload).
+/// Keyed by a hash of the token, so a rotated token gets a fresh adapter.
+pub fn shared_adapter(
+    platform: &str,
+    token: &str,
+    account: &str,
+) -> Option<Arc<dyn PlatformAdapter>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Arc<dyn PlatformAdapter>>>> = OnceLock::new();
+    let key = format!(
+        "{platform}:{account}:{}",
+        crate::crypto::sha256_hex(token.as_bytes())
+    );
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(a) = cache.lock().unwrap().get(&key) {
+        return Some(a.clone());
+    }
+    let adapter: Arc<dyn PlatformAdapter> = Arc::from(new_adapter(platform, token, account)?);
+    let mut guard = cache.lock().unwrap();
+    if guard.len() >= SHARED_ADAPTER_CAP {
+        guard.clear();
+    }
+    Some(guard.entry(key).or_insert(adapter).clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shared_adapter_reuses_per_token() {
+        let a = shared_adapter("github", "tok-shared-a", "acct").unwrap();
+        let b = shared_adapter("github", "tok-shared-a", "acct").unwrap();
+        let c = shared_adapter("github", "tok-shared-b", "acct").unwrap();
+        assert!(Arc::ptr_eq(&a, &b));
+        assert!(!Arc::ptr_eq(&a, &c));
+        assert!(shared_adapter("nope", "tok", "acct").is_none());
     }
 }

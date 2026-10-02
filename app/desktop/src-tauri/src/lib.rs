@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};
 
 // Tray + menu APIs exist only on desktop Tauri (gated as #[cfg(desktop)] /
@@ -80,7 +81,7 @@ impl Default for EngineState {
             db: StdMutex::new(None),
             sync_cancel: StdMutex::new(None),
             transfers: StdMutex::new(std::collections::HashMap::new()),
-            profile: profiles::NORMAL,
+            profile: profiles::detect(),
             passphrase: StdMutex::new(None),
             watcher: StdMutex::new(None),
             last_activity: StdMutex::new(Instant::now()),
@@ -214,10 +215,28 @@ fn keychain_read(key: &str) -> Option<String> {
 /// user's OWN: the managed-pool token never lives on the client.
 fn keychain_creds() -> CredProvider {
     Arc::new(|platform: &str| {
-        let token = keychain_read(&format!("platform.{platform}.token"))?;
-        let account = keychain_read(&format!("platform.{platform}.account")).unwrap_or_default();
-        Some(PlatformCreds { token, account })
+        if let Some(hit) = creds_cache().lock().unwrap().get(platform) {
+            return hit.clone();
+        }
+        let creds = keychain_read(&format!("platform.{platform}.token")).map(|token| {
+            let account =
+                keychain_read(&format!("platform.{platform}.account")).unwrap_or_default();
+            PlatformCreds { token, account }
+        });
+        creds_cache()
+            .lock()
+            .unwrap()
+            .insert(platform.to_string(), creds.clone());
+        creds
     })
+}
+
+/// Memoized keychain reads for `keychain_creds`: every open and upload used to
+/// hit the OS keychain twice per platform. `keychain_set` / `keychain_delete`
+/// drop it, so connecting or disconnecting a platform is seen immediately.
+fn creds_cache() -> &'static StdMutex<HashMap<String, Option<PlatformCreds>>> {
+    static CACHE: OnceLock<StdMutex<HashMap<String, Option<PlatformCreds>>>> = OnceLock::new();
+    CACHE.get_or_init(|| StdMutex::new(HashMap::new()))
 }
 
 // ---------------------------------------------------------------------------
@@ -375,6 +394,16 @@ async fn bulk_download_zip(
         state.finish_transfer(id);
     }
     res.map_err(|e| e.to_string())
+}
+
+/// Byte sizes for picked paths (0 when unreadable), so the upload queue can
+/// size its file concurrency the same way the web path does.
+#[tauri::command]
+async fn file_sizes(paths: Vec<String>) -> Vec<u64> {
+    paths
+        .iter()
+        .map(|p| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+        .collect()
 }
 
 /// Cancel an in-flight transfer by the `transfer_id` the caller passed to
@@ -749,6 +778,7 @@ fn notify_backup(app: &tauri::AppHandle, path: &Path) {
 
 #[tauri::command]
 async fn keychain_set(key: String, value: String) -> Result<(), String> {
+    creds_cache().lock().unwrap().clear();
     keychain_entry(&key)?
         .set_password(&value)
         .map_err(|e| format!("keychain set: {}", e))
@@ -765,6 +795,7 @@ async fn keychain_get(key: String) -> Result<Option<String>, String> {
 
 #[tauri::command]
 async fn keychain_delete(key: String) -> Result<(), String> {
+    creds_cache().lock().unwrap().clear();
     match keychain_entry(&key)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("keychain delete: {}", e)),
@@ -1063,6 +1094,7 @@ pub fn run() {
             decrypt_to_memory,
             bulk_download_zip,
             cancel_transfer,
+            file_sizes,
             download_space_file,
             decrypt_space_to_memory,
             delete_file,

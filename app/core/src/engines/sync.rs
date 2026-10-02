@@ -514,7 +514,7 @@ pub(super) async fn resolve_byos_repo(
 ) -> Result<RepoInfo, EngineError> {
     let creds = (ctx.creds)(platform)
         .ok_or_else(|| EngineError::Other(format!("no personal token for {platform}")))?;
-    let adapter = adapters::new_adapter(platform, &creds.token, &creds.account)
+    let adapter = adapters::shared_adapter(platform, &creds.token, &creds.account)
         .ok_or_else(|| EngineError::Other(format!("no adapter for {platform}")))?;
 
     // Client-side pool over the control plane: list/register repos through the
@@ -547,7 +547,7 @@ async fn push_chunk_byos_with_repo(
 ) -> Result<(), EngineError> {
     let creds = (ctx.creds)(&f.platform)
         .ok_or_else(|| EngineError::Other(format!("no personal token for {}", f.platform)))?;
-    let adapter = adapters::new_adapter(&f.platform, &creds.token, &creds.account)
+    let adapter = adapters::shared_adapter(&f.platform, &creds.token, &creds.account)
         .ok_or_else(|| EngineError::Other(format!("no adapter for {}", f.platform)))?;
 
     let data = tokio::fs::read(&chunk.staging_path).await?;
