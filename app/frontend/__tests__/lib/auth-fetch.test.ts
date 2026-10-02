@@ -21,7 +21,7 @@ vi.mock("@/lib/tauri", () => ({
   refreshSession,
 }));
 
-import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, refreshSessionToken, tryRefreshToken } from "@/lib/auth-fetch";
 
 function resp(status: number) {
   return { status } as Response;
@@ -127,6 +127,27 @@ describe("tryRefreshToken", () => {
 
     expect(result).toBe("second");
     expect(refreshTokenApi).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("refreshSessionToken", () => {
+  it("reports the new token on success", async () => {
+    refreshTokenApi.mockResolvedValueOnce({ access_token: "a", refresh_token: "r" });
+    expect(await refreshSessionToken()).toEqual({ token: "a", rejected: false });
+  });
+
+  it("tells a definitive rejection apart from a transient miss", async () => {
+    refreshTokenApi.mockRejectedValueOnce(Object.assign(new Error("gone"), { status: 403 }));
+    expect(await refreshSessionToken()).toEqual({ token: null, rejected: true });
+
+    refreshTokenApi.mockRejectedValueOnce(new Error("offline"));
+    expect(await refreshSessionToken()).toEqual({ token: null, rejected: false });
+  });
+
+  it("desktop with no refresh token has no session to recover", async () => {
+    tauriFlag.isTauri = true;
+    getState.mockReturnValue({ refreshTokenValue: null, setTokens, clearAuth });
+    expect(await refreshSessionToken()).toEqual({ token: null, rejected: true });
   });
 });
 

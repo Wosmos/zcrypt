@@ -84,6 +84,7 @@ export default function AuthenticationDocPage() {
             "At least one uppercase letter",
             "At least one digit",
             "At least one special character (anything that isn't a letter or number)",
+            "No longer than 72 bytes, bcrypt's input limit (72 plain letters, fewer with accents or emoji)",
           ]}
         />
         <DocP>

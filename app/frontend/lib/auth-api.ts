@@ -135,7 +135,16 @@ export function setup2FA(accessToken: string): Promise<{ secret: string; uri: st
   });
 }
 
-export function enable2FA(accessToken: string, code: string): Promise<{ success: boolean }> {
+/** Toggling 2FA signs out every other session and answers with a fresh pair
+ *  for this one, which the caller must adopt with setTokens. */
+export interface TwoFAToggleResponse {
+  success: boolean;
+  access_token: string;
+  refresh_token: string;
+  backup_codes?: string[];
+}
+
+export function enable2FA(accessToken: string, code: string): Promise<TwoFAToggleResponse> {
   return authRequest("/api/auth/2fa/enable", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -154,7 +163,7 @@ export function disable2FA(
   accessToken: string,
   password: string,
   code: string,
-): Promise<{ success: boolean }> {
+): Promise<TwoFAToggleResponse> {
   return authRequest("/api/auth/2fa/disable", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },

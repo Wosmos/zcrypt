@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore, readCachedUser } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
-import { tryRefreshToken } from "@/lib/auth-fetch";
+import { refreshSessionToken, tryRefreshToken } from "@/lib/auth-fetch";
 import { prefetchVault } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync, subscribeTokens } from "@/lib/tauri";
@@ -18,6 +18,7 @@ export function AuthGuard({
 }) {
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
+  const initRunning = useRef(false);
   const {
     user,
     accessToken,
@@ -30,7 +31,9 @@ export function AuthGuard({
   } = useAuthStore();
 
   useEffect(() => {
-    if (initialized) return;
+    // The session check itself stores fresh tokens, which re-runs this effect:
+    // one check at a time is enough.
+    if (initialized || initRunning.current) return;
 
     // Show onboarding to anyone who has never seen it, full stop.
     //
@@ -78,14 +81,40 @@ export function AuthGuard({
         return;
       }
 
+      const toLogin = () => {
+        clearAuth();
+        setInitialized(true);
+        router.replace("/login");
+      };
+
+      // The web keeps its access token in memory only (store/auth.ts), so a
+      // reload starts without one: trade the httpOnly session cookie for a
+      // fresh token before anything asks for data.
+      let token = accessToken;
+      if (!token && !isTauri) {
+        const outcome = await refreshSessionToken();
+        if (outcome.rejected) {
+          toLogin();
+          return;
+        }
+        if (!outcome.token) {
+          // Offline or a 5xx: keep the session and paint what this device knows.
+          const known = readCachedUser();
+          if (known) setUser(known);
+          setInitialized(true);
+          return;
+        }
+        token = outcome.token;
+      }
+
       // Resolve the session. Refreshes go through the shared, deduped
       // tryRefreshToken: the vault prefetch below may hit a 401 and refresh at
       // the same moment, and refresh tokens rotate on use. It clears auth itself
       // on a definitive rejection; a transient miss leaves the tokens alone.
       const resolveUser = async (): Promise<"ok" | "rejected" | "transient"> => {
-        if (accessToken) {
+        if (token) {
           try {
-            setUser(await getMe(accessToken));
+            setUser(await getMe(token));
             return "ok";
           } catch {
             // token might be expired, try refresh
@@ -107,16 +136,10 @@ export function AuthGuard({
         return useAuthStore.getState().accessToken ? "transient" : "rejected";
       };
 
-      const toLogin = () => {
-        clearAuth();
-        setInitialized(true);
-        router.replace("/login");
-      };
-
       // Returning user on this device: paint the shell (and the persisted
       // lists) right away from the cached identity while the session check and
       // the vault lists load in parallel.
-      const cached = accessToken ? readCachedUser() : null;
+      const cached = token ? readCachedUser() : null;
       if (cached) {
         setUser(cached);
         setInitialized(true);
@@ -128,7 +151,7 @@ export function AuthGuard({
         return;
       }
 
-      if (accessToken) void prefetchVault();
+      if (token) void prefetchVault();
       const result = await resolveUser();
       if (result === "ok") {
         setInitialized(true);
@@ -144,7 +167,10 @@ export function AuthGuard({
       toLogin();
     }
 
-    void init();
+    initRunning.current = true;
+    void init().finally(() => {
+      initRunning.current = false;
+    });
   }, [
     initialized,
     accessToken,

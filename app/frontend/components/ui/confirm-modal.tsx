@@ -19,6 +19,8 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: ConfirmVariant;
   loading?: boolean;
+  confirmDisabled?: boolean;
+  children?: React.ReactNode;
 }
 
 const variantConfig: Record<
@@ -65,6 +67,8 @@ export function ConfirmModal({
   cancelLabel = "Cancel",
   variant = "danger",
   loading = false,
+  confirmDisabled = false,
+  children,
 }: ConfirmModalProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const config = variantConfig[variant];
@@ -87,9 +91,9 @@ export function ConfirmModal({
   }, [open, onClose]);
 
   const handleConfirm = useCallback(() => {
-    if (loading) return;
+    if (loading || confirmDisabled) return;
     onConfirm();
-  }, [loading, onConfirm]);
+  }, [loading, confirmDisabled, onConfirm]);
 
   if (!open) return null;
 
@@ -135,6 +139,8 @@ export function ConfirmModal({
           </div>
         )}
 
+        {children}
+
         {/* Actions */}
         <div className="flex gap-3 p-6 pt-5">
           <button
@@ -149,7 +155,7 @@ export function ConfirmModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || confirmDisabled}
             className={cn(
               "flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50",
               config.confirmBg,

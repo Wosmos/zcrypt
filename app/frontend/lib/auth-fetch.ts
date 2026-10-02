@@ -6,15 +6,27 @@ import { isTauri, refreshSession } from "@/lib/tauri";
 // (lib/upload-session.ts) so refreshes are deduped. This is critical: refresh
 // tokens ROTATE on use, so two independent concurrent refreshes with the same
 // token would make one fail and clearAuth(): logging the user out mid-upload.
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise: Promise<RefreshOutcome> | null = null;
+
+/** token is the new access token, or null when the refresh failed. rejected
+ *  tells a definitive "no session" (the server refused the refresh token, and
+ *  auth was cleared) apart from a transient miss that leaves it alone. */
+export interface RefreshOutcome {
+  token: string | null;
+  rejected: boolean;
+}
 
 export async function tryRefreshToken(): Promise<string | null> {
+  return (await refreshSessionToken()).token;
+}
+
+export async function refreshSessionToken(): Promise<RefreshOutcome> {
   const { refreshTokenValue, setTokens, clearAuth } = useAuthStore.getState();
   // Desktop keeps the token in memory/localStorage and must have it to try.
   // Web never persists it (store/auth.ts) — refreshTokenValue is null after
   // any reload even for a logged-in user, so the web path always attempts
   // the call and relies on the httpOnly zcrypt_rt cookie instead.
-  if (!refreshTokenValue && isTauri) return null;
+  if (!refreshTokenValue && isTauri) return { token: null, rejected: true };
 
   if (refreshPromise) return refreshPromise;
 
@@ -32,11 +44,11 @@ export async function tryRefreshToken(): Promise<string | null> {
     : refreshTokenApi(refreshTokenValue);
 
   refreshPromise = rotate
-    .then((data) => {
+    .then((data): RefreshOutcome => {
       setTokens(data.access_token, data.refresh_token);
-      return data.access_token;
+      return { token: data.access_token, rejected: false };
     })
-    .catch((err: unknown) => {
+    .catch((err: unknown): RefreshOutcome => {
       // Only a DEFINITIVE auth failure (the refresh token itself is invalid/
       // expired → 401/403) should log the user out. A transient failure, network
       // blip, timeout, or 5xx during a long upload: must NOT clearAuth, or the
@@ -44,8 +56,9 @@ export async function tryRefreshToken(): Promise<string | null> {
       // bug). On a transient miss we return null; the caller keeps the old token
       // and the next chunk simply retries the refresh.
       const status = (err as { status?: number })?.status;
-      if (status === 401 || status === 403) clearAuth();
-      return null;
+      const rejected = status === 401 || status === 403;
+      if (rejected) clearAuth();
+      return { token: null, rejected };
     })
     .finally(() => {
       refreshPromise = null;

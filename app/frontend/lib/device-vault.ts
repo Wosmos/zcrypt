@@ -13,7 +13,9 @@ import { isTauri } from "@/lib/tauri";
  * NOT a defence against active malware/XSS already running on this device
  * (such code could call decrypt with the key, or in the desktop case below,
  * read the key bytes directly); that is the inherent trade-off of staying
- * unlocked on a device, and it's strictly the user's opt-in choice.
+ * unlocked on a device. The key lives beside the ciphertext, so anyone with
+ * this browser profile can unlock too: on the web it is therefore off unless
+ * the user ticks "keep me unlocked" (store/passphrase.ts).
  *
  * extractable: false in the browser, true in the Tauri desktop shell.
  * WebKit's keychain quirk:

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persistPassphrase, loadPassphrase, clearPersistedPassphrase } from "@/lib/device-vault";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
-import { setShellPassphrase, clearShellPassphrase } from "@/lib/tauri";
+import { isTauri, setShellPassphrase, clearShellPassphrase } from "@/lib/tauri";
 import { ttlDeadline, minutesUntil } from "@/lib/ttl";
 
 // clearDecryptCache() drops the in-memory blob cache + derived KEKs AND fans out
@@ -19,9 +19,12 @@ const SESSION_TTL_MIN = 15;
 function readRememberPref(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    // Default ON: stay unlocked on this device unless the user explicitly opts
-    // out ("0"). So the first unlock persists and they're never re-prompted here.
-    return localStorage.getItem(REMEMBER_KEY) !== "0";
+    // Web defaults OFF: a remembered passphrase leaves the vault open to anyone
+    // with this browser profile, so it is only ever the explicit "keep me
+    // unlocked" choice at unlock. Desktop keeps its default until the
+    // passphrase moves into the OS keychain.
+    const pref = localStorage.getItem(REMEMBER_KEY);
+    return isTauri ? pref !== "0" : pref === "1";
   } catch {
     return false;
   }
@@ -61,7 +64,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   cacheUntil: null,
   persistent: false,
   rememberDevice: readRememberPref(),
-  rememberByDefault: true,
+  rememberByDefault: isTauri,
 
   setPassphrase: (passphrase, ttlMinutes = SESSION_TTL_MIN) => {
     if (clearTimer) {
@@ -174,7 +177,11 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   },
 
   rehydrate: async () => {
-    if (!get().rememberDevice) return;
+    if (!get().rememberDevice) {
+      // A copy left by the old default-on behaviour must not outlive the opt-out.
+      void clearPersistedPassphrase();
+      return;
+    }
     if (get().cachedPassphrase) return; // already unlocked this session
     const pp = await loadPassphrase();
     if (pp && !get().cachedPassphrase) {

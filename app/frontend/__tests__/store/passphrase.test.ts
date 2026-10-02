@@ -147,11 +147,13 @@ describe("usePassphraseStore", () => {
       expect(s.persistent).toBe(true);
     });
 
-    it("rehydrate is a no-op when remember-device is off", async () => {
+    it("rehydrate stays locked and wipes any stored copy when remember-device is off", async () => {
       usePassphraseStore.getState().setRememberDevice(false);
+      vi.clearAllMocks();
       await usePassphraseStore.getState().rehydrate();
       expect(usePassphraseStore.getState().cachedPassphrase).toBeNull();
       expect(deviceVault.loadPassphrase).not.toHaveBeenCalled();
+      expect(deviceVault.clearPersistedPassphrase).toHaveBeenCalled();
     });
 
     it("rehydrate is a no-op when already unlocked this session", async () => {
@@ -258,6 +260,40 @@ describe("usePassphraseStore", () => {
       vi.stubGlobal("window", undefined);
       const mod = await import("@/store/passphrase");
       expect(mod.usePassphraseStore.getState().rememberDevice).toBe(false);
+      vi.resetModules();
+    });
+
+    it("readRememberPref defaults to off on the web until the user opts in", async () => {
+      localStorage.removeItem("zcrypt-remember-device");
+      vi.resetModules();
+      const off = await import("@/store/passphrase");
+      expect(off.usePassphraseStore.getState().rememberDevice).toBe(false);
+      expect(off.usePassphraseStore.getState().rememberByDefault).toBe(false);
+
+      localStorage.setItem("zcrypt-remember-device", "1");
+      vi.resetModules();
+      const on = await import("@/store/passphrase");
+      expect(on.usePassphraseStore.getState().rememberDevice).toBe(true);
+      localStorage.removeItem("zcrypt-remember-device");
+      vi.resetModules();
+    });
+
+    it("readRememberPref keeps desktop on unless the user opted out", async () => {
+      vi.resetModules();
+      vi.doMock("@/lib/tauri", async (orig) => ({
+        ...(await orig<typeof import("@/lib/tauri")>()),
+        isTauri: true,
+      }));
+      localStorage.removeItem("zcrypt-remember-device");
+      const on = await import("@/store/passphrase");
+      expect(on.usePassphraseStore.getState().rememberDevice).toBe(true);
+
+      localStorage.setItem("zcrypt-remember-device", "0");
+      vi.resetModules();
+      const off = await import("@/store/passphrase");
+      expect(off.usePassphraseStore.getState().rememberDevice).toBe(false);
+      vi.doUnmock("@/lib/tauri");
+      localStorage.removeItem("zcrypt-remember-device");
       vi.resetModules();
     });
 

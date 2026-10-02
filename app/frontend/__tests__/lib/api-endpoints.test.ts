@@ -69,8 +69,8 @@ const cases: Case[] = [
   // admin
   { name: "adminListUsers", run: () => api.adminListUsers(), path: "/api/admin/users" },
   { name: "adminGetStats", run: () => api.adminGetStats(), path: "/api/admin/stats" },
-  { name: "adminSetUserRole", run: () => api.adminSetUserRole("u", "admin"), path: "/api/admin/users/u/role", method: "PUT" },
-  { name: "adminDeleteUser", run: () => api.adminDeleteUser("u"), path: "/api/admin/users/u", method: "DELETE" },
+  { name: "adminSetUserRole", run: () => api.adminSetUserRole("u", "admin", { password: "p", code: "" }), path: "/api/admin/users/u/role", method: "PUT" },
+  { name: "adminDeleteUser", run: () => api.adminDeleteUser("u", { password: "p", code: "123456" }), path: "/api/admin/users/u", method: "DELETE" },
   { name: "adminListTokens", run: () => api.adminListTokens(), path: "/api/admin/tokens" },
   { name: "adminCreateToken", run: () => api.adminCreateToken({ platform: "github", token: "t", account: "a" } as never), path: "/api/admin/tokens", method: "POST" },
   { name: "adminDeleteToken", run: () => api.adminDeleteToken("tid"), path: "/api/admin/tokens/tid", method: "DELETE" },

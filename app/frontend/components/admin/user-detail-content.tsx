@@ -17,6 +17,7 @@ import { EVENT_ICONS } from "@/lib/audit-events";
 import { toast } from "@/store/toast";
 import { Role } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { EMPTY_REAUTH, ReauthFields, reauthReady } from "@/components/admin/reauth-fields";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
 import { RoleBadge, PlanBadge } from "@/components/admin/badges";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
@@ -59,6 +60,13 @@ export function AdminUserDetailContent() {
     detail: string;
     newValue?: string;
   } | null>(null);
+  const [reauth, setReauth] = useState(EMPTY_REAUTH);
+  const needsReauth = confirmAction?.type === "delete" || confirmAction?.type === "role";
+
+  const closeConfirm = () => {
+    setConfirmAction(null);
+    setReauth(EMPTY_REAUTH);
+  };
 
   const [editingQuota, setEditingQuota] = useState(false);
   const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
@@ -145,18 +153,18 @@ export function AdminUserDetailContent() {
     setBusy(true);
     try {
       if (confirmAction.type === "delete") {
-        await adminDeleteUser(u.id);
+        await adminDeleteUser(u.id, reauth);
         toast.success("User deleted");
         router.push("/admin/users");
         return;
       } else if (confirmAction.type === "role") {
-        await adminSetUserRole(u.id, confirmAction.newValue!);
+        await adminSetUserRole(u.id, confirmAction.newValue!, reauth);
         toast.success(`Role updated to ${confirmAction.newValue}`);
       } else if (confirmAction.type === "plan") {
         await adminSetUserPlan(u.id, confirmAction.newValue!);
         toast.success(`Plan updated to ${confirmAction.newValue}`);
       }
-      setConfirmAction(null);
+      closeConfirm();
       void fetchUser();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
@@ -479,14 +487,17 @@ export function AdminUserDetailContent() {
         <ConfirmModal
           open={!!confirmAction}
           onConfirm={executeAction}
-          onClose={() => setConfirmAction(null)}
+          onClose={closeConfirm}
           title={modalProps.title}
           description={confirmAction!.detail}
           details={u.username}
           confirmLabel={modalProps.confirmLabel}
           variant={modalProps.variant}
           loading={busy}
-        />
+          confirmDisabled={needsReauth && !reauthReady(reauth)}
+        >
+          {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
+        </ConfirmModal>
       )}
     </>
   );
