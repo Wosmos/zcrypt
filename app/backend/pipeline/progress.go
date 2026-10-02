@@ -46,6 +46,13 @@ func (pe *ProgressEmitter) Subscribe(id, userID string, isAdmin bool) <-chan SSE
 	return ch
 }
 
+// SubscriberCount returns how many listeners are connected.
+func (pe *ProgressEmitter) SubscriberCount() int {
+	pe.mu.RLock()
+	defer pe.mu.RUnlock()
+	return len(pe.subscribers)
+}
+
 // Unsubscribe removes a listener.
 func (pe *ProgressEmitter) Unsubscribe(id string) {
 	pe.mu.Lock()

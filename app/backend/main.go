@@ -134,7 +134,7 @@ func main() {
 	} else {
 		rateLimited = cmd.RateLimitMiddleware(200, time.Second, cfg.TrustedProxyCount, mux)
 	}
-	handler := requestLogger(corsMiddleware(server.MaintenanceGate(exemptLongLived(streamCtx, rateLimited, mux))))
+	handler := server.RequestLogger(corsMiddleware(server.MaintenanceGate(exemptLongLived(streamCtx, rateLimited, mux))))
 
 	// Register every API route. This is the single source of truth for the
 	// route table, shared with the integration test harness (see
@@ -182,39 +182,6 @@ func exemptLongLived(streamCtx context.Context, rateLimited http.Handler, direct
 	})
 }
 
-// statusWriter wraps http.ResponseWriter to capture the status code.
-type statusWriter struct {
-	http.ResponseWriter
-	code int
-}
-
-func (sw *statusWriter) WriteHeader(code int) {
-	sw.code = code
-	sw.ResponseWriter.WriteHeader(code)
-}
-
-func requestLogger(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip logging SSE, health checks, and WebSocket endpoints (statusWriter hides http.Hijacker)
-		if strings.HasPrefix(r.URL.Path, "/api/events") || r.URL.Path == "/api/health" || r.URL.Path == "/api/transfer/ws" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		start := time.Now()
-		sw := &statusWriter{ResponseWriter: w, code: http.StatusOK}
-		next.ServeHTTP(sw, r)
-
-		slog.Info("request",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"status", sw.code,
-			"duration_ms", time.Since(start).Milliseconds(),
-			"ip", r.RemoteAddr,
-		)
-	})
-}
-
 func corsMiddleware(next http.Handler) http.Handler {
 	// Build allowed origins from ALLOWED_ORIGINS env var (comma-separated) or FRONTEND_URL fallback
 	allowedOrigins := map[string]bool{}
@@ -256,7 +223,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password, X-Download-Ticket")
-		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed, X-Request-ID")
 		// Let the browser (and the desktop webview) cache a preflight for 10
 		// minutes instead of sending an OPTIONS before every authed request.
 		w.Header().Set("Access-Control-Max-Age", "600")

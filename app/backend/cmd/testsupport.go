@@ -86,6 +86,21 @@ func (s *Server) DrainDeletions(ctx context.Context) {
 	}
 }
 
+// PurgeScheduledDeletions runs the cleanup pass that erases accounts whose
+// deletion date has passed.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) PurgeScheduledDeletions(ctx context.Context) int {
+	return s.purgeScheduledDeletions(ctx)
+}
+
+// SetMetricsToken enables the metrics endpoint with the given bearer token.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) SetMetricsToken(token string) {
+	s.cfg.MetricsToken = token
+}
+
 // EnableTestOAuth registers a fake provider config so the OAuth callback can be
 // driven against a stub provider server in integration tests.
 func (s *Server) EnableTestOAuth(provider, clientID, clientSecret string) {

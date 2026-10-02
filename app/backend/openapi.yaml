@@ -354,6 +354,102 @@ paths:
       responses:
         "200":
           description: Current user info
+    delete:
+      tags: [Auth]
+      summary: Schedule the caller's account for deletion
+      description: >
+        Re-verifies the caller, then schedules permanent deletion 7 days out and
+        signs every device out. Signing back in and calling
+        `/api/auth/me/deletion/cancel` before then keeps the account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+                code: { type: string, description: "TOTP code, required when 2FA is on" }
+      responses:
+        "200":
+          description: Deletion scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deletion_scheduled_at: { type: string, format: date-time }
+        "401":
+          description: Re-authentication failed
+        "429":
+          description: Too many attempts
+
+  /api/auth/me/deletion/cancel:
+    post:
+      tags: [Auth]
+      summary: Keep an account that is scheduled for deletion
+      responses:
+        "200":
+          description: Deletion cancelled
+        "404":
+          description: No deletion is scheduled
+
+  /api/auth/me/export:
+    get:
+      tags: [Auth]
+      summary: Download everything stored about the account as JSON
+      responses:
+        "200":
+          description: Account export (attachment)
+
+  /api/auth/sessions:
+    get:
+      tags: [Auth]
+      summary: List signed-in devices
+      responses:
+        "200":
+          description: One entry per sign-in session, `current` marks the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    ip: { type: string }
+                    user_agent: { type: string }
+                    started_at: { type: string, format: date-time }
+                    last_active: { type: string, format: date-time }
+                    expires_at: { type: string, format: date-time }
+                    current: { type: boolean }
+
+  /api/auth/sessions/{id}:
+    delete:
+      tags: [Auth]
+      summary: Sign one device out
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Session revoked
+        "404":
+          description: No such session for this account
+
+  /api/auth/sessions/revoke-others:
+    post:
+      tags: [Auth]
+      summary: Sign out every device except the caller
+      responses:
+        "200":
+          description: Number of sessions revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked: { type: integer }
 
   /api/upload/init:
     post:

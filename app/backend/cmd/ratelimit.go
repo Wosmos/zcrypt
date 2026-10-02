@@ -45,6 +45,7 @@ func (rl *rateLimiter) allow(key string) bool {
 
 	if len(valid) >= rl.limit {
 		rl.requests[key] = valid
+		metrics.rateLimited.Add(1)
 		return false
 	}
 

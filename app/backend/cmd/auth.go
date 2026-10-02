@@ -367,7 +367,7 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.RetireRefreshToken(ctx, rt.ID, refreshReuseGrace); err != nil {
 		log.Printf("refresh: retire token: %v", err)
 	}
-	s.issueTokens(w, r, user)
+	s.writeTokenResponse(w, r, user, rt, false)
 }
 
 // HandleLogout invalidates the refresh token.
@@ -1442,48 +1442,65 @@ func clearRefreshCookie(w http.ResponseWriter) {
 	})
 }
 
-// issueTokens generates JWT + refresh token, sets the refresh-token cookie
-// for web clients, and writes both tokens as a JSON response (still needed
-// by the desktop/Tauri client — see refreshCookieName's comment).
+// issueTokens starts a new sign-in session: it generates a JWT + refresh token,
+// sets the refresh-token cookie for web clients, and writes both tokens as a
+// JSON response (still needed by the desktop/Tauri client, see
+// refreshCookieName's comment).
 func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
-	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, user, nil, false)
 }
 
 // issueDecoyTokens issues JWT tokens with the decoy flag set.
 func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
-	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, user, nil, true)
 }
 
-// writeTokenResponse generates a refresh token for an already-generated access
-// token, persists it, sets the web refresh cookie, and writes the JSON
-// response shared by issueTokens and issueDecoyTokens.
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string) {
+// mintTokens creates and persists an access + refresh token pair. A nil parent
+// starts a new session; a parent (the refresh token being rotated) keeps the
+// new pair in that session.
+func (s *Server) mintTokens(r *http.Request, user *types.User, parent *types.RefreshToken, decoy bool) (string, string, error) {
 	ctx := r.Context()
-
-	refreshToken, err := auth.GenerateRandomToken()
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
+	sessionID, startedAt := uuid.New().String(), time.Now()
+	if parent != nil && parent.SessionID != "" {
+		sessionID, startedAt = parent.SessionID, parent.SessionStartedAt
 	}
 
-	s.db.InsertRefreshToken(ctx, &types.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		TokenHash: auth.HashToken(refreshToken),
-		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        s.clientIP(r),
-		UserAgent: r.UserAgent(),
-	})
+	accessToken, err := auth.GenerateSessionAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion, sessionID, decoy)
+	if err != nil {
+		return "", "", err
+	}
+	refreshToken, err := auth.GenerateRandomToken()
+	if err != nil {
+		return "", "", err
+	}
+
+	if parent == nil {
+		s.notifyNewDevice(ctx, r, user)
+	}
+
+	if err := s.db.InsertRefreshToken(ctx, &types.RefreshToken{
+		ID:               uuid.New().String(),
+		UserID:           user.ID,
+		TokenHash:        auth.HashToken(refreshToken),
+		ExpiresAt:        time.Now().Add(auth.RefreshTokenDuration),
+		IP:               s.clientIP(r),
+		UserAgent:        r.UserAgent(),
+		SessionID:        sessionID,
+		SessionStartedAt: startedAt,
+	}); err != nil {
+		return "", "", err
+	}
+	return accessToken, refreshToken, nil
+}
+
+// writeTokenResponse mints a token pair (see mintTokens), sets the web refresh
+// cookie, and writes the JSON response shared by every sign-in path.
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, parent *types.RefreshToken, decoy bool) {
+	accessToken, refreshToken, err := s.mintTokens(r, user, parent, decoy)
+	if err != nil {
+		internalError(w, "issue tokens", err)
+		return
+	}
 
 	setRefreshCookie(w, refreshToken)
 	writeJSON(w, http.StatusOK, map[string]interface{}{

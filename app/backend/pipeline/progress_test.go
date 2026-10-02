@@ -9,6 +9,16 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
+func TestSubscriberCount(t *testing.T) {
+	pe := NewProgressEmitter()
+	require.Equal(t, 0, pe.SubscriberCount())
+	pe.Subscribe("a", "user-1", false)
+	pe.Subscribe("b", "user-2", false)
+	assert.Equal(t, 2, pe.SubscriberCount())
+	pe.Unsubscribe("a")
+	assert.Equal(t, 1, pe.SubscriberCount())
+}
+
 func TestEmitRoutesToCorrectUser(t *testing.T) {
 	pe := NewProgressEmitter()
 
