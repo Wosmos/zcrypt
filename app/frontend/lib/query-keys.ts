@@ -39,7 +39,7 @@ export const qk = {
   recentUploads: (limit: number) => ["analytics", "recent", limit] as const,
   // Admin console. One root so every admin view shares the 2m stale time and
   // keeps the previous page while a new filter/page loads.
-  adminOverview: ["admin", "overview"] as const,
+  adminOverview: ["admin", "overview", "v2"] as const,
   adminUsers: ["admin", "users"] as const,
   adminUser: (id: string) => ["admin", "user", id] as const,
   adminAudit: (page: number, eventType: string) => ["admin", "audit", page, eventType] as const,
