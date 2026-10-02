@@ -26,6 +26,7 @@ import { ProfileSettings } from "@/components/settings/profile-settings";
 import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
+import { ScreenPrivacy } from "@/components/settings/screen-privacy";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
@@ -359,23 +360,26 @@ export function SettingsContent() {
         );
       case "privacy":
         return (
-          <SettingGroup
-            label="Advanced safeguards"
-            footnote="For high-risk threat models. Both are optional."
-          >
-            <LinkRow
-              href="/settings/deadman"
-              icon={<ShieldAlert className="h-4 w-4" />}
-              title="Dead man's switch"
-              subtitle="Auto-notify a contact if you go silent"
-            />
-            <LinkRow
-              href="/settings/decoy"
-              icon={<Eye className="h-4 w-4" />}
-              title="Decoy profile"
-              subtitle="Plausible deniability with a decoy vault"
-            />
-          </SettingGroup>
+          <div className="space-y-8">
+            <ScreenPrivacy />
+            <SettingGroup
+              label="Advanced safeguards"
+              footnote="For high-risk threat models. Both are optional."
+            >
+              <LinkRow
+                href="/settings/deadman"
+                icon={<ShieldAlert className="h-4 w-4" />}
+                title="Dead man's switch"
+                subtitle="Auto-notify a contact if you go silent"
+              />
+              <LinkRow
+                href="/settings/decoy"
+                icon={<Eye className="h-4 w-4" />}
+                title="Decoy profile"
+                subtitle="Plausible deniability with a decoy vault"
+              />
+            </SettingGroup>
+          </div>
         );
       case "backup":
         return <ExportImport files={files} />;

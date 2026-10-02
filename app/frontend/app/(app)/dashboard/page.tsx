@@ -53,6 +53,8 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useQuota } from "@/hooks/useQuota";
 import { useFeedbackTrigger } from "@/hooks/useFeedbackTrigger";
 import { useVaultActions } from "@/hooks/useVaultActions";
+import { useAndroidShare } from "@/hooks/useAndroidShare";
+import { toDesktopFile } from "@/lib/tauri";
 import { useFolderProtection } from "@/hooks/useFolderProtection";
 import { useFileDecryptor } from "@/hooks/useFileDecryptor";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
@@ -375,6 +377,12 @@ export default function VaultPage() {
     },
     [actions],
   );
+
+  const handleSharedFiles = useCallback(
+    (paths: string[]) => actions.handleFilesSelected(paths.map(toDesktopFile)),
+    [actions],
+  );
+  useAndroidShare(handleSharedFiles, vault.ready);
 
   const handlePageDrop = useCallback(
     (e: React.DragEvent) => {

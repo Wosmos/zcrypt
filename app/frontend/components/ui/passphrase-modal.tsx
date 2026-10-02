@@ -7,7 +7,12 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { Lock, X, Loader2, Fingerprint } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isTauri, biometricAvailable, biometricAuthenticate } from "@/lib/tauri";
+import {
+  isTauri,
+  biometricAvailable,
+  biometricAuthenticate,
+  biometricMethodName,
+} from "@/lib/tauri";
 import { loadPassphrase } from "@/lib/device-vault";
 
 interface PassphraseModalProps {
@@ -49,7 +54,7 @@ export function PassphraseModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Touch ID (desktop only): offered when the shell reports biometrics are
+  // Biometric unlock (native shells only): offered when the shell reports biometrics are
   // enrolled AND this device already has a passphrase to hand back, nothing
   // to unlock with otherwise. Re-checked every time the modal opens.
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -87,7 +92,7 @@ export function PassphraseModal({
     };
   }, [open]);
 
-  // Shared by both the typed-passphrase submit and the Touch ID unlock, so a
+  // Shared by both the typed-passphrase submit and the biometric unlock, so a
   // biometric unlock completes exactly the same way a correct typed
   // passphrase would (same verify guard, same remember/cache/onConfirm path).
   const confirmWithPassphrase = useCallback(
@@ -214,7 +219,9 @@ export function PassphraseModal({
               ) : (
                 <Fingerprint className="h-4 w-4 text-[var(--color-accent)]" />
               )}
-              {bioBusy ? t("bioWaiting") : t("bioUnlock")}
+              {bioBusy
+                ? t("bioWaiting")
+                : t("bioUnlock", { method: biometricMethodName() ?? t("bioMethod") })}
             </button>
             {bioError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>}
             <div className="mt-4 flex items-center gap-3">
