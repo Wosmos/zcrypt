@@ -111,6 +111,11 @@ export async function sidecarUpload(
   });
 }
 
+/** Byte sizes of local paths (0 for any the shell can't stat). */
+export async function fileSizes(paths: string[]): Promise<number[]> {
+  return tauriInvoke<number[]>("file_sizes", { paths });
+}
+
 /**
  * Ask the shell to cancel an in-flight transfer previously started with the
  * given `transferId`. Best-effort: resolves `true` if a live transfer was

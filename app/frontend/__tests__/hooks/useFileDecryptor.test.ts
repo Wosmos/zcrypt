@@ -23,6 +23,7 @@ const {
   resolveFilePasswordGlobalMock,
   authUser,
   tauriMock,
+  decryptCacheClear,
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
   getFileChunkMock: vi.fn(),
@@ -49,6 +50,9 @@ const {
     sidecarDecryptToMemory: vi.fn(),
     subscribeProgress: vi.fn(),
   },
+  // The module registers its shared-pool teardown on the decrypt cache's
+  // clear event; captured so a test can fire a "lock".
+  decryptCacheClear: { current: undefined as undefined | (() => void) },
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -94,6 +98,9 @@ vi.mock("@/lib/decrypt-cache", () => ({
   isWarmOrInflight: isWarmOrInflightMock,
   cachedDecrypt: cachedDecryptMock,
   cachedResolveCEK: cachedResolveCEKMock,
+  onDecryptCacheClear: (cb: () => void) => {
+    decryptCacheClear.current = cb;
+  },
 }));
 
 vi.mock("@/hooks/useFolderProtection", () => {
@@ -163,6 +170,8 @@ function flushMicrotasks() {
 }
 
 beforeEach(() => {
+  // Drop the previous test's shared pool so each test starts from a fresh one.
+  decryptCacheClear.current?.();
   vi.resetAllMocks();
   // A plain function (not an arrow function) so `new WorkerPool()`, a real
   // `new` invocation: can construct it; arrow functions aren't constructible.
@@ -236,7 +245,6 @@ describe("runDecryptPipeline", () => {
     expect(processMock).toHaveBeenCalledTimes(3);
     expect(onProgress).toHaveBeenCalledTimes(3);
     expect(onProgress).toHaveBeenLastCalledWith(3, 3);
-    expect(terminateMock).toHaveBeenCalledTimes(1);
 
     const text = await blob.text();
     expect(text).toBe("chunk-0chunk-1chunk-2");
@@ -286,7 +294,7 @@ describe("runDecryptPipeline", () => {
     expect(workerPoolCtorMock).not.toHaveBeenCalled();
   });
 
-  it("propagates a mid-pipeline chunk fetch failure and still terminates the pool", async () => {
+  it("propagates a mid-pipeline chunk fetch failure and stops pulling the remaining chunks", async () => {
     const file = makeFile({ chunk_count: 3 });
     const meta = makeMeta({ chunk_count: 3 });
     getFileMetaMock.mockResolvedValue(meta);
@@ -301,10 +309,31 @@ describe("runDecryptPipeline", () => {
         plaintext: chunkPlaintext(input.chunkIndex),
       })
     );
-    getDeviceProfileMock.mockReturnValue({ maxConcurrentDownloads: 3 });
+    getDeviceProfileMock.mockReturnValue({ maxConcurrentDownloads: 1 });
 
     await expect(runDecryptPipeline(file, "pw")).rejects.toBe(fetchErr);
+    expect(getFileChunkMock.mock.calls.map((c) => c[1])).toEqual([0, 1]);
+  });
+
+  it("reuses one lazily created worker pool across decrypts and drops it on a lock", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockImplementation(async (input: { chunkIndex: number }) => ({
+      chunkIndex: input.chunkIndex,
+      plaintext: chunkPlaintext(input.chunkIndex),
+    }));
+    sha256HexMock.mockResolvedValue("h");
+
+    expect(workerPoolCtorMock).not.toHaveBeenCalled();
+    await runDecryptPipeline(makeFile(), "pw");
+    await runDecryptPipeline(makeFile({ id: "file-2" }), "pw");
+    expect(workerPoolCtorMock).toHaveBeenCalledTimes(1);
+    expect(terminateMock).not.toHaveBeenCalled();
+
+    decryptCacheClear.current?.();
     expect(terminateMock).toHaveBeenCalledTimes(1);
+    await runDecryptPipeline(makeFile(), "pw");
+    expect(workerPoolCtorMock).toHaveBeenCalledTimes(2);
   });
 
   it("wraps a worker pool decrypt rejection as a generic wrong-passphrase error", async () => {
@@ -321,7 +350,6 @@ describe("runDecryptPipeline", () => {
     await expect(runDecryptPipeline(file, "pw")).rejects.toThrow(
       "Decryption failed, wrong passphrase?"
     );
-    expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws IntegrityError when the reassembled SHA-256 does not match", async () => {
@@ -412,15 +440,14 @@ describe("runDecryptPipeline", () => {
     expect(blob.size).toBe(0);
     expect(getFileChunkMock).not.toHaveBeenCalled();
     expect(processMock).not.toHaveBeenCalled();
-    expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 });
 
 // ── Desktop: decrypt inside the in-process Rust core ────────────────────────
 // On Tauri the pipeline hands off to the core (byos-direct bytes, native crypto
-// speed, the core's DNS/relay resilience). Any failure falls through to the
-// in-browser pipeline, which stays the zero-knowledge path and the source of
-// truth for wrong-password / integrity error typing.
+// speed, the core's DNS/relay resilience). Only "the core can't serve this"
+// falls through to the in-browser pipeline; any other failure surfaces at once
+// with the web path's error types.
 describe("runDecryptPipeline on desktop", () => {
   /** Re-imports the module with isTauri true so its module-level const is set. */
   async function importDesktop() {
@@ -494,12 +521,15 @@ describe("runDecryptPipeline on desktop", () => {
     expect(tauriMock.subscribeProgress).not.toHaveBeenCalled();
   });
 
-  it("falls through to the in-browser pipeline when the core fails", async () => {
+  it.each([
+    "engine not connected. Call start_sync first",
+    "file too large for in-memory decrypt: 600000000 bytes (cap 536870912)",
+  ])("falls through to the in-browser pipeline when the core cannot serve it (%s)", async (reason) => {
     const { runDecryptPipeline: run } = await importDesktop();
     const unlisten = vi.fn();
     tauriMock.subscribeProgress.mockResolvedValue(unlisten);
-    // e.g. core not connected yet, file oversized for memory, network down.
-    tauriMock.sidecarDecryptToMemory.mockRejectedValue(new Error("core not ready"));
+    // Tauri rejects with the Rust error as a bare string.
+    tauriMock.sidecarDecryptToMemory.mockRejectedValue(reason);
 
     getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
     getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
@@ -516,6 +546,30 @@ describe("runDecryptPipeline on desktop", () => {
     expect(blob.size).toBe(chunkPlaintext(0).byteLength);
     // The subscription is released on the failure path too, not leaked.
     expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces a real core failure at once instead of re-running the web pipeline", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    tauriMock.sidecarDecryptToMemory.mockRejectedValue(new Error("api: http: connection reset"));
+
+    await expect(run(makeFile(), "pw")).rejects.toThrow("connection reset");
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+  });
+
+  it("types the core's errors like the web path: string rejections and integrity", async () => {
+    const mod = await importDesktop();
+    tauriMock.sidecarDecryptToMemory.mockRejectedValueOnce(
+      "crypto: decryption failed: wrong passphrase or corrupt data",
+    );
+    await expect(mod.runDecryptPipeline(makeFile(), "pw")).rejects.toThrow("wrong passphrase");
+
+    tauriMock.sidecarDecryptToMemory.mockRejectedValueOnce(
+      "integrity: content hash mismatch: wrong passphrase or corrupt data",
+    );
+    await expect(mod.runDecryptPipeline(makeFile(), "pw")).rejects.toBeInstanceOf(
+      mod.IntegrityError,
+    );
+    expect(getFileMetaMock).not.toHaveBeenCalled();
   });
 });
 

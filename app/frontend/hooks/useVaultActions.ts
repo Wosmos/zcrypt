@@ -214,6 +214,8 @@ export function useVaultActions({
       // redundant native dialog (that double-dialog was the flaky-first-
       // attempt bug: the picker that mattered got missed behind the one the
       // dropzone had already opened and resolved).
+      // 0/unset means "unlimited" → defer to the device-profile default.
+      const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
       if (isTauri) {
         const paths = uploadFiles.map(desktopPath).filter((p): p is string => !!p);
         // Only thread paths through when we actually have them (the dropzone's
@@ -224,15 +226,16 @@ export function useVaultActions({
         // web path before, so desktop uploads silently fell back to the
         // backend's Auto default (Telegram-first) ignoring the selection).
         const desktopPlatform = platformOverride ?? selectedPlatform ?? undefined;
-        if (paths.length > 0) {
-          void startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform, folderId);
-        } else {
-          void startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform, folderId);
-        }
+        void startDesktopUpload(
+          wrapPassphrase,
+          refresh,
+          paths.length > 0 ? paths : undefined,
+          desktopPlatform,
+          folderId,
+          maxConcurrent,
+        );
         return;
       }
-      // 0/unset means "unlimited" → defer to the device-profile default.
-      const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
       // The user's picker choice is honored as-is (no size-based re-routing:
       // "Auto" resolves server-side, Telegram first). `platformOverride` pins a
       // resume to its original platform.

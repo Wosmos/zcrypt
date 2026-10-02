@@ -153,6 +153,7 @@ vi.mock("@/lib/tauri", () => ({
   sidecarUpload: vi.fn(async () => {}),
   subscribeProgress: vi.fn(async () => vi.fn()),
   cancelTransfer: vi.fn(async () => true),
+  fileSizes: vi.fn(async (paths: string[]) => paths.map(() => 1024)),
 }));
 
 const SMALL_PROFILE = {
@@ -1535,6 +1536,76 @@ describe("useUploadStore", () => {
       // Items are flagged desktop so pause is hidden and retry stays on the core.
       expect(useUploadStore.getState().queue.every((i) => i.desktop === true)).toBe(true);
       expect(onRefresh).toHaveBeenCalled();
+    });
+
+    /** Desktop upload whose every core call hangs until released, in order. */
+    async function startGatedDesktopUpload(paths: string[], maxConcurrent?: number) {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(paths);
+      const releases: (() => void)[] = [];
+      (sidecarUpload as Mock).mockImplementation(
+        () => new Promise<void>((res) => releases.push(res)),
+      );
+      const run = useUploadStore
+        .getState()
+        .startDesktopUpload("pw", undefined, undefined, undefined, null, maxConcurrent);
+      await flush(10);
+      return { run, releases, sidecarUpload: sidecarUpload as Mock };
+    }
+
+    it("uploads picked files concurrently instead of one after another", async () => {
+      const { run, releases, sidecarUpload } = await startGatedDesktopUpload([
+        "/tmp/a.bin",
+        "/tmp/b.bin",
+        "/tmp/c.bin",
+      ]);
+      expect(sidecarUpload).toHaveBeenCalledTimes(3);
+      for (const release of releases) release();
+      await run;
+      expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
+    });
+
+    it("never runs more files at once than the server's per-user cap", async () => {
+      const { run, releases, sidecarUpload } = await startGatedDesktopUpload(
+        ["/tmp/a.bin", "/tmp/b.bin", "/tmp/c.bin"],
+        2,
+      );
+      expect(sidecarUpload).toHaveBeenCalledTimes(2);
+      releases[0]();
+      await flush(10);
+      expect(sidecarUpload).toHaveBeenCalledTimes(3);
+      releases[1]();
+      releases[2]();
+      await run;
+    });
+
+    it("sizes concurrency from the files on disk, treating unreadable sizes as small", async () => {
+      const { fileSizes } = await import("@/lib/tauri");
+      const { recommendedUploadConcurrency } = await import("@/lib/device-profile");
+      (fileSizes as Mock).mockResolvedValueOnce([5, 7]);
+      const first = await startGatedDesktopUpload(["/tmp/a.bin", "/tmp/b.bin"]);
+      expect(recommendedUploadConcurrency).toHaveBeenLastCalledWith([5, 7]);
+      for (const release of first.releases) release();
+      await first.run;
+
+      (fileSizes as Mock).mockRejectedValueOnce(new Error("no shell"));
+      const second = await startGatedDesktopUpload(["/tmp/c.bin"]);
+      expect(recommendedUploadConcurrency).toHaveBeenLastCalledWith([0]);
+      for (const release of second.releases) release();
+      await second.run;
+    });
+
+    it("never starts a file that was cancelled while it waited for a slot", async () => {
+      const { run, releases, sidecarUpload } = await startGatedDesktopUpload(
+        ["/tmp/a.bin", "/tmp/b.bin"],
+        1,
+      );
+      const waiting = useUploadStore.getState().queue.find((i) => i.file.name === "b.bin")!;
+      useUploadStore.getState().removeFromQueue(waiting.id);
+      releases[0]();
+      await run;
+      expect(sidecarUpload).toHaveBeenCalledTimes(1);
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
     });
 
     it("marks a path failed when the core upload throws", async () => {

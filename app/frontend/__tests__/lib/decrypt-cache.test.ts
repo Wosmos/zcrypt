@@ -88,6 +88,36 @@ describe("decrypt-cache", () => {
     expect(isForegroundDecryptActive()).toBe(false);
   });
 
+  it("does not count a background decrypt as foreground work, until a viewer joins it", async () => {
+    const bg = deferred<Blob>();
+    const p = cachedDecrypt("f1", null, () => bg.promise, { background: true });
+    expect(isWarmOrInflight("f1")).toBe(true);
+    expect(isForegroundDecryptActive()).toBe(false);
+    // A second background caller joins without promoting it.
+    void cachedDecrypt("f1", null, () => bg.promise, { background: true });
+    expect(isForegroundDecryptActive()).toBe(false);
+
+    // A foreground open of the same file joins the run and promotes it.
+    const joined = cachedDecrypt("f1", null, () => bg.promise);
+    expect(isForegroundDecryptActive()).toBe(true);
+    bg.resolve(sizedBlob(10));
+    expect(await joined).toBe(await p);
+    expect(isForegroundDecryptActive()).toBe(false);
+  });
+
+  it("forgets background bookkeeping on a lock, so a later foreground run counts", async () => {
+    const bg = deferred<Blob>();
+    void cachedDecrypt("f1", null, () => bg.promise, { background: true });
+    clearDecryptCache();
+    const fg = deferred<Blob>();
+    const p = cachedDecrypt("f1", null, () => fg.promise);
+    expect(isForegroundDecryptActive()).toBe(true);
+    bg.resolve(sizedBlob(10));
+    fg.resolve(sizedBlob(10));
+    await p;
+    expect(isForegroundDecryptActive()).toBe(false);
+  });
+
   it("de-duplicates concurrent decrypts of the same id", async () => {
     const d = deferred<Blob>();
     const fn = vi.fn(() => d.promise);

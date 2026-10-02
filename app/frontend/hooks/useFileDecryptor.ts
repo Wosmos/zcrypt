@@ -2,7 +2,12 @@
 
 import { useCallback } from "react";
 import { IncorrectPassphraseError } from "@/lib/crypto";
-import { cachedDecrypt, cachedResolveCEK, isWarmOrInflight } from "@/lib/decrypt-cache";
+import {
+  cachedDecrypt,
+  cachedResolveCEK,
+  isWarmOrInflight,
+  onDecryptCacheClear,
+} from "@/lib/decrypt-cache";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { mediaMimeFor, extOf } from "@/lib/media-formats";
@@ -116,6 +121,7 @@ const MIME_BY_EXT: Record<string, string> = {
   svg: "image/svg+xml",
   bmp: "image/bmp",
   ico: "image/x-icon",
+  avif: "image/avif",
   // video
   mp4: "video/mp4",
   m4v: "video/mp4",
@@ -191,6 +197,38 @@ function looksLikeWrongKey(err: unknown): boolean {
 }
 
 /**
+ * Errors from the desktop core that mean "the in-process engine can't serve
+ * this", so the in-browser pipeline should: the engine isn't connected yet
+ * (before start_sync), or the file is over the core's in-memory cap. Anything
+ * else (wrong password, integrity, network after the core's own relay
+ * fallback) would fail the same way in the browser, so re-running the whole
+ * web pipeline only doubled the wait before the user saw the error.
+ */
+function coreCannotServe(msg: string): boolean {
+  return msg.includes("not connected") || msg.includes("too large for in-memory decrypt");
+}
+
+/** Rust errors arrive as plain strings; give them the web path's error types. */
+function coreError(err: unknown): Error {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("content hash mismatch")) return new IntegrityError();
+  return err instanceof Error ? err : new Error(msg);
+}
+
+// One worker pool for every viewer decrypt, created on first use. Spinning up
+// workers (and each one's zstd WASM) per open was a fixed cost on every file.
+// A lock / logout tears it down with the rest of the decrypt state.
+let sharedPool: WorkerPool | null = null;
+function decryptPool(): WorkerPool {
+  sharedPool ??= new WorkerPool();
+  return sharedPool;
+}
+onDecryptCacheClear(() => {
+  sharedPool?.terminate();
+  sharedPool = null;
+});
+
+/**
  * The pure decrypt pipeline (no React, no password prompting). Given a file and
  * its already-resolved password, fetch every chunk, decrypt + decompress, verify
  * the SHA-256, and return a MIME-typed Blob. Shared by decryptToBlob and prefetch
@@ -204,15 +242,14 @@ function looksLikeWrongKey(err: unknown): boolean {
  * synchronous main-thread pass existed to prevent).
  */
 export async function runDecryptPipeline(
-  file: FileMetadata,
+  file: Pick<FileMetadata, "id" | "original_name" | "folder_id">,
   password: string,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
   // Desktop: decrypt natively in the in-process Rust core, byos-direct bytes,
   // native crypto speed, and the same DNS/relay-fallback resilience as download.
-  // Any failure (core not connected yet, oversized, network) falls through to
-  // the in-browser pipeline below, which stays the zero-knowledge web path and
-  // the source of truth for wrong-password / integrity error typing.
+  // Only "the core can't serve this" falls through to the in-browser pipeline
+  // below; a real failure surfaces right away with the web path's error types.
   if (isTauri) {
     const { useAuthStore } = await import("@/store/auth");
     const userId = useAuthStore.getState().user?.id ?? "";
@@ -227,8 +264,10 @@ export async function runDecryptPipeline(
       }
       const buf = await sidecarDecryptToMemory(file.id, password, userId);
       return new Blob([buf as BlobPart], { type: mimeForFilename(file.original_name) });
-    } catch {
-      // fall through to the in-browser pipeline
+    } catch (err) {
+      if (!coreCannotServe(err instanceof Error ? err.message : String(err))) {
+        throw coreError(err);
+      }
     } finally {
       unlisten?.();
     }
@@ -272,53 +311,57 @@ export async function runDecryptPipeline(
   const decrypted: Uint8Array[] = new Array(meta.chunk_count);
   let done = 0;
   const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
-  const pool = new WorkerPool();
+  const pool = decryptPool();
+  // The pool outlives this call, so stop pulling chunks once one has failed
+  // instead of downloading the rest of a file nobody will see.
+  let failed = false;
 
-  try {
-    const processChunk = async (index: number) => {
-      // Chunk 0 may already be fetched by the legacy key check above.
-      const { data, compressed } =
-        index === 0 && chunk0 ? chunk0 : await getFileChunk(file.id, index);
+  const processChunk = async (index: number) => {
+    // Chunk 0 may already be fetched by the legacy key check above.
+    const { data, compressed } =
+      index === 0 && chunk0 ? chunk0 : await getFileChunk(file.id, index);
 
-      // Decrypt (+ decompress) off the main thread. `data` is transferred to the
-      // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
-      let out: DecryptOutput;
-      try {
-        out = await pool.process<DecryptOutput>({
-          mode: "decrypt",
-          chunkIndex: index,
-          encrypted: data,
-          keyBytes,
-          compressed,
-        });
-      } catch {
-        throw new Error("Decryption failed, wrong passphrase?");
-      }
-
-      decrypted[index] = new Uint8Array(out.plaintext);
-      done++;
-      onProgress?.(done, meta.chunk_count);
-    };
-
-    // Fetch with a concurrency limit; each fetched chunk fans out to the pool.
-    const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
-    const fetchers: Promise<void>[] = [];
-
-    for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
-      fetchers.push(
-        (async () => {
-          while (queue.length > 0) {
-            const idx = queue.shift()!;
-            await processChunk(idx);
-          }
-        })(),
-      );
+    // Decrypt (+ decompress) off the main thread. `data` is transferred to the
+    // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
+    let out: DecryptOutput;
+    try {
+      out = await pool.process<DecryptOutput>({
+        mode: "decrypt",
+        chunkIndex: index,
+        encrypted: data,
+        keyBytes,
+        compressed,
+      });
+    } catch {
+      throw new Error("Decryption failed, wrong passphrase?");
     }
 
-    await Promise.all(fetchers);
-  } finally {
-    pool.terminate();
+    decrypted[index] = new Uint8Array(out.plaintext);
+    done++;
+    onProgress?.(done, meta.chunk_count);
+  };
+
+  // Fetch with a concurrency limit; each fetched chunk fans out to the pool.
+  const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
+  const fetchers: Promise<void>[] = [];
+
+  for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
+    fetchers.push(
+      (async () => {
+        while (queue.length > 0 && !failed) {
+          const idx = queue.shift()!;
+          try {
+            await processChunk(idx);
+          } catch (err) {
+            failed = true;
+            throw err;
+          }
+        }
+      })(),
+    );
   }
+
+  await Promise.all(fetchers);
 
   const full = concatChunks(decrypted);
 

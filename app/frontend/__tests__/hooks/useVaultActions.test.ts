@@ -1458,7 +1458,7 @@ describe("Tauri desktop upload routing", () => {
     });
 
     // Platform selection ("github" in this test) is now threaded to desktop too.
-    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith("vault-pass", args.refresh, undefined, "github", null);
+    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith("vault-pass", args.refresh, undefined, "github", null, undefined);
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
 
     tauriModuleMock.isTauri = false;
@@ -1501,6 +1501,7 @@ describe("Tauri desktop upload routing", () => {
       ["/Users/me/a.bin", "/Users/me/b.bin"],
       "huggingface",
       null,
+      undefined,
     );
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
     await restoreWeb();
@@ -1522,6 +1523,7 @@ describe("Tauri desktop upload routing", () => {
       undefined,
       undefined,
       null,
+      undefined,
     );
     await restoreWeb();
   });

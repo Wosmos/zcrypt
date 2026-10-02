@@ -210,6 +210,7 @@ interface UploadStore {
     preSelectedPaths?: string[],
     platform?: string,
     folderId?: string | null,
+    maxConcurrent?: number,
   ) => Promise<void>;
 }
 
@@ -1599,6 +1600,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     preSelectedPaths,
     platform,
     folderId = null,
+    maxConcurrent,
   ) => {
     const { addToQueue, updateStatus, setError } = get();
 
@@ -1606,6 +1608,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       pickFiles: tauriPickFiles,
       sidecarUpload,
       subscribeProgress,
+      fileSizes,
     } = await import("@/lib/tauri");
     const paths =
       preSelectedPaths && preSelectedPaths.length > 0
@@ -1640,43 +1643,62 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       );
     });
 
-    try {
-      for (const filePath of paths) {
-        // Last path segment, falling back to the whole path when there isn't one
-        // (a trailing slash yields an empty segment: showing the full path in the
-        // queue row beats showing a blank name).
-        const segments = filePath.split("/");
-        const fileName = segments[segments.length - 1] || filePath;
-        // Create a minimal File object for the queue UI
-        const dummyFile = new File([], fileName);
-        const id = addToQueue(dummyFile);
-        // Mark the item core-driven: retry re-drives the core (the placeholder
-        // File has 0 bytes, so the web pipeline must never see it), and the UI
-        // hides pause.
-        patchMeta(id, { desktopPath: filePath, onRefresh, platform, folderId });
-        rememberUploadPath(filePath);
-        set((state) => ({
-          queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
-        }));
+    // Files run concurrently, sized exactly like the web startUpload: by the
+    // batch's typical file size and the network, hard-capped by the server's
+    // per-user limit. The core shares one chunk window across every file in
+    // flight, so this widens file-level parallelism without multiplying RAM.
+    const sizes = await fileSizes(paths).catch(() => paths.map(() => 0));
+    const recommended = recommendedUploadConcurrency(sizes);
+    const serverCap = maxConcurrent && maxConcurrent > 0 ? maxConcurrent : Infinity;
+    const sem = createSemaphore(Math.max(1, Math.min(recommended, serverCap)));
 
-        try {
-          // Streaming upload: encrypt-in-RAM + fire chunks in parallel, resolves
-          // only when the bytes are confirmed on the platform. `platform` is the
-          // user's picker choice ("github"/"huggingface"/… or undefined = Auto);
-          // without it the backend defaults to Auto (Telegram-first), which
-          // silently ignored the selection. Live percent comes from the progress
-          // subscription; a retry auto-resumes core-side.
-          updateStatus(id, "encrypting", undefined, "Uploading...");
-          // Queue id doubles as the transfer id so an explicit Cancel can abort
-          // this core upload mid-flight (see removeFromQueue).
-          await sidecarUpload(filePath, passphrase, platform, id, folderId);
-          forgetUploadPath(filePath);
-          updateStatus(id, "done", 100, "Done");
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Upload failed";
-          setError(id, msg);
-        }
-      }
+    const items = paths.map((filePath) => {
+      // Last path segment, falling back to the whole path when there isn't one
+      // (a trailing slash yields an empty segment: showing the full path in the
+      // queue row beats showing a blank name).
+      const segments = filePath.split("/");
+      const fileName = segments[segments.length - 1] || filePath;
+      // Create a minimal File object for the queue UI
+      const dummyFile = new File([], fileName);
+      const id = addToQueue(dummyFile);
+      // Mark the item core-driven: retry re-drives the core (the placeholder
+      // File has 0 bytes, so the web pipeline must never see it), and the UI
+      // hides pause.
+      patchMeta(id, { desktopPath: filePath, onRefresh, platform, folderId });
+      set((state) => ({
+        queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
+      }));
+      return { id, filePath };
+    });
+
+    try {
+      await Promise.all(
+        items.map(async ({ id, filePath }) => {
+          await sem.acquire();
+          try {
+            // Cancelled while it waited for a slot: nothing to start.
+            if (!itemMeta.has(id)) return;
+            rememberUploadPath(filePath);
+            // Streaming upload: encrypt-in-RAM + fire chunks in parallel, resolves
+            // only when the bytes are confirmed on the platform. `platform` is the
+            // user's picker choice ("github"/"huggingface"/… or undefined = Auto);
+            // without it the backend defaults to Auto (Telegram-first), which
+            // silently ignored the selection. Live percent comes from the progress
+            // subscription; a retry auto-resumes core-side.
+            updateStatus(id, "encrypting", undefined, "Uploading...");
+            // Queue id doubles as the transfer id so an explicit Cancel can abort
+            // this core upload mid-flight (see removeFromQueue).
+            await sidecarUpload(filePath, passphrase, platform, id, folderId);
+            forgetUploadPath(filePath);
+            updateStatus(id, "done", 100, "Done");
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Upload failed";
+            setError(id, msg);
+          } finally {
+            sem.release();
+          }
+        }),
+      );
     } finally {
       unlisten();
     }

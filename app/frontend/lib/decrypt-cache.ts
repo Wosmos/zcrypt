@@ -75,8 +75,16 @@ export function isWarmOrInflight(id: string): boolean {
  * to yield network + CPU to the file the user is actually waiting on.
  */
 export function isForegroundDecryptActive(): boolean {
-  return inflight.size > 0;
+  for (const id of inflight.keys()) {
+    if (!backgroundIds.has(id)) return true;
+  }
+  return false;
 }
+
+// In-flight decrypts started by background work (thumbnails). They share the
+// cache and de-duplication but don't count as foreground, or every thumbnail
+// would hold back every other one. A foreground caller joining one promotes it.
+const backgroundIds = new Set<string>();
 
 function store(id: string, blob: Blob, folderId: string | null): void {
   if (blob.size > MAX_BYTES) return; // a single file larger than the whole budget
@@ -101,18 +109,24 @@ function store(id: string, blob: Blob, folderId: string | null): void {
  * file's folder (null for the vault root) so the entry can be folder-evicted.
  * Rejections are not cached, so a failed/cancelled decrypt can be retried; and a
  * run that resolves after a lock/clear does not repopulate the cache.
+ * `background` marks the run as background work (see isForegroundDecryptActive).
  */
 export function cachedDecrypt(
   id: string,
   folderId: string | null,
   decrypt: () => Promise<Blob>,
+  { background = false }: { background?: boolean } = {},
 ): Promise<Blob> {
   const hit = getCachedBlob(id);
   if (hit) return Promise.resolve(hit);
 
   const pending = inflight.get(id);
-  if (pending) return pending;
+  if (pending) {
+    if (!background) backgroundIds.delete(id);
+    return pending;
+  }
 
+  if (background) backgroundIds.add(id);
   const gen = generation;
   const run = decrypt().then((blob) => {
     // Only cache if no lock/clear happened while we were decrypting, otherwise
@@ -127,7 +141,10 @@ export function cachedDecrypt(
   // still receive the original `run` rejection.
   run
     .finally(() => {
-      if (inflight.get(id) === run) inflight.delete(id);
+      if (inflight.get(id) === run) {
+        inflight.delete(id);
+        backgroundIds.delete(id);
+      }
     })
     .catch(() => {});
   return run;
@@ -253,6 +270,7 @@ export function onDecryptCacheClear(cb: () => void): void {
 export function clearDecryptCache(): void {
   cache.clear();
   inflight.clear();
+  backgroundIds.clear();
   cekCache.clear();
   cekInflight.clear();
   totalBytes = 0;
