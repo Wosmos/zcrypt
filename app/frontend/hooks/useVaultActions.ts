@@ -554,13 +554,18 @@ export function useVaultActions({
         return;
       }
 
-      // Crosses a boundary: recover the CEK under the source password, rewrap
-      // under the destination password (new salt), persist, THEN move. Prompts
-      // for whichever side's password isn't cached.
+      // Crosses a boundary: recover the CEK under the source password and rewrap
+      // it under the destination password (new salt), then send the envelope
+      // WITH the move so the server changes key and folder together. Prompts for
+      // whichever side's password isn't cached.
       const sourcePassword = await passwordForZone(srcFolderId);
       const destPassword = await passwordForZone(destFolderId);
-      await folderProtection.rekeyFileForMove(fileId, sourcePassword, destPassword);
-      await moveFile(fileId, destFolderId);
+      const { salt, wrapped_cek } = await folderProtection.rekeyFileForMove(
+        fileId,
+        sourcePassword,
+        destPassword,
+      );
+      await moveFile(fileId, destFolderId, { salt, wrapped_cek });
       clearDecryptCacheForFile(fileId);
     },
     [fileById, passwordForZone, folderProtection],

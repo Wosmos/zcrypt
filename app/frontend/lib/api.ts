@@ -461,12 +461,43 @@ export function deleteFolder(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folders/${id}`, { method: "DELETE" });
 }
 
-export function moveFile(id: string, folderId: string | null): Promise<{ success: boolean }> {
+/** A file's re-wrapped envelope (base64 salt + wrapped_cek) for a protection-boundary change. */
+export interface FileRekey {
+  file_id: string;
+  salt: string;
+  wrapped_cek: string;
+}
+
+/** Move a file. `rekey`, when given, is the file's envelope for the destination
+ *  zone: the server applies it in the same update as the move, so a failure can
+ *  never leave the file keyed for one folder while sitting in another. */
+export function moveFile(
+  id: string,
+  folderId: string | null,
+  rekey?: Omit<FileRekey, "file_id">,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/files/${id}/move`, {
     method: "PATCH",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ folder_id: folderId }),
+    body: JSON.stringify({ folder_id: folderId, ...rekey }),
   });
+}
+
+/** Give a degraded file's not-yet-durable chunks a fresh retry budget. */
+export function retryFileSync(id: string): Promise<{ requeued: number }> {
+  return request<{ requeued: number }>(`/api/files/${id}/retry-sync`, { method: "POST" });
+}
+
+export interface VerifyFilesReport {
+  checked_files: number;
+  damaged_files: string[];
+  recovered_files: string[];
+  unverified_repos: number;
+}
+
+/** Check every stored chunk against the platforms; marks lost files damaged. */
+export function verifyFiles(): Promise<VerifyFilesReport> {
+  return request<VerifyFilesReport>("/api/files/verify", { method: "POST" });
 }
 
 /** Set/clear a file's custom card style (icon + color). `encryptedStyle` is
@@ -487,36 +518,32 @@ export function updateFileStyle(
 // verifier (see lib/folder-crypto.ts) and sends only those opaque base64 blobs;
 // the server stores them but can never recover the password.
 
-/** Set/replace a folder's password protection. `pw_salt` + `pw_verifier` are base64. */
+/** Set/replace a folder's password protection. `pw_salt` + `pw_verifier` are base64.
+ *  `rekeys` are the folder's files re-wrapped under the new password; the server
+ *  applies them and the protection record in one transaction. */
 export function setFolderPassword(
   id: string,
   pw_salt: string,
   pw_verifier: string,
+  rekeys: FileRekey[] = [],
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folders/${id}/password`, {
     method: "POST",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ pw_salt, pw_verifier }),
+    body: JSON.stringify({ pw_salt, pw_verifier, rekeys }),
   });
 }
 
-/** Remove a folder's password protection (server nulls both columns). The client
- *  must re-key the folder's files back to the vault passphrase BEFORE calling this. */
-export function removeFolderPassword(id: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/folders/${id}/password`, { method: "DELETE" });
-}
-
-/** Re-key a file: update ONLY its `salt` (base64) + `wrapped_cek` (base64) when it
- *  crosses a protection boundary. The server never sees keys. */
-export function rekeyFile(
+/** Remove a folder's password protection. `rekeys` are the folder's files
+ *  re-wrapped back under the vault passphrase, applied in the same transaction. */
+export function removeFolderPassword(
   id: string,
-  salt: string,
-  wrapped_cek: string,
+  rekeys: FileRekey[] = [],
 ): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/files/${id}/rekey`, {
-    method: "PUT",
+  return request<{ success: boolean }>(`/api/folders/${id}/password`, {
+    method: "DELETE",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ salt, wrapped_cek }),
+    body: JSON.stringify({ rekeys }),
   });
 }
 

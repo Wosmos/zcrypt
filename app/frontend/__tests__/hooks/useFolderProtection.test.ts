@@ -20,13 +20,12 @@ import type { FileMetadata } from "@/types";
  * running in milliseconds instead of paying 600k-iteration PBKDF2 per call.
  */
 
-const { getFileMeta, rekeyFile, setFolderPassword, removeFolderPassword } = vi.hoisted(() => ({
+const { getFileMeta, setFolderPassword, removeFolderPassword } = vi.hoisted(() => ({
   getFileMeta: vi.fn(),
-  rekeyFile: vi.fn(),
   setFolderPassword: vi.fn(),
   removeFolderPassword: vi.fn(),
 }));
-vi.mock("@/lib/api", () => ({ getFileMeta, rekeyFile, setFolderPassword, removeFolderPassword }));
+vi.mock("@/lib/api", () => ({ getFileMeta, setFolderPassword, removeFolderPassword }));
 
 const { resolveFileKey, generateSalt, fromBase64 } = vi.hoisted(() => ({
   resolveFileKey: vi.fn(),
@@ -156,9 +155,11 @@ function makeMeta(id: string, password: string, cekTag: string, salt = `salt-${i
   };
 }
 
-/** A tiny stateful fake "server": getFileMeta + rekeyFile share a Map so a
- *  forward rekey persists and a LATER getFileMeta (e.g. a rollback sweep)
- *  observes the new wrapping: the same round trip the real backend gives. */
+type Rekey = { file_id: string; salt: string; wrapped_cek: string };
+
+/** A tiny stateful fake "server": getFileMeta reads a Map that the folder
+ *  (un)protect calls update with ALL their re-keys in one go, mirroring the
+ *  backend's single transaction (a rejected call applies nothing). */
 function makeFileServer(initial: Record<string, { password: string; cekTag: string; salt: string }>) {
   const state = new Map(Object.entries(initial));
   getFileMeta.mockImplementation(async (id: string) => {
@@ -166,17 +167,22 @@ function makeFileServer(initial: Record<string, { password: string; cekTag: stri
     if (!w) throw new Error(`no fixture meta for ${id}`);
     return makeMeta(id, w.password, w.cekTag, w.salt);
   });
-  rekeyFile.mockImplementation(async (id: string, salt: string, wrapped_cek: string) => {
-    const [, pw, cekTag] = wrapped_cek.split(":");
-    state.set(id, { password: pw, cekTag, salt });
+  const apply = (rekeys: Rekey[]) => {
+    for (const r of rekeys) {
+      const [, pw, cekTag] = r.wrapped_cek.split(":");
+      state.set(r.file_id, { password: pw, cekTag, salt: r.salt });
+    }
     return { success: true };
-  });
+  };
+  setFolderPassword.mockImplementation(async (_fid: string, _s: string, _v: string, rekeys: Rekey[]) =>
+    apply(rekeys),
+  );
+  removeFolderPassword.mockImplementation(async (_fid: string, rekeys: Rekey[]) => apply(rekeys));
   return state;
 }
 
 beforeEach(() => {
   getFileMeta.mockReset();
-  rekeyFile.mockReset().mockImplementation(async () => ({ success: true }));
   setFolderPassword.mockReset().mockImplementation(async () => ({ success: true }));
   removeFolderPassword.mockReset().mockImplementation(async () => ({ success: true }));
 
@@ -441,7 +447,7 @@ describe("rekeyFileForMove", () => {
     getFileMeta.mockResolvedValue(makeMeta("file-1", "vault-pw", "CEK-1", "salt-a"));
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
 
-    await result.current.rekeyFileForMove("file-1", "vault-pw", "folder-pw");
+    const rekey = await result.current.rekeyFileForMove("file-1", "vault-pw", "folder-pw");
 
     expect(getFileMeta).toHaveBeenCalledWith("file-1");
     expect(resolveFileKey).toHaveBeenCalledWith("vault-pw", fromBase64("salt-a"), "wrapped:vault-pw:CEK-1");
@@ -455,43 +461,46 @@ describe("rekeyFileForMove", () => {
       "folder-pw",
       new Uint8Array([9, 9, 9])
     );
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(folder-pw)", "wrapped:folder-pw:CEK-1");
+    expect(rekey).toEqual({ file_id: "file-1", salt: "salt(folder-pw)", wrapped_cek: "wrapped:folder-pw:CEK-1" });
   });
 
   it("protected -> unprotected: recovers under the folder pass and rewraps under the vault pass", async () => {
     getFileMeta.mockResolvedValue(makeMeta("file-1", "folder-pw", "CEK-2"));
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
-    await result.current.rekeyFileForMove("file-1", "folder-pw", "vault-pw");
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(vault-pw)", "wrapped:vault-pw:CEK-2");
+    await expect(result.current.rekeyFileForMove("file-1", "folder-pw", "vault-pw")).resolves.toEqual({
+      file_id: "file-1",
+      salt: "salt(vault-pw)",
+      wrapped_cek: "wrapped:vault-pw:CEK-2",
+    });
   });
 
   it("protected A -> protected B: rewraps under folder B's password", async () => {
     getFileMeta.mockResolvedValue(makeMeta("file-1", "folder-a-pw", "CEK-3"));
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
-    await result.current.rekeyFileForMove("file-1", "folder-a-pw", "folder-b-pw");
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(folder-b-pw)", "wrapped:folder-b-pw:CEK-3");
+    const rekey = await result.current.rekeyFileForMove("file-1", "folder-a-pw", "folder-b-pw");
+    expect(rekey.wrapped_cek).toBe("wrapped:folder-b-pw:CEK-3");
   });
 
-  it("same zone (source === dest password): still recovers and rewraps under a fresh salt", async () => {
-    getFileMeta.mockResolvedValue(makeMeta("file-1", "same-pw", "CEK-4"));
+  it("only computes the envelope: nothing is written until the move carries it", async () => {
+    getFileMeta.mockResolvedValue(makeMeta("file-1", "vault-pw", "CEK-4"));
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
-    await result.current.rekeyFileForMove("file-1", "same-pw", "same-pw");
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(same-pw)", "wrapped:same-pw:CEK-4");
+    await result.current.rekeyFileForMove("file-1", "vault-pw", "folder-pw");
+    expect(setFolderPassword).not.toHaveBeenCalled();
+    expect(removeFolderPassword).not.toHaveBeenCalled();
   });
 
-  it("rejects on a wrong source password and never persists a rewrap", async () => {
+  it("rejects on a wrong source password and never rewraps", async () => {
     getFileMeta.mockResolvedValue(makeMeta("file-1", "correct-pw", "CEK-5"));
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
     await expect(result.current.rekeyFileForMove("file-1", "wrong-pw", "folder-pw")).rejects.toThrow(
       "Incorrect passphrase"
     );
     expect(rewrapFileKey).not.toHaveBeenCalled();
-    expect(rekeyFile).not.toHaveBeenCalled();
   });
 });
 
 describe("protectFolder", () => {
-  it("re-keys every file to the new folder password, persists protection, and caches it", async () => {
+  it("re-keys every file to the new folder password with the protection record in one call, and caches it", async () => {
     const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
     const state = makeFileServer({
       "file-1": { password: "vault-pw", cekTag: "CEK-1", salt: "s1" },
@@ -507,7 +516,11 @@ describe("protectFolder", () => {
 
     expect(state.get("file-1")).toEqual({ password: "new-folder-pw", cekTag: "CEK-1", salt: "salt(new-folder-pw)" });
     expect(state.get("file-2")).toEqual({ password: "new-folder-pw", cekTag: "CEK-2", salt: "salt(new-folder-pw)" });
-    expect(setFolderPassword).toHaveBeenCalledWith("folder-1", "new-pw-salt", "verifier(new-folder-pw)");
+    expect(setFolderPassword).toHaveBeenCalledTimes(1);
+    expect(setFolderPassword).toHaveBeenCalledWith("folder-1", "new-pw-salt", "verifier(new-folder-pw)", [
+      { file_id: "file-1", salt: "salt(new-folder-pw)", wrapped_cek: "wrapped:new-folder-pw:CEK-1" },
+      { file_id: "file-2", salt: "salt(new-folder-pw)", wrapped_cek: "wrapped:new-folder-pw:CEK-2" },
+    ]);
     expect(folderRegistryState.record).toHaveBeenCalledWith([
       expect.objectContaining({ id: "folder-1", pw_salt: "new-pw-salt", pw_verifier: "verifier(new-folder-pw)" }),
     ]);
@@ -519,63 +532,30 @@ describe("protectFolder", () => {
     ]);
   });
 
-  it("rolls back already re-keyed files and rethrows if a later file fails mid-sweep", async () => {
-    const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
-    makeFileServer({
-      "file-1": { password: "vault-pw", cekTag: "CEK-1", salt: "s1" },
-      "file-2": { password: "vault-pw", cekTag: "CEK-2", salt: "s2" },
-    });
-    const realGetFileMeta = getFileMeta.getMockImplementation()!;
-    getFileMeta.mockImplementation(async (id: string) => {
-      if (id === "file-2") throw new Error("network error");
-      return realGetFileMeta(id);
-    });
-    const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
-
-    await expect(result.current.protectFolder("folder-1", "new-folder-pw", files, "vault-pw")).rejects.toThrow(
-      "network error"
-    );
-
-    // file-1 was rekeyed forward, then rolled all the way back to the vault
-    // pass: the CEK tag (CEK-1) is identical in both wrapped_cek writes, so
-    // nothing was lost even though the operation failed partway through.
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(new-folder-pw)", "wrapped:new-folder-pw:CEK-1");
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(vault-pw)", "wrapped:vault-pw:CEK-1");
-    expect(setFolderPassword).not.toHaveBeenCalled();
-    expect(folderRegistryState.record).not.toHaveBeenCalled();
-    expect(folderPasswordState.set).not.toHaveBeenCalled();
-  });
-
-  it("swallows a rollback failure (best-effort) and still rethrows the original error", async () => {
+  it("writes nothing if a later file fails mid-sweep, so no file is left half re-keyed", async () => {
     const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
     const state = makeFileServer({
       "file-1": { password: "vault-pw", cekTag: "CEK-1", salt: "s1" },
       "file-2": { password: "vault-pw", cekTag: "CEK-2", salt: "s2" },
     });
-    const statefulRekeyFile = rekeyFile.getMockImplementation()!;
-    rekeyFile.mockImplementation(async (id: string, salt: string, wrapped_cek: string) => {
-      const [, pw] = wrapped_cek.split(":");
-      if (pw === "vault-pw") throw new Error("rollback persist failed");
-      return statefulRekeyFile(id, salt, wrapped_cek);
-    });
     const realGetFileMeta = getFileMeta.getMockImplementation()!;
     getFileMeta.mockImplementation(async (id: string) => {
       if (id === "file-2") throw new Error("network error");
       return realGetFileMeta(id);
     });
-
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
+
     await expect(result.current.protectFolder("folder-1", "new-folder-pw", files, "vault-pw")).rejects.toThrow(
       "network error"
     );
 
-    // The forward rekey persisted; only the ROLLBACK write failed and was
-    // swallowed (best-effort): the file is left folder-keyed, not corrupted.
-    expect(state.get("file-1")).toEqual({ password: "new-folder-pw", cekTag: "CEK-1", salt: "salt(new-folder-pw)" });
+    expect(state.get("file-1")).toEqual({ password: "vault-pw", cekTag: "CEK-1", salt: "s1" });
     expect(setFolderPassword).not.toHaveBeenCalled();
+    expect(folderRegistryState.record).not.toHaveBeenCalled();
+    expect(folderPasswordState.set).not.toHaveBeenCalled();
   });
 
-  it("rolls back the whole sweep if persisting the protection record fails", async () => {
+  it("leaves every file on the vault pass if the server rejects the protect", async () => {
     const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
     const state = makeFileServer({
       "file-1": { password: "vault-pw", cekTag: "CEK-1", salt: "s1" },
@@ -588,16 +568,15 @@ describe("protectFolder", () => {
       "server rejected"
     );
 
-    // Rolled all the way back: same password AND same CEK as the original.
-    expect(state.get("file-1")).toEqual({ password: "vault-pw", cekTag: "CEK-1", salt: "salt(vault-pw)" });
-    expect(state.get("file-2")).toEqual({ password: "vault-pw", cekTag: "CEK-2", salt: "salt(vault-pw)" });
+    expect(state.get("file-1")).toEqual({ password: "vault-pw", cekTag: "CEK-1", salt: "s1" });
+    expect(state.get("file-2")).toEqual({ password: "vault-pw", cekTag: "CEK-2", salt: "s2" });
     expect(folderRegistryState.record).not.toHaveBeenCalled();
     expect(folderPasswordState.set).not.toHaveBeenCalled();
   });
 });
 
 describe("unprotectFolder", () => {
-  it("re-keys every file back to the vault pass, removes protection, and clears the cache", async () => {
+  it("re-keys every file back to the vault pass with the removal in one call, and clears the cache", async () => {
     const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
     const state = makeFileServer({
       "file-1": { password: "folder-pw", cekTag: "CEK-1", salt: "s1" },
@@ -612,7 +591,11 @@ describe("unprotectFolder", () => {
 
     expect(state.get("file-1")).toEqual({ password: "vault-pw", cekTag: "CEK-1", salt: "salt(vault-pw)" });
     expect(state.get("file-2")).toEqual({ password: "vault-pw", cekTag: "CEK-2", salt: "salt(vault-pw)" });
-    expect(removeFolderPassword).toHaveBeenCalledWith("folder-1");
+    expect(removeFolderPassword).toHaveBeenCalledTimes(1);
+    expect(removeFolderPassword).toHaveBeenCalledWith("folder-1", [
+      { file_id: "file-1", salt: "salt(vault-pw)", wrapped_cek: "wrapped:vault-pw:CEK-1" },
+      { file_id: "file-2", salt: "salt(vault-pw)", wrapped_cek: "wrapped:vault-pw:CEK-2" },
+    ]);
     expect(folderRegistryState.record).toHaveBeenCalledWith([
       expect.objectContaining({ id: "folder-1", pw_salt: null, pw_verifier: null }),
     ]);
@@ -621,58 +604,30 @@ describe("unprotectFolder", () => {
     expect(progress.at(-1)).toEqual({ done: 2, total: 2 });
   });
 
-  it("rolls back to the folder password and rethrows if a later file fails mid-sweep", async () => {
-    const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
-    makeFileServer({
-      "file-1": { password: "folder-pw", cekTag: "CEK-1", salt: "s1" },
-      "file-2": { password: "folder-pw", cekTag: "CEK-2", salt: "s2" },
-    });
-    const realGetFileMeta = getFileMeta.getMockImplementation()!;
-    getFileMeta.mockImplementation(async (id: string) => {
-      if (id === "file-2") throw new Error("network error");
-      return realGetFileMeta(id);
-    });
-    const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
-
-    await expect(result.current.unprotectFolder("folder-1", "folder-pw", files, "vault-pw")).rejects.toThrow(
-      "network error"
-    );
-
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(vault-pw)", "wrapped:vault-pw:CEK-1");
-    expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(folder-pw)", "wrapped:folder-pw:CEK-1");
-    expect(removeFolderPassword).not.toHaveBeenCalled();
-    expect(folderRegistryState.record).not.toHaveBeenCalled();
-    expect(folderPasswordState.clear).not.toHaveBeenCalled();
-  });
-
-  it("swallows a rollback failure (best-effort) and still rethrows the original error", async () => {
+  it("writes nothing if a later file fails mid-sweep", async () => {
     const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
     const state = makeFileServer({
       "file-1": { password: "folder-pw", cekTag: "CEK-1", salt: "s1" },
       "file-2": { password: "folder-pw", cekTag: "CEK-2", salt: "s2" },
     });
-    const statefulRekeyFile = rekeyFile.getMockImplementation()!;
-    rekeyFile.mockImplementation(async (id: string, salt: string, wrapped_cek: string) => {
-      const [, pw] = wrapped_cek.split(":");
-      if (pw === "folder-pw") throw new Error("rollback persist failed");
-      return statefulRekeyFile(id, salt, wrapped_cek);
-    });
     const realGetFileMeta = getFileMeta.getMockImplementation()!;
     getFileMeta.mockImplementation(async (id: string) => {
       if (id === "file-2") throw new Error("network error");
       return realGetFileMeta(id);
     });
-
     const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
+
     await expect(result.current.unprotectFolder("folder-1", "folder-pw", files, "vault-pw")).rejects.toThrow(
       "network error"
     );
 
-    expect(state.get("file-1")).toEqual({ password: "vault-pw", cekTag: "CEK-1", salt: "salt(vault-pw)" });
+    expect(state.get("file-1")).toEqual({ password: "folder-pw", cekTag: "CEK-1", salt: "s1" });
     expect(removeFolderPassword).not.toHaveBeenCalled();
+    expect(folderRegistryState.record).not.toHaveBeenCalled();
+    expect(folderPasswordState.clear).not.toHaveBeenCalled();
   });
 
-  it("rolls back the whole sweep if removing the protection record fails", async () => {
+  it("keeps every file on the folder pass if the server rejects the removal", async () => {
     const files = [makeFile({ id: "file-1" }), makeFile({ id: "file-2" })];
     const state = makeFileServer({
       "file-1": { password: "folder-pw", cekTag: "CEK-1", salt: "s1" },
@@ -685,8 +640,8 @@ describe("unprotectFolder", () => {
       "server rejected"
     );
 
-    expect(state.get("file-1")).toEqual({ password: "folder-pw", cekTag: "CEK-1", salt: "salt(folder-pw)" });
-    expect(state.get("file-2")).toEqual({ password: "folder-pw", cekTag: "CEK-2", salt: "salt(folder-pw)" });
+    expect(state.get("file-1")).toEqual({ password: "folder-pw", cekTag: "CEK-1", salt: "s1" });
+    expect(state.get("file-2")).toEqual({ password: "folder-pw", cekTag: "CEK-2", salt: "s2" });
     expect(folderRegistryState.record).not.toHaveBeenCalled();
     expect(folderPasswordState.clear).not.toHaveBeenCalled();
   });

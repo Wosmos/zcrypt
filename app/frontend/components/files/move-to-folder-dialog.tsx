@@ -41,8 +41,8 @@ interface MoveToFolderDialogProps {
   /**
    * Optional file-move override. When provided AND moving a file, this is called
    * INSTEAD of the internal `moveFile` so the page can re-key the file across a
-   * protection boundary first (decrypt under source pass, rewrap under dest pass,
-   * rekeyFile) and then moveFile. Resolves on success; rejects on failure.
+   * protection boundary (decrypt under source pass, rewrap under dest pass) and
+   * send the new envelope with the move. Resolves on success; rejects on failure.
    */
   onMoveFile?: (fileId: string, destFolderId: string | null) => Promise<void>;
 }
@@ -248,7 +248,7 @@ export function MoveToFolderDialog({
     setMoving(true);
     try {
       // The page-supplied override re-keys across a protection boundary (decrypt
-      // under source pass → rewrap under dest pass → rekeyFile) THEN moves; the
+      // under source pass → rewrap under dest pass) in the same request as the move; the
       // fallback is a plain move (unprotected → unprotected, byte-for-byte same).
       if (onMoveFile) await onMoveFile(fileId, selected);
       else await moveFile(fileId, selected);

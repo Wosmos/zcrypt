@@ -26,6 +26,7 @@ import {
   getUploadStatus,
   type UploadInitParams,
 } from "@/lib/upload-session";
+import { ApiError } from "@/lib/http-error";
 
 function resp(status: number, body: unknown): Response {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -147,6 +148,13 @@ describe("plain JSON endpoints (authedFetch-backed)", () => {
   it("initUpload throws the parsed {error} message on a non-ok JSON body", async () => {
     authedFetch.mockResolvedValueOnce(resp(409, { error: "duplicate upload" }));
     await expect(initUpload(initParams)).rejects.toThrow("duplicate upload");
+  });
+
+  it("JSON endpoints throw an ApiError carrying the status", async () => {
+    authedFetch.mockResolvedValueOnce(resp(503, { error: "upload failed" }));
+    const err = await initUpload(initParams).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(503);
   });
 
   it("initUpload throws the raw body when the error response isn't JSON", async () => {
@@ -346,6 +354,18 @@ describe("uploadChunk (authedXhrPut over XMLHttpRequest)", () => {
     xhr.responseText = JSON.stringify({ error: "bad chunk" });
     xhr.onload?.();
     await expect(promise).rejects.toThrow("bad chunk");
+  });
+
+  it("keeps the HTTP status on a JSON 5xx so the retry layer can see it", async () => {
+    const promise = uploadChunk("sess-1", 0, new Uint8Array([1]), "sha", false);
+    const xhr = lastXHR();
+    xhr.status = 500;
+    xhr.responseText = JSON.stringify({ error: "failed to store chunk" });
+    xhr.onload?.();
+    const err = await promise.catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(500);
+    expect((err as ApiError).message).toBe("failed to store chunk");
   });
 
   it("throws the raw body when a non-2xx response isn't JSON", async () => {

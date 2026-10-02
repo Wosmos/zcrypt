@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { getFileMeta, rekeyFile, setFolderPassword, removeFolderPassword } from "@/lib/api";
+import { getFileMeta, setFolderPassword, removeFolderPassword, type FileRekey } from "@/lib/api";
 import { resolveFileKey, generateSalt, fromBase64 } from "@/lib/crypto";
 import {
   deriveFolderPwSalt,
@@ -124,10 +124,15 @@ export interface UseFolderProtection {
   ) => Promise<void>;
   /**
    * Re-key one file across a protection boundary: recover its CEK under the
-   * source password, rewrap under the destination password with a fresh salt,
-   * persist via rekeyFile. Caller does the moveFile AFTER this resolves.
+   * source password and rewrap it under the destination password with a fresh
+   * salt. Nothing is persisted: the caller hands the envelope to moveFile so the
+   * key and the folder change in one server-side update.
    */
-  rekeyFileForMove: (fileId: string, sourcePassword: string, destPassword: string) => Promise<void>;
+  rekeyFileForMove: (
+    fileId: string,
+    sourcePassword: string,
+    destPassword: string,
+  ) => Promise<FileRekey>;
   /** Spread onto exactly ONE folder-unlock modal rendered by the page. */
   modalState: FolderUnlockModalState;
 }
@@ -304,8 +309,11 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
 
   // ── Re-key sweeps ───────────────────────────────────────────────────────────
 
-  const rekeyOneFile = useCallback(
-    async (fileId: string, sourcePassword: string, destPassword: string): Promise<void> => {
+  // Compute a file's envelope for another zone without persisting anything: the
+  // server only ever receives it together with the move / protection change it
+  // belongs to, in one transaction, so no failure can strand a file half re-keyed.
+  const rewrapOneFile = useCallback(
+    async (fileId: string, sourcePassword: string, destPassword: string): Promise<FileRekey> => {
       const meta = await getFileMeta(fileId);
       const salt = fromBase64(meta.salt);
       // Recover the EXISTING CEK under the source password (never regenerate it:
@@ -315,17 +323,31 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       // Rewrap that same CEK under the destination password with a fresh salt.
       const newSalt = generateSalt();
       const { salt: saltB64, wrapped_cek } = await rewrapFileKey(cek, destPassword, newSalt);
-      // Persist only after the rewrap is proven (the new wrapped_cek decrypts the
-      // recovered CEK by construction): the server never sees keys.
-      await rekeyFile(fileId, saltB64, wrapped_cek);
+      return { file_id: fileId, salt: saltB64, wrapped_cek };
     },
     [],
   );
 
-  const rekeyFileForMove = useCallback(
-    (fileId: string, sourcePassword: string, destPassword: string) =>
-      rekeyOneFile(fileId, sourcePassword, destPassword),
-    [rekeyOneFile],
+  const rekeyFileForMove = rewrapOneFile;
+
+  const rewrapAll = useCallback(
+    async (
+      files: FileMetadata[],
+      sourcePassword: string,
+      destPassword: string,
+      title: string,
+      onProgress?: (p: RekeyProgress) => void,
+    ): Promise<FileRekey[]> => {
+      const total = files.length;
+      const rekeys: FileRekey[] = [];
+      onProgress?.({ title, done: 0, total });
+      for (const f of files) {
+        rekeys.push(await rewrapOneFile(f.id, sourcePassword, destPassword));
+        onProgress?.({ title, done: rekeys.length, total });
+      }
+      return rekeys;
+    },
+    [rewrapOneFile],
   );
 
   const protectFolder = useCallback(
@@ -339,45 +361,18 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       const pwSalt = deriveFolderPwSalt();
       const verifier = await makeFolderVerifier(newPassword, pwSalt);
 
-      // Re-key existing files (uploaded under the vault passphrase) to the new
-      // folder password BEFORE persisting protection. Each rekeyFile only ever
-      // persists a proven-decryptable wrapped_cek (no data loss), but a partial
-      // failure would leave SOME files folder-keyed while the folder is still
-      // unprotected, so on failure we roll the re-keyed files BACK to the vault
-      // pass, restoring a fully-consistent unprotected state before re-throwing.
-      const total = filesInFolder.length;
-      const rekeyed: string[] = [];
-      const rollbackSweep = async () => {
-        for (const id of rekeyed) {
-          try {
-            await rekeyOneFile(id, newPassword, vaultPassphrase);
-          } catch {
-            // Best-effort rollback; the file's CEK is intact either way.
-          }
-        }
-      };
-      onProgress?.({ title: "Protecting folder", done: 0, total });
-      try {
-        for (let i = 0; i < filesInFolder.length; i++) {
-          await rekeyOneFile(filesInFolder[i].id, vaultPassphrase, newPassword);
-          rekeyed.push(filesInFolder[i].id);
-          onProgress?.({ title: "Protecting folder", done: i + 1, total });
-        }
-      } catch (err) {
-        await rollbackSweep();
-        throw err;
-      }
-
-      // Persist the protection record (opaque salt + verifier). If THIS fails
-      // (FIX-5) the files are already folder-keyed but the server still shows the
-      // folder unprotected: roll the sweep back to the vault pass so the folder
-      // + its files end fully consistent (unprotected) before re-throwing.
-      try {
-        await setFolderPassword(fid, pwSalt, verifier);
-      } catch (err) {
-        await rollbackSweep();
-        throw err;
-      }
+      // Rewrap every file (uploaded under the vault passphrase) for the new folder
+      // password locally, then send them with the protection record in ONE
+      // request the server applies atomically: a failure or a closed tab at any
+      // point leaves the folder and all its files exactly as they were.
+      const rekeys = await rewrapAll(
+        filesInFolder,
+        vaultPassphrase,
+        newPassword,
+        "Protecting folder",
+        onProgress,
+      );
+      await setFolderPassword(fid, pwSalt, verifier, rekeys);
       // Update the local registry + cache the password (verified by construction).
       useFolderRegistry.getState().record([
         {
@@ -391,7 +386,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       ]);
       cacheSet(fid, newPassword);
     },
-    [rekeyOneFile, cacheSet],
+    [rewrapAll, cacheSet],
   );
 
   const unprotectFolder = useCallback(
@@ -402,43 +397,17 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       vaultPassphrase: string,
       onProgress?: (p: RekeyProgress) => void,
     ): Promise<void> => {
-      // Re-key every file back to the vault passphrase BEFORE removing protection
-      // (so files are recoverable with the vault pass once protection is gone).
-      // On a partial failure, roll the re-keyed files BACK to the folder password
-      // so the still-protected folder stays fully consistent, then re-throw.
-      const total = filesInFolder.length;
-      const rekeyed: string[] = [];
-      const rollbackSweep = async () => {
-        for (const id of rekeyed) {
-          try {
-            await rekeyOneFile(id, vaultPassphrase, folderPassword);
-          } catch {
-            // Best-effort rollback; the file's CEK is intact either way.
-          }
-        }
-      };
-      onProgress?.({ title: "Removing protection", done: 0, total });
-      try {
-        for (let i = 0; i < filesInFolder.length; i++) {
-          await rekeyOneFile(filesInFolder[i].id, folderPassword, vaultPassphrase);
-          rekeyed.push(filesInFolder[i].id);
-          onProgress?.({ title: "Removing protection", done: i + 1, total });
-        }
-      } catch (err) {
-        await rollbackSweep();
-        throw err;
-      }
-
-      // Remove the protection record. If THIS fails (FIX-5) the files are already
-      // vault-keyed but the server still shows the folder protected, roll the
-      // sweep back to the folder password so the still-protected folder + its
-      // files end fully consistent before re-throwing.
-      try {
-        await removeFolderPassword(fid);
-      } catch (err) {
-        await rollbackSweep();
-        throw err;
-      }
+      // Rewrap every file back under the vault passphrase locally, then remove
+      // protection and apply all of them in ONE atomic request, so the folder is
+      // never left protected with vault-keyed files (or the reverse).
+      const rekeys = await rewrapAll(
+        filesInFolder,
+        folderPassword,
+        vaultPassphrase,
+        "Removing protection",
+        onProgress,
+      );
+      await removeFolderPassword(fid, rekeys);
       // Clear local protection state + cached password.
       useFolderRegistry.getState().record([
         {
@@ -452,7 +421,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       ]);
       cacheClear(fid);
     },
-    [rekeyOneFile, cacheClear],
+    [rewrapAll, cacheClear],
   );
 
   return {

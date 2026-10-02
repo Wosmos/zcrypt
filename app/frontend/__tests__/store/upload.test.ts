@@ -35,6 +35,7 @@ import {
   getUploadStatus,
 } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
+import { ApiError } from "@/lib/http-error";
 import { setFilesData } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -968,6 +969,30 @@ describe("useUploadStore", () => {
 
       expect(uploadChunk).toHaveBeenCalledTimes(2);
       expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("retries a 5xx by status even when its JSON body has no number in it", async () => {
+      (uploadChunk as Mock)
+        .mockRejectedValueOnce(new ApiError("failed to store chunk", 500))
+        .mockResolvedValue(undefined);
+      const file = makeFile("a.txt", 10);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(uploadChunk).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("does not retry a 4xx even when its message sounds transient", async () => {
+      (uploadChunk as Mock).mockRejectedValue(new ApiError("chunk temporarily unavailable", 400));
+      const file = makeFile("a.txt", 10);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(uploadChunk).toHaveBeenCalledTimes(1);
+      expect(getItem(id)?.status).toBe("failed");
     });
 
     it("rewrites a 'storage not available' failure into a friendlier message", async () => {

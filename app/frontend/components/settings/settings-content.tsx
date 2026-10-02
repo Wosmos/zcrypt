@@ -10,6 +10,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { StoragePool } from "@/components/settings/storage-pool";
+import { VerifyFiles } from "@/components/settings/verify-files";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -354,6 +355,7 @@ export function SettingsContent() {
         return (
           <div className="space-y-8">
             <RateLimits statuses={statuses} repos={repos} />
+            <VerifyFiles />
             <StoragePool />
           </div>
         );
