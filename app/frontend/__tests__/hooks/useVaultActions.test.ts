@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { FileMetadata, QuotaInfo } from "@/types";
+import { useConnectStorage } from "@/store/connect-storage";
 import type { IncompleteUpload } from "@/lib/api";
 import type { UseVaultLock } from "@/hooks/useVaultLock";
 import type { UseFolderProtection } from "@/hooks/useFolderProtection";
@@ -388,6 +389,21 @@ describe("handleFilesSelected", () => {
       mockToast.warning.mock.invocationCallOrder[0]
     );
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("opens the connect-storage dialog and blocks upload when shared storage is full", () => {
+    const args = makeArgs({
+      quotaInfo: makeQuota({ used_bytes: 1000, quota_bytes: 1000 }),
+    });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected([new File(["a"], "a.png")]);
+    });
+
+    expect(useConnectStorage.getState().open).toBe(true);
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+    useConnectStorage.getState().hide();
   });
 
   it("skips duplicate files by name+size and uploads only the rest", () => {

@@ -108,4 +108,13 @@ describe("useAdminQuery", () => {
       othersCount: 0,
     });
   });
+
+  it("fetchAdminOverview defaults missing token fields", async () => {
+    vi.mocked(adminListTokens).mockResolvedValueOnce({} as never);
+    await expect(fetchAdminOverview()).resolves.toEqual({
+      stats: { users: 1 },
+      tokens: [],
+      othersCount: 0,
+    });
+  });
 });
