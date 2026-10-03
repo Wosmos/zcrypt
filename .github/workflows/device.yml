@@ -213,13 +213,14 @@ jobs:
       # placeholder frontend-dist when the real export isn't present, so
       # fmt/clippy never need the download-artifact step to have run first.
       # Mirrors the prepush desktop gate (cargo fmt --check + clippy -D
-      # warnings; clippy subsumes check).
-      - name: Rust lint (fmt + clippy)
+      # warnings + the shell's unit tests).
+      - name: Rust lint and tests (fmt + clippy + test)
         if: matrix.platform == 'ubuntu-22.04'
         working-directory: app/desktop/src-tauri
         run: |
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
+          cargo test
 
       - uses: oven-sh/setup-bun@v2
 

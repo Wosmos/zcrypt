@@ -73,7 +73,7 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 (mirrors the `dorny/paths-filter` in `.github/workflows/ci.yml`): `frontend` /
 `backend` / `tui` / `desktop`. A changed shared/root file (e.g. `scripts/`,
 `Dockerfile`, `.github/`) runs everything; docs-only changes run nothing.
-- **Gates** (blocking): typecheck (tsgo) / format (biome) / lint (oxlint) / test / build per module; Go gofmt/vet; core + desktop = `cargo fmt`/`clippy`/`cargo check` (full Tauri bundle stays in CI). The lint gate blocks on oxlint errors; warnings are ratcheted.
+- **Gates** (blocking): typecheck (tsgo) / format (biome) / lint (oxlint) / test / build per module; Go gofmt/vet; core + desktop = `cargo fmt`/`clippy`/`cargo test` (full Tauri bundle stays in CI). The lint gate blocks on oxlint errors; warnings are ratcheted.
 - **Hardening** (`--enforce`, blocking, diff-scoped): fails only on issues *your change* introduces: `oxlint --max-warnings=0` + jscpd on changed FE files, `golangci-lint --new-from-rev` for Go. Never blocks on the pre-existing backlog.
 - **Old backlog** (whole-repo knip / jscpd / golangci scans): advisory by default. `--ratchet` blocks only if the backlog *grows* vs a saved baseline (improvements auto-lock); `--strict` blocks on *any* old issue; `--baseline` records current counts. Baseline lives in `docs/prepush-baseline.env` (gitignored, auto-seeds per module).
 - The **pre-push hook** is opt-in: it does nothing unless `PREPUSH_LOCAL=1`. Every gate, plus the diff-scoped hardening (new-code oxlint/jscpd, golangci `--new-from-rev`, repo-wide duplication ratchet against `.github/quality-baseline.env`), runs in CI on every branch push.
