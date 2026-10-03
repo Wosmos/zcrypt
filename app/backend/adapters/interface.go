@@ -36,6 +36,13 @@ type PlatformAdapter interface {
 	PlatformName() string
 }
 
+// ChunkVerifier is an optional interface for adapters that cannot list a repo
+// but can confirm one chunk is stored intact (e.g., Telegram). A nil error means
+// the chunk is present at its full size.
+type ChunkVerifier interface {
+	VerifyChunk(ctx context.Context, ref types.ChunkRef) error
+}
+
 // BatchCommitter is an optional interface for adapters that can batch multiple
 // chunk uploads into a single commit (e.g., HuggingFace).
 type BatchCommitter interface {

@@ -244,6 +244,10 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
 			return
 		}
+		if errors.Is(err, index.ErrProtectionMismatch) {
+			http.Error(w, `{"error":"folder protection changed; reload and try again"}`, http.StatusConflict)
+			return
+		}
 		log.Printf("files: move: %v", err)
 		http.Error(w, `{"error":"failed to move file"}`, http.StatusInternalServerError)
 		return
@@ -333,7 +337,11 @@ func (s *Server) HandleSetFolderPassword(w http.ResponseWriter, r *http.Request)
 	}
 	if err := s.db.SetFolderProtection(ctx, userID, folderID, req.PwSalt, req.PwVerifier, keys); err != nil {
 		if errors.Is(err, index.ErrRekeyTargetMissing) {
-			http.Error(w, `{"error":"a re-keyed file is not in this folder"}`, http.StatusConflict)
+			http.Error(w, `{"error":"the re-keyed files do not match this folder's files; reload and try again"}`, http.StatusConflict)
+			return
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error":"folder not found"}`, http.StatusNotFound)
 			return
 		}
 		log.Printf("folders: set password: %v", err)
@@ -370,7 +378,11 @@ func (s *Server) HandleRemoveFolderPassword(w http.ResponseWriter, r *http.Reque
 	}
 	if err := s.db.SetFolderProtection(ctx, userID, folderID, "", "", keys); err != nil {
 		if errors.Is(err, index.ErrRekeyTargetMissing) {
-			http.Error(w, `{"error":"a re-keyed file is not in this folder"}`, http.StatusConflict)
+			http.Error(w, `{"error":"the re-keyed files do not match this folder's files; reload and try again"}`, http.StatusConflict)
+			return
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error":"folder not found"}`, http.StatusNotFound)
 			return
 		}
 		log.Printf("folders: remove password: %v", err)

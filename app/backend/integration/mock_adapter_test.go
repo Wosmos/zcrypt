@@ -241,6 +241,36 @@ func (m *mockAdapter) setFailDeletes(v bool) {
 	m.failDeletes = v
 }
 
+// hideFromDownload makes Download 404 for a blob that ListChunks still lists,
+// like a revoked token reading a private GitHub repo's raw URL.
+func (m *mockAdapter) hideFromDownload(repo, remotePath string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.data, blobKey(repo, remotePath))
+}
+
+// verifyingMock is a mockAdapter that, like Telegram, is checked chunk by chunk
+// rather than by listing a repo.
+type verifyingMock struct{ *mockAdapter }
+
+func (v verifyingMock) VerifyChunk(ctx context.Context, ref types.ChunkRef) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	b, ok := v.blobs[blobKey(ref.Repo, ref.RemotePath)]
+	if !ok || b.Size != ref.Size {
+		return fmt.Errorf("mock: %s not stored at size %d", ref.RemotePath, ref.Size)
+	}
+	return nil
+}
+
+// seedBlob plants a blob of the given size, standing in for a chunk a client
+// uploaded to its own platform.
+func (m *mockAdapter) seedBlob(repo, remotePath string, size int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.blobs[blobKey(repo, remotePath)] = types.ChunkRef{Repo: repo, RemotePath: remotePath, Size: size}
+}
+
 // seedOrphan plants a blob on the "platform" that no DB row references, simulating
 // a historical orphan (e.g. a pre-fix crash-window leak) so the reconciliation
 // sweep has something to find.

@@ -19,7 +19,9 @@ import (
 //
 // Relay uploads to non-batch platforms are marked committed by the sync worker
 // the moment Upload succeeds, so a non-batch chunk reaching here was pushed by a
-// client (byos-direct) and is trusted only once it is listed. Chunks already
+// client (byos-direct) and is trusted only once it is listed, or, on Telegram,
+// which cannot be listed, once each of its parts is fetched back at the
+// claimed size. Chunks already
 // present are never re-committed, so a client that committed its own HuggingFace
 // upload doesn't spend a second commit against the platform's hourly cap.
 func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
@@ -39,10 +41,8 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 		}
 
 		bc, batch := adapter.(adapters.BatchCommitter)
-		if !batch && k.platform == "telegram" {
-			// Telegram cannot be listed, so there is nothing to verify against;
-			// the message the upload created is the durability signal.
-			s.markCommitted(ctx, group)
+		if cv, ok := adapter.(adapters.ChunkVerifier); ok && !batch {
+			s.verifyEach(ctx, cv, k.platform, group)
 			continue
 		}
 
@@ -84,6 +84,22 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 			s.bumpUncommitted(ctx, missing)
 		}
 	}
+}
+
+// verifyEach checks chunks one by one on a platform that cannot be listed,
+// committing those confirmed intact and retrying the rest.
+func (s *Server) verifyEach(ctx context.Context, cv adapters.ChunkVerifier, platform string, group []types.ChunkRef) {
+	var confirmed, missing []types.ChunkRef
+	for _, c := range group {
+		if err := cv.VerifyChunk(ctx, c); err != nil {
+			log.Printf("commit-verify: %s chunk %s not confirmed: %v", platform, c.ChunkID, err)
+			missing = append(missing, c)
+			continue
+		}
+		confirmed = append(confirmed, c)
+	}
+	s.markCommitted(ctx, confirmed)
+	s.bumpUncommitted(ctx, missing)
 }
 
 // splitPresent lists a repo and partitions chunks into those whose path is in

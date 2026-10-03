@@ -391,7 +391,7 @@ func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID 
 		var err error
 		data, err = adapter.Download(r.Context(), *chunk)
 		if err != nil {
-			s.writeChunkFetchError(r.Context(), w, ownerID, chunk, err, logPrefix)
+			s.writeChunkFetchError(r.Context(), w, adapter, ownerID, chunk, err, logPrefix)
 			return
 		}
 		writeCachedChunk(chunk.ChunkID, chunk.SHA256, data)

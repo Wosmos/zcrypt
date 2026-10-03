@@ -162,6 +162,7 @@ func TestDownloadOfMissingChunkReturnsGoneAndMarksDamaged(t *testing.T) {
 	token := ts.registerAndLogin("gone@example.com", "SecurePass@123!")
 	mock := ts.enableMockStorage("gone@example.com")
 	fileID := ts.uploadAndSync(ctx, token, "gone.bin", 1)
+	ts.uploadAndSync(ctx, token, "kept.bin", 1)
 
 	chunk, err := ts.db.GetChunkByIndex(ctx, fileID, 0)
 	require.NoError(t, err)
@@ -172,6 +173,43 @@ func TestDownloadOfMissingChunkReturnsGoneAndMarksDamaged(t *testing.T) {
 	assert.Contains(t, string(body), "chunk_missing")
 	assert.Equal(t, "damaged", ts.fileHealth(fileID))
 	assert.Equal(t, "damaged", ts.listedHealth(token, fileID))
+}
+
+// DATA-02: GitHub and GitLab answer 404 for a private repo the token can no
+// longer read, so a 404 the repo listing contradicts stays retryable and leaves
+// the file healthy.
+func TestDownload404ForListedChunkIsRetryable(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	token := ts.registerAndLogin("listed404@example.com", "SecurePass@123!")
+	mock := ts.enableMockStorage("listed404@example.com")
+	fileID := ts.uploadAndSync(ctx, token, "listed.bin", 1)
+
+	chunk, err := ts.db.GetChunkByIndex(ctx, fileID, 0)
+	require.NoError(t, err)
+	require.True(t, chunk.Committed)
+	mock.hideFromDownload(chunk.Repo, chunk.RemotePath)
+
+	body := requireStatus(t, ts.GET("/api/files/"+fileID+"/chunks/0", token), http.StatusServiceUnavailable)
+	assert.Contains(t, string(body), "chunk_unconfirmed")
+	assert.Equal(t, "ok", ts.fileHealth(fileID))
+}
+
+// DATA-02: a 404 while the repo lists as empty is the revoked-token shape too,
+// so it is not treated as loss either.
+func TestDownload404WithEmptyListingIsRetryable(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	token := ts.registerAndLogin("empty404@example.com", "SecurePass@123!")
+	mock := ts.enableMockStorage("empty404@example.com")
+	fileID := ts.uploadAndSync(ctx, token, "empty.bin", 1)
+
+	chunk, err := ts.db.GetChunkByIndex(ctx, fileID, 0)
+	require.NoError(t, err)
+	require.NoError(t, mock.Delete(ctx, *chunk))
+
+	requireStatus(t, ts.GET("/api/files/"+fileID+"/chunks/0", token), http.StatusServiceUnavailable)
+	assert.Equal(t, "ok", ts.fileHealth(fileID))
 }
 
 // DATA-02: a chunk whose commit was never verified may still be landing, so a
@@ -339,6 +377,57 @@ func TestByosDirectChunkTrustedOnlyOnceListed(t *testing.T) {
 	assert.True(t, chunk.Committed, "once listed on the platform the chunk is committed")
 }
 
+// DATA-03: Telegram cannot be listed, so a byos-direct Telegram chunk is
+// committed only once its parts are fetched back at the claimed size.
+func TestByosDirectTelegramChunkTrustedOnlyOnceVerified(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	email := "byostg@example.com"
+	token := ts.registerAndLogin(email, "SecurePass@123!")
+	ts.givePersonalToken(email, "telegram", "tgbot")
+	user, err := ts.db.GetUserByEmail(ctx, email)
+	require.NoError(t, err)
+	mock := newMockAdapter()
+	ts.srv.InjectTestAdapter(user.ID, "telegram", "tgbot", verifyingMock{mock}, 10<<30)
+
+	var init struct {
+		SessionID string `json:"session_id"`
+		FileID    string `json:"file_id"`
+	}
+	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
+		"filename": "tg-claim.bin", "original_size": 40, "sha256": hex64, "salt": validSalt,
+		"chunk_count": 1, "platform": "telegram", "mode": "byos-direct",
+	}, token), http.StatusOK), &init))
+	repoID := "telegram_tgbot_claim_" + uuid.NewString()[:8]
+	requireStatus(t, ts.POST("/api/repos/register", map[string]interface{}{
+		"id": repoID, "platform": "telegram", "account": "tgbot", "name": "claim", "url": "tg:@claim/vault", "max_bytes": 850 << 20,
+	}, token), http.StatusOK)
+
+	requireStatus(t, ts.POST("/api/upload/"+init.SessionID+"/confirm/0", map[string]interface{}{
+		"sha256": hex64, "size": 40, "remote_path": "7:FID",
+		"platform": "telegram", "account": "tgbot", "repo_id": repoID, "committed": true,
+	}, token), http.StatusOK)
+	requireStatus(t, ts.POST("/api/upload/"+init.SessionID+"/complete", map[string]interface{}{}, token), http.StatusOK)
+	ts.srv.WaitBackground(ctx)
+	ts.srv.ReconcileUncommittedOnce(ctx)
+
+	chunk, err := ts.db.GetChunkByIndex(ctx, init.FileID, 0)
+	require.NoError(t, err)
+	assert.False(t, chunk.Committed, "a claimed-but-absent Telegram chunk must not be trusted durable")
+
+	mock.seedBlob("tg:@claim/vault", "7:FID", 39)
+	ts.srv.ReconcileUncommittedOnce(ctx)
+	chunk, err = ts.db.GetChunkByIndex(ctx, init.FileID, 0)
+	require.NoError(t, err)
+	assert.False(t, chunk.Committed, "a part shorter than claimed must not be trusted durable")
+
+	mock.seedBlob("tg:@claim/vault", "7:FID", 40)
+	ts.srv.ReconcileUncommittedOnce(ctx)
+	chunk, err = ts.db.GetChunkByIndex(ctx, init.FileID, 0)
+	require.NoError(t, err)
+	assert.True(t, chunk.Committed, "once verified on the platform the chunk is committed")
+}
+
 // DATA-03: a byos-direct confirm can't alias a second chunk onto a path that
 // already holds one of the user's chunks.
 func TestByosConfirmRejectsTakenRemotePath(t *testing.T) {
@@ -378,6 +467,13 @@ func (ts *testServer) insertFolder(userID string) string {
 	return id
 }
 
+func (ts *testServer) protectFolder(folderID string) {
+	ts.t.Helper()
+	_, err := ts.db.Pool().Exec(context.Background(),
+		`UPDATE folders SET pw_salt = 's', pw_verifier = 'v' WHERE id = $1`, folderID)
+	require.NoError(ts.t, err)
+}
+
 func (ts *testServer) fileKey(fileID string) (folder *string, salt []byte, wrapped string) {
 	ts.t.Helper()
 	require.NoError(ts.t, ts.db.Pool().QueryRow(context.Background(),
@@ -412,6 +508,17 @@ func TestMoveWithRekeyIsAtomic(t *testing.T) {
 
 	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{
 		"folder_id": folder, "salt": saltOf(7), "wrapped_cek": "folder-wrapped",
+	}, token), http.StatusConflict)
+	got, _, _ = ts.fileKey(fileID)
+	assert.Nil(t, got, "a re-key into an unprotected folder must be refused")
+
+	ts.protectFolder(folder)
+	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": folder}, token), http.StatusConflict)
+	got, _, _ = ts.fileKey(fileID)
+	assert.Nil(t, got, "a plain move into a protected folder must be refused")
+
+	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{
+		"folder_id": folder, "salt": saltOf(7), "wrapped_cek": "folder-wrapped",
 	}, token), http.StatusOK)
 	got, salt, wrapped := ts.fileKey(fileID)
 	require.NotNil(t, got)
@@ -419,14 +526,22 @@ func TestMoveWithRekeyIsAtomic(t *testing.T) {
 	assert.Equal(t, saltOf(7), base64.StdEncoding.EncodeToString(salt))
 	assert.Equal(t, "folder-wrapped", wrapped)
 
-	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": nil}, token), http.StatusOK)
+	plain := ts.insertFolder(uid)
+	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": nil}, token), http.StatusConflict)
+	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{
+		"folder_id": nil, "salt": saltOf(8), "wrapped_cek": "vault-wrapped",
+	}, token), http.StatusOK)
+	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": plain}, token), http.StatusOK)
 	got, salt, wrapped = ts.fileKey(fileID)
-	assert.Nil(t, got)
-	assert.Equal(t, saltOf(7), base64.StdEncoding.EncodeToString(salt), "a plain move leaves the envelope alone")
-	assert.Equal(t, "folder-wrapped", wrapped)
+	require.NotNil(t, got)
+	assert.Equal(t, plain, *got)
+	assert.Equal(t, saltOf(8), base64.StdEncoding.EncodeToString(salt), "a plain move leaves the envelope alone")
+	assert.Equal(t, "vault-wrapped", wrapped)
 
 	other := ts.registerAndLogin("moverekey2@example.com", "SecurePass@123!")
 	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": nil}, other), http.StatusNotFound)
+	otherFolder := ts.insertFolder(ts.userID(other))
+	requireStatus(t, ts.patchJSON("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": otherFolder}, token), http.StatusNotFound)
 }
 
 // DATA-04: protecting a folder applies every file re-key and the protection
@@ -493,6 +608,65 @@ func TestFolderProtectWithRekeysIsAtomic(t *testing.T) {
 	assert.False(t, protected())
 	_, _, wa = ts.fileKey(a)
 	assert.Equal(t, "va", wa)
+}
+
+// DATA-04: a protect or unprotect whose re-keys leave out a live file in the
+// folder (say one another device moved in meanwhile) is refused whole, so no
+// file is stranded under the wrong zone's key.
+func TestFolderProtectMustRekeyEveryFile(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	token := ts.registerAndLogin("protectcover@example.com", "SecurePass@123!")
+	uid := ts.userID(token)
+	folder := ts.insertFolder(uid)
+	a := ts.insertFile(ctx, uid, "a.bin")
+	late := ts.insertFile(ctx, uid, "late.bin")
+	trashed := ts.insertFile(ctx, uid, "trashed.bin")
+	for _, id := range []string{a, late, trashed} {
+		_, err := ts.db.Pool().Exec(ctx, `UPDATE files SET folder_id = $1 WHERE id = $2`, folder, id)
+		require.NoError(t, err)
+	}
+	_, err := ts.db.Pool().Exec(ctx, `UPDATE files SET deleted_at = NOW() WHERE id = $1`, trashed)
+	require.NoError(t, err)
+	protected := func() bool {
+		return ts.countScalar(`SELECT count(*) FROM folders WHERE id=$1 AND pw_salt IS NOT NULL`, folder) == 1
+	}
+	rekey := func(id, w string) map[string]string {
+		return map[string]string{"file_id": id, "salt": saltOf(1), "wrapped_cek": w}
+	}
+
+	requireStatus(t, ts.POST("/api/folders/"+folder+"/password", map[string]interface{}{
+		"pw_salt": "s", "pw_verifier": "v", "rekeys": []map[string]string{rekey(a, "wa")},
+	}, token), http.StatusConflict)
+	assert.False(t, protected(), "a protect missing a file must not mark the folder protected")
+	_, _, wa := ts.fileKey(a)
+	assert.Empty(t, wa)
+
+	requireStatus(t, ts.POST("/api/folders/"+folder+"/password", map[string]interface{}{
+		"pw_salt": "s", "pw_verifier": "v", "rekeys": []map[string]string{rekey(a, "wa"), rekey(a, "wa")},
+	}, token), http.StatusConflict)
+	assert.False(t, protected(), "a duplicated entry can't stand in for the missing file")
+
+	requireStatus(t, ts.POST("/api/folders/"+folder+"/password", map[string]interface{}{
+		"pw_salt": "s", "pw_verifier": "v", "rekeys": []map[string]string{rekey(a, "wa"), rekey(trashed, "wt")},
+	}, token), http.StatusConflict)
+	assert.False(t, protected(), "a trashed file can't stand in for the missing live one")
+
+	requireStatus(t, ts.POST("/api/folders/"+folder+"/password", map[string]interface{}{
+		"pw_salt": "s", "pw_verifier": "v", "rekeys": []map[string]string{rekey(a, "wa"), rekey(late, "wl")},
+	}, token), http.StatusOK)
+	assert.True(t, protected())
+
+	requireStatus(t, ts.deleteWithBody("/api/folders/"+folder+"/password", map[string]interface{}{
+		"rekeys": []map[string]string{rekey(a, "va")},
+	}, token), http.StatusConflict)
+	assert.True(t, protected(), "an unprotect missing a file keeps the folder protected")
+	_, _, wa = ts.fileKey(a)
+	assert.Equal(t, "wa", wa)
+
+	requireStatus(t, ts.POST("/api/folders/"+uuid.NewString()+"/password", map[string]interface{}{
+		"pw_salt": "s", "pw_verifier": "v",
+	}, token), http.StatusNotFound)
 }
 
 // DATA-09: a retried complete whose first response was lost succeeds with the

@@ -49,8 +49,9 @@ func resetTimer(t *time.Timer, d time.Duration) {
 // that fails every upload) would otherwise be retried forever, starving the
 // queue. Once a chunk hits this cap it's left in place (remote_path still ”),
 // its file is marked degraded so the user sees it and can retry, and it's logged.
-// With the backoff below the budget spans roughly four hours, so a platform
-// outage of that length no longer strands chunks.
+// With the backoff below the eleven waits between those attempts add up to
+// just over five hours before jitter (30s doubling to 32m, then four 1h
+// waits), so a platform outage of that length no longer strands chunks.
 const maxSyncAttempts = 12
 
 const (
@@ -62,14 +63,19 @@ const (
 // failures: exponential from syncRetryBase, capped at syncRetryMax, with +/-20%
 // jitter so chunks that failed together don't retry in lockstep.
 func syncRetryDelay(attempts int) time.Duration {
-	d := syncRetryMax
-	if attempts < 16 {
-		if e := syncRetryBase << attempts; e < syncRetryMax {
-			d = e
-		}
-	}
+	d := syncRetryBackoff(attempts)
 	jitter := time.Duration(rand.Int63n(int64(d)*2/5+1)) - d/5 // #nosec G404 -- retry jitter, not security
 	return d + jitter
+}
+
+// syncRetryBackoff is syncRetryDelay before jitter.
+func syncRetryBackoff(attempts int) time.Duration {
+	if attempts < 16 {
+		if e := syncRetryBase << attempts; e < syncRetryMax {
+			return e
+		}
+	}
+	return syncRetryMax
 }
 
 // platformUnhealthyRe matches adapter errors that mean the platform itself is

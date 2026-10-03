@@ -33,10 +33,16 @@ func TestSyncRetryDelayGrowsAndCaps(t *testing.T) {
 func TestSyncRetryBudgetOutlastsAnHourLongOutage(t *testing.T) {
 	var total time.Duration
 	for a := 0; a < maxSyncAttempts-1; a++ {
-		total += syncRetryDelay(a) * 4 / 5
+		total += syncRetryBackoff(a)
 	}
-	if total < 3*time.Hour {
-		t.Fatalf("retry budget spans only %s; a short platform outage would strand chunks", total)
+	if want := 5*time.Hour + 3*time.Minute + 30*time.Second; total != want {
+		t.Fatalf("retry budget spans %s before jitter, want %s", total, want)
+	}
+	for a := 0; a < maxSyncAttempts-1; a++ {
+		d, base := syncRetryDelay(a), syncRetryBackoff(a)
+		if d < base*4/5 || d > base*6/5 {
+			t.Fatalf("attempt %d: delay %s outside +/-20%% of %s", a, d, base)
+		}
 	}
 }
 

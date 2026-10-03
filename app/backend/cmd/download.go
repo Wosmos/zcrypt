@@ -38,12 +38,13 @@ func (s *Server) authorizeFileRead(ctx context.Context, userID, fileID string) (
 	return f, grant.OwnerID, grant.WrappedCEK, true
 }
 
-// writeChunkFetchError answers a failed platform download. A chunk the platform
-// says does not exist is lost data: once its commit was verified, the file is
-// marked damaged and the client gets 410 so it stops retrying and can say so. A
-// chunk whose commit was never verified may still be landing, so that stays a
-// retryable 503. Anything else is a generic 500.
-func (s *Server) writeChunkFetchError(ctx context.Context, w http.ResponseWriter, ownerID string, chunk *types.ChunkRef, err error, logPrefix string) {
+// writeChunkFetchError answers a failed platform download. A 404 alone is not
+// proof of loss: GitHub and GitLab answer 404 for a private repo the token can
+// no longer read. So a committed chunk is only marked damaged, with a 410 that
+// stops client retries, once a listing of its repo succeeds, is non-empty, and
+// lacks the path. An unconfirmed 404, or one for a chunk whose commit was never
+// verified, stays a retryable 503. Anything else is a generic 500.
+func (s *Server) writeChunkFetchError(ctx context.Context, w http.ResponseWriter, adapter adapters.PlatformAdapter, ownerID string, chunk *types.ChunkRef, err error, logPrefix string) {
 	log.Printf("%s: chunk download failed: %v", logPrefix, err)
 	if !errors.Is(err, adapters.ErrNotFound) {
 		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
@@ -53,6 +54,13 @@ func (s *Server) writeChunkFetchError(ctx context.Context, w http.ResponseWriter
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
 			"error":  "chunk is not available on storage yet",
 			"reason": "chunk_pending",
+		})
+		return
+	}
+	if !confirmChunkMissing(ctx, adapter, chunk, logPrefix) {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error":  "storage could not confirm this chunk; try again later",
+			"reason": "chunk_unconfirmed",
 		})
 		return
 	}
@@ -66,6 +74,25 @@ func (s *Server) writeChunkFetchError(ctx context.Context, w http.ResponseWriter
 		"error":  "this file's data is missing from storage",
 		"reason": "chunk_missing",
 	})
+}
+
+// confirmChunkMissing lists the chunk's repo and reports true only when the
+// listing works, holds at least one blob, and does not hold this chunk's path.
+func confirmChunkMissing(ctx context.Context, adapter adapters.PlatformAdapter, chunk *types.ChunkRef, logPrefix string) bool {
+	listed, err := adapter.ListChunks(ctx, chunk.Repo)
+	if err != nil {
+		log.Printf("%s: confirm missing chunk: list %s repo %s: %v", logPrefix, logSafe(chunk.Platform), logSafe(chunk.Repo), err) // #nosec G706 -- control chars stripped via logSafe
+		return false
+	}
+	if len(listed) == 0 {
+		return false
+	}
+	for _, b := range listed {
+		if b.RemotePath == chunk.RemotePath {
+			return false
+		}
+	}
+	return true
 }
 
 // HandleGetFileMeta returns file metadata needed for client-side decryption.
@@ -185,7 +212,7 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 
 			data, err = adapter.Download(ctx, *chunk)
 			if err != nil {
-				s.writeChunkFetchError(ctx, w, ownerID, chunk, err, "download")
+				s.writeChunkFetchError(ctx, w, adapter, ownerID, chunk, err, "download")
 				return
 			}
 

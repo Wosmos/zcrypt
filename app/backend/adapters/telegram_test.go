@@ -337,3 +337,29 @@ func TestTelegramValidateChat(t *testing.T) {
 		t.Fatal("expected validateChat error")
 	}
 }
+
+func TestTelegramVerifyChunk(t *testing.T) {
+	sizes := map[string]string{"A": "6", "B": "4"}
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		size, ok := sizes[r.URL.Query().Get("file_id")]
+		if !ok {
+			w.Write([]byte(`{"ok":false,"description":"Bad Request: invalid file_id"}`))
+			return
+		}
+		w.Write([]byte(`{"ok":true,"result":{"file_path":"documents/f.bin","file_size":` + size + `}}`))
+	})
+	ctx := context.Background()
+
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "1:A,2:B", Size: 10}); err != nil {
+		t.Fatalf("intact chunk: %v", err)
+	}
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "1:A,2:B", Size: 11}); err == nil {
+		t.Error("a size mismatch must not verify")
+	}
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "1:A,2:GONE", Size: 10}); err == nil {
+		t.Error("a missing part must not verify")
+	}
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "bad", Size: 10}); err == nil {
+		t.Error("an unparsable ref must not verify")
+	}
+}

@@ -966,4 +966,8 @@ CREATE TABLE IF NOT EXISTS upload_presigns (
 	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	PRIMARY KEY (session_id, idx)
 );
+
+-- A byos-direct confirm checks that no other chunk of the user already lives at
+-- the reported remote path, on every chunk of every direct upload.
+CREATE INDEX IF NOT EXISTS idx_chunks_user_remote_path ON chunks(user_id, repo, remote_path) WHERE remote_path <> '';
 `

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,10 @@ var ErrPresignMismatch = errors.New("confirm does not match the presigned chunk"
 // ErrRekeyTargetMissing means a bulk re-key named a file that is not the
 // caller's, or is not in the folder being (un)protected.
 var ErrRekeyTargetMissing = errors.New("rekey target not found in folder")
+
+// ErrProtectionMismatch means a move's re-key does not fit the protection state
+// of its source and destination folders, or the file moved concurrently.
+var ErrProtectionMismatch = errors.New("move does not match folder protection")
 
 // DeferPendingChunks pushes the next attempt of every due, unsynced chunk on one
 // platform account out by delay without spending an attempt. Used when the
@@ -224,20 +229,87 @@ func (db *DB) RemotePathTaken(ctx context.Context, userID, platform, account, re
 
 // MoveFileWithKey reparents a file and, when salt is non-nil, replaces its
 // envelope in the same statement, so a move across a protection boundary can
-// never leave a file keyed for one folder while sitting in another. Returns
-// pgx.ErrNoRows when the caller owns no such file.
+// never leave a file keyed for one folder while sitting in another. It holds a
+// share lock on the source and destination folders, so it serialises with a
+// concurrent (un)protect, and it returns ErrProtectionMismatch when the caller
+// sent a re-key for a move that crosses no boundary or omitted one for a move
+// that does. Returns pgx.ErrNoRows when the caller owns no such file or
+// destination folder.
 func (db *DB) MoveFileWithKey(ctx context.Context, userID, fileID string, folderID *string, salt []byte, wrappedCEK string) error {
-	tag, err := db.pool.Exec(ctx,
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var src *string
+	if err := tx.QueryRow(ctx,
+		`SELECT folder_id::text FROM files WHERE id = $1 AND user_id = $2`,
+		fileID, userID).Scan(&src); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgx.ErrNoRows
+		}
+		return fmt.Errorf("read file folder: %w", err)
+	}
+
+	var ids []string
+	for _, id := range []*string{src, folderID} {
+		if id != nil && !slices.Contains(ids, *id) {
+			ids = append(ids, *id)
+		}
+	}
+	slices.Sort(ids)
+	protected := make(map[string]bool, len(ids))
+	if len(ids) > 0 {
+		rows, err := tx.Query(ctx,
+			`SELECT id::text, pw_salt IS NOT NULL FROM folders
+			 WHERE user_id = $1 AND id = ANY($2::uuid[]) ORDER BY id FOR SHARE`,
+			userID, ids)
+		if err != nil {
+			return fmt.Errorf("lock folders: %w", err)
+		}
+		for rows.Next() {
+			var id string
+			var p bool
+			if err := rows.Scan(&id, &p); err != nil {
+				rows.Close()
+				return fmt.Errorf("scan folder: %w", err)
+			}
+			protected[id] = p
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("lock folders: %w", err)
+		}
+	}
+	if folderID != nil {
+		if _, ok := protected[*folderID]; !ok {
+			return pgx.ErrNoRows
+		}
+	}
+
+	sameFolder := (src == nil && folderID == nil) || (src != nil && folderID != nil && *src == *folderID)
+	srcProtected := src != nil && protected[*src]
+	destProtected := folderID != nil && protected[*folderID]
+	crosses := !sameFolder && (srcProtected || destProtected)
+	if crosses != (salt != nil) {
+		return ErrProtectionMismatch
+	}
+
+	tag, err := tx.Exec(ctx,
 		`UPDATE files SET folder_id = $3,
 		        salt = COALESCE($4, salt),
 		        wrapped_cek = CASE WHEN $4::bytea IS NULL THEN wrapped_cek ELSE $5 END
-		 WHERE id = $1 AND user_id = $2`,
-		fileID, userID, folderID, salt, wrappedCEK)
+		 WHERE id = $1 AND user_id = $2 AND folder_id IS NOT DISTINCT FROM $6::uuid`,
+		fileID, userID, folderID, salt, wrappedCEK, src)
 	if err != nil {
 		return fmt.Errorf("move file: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return pgx.ErrNoRows
+		return ErrProtectionMismatch
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	return nil
 }
@@ -250,9 +322,11 @@ type FileKey struct {
 }
 
 // SetFolderProtection sets (pwSalt/pwVerifier non-empty) or clears (both empty)
-// a folder's password and applies every file re-key in ONE transaction. Each
-// re-keyed file must be the caller's and sit in that folder, else nothing is
-// applied (ErrRekeyTargetMissing).
+// a folder's password and applies every file re-key in ONE transaction. The
+// folder row is locked first so moves in or out wait for it. The re-keys must
+// name every live file in the folder exactly once, each the caller's and in
+// that folder, else nothing is applied (ErrRekeyTargetMissing). Returns
+// pgx.ErrNoRows when the caller owns no such folder.
 func (db *DB) SetFolderProtection(ctx context.Context, userID, folderID, pwSalt, pwVerifier string, keys []FileKey) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
@@ -260,10 +334,35 @@ func (db *DB) SetFolderProtection(ctx context.Context, userID, folderID, pwSalt,
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	var locked bool
+	if err := tx.QueryRow(ctx,
+		`SELECT true FROM folders WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE`,
+		folderID, userID).Scan(&locked); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgx.ErrNoRows
+		}
+		return fmt.Errorf("lock folder: %w", err)
+	}
+
+	var live int
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM files
+		 WHERE user_id = $1 AND folder_id = $2 AND status = 'complete' AND deleted_at IS NULL`,
+		userID, folderID).Scan(&live); err != nil {
+		return fmt.Errorf("count folder files: %w", err)
+	}
+	seen := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		seen[k.FileID] = struct{}{}
+	}
+	if len(seen) != len(keys) || live != len(keys) {
+		return ErrRekeyTargetMissing
+	}
+
 	for _, k := range keys {
 		tag, err := tx.Exec(ctx,
 			`UPDATE files SET salt = $4, wrapped_cek = $5
-			 WHERE id = $1 AND user_id = $2 AND folder_id = $3`,
+			 WHERE id = $1 AND user_id = $2 AND folder_id = $3 AND status = 'complete' AND deleted_at IS NULL`,
 			k.FileID, userID, folderID, k.Salt, k.WrappedCEK)
 		if err != nil {
 			return fmt.Errorf("rekey file: %w", err)
