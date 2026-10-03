@@ -122,6 +122,11 @@ func (s *Server) HandleToggleTokenScope(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if req.IsGlobal && !IsAdmin(r) {
+		http.Error(w, `{"error":"only an admin can share a token with all users"}`, http.StatusForbidden)
+		return
+	}
+
 	if err := s.db.SetUserPlatformTokenGlobal(ctx, tokenID, userID, req.IsGlobal); err != nil {
 		http.Error(w, `{"error":"token not found"}`, http.StatusNotFound)
 		return

@@ -1135,9 +1135,23 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		if platform == "" {
 			platform = session.Platform
 		}
+		if platform != session.Platform {
+			http.Error(w, `{"error":"platform does not match the upload session"}`, http.StatusBadRequest)
+			return
+		}
 		account := req.Account
 		if account == "" {
 			account = session.Account
+		}
+		owns, oerr := s.db.OwnsPersonalAccount(ctx, userID, platform, account)
+		if oerr != nil {
+			log.Printf("upload: check direct account ownership: %v", oerr)
+			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			return
+		}
+		if !owns {
+			http.Error(w, `{"error":"account is not one of your own connected accounts"}`, http.StatusForbidden)
+			return
 		}
 		taken, terr := s.db.RemotePathTaken(ctx, userID, platform, account, repoURL, req.RemotePath)
 		if terr != nil {

@@ -13,6 +13,23 @@ import (
 // platform token for a platform, and whether one exists. byos-direct uploads
 // require a personal token: the shared managed-pool token (is_global = TRUE)
 // must never back a client-direct transfer, since the client would need its
+// OwnsPersonalAccount reports whether the user holds a personal (non-global)
+// token for exactly this platform account. A byos-direct chunk may only be
+// recorded against an account its owner controls: the shared pool's accounts
+// are other people's, and later deletes and reads run with their tokens.
+func (db *DB) OwnsPersonalAccount(ctx context.Context, userID, platform, account string) (bool, error) {
+	var owns bool
+	err := db.pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM platform_tokens
+		 WHERE user_id = $1 AND platform = $2 AND username = $3 AND is_global = FALSE)`,
+		userID, platform, account,
+	).Scan(&owns)
+	if err != nil {
+		return false, fmt.Errorf("owns personal account: %w", err)
+	}
+	return owns, nil
+}
+
 // plaintext and it must stay server-side.
 func (db *DB) PersonalTokenAccount(ctx context.Context, userID, platform string) (string, bool, error) {
 	var username string
