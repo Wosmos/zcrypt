@@ -28,6 +28,7 @@ vi.mock("@/lib/download-session", () => ({
 }));
 vi.mock("@/lib/bulk-download", () => ({
   downloadAsZip: vi.fn(),
+  zipRefusal: vi.fn(() => null),
 }));
 const tauriMocks = vi.hoisted(() => ({
   sidecarDownload: vi.fn(),
@@ -43,7 +44,7 @@ vi.mock("@/lib/tauri", async (importOriginal) => {
 import { useDownloadStore, canStreamToDisk } from "@/store/download";
 import { downloadAndDecryptFile, DownloadPausedError, type DownloadOptions } from "@/lib/download-session";
 const FakeDownloadPausedError = DownloadPausedError;
-import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
+import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -1425,14 +1426,49 @@ describe("useDownloadStore", () => {
         expect(getItem(id)?.status).toBe("cancelled");
       });
 
-      it("refuses an over-cap ZIP that cannot stream to disk", async () => {
+      it("asks to retry the picker, keeping the session, when the Save-As picker fails", async () => {
         vi.stubGlobal("showSaveFilePicker", vi.fn(async () => { throw new Error("gesture lost"); }));
         useDownloadStore.getState().startBulkZipDownload(big, "pw");
         const id = firstId();
         await flush();
         expect(downloadAsZip).not.toHaveBeenCalled();
+        expect(getItem(id)?.error).toBe("Choose where to save the ZIP");
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Retry to choose where to save"));
+        expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("Chrome"));
+
+        const { picker } = stubPicker();
+        useDownloadStore.getState().retryDownload(id, "pw");
+        await flush();
+        expect(picker).toHaveBeenCalled();
+        expect(downloadAsZip).toHaveBeenCalledWith(big, "pw", expect.anything());
+      });
+
+      it("refuses an over-cap ZIP and drops its session when the browser has no picker", async () => {
+        const huge: BulkDownloadFile[] = [...big, { fileId: "f3", filename: "c.bin", fileSize: ONE_GB }];
+        useDownloadStore.getState().startBulkZipDownload(huge, "pw");
+        const id = firstId();
+        await flush();
+        expect(downloadAsZip).not.toHaveBeenCalled();
         expect(getItem(id)?.error).toBe("Too large to ZIP in this browser");
         expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("too large to ZIP"));
+
+        useDownloadStore.getState().retryDownload(id, "pw");
+        await flush();
+        expect(getItem(id)).toBeUndefined();
+        expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+      });
+
+      it("refuses a selection the browser ZIP writer cannot hold and drops its session", async () => {
+        (zipRefusal as Mock).mockReturnValueOnce("A ZIP is limited to 4 GB.");
+        useDownloadStore.getState().startBulkZipDownload(big, "pw");
+        const id = firstId();
+        await flush();
+        expect(downloadAsZip).not.toHaveBeenCalled();
+        expect(getItem(id)?.error).toBe("A ZIP is limited to 4 GB.");
+        expect(toast.error).toHaveBeenCalledWith("A ZIP is limited to 4 GB.");
+        useDownloadStore.getState().retryDownload(id, "pw");
+        await flush();
+        expect(getItem(id)).toBeUndefined();
       });
 
       it("assembles a large but under-cap ZIP in memory when there is no picker", async () => {

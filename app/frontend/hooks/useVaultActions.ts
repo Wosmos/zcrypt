@@ -6,6 +6,7 @@ import { primeThumbnails } from "@/hooks/useThumbnail";
 import { ensureUserKeypair } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore, canStreamToDisk, ZIP_IN_MEMORY_MAX_BYTES } from "@/store/download";
+import { zipRefusal } from "@/lib/bulk-download";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
@@ -410,6 +411,16 @@ export function useVaultActions({
       const filesToDownload = files.filter((f) => ids.includes(f.id));
       if (filesToDownload.length === 0) return;
       const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
+      const bulkFiles = filesToDownload.map((f) => ({
+        fileId: f.id,
+        filename: f.original_name,
+        fileSize: f.original_size,
+      }));
+      const refusal = isTauri ? null : zipRefusal(bulkFiles);
+      if (refusal) {
+        toast.warning(refusal);
+        return;
+      }
       // Desktop and Save-As-capable browsers stream the zip to disk, so the
       // cap only applies to a browser that must assemble it in memory.
       if (!isTauri && totalSize > ZIP_IN_MEMORY_MAX_BYTES && !canStreamToDisk()) {
@@ -418,11 +429,6 @@ export function useVaultActions({
         );
         return;
       }
-      const bulkFiles = filesToDownload.map((f) => ({
-        fileId: f.id,
-        filename: f.original_name,
-        fileSize: f.original_size,
-      }));
       vault.withPassphrase((passphrase) => {
         if (isTauri) {
           const userId = useAuthStore.getState().user?.id ?? "";

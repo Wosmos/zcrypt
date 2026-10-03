@@ -7,7 +7,7 @@ import {
   type DiskWritable,
   type DownloadResumeState,
 } from "@/lib/download-session";
-import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
+import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
@@ -523,6 +523,13 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     zipSessions.set(id, { files, passphrase, resolvePassword, abort: controller });
 
     void (async () => {
+      const refusal = zipRefusal(files);
+      if (refusal) {
+        zipSessions.delete(id);
+        setStatusNow(id, { status: "failed", error: refusal, stage: "Failed" });
+        toast.error(refusal);
+        return;
+      }
       let saveToDisk: DiskWritable | undefined;
       const picker = getSaveFilePicker();
       if (totalSize >= STREAM_TO_DISK_MIN_BYTES && picker) {
@@ -538,6 +545,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         }
       }
       if (!saveToDisk && totalSize > ZIP_IN_MEMORY_MAX_BYTES) {
+        if (picker) {
+          setStatusNow(id, {
+            status: "failed",
+            error: "Choose where to save the ZIP",
+            stage: "Failed",
+          });
+          toast.error("This ZIP must be saved straight to disk. Retry to choose where to save.");
+          return;
+        }
+        zipSessions.delete(id);
         setStatusNow(id, {
           status: "failed",
           error: "Too large to ZIP in this browser",
@@ -831,6 +848,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     // Fallback (session already gone): restart a plain single download.
     get().removeFromQueue(id);
+    if (item.fileId === "zip") return;
     get().startDownload(item.fileId, item.filename, item.fileSize, passphrase, resolvePassword);
   },
 

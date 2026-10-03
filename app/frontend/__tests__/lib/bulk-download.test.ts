@@ -45,7 +45,14 @@ vi.mock("@/lib/zstd", () => ({
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));
 
-import { downloadAsZip, zipEntryName, type BulkDownloadFile } from "@/lib/bulk-download";
+import {
+  downloadAsZip,
+  zipEntryName,
+  zipRefusal,
+  ZIP_ENTRY_MAX_BYTES,
+  ZIP_MAX_ENTRIES,
+  type BulkDownloadFile,
+} from "@/lib/bulk-download";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -522,5 +529,66 @@ describe("downloadAsZip: folders and disk streaming", () => {
       downloadAsZip([{ fileId: "a", filename: "d.txt", fileSize: 1 }], "pw", { saveToDisk: disk }),
     ).rejects.toThrow("disk full");
     expect(disk.close).not.toHaveBeenCalled();
+  });
+});
+
+describe("ZIP size limits", () => {
+  const GB = 1024 * 1024 * 1024;
+  const many = (n: number, size: number): BulkDownloadFile[] =>
+    Array.from({ length: n }, (_, i) => ({ fileId: `f${i}`, filename: `f${i}.bin`, fileSize: size }));
+
+  it("accepts a selection the 32-bit ZIP format can hold", () => {
+    expect(zipRefusal(many(3, GB))).toBeNull();
+    expect(zipRefusal([...many(3, GB), { fileId: "x", filename: "x", fileSize: 5 * GB }])).toBeNull();
+  });
+
+  it("refuses an archive of 4 GiB or more, counting only the files that will be packed", () => {
+    expect(zipRefusal(many(4, ZIP_ENTRY_MAX_BYTES))).toContain("limited to 4 GB");
+  });
+
+  it("refuses more entries than a ZIP can index", () => {
+    expect(zipRefusal(many(ZIP_MAX_ENTRIES + 1, 1))).toContain(`at most ${ZIP_MAX_ENTRIES} files`);
+  });
+
+  it("refuses when every file is over the per-entry cap", () => {
+    expect(zipRefusal(many(2, ZIP_ENTRY_MAX_BYTES + 1))).toContain("Download them individually");
+  });
+
+  it("rejects a refused selection before touching the network", async () => {
+    await expect(downloadAsZip(many(5, GB), "pw")).rejects.toThrow("limited to 4 GB");
+    expect(getFileMeta).not.toHaveBeenCalled();
+  });
+
+  it("skips files over the per-entry cap and reports them without fetching them", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("small")] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    const report = await downloadAsZip(
+      [
+        { fileId: "big", filename: "big.iso", fileSize: ZIP_ENTRY_MAX_BYTES + 1 },
+        { fileId: "s", filename: "s.txt", fileSize: 5 },
+      ],
+      "pw",
+    );
+
+    expect(report).toEqual({
+      added: 1,
+      failed: [{ fileId: "big", filename: "big.iso", error: "Over 1 GB, too large for a ZIP" }],
+    });
+    expect(getFileMeta).toHaveBeenCalledTimes(1);
+    expect(getFileMeta).toHaveBeenCalledWith("s");
+    expect(await capturedZipContents()).toEqual({ "s.txt": "small" });
+  });
+
+  it("fails instead of saving when the ZIP writer reports an error", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    await expect(
+      downloadAsZip([{ fileId: "a", filename: "n".repeat(70000), fileSize: 1 }], "pw"),
+    ).rejects.toThrow();
+    expect(createObjectURL).not.toHaveBeenCalled();
   });
 });

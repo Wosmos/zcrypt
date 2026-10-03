@@ -60,6 +60,16 @@ export interface BulkDownloadReport {
   failed: { fileId: string; filename: string; error: string }[];
 }
 
+/** fflate writes 32-bit ZIP fields only (no ZIP64), so an archive must stay
+ *  under 4 GiB and 65535 entries or it is silently corrupt. */
+const ZIP32_MAX_BYTES = 0xffffffff;
+export const ZIP_MAX_ENTRIES = 0xffff;
+/** Each file is verified whole in memory before it is packed, so a single
+ *  entry is capped to keep the tab alive; larger files download individually. */
+export const ZIP_ENTRY_MAX_BYTES = 1024 * 1024 * 1024;
+const ZIP_ENTRY_OVERHEAD = 128;
+const ZIP_END_RECORD = 22;
+
 const RESERVED = new Set(["<", ">", ":", '"', "|", "?", "*", "\x7f"]);
 
 function cleanSegment(seg: string): string {
@@ -81,6 +91,30 @@ export function zipEntryName(file: Pick<BulkDownloadFile, "filename" | "path">):
   const dir = safeSegments(file.path ?? "");
   const name = safeSegments(file.filename).join("_") || "file";
   return [...dir, name].join("/");
+}
+
+function packedBytes(files: BulkDownloadFile[]): number {
+  const enc = new TextEncoder();
+  return files.reduce(
+    (sum, f) => sum + f.fileSize + ZIP_ENTRY_OVERHEAD + 2 * enc.encode(zipEntryName(f)).length,
+    ZIP_END_RECORD,
+  );
+}
+
+/** Why these files cannot be zipped in the browser, or null when they can.
+ *  Files over the entry cap are skipped (reported) rather than refused. */
+export function zipRefusal(files: BulkDownloadFile[]): string | null {
+  if (files.length > ZIP_MAX_ENTRIES) {
+    return `A ZIP holds at most ${ZIP_MAX_ENTRIES} files. Select fewer files.`;
+  }
+  const packable = files.filter((f) => f.fileSize <= ZIP_ENTRY_MAX_BYTES);
+  if (packable.length === 0) {
+    return "Files over 1 GB can't go in a ZIP. Download them individually.";
+  }
+  if (packedBytes(packable) > ZIP32_MAX_BYTES) {
+    return "A ZIP is limited to 4 GB. Select fewer files, or download them individually.";
+  }
+  return null;
 }
 
 function uniqueName(name: string, taken: Set<string>): string {
@@ -174,15 +208,20 @@ export async function downloadAsZip(
 ): Promise<BulkDownloadReport> {
   const { onProgress, signal, resolvePassword, saveToDisk } = options ?? {};
   assertNotAborted(signal);
+  const refusal = zipRefusal(files);
+  if (refusal) throw new Error(refusal);
 
   const totalFiles = files.length;
   const report: BulkDownloadReport = { added: 0, failed: [] };
   const parts: Uint8Array[] = [];
   let firstError: unknown = null;
   let pending: Promise<void> = Promise.resolve();
+  let zipError: Error | null = null;
 
-  const zip = new Zip((_err, chunk) => {
-    if (saveToDisk) {
+  const zip = new Zip((err, chunk) => {
+    if (err) {
+      zipError ??= err;
+    } else if (saveToDisk) {
       pending = pending.then(() => saveToDisk.write(chunk));
     } else {
       parts.push(chunk);
@@ -202,6 +241,15 @@ export async function downloadAsZip(
         filesTotal: totalFiles,
       });
       filesDone++;
+
+      if (file.fileSize > ZIP_ENTRY_MAX_BYTES) {
+        report.failed.push({
+          fileId: file.fileId,
+          filename: file.filename,
+          error: "Over 1 GB, too large for a ZIP",
+        });
+        continue;
+      }
 
       let data: Uint8Array;
       try {
@@ -238,6 +286,7 @@ export async function downloadAsZip(
     });
     zip.end();
     await pending;
+    if (zipError) throw zipError;
     if (saveToDisk) {
       await saveToDisk.close();
     } else {
