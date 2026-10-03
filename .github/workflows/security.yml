@@ -19,6 +19,7 @@ on:
       - "app/core/Cargo.lock"
       - "app/desktop/src-tauri/Cargo.toml"
       - "app/desktop/src-tauri/Cargo.lock"
+      - "app/desktop/src-tauri/deny.toml"
       - ".github/workflows/security.yml"
 
 jobs:
@@ -103,7 +104,9 @@ jobs:
       - uses: actions/checkout@v7
 
       # RustSec advisories (known CVEs, yanked and unsound crates) for the
-      # shared core and the desktop/Android shell that embeds it.
+      # shared core and the desktop/Android shell that embeds it. Advisories
+      # that only Tauri's own dependencies can fix are ignored by ID, each with
+      # its reason, in app/desktop/src-tauri/deny.toml.
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           manifest-path: ${{ matrix.manifest }}
