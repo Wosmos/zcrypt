@@ -5,6 +5,8 @@ package cmd
 import (
 	"context"
 	"math"
+	"sync"
+	"time"
 
 	"github.com/zcrypt/zcrypt/config"
 
@@ -118,6 +120,21 @@ func (s *Server) DrainDeletions(ctx context.Context) {
 	}
 }
 
+// PurgeScheduledDeletions runs the cleanup pass that erases accounts whose
+// deletion date has passed.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) PurgeScheduledDeletions(ctx context.Context) int {
+	return s.purgeScheduledDeletions(ctx)
+}
+
+// SetMetricsToken enables the metrics endpoint with the given bearer token.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) SetMetricsToken(token string) {
+	s.cfg.MetricsToken = token
+}
+
 // EnableTestOAuth registers a fake provider config so the OAuth callback can be
 // driven against a stub provider server in integration tests.
 func (s *Server) EnableTestOAuth(provider, clientID, clientSecret string) {
@@ -130,5 +147,26 @@ func (s *Server) EnableTestOAuth(provider, clientID, clientSecret string) {
 		s.cfg.OAuth.Google = pc
 	case "github":
 		s.cfg.OAuth.GitHub = pc
+	}
+}
+
+// CaptureNewDeviceEmails records new-device alerts instead of emailing them and
+// returns a function listing the device labels alerted so far.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) CaptureNewDeviceEmails() func() []string {
+	var mu sync.Mutex
+	var devices []string
+	s.newDeviceMailer = func(_, device, _ string, _ time.Time, _ string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		devices = append(devices, device)
+		return nil
+	}
+	return func() []string {
+		s.WaitBackground(context.Background())
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), devices...)
 	}
 }

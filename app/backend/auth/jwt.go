@@ -22,6 +22,7 @@ type Claims struct {
 	Typ          string `json:"typ,omitempty"`
 	TokenVersion int    `json:"tv,omitempty"`
 	Decoy        bool   `json:"decoy,omitempty"`
+	SessionID    string `json:"sid,omitempty"`
 	Exp          int64  `json:"exp"`
 	Iat          int64  `json:"iat"`
 }
@@ -57,22 +58,18 @@ func b64Decode(s string) ([]byte, error) {
 
 // GenerateAccessToken creates a signed HS256 JWT.
 func GenerateAccessToken(secret, userID, email, username, role string, tokenVersion int) (string, error) {
-	now := time.Now()
-	claims := Claims{
-		Sub:          userID,
-		Email:        email,
-		Username:     username,
-		Role:         role,
-		Typ:          tokenTypeAccess,
-		TokenVersion: tokenVersion,
-		Exp:          now.Add(AccessTokenDuration).Unix(),
-		Iat:          now.Unix(),
-	}
-	return signJWT(secret, claims)
+	return GenerateSessionAccessToken(secret, userID, email, username, role, tokenVersion, "", false)
 }
 
 // GenerateDecoyAccessToken creates a JWT with the decoy flag set.
 func GenerateDecoyAccessToken(secret, userID, email, username, role string, tokenVersion int) (string, error) {
+	return GenerateSessionAccessToken(secret, userID, email, username, role, tokenVersion, "", true)
+}
+
+// GenerateSessionAccessToken creates an access token bound to a sign-in
+// session (the refresh-token family it was issued from), so revoking that one
+// session can also reject its still-live access tokens.
+func GenerateSessionAccessToken(secret, userID, email, username, role string, tokenVersion int, sessionID string, decoy bool) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		Sub:          userID,
@@ -81,7 +78,8 @@ func GenerateDecoyAccessToken(secret, userID, email, username, role string, toke
 		Role:         role,
 		Typ:          tokenTypeAccess,
 		TokenVersion: tokenVersion,
-		Decoy:        true,
+		Decoy:        decoy,
+		SessionID:    sessionID,
 		Exp:          now.Add(AccessTokenDuration).Unix(),
 		Iat:          now.Unix(),
 	}

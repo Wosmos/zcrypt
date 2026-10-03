@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	// Registered for image.DecodeConfig so validateAvatar can verify that an
@@ -351,7 +352,7 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	hash := auth.HashToken(refreshToken)
 	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
-	if err != nil {
+	if err != nil || s.revokedSessions.has(rt.SessionID) {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
 		return
 	}
@@ -375,16 +376,9 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Rotate, keeping the old token alive for a short grace window (see
-	// RetireRefreshToken). A reuse inside the window lands here again and gets
+	// RotateRefreshToken). A reuse inside the window lands here again and gets
 	// its own fresh pair; after it, the expiry check above rejects it.
-	if err := s.db.RetireRefreshToken(ctx, rt.ID, refreshReuseGrace); err != nil {
-		log.Printf("refresh: retire token: %v", err)
-	}
-	if rt.Decoy {
-		s.issueDecoyTokens(w, r, user)
-		return
-	}
-	s.issueTokens(w, r, user)
+	s.writeTokenResponse(w, r, user, rt, rt.Decoy)
 }
 
 // HandleLogout invalidates the refresh token.
@@ -656,22 +650,28 @@ func (s *Server) reauthActingUser(ctx context.Context, r *http.Request, password
 	if auth.CheckPassword(password, user.PasswordHash) != nil {
 		return fmt.Errorf("password is incorrect")
 	}
-	if user.TOTPEnabled {
-		secret, err := s.totpSecret(user)
-		if err != nil {
-			return fmt.Errorf("internal error")
-		}
-		counter, ok := auth.ValidateTOTPCodeCounter(secret, code)
-		if !ok {
-			return fmt.Errorf("invalid 2FA code")
-		}
-		claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
-		if err != nil {
-			return fmt.Errorf("internal error")
-		}
-		if !claimed {
-			return fmt.Errorf("this 2FA code was already used: wait for the next one")
-		}
+	return s.checkSecondFactor(ctx, user, code)
+}
+
+// checkSecondFactor verifies a fresh 2FA code when the user has 2FA enabled.
+func (s *Server) checkSecondFactor(ctx context.Context, user *types.User, code string) error {
+	if !user.TOTPEnabled {
+		return nil
+	}
+	secret, err := s.totpSecret(user)
+	if err != nil {
+		return fmt.Errorf("internal error")
+	}
+	counter, ok := auth.ValidateTOTPCodeCounter(secret, code)
+	if !ok {
+		return fmt.Errorf("invalid 2FA code")
+	}
+	claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+	if err != nil {
+		return fmt.Errorf("internal error")
+	}
+	if !claimed {
+		return fmt.Errorf("this 2FA code was already used: wait for the next one")
 	}
 	return nil
 }
@@ -1202,6 +1202,9 @@ func (s *Server) HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		"display_name_set": req.DisplayName != "",
 		"avatar_set":       req.AvatarURL != "",
 	})
+	if IsDecoy(r) {
+		user = decoyView(user)
+	}
 
 	writeJSON(w, http.StatusOK, user)
 }
@@ -1468,81 +1471,128 @@ func clearRefreshCookie(w http.ResponseWriter) {
 	})
 }
 
-// issueTokens generates JWT + refresh token, sets the refresh-token cookie
-// for web clients, and writes both tokens as a JSON response (still needed
-// by the desktop/Tauri client — see refreshCookieName's comment).
+// issueTokens starts a new sign-in session: it generates a JWT + refresh token,
+// sets the refresh-token cookie for web clients, and writes both tokens as a
+// JSON response (still needed by the desktop/Tauri client, see
+// refreshCookieName's comment).
 func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
-	}
-	s.writeTokenResponse(w, r, user, accessToken, false, nil)
+	s.writeTokenResponse(w, r, user, nil, false)
 }
 
 // issueDecoyTokens issues JWT tokens with the decoy flag set. The session
 // presents as a plain user, and its refresh token stays decoy so refreshing can
 // never upgrade it to the real vault.
 func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	shown := decoyView(user)
-	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, shown.ID, shown.Email, shown.Username, shown.Role.String(), shown.TokenVersion)
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
-	}
-	s.writeTokenResponse(w, r, shown, accessToken, true, nil)
+	s.writeTokenResponse(w, r, user, nil, true)
 }
 
-// decoyView is the account as a decoy session is allowed to see it.
+// decoyView is the account as a decoy session is allowed to see it: a plain
+// user, with nothing the real owner has pending (such as a scheduled deletion)
+// showing through.
 func decoyView(user *types.User) *types.User {
 	shown := *user
 	shown.Role = types.RoleUser
+	shown.DeletionScheduledAt = nil
 	return &shown
 }
 
-// mintRefreshToken generates a refresh token for userID and persists its hash.
-// A token that was never stored cannot refresh, so a failed insert is an error.
-// A decoy token stays decoy, so refreshing can never upgrade it to the real vault.
-func (s *Server) mintRefreshToken(r *http.Request, userID string, decoy bool) (string, error) {
-	refreshToken, err := auth.GenerateRandomToken()
+// errSessionEnded means the refresh token being rotated was deleted (its
+// session signed out) while the refresh was in flight.
+var errSessionEnded = errors.New("session ended")
+
+// mintTokens creates and persists an access + refresh token pair. A nil parent
+// starts a new session; a parent (the refresh token being rotated) keeps the
+// new pair in that session and its decoy flag, so refreshing can never upgrade
+// a decoy session to the real vault. A token that was never stored cannot
+// refresh, so a failed insert is an error.
+func (s *Server) mintTokens(r *http.Request, user *types.User, parent *types.RefreshToken, decoy bool) (string, string, error) {
+	ctx := r.Context()
+	sessionID, startedAt := uuid.New().String(), time.Now()
+	if parent != nil {
+		decoy = parent.Decoy
+		if parent.SessionID != "" {
+			sessionID, startedAt = parent.SessionID, parent.SessionStartedAt
+		}
+	}
+
+	accessToken, rt, refreshToken, err := s.newTokenPair(r, user, sessionID, startedAt, decoy)
 	if err != nil {
-		return "", fmt.Errorf("generate refresh token: %w", err)
+		return "", "", err
 	}
-	if err := s.db.InsertRefreshToken(r.Context(), &types.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    userID,
-		TokenHash: auth.HashToken(refreshToken),
-		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        s.clientIP(r),
-		UserAgent: r.UserAgent(),
-		Decoy:     decoy,
-	}); err != nil {
-		return "", fmt.Errorf("store refresh token: %w", err)
+	if parent != nil {
+		rotated, err := s.db.RotateRefreshToken(ctx, parent.ID, refreshReuseGrace, rt)
+		if err != nil {
+			return "", "", err
+		}
+		if !rotated {
+			return "", "", errSessionEnded
+		}
+		return accessToken, refreshToken, nil
 	}
-	return refreshToken, nil
+
+	s.notifyNewDevice(ctx, r, user)
+	if err := s.db.InsertRefreshToken(ctx, rt); err != nil {
+		return "", "", fmt.Errorf("store refresh token: %w", err)
+	}
+	return accessToken, refreshToken, nil
 }
 
-// writeTokenResponse generates a refresh token for an already-generated access
-// token, persists it, sets the web refresh cookie, and writes the JSON
-// response shared by issueTokens and issueDecoyTokens. extra fields are merged
-// into the body.
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string, decoy bool, extra map[string]interface{}) {
-	refreshToken, err := s.mintRefreshToken(r, user.ID, decoy)
+// newTokenPair generates an access token and an unsaved refresh token row for
+// one session. A decoy pair carries the decoy flag in both and presents the
+// account as decoyView does.
+func (s *Server) newTokenPair(r *http.Request, user *types.User, sessionID string, startedAt time.Time, decoy bool) (string, *types.RefreshToken, string, error) {
+	shown := user
+	if decoy {
+		shown = decoyView(user)
+	}
+	accessToken, err := auth.GenerateSessionAccessToken(s.cfg.JWTSecret, shown.ID, shown.Email, shown.Username, shown.Role.String(), shown.TokenVersion, sessionID, decoy)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("access token: %w", err)
+	}
+	refreshToken, err := auth.GenerateRandomToken()
+	if err != nil {
+		return "", nil, "", fmt.Errorf("generate refresh token: %w", err)
+	}
+	rt := &types.RefreshToken{
+		ID:               uuid.New().String(),
+		UserID:           user.ID,
+		TokenHash:        auth.HashToken(refreshToken),
+		ExpiresAt:        time.Now().Add(auth.RefreshTokenDuration),
+		IP:               s.clientIP(r),
+		UserAgent:        r.UserAgent(),
+		SessionID:        sessionID,
+		SessionStartedAt: startedAt,
+		Decoy:            decoy,
+	}
+	return accessToken, rt, refreshToken, nil
+}
+
+// writeTokenResponse mints a token pair (see mintTokens), sets the web refresh
+// cookie, and writes the JSON response shared by every sign-in path.
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, parent *types.RefreshToken, decoy bool) {
+	if parent != nil {
+		decoy = parent.Decoy
+	}
+	accessToken, refreshToken, err := s.mintTokens(r, user, parent, decoy)
+	if errors.Is(err, errSessionEnded) {
+		clearRefreshCookie(w)
+		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
+		return
+	}
 	if err != nil {
 		internalError(w, "issue tokens", err)
 		return
 	}
-
-	body := map[string]interface{}{}
-	for k, v := range extra {
-		body[k] = v
+	if decoy {
+		user = decoyView(user)
 	}
-	body["access_token"] = accessToken
-	body["refresh_token"] = refreshToken
-	body["user"] = user
 
 	setRefreshCookie(w, refreshToken)
-	writeJSON(w, http.StatusOK, body)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"user":          user,
+	})
 }
 
 // revokeSessions signs userID out everywhere: every outstanding access token
@@ -1552,9 +1602,11 @@ func (s *Server) revokeSessions(ctx context.Context, userID string) error {
 		return fmt.Errorf("bump token version: %w", err)
 	}
 	s.tokenVersions.invalidate(userID)
-	if err := s.db.DeleteRefreshTokensByUser(ctx, userID); err != nil {
+	sessionIDs, err := s.db.DeleteRefreshTokensByUser(ctx, userID)
+	if err != nil {
 		return fmt.Errorf("delete refresh tokens: %w", err)
 	}
+	s.revokedSessions.add(sessionIDs...)
 	return nil
 }
 
@@ -1587,6 +1639,9 @@ func (s *Server) rotateCallerSession(w http.ResponseWriter, r *http.Request, cla
 	writeJSON(w, http.StatusOK, body)
 }
 
+// rotateSession revokes every session of the caller and mints this device a
+// fresh pair under a new session id (the old one is now revoked), without the
+// new-device notice: it is the same device.
 func (s *Server) rotateSession(r *http.Request, claims *auth.Claims) (*types.User, string, string, error) {
 	ctx := r.Context()
 	if err := s.revokeSessions(ctx, claims.Sub); err != nil {
@@ -1596,18 +1651,15 @@ func (s *Server) rotateSession(r *http.Request, claims *auth.Claims) (*types.Use
 	if err != nil {
 		return nil, "", "", fmt.Errorf("reload user: %w", err)
 	}
-	mint := auth.GenerateAccessToken
-	if claims.Decoy {
-		mint = auth.GenerateDecoyAccessToken
-		user = decoyView(user)
-	}
-	accessToken, err := mint(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("access token: %w", err)
-	}
-	refreshToken, err := s.mintRefreshToken(r, user.ID, claims.Decoy)
+	accessToken, rt, refreshToken, err := s.newTokenPair(r, user, uuid.New().String(), time.Now(), claims.Decoy)
 	if err != nil {
 		return nil, "", "", err
+	}
+	if err := s.db.InsertRefreshToken(ctx, rt); err != nil {
+		return nil, "", "", fmt.Errorf("store refresh token: %w", err)
+	}
+	if claims.Decoy {
+		user = decoyView(user)
 	}
 	return user, accessToken, refreshToken, nil
 }

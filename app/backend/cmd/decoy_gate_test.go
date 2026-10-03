@@ -116,18 +116,24 @@ func TestDecoyGateCoversEveryAuthenticatedRoute(t *testing.T) {
 
 	sort.Strings(passed)
 	want := []string{
+		"DELETE /api/auth/me",
+		"DELETE /api/auth/sessions/{id}",
 		"GET /api/analytics/file-types",
 		"GET /api/analytics/storage-growth",
 		"GET /api/analytics/summary",
 		"GET /api/analytics/timeseries",
 		"GET /api/auth/activity",
 		"GET /api/auth/me",
+		"GET /api/auth/me/export",
+		"GET /api/auth/sessions",
 		"GET /api/config",
 		"GET /api/files",
 		"GET /api/platforms/status",
 		"GET /api/preferences",
 		"GET /api/quota",
 		"PATCH /api/files/{id}/name",
+		"POST /api/auth/me/deletion/cancel",
+		"POST /api/auth/sessions/revoke-others",
 		"POST /api/sse/ticket",
 		"PUT /api/preferences",
 	}

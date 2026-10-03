@@ -3,6 +3,7 @@ package auth
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -43,6 +44,24 @@ func TestSendVerificationEmailNilConfig(t *testing.T) {
 
 func TestSendPasswordResetEmailNilConfig(t *testing.T) {
 	assert.NoError(t, SendPasswordResetEmail(nil, "to@test.com", "tok", "https://app"))
+}
+
+func TestNewDeviceEmailBody(t *testing.T) {
+	when := time.Date(2026, 10, 3, 21, 5, 0, 0, time.UTC)
+	out := newDeviceEmailBody("Firefox <b>on</b> Linux", "203.0.113.0/24", when, "https://app.example.com")
+	assert.Contains(t, out, "Firefox &lt;b&gt;on&lt;/b&gt; Linux")
+	assert.Contains(t, out, "203.0.113.0/24")
+	assert.Contains(t, out, "3 Oct 2026, 21:05 UTC")
+	assert.Contains(t, out, `href="https://app.example.com/settings"`)
+	assert.NoError(t, SendNewDeviceEmail(nil, "to@test.com", "d", "l", when, "https://app"))
+}
+
+func TestAccountDeletionEmailBody(t *testing.T) {
+	at := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	out := accountDeletionEmailBody(at, "https://app.example.com")
+	assert.Contains(t, out, "10 October 2026")
+	assert.Contains(t, out, `href="https://app.example.com/login"`)
+	assert.NoError(t, SendAccountDeletionEmail(nil, "to@test.com", at, "https://app"))
 }
 
 func TestSendMagicLinkEmailNilConfig(t *testing.T) {

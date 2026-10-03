@@ -1,3 +1,4 @@
+// Package cmd implements the zcrypt HTTP API.
 package cmd
 
 import (
@@ -99,6 +100,12 @@ type Server struct {
 	// version against the user's current token_version (bumped on password
 	// reset and admin role change).
 	tokenVersions *tokenVersionCache
+	// revokedSessions rejects access tokens of sessions signed out from
+	// another device until those tokens expire.
+	revokedSessions *revokedSessions
+	// newDeviceMailer, when set, replaces the Resend email for new-device
+	// alerts (integration tests capture the alerts through it).
+	newDeviceMailer func(to, device, location string, when time.Time, baseURL string) error
 
 	// Global adapter cache for anonymous sends (uses global platform tokens)
 	globalAdapterMu    sync.RWMutex
@@ -194,6 +201,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		syncCh:              make(chan struct{}, 1),
 		deletionCh:          make(chan struct{}, 1),
 		devMode:             os.Getenv("DEV_MODE") == "true",
+		revokedSessions:     newRevokedSessions(),
 	}
 	// Back JWT revocation with a 30s-TTL cache over the user's token_version.
 	// The TTL bounds how long a revoked-but-cached token can linger on paths
@@ -702,6 +710,12 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
 	mux.HandleFunc("POST /api/auth/2fa/backup-codes", maxJSON(s.AuthMiddleware(s.Handle2FARegenerateBackupCodes)))
 	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
+	mux.HandleFunc("DELETE /api/auth/me", maxJSON(s.AuthMiddleware(s.HandleDeleteAccount)))
+	mux.HandleFunc("POST /api/auth/me/deletion/cancel", maxJSON(s.AuthMiddleware(s.HandleCancelAccountDeletion)))
+	mux.HandleFunc("GET /api/auth/me/export", s.AuthMiddleware(s.HandleExportAccount))
+	mux.HandleFunc("GET /api/auth/sessions", s.AuthMiddleware(s.HandleListSessions))
+	mux.HandleFunc("POST /api/auth/sessions/revoke-others", maxJSON(s.AuthMiddleware(s.HandleRevokeOtherSessions)))
+	mux.HandleFunc("DELETE /api/auth/sessions/{id}", maxJSON(s.AuthMiddleware(s.HandleRevokeSession)))
 	mux.HandleFunc("PATCH /api/auth/profile", maxJSON(s.AuthMiddleware(s.HandleUpdateProfile)))
 	mux.HandleFunc("POST /api/auth/change-password", maxJSON(s.AuthMiddleware(s.HandleChangePassword)))
 	mux.HandleFunc("GET /api/auth/activity", s.AuthMiddleware(s.HandleUserActivity))
@@ -945,6 +959,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Maintenance-mode toggle for the Neon rotation write-freeze (internal use
 	// only; authenticated by static secret, see HandleMaintenanceToggle).
 	mux.HandleFunc("POST /api/internal/maintenance", maxJSON(s.HandleMaintenanceToggle))
+	mux.HandleFunc("GET /api/internal/metrics", s.HandleMetrics)
 
 	for _, register := range testRoutes {
 		register(s, mux)

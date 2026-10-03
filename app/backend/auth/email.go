@@ -209,6 +209,46 @@ func SendDeadManSwitchEmail(cfg *EmailConfig, to, contactName, ownerName, person
 	return sendResend(cfg, to, subject, body)
 }
 
+// newDeviceEmailBody builds the "new sign-in" alert. device and location are
+// client-supplied (user agent, coarse IP) and are escaped.
+func newDeviceEmailBody(device, location string, when time.Time, baseURL string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:15px;color:%s;line-height:1.6">Your zcrypt account was just signed in to from a device we have not seen before.</p>`, brandText)
+	fmt.Fprintf(&b, `<p style="margin:0 0 4px;font-size:14px;color:%s"><strong>Device:</strong> %s</p>`, brandText, htmlEscape(device))
+	fmt.Fprintf(&b, `<p style="margin:0 0 4px;font-size:14px;color:%s"><strong>Network:</strong> %s</p>`, brandText, htmlEscape(location))
+	fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:14px;color:%s"><strong>Time:</strong> %s</p>`, brandText, when.UTC().Format("2 Jan 2006, 15:04 UTC"))
+	fmt.Fprintf(&b, `<p style="margin:0;font-size:14px;color:%s;line-height:1.6">If this was you, there is nothing to do. If not, sign that device out and change your password now.</p>`, brandMuted)
+	b.WriteString(emailButton(baseURL+"/settings", "Review signed-in devices"))
+	return wrapEmail("New sign-in to your account", b.String(), "You get this email whenever your account is used from a new device.", baseURL)
+}
+
+// SendNewDeviceEmail alerts the account owner to a sign-in from a new device.
+func SendNewDeviceEmail(cfg *EmailConfig, to, device, location string, when time.Time, baseURL string) error {
+	if cfg == nil {
+		return nil
+	}
+	return sendResend(cfg, to, "New sign-in to your zcrypt account", newDeviceEmailBody(device, location, when, baseURL))
+}
+
+// accountDeletionEmailBody builds the confirmation sent when the owner
+// schedules their account for deletion.
+func accountDeletionEmailBody(deleteAt time.Time, baseURL string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:15px;color:%s;line-height:1.6">Your zcrypt account is scheduled for permanent deletion on <strong>%s</strong>. Every device has been signed out.</p>`,
+		brandText, deleteAt.UTC().Format("2 January 2006"))
+	fmt.Fprintf(&b, `<p style="margin:0;font-size:14px;color:%s;line-height:1.6">Changed your mind? Sign in before then and choose "Keep my account". After that date your files, folders, shares and account details are erased and cannot be recovered.</p>`, brandMuted)
+	b.WriteString(emailButton(baseURL+"/login", "Sign in to keep my account"))
+	return wrapEmail("Account deletion scheduled", b.String(), "If you did not request this, sign in and cancel it, then change your password.", baseURL)
+}
+
+// SendAccountDeletionEmail confirms a scheduled account deletion.
+func SendAccountDeletionEmail(cfg *EmailConfig, to string, deleteAt time.Time, baseURL string) error {
+	if cfg == nil {
+		return nil
+	}
+	return sendResend(cfg, to, "Your zcrypt account is scheduled for deletion", accountDeletionEmailBody(deleteAt, baseURL))
+}
+
 // htmlEscape escapes user-supplied strings before interpolating them into email HTML.
 func htmlEscape(s string) string {
 	r := strings.NewReplacer(

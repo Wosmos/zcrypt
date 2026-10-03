@@ -34,7 +34,9 @@ type sseTicket struct {
 	userID string
 	// subscriber is the stream identity events are routed by (see
 	// sseSubscriber): the user for a real session, a decoy-only id otherwise.
-	subscriber   string
+	subscriber string
+	// sessionID lets a stream end as soon as its sign-in is revoked.
+	sessionID    string
 	isAdmin      bool
 	tokenVersion int
 	streamUntil  time.Time
@@ -127,6 +129,7 @@ func sseTicketFor(claims *auth.Claims) sseTicket {
 	return sseTicket{
 		userID:       claims.Sub,
 		subscriber:   subscriber,
+		sessionID:    claims.SessionID,
 		isAdmin:      isAdmin,
 		tokenVersion: claims.TokenVersion,
 		streamUntil:  time.Unix(claims.Exp, 0),
@@ -150,7 +153,7 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 	revoked := func() (bool, error) {
 		cur, err := s.tokenVersions.current(r.Context(), caller.userID)
-		return err == nil && cur != caller.tokenVersion, err
+		return err == nil && (cur != caller.tokenVersion || s.revokedSessions.has(caller.sessionID)), err
 	}
 	gone, err := revoked()
 	if err != nil {

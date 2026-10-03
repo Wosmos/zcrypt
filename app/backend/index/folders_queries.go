@@ -96,6 +96,33 @@ func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) 
 	return folders, nil
 }
 
+// ListAllFolders returns every folder the user owns, trashed ones included.
+func (db *DB) ListAllFolders(ctx context.Context, userID string) ([]types.Folder, error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style
+		FROM folders WHERE user_id = $1 ORDER BY created_at`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list all folders: %w", err)
+	}
+	defer rows.Close()
+
+	folders := []types.Folder{}
+	for rows.Next() {
+		var (
+			f         types.Folder
+			createdAt time.Time
+			deletedAt *time.Time
+		)
+		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier, &f.EncryptedStyle); err != nil {
+			return nil, fmt.Errorf("scan folder: %w", err)
+		}
+		f.CreatedAt = createdAt.Format(time.RFC3339)
+		f.DeletedAt = folderTimeStr(deletedAt)
+		folders = append(folders, f)
+	}
+	return folders, rows.Err()
+}
+
 // ListFolderSubtree returns the root folder plus EVERY live descendant (any
 // depth) in a single query. Used by folder sharing to build each file's relative
 // path in one round trip instead of walking the tree one listing at a time, the

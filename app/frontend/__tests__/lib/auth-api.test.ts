@@ -131,6 +131,13 @@ describe("auth-api endpoint wrappers", () => {
     { name: "getUserActivity", run: () => authApi.getUserActivity("at"), path: "/api/auth/activity", auth: "at" },
     { name: "updateProfile", run: () => authApi.updateProfile("at", { display_name: "Wasif", avatar_url: "data:image/jpeg;base64,AA" }), path: "/api/auth/profile", method: "PATCH", body: { display_name: "Wasif", avatar_url: "data:image/jpeg;base64,AA" }, auth: "at" },
     { name: "changePassword", run: () => authApi.changePassword("at", "old", "new"), path: "/api/auth/change-password", method: "POST", body: { current_password: "old", new_password: "new", force: false }, auth: "at" },
+    { name: "listSessions", run: () => authApi.listSessions("at"), path: "/api/auth/sessions", auth: "at" },
+    { name: "revokeSession", run: () => authApi.revokeSession("at", "s 1"), path: "/api/auth/sessions/s%201", method: "DELETE", auth: "at" },
+    { name: "revokeOtherSessions", run: () => authApi.revokeOtherSessions("at"), path: "/api/auth/sessions/revoke-others", method: "POST", auth: "at" },
+    { name: "deleteAccount", run: () => authApi.deleteAccount("at", "pw", "123456"), path: "/api/auth/me", method: "DELETE", body: { password: "pw", code: "123456" }, auth: "at" },
+    { name: "deleteAccount (no 2FA)", run: () => authApi.deleteAccount("at", "pw"), path: "/api/auth/me", method: "DELETE", body: { password: "pw", code: "" }, auth: "at" },
+    { name: "cancelAccountDeletion", run: () => authApi.cancelAccountDeletion("at"), path: "/api/auth/me/deletion/cancel", method: "POST", auth: "at" },
+    { name: "exportAccount", run: () => authApi.exportAccount("at"), path: "/api/auth/me/export", auth: "at" },
     { name: "changePassword (force)", run: () => authApi.changePassword("at", "old", "new", true), path: "/api/auth/change-password", method: "POST", body: { current_password: "old", new_password: "new", force: true }, auth: "at" },
   ];
 

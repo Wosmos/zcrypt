@@ -40,7 +40,7 @@ func (s *Server) authenticate(next http.HandlerFunc) http.HandlerFunc {
 			internalError(w, "token version lookup", err)
 			return
 		}
-		if claims.TokenVersion != curVer {
+		if claims.TokenVersion != curVer || s.revokedSessions.has(claims.SessionID) {
 			http.Error(w, `{"error":"token revoked, please log in again"}`, http.StatusUnauthorized)
 			return
 		}
@@ -68,7 +68,7 @@ func (s *Server) OptionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc 
 			next.ServeHTTP(w, r)
 			return
 		}
-		if curVer, vErr := s.tokenVersions.current(r.Context(), claims.Sub); vErr != nil || claims.TokenVersion != curVer {
+		if curVer, vErr := s.tokenVersions.current(r.Context(), claims.Sub); vErr != nil || claims.TokenVersion != curVer || s.revokedSessions.has(claims.SessionID) {
 			next.ServeHTTP(w, r)
 			return
 		}

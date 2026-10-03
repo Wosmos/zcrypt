@@ -28,6 +28,8 @@ import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
 import { ScreenPrivacy } from "@/components/settings/screen-privacy";
+import { SignedInDevices } from "@/components/settings/signed-in-devices";
+import { AccountData } from "@/components/settings/account-data";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
@@ -59,6 +61,8 @@ import {
   Box,
   Database,
   Download,
+  MonitorSmartphone,
+  Archive,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -101,9 +105,11 @@ type SectionId =
   | "appearance"
   | "updates"
   | "account"
+  | "data"
   | "platforms"
   | "storage"
   | "privacy"
+  | "sessions"
   | "backup"
   | "security";
 
@@ -134,6 +140,11 @@ const SECTIONS: SectionDef[] = [
     group: "Account",
   },
   {
+    id: "data",
+    icon: Archive,
+    group: "Account",
+  },
+  {
     id: "platforms",
     icon: Box,
     group: "Account",
@@ -146,6 +157,11 @@ const SECTIONS: SectionDef[] = [
   {
     id: "privacy",
     icon: ShieldAlert,
+    group: "Privacy & security",
+  },
+  {
+    id: "sessions",
+    icon: MonitorSmartphone,
     group: "Privacy & security",
   },
   {
@@ -383,6 +399,10 @@ export function SettingsContent() {
             </SettingGroup>
           </div>
         );
+      case "data":
+        return <AccountData />;
+      case "sessions":
+        return <SignedInDevices />;
       case "backup":
         return <ExportImport files={files} />;
       case "security":

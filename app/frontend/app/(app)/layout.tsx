@@ -8,6 +8,7 @@ import { AppTransfers } from "@/components/transfer/app-transfers";
 import { FileEventsBridge } from "@/components/providers/file-events-bridge";
 import { ReviewPrompt } from "@/components/feedback/review-prompt";
 import { TourProvider } from "@/components/onboarding/tour-provider";
+import { AccountDeletionBanner } from "@/components/auth/account-deletion-banner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -46,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   className="panel relative min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-none border-0 shadow-none pb-[calc(6.5rem+var(--safe-bottom))] md:rounded-[1.25rem] md:border md:shadow-[0_1px_2px_rgba(16,24,40,0.04),0_4px_12px_-6px_rgba(16,24,40,0.08)] md:pb-0"
                 >
                   <div className="mx-auto max-w-9xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+                    <AccountDeletionBanner />
                     {children}
                   </div>
                 </main>

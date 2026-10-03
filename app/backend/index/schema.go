@@ -991,4 +991,18 @@ CREATE TABLE IF NOT EXISTS upload_presigns (
 -- A byos-direct confirm checks that no other chunk of the user already lives at
 -- the reported remote path, on every chunk of every direct upload.
 CREATE INDEX IF NOT EXISTS idx_chunks_user_remote_path ON chunks(user_id, repo, remote_path) WHERE remote_path <> '';
+-- Sign-in sessions. A session is the family of refresh tokens one sign-in
+-- rotates through: every rotation inherits session_id and session_started_at,
+-- so the Devices list shows one row per signed-in device, not per rotation.
+-- Rows from before sessions existed become their own one-token session.
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS session_id UUID;
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+UPDATE refresh_tokens SET session_id = id, session_started_at = created_at WHERE session_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session ON refresh_tokens(user_id, session_id);
+
+-- Self-serve account deletion. A request only schedules it: the account keeps
+-- working (so the owner can sign in and cancel) until the cleanup worker purges
+-- it once this time passes. NULL means no deletion is pending.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_deletion_scheduled ON users(deletion_scheduled_at) WHERE deletion_scheduled_at IS NOT NULL;
 `

@@ -38,6 +38,7 @@ func (rl *rateLimiter) allow(key string) bool {
 	rl.sweepLocked(now)
 	valid := rl.liveLocked(key, now)
 	if len(valid) >= rl.limit {
+		metrics.rateLimited.Add(1)
 		return false
 	}
 	rl.requests[key] = append(valid, now)

@@ -41,3 +41,9 @@ fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-a
 # to the user directly instead of silently allowlisted — see task report.
 a0ce8655490235ea1aedc98f7d9a8ca7659257e6:.env.loadtest.example:generic-api-key:15
 a0ce8655490235ea1aedc98f7d9a8ca7659257e6:.env.loadtest.example:generic-api-key:16
+
+# Historical, not a fixture: a Neon PGPASSWORD for a since-retired database in a
+# local Claude settings file committed once, before .claude/ was ignored. The
+# history is not rewritten, so this exact finding is allowlisted; that password
+# must be (and stay) rotated. Any other leak still fails the scan.
+424c7d9477cf8daf6f43dd506af1bcda44c663a8:.claude/settings.local.json:generic-api-key:42

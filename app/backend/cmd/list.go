@@ -63,27 +63,8 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			decoyFiles = []types.DecoyFile{}
 		}
-		// Convert to same shape as real files
-		fakeFiles := make([]types.FileMetadata, len(decoyFiles))
-		for i, df := range decoyFiles {
-			fm := types.FileMetadata{
-				ID:           df.ID,
-				OriginalSize: df.Size,
-				CreatedAt:    df.CreatedAt,
-				Status:       "complete",
-			}
-			// Sealed names (enc1:) travel exactly like a real file's encrypted_name,
-			// so the client opens them with the session passphrase, which in a
-			// decoy session IS the decoy password they were sealed under.
-			if strings.HasPrefix(df.Name, sealedPrefix) {
-				fm.EncryptedName = strings.TrimPrefix(df.Name, sealedPrefix)
-			} else {
-				fm.OriginalName = df.Name // legacy plaintext; the client re-seals it
-			}
-			fakeFiles[i] = fm
-		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(fakeFiles)
+		json.NewEncoder(w).Encode(decoyFileList(decoyFiles))
 		return
 	}
 
@@ -124,4 +105,27 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
+}
+
+// decoyFileList presents decoy files in the same shape as real ones.
+func decoyFileList(decoyFiles []types.DecoyFile) []types.FileMetadata {
+	files := make([]types.FileMetadata, len(decoyFiles))
+	for i, df := range decoyFiles {
+		fm := types.FileMetadata{
+			ID:           df.ID,
+			OriginalSize: df.Size,
+			CreatedAt:    df.CreatedAt,
+			Status:       "complete",
+		}
+		// Sealed names (enc1:) travel exactly like a real file's encrypted_name,
+		// so the client opens them with the session passphrase, which in a
+		// decoy session IS the decoy password they were sealed under.
+		if strings.HasPrefix(df.Name, sealedPrefix) {
+			fm.EncryptedName = strings.TrimPrefix(df.Name, sealedPrefix)
+		} else {
+			fm.OriginalName = df.Name // legacy plaintext; the client re-seals it
+		}
+		files[i] = fm
+	}
+	return files
 }

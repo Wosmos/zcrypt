@@ -422,15 +422,8 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		return
 	}
 
-	jwtToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
+	jwtToken, refreshToken, err := s.mintTokens(r, user, nil, false)
 	if err != nil {
-		s.oauthError(w, r, "internal error", desktop, session)
-		return
-	}
-
-	refreshToken, err := s.mintRefreshToken(r, user.ID, false)
-	if err != nil {
-		log.Printf("oauth: %v", err)
 		s.oauthError(w, r, "internal error", desktop, session)
 		return
 	}

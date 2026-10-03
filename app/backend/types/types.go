@@ -226,8 +226,10 @@ type User struct {
 	// connected storage: a shared global token makes every platform report
 	// connected, so every new account looked finished.
 	OnboardedAt *time.Time `json:"onboarded_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	// DeletionScheduledAt is set while a self-serve account deletion is pending.
+	DeletionScheduledAt *time.Time `json:"deletion_scheduled_at,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 // RefreshToken tracks a user's active refresh token.
@@ -240,6 +242,21 @@ type RefreshToken struct {
 	IP        string
 	UserAgent string
 	Decoy     bool
+	// SessionID groups every rotation of one sign-in; SessionStartedAt is when
+	// that sign-in happened.
+	SessionID        string
+	SessionStartedAt time.Time
+}
+
+// Session is one signed-in device as shown to its owner.
+type Session struct {
+	ID         string    `json:"id"`
+	IP         string    `json:"ip"`
+	UserAgent  string    `json:"user_agent"`
+	StartedAt  time.Time `json:"started_at"`
+	LastActive time.Time `json:"last_active"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	Current    bool      `json:"current"`
 }
 
 // EmailToken is a one-time token for email verification, password reset, or magic link.

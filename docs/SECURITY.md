@@ -10,15 +10,17 @@ appreciate responsible disclosure.
 security vulnerability.** Public disclosure before a fix is available puts users
 at risk.
 
-Instead, report it privately by email to:
-
-**m.wasifmalik17@gmail.com**
+Instead, report it privately through GitHub's private vulnerability reporting:
+open the repository's **Security** tab and choose **Report a vulnerability**.
+Only the maintainers can see the report, and the fix and advisory are
+coordinated in the same place.
 
 Please include, where possible:
 
 - A description of the issue and its potential impact.
 - Steps to reproduce, or a proof-of-concept.
-- The affected component (backend, frontend, TUI) and version/commit.
+- The affected component (backend, web frontend, desktop app, Android app,
+  shared Rust core, TUI) and version/commit.
 - Any suggested remediation.
 
 You can expect an acknowledgement of your report, and we will keep you informed
@@ -44,7 +46,11 @@ not guaranteed to receive security updates.
 
 In scope:
 
-- The zcrypt backend, frontend, and TUI in this repository.
+- Everything in this repository: the backend (`app/backend`), the web frontend
+  (`app/frontend`), the desktop and Android apps (`app/desktop`), the shared
+  Rust client engine they embed (`app/core`), and the TUI (`app/tui`).
+- Release artifacts built from it: installers, the auto-updater feed and its
+  signatures, and the Android APK.
 - Issues that could compromise the zero-knowledge guarantee (e.g. plaintext or
   passphrase exposure), authentication, token-at-rest encryption, access
   control, or data integrity.

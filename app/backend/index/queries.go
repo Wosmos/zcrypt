@@ -622,6 +622,32 @@ func (db *DB) MarkDeletionFailed(ctx context.Context, id int64, errMsg string) e
 	return err
 }
 
+// SyncQueueStats is a snapshot of the background sync and deletion queues.
+type SyncQueueStats struct {
+	Pending          int64
+	Abandoned        int64
+	Uncommitted      int64
+	PendingDeletions int64
+}
+
+// SyncQueueStats counts chunks waiting to sync, chunks that hit maxAttempts
+// without syncing, pushed-but-unverified chunks, and queued remote deletions.
+func (db *DB) SyncQueueStats(ctx context.Context, maxAttempts int) (SyncQueueStats, error) {
+	var st SyncQueueStats
+	err := db.pool.QueryRow(ctx,
+		`SELECT
+		     COUNT(*) FILTER (WHERE remote_path = '' AND sync_attempts < $1),
+		     COUNT(*) FILTER (WHERE remote_path = '' AND sync_attempts >= $1),
+		     COUNT(*) FILTER (WHERE remote_path <> '' AND committed = FALSE),
+		     (SELECT COUNT(*) FROM pending_deletions)
+		 FROM chunks`, maxAttempts,
+	).Scan(&st.Pending, &st.Abandoned, &st.Uncommitted, &st.PendingDeletions)
+	if err != nil {
+		return st, fmt.Errorf("sync queue stats: %w", err)
+	}
+	return st, nil
+}
+
 // PendingDeletionCount returns how many deletions are queued.
 func (db *DB) PendingDeletionCount(ctx context.Context) (int, error) {
 	var count int
