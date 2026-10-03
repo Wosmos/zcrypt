@@ -237,22 +237,27 @@ func (db *DB) UpdateFileStyle(ctx context.Context, userID, fileID string, encryp
 	return nil
 }
 
-// ListFiles returns stored files for a user, newest first, optionally filtered by
-// name substring. limit caps the number of rows returned (a safety bound against an
-// unbounded scan/transfer for accounts with very large libraries); pass <= 0 for no
-// explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
-// case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
-func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
+// FileCursor is a keyset position in the newest-first file list: the
+// (created_at, id) of the last row of the previous page.
+type FileCursor struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+// ListFiles returns one page of a user's live files, newest first, ordered by
+// (created_at, id) so pages never skip or repeat a row. after resumes from a
+// previous page's last row; nil starts at the newest. limit <= 0 means no cap.
+func (db *DB) ListFiles(ctx context.Context, userID string, after *FileCursor, limit int) ([]types.FileMetadata, error) {
 	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style, health,
 	                 COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
 
-	if filter != "" {
-		query += ` AND original_name ILIKE $2`
-		args = append(args, "%"+filter+"%")
+	if after != nil {
+		query += ` AND (created_at, id) < ($2, $3::uuid)`
+		args = append(args, after.CreatedAt, after.ID)
 	}
-	query += ` ORDER BY created_at DESC`
+	query += ` ORDER BY created_at DESC, id DESC`
 	if limit > 0 {
 		args = append(args, limit)
 		query += fmt.Sprintf(` LIMIT $%d`, len(args))

@@ -5,7 +5,8 @@ import { isTauri } from "@/lib/tauri";
 import { primeThumbnails } from "@/hooks/useThumbnail";
 import { ensureUserKeypair } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
-import { useDownloadStore } from "@/store/download";
+import { useDownloadStore, canStreamToDisk, ZIP_IN_MEMORY_MAX_BYTES } from "@/store/download";
+import { zipRefusal } from "@/lib/bulk-download";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
@@ -410,22 +411,24 @@ export function useVaultActions({
       const filesToDownload = files.filter((f) => ids.includes(f.id));
       if (filesToDownload.length === 0) return;
       const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
-      // Desktop streams one file at a time into the zip (bounded by the
-      // single largest file, not the sum), so the 2GB cap is a BROWSER-ONLY
-      // limitation: the in-memory-then-zip web path holds every file's full
-      // decrypted bytes simultaneously, which is what that cap protects.
-      const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
-      if (!isTauri && totalSize > MAX_ZIP_SIZE) {
-        toast.warning(
-          `Selected files total ${formatBytes(totalSize)}, too large for ZIP. Download individually instead.`,
-        );
-        return;
-      }
       const bulkFiles = filesToDownload.map((f) => ({
         fileId: f.id,
         filename: f.original_name,
         fileSize: f.original_size,
       }));
+      const refusal = isTauri ? null : zipRefusal(bulkFiles);
+      if (refusal) {
+        toast.warning(refusal);
+        return;
+      }
+      // Desktop and Save-As-capable browsers stream the zip to disk, so the
+      // cap only applies to a browser that must assemble it in memory.
+      if (!isTauri && totalSize > ZIP_IN_MEMORY_MAX_BYTES && !canStreamToDisk()) {
+        toast.warning(
+          `Selected files total ${formatBytes(totalSize)}, too large for ZIP. Download individually instead.`,
+        );
+        return;
+      }
       vault.withPassphrase((passphrase) => {
         if (isTauri) {
           const userId = useAuthStore.getState().user?.id ?? "";

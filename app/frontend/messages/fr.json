@@ -9,7 +9,8 @@
     "creating": "Création...",
     "unlock": "Déverrouiller",
     "unlocking": "Déverrouillage…",
-    "language": "Langue"
+    "language": "Langue",
+    "close": "Fermer"
   },
   "shell": {
     "vault": "Coffre",

@@ -1,28 +1,58 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
-// File-list result bound. The frontend loads the full library to do search/sort/
-// type-filter/pagination entirely client-side, so this is a defensive safety cap
-// against a pathologically large account dumping an unbounded result set, not a
-// product-facing page size. It is high enough that no realistic account is affected;
-// genuine pagination (with server-side sort) would be a separate, larger change.
+// Page size for GET /api/files. A library larger than one page is walked with
+// the X-Next-Cursor response header, so nothing is ever silently dropped.
 const (
 	defaultFileListLimit = 10000
 	maxFileListLimit     = 10000
 )
 
-// HandleListFiles returns all stored files for the current user.
+// NextCursorHeader carries the cursor for the next page of GET /api/files; it
+// is absent on the last page.
+const NextCursorHeader = "X-Next-Cursor"
+
+func encodeFileCursor(f types.FileMetadata) string {
+	raw := f.CreatedAt.UTC().Format(time.RFC3339Nano) + "|" + f.ID
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+}
+
+func decodeFileCursor(s string) (*index.FileCursor, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("decode cursor: %w", err)
+	}
+	ts, id, ok := strings.Cut(string(raw), "|")
+	if !ok {
+		return nil, fmt.Errorf("malformed cursor")
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, fmt.Errorf("parse cursor id: %w", err)
+	}
+	t, err := time.Parse(time.RFC3339Nano, ts)
+	if err != nil {
+		return nil, fmt.Errorf("parse cursor time: %w", err)
+	}
+	return &index.FileCursor{CreatedAt: t, ID: id}, nil
+}
+
+// HandleListFiles returns a page of the current user's files, newest first.
 // In decoy mode, returns fake decoy files instead.
-// GET /api/files?filter=optional_search
+// GET /api/files?limit=N&cursor=<X-Next-Cursor of the previous page>
 func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
@@ -57,8 +87,6 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filter := r.URL.Query().Get("filter")
-
 	limit := defaultFileListLimit
 	if v := r.URL.Query().Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -69,11 +97,25 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		limit = maxFileListLimit
 	}
 
-	files, err := s.db.ListFiles(ctx, userID, filter, limit)
+	var after *index.FileCursor
+	if c := r.URL.Query().Get("cursor"); c != "" {
+		cur, err := decodeFileCursor(c)
+		if err != nil {
+			http.Error(w, `{"error":"invalid cursor"}`, http.StatusBadRequest)
+			return
+		}
+		after = cur
+	}
+
+	files, err := s.db.ListFiles(ctx, userID, after, limit+1)
 	if err != nil {
 		log.Printf("files: list failed: %v", err)
 		http.Error(w, `{"error":"failed to list files"}`, http.StatusInternalServerError)
 		return
+	}
+	if len(files) > limit {
+		files = files[:limit]
+		w.Header().Set(NextCursorHeader, encodeFileCursor(files[limit-1]))
 	}
 
 	if files == nil {

@@ -9,7 +9,8 @@
     "creating": "Creando...",
     "unlock": "Desbloquear",
     "unlocking": "Desbloqueando…",
-    "language": "Idioma"
+    "language": "Idioma",
+    "close": "Cerrar"
   },
   "shell": {
     "vault": "Bóveda",

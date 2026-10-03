@@ -1,25 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
+import type { StreamObserver } from "@/lib/event-stream";
+
+type Listeners = Record<string, (e: { data: string }) => void>;
+const subs: { listeners: Listeners; observer: StreamObserver; unsubscribe: ReturnType<typeof vi.fn> }[] = [];
+
+vi.mock("@/lib/event-stream", () => ({
+  subscribeEvents: vi.fn((listeners: Listeners, observer: StreamObserver) => {
+    const unsubscribe = vi.fn();
+    subs.push({ listeners, observer, unsubscribe });
+    return unsubscribe;
+  }),
+}));
 
 vi.mock("@/lib/api", () => ({
-  createEventSource: vi.fn(() => {
-    class FakeEventSource {
-      onopen: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      closed = false;
-      listeners: Record<string, Array<(e: { data: string }) => void>> = {};
-      addEventListener(type: string, cb: (e: { data: string }) => void) {
-        (this.listeners[type] ??= []).push(cb);
-      }
-      close() {
-        this.closed = true;
-      }
-      emit(type: string, data: string) {
-        this.listeners[type]?.forEach((cb) => cb({ data }));
-      }
-    }
-    return new FakeEventSource();
-  }),
+  CHANGES_PAGE_LIMIT: 3,
+  getChanges: vi.fn(),
 }));
 
 vi.mock("@/lib/invalidate", () => ({
@@ -34,214 +30,146 @@ vi.mock("@/store/auth", () => ({
 }));
 
 import { useFileEvents } from "@/hooks/useFileEvents";
-import { createEventSource } from "@/lib/api";
+import { subscribeEvents } from "@/lib/event-stream";
+import { getChanges } from "@/lib/api";
 import { invalidateFilesViews, applyFileEvents } from "@/lib/invalidate";
 
-type FakeES = {
-  onopen: (() => void) | null;
-  onerror: (() => void) | null;
-  closed: boolean;
-  close: () => void;
-  emit: (type: string, data: string) => void;
-};
-
-function latestES(): FakeES {
-  const calls = (createEventSource as ReturnType<typeof vi.fn>).mock.results;
-  return calls[calls.length - 1]!.value as FakeES;
-}
-
-function setAuthenticated(authenticated: boolean) {
-  mockAccessToken = authenticated ? "token" : null;
-}
-
-
-const settle = () => act(async () => {});
+const latest = () => subs.at(-1)!;
+const emit = (data: string) => latest().listeners.file!({ data });
+const reopen = () => latest().observer.onOpen?.(true);
 
 describe("useFileEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    subs.length = 0;
     vi.useFakeTimers();
-    setAuthenticated(true);
+    mockAccessToken = "token";
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("does not connect when unauthenticated", async () => {
-    setAuthenticated(false);
+  it("does not subscribe when unauthenticated", () => {
+    mockAccessToken = null;
     renderHook(() => useFileEvents());
-    await settle();
-    expect(createEventSource).not.toHaveBeenCalled();
+    expect(subscribeEvents).not.toHaveBeenCalled();
   });
 
-  it("connects exactly once when authenticated", async () => {
+  it("subscribes exactly once when authenticated", () => {
     renderHook(() => useFileEvents());
-    await settle();
-    expect(createEventSource).toHaveBeenCalledTimes(1);
+    expect(subscribeEvents).toHaveBeenCalledTimes(1);
   });
 
-  it("debounces a single file event before invalidating", async () => {
-    renderHook(() => useFileEvents());
-    await settle();
-    latestES().emit("file", JSON.stringify({ op: "added", file_id: "f1", rev: 1 }));
-
-    expect(applyFileEvents).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(300);
-    expect(applyFileEvents).toHaveBeenCalledTimes(1);
-  });
-
-  it("coalesces a burst of file events into a single invalidation", async () => {
-    renderHook(() => useFileEvents());
-    await settle();
-    const es = latestES();
-    es.emit("file", JSON.stringify({ op: "added", file_id: "f1", rev: 1 }));
-    await vi.advanceTimersByTimeAsync(100);
-    es.emit("file", JSON.stringify({ op: "updated", file_id: "f1", rev: 2 }));
-    await vi.advanceTimersByTimeAsync(100);
-    es.emit("file", JSON.stringify({ op: "renamed", file_id: "f1", rev: 3 }));
-
-    await vi.advanceTimersByTimeAsync(299);
-    expect(applyFileEvents).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(applyFileEvents).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not throw on a malformed file event payload", async () => {
-    renderHook(() => useFileEvents());
-    await settle();
-    expect(() => latestES().emit("file", "{not json")).not.toThrow();
-    await vi.advanceTimersByTimeAsync(300);
-    expect(applyFileEvents).toHaveBeenCalledWith([null]);
-    await vi.advanceTimersByTimeAsync(300);
-    expect(applyFileEvents).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not invalidate on the very first successful open", async () => {
-    renderHook(() => useFileEvents());
-    await settle();
-    latestES().onopen?.();
-    expect(invalidateFilesViews).not.toHaveBeenCalled();
-  });
-
-  it("invalidates once as a catch-up on reconnect", async () => {
-    renderHook(() => useFileEvents());
-    await settle();
-    const es = latestES();
-    es.onopen?.(); // initial open
-    es.onopen?.(); // reconnect after a drop
-    expect(invalidateFilesViews).toHaveBeenCalledTimes(1);
-  });
-
-  it("closes the connection and cancels a pending debounce on unmount", async () => {
-    const { unmount } = renderHook(() => useFileEvents());
-    await settle();
-    const es = latestES();
-    es.emit("file", JSON.stringify({ op: "deleted", file_id: "f1", rev: 4 }));
-
-    unmount();
-    expect(es.closed).toBe(true);
-
-    await vi.advanceTimersByTimeAsync(300);
-    expect(invalidateFilesViews).not.toHaveBeenCalled();
-  });
-
-  it("reconnects when auth flips from unauthenticated to authenticated", async () => {
-    setAuthenticated(false);
+  it("subscribes when auth flips from unauthenticated to authenticated", () => {
+    mockAccessToken = null;
     const { rerender } = renderHook(() => useFileEvents());
-    await settle();
-    expect(createEventSource).not.toHaveBeenCalled();
-
-    setAuthenticated(true);
+    mockAccessToken = "token";
     rerender();
-    await settle();
-    expect(createEventSource).toHaveBeenCalledTimes(1);
+    expect(subscribeEvents).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the dropped connection and reconnects after the base delay on error", async () => {
+  it("coalesces a burst of file events into a single apply", () => {
     renderHook(() => useFileEvents());
-    await settle();
-    const es = latestES();
-    es.onerror?.();
-    expect(es.closed).toBe(true);
-    expect(createEventSource).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(createEventSource).toHaveBeenCalledTimes(2);
+    emit(JSON.stringify({ op: "added", file_id: "f1", rev: 1 }));
+    vi.advanceTimersByTime(100);
+    emit(JSON.stringify({ op: "renamed", file_id: "f1", rev: 3 }));
+    vi.advanceTimersByTime(299);
+    expect(applyFileEvents).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(applyFileEvents).toHaveBeenCalledTimes(1);
   });
 
-  it("doubles the reconnect delay on each consecutive error (exponential backoff)", async () => {
+  it("forwards a malformed payload as null so the batch falls back to a full refresh", () => {
     renderHook(() => useFileEvents());
-    await settle();
-    latestES().onerror?.();
-    await vi.advanceTimersByTimeAsync(1000); // 1st reconnect (delay was 1000 * 2^0)
-    expect(createEventSource).toHaveBeenCalledTimes(2);
-
-    latestES().onerror?.();
-    await vi.advanceTimersByTimeAsync(1000); // not enough yet: 2nd delay is 1000 * 2^1 = 2000
-    expect(createEventSource).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(1000); // now at 2000 total
-    expect(createEventSource).toHaveBeenCalledTimes(3);
+    expect(() => emit("{not json")).not.toThrow();
+    vi.advanceTimersByTime(300);
+    expect(applyFileEvents).toHaveBeenCalledWith([null]);
   });
 
-  it("resets the backoff attempt counter after a successful open", async () => {
+  it("does nothing on the first open", () => {
     renderHook(() => useFileEvents());
-    await settle();
-    latestES().onerror?.();
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(createEventSource).toHaveBeenCalledTimes(2);
-
-    latestES().onopen?.(); // successful reconnect, resets reconnectAttempt to 0
-    latestES().onerror?.();
-    await vi.advanceTimersByTimeAsync(1000); // back to the base delay, not the doubled one
-    expect(createEventSource).toHaveBeenCalledTimes(3);
+    latest().observer.onOpen?.(false);
+    expect(invalidateFilesViews).not.toHaveBeenCalled();
+    expect(getChanges).not.toHaveBeenCalled();
   });
 
-  it("does not reconnect on error after unmount", async () => {
+  it("does a blanket catch-up on reconnect when no rev has been seen yet", () => {
+    renderHook(() => useFileEvents());
+    reopen();
+    expect(invalidateFilesViews).toHaveBeenCalledTimes(1);
+    expect(getChanges).not.toHaveBeenCalled();
+  });
+
+  it("pulls only the missed changes from the highest rev seen", async () => {
+    vi.mocked(getChanges).mockResolvedValue({
+      changes: [
+        { file_id: "a", rev: 8, deleted: true },
+        { file_id: "b", rev: 9, deleted: false },
+      ],
+      cursor: 9,
+    });
+    renderHook(() => useFileEvents());
+    emit(JSON.stringify({ op: "added", file_id: "x", rev: 7 }));
+    emit(JSON.stringify({ op: "added", file_id: "y", rev: 5 }));
+    reopen();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getChanges).toHaveBeenCalledWith(7);
+    expect(applyFileEvents).toHaveBeenCalledWith([
+      { op: "deleted", file_id: "a", rev: 8 },
+      { op: "updated", file_id: "b", rev: 9 },
+    ]);
+
+    vi.mocked(getChanges).mockResolvedValue({ changes: [], cursor: 9 });
+    reopen();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getChanges).toHaveBeenLastCalledWith(9);
+    expect(invalidateFilesViews).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a blanket refresh when the changes page is full or the fetch fails", async () => {
+    renderHook(() => useFileEvents());
+    emit(JSON.stringify({ op: "added", file_id: "x", rev: 1 }));
+    vi.mocked(getChanges).mockResolvedValueOnce({
+      changes: [1, 2, 3].map((r) => ({ file_id: `f${r}`, rev: r + 1, deleted: false })),
+      cursor: 4,
+    });
+    reopen();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(invalidateFilesViews).toHaveBeenCalledTimes(1);
+
+    vi.mocked(getChanges).mockRejectedValueOnce(new Error("offline"));
+    reopen();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(invalidateFilesViews).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops a catch-up that lands after unmount", async () => {
+    let resolve!: (v: { changes: { file_id: string; rev: number; deleted: boolean }[]; cursor: number }) => void;
+    vi.mocked(getChanges).mockReturnValueOnce(new Promise((r) => (resolve = r)));
     const { unmount } = renderHook(() => useFileEvents());
-    await settle();
-    const es = latestES();
+    emit(JSON.stringify({ op: "added", file_id: "x", rev: 1 }));
+    vi.advanceTimersByTime(300);
+    vi.mocked(applyFileEvents).mockClear();
+    reopen();
     unmount();
-
-    es.onerror?.();
-    await vi.advanceTimersByTimeAsync(30_000);
-    expect(createEventSource).toHaveBeenCalledTimes(1);
+    resolve({ changes: [{ file_id: "z", rev: 2, deleted: true }], cursor: 2 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(applyFileEvents).not.toHaveBeenCalled();
   });
 
-  it("cancels a pending reconnect timer on unmount", async () => {
+  it("unsubscribes and cancels a pending debounce on unmount", () => {
     const { unmount } = renderHook(() => useFileEvents());
-    await settle();
-    latestES().onerror?.(); // schedules a reconnect timer
-    unmount(); // must clearTimeout it, not let it fire later
-    await vi.advanceTimersByTimeAsync(30_000);
-    expect(createEventSource).toHaveBeenCalledTimes(1);
+    emit(JSON.stringify({ op: "deleted", file_id: "f1", rev: 4 }));
+    unmount();
+    expect(latest().unsubscribe).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(300);
+    expect(applyFileEvents).not.toHaveBeenCalled();
   });
 
-  it("ignores a stale reconnect timer that outraces unmount", async () => {
-    const { unmount } = renderHook(() => useFileEvents());
-    await settle();
-    const es = latestES();
-    // Two errors back-to-back schedule two timers, but only the second
-    // (later) one is tracked for cancellation: the first is still pending.
-    es.onerror?.();
-    es.onerror?.();
-    unmount(); // cancels only the tracked (later) timer
-    await vi.advanceTimersByTimeAsync(1000); // the untracked earlier timer now fires connect()
-    expect(createEventSource).toHaveBeenCalledTimes(1); // disposed guard bails out
-  });
-  it("retries with backoff when the stream ticket cannot be fetched", async () => {
-    (createEventSource as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("offline"));
-    renderHook(() => useFileEvents());
-    await settle();
-    expect(createEventSource).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(createEventSource).toHaveBeenCalledTimes(2);
-  });
-
-  it("closes a stream that opens after unmount", async () => {
+  it("unmounts cleanly with no pending debounce", () => {
     const { unmount } = renderHook(() => useFileEvents());
     unmount();
-    await settle();
-    expect(latestES().closed).toBe(true);
+    expect(latest().unsubscribe).toHaveBeenCalledTimes(1);
   });
 });

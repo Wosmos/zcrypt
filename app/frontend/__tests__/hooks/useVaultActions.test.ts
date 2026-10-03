@@ -99,7 +99,10 @@ vi.mock("@/store/upload", () => ({
   ),
 }));
 
+const mockCanStreamToDisk = vi.fn(() => false);
 vi.mock("@/store/download", () => ({
+  ZIP_IN_MEMORY_MAX_BYTES: 2 * 1024 * 1024 * 1024,
+  canStreamToDisk: () => mockCanStreamToDisk(),
   useDownloadStore: Object.assign(
     (selector?: (s: typeof mockDownloadStoreState) => unknown) =>
       selector ? selector(mockDownloadStoreState) : mockDownloadStoreState,
@@ -683,17 +686,63 @@ describe("handleBulkDownload", () => {
     expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
   });
 
+  const MB = 1024 * 1024;
+  const sized = (n: number, size: number) =>
+    Array.from({ length: n }, (_, i) =>
+      makeFile({ id: `f${i}`, original_name: `f${i}.bin`, original_size: size }),
+    );
+
   it("warns and refuses when the total size exceeds the 2GB cap", () => {
-    const bigFile = makeFile({ id: "big", original_size: 3 * 1024 * 1024 * 1024 });
-    const args = makeArgs({ files: [bigFile] });
+    const args = makeArgs({ files: sized(3, 900 * MB) });
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleBulkDownload(["big"]);
+      result.current.handleBulkDownload(["f0", "f1", "f2"]);
     });
 
     expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("too large for ZIP"));
     expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+  });
+
+  it("allows a ZIP over the cap when the browser can stream it to disk", () => {
+    mockCanStreamToDisk.mockReturnValueOnce(true);
+    const args = makeArgs({ files: sized(3, 900 * MB) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f0", "f1", "f2"]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockDownloadStoreState.startBulkZipDownload).toHaveBeenCalled();
+  });
+
+  it("refuses a ZIP past 4 GB even when the browser can stream it to disk", () => {
+    mockCanStreamToDisk.mockReturnValue(true);
+    const args = makeArgs({ files: sized(5, 900 * MB) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f0", "f1", "f2", "f3", "f4"]);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("limited to 4 GB"));
+    expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+    mockCanStreamToDisk.mockReset();
+  });
+
+  it("refuses a ZIP whose only files are each over 1 GB", () => {
+    mockCanStreamToDisk.mockReturnValue(true);
+    const args = makeArgs({ files: sized(1, 3 * 1024 * MB) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f0"]);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("over 1 GB"));
+    expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+    mockCanStreamToDisk.mockReset();
   });
 
   it("starts the bulk zip download when under the cap", () => {

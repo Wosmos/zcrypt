@@ -9,7 +9,8 @@
     "creating": "Wird erstellt...",
     "unlock": "Entsperren",
     "unlocking": "Wird entsperrt…",
-    "language": "Sprache"
+    "language": "Sprache",
+    "close": "Schließen"
   },
   "shell": {
     "vault": "Tresor",

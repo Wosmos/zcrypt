@@ -28,6 +28,7 @@ vi.mock("@/lib/download-session", () => ({
 }));
 vi.mock("@/lib/bulk-download", () => ({
   downloadAsZip: vi.fn(),
+  zipRefusal: vi.fn(() => null),
 }));
 const tauriMocks = vi.hoisted(() => ({
   sidecarDownload: vi.fn(),
@@ -40,10 +41,10 @@ vi.mock("@/lib/tauri", async (importOriginal) => {
   return { ...actual, ...tauriMocks };
 });
 
-import { useDownloadStore } from "@/store/download";
+import { useDownloadStore, canStreamToDisk } from "@/store/download";
 import { downloadAndDecryptFile, DownloadPausedError, type DownloadOptions } from "@/lib/download-session";
 const FakeDownloadPausedError = DownloadPausedError;
-import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
+import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -98,7 +99,7 @@ describe("useDownloadStore", () => {
     vi.useFakeTimers();
     vi.restoreAllMocks();
     (downloadAndDecryptFile as Mock).mockReset().mockResolvedValue(undefined);
-    (downloadAsZip as Mock).mockReset().mockResolvedValue(undefined);
+    (downloadAsZip as Mock).mockReset().mockResolvedValue({ added: 1, failed: [] });
     tauriMocks.sidecarDownload.mockReset().mockResolvedValue(undefined);
     tauriMocks.sidecarBulkDownloadZip.mockReset().mockResolvedValue(undefined);
     tauriMocks.pickSaveLocation.mockReset().mockResolvedValue("/save/path");
@@ -109,6 +110,7 @@ describe("useDownloadStore", () => {
     queryClient.setQueryData(qk.files, []);
     vi.spyOn(toast, "success").mockImplementation(() => {});
     vi.spyOn(toast, "error").mockImplementation(() => {});
+    vi.spyOn(toast, "warning").mockImplementation(() => {});
     vi.spyOn(notifications, "downloadComplete").mockImplementation(() => {});
     vi.spyOn(notifications, "downloadFailed").mockImplementation(() => {});
   });
@@ -178,7 +180,31 @@ describe("useDownloadStore", () => {
       }
       const id = firstId();
       await flush();
-      // No picker available -> falls straight through to the in-memory path.
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
+    it("refuses a large file when the browser cannot stream to disk, pointing to the app", async () => {
+      const open = vi.fn();
+      vi.stubGlobal("open", open);
+      useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
+      const id = firstId();
+      await flush();
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+      expect(getItem(id)).toEqual(
+        expect.objectContaining({ status: "failed", error: "Too large to download in this browser" }),
+      );
+      const [msg, action] = (toast.error as Mock).mock.calls.at(-1)!;
+      expect(msg).toContain("big.bin is too large");
+      action.onClick();
+      expect(open).toHaveBeenCalledWith("/download", "_blank", "noopener,noreferrer");
+    });
+
+    it("still downloads a file just under the cap in memory without a picker", async () => {
+      useDownloadStore.getState().startDownload("f1", "almost.bin", ONE_GB - 1, "pw");
+      const id = firstId();
+      await flush();
+      expect(lastCallOptions().resume?.saveToDisk).toBeUndefined();
       expect(getItem(id)?.status).toBe("done");
     });
 
@@ -210,13 +236,13 @@ describe("useDownloadStore", () => {
       );
     });
 
-    it("falls back to in-memory when the picker throws a non-abort error", async () => {
+    it("refuses instead of buffering in memory when the picker throws a non-abort error", async () => {
       vi.stubGlobal("showSaveFilePicker", vi.fn(async () => { throw new Error("not supported"); }));
       useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
       const id = firstId();
       await flush();
-      expect(lastCallOptions().resume?.saveToDisk).toBeUndefined();
-      expect(getItem(id)?.status).toBe("done");
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("failed");
     });
 
     it("marks failed and keeps the session on a plain failure", async () => {
@@ -491,7 +517,7 @@ describe("useDownloadStore", () => {
     });
 
     it("restarts a ZIP download on retry (ZIP has no resume pipeline)", async () => {
-      (downloadAsZip as Mock).mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce(undefined);
+      (downloadAsZip as Mock).mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({ added: 1, failed: [] });
       const files: BulkDownloadFile[] = [{ fileId: "f1", filename: "a", fileSize: 1 }];
       useDownloadStore.getState().startBulkZipDownload(files, "pw");
       const id = firstId();
@@ -1349,6 +1375,110 @@ describe("useDownloadStore", () => {
 
       expect(getItem(id)?.status).toBe("failed");
       expect(toast.error).toHaveBeenCalledWith("ZIP download failed: ZIP download failed");
+    });
+
+    it("reports skipped files as a warning and clears a wrong folder password among them", async () => {
+      queryClient.setQueryData(qk.files, [file({ id: "f2", folder_id: "folder-2" })]);
+      useFolderRegistry.setState({ byId: { "folder-2": { pwSalt: "s", pwVerifier: "v" } } });
+      useFolderPasswordStore.getState().set("folder-2", "stale");
+      (downloadAsZip as Mock).mockResolvedValueOnce({
+        added: 1,
+        failed: [
+          { fileId: "f2", filename: "b.txt", error: "Decryption failed for b.txt, wrong passphrase?" },
+          { fileId: "f3", filename: "c.txt", error: "404" },
+        ],
+      });
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.warning).toHaveBeenCalledWith(
+        "ZIP saved without 2 of 2 files (b.txt, c.txt). Download those individually.",
+      );
+      expect(useFolderPasswordStore.getState().get("folder-2")).toBeNull();
+    });
+
+    describe("large selections", () => {
+      const big: BulkDownloadFile[] = [
+        { fileId: "f1", filename: "a.bin", fileSize: ONE_GB },
+        { fileId: "f2", filename: "b.bin", fileSize: 2 * ONE_GB },
+      ];
+
+      it("streams a large ZIP to the picked file", async () => {
+        const { picker, writable } = stubPicker();
+        expect(canStreamToDisk()).toBe(true);
+        useDownloadStore.getState().startBulkZipDownload(big, "pw");
+        const id = firstId();
+        await flush();
+        expect(picker).toHaveBeenCalledWith({ suggestedName: "zcrypt-2-files.zip" });
+        expect((downloadAsZip as Mock).mock.calls[0][2].saveToDisk).toBe(writable);
+        expect(getItem(id)?.status).toBe("done");
+      });
+
+      it("cancels when the Save-As picker is dismissed", async () => {
+        vi.stubGlobal("showSaveFilePicker", vi.fn(async () => { throw new DOMException("cancelled", "AbortError"); }));
+        useDownloadStore.getState().startBulkZipDownload(big, "pw");
+        const id = firstId();
+        await flush();
+        expect(downloadAsZip).not.toHaveBeenCalled();
+        expect(getItem(id)?.status).toBe("cancelled");
+      });
+
+      it("asks to retry the picker, keeping the session, when the Save-As picker fails", async () => {
+        vi.stubGlobal("showSaveFilePicker", vi.fn(async () => { throw new Error("gesture lost"); }));
+        useDownloadStore.getState().startBulkZipDownload(big, "pw");
+        const id = firstId();
+        await flush();
+        expect(downloadAsZip).not.toHaveBeenCalled();
+        expect(getItem(id)?.error).toBe("Choose where to save the ZIP");
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Retry to choose where to save"));
+        expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("Chrome"));
+
+        const { picker } = stubPicker();
+        useDownloadStore.getState().retryDownload(id, "pw");
+        await flush();
+        expect(picker).toHaveBeenCalled();
+        expect(downloadAsZip).toHaveBeenCalledWith(big, "pw", expect.anything());
+      });
+
+      it("refuses an over-cap ZIP and drops its session when the browser has no picker", async () => {
+        const huge: BulkDownloadFile[] = [...big, { fileId: "f3", filename: "c.bin", fileSize: ONE_GB }];
+        useDownloadStore.getState().startBulkZipDownload(huge, "pw");
+        const id = firstId();
+        await flush();
+        expect(downloadAsZip).not.toHaveBeenCalled();
+        expect(getItem(id)?.error).toBe("Too large to ZIP in this browser");
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("too large to ZIP"));
+
+        useDownloadStore.getState().retryDownload(id, "pw");
+        await flush();
+        expect(getItem(id)).toBeUndefined();
+        expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+      });
+
+      it("refuses a selection the browser ZIP writer cannot hold and drops its session", async () => {
+        (zipRefusal as Mock).mockReturnValueOnce("A ZIP is limited to 4 GB.");
+        useDownloadStore.getState().startBulkZipDownload(big, "pw");
+        const id = firstId();
+        await flush();
+        expect(downloadAsZip).not.toHaveBeenCalled();
+        expect(getItem(id)?.error).toBe("A ZIP is limited to 4 GB.");
+        expect(toast.error).toHaveBeenCalledWith("A ZIP is limited to 4 GB.");
+        useDownloadStore.getState().retryDownload(id, "pw");
+        await flush();
+        expect(getItem(id)).toBeUndefined();
+      });
+
+      it("assembles a large but under-cap ZIP in memory when there is no picker", async () => {
+        expect(canStreamToDisk()).toBe(false);
+        useDownloadStore.getState().startBulkZipDownload([big[1]!], "pw");
+        const id = firstId();
+        await flush();
+        expect((downloadAsZip as Mock).mock.calls[0][2].saveToDisk).toBeUndefined();
+        expect(getItem(id)?.status).toBe("done");
+      });
     });
 
     it("recovers only the files that are actually in a protected folder", async () => {

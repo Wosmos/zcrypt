@@ -9,7 +9,8 @@
     "creating": "جارٍ الإنشاء...",
     "unlock": "فتح القفل",
     "unlocking": "جارٍ فتح القفل…",
-    "language": "اللغة"
+    "language": "اللغة",
+    "close": "إغلاق"
   },
   "shell": {
     "vault": "الخزنة",
