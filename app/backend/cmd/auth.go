@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	// Registered for image.DecodeConfig so validateAvatar can verify that an
@@ -338,7 +339,7 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	hash := auth.HashToken(refreshToken)
 	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
-	if err != nil {
+	if err != nil || s.revokedSessions.has(rt.SessionID) {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
 		return
 	}
@@ -362,11 +363,8 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Rotate, keeping the old token alive for a short grace window (see
-	// RetireRefreshToken). A reuse inside the window lands here again and gets
+	// RotateRefreshToken). A reuse inside the window lands here again and gets
 	// its own fresh pair; after it, the expiry check above rejects it.
-	if err := s.db.RetireRefreshToken(ctx, rt.ID, refreshReuseGrace); err != nil {
-		log.Printf("refresh: retire token: %v", err)
-	}
 	s.writeTokenResponse(w, r, user, rt, false)
 }
 
@@ -629,22 +627,28 @@ func (s *Server) reauthActingUser(ctx context.Context, r *http.Request, password
 	if auth.CheckPassword(password, user.PasswordHash) != nil {
 		return fmt.Errorf("password is incorrect")
 	}
-	if user.TOTPEnabled {
-		secret, err := s.totpSecret(user)
-		if err != nil {
-			return fmt.Errorf("internal error")
-		}
-		counter, ok := auth.ValidateTOTPCodeCounter(secret, code)
-		if !ok {
-			return fmt.Errorf("invalid 2FA code")
-		}
-		claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
-		if err != nil {
-			return fmt.Errorf("internal error")
-		}
-		if !claimed {
-			return fmt.Errorf("this 2FA code was already used: wait for the next one")
-		}
+	return s.checkSecondFactor(ctx, user, code)
+}
+
+// checkSecondFactor verifies a fresh 2FA code when the user has 2FA enabled.
+func (s *Server) checkSecondFactor(ctx context.Context, user *types.User, code string) error {
+	if !user.TOTPEnabled {
+		return nil
+	}
+	secret, err := s.totpSecret(user)
+	if err != nil {
+		return fmt.Errorf("internal error")
+	}
+	counter, ok := auth.ValidateTOTPCodeCounter(secret, code)
+	if !ok {
+		return fmt.Errorf("invalid 2FA code")
+	}
+	claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+	if err != nil {
+		return fmt.Errorf("internal error")
+	}
+	if !claimed {
+		return fmt.Errorf("this 2FA code was already used: wait for the next one")
 	}
 	return nil
 }
@@ -1059,6 +1063,9 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
+	if claims.Decoy {
+		user = decoyView(user)
+	}
 
 	writeJSON(w, http.StatusOK, user)
 }
@@ -1170,6 +1177,9 @@ func (s *Server) HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		"display_name_set": req.DisplayName != "",
 		"avatar_set":       req.AvatarURL != "",
 	})
+	if IsDecoy(r) {
+		user = decoyView(user)
+	}
 
 	writeJSON(w, http.StatusOK, user)
 }
@@ -1248,7 +1258,7 @@ func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		log.Printf("profile: bump token version: %v", err)
 	}
 	s.tokenVersions.invalidate(userID) // drop cache so revocation is immediate
-	if err := s.db.DeleteRefreshTokensByUser(ctx, userID); err != nil {
+	if _, err := s.db.DeleteRefreshTokensByUser(ctx, userID); err != nil {
 		log.Printf("profile: clear refresh tokens: %v", err)
 	}
 
@@ -1455,6 +1465,10 @@ func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *
 	s.writeTokenResponse(w, r, user, nil, true)
 }
 
+// errSessionEnded means the refresh token being rotated was deleted (its
+// session signed out) while the refresh was in flight.
+var errSessionEnded = errors.New("session ended")
+
 // mintTokens creates and persists an access + refresh token pair. A nil parent
 // starts a new session; a parent (the refresh token being rotated) keeps the
 // new pair in that session.
@@ -1474,11 +1488,7 @@ func (s *Server) mintTokens(r *http.Request, user *types.User, parent *types.Ref
 		return "", "", err
 	}
 
-	if parent == nil {
-		s.notifyNewDevice(ctx, r, user)
-	}
-
-	if err := s.db.InsertRefreshToken(ctx, &types.RefreshToken{
+	rt := &types.RefreshToken{
 		ID:               uuid.New().String(),
 		UserID:           user.ID,
 		TokenHash:        auth.HashToken(refreshToken),
@@ -1487,7 +1497,20 @@ func (s *Server) mintTokens(r *http.Request, user *types.User, parent *types.Ref
 		UserAgent:        r.UserAgent(),
 		SessionID:        sessionID,
 		SessionStartedAt: startedAt,
-	}); err != nil {
+	}
+	if parent != nil {
+		rotated, err := s.db.RotateRefreshToken(ctx, parent.ID, refreshReuseGrace, rt)
+		if err != nil {
+			return "", "", err
+		}
+		if !rotated {
+			return "", "", errSessionEnded
+		}
+		return accessToken, refreshToken, nil
+	}
+
+	s.notifyNewDevice(ctx, r, user)
+	if err := s.db.InsertRefreshToken(ctx, rt); err != nil {
 		return "", "", err
 	}
 	return accessToken, refreshToken, nil
@@ -1497,9 +1520,17 @@ func (s *Server) mintTokens(r *http.Request, user *types.User, parent *types.Ref
 // cookie, and writes the JSON response shared by every sign-in path.
 func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, parent *types.RefreshToken, decoy bool) {
 	accessToken, refreshToken, err := s.mintTokens(r, user, parent, decoy)
+	if errors.Is(err, errSessionEnded) {
+		clearRefreshCookie(w)
+		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
+		return
+	}
 	if err != nil {
 		internalError(w, "issue tokens", err)
 		return
+	}
+	if decoy {
+		user = decoyView(user)
 	}
 
 	setRefreshCookie(w, refreshToken)

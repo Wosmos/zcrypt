@@ -93,6 +93,9 @@ type Server struct {
 	// revokedSessions rejects access tokens of sessions signed out from
 	// another device until those tokens expire.
 	revokedSessions *revokedSessions
+	// newDeviceMailer, when set, replaces the Resend email for new-device
+	// alerts (integration tests capture the alerts through it).
+	newDeviceMailer func(to, device, location string, when time.Time, baseURL string) error
 
 	// Global adapter cache for anonymous sends (uses global platform tokens)
 	globalAdapterMu    sync.RWMutex

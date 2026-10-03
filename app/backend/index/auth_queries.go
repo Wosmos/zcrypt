@@ -369,17 +369,55 @@ func (db *DB) SetSystemSetting(ctx context.Context, key, value string) error {
 
 // --- Refresh Tokens ---
 
+const insertRefreshTokenSQL = `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at)
+	 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()))`
+
+func refreshTokenArgs(rt *types.RefreshToken) []any {
+	return []any{rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt)}
+}
+
 // InsertRefreshToken stores a refresh token hash with client binding.
 func (db *DB) InsertRefreshToken(ctx context.Context, rt *types.RefreshToken) error {
-	_, err := db.pool.Exec(ctx,
-		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()))`,
-		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt),
-	)
-	if err != nil {
+	if _, err := db.pool.Exec(ctx, insertRefreshTokenSQL, refreshTokenArgs(rt)...); err != nil {
 		return fmt.Errorf("insert refresh token: %w", err)
 	}
 	return nil
+}
+
+// RotateRefreshToken retires the parent token (see the grace note below) and
+// stores its successor in one transaction. The UPDATE row-locks the parent, so
+// a sign-out that deletes the session either runs first, leaving no parent to
+// rotate (false is returned and nothing is stored), or waits for this commit
+// and then deletes the successor too (see deleteRefreshTokens).
+//
+// Retiring shortens the parent's life to `grace` instead of deleting it, so a
+// second client that raced the same token (another tab, or the desktop webview
+// and its Rust engine) still gets a fresh pair rather than a 401 that logs the
+// user out.
+func (db *DB) RotateRefreshToken(ctx context.Context, parentID string, grace time.Duration, rt *types.RefreshToken) (bool, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("begin rotate refresh token tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE refresh_tokens SET expires_at = LEAST(expires_at, $2) WHERE id = $1`,
+		parentID, time.Now().Add(grace),
+	)
+	if err != nil {
+		return false, fmt.Errorf("retire refresh token: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx, insertRefreshTokenSQL, refreshTokenArgs(rt)...); err != nil {
+		return false, fmt.Errorf("insert refresh token: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("commit rotate refresh token: %w", err)
+	}
+	return true, nil
 }
 
 // GetRefreshTokenByHash looks up a refresh token by its SHA256 hash.
@@ -405,22 +443,52 @@ func (db *DB) DeleteRefreshToken(ctx context.Context, id string) error {
 	return err
 }
 
-// RetireRefreshToken shortens a rotated refresh token's life to `grace` instead
-// of deleting it, so a second client that raced the same token (another tab, or
-// the desktop webview and its Rust engine) still gets a fresh pair rather than a
-// 401 that logs the user out.
-func (db *DB) RetireRefreshToken(ctx context.Context, id string, grace time.Duration) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE refresh_tokens SET expires_at = LEAST(expires_at, $2) WHERE id = $1`,
-		id, time.Now().Add(grace),
-	)
-	return err
+// deleteRefreshTokens deletes the refresh tokens matching `where` and returns
+// their distinct session IDs. It row-locks the matches first: that waits out
+// any rotation in flight (RotateRefreshToken holds the parent's lock until its
+// successor is committed), and the DELETE, a new statement with a new
+// snapshot, then also catches that successor.
+func (db *DB) deleteRefreshTokens(ctx context.Context, where string, args ...any) ([]string, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin delete refresh tokens tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM refresh_tokens WHERE `+where+` FOR UPDATE`, args...); err != nil {
+		return nil, fmt.Errorf("lock refresh tokens: %w", err)
+	}
+	rows, err := tx.Query(ctx, `DELETE FROM refresh_tokens WHERE `+where+` RETURNING COALESCE(session_id, id)::text`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("delete refresh tokens: %w", err)
+	}
+	seen := map[string]bool{}
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan session id: %w", err)
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("delete refresh tokens: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit delete refresh tokens: %w", err)
+	}
+	return ids, nil
 }
 
-// DeleteRefreshTokensByUser removes all refresh tokens for a user.
-func (db *DB) DeleteRefreshTokensByUser(ctx context.Context, userID string) error {
-	_, err := db.pool.Exec(ctx, `DELETE FROM refresh_tokens WHERE user_id = $1`, userID)
-	return err
+// DeleteRefreshTokensByUser removes all refresh tokens for a user and returns
+// the IDs of the sessions it ended.
+func (db *DB) DeleteRefreshTokensByUser(ctx context.Context, userID string) ([]string, error) {
+	return db.deleteRefreshTokens(ctx, `user_id = $1`, userID)
 }
 
 // ListSessions returns the user's live sign-in sessions, most recently active
@@ -455,63 +523,21 @@ func (db *DB) ListSessions(ctx context.Context, userID string) ([]types.Session,
 // DeleteSession removes every refresh token of one of the user's sessions and
 // reports whether the session existed.
 func (db *DB) DeleteSession(ctx context.Context, userID, sessionID string) (bool, error) {
-	tag, err := db.pool.Exec(ctx,
-		`DELETE FROM refresh_tokens WHERE user_id = $1 AND COALESCE(session_id, id)::text = $2`,
-		userID, sessionID,
-	)
+	ids, err := db.deleteRefreshTokens(ctx, `user_id = $1 AND COALESCE(session_id, id)::text = $2`, userID, sessionID)
 	if err != nil {
 		return false, fmt.Errorf("delete session: %w", err)
 	}
-	return tag.RowsAffected() > 0, nil
+	return len(ids) > 0, nil
 }
 
 // DeleteOtherSessions removes every session of the user except keepSessionID
 // and returns the IDs of the sessions it removed.
 func (db *DB) DeleteOtherSessions(ctx context.Context, userID, keepSessionID string) ([]string, error) {
-	rows, err := db.pool.Query(ctx,
-		`DELETE FROM refresh_tokens WHERE user_id = $1 AND COALESCE(session_id, id)::text <> $2
-		 RETURNING COALESCE(session_id, id)::text`,
-		userID, keepSessionID,
-	)
+	ids, err := db.deleteRefreshTokens(ctx, `user_id = $1 AND COALESCE(session_id, id)::text <> $2`, userID, keepSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("delete other sessions: %w", err)
 	}
-	defer rows.Close()
-
-	seen := map[string]bool{}
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan session id: %w", err)
-		}
-		if !seen[id] {
-			seen[id] = true
-			ids = append(ids, id)
-		}
-	}
-	return ids, rows.Err()
-}
-
-// SessionIDsForUser returns the IDs of all of the user's sessions.
-func (db *DB) SessionIDsForUser(ctx context.Context, userID string) ([]string, error) {
-	rows, err := db.pool.Query(ctx,
-		`SELECT DISTINCT COALESCE(session_id, id)::text FROM refresh_tokens WHERE user_id = $1`, userID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("session ids: %w", err)
-	}
-	defer rows.Close()
-
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan session id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return ids, nil
 }
 
 // IsKnownDevice reports whether the user has signed in with this user agent

@@ -175,7 +175,7 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 	// Invalidate all existing tokens for this user (role change is security-sensitive)
 	_ = s.db.IncrementTokenVersion(ctx, userID)
 	s.tokenVersions.invalidate(userID) // drop cache so the demotion takes effect immediately
-	_ = s.db.DeleteRefreshTokensByUser(ctx, userID)
+	_, _ = s.db.DeleteRefreshTokensByUser(ctx, userID)
 
 	adminID := GetUserID(r)
 	s.audit(r, &adminID, "admin_role_change", map[string]interface{}{"target_user": userID, "role": req.Role})

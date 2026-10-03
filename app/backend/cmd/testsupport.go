@@ -4,6 +4,8 @@ package cmd
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/zcrypt/zcrypt/config"
 
@@ -113,5 +115,26 @@ func (s *Server) EnableTestOAuth(provider, clientID, clientSecret string) {
 		s.cfg.OAuth.Google = pc
 	case "github":
 		s.cfg.OAuth.GitHub = pc
+	}
+}
+
+// CaptureNewDeviceEmails records new-device alerts instead of emailing them and
+// returns a function listing the device labels alerted so far.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) CaptureNewDeviceEmails() func() []string {
+	var mu sync.Mutex
+	var devices []string
+	s.newDeviceMailer = func(_, device, _ string, _ time.Time, _ string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		devices = append(devices, device)
+		return nil
+	}
+	return func() []string {
+		s.WaitBackground(context.Background())
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), devices...)
 	}
 }

@@ -199,27 +199,57 @@ func TestMetricsEndpoint(t *testing.T) {
 
 func TestAccountExport(t *testing.T) {
 	ts := setupTestServer(t)
+	ctx := context.Background()
 	email := uniqueEmail("export")
 	token := ts.registerAndLogin(email, accountTestPassword)
+	user, err := ts.db.GetUserByEmail(ctx, strings.ToLower(email))
+	require.NoError(t, err)
+
+	operatorEmail := uniqueEmail("export-operator")
+	ts.registerAndLogin(operatorEmail, accountTestPassword)
+	operator, err := ts.db.GetUserByEmail(ctx, strings.ToLower(operatorEmail))
+	require.NoError(t, err)
+
+	var ownID, globalID string
+	require.NoError(t, ts.db.Pool().QueryRow(ctx,
+		`INSERT INTO platform_tokens (user_id, platform, username, token_encrypted, token_nonce)
+		 VALUES ($1, 'github', 'own-export-acct', '\x01', '\x02') RETURNING id::text`, user.ID).Scan(&ownID))
+	require.NoError(t, ts.db.Pool().QueryRow(ctx,
+		`INSERT INTO platform_tokens (user_id, platform, username, token_encrypted, token_nonce, is_global)
+		 VALUES ($1, 'gitlab', 'operator-shared-acct', '\x01', '\x02', TRUE) RETURNING id::text`, operator.ID).Scan(&globalID))
+	t.Cleanup(func() {
+		_, _ = ts.db.Pool().Exec(ctx, `DELETE FROM platform_tokens WHERE id IN ($1, $2)`, ownID, globalID)
+	})
 
 	resp := ts.GET("/api/auth/me/export", token)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, resp.Header.Get("Content-Disposition"), "zcrypt-account-")
+	raw := requireStatus(t, resp, http.StatusOK)
 	var out struct {
 		Version int `json:"version"`
 		Account struct {
 			Email string `json:"email"`
 		} `json:"account"`
+		Platforms []struct {
+			ID string `json:"id"`
+		} `json:"storage_connections"`
 		Sessions []sessionRow     `json:"sessions"`
 		Files    []map[string]any `json:"files"`
 		Folders  []map[string]any `json:"folders"`
 	}
-	decodeJSON(t, resp, &out)
+	require.NoError(t, jsonUnmarshal(raw, &out))
 	assert.Equal(t, 1, out.Version)
 	assert.Equal(t, strings.ToLower(email), out.Account.Email)
 	assert.NotEmpty(t, out.Sessions)
 	assert.NotNil(t, out.Files)
 	assert.NotNil(t, out.Folders)
+
+	require.Len(t, out.Platforms, 1, "only the user's own storage connections are exported")
+	assert.Equal(t, ownID, out.Platforms[0].ID)
+	body := string(raw)
+	for _, leak := range []string{globalID, operator.ID, "operator-shared-acct", "password", "totp_secret", "token_encrypted", "token_hash", "refresh_token"} {
+		assert.NotContains(t, body, leak)
+	}
 
 	requireStatus(t, ts.GET("/api/auth/me/export", ""), http.StatusUnauthorized)
 }

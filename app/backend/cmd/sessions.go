@@ -56,11 +56,21 @@ func (rs *revokedSessions) has(id string) bool {
 // HandleListSessions lists the caller's signed-in devices.
 // GET /api/auth/sessions
 func (s *Server) HandleListSessions(w http.ResponseWriter, r *http.Request) {
-	claims := GetUserClaims(r)
-	sessions, err := s.db.ListSessions(r.Context(), claims.Sub)
+	sessions, err := s.visibleSessions(r)
 	if err != nil {
 		internalError(w, "list sessions", err)
 		return
+	}
+	writeJSON(w, http.StatusOK, sessions)
+}
+
+// visibleSessions lists the caller's sessions with the calling one marked. A
+// decoy session sees only itself.
+func (s *Server) visibleSessions(r *http.Request) ([]types.Session, error) {
+	claims := GetUserClaims(r)
+	sessions, err := s.db.ListSessions(r.Context(), claims.Sub)
+	if err != nil {
+		return nil, err
 	}
 	visible := make([]types.Session, 0, len(sessions))
 	for _, ss := range sessions {
@@ -70,18 +80,20 @@ func (s *Server) HandleListSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		visible = append(visible, ss)
 	}
-	writeJSON(w, http.StatusOK, visible)
+	return visible, nil
 }
 
-// HandleRevokeSession signs one of the caller's devices out.
+// HandleRevokeSession signs one of the caller's devices out. A decoy session
+// sees only itself, so any other session is answered as not found.
 // DELETE /api/auth/sessions/{id}
 func (s *Server) HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
-	if IsDecoy(r) {
-		http.Error(w, `{"error":"not available"}`, http.StatusForbidden)
+	claims := GetUserClaims(r)
+	userID := claims.Sub
+	sessionID := r.PathValue("id")
+	if claims.Decoy && sessionID != claims.SessionID {
+		http.Error(w, `{"error":"session not found"}`, http.StatusNotFound)
 		return
 	}
-	userID := GetUserID(r)
-	sessionID := r.PathValue("id")
 	found, err := s.db.DeleteSession(r.Context(), userID, sessionID)
 	if err != nil {
 		internalError(w, "revoke session", err)
@@ -96,11 +108,12 @@ func (s *Server) HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// HandleRevokeOtherSessions signs out every device except the one calling.
+// HandleRevokeOtherSessions signs out every device except the one calling. A
+// decoy session has no other devices to sign out.
 // POST /api/auth/sessions/revoke-others
 func (s *Server) HandleRevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 	if IsDecoy(r) {
-		http.Error(w, `{"error":"not available"}`, http.StatusForbidden)
+		writeJSON(w, http.StatusOK, map[string]int{"revoked": 0})
 		return
 	}
 	claims := GetUserClaims(r)
@@ -126,8 +139,17 @@ const newDeviceGrace = 10 * time.Minute
 // notifyNewDevice emails the owner when a new session starts from a user agent
 // the account has not used before. Best-effort: it never blocks the sign-in.
 func (s *Server) notifyNewDevice(ctx context.Context, r *http.Request, user *types.User) {
-	cfg := s.emailCfg()
-	if cfg == nil || user.Email == "" || time.Since(user.CreatedAt) < newDeviceGrace {
+	send := s.newDeviceMailer
+	if send == nil {
+		cfg := s.emailCfg()
+		if cfg == nil {
+			return
+		}
+		send = func(to, device, location string, when time.Time, baseURL string) error {
+			return auth.SendNewDeviceEmail(cfg, to, device, location, when, baseURL)
+		}
+	}
+	if user.Email == "" || time.Since(user.CreatedAt) < newDeviceGrace {
 		return
 	}
 	ua := r.UserAgent()
@@ -137,7 +159,7 @@ func (s *Server) notifyNewDevice(ctx context.Context, r *http.Request, user *typ
 	}
 	device, location, baseURL, to := describeUserAgent(ua), anonIP(s.clientIP(r)), s.baseURL(r), user.Email
 	s.goBackground(func() {
-		if err := auth.SendNewDeviceEmail(cfg, to, device, location, time.Now(), baseURL); err != nil {
+		if err := send(to, device, location, time.Now(), baseURL); err != nil {
 			log.Printf("send new device email: %v", err)
 		}
 	})
