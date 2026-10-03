@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -18,7 +19,14 @@ const (
 	// up to three (operation status, file events, devices), so this leaves
 	// room for a few tabs and the desktop app.
 	maxStreamsPerUser = 12
+	// legacySSETokenRemoval is when /api/events stops accepting ?token=<jwt>.
+	// Only frontends built before SSE tickets still send it (old desktop and
+	// Android bundles); each use is logged so the cut-over can be watched.
+	legacySSETokenRemoval = "2027-01-01"
 )
+
+// legacySSETokenLog keeps the deprecation log to one line per user per hour.
+var legacySSETokenLog = newRateLimiter(1, time.Hour)
 
 // sseTicket is what a stream needs to know about its caller, captured from the
 // access token when the ticket was issued.
@@ -107,6 +115,9 @@ func (s *Server) sseCaller(r *http.Request) (sseTicket, bool) {
 	claims, err := auth.ValidateAccessToken(s.cfg.JWTSecret, token)
 	if err != nil {
 		return sseTicket{}, false
+	}
+	if legacySSETokenLog.allow(claims.Sub) {
+		log.Printf("deprecated: /api/events?token= used by user %s (%s); ticket auth required after %s", claims.Sub, r.UserAgent(), legacySSETokenRemoval)
 	}
 	return sseTicket{
 		userID:       claims.Sub,

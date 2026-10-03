@@ -1534,16 +1534,40 @@ func (s *Server) revokeSessions(ctx context.Context, userID string) error {
 // rotateCallerSession revokes every session of the caller and answers with a
 // fresh pair for this device only (decoy stays decoy), so a security change
 // such as toggling 2FA signs out every other device without signing out this one.
+// The change itself is already committed when this runs, so a failed rotation
+// still answers 200 with extra (one-time backup codes must reach the user) and
+// session_rotated: false; the caller then signs in again.
 func (s *Server) rotateCallerSession(w http.ResponseWriter, r *http.Request, claims *auth.Claims, extra map[string]interface{}) {
+	user, accessToken, refreshToken, err := s.rotateSession(r, claims)
+	if err != nil {
+		log.Printf("error: rotate session: %v", err)
+		body := map[string]interface{}{"session_rotated": false}
+		for k, v := range extra {
+			body[k] = v
+		}
+		writeJSON(w, http.StatusOK, body)
+		return
+	}
+	body := map[string]interface{}{}
+	for k, v := range extra {
+		body[k] = v
+	}
+	body["session_rotated"] = true
+	body["access_token"] = accessToken
+	body["refresh_token"] = refreshToken
+	body["user"] = user
+	setRefreshCookie(w, refreshToken)
+	writeJSON(w, http.StatusOK, body)
+}
+
+func (s *Server) rotateSession(r *http.Request, claims *auth.Claims) (*types.User, string, string, error) {
 	ctx := r.Context()
 	if err := s.revokeSessions(ctx, claims.Sub); err != nil {
-		internalError(w, "rotate session", err)
-		return
+		return nil, "", "", err
 	}
 	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
-		internalError(w, "rotate session: reload user", err)
-		return
+		return nil, "", "", fmt.Errorf("reload user: %w", err)
 	}
 	mint := auth.GenerateAccessToken
 	if claims.Decoy {
@@ -1551,8 +1575,11 @@ func (s *Server) rotateCallerSession(w http.ResponseWriter, r *http.Request, cla
 	}
 	accessToken, err := mint(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
-		internalError(w, "rotate session: access token", err)
-		return
+		return nil, "", "", fmt.Errorf("access token: %w", err)
 	}
-	s.writeTokenResponse(w, r, user, accessToken, extra)
+	refreshToken, err := s.mintRefreshToken(r, user.ID)
+	if err != nil {
+		return nil, "", "", err
+	}
+	return user, accessToken, refreshToken, nil
 }

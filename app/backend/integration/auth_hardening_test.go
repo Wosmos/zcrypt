@@ -200,6 +200,75 @@ func TestAdminRoleChangeRequiresReauth(t *testing.T) {
 	assert.Equal(t, "admin", role())
 }
 
+func TestAdminTokenChangesRequireReauth(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	const adminEmail = "token-admin@example.com"
+	adminPass := newTestPassword()
+	freshUser(ts, t, adminEmail, adminPass)
+	ts.makeAdmin(ctx, adminEmail)
+	adminToken := ts.loginToken(adminEmail, adminPass)
+	const tokenID = "00000000-0000-0000-0000-000000000001"
+
+	send := func(method, path string, body map[string]interface{}) (int, string) {
+		data, err := json.Marshal(body)
+		require.NoError(t, err)
+		req, err := http.NewRequest(method, ts.URL+path, bytes.NewReader(data))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-For", uniqueTestIP())
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		var out struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		return resp.StatusCode, out.Error
+	}
+
+	status, msg := send("POST", "/api/admin/tokens", map[string]interface{}{"platform": "github", "token": "ghp_x"})
+	assert.Equal(t, http.StatusForbidden, status)
+	assert.Contains(t, msg, "re-authentication required")
+
+	status, msg = send("PUT", "/api/admin/tokens/"+tokenID+"/scope", map[string]interface{}{"is_global": true})
+	assert.Equal(t, http.StatusForbidden, status)
+	assert.Contains(t, msg, "re-authentication required")
+
+	status, msg = send("DELETE", "/api/admin/tokens/"+tokenID, map[string]interface{}{"password": "Wrong@Pass1"})
+	assert.Equal(t, http.StatusForbidden, status)
+	assert.Contains(t, msg, "re-authentication required")
+
+	status, msg = send("DELETE", "/api/admin/tokens/"+tokenID, map[string]interface{}{"password": adminPass})
+	assert.Equal(t, http.StatusForbidden, status)
+	assert.Contains(t, msg, "not owned by you", "a re-authenticated admin reaches the ownership check")
+}
+
+func TestAdminReauthFailuresAreLimitedPerAdmin(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	const adminEmail = "reauth-limit-admin@example.com"
+	adminPass := newTestPassword()
+	freshUser(ts, t, adminEmail, adminPass)
+	ts.makeAdmin(ctx, adminEmail)
+	adminToken := ts.loginToken(adminEmail, adminPass)
+
+	sawLimited := false
+	for i := 0; i < 8; i++ {
+		resp := ts.POST("/api/admin/tokens", map[string]interface{}{
+			"platform": "github", "token": "ghp_x", "password": "Wrong@Pass1",
+		}, adminToken)
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusTooManyRequests {
+			sawLimited = true
+			break
+		}
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	}
+	assert.True(t, sawLimited, "wrong passwords from rotating IPs must still hit the per-admin limiter")
+}
+
 func openEvents(ts *testServer, t *testing.T, query string) *http.Response {
 	t.Helper()
 	req, err := http.NewRequest("GET", ts.URL+"/api/events?"+query, nil)
