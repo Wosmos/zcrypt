@@ -422,26 +422,11 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		return
 	}
 
-	jwtToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
+	jwtToken, refreshToken, err := s.mintTokens(r, user, nil, false)
 	if err != nil {
 		s.oauthError(w, r, "internal error", desktop, session)
 		return
 	}
-
-	refreshToken, err := auth.GenerateRandomToken()
-	if err != nil {
-		s.oauthError(w, r, "internal error", desktop, session)
-		return
-	}
-
-	s.db.InsertRefreshToken(r.Context(), &types.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		TokenHash: auth.HashToken(refreshToken),
-		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        s.clientIP(r),
-		UserAgent: r.UserAgent(),
-	})
 
 	if desktop && session != "" {
 		s.desktopRelayRedirect(w, r, frontendURL, session, &desktopOAuthResult{

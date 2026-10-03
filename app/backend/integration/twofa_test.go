@@ -44,15 +44,18 @@ func setup2FA(ts *testServer, t *testing.T, email, password string) (token, secr
 	}, token)
 	body = requireStatus(t, resp, http.StatusOK)
 	// Enable mints one-time recovery codes; every backup-code test needs them, and
-	// asserting them here keeps the happy-path callers unaffected.
+	// asserting them here keeps the happy-path callers unaffected. It also signs
+	// out every session and hands this one a fresh pair.
 	var enable struct {
 		BackupCodes []string `json:"backup_codes"`
+		AccessToken string   `json:"access_token"`
 	}
 	require.NoError(t, jsonUnmarshal(body, &enable))
 	require.Len(t, enable.BackupCodes, 10, "enable must return 10 recovery codes")
+	require.NotEmpty(t, enable.AccessToken, "enable must reissue the caller's session")
 	lastBackupCodes = enable.BackupCodes
 
-	return token, setup.Secret
+	return enable.AccessToken, setup.Secret
 }
 
 // lastBackupCodes holds the recovery codes returned by the most recent setup2FA
@@ -185,7 +188,12 @@ func TestTwoFAEnableRejectsReusedCode(t *testing.T) {
 
 	code := auth.TOTPCodeAt(setup.Secret, time.Now())
 	resp = ts.POST("/api/auth/2fa/enable", map[string]string{"code": code}, token)
-	requireStatus(t, resp, http.StatusOK)
+	body = requireStatus(t, resp, http.StatusOK)
+	var enabled struct {
+		AccessToken string `json:"access_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &enabled))
+	token = enabled.AccessToken
 
 	// Disable requires password + a FRESH code: the enable code is spent.
 	resp = ts.POST("/api/auth/2fa/disable", map[string]string{

@@ -90,6 +90,10 @@ func (s *Server) HandleSetupDecoy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"decoy password must be at least 6 characters"}`, http.StatusBadRequest)
 		return
 	}
+	if len(req.DecoyPassword) > maxPasswordBytes {
+		http.Error(w, fmt.Sprintf(`{"error":"decoy password must be at most %d bytes"}`, maxPasswordBytes), http.StatusBadRequest)
+		return
+	}
 
 	// Make sure decoy password != real password
 	user, err := s.db.GetUserByID(r.Context(), userID)
@@ -123,7 +127,7 @@ func (s *Server) HandleSetupDecoy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.UpsertDecoyVault(r.Context(), dv); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"setup decoy: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "setup decoy", err)
 		return
 	}
 
@@ -150,7 +154,7 @@ func (s *Server) HandleListDecoyFiles(w http.ResponseWriter, r *http.Request) {
 
 	files, err := s.db.ListDecoyFiles(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"list decoy files: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "list decoy files", err)
 		return
 	}
 
@@ -191,7 +195,7 @@ func (s *Server) HandleAddDecoyFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.InsertDecoyFile(r.Context(), file); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"add decoy file: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "add decoy file", err)
 		return
 	}
 

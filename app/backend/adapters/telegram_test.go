@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -148,6 +149,49 @@ func TestTelegramUploadDownloadRoundTrip(t *testing.T) {
 	}
 	if string(data) != "chunkbytes" {
 		t.Errorf("data = %q", data)
+	}
+}
+
+func TestTelegramDownloadToStreamsPartsInOrder(t *testing.T) {
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/getFile"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]string{"file_path": "documents/" + r.URL.Query().Get("file_id")}})
+		case strings.HasSuffix(r.URL.Path, "/documents/A"):
+			_, _ = w.Write([]byte("first-"))
+		case strings.HasSuffix(r.URL.Path, "/documents/B"):
+			_, _ = w.Write([]byte("second"))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	})
+
+	var buf strings.Builder
+	n, err := tg.DownloadTo(context.Background(), types.ChunkRef{RemotePath: "1:A,2:B"}, &buf)
+	if err != nil {
+		t.Fatalf("DownloadTo: %v", err)
+	}
+	if buf.String() != "first-second" || n != int64(len("first-second")) {
+		t.Errorf("got %q (%d bytes)", buf.String(), n)
+	}
+}
+
+func TestTelegramDownloadToSurfacesAFailedPart(t *testing.T) {
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/getFile") {
+			_, _ = w.Write([]byte(`{"ok":true,"result":{"file_path":"documents/x"}}`))
+			return
+		}
+		http.Error(w, "gone", http.StatusNotFound)
+	})
+
+	var buf strings.Builder
+	_, err := tg.DownloadTo(context.Background(), types.ChunkRef{RemotePath: "1:A"}, &buf)
+	if err == nil || !strings.Contains(err.Error(), "download returned 404") {
+		t.Fatalf("expected a 404 error, got %v", err)
+	}
+	if _, err := tg.Download(context.Background(), types.ChunkRef{RemotePath: "bad"}); err == nil {
+		t.Fatal("expected a parse error for a malformed part ref")
 	}
 }
 
@@ -335,5 +379,31 @@ func TestTelegramValidateChat(t *testing.T) {
 	})
 	if err := bad.validateChat(); err == nil {
 		t.Fatal("expected validateChat error")
+	}
+}
+
+func TestTelegramVerifyChunk(t *testing.T) {
+	sizes := map[string]string{"A": "6", "B": "4"}
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		size, ok := sizes[r.URL.Query().Get("file_id")]
+		if !ok {
+			_, _ = w.Write([]byte(`{"ok":false,"description":"Bad Request: invalid file_id"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"result":{"file_path":"documents/f.bin","file_size":` + size + `}}`))
+	})
+	ctx := context.Background()
+
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "1:A,2:B", Size: 10}); err != nil {
+		t.Fatalf("intact chunk: %v", err)
+	}
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "1:A,2:B", Size: 11}); err == nil {
+		t.Error("a size mismatch must not verify")
+	}
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "1:A,2:GONE", Size: 10}); err == nil {
+		t.Error("a missing part must not verify")
+	}
+	if err := tg.VerifyChunk(ctx, types.ChunkRef{RemotePath: "bad", Size: 10}); err == nil {
+		t.Error("an unparsable ref must not verify")
 	}
 }

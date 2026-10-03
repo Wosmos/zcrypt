@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -18,7 +17,7 @@ func (s *Server) HandleListExpiringVaults(w http.ResponseWriter, r *http.Request
 
 	vaults, err := s.db.ListExpiringVaults(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"list: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "ListExpiringVaults", err)
 		return
 	}
 
@@ -72,7 +71,7 @@ func (s *Server) HandleCreateExpiringVault(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := s.db.CreateExpiringVault(r.Context(), vault); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"create: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "CreateExpiringVault", err)
 		return
 	}
 

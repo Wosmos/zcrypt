@@ -161,23 +161,34 @@ func (t *TelegramAdapter) Upload(ctx context.Context, repo string, chunk types.C
 }
 
 func (t *TelegramAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
-	parts := strings.Split(ref.RemotePath, ",")
-	var allData []byte
+	var buf bytes.Buffer
+	if _, err := t.DownloadTo(ctx, ref, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
-	for i, part := range parts {
+// DownloadTo streams every part of a chunk into w in order as the bytes
+// arrive, so a relay can start answering before the whole chunk has landed.
+func (t *TelegramAdapter) DownloadTo(ctx context.Context, ref types.ChunkRef, w io.Writer) (int64, error) {
+	var total int64
+	for i, part := range strings.Split(ref.RemotePath, ",") {
 		_, fileID, err := parsePartRef(part)
 		if err != nil {
-			return nil, fmt.Errorf("parse part ref %d: %w", i, err)
+			return total, fmt.Errorf("parse part ref %d: %w", i, err)
 		}
-
-		data, err := t.downloadFile(ctx, fileID)
+		body, err := t.openFile(ctx, fileID)
 		if err != nil {
-			return nil, fmt.Errorf("download part %d: %w", i, err)
+			return total, fmt.Errorf("download part %d: %w", i, err)
 		}
-		allData = append(allData, data...)
+		n, err := io.Copy(w, body)
+		_ = body.Close()
+		total += n
+		if err != nil {
+			return total, fmt.Errorf("download part %d: read body: %w", i, err)
+		}
 	}
-
-	return allData, nil
+	return total, nil
 }
 
 // Delete removes every message part of a chunk from the chat. Each part is
@@ -407,38 +418,14 @@ func (t *TelegramAdapter) sendDocument(ctx context.Context, data []byte, filenam
 	return result.Result.MessageID, result.Result.Document.FileID, nil
 }
 
-// downloadFile fetches a file by file_id via getFile + HTTP download.
-func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]byte, error) {
-	// Step 1: Get file path from Telegram servers
-	getFileURL := fmt.Sprintf("%s?file_id=%s", t.apiURL("getFile"), fileID)
-	req, err := http.NewRequestWithContext(ctx, "GET", getFileURL, nil)
+// openFile resolves a file_id via getFile and returns the open download body.
+func (t *TelegramAdapter) openFile(ctx context.Context, fileID string) (io.ReadCloser, error) {
+	filePath, _, err := t.getFile(ctx, fileID)
 	if err != nil {
-		return nil, fmt.Errorf("create getFile request: %w", err)
+		return nil, err
 	}
 
-	resp, err := t.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("getFile: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		OK     bool `json:"ok"`
-		Result struct {
-			FilePath string `json:"file_path"`
-		} `json:"result"`
-		Description string `json:"description"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode getFile: %w", err)
-	}
-	if !result.OK {
-		return nil, fmt.Errorf("getFile failed: %s", result.Description)
-	}
-
-	// Step 2: Download the actual file content
-	downloadURL := fmt.Sprintf("%s/file/bot%s/%s", t.apiBase, t.botToken, result.Result.FilePath)
+	downloadURL := fmt.Sprintf("%s/file/bot%s/%s", t.apiBase, t.botToken, filePath)
 	dlReq, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create download request: %w", err)
@@ -448,19 +435,68 @@ func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
-	defer dlResp.Body.Close()
 
 	if dlResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(dlResp.Body)
+		_ = dlResp.Body.Close()
 		return nil, fmt.Errorf("download returned %d: %s", dlResp.StatusCode, string(body))
 	}
 
-	data, err := io.ReadAll(dlResp.Body)
+	return dlResp.Body, nil
+}
+
+// getFile resolves a file_id to its download path and stored size.
+func (t *TelegramAdapter) getFile(ctx context.Context, fileID string) (string, int64, error) {
+	getFileURL := fmt.Sprintf("%s?file_id=%s", t.apiURL("getFile"), fileID)
+	req, err := http.NewRequestWithContext(ctx, "GET", getFileURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("read download body: %w", err)
+		return "", 0, fmt.Errorf("create getFile request: %w", err)
 	}
 
-	return data, nil
+	resp, err := t.client.Do(req)
+	if err != nil {
+		return "", 0, fmt.Errorf("getFile: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			FilePath string `json:"file_path"`
+			FileSize int64  `json:"file_size"`
+		} `json:"result"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", 0, fmt.Errorf("decode getFile: %w", err)
+	}
+	if !result.OK {
+		return "", 0, fmt.Errorf("getFile failed: %s", result.Description)
+	}
+	return result.Result.FilePath, result.Result.FileSize, nil
+}
+
+// VerifyChunk confirms every part of a chunk is stored and readable by this
+// bot and that the parts add up to the chunk's size. A chat cannot be listed,
+// so this is how a client-reported Telegram upload is checked before it is
+// recorded durable.
+func (t *TelegramAdapter) VerifyChunk(ctx context.Context, ref types.ChunkRef) error {
+	var total int64
+	for i, part := range strings.Split(ref.RemotePath, ",") {
+		_, fileID, err := parsePartRef(part)
+		if err != nil {
+			return fmt.Errorf("parse part ref %d: %w", i, err)
+		}
+		_, size, err := t.getFile(ctx, fileID)
+		if err != nil {
+			return fmt.Errorf("verify part %d: %w", i, err)
+		}
+		total += size
+	}
+	if total != ref.Size {
+		return fmt.Errorf("verify chunk: stored %d bytes, expected %d", total, ref.Size)
+	}
+	return nil
 }
 
 // deleteMessage deletes a message from the chat.

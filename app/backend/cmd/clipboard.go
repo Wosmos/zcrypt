@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -60,7 +59,7 @@ func (s *Server) HandleClipboardPush(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.InsertClipboardItem(r.Context(), item); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"save clipboard: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "save clipboard", err)
 		return
 	}
 
@@ -91,7 +90,7 @@ func (s *Server) HandleClipboardList(w http.ResponseWriter, r *http.Request) {
 
 	items, err := s.db.ListClipboardItems(r.Context(), userID, 30)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"list clipboard: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "list clipboard", err)
 		return
 	}
 

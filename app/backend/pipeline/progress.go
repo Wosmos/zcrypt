@@ -37,6 +37,28 @@ func (pe *ProgressEmitter) Subscribe(id, userID string, isAdmin bool) <-chan SSE
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
 
+	return pe.subscribeLocked(id, userID, isAdmin)
+}
+
+// SubscribeLimited is Subscribe with a cap on one user's open listeners. It
+// registers nothing and reports false when userID already holds limit of them.
+func (pe *ProgressEmitter) SubscribeLimited(id, userID string, isAdmin bool, limit int) (<-chan SSEEvent, bool) {
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+
+	open := 0
+	for _, sub := range pe.subscribers {
+		if sub.userID == userID {
+			open++
+		}
+	}
+	if open >= limit {
+		return nil, false
+	}
+	return pe.subscribeLocked(id, userID, isAdmin), true
+}
+
+func (pe *ProgressEmitter) subscribeLocked(id, userID string, isAdmin bool) <-chan SSEEvent {
 	ch := make(chan SSEEvent, 32)
 	pe.subscribers[id] = &subscriber{
 		ch:      ch,
@@ -44,6 +66,13 @@ func (pe *ProgressEmitter) Subscribe(id, userID string, isAdmin bool) <-chan SSE
 		isAdmin: isAdmin,
 	}
 	return ch
+}
+
+// SubscriberCount returns how many listeners are connected.
+func (pe *ProgressEmitter) SubscriberCount() int {
+	pe.mu.RLock()
+	defer pe.mu.RUnlock()
+	return len(pe.subscribers)
 }
 
 // Unsubscribe removes a listener.

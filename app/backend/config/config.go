@@ -80,6 +80,9 @@ type Config struct {
 	// shared secret, not JWT: rotation scripts have no admin session to spend).
 	// Empty (default) means the endpoint always rejects, per-environment opt-in.
 	MaintenanceSecret string `json:"-"`
+	// MetricsToken is the bearer token GET /api/internal/metrics requires.
+	// Empty (default) disables the endpoint.
+	MetricsToken string `json:"-"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -172,6 +175,9 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("MAINTENANCE_SECRET"); v != "" {
 		c.MaintenanceSecret = v
+	}
+	if v := os.Getenv("METRICS_TOKEN"); v != "" {
+		c.MetricsToken = v
 	}
 	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {

@@ -13,3 +13,19 @@ func newTestPassword() string {
 	_, _ = rand.Read(b)
 	return "Tp-" + hex.EncodeToString(b) + "!Aa1"
 }
+
+// newTestPasswordOfLength pads a fresh policy-valid password to exactly n bytes.
+func newTestPasswordOfLength(n int) string {
+	p := newTestPassword()
+	for len(p) < n {
+		p += "x"
+	}
+	return p[:n]
+}
+
+// integrationJWTSecret signs and verifies tokens for the test server; generated per run.
+var integrationJWTSecret = func() string {
+	b := make([]byte, 32)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}()

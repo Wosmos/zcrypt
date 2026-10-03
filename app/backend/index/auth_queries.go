@@ -35,7 +35,7 @@ func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 // GetUserByEmail retrieves a user by email.
 func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, deletion_scheduled_at, created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	)
 }
@@ -43,7 +43,7 @@ func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, er
 // GetUserByID retrieves a user by ID.
 func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, deletion_scheduled_at, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	)
 }
@@ -51,7 +51,7 @@ func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 // GetUserByUsername retrieves a user by username.
 func (db *DB) GetUserByUsername(ctx context.Context, username string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, deletion_scheduled_at, created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	)
 }
@@ -60,7 +60,7 @@ func (db *DB) scanUser(ctx context.Context, query string, args ...interface{}) (
 	row := db.pool.QueryRow(ctx, query, args...)
 	u := &types.User{}
 	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.DisplayName, &u.AvatarURL, &u.PasswordHash,
-		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.TokenVersion, &u.OnboardedAt, &u.CreatedAt, &u.UpdatedAt)
+		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.TokenVersion, &u.OnboardedAt, &u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -369,27 +369,68 @@ func (db *DB) SetSystemSetting(ctx context.Context, key, value string) error {
 
 // --- Refresh Tokens ---
 
+const insertSessionRowSQL = `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at, decoy)
+	 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()), $9)`
+
+func refreshTokenArgs(rt *types.RefreshToken) []any {
+	return []any{rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt), rt.Decoy}
+}
+
 // InsertRefreshToken stores a refresh token hash with client binding.
 func (db *DB) InsertRefreshToken(ctx context.Context, rt *types.RefreshToken) error {
-	_, err := db.pool.Exec(ctx,
-		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent) VALUES ($1, $2, $3, $4, $5, $6)`,
-		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent,
-	)
-	if err != nil {
+	if _, err := db.pool.Exec(ctx, insertSessionRowSQL, refreshTokenArgs(rt)...); err != nil {
 		return fmt.Errorf("insert refresh token: %w", err)
 	}
 	return nil
+}
+
+// RotateRefreshToken retires the parent token (see the grace note below) and
+// stores its successor in one transaction. The UPDATE row-locks the parent, so
+// a sign-out that deletes the session either runs first, leaving no parent to
+// rotate (false is returned and nothing is stored), or waits for this commit
+// and then deletes the successor too (see deleteRefreshTokens).
+//
+// Retiring shortens the parent's life to `grace` instead of deleting it, so a
+// second client that raced the same token (another tab, or the desktop webview
+// and its Rust engine) still gets a fresh pair rather than a 401 that logs the
+// user out.
+func (db *DB) RotateRefreshToken(ctx context.Context, parentID string, grace time.Duration, rt *types.RefreshToken) (bool, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("begin rotate refresh token tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE refresh_tokens SET expires_at = LEAST(expires_at, $2) WHERE id = $1`,
+		parentID, time.Now().Add(grace),
+	)
+	if err != nil {
+		return false, fmt.Errorf("retire refresh token: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx, insertSessionRowSQL, refreshTokenArgs(rt)...); err != nil {
+		return false, fmt.Errorf("insert refresh token: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("commit rotate refresh token: %w", err)
+	}
+	return true, nil
 }
 
 // GetRefreshTokenByHash looks up a refresh token by its SHA256 hash.
 func (db *DB) GetRefreshTokenByHash(ctx context.Context, hash string) (*types.RefreshToken, error) {
 	row := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, token_hash, expires_at, created_at,
-		        COALESCE(ip, ''), COALESCE(user_agent, '')
+		        COALESCE(ip, ''), COALESCE(user_agent, ''),
+		        COALESCE(session_id, id)::text, session_started_at, decoy
 		 FROM refresh_tokens WHERE token_hash = $1`, hash,
 	)
 	rt := &types.RefreshToken{}
-	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent)
+	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent,
+		&rt.SessionID, &rt.SessionStartedAt, &rt.Decoy)
 	if err != nil {
 		return nil, fmt.Errorf("get refresh token: %w", err)
 	}
@@ -402,22 +443,168 @@ func (db *DB) DeleteRefreshToken(ctx context.Context, id string) error {
 	return err
 }
 
-// RetireRefreshToken shortens a rotated refresh token's life to `grace` instead
-// of deleting it, so a second client that raced the same token (another tab, or
-// the desktop webview and its Rust engine) still gets a fresh pair rather than a
-// 401 that logs the user out.
-func (db *DB) RetireRefreshToken(ctx context.Context, id string, grace time.Duration) error {
+// deleteRefreshTokens deletes the refresh tokens matching `where` and returns
+// their distinct session IDs. It row-locks the matches first: that waits out
+// any rotation in flight (RotateRefreshToken holds the parent's lock until its
+// successor is committed), and the DELETE, a new statement with a new
+// snapshot, then also catches that successor.
+func (db *DB) deleteRefreshTokens(ctx context.Context, where string, args ...any) ([]string, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin delete refresh tokens tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM refresh_tokens WHERE `+where+` FOR UPDATE`, args...); err != nil {
+		return nil, fmt.Errorf("lock refresh tokens: %w", err)
+	}
+	rows, err := tx.Query(ctx, `DELETE FROM refresh_tokens WHERE `+where+` RETURNING COALESCE(session_id, id)::text`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("delete refresh tokens: %w", err)
+	}
+	seen := map[string]bool{}
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan session id: %w", err)
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("delete refresh tokens: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit delete refresh tokens: %w", err)
+	}
+	return ids, nil
+}
+
+// DeleteRefreshTokensByUser removes all refresh tokens for a user and returns
+// the IDs of the sessions it ended.
+func (db *DB) DeleteRefreshTokensByUser(ctx context.Context, userID string) ([]string, error) {
+	return db.deleteRefreshTokens(ctx, `user_id = $1`, userID)
+}
+
+// ListSessions returns the user's live sign-in sessions, most recently active
+// first. Each session is reported from its newest refresh token, so rotations
+// still inside their reuse grace window do not show up as extra devices.
+func (db *DB) ListSessions(ctx context.Context, userID string) ([]types.Session, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT sid, ip, user_agent, session_started_at, created_at, expires_at FROM (
+		     SELECT DISTINCT ON (COALESCE(session_id, id))
+		            COALESCE(session_id, id)::text AS sid, ip, user_agent, session_started_at, created_at, expires_at
+		     FROM refresh_tokens
+		     WHERE user_id = $1 AND expires_at > NOW()
+		     ORDER BY COALESCE(session_id, id), created_at DESC
+		 ) s ORDER BY created_at DESC`, userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	defer rows.Close()
+
+	sessions := []types.Session{}
+	for rows.Next() {
+		var ss types.Session
+		if err := rows.Scan(&ss.ID, &ss.IP, &ss.UserAgent, &ss.StartedAt, &ss.LastActive, &ss.ExpiresAt); err != nil {
+			return nil, fmt.Errorf("scan session: %w", err)
+		}
+		sessions = append(sessions, ss)
+	}
+	return sessions, rows.Err()
+}
+
+// DeleteSession removes every refresh token of one of the user's sessions and
+// reports whether the session existed.
+func (db *DB) DeleteSession(ctx context.Context, userID, sessionID string) (bool, error) {
+	ids, err := db.deleteRefreshTokens(ctx, `user_id = $1 AND COALESCE(session_id, id)::text = $2`, userID, sessionID)
+	if err != nil {
+		return false, fmt.Errorf("delete session: %w", err)
+	}
+	return len(ids) > 0, nil
+}
+
+// DeleteOtherSessions removes every session of the user except keepSessionID
+// and returns the IDs of the sessions it removed.
+func (db *DB) DeleteOtherSessions(ctx context.Context, userID, keepSessionID string) ([]string, error) {
+	ids, err := db.deleteRefreshTokens(ctx, `user_id = $1 AND COALESCE(session_id, id)::text <> $2`, userID, keepSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("delete other sessions: %w", err)
+	}
+	return ids, nil
+}
+
+// IsKnownDevice reports whether the user has signed in with this user agent
+// before: either a refresh token still carries it or an audit event older than
+// a minute (so the sign-in being processed right now does not count) does.
+func (db *DB) IsKnownDevice(ctx context.Context, userID, userAgent string) (bool, error) {
+	var known bool
+	err := db.pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM refresh_tokens WHERE user_id = $1 AND user_agent = $2)
+		     OR EXISTS (SELECT 1 FROM audit_events WHERE user_id = $1 AND user_agent = $2
+		                AND created_at < NOW() - INTERVAL '1 minute'
+		                AND created_at > NOW() - INTERVAL '180 days')`,
+		userID, userAgent,
+	).Scan(&known)
+	return known, err
+}
+
+// --- Account deletion ---
+
+// ScheduleUserDeletion marks the account for deletion at the given time.
+func (db *DB) ScheduleUserDeletion(ctx context.Context, userID string, at time.Time) error {
 	_, err := db.pool.Exec(ctx,
-		`UPDATE refresh_tokens SET expires_at = LEAST(expires_at, $2) WHERE id = $1`,
-		id, time.Now().Add(grace),
+		`UPDATE users SET deletion_scheduled_at = $2, updated_at = NOW() WHERE id = $1`, userID, at,
 	)
 	return err
 }
 
-// DeleteRefreshTokensByUser removes all refresh tokens for a user.
-func (db *DB) DeleteRefreshTokensByUser(ctx context.Context, userID string) error {
-	_, err := db.pool.Exec(ctx, `DELETE FROM refresh_tokens WHERE user_id = $1`, userID)
-	return err
+// CancelUserDeletion clears a pending deletion and reports whether one existed.
+func (db *DB) CancelUserDeletion(ctx context.Context, userID string) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE users SET deletion_scheduled_at = NULL, updated_at = NOW()
+		 WHERE id = $1 AND deletion_scheduled_at IS NOT NULL`, userID,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// UsersDueForDeletion returns the IDs of accounts whose scheduled deletion time
+// has passed.
+func (db *DB) UsersDueForDeletion(ctx context.Context, limit int) ([]string, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id::text FROM users WHERE deletion_scheduled_at IS NOT NULL AND deletion_scheduled_at <= NOW()
+		 ORDER BY deletion_scheduled_at LIMIT $1`, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("users due for deletion: %w", err)
+	}
+	defer rows.Close()
+
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan user id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func nullTime(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
 }
 
 // CleanExpiredRefreshTokens deletes expired refresh tokens.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -28,11 +29,57 @@ const deletionLocatorExpr = `CASE WHEN platform = 'telegram' ` +
 // nil f.FolderID means Root, exactly as before, so existing callers that never
 // set FolderID are unaffected (backward compatible).
 func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetadata) error {
+	return insertFile(ctx, db.pool, userID, f)
+}
+
+type execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+// QuotaExceededError reports a reservation refused by InsertFileWithinQuota.
+type QuotaExceededError struct {
+	Used int64
+}
+
+func (e *QuotaExceededError) Error() string {
+	return fmt.Sprintf("storage quota exceeded (%d bytes used)", e.Used)
+}
+
+// InsertFileWithinQuota inserts f only if the user's usage plus f.OriginalSize
+// stays within quota. A per-user advisory lock serialises the check and the
+// insert, so concurrent inits cannot each pass against the same headroom.
+func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types.FileMetadata, quota int64) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('quota:' || $1, 0))`, userID); err != nil {
+		return fmt.Errorf("lock quota: %w", err)
+	}
+	var used int64
+	if err := tx.QueryRow(ctx,
+		`SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`,
+		userID,
+	).Scan(&used); err != nil {
+		return fmt.Errorf("storage used: %w", err)
+	}
+	if used+f.OriginalSize > quota {
+		return &QuotaExceededError{Used: used}
+	}
+	if err := insertFile(ctx, tx, userID, f); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func insertFile(ctx context.Context, q execer, userID string, f *types.FileMetadata) error {
 	status := f.Status
 	if status == "" {
 		status = "complete"
 	}
-	_, err := db.pool.Exec(ctx,
+	_, err := q.Exec(ctx,
 		`INSERT INTO files (id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, folder_id)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
 		         (SELECT id FROM folders WHERE id = $15::uuid AND user_id = $2 AND deleted_at IS NULL))`,
@@ -190,22 +237,27 @@ func (db *DB) UpdateFileStyle(ctx context.Context, userID, fileID string, encryp
 	return nil
 }
 
-// ListFiles returns stored files for a user, newest first, optionally filtered by
-// name substring. limit caps the number of rows returned (a safety bound against an
-// unbounded scan/transfer for accounts with very large libraries); pass <= 0 for no
-// explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
-// case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
-func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style,
+// FileCursor is a keyset position in the newest-first file list: the
+// (created_at, id) of the last row of the previous page.
+type FileCursor struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+// ListFiles returns one page of a user's live files, newest first, ordered by
+// (created_at, id) so pages never skip or repeat a row. after resumes from a
+// previous page's last row; nil starts at the newest. limit <= 0 means no cap.
+func (db *DB) ListFiles(ctx context.Context, userID string, after *FileCursor, limit int) ([]types.FileMetadata, error) {
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style, health,
 	                 COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
 
-	if filter != "" {
-		query += ` AND original_name ILIKE $2`
-		args = append(args, "%"+filter+"%")
+	if after != nil {
+		query += ` AND (created_at, id) < ($2, $3::uuid)`
+		args = append(args, after.CreatedAt, after.ID)
 	}
-	query += ` ORDER BY created_at DESC`
+	query += ` ORDER BY created_at DESC, id DESC`
 	if limit > 0 {
 		args = append(args, limit)
 		query += fmt.Sprintf(` LIMIT $%d`, len(args))
@@ -225,7 +277,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Platform); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Health, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -242,7 +294,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 // IS NOT DISTINCT FROM. This is a sibling of ListFiles so existing callers stay untouched.
 func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *string) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style, health,
 		        COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 		 FROM files
 		 WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2
@@ -262,7 +314,7 @@ func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *st
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Platform); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Health, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -568,6 +620,32 @@ func (db *DB) MarkDeletionFailed(ctx context.Context, id int64, errMsg string) e
 		errMsg, id,
 	)
 	return err
+}
+
+// SyncQueueStats is a snapshot of the background sync and deletion queues.
+type SyncQueueStats struct {
+	Pending          int64
+	Abandoned        int64
+	Uncommitted      int64
+	PendingDeletions int64
+}
+
+// SyncQueueStats counts chunks waiting to sync, chunks that hit maxAttempts
+// without syncing, pushed-but-unverified chunks, and queued remote deletions.
+func (db *DB) SyncQueueStats(ctx context.Context, maxAttempts int) (SyncQueueStats, error) {
+	var st SyncQueueStats
+	err := db.pool.QueryRow(ctx,
+		`SELECT
+		     COUNT(*) FILTER (WHERE remote_path = '' AND sync_attempts < $1),
+		     COUNT(*) FILTER (WHERE remote_path = '' AND sync_attempts >= $1),
+		     COUNT(*) FILTER (WHERE remote_path <> '' AND committed = FALSE),
+		     (SELECT COUNT(*) FROM pending_deletions)
+		 FROM chunks`, maxAttempts,
+	).Scan(&st.Pending, &st.Abandoned, &st.Uncommitted, &st.PendingDeletions)
+	if err != nil {
+		return st, fmt.Errorf("sync queue stats: %w", err)
+	}
+	return st, nil
 }
 
 // PendingDeletionCount returns how many deletions are queued.
@@ -990,7 +1068,8 @@ func (db *DB) UpdateUploadSessionRepo(ctx context.Context, sessionID, repoID, re
 // CompleteUploadSession marks a session as complete.
 func (db *DB) CompleteUploadSession(ctx context.Context, sessionID string) error {
 	_, err := db.pool.Exec(ctx,
-		`UPDATE upload_sessions SET status = 'complete' WHERE id = $1`,
+		`WITH done AS (UPDATE upload_sessions SET status = 'complete' WHERE id = $1 RETURNING id)
+		 DELETE FROM upload_presigns WHERE session_id IN (SELECT id FROM done)`,
 		sessionID,
 	)
 	if err != nil {
@@ -1145,29 +1224,25 @@ func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, 
 // InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
 // Returns inserted=false when a row for this (file_id, idx) already exists, a
 // racy duplicate PUT, so the caller can avoid double-counting uploaded_chunks.
-// Relies on the uq_chunks_file_idx unique index (see schema.go).
-func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
+// Relies on the uq_chunks_file_idx unique index (see schema.go). A chunk that
+// would take the file past maxTotal is refused with ErrChunkExceedsDeclaredSize.
+func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef, maxTotal int64) (bool, error) {
 	// committed=FALSE: this is the DIRECT-upload path (HuggingFace), where the
 	// client PUT the LFS blob but no tree-pointer commit exists yet. The sync
 	// worker's reconcile pass commits it and flips committed=TRUE only after
 	// verifying the object is actually present on the platform, so a chunk is
 	// never recorded durable on an uncommitted blob (the silent-loss bug).
-	tag, err := db.pool.Exec(ctx,
-		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, FALSE)
-		 ON CONFLICT (file_id, idx) DO NOTHING`,
-		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath, c.Compressed,
-	)
+	inserted, err := db.insertChunkWithinBudget(ctx, userID, c, false, maxTotal)
 	if err != nil {
 		return false, fmt.Errorf("insert client chunk: %w", err)
 	}
-	return tag.RowsAffected() > 0, nil
+	return inserted, nil
 }
 
 // GetChunkByIndex returns a single chunk by file ID and index (including pending-sync chunks).
 func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, userIDs ...string) (*types.ChunkRef, error) {
 	c := &types.ChunkRef{}
-	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed
 		 FROM chunks WHERE file_id = $1 AND idx = $2`
 	args := []interface{}{fileID, index}
 	if len(userIDs) > 0 && userIDs[0] != "" {
@@ -1175,7 +1250,7 @@ func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, use
 		args = append(args, userIDs[0])
 	}
 	err := db.pool.QueryRow(ctx, query, args...,
-	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
+	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed, &c.Committed)
 	if err != nil {
 		return nil, fmt.Errorf("get chunk by index: %w", err)
 	}
@@ -1226,6 +1301,7 @@ func (db *DB) GetPendingChunks(ctx context.Context, limit, maxAttempts int) ([]t
 	rows, err := db.pool.Query(ctx,
 		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, planned_remote_path, compressed, sync_attempts
 		 FROM chunks WHERE remote_path = '' AND sync_attempts < $1
+		   AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
 		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
 	)
 	if err != nil {
@@ -1255,6 +1331,7 @@ func (db *DB) GetUncommittedChunks(ctx context.Context, limit, maxAttempts int) 
 	rows, err := db.pool.Query(ctx,
 		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, sync_attempts
 		 FROM chunks WHERE committed = FALSE AND remote_path <> '' AND sync_attempts < $1
+		   AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
 		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
 	)
 	if err != nil {
@@ -1315,11 +1392,14 @@ func (db *DB) MarkChunksCommitted(ctx context.Context, chunkIDs []string) error 
 }
 
 // IncrementChunkSyncAttempts bumps the retry counter for a chunk after a failed
-// sync attempt. Once it reaches the cap the chunk is no longer returned by
-// GetPendingChunks.
-func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string) error {
+// sync or commit attempt and schedules the next attempt retryIn from now, so the
+// worker backs off instead of re-selecting the chunk immediately. Once it reaches
+// the cap the chunk is no longer returned by GetPendingChunks.
+func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string, retryIn time.Duration) error {
 	_, err := db.pool.Exec(ctx,
-		`UPDATE chunks SET sync_attempts = sync_attempts + 1 WHERE chunk_id = $1`, chunkID)
+		`UPDATE chunks SET sync_attempts = sync_attempts + 1,
+		        next_attempt_at = NOW() + make_interval(secs => $2)
+		 WHERE chunk_id = $1`, chunkID, retryIn.Seconds())
 	if err != nil {
 		return fmt.Errorf("increment chunk sync attempts: %w", err)
 	}
@@ -1414,12 +1494,14 @@ func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string,
 
 // ── Share queries ──
 
-// GetFileByIDUnsafe returns file metadata without user scoping (for share access).
+// GetFileByIDUnsafe returns file metadata without user scoping (for share and
+// space access). Trashed files are excluded: once the owner deletes a file, no
+// link or space member can read it, and restoring it brings access back.
 func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.FileMetadata, error) {
 	f := &types.FileMetadata{}
 	err := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at
-		 FROM files WHERE id = $1`, fileID,
+		 FROM files WHERE id = $1 AND deleted_at IS NULL`, fileID,
 	).Scan(&f.ID, &f.UserID, &f.OriginalName, &f.EncryptedName, &f.OriginalSize, &f.CompressedSize,
 		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {

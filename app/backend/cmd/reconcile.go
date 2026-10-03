@@ -26,8 +26,12 @@ type RepoReconcileReport struct {
 	KnownPaths  int      `json:"known_paths"`
 	OrphanCount int      `json:"orphan_count"`
 	Orphans     []string `json:"orphans,omitempty"`
-	Note        string   `json:"note,omitempty"`
-	Error       string   `json:"error,omitempty"`
+	// MissingCount is the opposite direction: chunks the DB records as durable
+	// that the platform no longer lists (lost data, e.g. the HF 404 loss).
+	MissingCount int      `json:"missing_count"`
+	Missing      []string `json:"missing,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	Error        string   `json:"error,omitempty"`
 }
 
 // ReconcileReport aggregates the per-repo results for one user.
@@ -35,6 +39,7 @@ type ReconcileReport struct {
 	UserID       string                `json:"user_id"`
 	Repos        []RepoReconcileReport `json:"repos"`
 	TotalOrphans int                   `json:"total_orphans"`
+	TotalMissing int                   `json:"total_missing"`
 	Note         string                `json:"note"`
 }
 
@@ -117,6 +122,22 @@ func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (Recon
 		}
 
 		report.TotalOrphans += rr.OrphanCount
+
+		if d, derr := s.diffRepoChunks(ctx, userID, repo, remote); derr != nil {
+			rr.Error = fmt.Sprintf("diff missing chunks: %v", derr)
+		} else {
+			rr.MissingCount = len(d.Missing)
+			for i, c := range d.Missing {
+				if i == orphanSampleCap {
+					break
+				}
+				rr.Missing = append(rr.Missing, c.RemotePath)
+			}
+			if d.Note != "" {
+				rr.Note = d.Note
+			}
+			report.TotalMissing += rr.MissingCount
+		}
 		report.Repos = append(report.Repos, rr)
 	}
 
@@ -136,7 +157,7 @@ func (s *Server) HandleAdminReconcile(w http.ResponseWriter, r *http.Request) {
 
 	report, err := s.ReconcileUserOrphans(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		internalError(w, "AdminReconcile", err)
 		return
 	}
 
@@ -144,7 +165,11 @@ func (s *Server) HandleAdminReconcile(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, &adminID, "admin_reconcile", map[string]interface{}{
 		"target_user":   userID,
 		"total_orphans": report.TotalOrphans,
+		"total_missing": report.TotalMissing,
 	})
+	if report.TotalMissing > 0 {
+		log.Printf("reconcile: user %s has %d chunk(s) missing on their platforms", logSafe(userID), report.TotalMissing) // #nosec G706 -- control chars stripped via logSafe
+	}
 	if report.TotalOrphans > 0 {
 		log.Printf("reconcile: user %s has %d orphaned platform blobs across %d repos (report-only)",
 			userID, report.TotalOrphans, len(report.Repos))

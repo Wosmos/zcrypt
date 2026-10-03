@@ -410,6 +410,16 @@ func TestHFDownload(t *testing.T) {
 	}
 }
 
+func TestHFDownloadMissingIsErrNotFound(t *testing.T) {
+	h := newHFFake(func(_ *http.Request) (*http.Response, error) {
+		return jsonResp(404, `Entry not found`, nil), nil
+	})
+	_, err := h.Download(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "02/x.bin"})
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("a 404 download must wrap ErrNotFound, got %v", err)
+	}
+}
+
 func TestHFRegisterUpload(t *testing.T) {
 	h := &HuggingFaceAdapter{}
 	h.RegisterUpload("02/x.bin", "oid1", 7)
