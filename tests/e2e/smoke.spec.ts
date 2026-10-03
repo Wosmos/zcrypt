@@ -139,7 +139,9 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     // 401 means the route exists (auth required); 404/405 means a build without it.
     test.skip(res.status() !== 401, "backend has no mock storage (needs -tags=integration and DEV_MODE=true)");
 
-    page = await (await browser.newContext({ acceptDownloads: true })).newPage();
+    const context = await browser.newContext({ acceptDownloads: true });
+    await context.addInitScript(() => localStorage.setItem("zcrypt-remember-device", "1"));
+    page = await context.newPage();
     email = testEmail("smoke");
   });
 
@@ -164,6 +166,11 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
   });
 
   test("vault tour appears once, can be skipped and does not come back", async () => {
+    await page.evaluate(() => {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("zcrypt-tours:"))
+        .forEach((k) => localStorage.removeItem(k));
+    });
     await page.goto("/dashboard");
     const skip = page.getByRole("button", { name: "Skip tour" });
     await expect(skip).toBeVisible({ timeout: 15_000 });

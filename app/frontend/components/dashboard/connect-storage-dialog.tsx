@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
 import { ArrowRight } from "@/lib/icons";
 import {
   Dialog,
@@ -16,41 +15,16 @@ import { useQuota } from "@/hooks/useQuota";
 import { useConnectStorage } from "@/store/connect-storage";
 import { formatBytes } from "@/lib/utils";
 
-const SEEN_KEY = "zcrypt:connect-storage-seen";
-
 const OPTIONS = [
   { name: "Telegram", hint: "Easiest. Create a bot, paste its token." },
   { name: "GitHub", hint: "A fine-grained token limited to repositories." },
   { name: "Hugging Face", hint: "A write token for a private dataset space." },
 ];
 
-function seenThisSession(): boolean {
-  try {
-    return sessionStorage.getItem(SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function markSeen() {
-  try {
-    sessionStorage.setItem(SEEN_KEY, "1");
-  } catch {
-    return;
-  }
-}
-
 export function ConnectStorageDialog() {
   const { quota } = useQuota();
   const { open, show, hide } = useConnectStorage();
   const onShared = Boolean(quota && !quota.has_personal_key && !quota.is_unlimited);
-
-  useEffect(() => {
-    if (onShared && !seenThisSession()) {
-      markSeen();
-      show();
-    }
-  }, [onShared, show]);
 
   if (!quota || !onShared) return null;
 
