@@ -7,18 +7,24 @@ import {
   type DiskWritable,
   type DownloadResumeState,
 } from "@/lib/download-session";
-import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
+import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { genId } from "@/lib/id";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
+import { createFrameBatch } from "@/lib/frame-batch";
 
 // Files at/above this size stream to disk (a Save-As prompt) instead of being
 // assembled in memory: the only way to download something too big to hold in a
-// browser tab. Smaller files keep the silent, no-prompt download.
+// browser tab. Smaller files keep the silent, no-prompt download, and a browser
+// that cannot stream to disk is refused files of this size.
 const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024; // 1 GB
+
+// A ZIP that cannot stream to disk is assembled in tab memory; above this it
+// is refused rather than crashing the tab.
+export const ZIP_IN_MEMORY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 // showSaveFilePicker isn't in the default TS DOM lib: declare the bit we use.
 interface SaveFilePickerOptions {
@@ -30,6 +36,11 @@ type ShowSaveFilePicker = (
 function getSaveFilePicker(): ShowSaveFilePicker | undefined {
   if (typeof window === "undefined") return undefined;
   return (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
+}
+
+/** Whether this browser can stream a download straight to disk. */
+export function canStreamToDisk(): boolean {
+  return getSaveFilePicker() !== undefined;
 }
 
 export type DownloadStatus = "queued" | "downloading" | "paused" | "done" | "failed" | "cancelled";
@@ -47,33 +58,37 @@ export interface DownloadItem {
 }
 
 // --- Throttled progress updates (same pattern as upload store) ---
-const pendingUpdates = new Map<
-  string,
-  { status: DownloadStatus; progress?: number; stage?: string }
->();
-let flushScheduled = false;
+const progressBatch = createFrameBatch<{
+  status: DownloadStatus;
+  progress?: number;
+  stage?: string;
+}>((updates) =>
+  useDownloadStore.setState((state) => ({
+    queue: state.queue.map((item) => {
+      const u = updates.get(item.id);
+      if (!u) return item;
+      return {
+        ...item,
+        status: u.status,
+        progress: u.progress ?? item.progress,
+        stage: u.stage ?? item.stage,
+      };
+    }),
+  })),
+);
 
-function scheduleFlush() {
-  if (flushScheduled) return;
-  flushScheduled = true;
-  requestAnimationFrame(() => {
-    flushScheduled = false;
-    if (pendingUpdates.size === 0) return;
-    const updates = new Map(pendingUpdates);
-    pendingUpdates.clear();
-    useDownloadStore.setState((state) => ({
-      queue: state.queue.map((item) => {
-        const u = updates.get(item.id);
-        if (!u) return item;
-        return {
-          ...item,
-          status: u.status,
-          progress: u.progress ?? item.progress,
-          stage: u.stage ?? item.stage,
-        };
-      }),
-    }));
-  });
+/** The single queue row a bulk ZIP download shows while it runs. */
+function zipQueueItem(id: string, count: number, totalSize: number, stage: string): DownloadItem {
+  return {
+    id,
+    fileId: "zip",
+    filename: `${count} files as ZIP`,
+    fileSize: totalSize,
+    status: "queued",
+    progress: 0,
+    stage,
+    startedAt: Date.now(),
+  };
 }
 
 /** Set a terminal / paused status directly (bypassing the rAF throttle) AND
@@ -81,7 +96,7 @@ function scheduleFlush() {
  *  frame already scheduled from the last onProgress tick lands afterward and
  *  stomps the terminal status back to "downloading". */
 function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: DownloadStatus }) {
-  pendingUpdates.delete(id);
+  progressBatch.drop(id);
   useDownloadStore.setState((state) => ({
     queue: state.queue.map((item) => (item.id === id ? { ...item, ...patch } : item)),
   }));
@@ -228,8 +243,7 @@ function updateProgress(id: string, status: DownloadStatus, progress?: number, s
     });
     return;
   }
-  pendingUpdates.set(id, { status, progress, stage });
-  scheduleFlush();
+  progressBatch.queue(id, { status, progress, stage });
 }
 
 // Execute one run of a single-file download from its session. Shared by
@@ -355,8 +369,28 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
             updateProgress(id, "cancelled", undefined, "Cancelled");
             return;
           }
-          // unsupported / gesture lost → in-memory fallback
+          // unsupported / gesture lost → handled below
         }
+      }
+
+      // Without a disk stream (Firefox, Safari, or a lost gesture) the whole
+      // file would be assembled in tab memory, which crashes the tab at this
+      // size. Refuse up front instead; Retry is a fresh click, so on Chromium
+      // it gets the picker.
+      if (fileSize >= STREAM_TO_DISK_MIN_BYTES && !resume.saveToDisk) {
+        setStatusNow(id, {
+          status: "failed",
+          error: "Too large to download in this browser",
+          stage: "Failed",
+        });
+        toast.error(
+          `${filename} is too large to download in this browser. Use Chrome or Edge, or the zcrypt desktop app.`,
+          {
+            label: "Get the app",
+            onClick: () => window.open("/download", "_blank", "noopener,noreferrer"),
+          },
+        );
+        return;
       }
 
       sessions.set(id, {
@@ -474,37 +508,78 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     const id = genId("zip");
     const controller = new AbortController();
     const totalSize = files.reduce((s, f) => s + f.fileSize, 0);
-
     set((state) => ({
-      queue: [
-        ...state.queue,
-        {
-          id,
-          fileId: "zip",
-          filename: `${files.length} files as ZIP`,
-          fileSize: totalSize,
-          status: "queued" as const,
-          progress: 0,
-          stage: "Queued",
-          startedAt: Date.now(),
-        },
-      ],
+      queue: [...state.queue, zipQueueItem(id, files.length, totalSize, "Queued")],
     }));
     zipSessions.set(id, { files, passphrase, resolvePassword, abort: controller });
 
     void (async () => {
+      const refusal = zipRefusal(files);
+      if (refusal) {
+        zipSessions.delete(id);
+        setStatusNow(id, { status: "failed", error: refusal, stage: "Failed" });
+        toast.error(refusal);
+        return;
+      }
+      let saveToDisk: DiskWritable | undefined;
+      const picker = getSaveFilePicker();
+      if (totalSize >= STREAM_TO_DISK_MIN_BYTES && picker) {
+        try {
+          const handle = await picker({ suggestedName: `zcrypt-${files.length}-files.zip` });
+          saveToDisk = await handle.createWritable();
+        } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") {
+            zipSessions.delete(id);
+            updateProgress(id, "cancelled", undefined, "Cancelled");
+            return;
+          }
+        }
+      }
+      if (!saveToDisk && totalSize > ZIP_IN_MEMORY_MAX_BYTES) {
+        if (picker) {
+          setStatusNow(id, {
+            status: "failed",
+            error: "Choose where to save the ZIP",
+            stage: "Failed",
+          });
+          toast.error("This ZIP must be saved straight to disk. Retry to choose where to save.");
+          return;
+        }
+        zipSessions.delete(id);
+        setStatusNow(id, {
+          status: "failed",
+          error: "Too large to ZIP in this browser",
+          stage: "Failed",
+        });
+        toast.error(
+          "These files are too large to ZIP in this browser. Download them individually, or use Chrome, Edge or the desktop app.",
+        );
+        return;
+      }
+
       try {
         updateProgress(id, "downloading", 0, "Starting ZIP...");
-        await downloadAsZip(files, passphrase, {
+        const report = await downloadAsZip(files, passphrase, {
           onProgress: (info) => updateProgress(id, "downloading", info.percent, info.stage),
           signal: controller.signal,
           resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
+          saveToDisk,
         });
 
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
-        toast.success(`ZIP with ${files.length} files downloaded`);
-        notifications.downloadComplete(`${files.length} files (ZIP)`);
+        notifications.downloadComplete(`${report.added} files (ZIP)`);
+        if (report.failed.length === 0) {
+          toast.success(`ZIP with ${files.length} files downloaded`);
+          return;
+        }
+        for (const f of report.failed) {
+          if (looksLikeWrongKey(f.error)) recoverWrongFolderPassword(f.fileId, f.error);
+        }
+        const names = report.failed.map((f) => f.filename).join(", ");
+        toast.warning(
+          `ZIP saved without ${report.failed.length} of ${files.length} files (${names}). Download those individually.`,
+        );
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           zipSessions.delete(id);
@@ -532,21 +607,8 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     const id = genId("zip");
     const controller = new AbortController();
     const totalSize = files.reduce((s, f) => s + f.fileSize, 0);
-
     set((state) => ({
-      queue: [
-        ...state.queue,
-        {
-          id,
-          fileId: "zip",
-          filename: `${files.length} files as ZIP`,
-          fileSize: totalSize,
-          status: "queued" as const,
-          progress: 0,
-          stage: "Choose where to save…",
-          startedAt: Date.now(),
-        },
-      ],
+      queue: [...state.queue, zipQueueItem(id, files.length, totalSize, "Choose where to save…")],
     }));
     zipSessions.set(id, { files, passphrase, resolvePassword, userId, abort: controller });
 
@@ -764,6 +826,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     // Fallback (session already gone): restart a plain single download.
     get().removeFromQueue(id);
+    if (item.fileId === "zip") return;
     get().startDownload(item.fileId, item.filename, item.fileSize, passphrase, resolvePassword);
   },
 

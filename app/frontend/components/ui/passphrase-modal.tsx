@@ -1,13 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "next-intl";
 import { usePassphraseStore } from "@/store/passphrase";
 import { Lock, X, Loader2, Fingerprint } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isTauri, biometricAvailable, biometricAuthenticate } from "@/lib/tauri";
+import {
+  isTauri,
+  biometricAvailable,
+  biometricAuthenticate,
+  biometricMethodName,
+} from "@/lib/tauri";
 import { loadPassphrase } from "@/lib/device-vault";
 
 interface PassphraseModalProps {
@@ -49,31 +54,33 @@ export function PassphraseModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Touch ID (desktop only): offered when the shell reports biometrics are
+  // Biometric unlock (native shells only): offered when the shell reports biometrics are
   // enrolled AND this device already has a passphrase to hand back, nothing
   // to unlock with otherwise. Re-checked every time the modal opens.
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioError, setBioError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset the form whenever the modal (re)opens, during render rather than in
+  // an effect so the fresh state lands in the same pass.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setPassphrase("");
       setVerifying(false);
       setLocalError(null);
-      setRemember(usePassphraseStore.getState().rememberDevice);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setRemember(rememberDevicePref);
+      setBioBusy(false);
+      setBioError(null);
+    } else {
+      setBioAvailable(false);
     }
-  }, [open]);
+  }
 
   useEffect(() => {
-    if (!open || !isTauri) {
-      setBioAvailable(false);
-      return;
-    }
+    if (!open || !isTauri) return;
     let cancelled = false;
-    setBioBusy(false);
-    setBioError(null);
     void (async () => {
       try {
         const [supported, saved] = await Promise.all([biometricAvailable(), loadPassphrase()]);
@@ -87,7 +94,7 @@ export function PassphraseModal({
     };
   }, [open]);
 
-  // Shared by both the typed-passphrase submit and the Touch ID unlock, so a
+  // Shared by both the typed-passphrase submit and the biometric unlock, so a
   // biometric unlock completes exactly the same way a correct typed
   // passphrase would (same verify guard, same remember/cache/onConfirm path).
   const confirmWithPassphrase = useCallback(
@@ -162,121 +169,140 @@ export function PassphraseModal({
     onClose();
   }, [verifying, bioBusy, onClose]);
 
-  if (!open) return null;
-
   const shownError = localError ?? error;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
-      onClick={handleClose}
-    >
-      <div
-        className="w-full max-w-md mx-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-              <Lock className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">{title ?? t("defaultTitle")}</h3>
-              {subtitle && (
-                <p className="text-xs text-[var(--color-text-muted)] max-w-[280px]">{subtitle}</p>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {shownError && (
-          <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-            <p className="text-xs text-red-600 dark:text-red-400">{shownError}</p>
-          </div>
-        )}
-
-        {bioAvailable && (
-          <div className="mb-4">
-            <button
-              type="button"
-              onClick={() => void handleBiometricUnlock()}
-              disabled={bioBusy || verifying}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {bioBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Fingerprint className="h-4 w-4 text-[var(--color-accent)]" />
-              )}
-              {bioBusy ? t("bioWaiting") : t("bioUnlock")}
-            </button>
-            {bioError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>}
-            <div className="mt-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-[var(--color-border)]" />
-              <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
-                {t("orPassphrase")}
-              </span>
-              <div className="h-px flex-1 bg-[var(--color-border)]" />
-            </div>
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void handleConfirm();
-          }}
-        >
-          <input
-            ref={inputRef}
-            type="password"
-            placeholder={t("placeholder")}
-            value={passphrase}
-            onChange={(e) => {
-              setPassphrase(e.target.value);
-              if (localError) setLocalError(null);
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && handleClose()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <DialogPrimitive.Content
+            {...(subtitle ? {} : { "aria-describedby": undefined })}
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              inputRef.current?.focus();
             }}
-            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all"
-            autoComplete="off"
-          />
+            className="w-full max-w-md mx-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl animate-slide-up focus:outline-none"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogPrimitive.Title className="text-sm font-semibold">
+                    {title ?? t("defaultTitle")}
+                  </DialogPrimitive.Title>
+                  {subtitle && (
+                    <DialogPrimitive.Description className="text-xs text-[var(--color-text-muted)] max-w-[280px]">
+                      {subtitle}
+                    </DialogPrimitive.Description>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label={tc("close")}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-          <PassphraseStrength passphrase={passphrase} />
+            {shownError && (
+              <div
+                role="alert"
+                className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5"
+              >
+                <p className="text-xs text-red-600 dark:text-red-400">{shownError}</p>
+              </div>
+            )}
 
-          <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
-            <Checkbox
-              checked={remember}
-              onCheckedChange={(checked) => setRemember(checked === true)}
-            />
-            <span className="text-xs text-[var(--color-text-secondary)]">{t("keepUnlocked")}</span>
-          </label>
+            {bioAvailable && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => void handleBiometricUnlock()}
+                  disabled={bioBusy || verifying}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {bioBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Fingerprint className="h-4 w-4 text-[var(--color-accent)]" />
+                  )}
+                  {bioBusy
+                    ? t("bioWaiting")
+                    : t("bioUnlock", { method: biometricMethodName() ?? t("bioMethod") })}
+                </button>
+                {bioError && (
+                  <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>
+                )}
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[var(--color-border)]" />
+                  <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                    {t("orPassphrase")}
+                  </span>
+                  <div className="h-px flex-1 bg-[var(--color-border)]" />
+                </div>
+              </div>
+            )}
 
-          <div className="flex gap-3 mt-5">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={verifying || bioBusy}
-              className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleConfirm();
+              }}
             >
-              {tc("cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={!passphrase || verifying || bioBusy}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {verifying && <Loader2 className="h-4 w-4 animate-spin" />}
-              {verifying ? tc("unlocking") : (confirmLabel ?? tc("confirm"))}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+              <input
+                ref={inputRef}
+                type="password"
+                aria-label={t("placeholder")}
+                aria-invalid={shownError ? true : undefined}
+                placeholder={t("placeholder")}
+                value={passphrase}
+                onChange={(e) => {
+                  setPassphrase(e.target.value);
+                  if (localError) setLocalError(null);
+                }}
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all"
+                autoComplete="off"
+              />
+
+              <PassphraseStrength passphrase={passphrase} />
+
+              <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+                <Checkbox
+                  checked={remember}
+                  onCheckedChange={(checked) => setRemember(checked === true)}
+                />
+                <span className="text-xs text-[var(--color-text-secondary)]">
+                  {t("keepUnlocked")}
+                </span>
+              </label>
+
+              <div className="flex gap-3 mt-5">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  disabled={verifying || bioBusy}
+                  className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {tc("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={!passphrase || verifying || bioBusy}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {verifying && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {verifying ? tc("unlocking") : (confirmLabel ?? tc("confirm"))}
+                </button>
+              </div>
+            </form>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Overlay>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

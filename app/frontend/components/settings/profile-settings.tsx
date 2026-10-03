@@ -30,6 +30,7 @@ const PASSWORD_RULES: { label: string; ok: (pw: string) => boolean }[] = [
   { label: "An uppercase letter", ok: (pw) => /[A-Z]/.test(pw) },
   { label: "A digit", ok: (pw) => /[0-9]/.test(pw) },
   { label: "A special character", ok: (pw) => /[^a-zA-Z0-9]/.test(pw) },
+  { label: "No longer than 72 bytes", ok: (pw) => new TextEncoder().encode(pw).length <= 72 },
 ];
 
 /** Center-crop and downscale to a square JPEG data URI in the browser, so the

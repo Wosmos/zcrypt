@@ -53,7 +53,8 @@ const cases: Case[] = [
   { name: "moveFile", run: () => api.moveFile("id", "fid"), path: "/api/files/id/move", method: "PATCH" },
   { name: "setFolderPassword", run: () => api.setFolderPassword("fid", "s", "v"), path: "/api/folders/fid/password", method: "POST" },
   { name: "removeFolderPassword", run: () => api.removeFolderPassword("fid"), path: "/api/folders/fid/password", method: "DELETE" },
-  { name: "rekeyFile", run: () => api.rekeyFile("id", "s", "c"), path: "/api/files/id/rekey", method: "PUT" },
+  { name: "retryFileSync", run: () => api.retryFileSync("id"), path: "/api/files/id/retry-sync", method: "POST" },
+  { name: "verifyFiles", run: () => api.verifyFiles(), path: "/api/files/verify", method: "POST" },
   { name: "listTrash", run: () => api.listTrash(), path: "/api/files/trash" },
   { name: "restoreFile", run: () => api.restoreFile("id"), path: "/api/files/id/restore", method: "POST" },
   { name: "purgeFile", run: () => api.purgeFile("id"), path: "/api/files/id/purge", method: "DELETE" },
@@ -69,12 +70,12 @@ const cases: Case[] = [
   // admin
   { name: "adminListUsers", run: () => api.adminListUsers(), path: "/api/admin/users" },
   { name: "adminGetStats", run: () => api.adminGetStats(), path: "/api/admin/stats" },
-  { name: "adminSetUserRole", run: () => api.adminSetUserRole("u", "admin"), path: "/api/admin/users/u/role", method: "PUT" },
-  { name: "adminDeleteUser", run: () => api.adminDeleteUser("u"), path: "/api/admin/users/u", method: "DELETE" },
+  { name: "adminSetUserRole", run: () => api.adminSetUserRole("u", "admin", { password: "p", code: "" }), path: "/api/admin/users/u/role", method: "PUT" },
+  { name: "adminDeleteUser", run: () => api.adminDeleteUser("u", { password: "p", code: "123456" }), path: "/api/admin/users/u", method: "DELETE" },
   { name: "adminListTokens", run: () => api.adminListTokens(), path: "/api/admin/tokens" },
-  { name: "adminCreateToken", run: () => api.adminCreateToken({ platform: "github", token: "t", account: "a" } as never), path: "/api/admin/tokens", method: "POST" },
-  { name: "adminDeleteToken", run: () => api.adminDeleteToken("tid"), path: "/api/admin/tokens/tid", method: "DELETE" },
-  { name: "adminToggleTokenScope", run: () => api.adminToggleTokenScope("tid", false), path: "/api/admin/tokens/tid/scope", method: "PUT" },
+  { name: "adminCreateToken", run: () => api.adminCreateToken({ platform: "github", token: "t", account: "a" } as never, { password: "p", code: "" }), path: "/api/admin/tokens", method: "POST" },
+  { name: "adminDeleteToken", run: () => api.adminDeleteToken("tid", { password: "p", code: "" }), path: "/api/admin/tokens/tid", method: "DELETE" },
+  { name: "adminToggleTokenScope", run: () => api.adminToggleTokenScope("tid", false, { password: "p", code: "123456" }), path: "/api/admin/tokens/tid/scope", method: "PUT" },
   { name: "adminGetDefaultQuota", run: () => api.adminGetDefaultQuota(), path: "/api/admin/quota" },
   { name: "adminSetDefaultQuota", run: () => api.adminSetDefaultQuota(100), path: "/api/admin/quota", method: "PUT" },
   { name: "adminSetUserPlan", run: () => api.adminSetUserPlan("u", "pro"), path: "/api/admin/users/u/plan", method: "PUT" },
@@ -149,6 +150,36 @@ const cases: Case[] = [
   { name: "pinFileOffline", run: () => api.pinFileOffline("f", "d"), path: "/api/offline", method: "POST" },
   { name: "unpinFileOffline", run: () => api.unpinFileOffline("f"), path: "/api/offline/f", method: "DELETE" },
 ];
+
+describe("atomic re-key payloads", () => {
+  const body = () => JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+  const rekey = { file_id: "f1", salt: "s1", wrapped_cek: "w1" };
+
+  it("moveFile carries the new envelope in the move itself", async () => {
+    await api.moveFile("f1", "dest", { salt: "s1", wrapped_cek: "w1" });
+    expect(body()).toEqual({ folder_id: "dest", salt: "s1", wrapped_cek: "w1" });
+  });
+
+  it("a plain moveFile sends only the folder", async () => {
+    await api.moveFile("f1", null);
+    expect(body()).toEqual({ folder_id: null });
+  });
+
+  it("setFolderPassword sends every file re-key with the protection record", async () => {
+    await api.setFolderPassword("fid", "s", "v", [rekey]);
+    expect(body()).toEqual({ pw_salt: "s", pw_verifier: "v", rekeys: [rekey] });
+  });
+
+  it("removeFolderPassword sends every file re-key with the removal", async () => {
+    await api.removeFolderPassword("fid", [rekey]);
+    expect(body()).toEqual({ rekeys: [rekey] });
+  });
+
+  it("an empty folder sends no re-keys", async () => {
+    await api.removeFolderPassword("fid");
+    expect(body()).toEqual({ rekeys: [] });
+  });
+});
 
 describe("api endpoint surface (method + path)", () => {
   it.each(cases)("$name -> $method $path", async (c) => {

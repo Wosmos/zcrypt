@@ -102,6 +102,11 @@ export default function WebAppDocPage() {
               Locking the vault, or switching the option off, wipes the on-device copy so a later
               reload stays locked.
             </>,
+            <>
+              It is <strong>off by default</strong>. While it is on, anyone who can use this browser
+              profile can open your vault, because the key sits on the same device as the
+              ciphertext. Only turn it on for a device nobody else uses.
+            </>,
           ]}
         />
         <DocNote type="security" title="The honest trade-off">

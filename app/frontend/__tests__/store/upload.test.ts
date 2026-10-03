@@ -35,9 +35,11 @@ import {
   getUploadStatus,
 } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
+import { ApiError } from "@/lib/http-error";
 import { setFilesData } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { uploadPathFor } from "@/lib/desktop-paths";
 import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, deriveDedupKeyBytes, contentMacFile, toBase64, fromBase64 } from "@/lib/crypto";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -153,7 +155,10 @@ vi.mock("@/lib/tauri", () => ({
   sidecarUpload: vi.fn(async () => {}),
   subscribeProgress: vi.fn(async () => vi.fn()),
   cancelTransfer: vi.fn(async () => true),
+  fileSizes: vi.fn(async (paths: string[]) => paths.map(() => 1024)),
 }));
+
+vi.mock("@/lib/android", () => ({ releaseSharedFile: vi.fn() }));
 
 const SMALL_PROFILE = {
   workers: 1,
@@ -970,6 +975,30 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("done");
     });
 
+    it("retries a 5xx by status even when its JSON body has no number in it", async () => {
+      (uploadChunk as Mock)
+        .mockRejectedValueOnce(new ApiError("failed to store chunk", 500))
+        .mockResolvedValue(undefined);
+      const file = makeFile("a.txt", 10);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(uploadChunk).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("does not retry a 4xx even when its message sounds transient", async () => {
+      (uploadChunk as Mock).mockRejectedValue(new ApiError("chunk temporarily unavailable", 400));
+      const file = makeFile("a.txt", 10);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(uploadChunk).toHaveBeenCalledTimes(1);
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
     it("rewrites a 'storage not available' failure into a friendlier message", async () => {
       (initUpload as Mock).mockRejectedValue(new Error("storage not available yet: managed storage is being configured"));
       const file = makeFile("a.txt", 10);
@@ -1535,13 +1564,102 @@ describe("useUploadStore", () => {
       // Items are flagged desktop so pause is hidden and retry stays on the core.
       expect(useUploadStore.getState().queue.every((i) => i.desktop === true)).toBe(true);
       expect(onRefresh).toHaveBeenCalled();
+      const { releaseSharedFile } = await import("@/lib/android");
+      expect(releaseSharedFile).toHaveBeenCalledWith("/tmp/a.bin");
+      expect(releaseSharedFile).toHaveBeenCalledWith("/tmp/b.bin");
+    });
+
+    /** Desktop upload whose every core call hangs until released, in order. */
+    async function startGatedDesktopUpload(paths: string[], maxConcurrent?: number) {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(paths);
+      const releases: (() => void)[] = [];
+      (sidecarUpload as Mock).mockImplementation(
+        () => new Promise<void>((res) => releases.push(res)),
+      );
+      const run = useUploadStore
+        .getState()
+        .startDesktopUpload("pw", undefined, undefined, undefined, null, maxConcurrent);
+      await flush(10);
+      return { run, releases, sidecarUpload: sidecarUpload as Mock };
+    }
+
+    it("uploads picked files concurrently instead of one after another", async () => {
+      const { run, releases, sidecarUpload } = await startGatedDesktopUpload([
+        "/tmp/a.bin",
+        "/tmp/b.bin",
+        "/tmp/c.bin",
+      ]);
+      expect(sidecarUpload).toHaveBeenCalledTimes(3);
+      for (const release of releases) release();
+      await run;
+      expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
+    });
+
+    it("never runs more files at once than the server's per-user cap", async () => {
+      const { run, releases, sidecarUpload } = await startGatedDesktopUpload(
+        ["/tmp/a.bin", "/tmp/b.bin", "/tmp/c.bin"],
+        2,
+      );
+      expect(sidecarUpload).toHaveBeenCalledTimes(2);
+      releases[0]();
+      await flush(10);
+      expect(sidecarUpload).toHaveBeenCalledTimes(3);
+      releases[1]();
+      releases[2]();
+      await run;
+    });
+
+    it("sizes concurrency from the files on disk, treating unreadable sizes as small", async () => {
+      const { fileSizes } = await import("@/lib/tauri");
+      const { recommendedUploadConcurrency } = await import("@/lib/device-profile");
+      (fileSizes as Mock).mockResolvedValueOnce([5, 7]);
+      const first = await startGatedDesktopUpload(["/tmp/a.bin", "/tmp/b.bin"]);
+      expect(recommendedUploadConcurrency).toHaveBeenLastCalledWith([5, 7]);
+      for (const release of first.releases) release();
+      await first.run;
+
+      (fileSizes as Mock).mockRejectedValueOnce(new Error("no shell"));
+      const second = await startGatedDesktopUpload(["/tmp/c.bin"]);
+      expect(recommendedUploadConcurrency).toHaveBeenLastCalledWith([0]);
+      for (const release of second.releases) release();
+      await second.run;
+    });
+
+    it("never starts a file that was cancelled while it waited for a slot", async () => {
+      const { run, releases, sidecarUpload } = await startGatedDesktopUpload(
+        ["/tmp/a.bin", "/tmp/b.bin"],
+        1,
+      );
+      const waiting = useUploadStore.getState().queue.find((i) => i.file.name === "b.bin")!;
+      useUploadStore.getState().removeFromQueue(waiting.id);
+      releases[0]();
+      await run;
+      expect(sidecarUpload).toHaveBeenCalledTimes(1);
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
+      expect(uploadPathFor("b.bin")).toBeUndefined();
+    });
+
+    it("remembers every picked path as resumable, even ones still waiting for a slot", async () => {
+      const { run, releases } = await startGatedDesktopUpload(["/tmp/a.bin", "/tmp/b.bin"], 1);
+      expect(uploadPathFor("a.bin")).toBe("/tmp/a.bin");
+      expect(uploadPathFor("b.bin")).toBe("/tmp/b.bin");
+      releases[0]();
+      await flush(10);
+      releases[1]();
+      await run;
+      expect(uploadPathFor("a.bin")).toBeUndefined();
+      expect(uploadPathFor("b.bin")).toBeUndefined();
     });
 
     it("marks a path failed when the core upload throws", async () => {
       const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      const { releaseSharedFile } = await import("@/lib/android");
+      (releaseSharedFile as Mock).mockClear();
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
       (sidecarUpload as Mock).mockRejectedValue(new Error("disk read failed"));
       await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      expect(releaseSharedFile).not.toHaveBeenCalled();
 
       expect(useUploadStore.getState().queue[0].status).toBe("failed");
       expect(useUploadStore.getState().queue[0].error).toBe("disk read failed");
@@ -1565,11 +1683,14 @@ describe("useUploadStore", () => {
       const item = useUploadStore.getState().queue[0];
       expect(item.status).toBe("failed");
 
+      const { releaseSharedFile } = await import("@/lib/android");
+      (releaseSharedFile as Mock).mockClear();
       (sidecarUpload as Mock).mockResolvedValueOnce(undefined);
       useUploadStore.getState().retryUpload(item.id, "pw");
       await vi.waitFor(() => {
         expect(useUploadStore.getState().queue[0].status).toBe("done");
       });
+      expect(releaseSharedFile).toHaveBeenCalledWith("/tmp/a.bin");
       // Retry re-drives the streaming core with the desktop path, the item's
       // 0-byte placeholder File never reached the web pipeline's init.
       expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
@@ -1726,6 +1847,8 @@ describe("useUploadStore", () => {
       await flush(3);
       // The queue id doubles as the core's transfer id, so Cancel can reach it.
       expect(cancelTransfer).toHaveBeenCalledWith(id);
+      const { releaseSharedFile } = await import("@/lib/android");
+      expect(releaseSharedFile).toHaveBeenCalled();
       expect(useUploadStore.getState().queue).toHaveLength(0);
       release();
       await run;

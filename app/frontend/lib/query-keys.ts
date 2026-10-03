@@ -54,6 +54,7 @@ export const qk = {
   // sealed labels.
   securityActivity: ["settings", "security-activity"] as const,
   linkedAccounts: ["settings", "linked-accounts"] as const,
+  sessions: ["settings", "sessions"] as const,
   deadman: ["settings", "deadman"] as const,
   decoy: ["settings", "decoy"] as const,
   devices: (deviceId: string) => ["tools", "devices", deviceId] as const,

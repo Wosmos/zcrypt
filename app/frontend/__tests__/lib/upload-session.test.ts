@@ -7,12 +7,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 // than mocking global fetch underneath it. The XHR-backed chunk PUTs
 // (uploadChunk/directUploadToURL) go through useAuthStore + tryRefreshToken
 // for their own 401-refresh-retry logic.
-const { authedFetch, tryRefreshToken, getState } = vi.hoisted(() => ({
+const { authedFetch, tryRefreshToken, getState, shouldRefreshOn401 } = vi.hoisted(() => ({
   authedFetch: vi.fn(),
   tryRefreshToken: vi.fn(),
   getState: vi.fn(),
+  shouldRefreshOn401: vi.fn((token: string | null) => !!token),
 }));
-vi.mock("@/lib/auth-fetch", () => ({ authedFetch, tryRefreshToken }));
+vi.mock("@/lib/auth-fetch", () => ({ authedFetch, tryRefreshToken, shouldRefreshOn401 }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 
 import {
@@ -26,6 +27,7 @@ import {
   getUploadStatus,
   type UploadInitParams,
 } from "@/lib/upload-session";
+import { ApiError } from "@/lib/http-error";
 
 function resp(status: number, body: unknown): Response {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -147,6 +149,13 @@ describe("plain JSON endpoints (authedFetch-backed)", () => {
   it("initUpload throws the parsed {error} message on a non-ok JSON body", async () => {
     authedFetch.mockResolvedValueOnce(resp(409, { error: "duplicate upload" }));
     await expect(initUpload(initParams)).rejects.toThrow("duplicate upload");
+  });
+
+  it("JSON endpoints throw an ApiError carrying the status", async () => {
+    authedFetch.mockResolvedValueOnce(resp(503, { error: "upload failed" }));
+    const err = await initUpload(initParams).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(503);
   });
 
   it("initUpload throws the raw body when the error response isn't JSON", async () => {
@@ -326,7 +335,25 @@ describe("uploadChunk (authedXhrPut over XMLHttpRequest)", () => {
     expect(FakeXHR.instances.length).toBe(1);
   });
 
-  it("does not attempt a refresh on 401 when there was no access token to begin with", async () => {
+  it("refreshes on a 401 without a token when the session may live in the cookie", async () => {
+    getState.mockReturnValue({ accessToken: null });
+    shouldRefreshOn401.mockReturnValueOnce(true);
+    tryRefreshToken.mockResolvedValueOnce("cookie-tok");
+    const promise = uploadChunk("sess-1", 0, new Uint8Array([1]), "sha", false);
+    const first = lastXHR();
+    first.status = 401;
+    first.onload?.();
+
+    await flushMicrotasks();
+
+    const second = lastXHR();
+    expect(second.headers.Authorization).toBe("Bearer cookie-tok");
+    second.status = 200;
+    second.onload?.();
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  it("does not attempt a refresh on 401 without a token where none can be probed", async () => {
     getState.mockReturnValue({ accessToken: null });
     const promise = uploadChunk("sess-1", 0, new Uint8Array([1]), "sha", false);
     const first = lastXHR();
@@ -346,6 +373,18 @@ describe("uploadChunk (authedXhrPut over XMLHttpRequest)", () => {
     xhr.responseText = JSON.stringify({ error: "bad chunk" });
     xhr.onload?.();
     await expect(promise).rejects.toThrow("bad chunk");
+  });
+
+  it("keeps the HTTP status on a JSON 5xx so the retry layer can see it", async () => {
+    const promise = uploadChunk("sess-1", 0, new Uint8Array([1]), "sha", false);
+    const xhr = lastXHR();
+    xhr.status = 500;
+    xhr.responseText = JSON.stringify({ error: "failed to store chunk" });
+    xhr.onload?.();
+    const err = await promise.catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(500);
+    expect((err as ApiError).message).toBe("failed to store chunk");
   });
 
   it("throws the raw body when a non-2xx response isn't JSON", async () => {

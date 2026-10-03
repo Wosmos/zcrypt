@@ -5,6 +5,7 @@ import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types"
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import { folderLook } from "./folder-look";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
+import { FileHealthBadge } from "./health-badge";
 import {
   formatBytes,
   getFileTypeInfo,
@@ -204,7 +205,7 @@ function FileCardInner({
           data-entry-id={file.id}
           data-tour="file-card"
           tabIndex={focused ? 0 : -1}
-          aria-selected={selected}
+          aria-pressed={selected}
           aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}. Right-click or long-press for actions.`}
           draggable={drag.draggable}
           onClick={(e) => onFileClick(file, e)}
@@ -271,6 +272,7 @@ function FileCardInner({
           >
             {displayName}
           </p>
+          <FileHealthBadge file={file} />
         </div>
       </ContextMenuTrigger>
 

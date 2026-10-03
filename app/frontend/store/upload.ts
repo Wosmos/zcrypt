@@ -35,10 +35,13 @@ import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-pro
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
 import { formatBytes } from "@/lib/utils";
 import { createSemaphore } from "@/lib/async/semaphore";
+import { releaseSharedFile } from "@/lib/android";
 import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
+import { ApiError, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
+import { createFrameBatch } from "@/lib/frame-batch";
 
 // Mirrors the server's per-file cap (HandleUploadInit rejects larger with
 // 413). Checked before queueing so a 30GB drop fails instantly with a clear
@@ -125,44 +128,30 @@ function stopBackgroundNotifications() {
 
 // --- Throttled progress updates to prevent UI jank ---
 // Batches rapid updateStatus calls into a single Zustand set() per animation frame.
-const pendingUpdates = new Map<
-  string,
-  {
-    status: UploadStatus;
-    progress?: number;
-    stage?: string;
-    bytesProcessed?: number;
-    totalBytes?: number;
-    rateBps?: number;
-  }
->();
-let flushScheduled = false;
-
-function scheduleFlush() {
-  if (flushScheduled) return;
-  flushScheduled = true;
-  requestAnimationFrame(() => {
-    flushScheduled = false;
-    if (pendingUpdates.size === 0) return;
-    const updates = new Map(pendingUpdates);
-    pendingUpdates.clear();
-    useUploadStore.setState((state) => ({
-      queue: state.queue.map((item) => {
-        const u = updates.get(item.id);
-        if (!u) return item;
-        return {
-          ...item,
-          status: u.status,
-          progress: u.progress ?? item.progress,
-          stage: u.stage ?? item.stage,
-          bytesProcessed: u.bytesProcessed ?? item.bytesProcessed,
-          totalBytes: u.totalBytes ?? item.totalBytes,
-          rateBps: u.rateBps ?? item.rateBps,
-        };
-      }),
-    }));
-  });
-}
+const progressBatch = createFrameBatch<{
+  status: UploadStatus;
+  progress?: number;
+  stage?: string;
+  bytesProcessed?: number;
+  totalBytes?: number;
+  rateBps?: number;
+}>((updates) =>
+  useUploadStore.setState((state) => ({
+    queue: state.queue.map((item) => {
+      const u = updates.get(item.id);
+      if (!u) return item;
+      return {
+        ...item,
+        status: u.status,
+        progress: u.progress ?? item.progress,
+        stage: u.stage ?? item.stage,
+        bytesProcessed: u.bytesProcessed ?? item.bytesProcessed,
+        totalBytes: u.totalBytes ?? item.totalBytes,
+        rateBps: u.rateBps ?? item.rateBps,
+      };
+    }),
+  })),
+);
 
 interface UploadStore {
   queue: UploadItem[];
@@ -210,6 +199,7 @@ interface UploadStore {
     preSelectedPaths?: string[],
     platform?: string,
     folderId?: string | null,
+    maxConcurrent?: number,
   ) => Promise<void>;
 }
 
@@ -449,15 +439,17 @@ async function withRetry<T>(
       if (isPauseError(err) || shouldStop?.()) throw new PausedError();
       const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
       const transient =
-        msg.includes("too many requests") ||
-        msg.includes("slow down") ||
-        msg.includes("network request failed") ||
-        msg.includes("timed out") ||
-        msg.includes("stalled") ||
-        msg.includes("aborted") ||
-        msg.includes("temporarily") ||
-        msg.includes("unavailable") ||
-        /\b5\d\d\b/.test(msg); // 5xx server errors
+        err instanceof ApiError
+          ? isRetryableStatus(err.status)
+          : msg.includes("too many requests") ||
+            msg.includes("slow down") ||
+            msg.includes("network request failed") ||
+            msg.includes("timed out") ||
+            msg.includes("stalled") ||
+            msg.includes("aborted") ||
+            msg.includes("temporarily") ||
+            msg.includes("unavailable") ||
+            /\b5\d\d\b/.test(msg); // 5xx server errors
       if (transient && attempt < maxRetries) {
         const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
         await new Promise((r) => setTimeout(r, backoff));
@@ -1161,6 +1153,20 @@ function launchRun(file: File, id: string, opts: UploadFileOpts): Promise<void> 
   return p;
 }
 
+/** Run an item again on its original platform and folder, but never race a
+ *  still-draining previous run over the same item. */
+function relaunchItem(file: File, id: string, meta: ItemMeta | undefined, passphrase: string) {
+  relaunchAfterPrior(meta?.runPromise, () =>
+    launchRun(file, id, {
+      passphrase,
+      platform: meta?.resume?.platform ?? meta?.platform,
+      profile: getDeviceProfile(),
+      onRefresh: meta?.onRefresh,
+      folderId: meta?.folderId,
+    }),
+  );
+}
+
 export const useUploadStore = create<UploadStore>((set, get) => ({
   queue: [],
 
@@ -1214,7 +1220,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // pending batched update for this id) so a stale in-flight progress frame
     // can't overwrite the paused state a frame later.
     if (status === "done" || status === "failed" || status === "paused") {
-      pendingUpdates.delete(id);
+      progressBatch.drop(id);
       set((state) => ({
         queue: state.queue.map((item) =>
           item.id === id
@@ -1233,8 +1239,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       return;
     }
     // Batch intermediate progress, one render per frame
-    pendingUpdates.set(id, { status, progress, stage, bytesProcessed, totalBytes, rateBps });
-    scheduleFlush();
+    progressBatch.queue(id, { status, progress, stage, bytesProcessed, totalBytes, rateBps });
   },
 
   setError: (id, error) => {
@@ -1244,7 +1249,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // flush already scheduled from the last progress tick lands AFTER this and
     // stomps "failed" back to whatever intermediate status/stage it was queued
     // with, silently un-failing a row that actually stopped.
-    pendingUpdates.delete(id);
+    progressBatch.drop(id);
     set((state) => ({
       queue: state.queue.map((item) =>
         item.id === id ? { ...item, status: "failed" as const, error } : item,
@@ -1266,6 +1271,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // chunk boundary.
     if (meta?.desktopPath) {
       void import("@/lib/tauri").then(({ cancelTransfer }) => cancelTransfer(id).catch(() => {}));
+      releaseSharedFile(meta.desktopPath);
     }
     if (meta?.resume?.sessionId) {
       cancelUpload(meta.resume.sessionId).catch(() => {});
@@ -1485,6 +1491,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           // (removeFromQueue) can abort this in-flight core upload.
           await sidecarUpload(desktopPath, passphrase, meta.platform, id, meta.folderId);
           forgetUploadPath(desktopPath);
+          releaseSharedFile(desktopPath);
           updateStatus(id, "done", 100, "Done");
           void meta.onRefresh?.();
         } catch (err) {
@@ -1505,17 +1512,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           : i,
       ),
     }));
-    // Never race a still-draining previous run over the same item.
-    const prior = meta?.runPromise;
-    relaunchAfterPrior(prior, () =>
-      launchRun(item.file, id, {
-        passphrase,
-        platform: meta?.resume?.platform ?? meta?.platform,
-        profile: getDeviceProfile(),
-        onRefresh: meta?.onRefresh,
-        folderId: meta?.folderId,
-      }),
-    );
+    relaunchItem(item.file, id, meta, passphrase);
   },
 
   // Pause an in-progress upload. Three-layer stop: (1) the chunk loop stops
@@ -1564,16 +1561,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           : i,
       ),
     }));
-    const prior = meta?.runPromise;
-    relaunchAfterPrior(prior, () =>
-      launchRun(item.file, id, {
-        passphrase,
-        platform: meta?.resume?.platform ?? meta?.platform,
-        profile: getDeviceProfile(),
-        onRefresh: meta?.onRefresh,
-        folderId: meta?.folderId,
-      }),
-    );
+    relaunchItem(item.file, id, meta, passphrase);
   },
 
   getResumableUploadIds: () =>
@@ -1599,6 +1587,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     preSelectedPaths,
     platform,
     folderId = null,
+    maxConcurrent,
   ) => {
     const { addToQueue, updateStatus, setError } = get();
 
@@ -1606,6 +1595,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       pickFiles: tauriPickFiles,
       sidecarUpload,
       subscribeProgress,
+      fileSizes,
     } = await import("@/lib/tauri");
     const paths =
       preSelectedPaths && preSelectedPaths.length > 0
@@ -1640,43 +1630,66 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       );
     });
 
-    try {
-      for (const filePath of paths) {
-        // Last path segment, falling back to the whole path when there isn't one
-        // (a trailing slash yields an empty segment: showing the full path in the
-        // queue row beats showing a blank name).
-        const segments = filePath.split("/");
-        const fileName = segments[segments.length - 1] || filePath;
-        // Create a minimal File object for the queue UI
-        const dummyFile = new File([], fileName);
-        const id = addToQueue(dummyFile);
-        // Mark the item core-driven: retry re-drives the core (the placeholder
-        // File has 0 bytes, so the web pipeline must never see it), and the UI
-        // hides pause.
-        patchMeta(id, { desktopPath: filePath, onRefresh, platform, folderId });
-        rememberUploadPath(filePath);
-        set((state) => ({
-          queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
-        }));
+    // Files run concurrently, sized exactly like the web startUpload: by the
+    // batch's typical file size and the network, hard-capped by the server's
+    // per-user limit. The core shares one chunk window across every file in
+    // flight, so this widens file-level parallelism without multiplying RAM.
+    const sizes = await fileSizes(paths).catch(() => paths.map(() => 0));
+    const recommended = recommendedUploadConcurrency(sizes);
+    const serverCap = maxConcurrent && maxConcurrent > 0 ? maxConcurrent : Infinity;
+    const sem = createSemaphore(Math.max(1, Math.min(recommended, serverCap)));
 
-        try {
-          // Streaming upload: encrypt-in-RAM + fire chunks in parallel, resolves
-          // only when the bytes are confirmed on the platform. `platform` is the
-          // user's picker choice ("github"/"huggingface"/… or undefined = Auto);
-          // without it the backend defaults to Auto (Telegram-first), which
-          // silently ignored the selection. Live percent comes from the progress
-          // subscription; a retry auto-resumes core-side.
-          updateStatus(id, "encrypting", undefined, "Uploading...");
-          // Queue id doubles as the transfer id so an explicit Cancel can abort
-          // this core upload mid-flight (see removeFromQueue).
-          await sidecarUpload(filePath, passphrase, platform, id, folderId);
-          forgetUploadPath(filePath);
-          updateStatus(id, "done", 100, "Done");
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Upload failed";
-          setError(id, msg);
-        }
-      }
+    const items = paths.map((filePath) => {
+      // Last path segment, falling back to the whole path when there isn't one
+      // (a trailing slash yields an empty segment: showing the full path in the
+      // queue row beats showing a blank name).
+      const segments = filePath.split("/");
+      const fileName = segments[segments.length - 1] || filePath;
+      // Create a minimal File object for the queue UI
+      const dummyFile = new File([], fileName);
+      const id = addToQueue(dummyFile);
+      // Mark the item core-driven: retry re-drives the core (the placeholder
+      // File has 0 bytes, so the web pipeline must never see it), and the UI
+      // hides pause.
+      patchMeta(id, { desktopPath: filePath, onRefresh, platform, folderId });
+      rememberUploadPath(filePath);
+      set((state) => ({
+        queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
+      }));
+      return { id, filePath };
+    });
+
+    try {
+      await Promise.all(
+        items.map(async ({ id, filePath }) => {
+          await sem.acquire();
+          try {
+            // Cancelled while it waited for a slot: nothing to start.
+            if (!itemMeta.has(id)) {
+              forgetUploadPath(filePath);
+              return;
+            }
+            // Streaming upload: encrypt-in-RAM + fire chunks in parallel, resolves
+            // only when the bytes are confirmed on the platform. `platform` is the
+            // user's picker choice ("github"/"huggingface"/… or undefined = Auto);
+            // without it the backend defaults to Auto (Telegram-first), which
+            // silently ignored the selection. Live percent comes from the progress
+            // subscription; a retry auto-resumes core-side.
+            updateStatus(id, "encrypting", undefined, "Uploading...");
+            // Queue id doubles as the transfer id so an explicit Cancel can abort
+            // this core upload mid-flight (see removeFromQueue).
+            await sidecarUpload(filePath, passphrase, platform, id, folderId);
+            forgetUploadPath(filePath);
+            releaseSharedFile(filePath);
+            updateStatus(id, "done", 100, "Done");
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Upload failed";
+            setError(id, msg);
+          } finally {
+            sem.release();
+          }
+        }),
+      );
     } finally {
       unlisten();
     }

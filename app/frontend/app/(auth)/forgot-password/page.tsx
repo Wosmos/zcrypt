@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/auth-api";
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { AuthLink, AUTH_LINK_CLASS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
-import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
+import { EmailField } from "@/components/auth/email-field";
+import { ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
 
 export default function ForgotPasswordPage() {
   const t = useTranslations("auth");
@@ -65,16 +65,7 @@ export default function ForgotPasswordPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        <Input
-          label={t("email")}
-          type="email"
-          placeholder={t("emailPlaceholder")}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          icon={<Mail className="h-4 w-4" />}
-          required
-          autoComplete="email"
-        />
+        <EmailField value={email} onChange={setEmail} />
 
         <SubmitButton
           type="submit"

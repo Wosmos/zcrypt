@@ -22,6 +22,9 @@ export interface FileMetadata {
   encrypted_style?: string | null;
   /** Decrypted from `encrypted_style` at query time. Null when unset/locked/corrupt. */
   style?: CustomStyle | null;
+  /** Durability: "degraded" = not confirmed on any platform after every retry
+   *  (retryable); "damaged" = data confirmed missing on the platform. */
+  health?: "ok" | "degraded" | "damaged";
 }
 
 /** A nested folder. `encrypted_name` is the AES-GCM-encrypted (base64) name:
@@ -125,6 +128,8 @@ export interface AuthUser {
    * one screen that explains what zcrypt is.
    */
   onboarded_at?: string;
+  /** Set while a self-serve account deletion is pending. */
+  deletion_scheduled_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -150,6 +155,12 @@ export interface SystemStats {
   total_files: number;
   total_size: number;
   total_repos: number;
+  /** Files whose chunks ran out of sync retries without reaching a platform. */
+  degraded_files?: number;
+  /** Files with a chunk confirmed missing on its platform. */
+  damaged_files?: number;
+  /** Chunks stranded at the retry cap. */
+  stuck_chunks?: number;
 }
 
 export interface QuotaInfo {

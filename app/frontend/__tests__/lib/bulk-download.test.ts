@@ -45,7 +45,14 @@ vi.mock("@/lib/zstd", () => ({
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));
 
-import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
+import {
+  downloadAsZip,
+  zipEntryName,
+  zipRefusal,
+  ZIP_ENTRY_MAX_BYTES,
+  ZIP_MAX_ENTRIES,
+  type BulkDownloadFile,
+} from "@/lib/bulk-download";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -152,7 +159,7 @@ describe("downloadAsZip: success paths", () => {
     await downloadAsZip(files, "pw", { onProgress: (info) => stages.push(info.stage) });
 
     expect(stages[0]).toContain("Downloading a.txt");
-    expect(stages).toContain("Building ZIP...");
+    expect(stages).toContain("Saving ZIP...");
     expect(stages[stages.length - 1]).toBe("Done");
 
     const contents = await capturedZipContents();
@@ -301,7 +308,7 @@ describe("downloadAsZip: failure paths", () => {
     );
   });
 
-  it("aborts the whole batch if a later file's metadata fetch fails, never producing a ZIP", async () => {
+  it("skips a file that fails and still saves the rest, reporting the skip", async () => {
     const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("ok")] });
     getFileMeta.mockResolvedValueOnce(f1.meta).mockRejectedValueOnce(new Error("404 not found"));
     getFileChunk.mockResolvedValueOnce({ data: f1.encryptedChunks[0], sha256: "", compressed: false });
@@ -310,7 +317,39 @@ describe("downloadAsZip: failure paths", () => {
       { fileId: "id1", filename: "ok.txt", fileSize: 2 },
       { fileId: "id2", filename: "missing.txt", fileSize: 1 },
     ];
-    await expect(downloadAsZip(files, "pw")).rejects.toThrow("404 not found");
+    const report = await downloadAsZip(files, "pw");
+    expect(report).toEqual({
+      added: 1,
+      failed: [{ fileId: "id2", filename: "missing.txt", error: "404 not found" }],
+    });
+    expect(await capturedZipContents()).toEqual({ "ok.txt": "ok" });
+  });
+
+  it("reports a non-Error failure as a string", async () => {
+    const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("ok")] });
+    getFileMeta.mockResolvedValueOnce(f1.meta).mockRejectedValueOnce("gone");
+    getFileChunk.mockResolvedValueOnce({ data: f1.encryptedChunks[0], sha256: "", compressed: false });
+    const report = await downloadAsZip(
+      [
+        { fileId: "id1", filename: "ok.txt", fileSize: 2 },
+        { fileId: "id2", filename: "x.txt", fileSize: 1 },
+      ],
+      "pw",
+    );
+    expect(report.failed[0]!.error).toBe("gone");
+  });
+
+  it("throws the first error when no file could be added at all", async () => {
+    getFileMeta.mockRejectedValueOnce(new Error("first")).mockRejectedValueOnce(new Error("second"));
+    await expect(
+      downloadAsZip(
+        [
+          { fileId: "id1", filename: "a", fileSize: 1 },
+          { fileId: "id2", filename: "b", fileSize: 1 },
+        ],
+        "pw",
+      ),
+    ).rejects.toThrow("first");
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
@@ -398,5 +437,158 @@ describe("downloadAsZip: failure paths", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
     // The chunk request is never issued at all.
     expect(getFileChunk).not.toHaveBeenCalled();
+  });
+});
+
+describe("zipEntryName", () => {
+  it("keeps the folder path and neutralises traversal and reserved characters", () => {
+    expect(zipEntryName({ filename: "a.txt", path: "Photos/2024" })).toBe("Photos/2024/a.txt");
+    expect(zipEntryName({ filename: "../../etc/passwd" })).toBe("etc_passwd");
+    expect(zipEntryName({ filename: "x.txt", path: "/../..\\abs/./dir/" })).toBe("abs/dir/x.txt");
+    expect(zipEntryName({ filename: 'a<b>:"c|?*\x01\x7f.txt' })).toBe("a_b___c_____.txt");
+    expect(zipEntryName({ filename: "..", path: "" })).toBe("file");
+  });
+});
+
+describe("downloadAsZip: folders and disk streaming", () => {
+  async function oneFile(text: string) {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode(text)] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+  }
+
+  it("preserves folder paths and disambiguates duplicates within a folder", async () => {
+    await oneFile("1");
+    await oneFile("2");
+    await oneFile("3");
+    await downloadAsZip(
+      [
+        { fileId: "a", filename: "r.txt", fileSize: 1, path: "Docs" },
+        { fileId: "b", filename: "r.txt", fileSize: 1, path: "Docs" },
+        { fileId: "c", filename: "r.txt", fileSize: 1 },
+      ],
+      "pw",
+    );
+    expect(await capturedZipContents()).toEqual({ "Docs/r.txt": "1", "Docs/r (1).txt": "2", "r.txt": "3" });
+  });
+
+  it("does not treat a dot in a folder name as the extension", async () => {
+    await oneFile("1");
+    await oneFile("2");
+    await downloadAsZip(
+      [
+        { fileId: "a", filename: "readme", fileSize: 1, path: "v1.2" },
+        { fileId: "b", filename: "readme", fileSize: 1, path: "v1.2" },
+      ],
+      "pw",
+    );
+    expect(Object.keys(await capturedZipContents()).sort()).toEqual(["v1.2/readme", "v1.2/readme (1)"]);
+  });
+
+  it("streams the archive to a disk writable and closes it, never building a Blob", async () => {
+    await oneFile("on disk");
+    const written: Uint8Array[] = [];
+    const disk = {
+      write: vi.fn(async (d: Uint8Array) => void written.push(d.slice())),
+      close: vi.fn(async () => {}),
+      abort: vi.fn(async () => {}),
+    };
+    await downloadAsZip([{ fileId: "a", filename: "d.txt", fileSize: 7 }], "pw", { saveToDisk: disk });
+    expect(disk.close).toHaveBeenCalledTimes(1);
+    expect(disk.abort).not.toHaveBeenCalled();
+    expect(createObjectURL).not.toHaveBeenCalled();
+    const unzipped = unzipSync(concatUint8(written));
+    expect(dec.decode(unzipped["d.txt"])).toBe("on disk");
+  });
+
+  it("aborts the disk writable when the archive fails", async () => {
+    getFileMeta.mockRejectedValueOnce(new Error("nope"));
+    const disk = {
+      write: vi.fn(async () => {}),
+      close: vi.fn(async () => {}),
+      abort: vi.fn(async () => {
+        throw new Error("already closed");
+      }),
+    };
+    await expect(
+      downloadAsZip([{ fileId: "a", filename: "d.txt", fileSize: 1 }], "pw", { saveToDisk: disk }),
+    ).rejects.toThrow("nope");
+    expect(disk.abort).toHaveBeenCalledTimes(1);
+    expect(disk.close).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a disk write failure", async () => {
+    await oneFile("x");
+    const disk = {
+      write: vi.fn(async () => {
+        throw new Error("disk full");
+      }),
+      close: vi.fn(async () => {}),
+    };
+    await expect(
+      downloadAsZip([{ fileId: "a", filename: "d.txt", fileSize: 1 }], "pw", { saveToDisk: disk }),
+    ).rejects.toThrow("disk full");
+    expect(disk.close).not.toHaveBeenCalled();
+  });
+});
+
+describe("ZIP size limits", () => {
+  const GB = 1024 * 1024 * 1024;
+  const many = (n: number, size: number): BulkDownloadFile[] =>
+    Array.from({ length: n }, (_, i) => ({ fileId: `f${i}`, filename: `f${i}.bin`, fileSize: size }));
+
+  it("accepts a selection the 32-bit ZIP format can hold", () => {
+    expect(zipRefusal(many(3, GB))).toBeNull();
+    expect(zipRefusal([...many(3, GB), { fileId: "x", filename: "x", fileSize: 5 * GB }])).toBeNull();
+  });
+
+  it("refuses an archive of 4 GiB or more, counting only the files that will be packed", () => {
+    expect(zipRefusal(many(4, ZIP_ENTRY_MAX_BYTES))).toContain("limited to 4 GB");
+  });
+
+  it("refuses more entries than a ZIP can index", () => {
+    expect(zipRefusal(many(ZIP_MAX_ENTRIES + 1, 1))).toContain(`at most ${ZIP_MAX_ENTRIES} files`);
+  });
+
+  it("refuses when every file is over the per-entry cap", () => {
+    expect(zipRefusal(many(2, ZIP_ENTRY_MAX_BYTES + 1))).toContain("Download them individually");
+  });
+
+  it("rejects a refused selection before touching the network", async () => {
+    await expect(downloadAsZip(many(5, GB), "pw")).rejects.toThrow("limited to 4 GB");
+    expect(getFileMeta).not.toHaveBeenCalled();
+  });
+
+  it("skips files over the per-entry cap and reports them without fetching them", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("small")] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    const report = await downloadAsZip(
+      [
+        { fileId: "big", filename: "big.iso", fileSize: ZIP_ENTRY_MAX_BYTES + 1 },
+        { fileId: "s", filename: "s.txt", fileSize: 5 },
+      ],
+      "pw",
+    );
+
+    expect(report).toEqual({
+      added: 1,
+      failed: [{ fileId: "big", filename: "big.iso", error: "Over 1 GB, too large for a ZIP" }],
+    });
+    expect(getFileMeta).toHaveBeenCalledTimes(1);
+    expect(getFileMeta).toHaveBeenCalledWith("s");
+    expect(await capturedZipContents()).toEqual({ "s.txt": "small" });
+  });
+
+  it("fails instead of saving when the ZIP writer reports an error", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    await expect(
+      downloadAsZip([{ fileId: "a", filename: "n".repeat(70000), fileSize: 1 }], "pw"),
+    ).rejects.toThrow();
+    expect(createObjectURL).not.toHaveBeenCalled();
   });
 });

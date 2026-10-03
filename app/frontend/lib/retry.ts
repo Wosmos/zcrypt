@@ -6,9 +6,14 @@
  * surface immediately, not loop).
  */
 
-/** True for errors worth retrying: transport blips and server-side 5xx. */
+import { ApiError, isRetryableStatus } from "@/lib/http-error";
+
+/** True for errors worth retrying: transport blips and server-side 5xx. An HTTP
+ *  error is judged by its status alone, so a 410 (data gone) never loops and a
+ *  5xx with a wordy body still retries. */
 export function isTransientError(err: unknown): boolean {
   if (err instanceof DOMException && err.name === "AbortError") return false;
+  if (err instanceof ApiError) return isRetryableStatus(err.status);
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return (
     msg.includes("network request failed") ||

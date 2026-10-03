@@ -67,7 +67,7 @@ describe("qk", () => {
     expect(qk.adminPlans).toEqual(["admin", "plans"]);
     expect(qk.devices("d1")).toEqual(["tools", "devices", "d1"]);
     for (const k of [qk.syncFolders, qk.expiring, qk.integrity, qk.snapshots]) expect(k[0]).toBe("tools");
-    for (const k of [qk.securityActivity, qk.linkedAccounts, qk.deadman, qk.decoy])
+    for (const k of [qk.securityActivity, qk.linkedAccounts, qk.sessions, qk.deadman, qk.decoy])
       expect(k[0]).toBe("settings");
     expect(qk.incompleteUploads).toEqual(["uploads", "incomplete"]);
   });

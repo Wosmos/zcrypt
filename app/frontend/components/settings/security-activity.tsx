@@ -7,6 +7,7 @@ import { getUserActivity, type AuditEvent } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 import { EVENT_ICONS } from "@/lib/audit-events";
+import { parseUserAgent } from "@/lib/user-agent";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Pagination } from "@/components/ui/pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -61,27 +62,13 @@ const eventLabels: Record<string, string> = {
   bug_report: "Bug report submitted",
   review_submit: "Review submitted",
   user_feedback: "Feedback submitted",
+  session_revoke: "Device signed out",
+  sessions_revoke_others: "Other devices signed out",
+  account_export: "Account data exported",
+  account_deletion_requested: "Account deletion scheduled",
+  account_deletion_cancelled: "Account deletion cancelled",
+  account_deletion_denied: "Failed account deletion attempt",
 };
-
-/** Short "Browser · OS" summary for a table cell; the full string stays in a tooltip. */
-function parseUserAgent(ua: string): string {
-  if (!ua) return "Unknown";
-  let browser = "Unknown";
-  if (ua.includes("Firefox/")) browser = "Firefox";
-  else if (ua.includes("Edg/")) browser = "Edge";
-  else if (ua.includes("Chrome/")) browser = "Chrome";
-  else if (ua.includes("Safari/") && !ua.includes("Chrome")) browser = "Safari";
-  else if (ua.includes("zcrypt")) browser = "zcrypt CLI";
-
-  let os = "Unknown";
-  if (ua.includes("Windows")) os = "Windows";
-  else if (ua.includes("Mac OS X")) os = "macOS";
-  else if (ua.includes("Android")) os = "Android";
-  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
-  else if (ua.includes("Linux")) os = "Linux";
-
-  return `${browser} · ${os}`;
-}
 
 export function SecurityActivity() {
   const hasToken = useAuthStore((s) => !!s.accessToken);

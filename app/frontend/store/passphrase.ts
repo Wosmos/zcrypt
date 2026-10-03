@@ -19,9 +19,10 @@ const SESSION_TTL_MIN = 15;
 function readRememberPref(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    // Default ON: stay unlocked on this device unless the user explicitly opts
-    // out ("0"). So the first unlock persists and they're never re-prompted here.
-    return localStorage.getItem(REMEMBER_KEY) !== "0";
+    // Defaults OFF everywhere: a remembered passphrase leaves the vault open to
+    // anyone holding this device or browser profile, so it is only ever the
+    // explicit "keep me unlocked" choice at unlock.
+    return localStorage.getItem(REMEMBER_KEY) === "1";
   } catch {
     return false;
   }
@@ -44,7 +45,6 @@ interface PassphraseStore {
   persistent: boolean;
   /** Preference: persist the passphrase on this device on unlock (survives reloads). */
   rememberDevice: boolean;
-  rememberByDefault: boolean;
 
   setPassphrase: (passphrase: string, ttlMinutes?: number) => void;
   getPassphrase: () => string | null;
@@ -61,7 +61,6 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   cacheUntil: null,
   persistent: false,
   rememberDevice: readRememberPref(),
-  rememberByDefault: true,
 
   setPassphrase: (passphrase, ttlMinutes = SESSION_TTL_MIN) => {
     if (clearTimer) {
@@ -174,7 +173,11 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   },
 
   rehydrate: async () => {
-    if (!get().rememberDevice) return;
+    if (!get().rememberDevice) {
+      // A copy left by the old default-on behaviour must not outlive the opt-out.
+      void clearPersistedPassphrase();
+      return;
+    }
     if (get().cachedPassphrase) return; // already unlocked this session
     const pp = await loadPassphrase();
     if (pp && !get().cachedPassphrase) {

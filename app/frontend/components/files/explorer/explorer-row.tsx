@@ -1,10 +1,11 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type ComponentType, type CSSProperties } from "react";
 import NextImage from "next/image";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
+import { FileHealthBadge } from "./health-badge";
 import {
   formatBytes,
   formatDate,
@@ -252,7 +253,7 @@ function FileRow({
       role="button"
       data-entry-id={file.id}
       tabIndex={focused ? 0 : -1}
-      aria-selected={selected}
+      aria-pressed={selected}
       aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}`}
       draggable={drag.draggable}
       onClick={(e) => onFileClick(file, e)}
@@ -293,7 +294,8 @@ function FileRow({
             // fixed 36×36 box.
             <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
           ) : (
-            <Icon
+            <TypeGlyph
+              Icon={Icon}
               className={cn("h-[18px] w-[18px]", !file.style?.color && typeInfo.color)}
               style={iconColorStyle}
             />
@@ -319,6 +321,7 @@ function FileRow({
         >
           {midTrunc(displayName, 16, 6)}
         </span>
+        <FileHealthBadge file={file} />
       </div>
       <span className="hidden w-[110px] flex-shrink-0 truncate text-sm text-[var(--color-text-secondary)] sm:block">
         {typeInfo.label}
@@ -407,4 +410,12 @@ function ExplorerRowImpl(props: ExplorerItemProps) {
  * actually changed. See `explorerItemPropsEqual` for why callback identity is
  * intentionally excluded from the comparison.
  */
+
+type GlyphProps = { className?: string; style?: CSSProperties };
+
+/** Renders a file-type or custom icon picked from the static icon maps. */
+function TypeGlyph({ Icon, ...props }: GlyphProps & { Icon: ComponentType<GlyphProps> }) {
+  return <Icon {...props} />;
+}
+
 export const ExplorerRow = memo(ExplorerRowImpl, explorerItemPropsEqual);

@@ -161,7 +161,7 @@ export function MobileNav() {
         </div>
       </nav>
 
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={t("more")}>
         <div className="space-y-1 pb-1">
           {/* Navigation. Share + Settings always; Tools/Admin when relevant. */}
           <div className="px-3 pb-1">

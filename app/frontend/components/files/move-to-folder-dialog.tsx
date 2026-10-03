@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listFolders, moveFile, moveFolder } from "@/lib/api";
 import { decryptNameSafe } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
@@ -41,8 +41,8 @@ interface MoveToFolderDialogProps {
   /**
    * Optional file-move override. When provided AND moving a file, this is called
    * INSTEAD of the internal `moveFile` so the page can re-key the file across a
-   * protection boundary first (decrypt under source pass, rewrap under dest pass,
-   * rekeyFile) and then moveFile. Resolves on success; rejects on failure.
+   * protection boundary (decrypt under source pass, rewrap under dest pass) and
+   * send the new envelope with the move. Resolves on success; rejects on failure.
    */
   onMoveFile?: (fileId: string, destFolderId: string | null) => Promise<void>;
 }
@@ -72,7 +72,7 @@ export function MoveToFolderDialog({
   const [children, setChildren] = useState<Record<string, TreeNode[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
-  const [rootLoading, setRootLoading] = useState(false);
+  const [rootLoading, setRootLoading] = useState(open);
   const [locked, setLocked] = useState(false);
   // null means "Root" (no folder); undefined means nothing selected yet.
   const [selected, setSelected] = useState<string | null | undefined>(undefined);
@@ -86,7 +86,13 @@ export function MoveToFolderDialog({
   // the AUTHORITATIVE cycle guard is server-side (MoveFolder's recursive-CTE
   // ancestry check), so an unexpanded-deep descendant is rejected by the backend
   // and surfaced here as a toast + reconcile (FIX-3b).
-  const parentRef = useRef<Map<string, string | null>>(new Map());
+  const parentOf = useMemo(() => {
+    const edges = new Map<string, string | null>();
+    for (const [parentKey, nodes] of Object.entries(children)) {
+      for (const node of nodes) edges.set(node.id, parentKey === "root" ? null : parentKey);
+    }
+    return edges;
+  }, [children]);
 
   const fetchChildren = useCallback(async (parentId: string | null): Promise<TreeNode[]> => {
     // Shares the explorer's per-parent folder cache: a level already browsed
@@ -95,10 +101,8 @@ export function MoveToFolderDialog({
       queryKey: qk.folders(parentId),
       queryFn: () => listFolders(parentId),
     });
-    // Record protection metadata (the registry has no get-by-id endpoint) and
-    // parent edges for descendant detection.
+    // Record protection metadata (the registry has no get-by-id endpoint).
     useFolderRegistry.getState().record(raw);
-    for (const f of raw) parentRef.current.set(f.id, parentId);
     const key = keyRef.current;
     return Promise.all(
       raw.map(async (f) => ({
@@ -119,22 +123,29 @@ export function MoveToFolderDialog({
       while (cur != null && !seen.has(cur)) {
         seen.add(cur);
         if (cur === folderId) return true;
-        cur = parentRef.current.get(cur);
+        cur = parentOf.get(cur);
       }
       return false;
     },
-    [folderId],
+    [folderId, parentOf],
   );
+
+  // Start from a clean tree whenever the dialog opens.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setSelected(undefined);
+      setChildren({});
+      setExpanded(new Set());
+      setLoadingNodes(new Set());
+      setRootLoading(true);
+    }
+  }
 
   // Load top-level folders when the dialog opens.
   useEffect(() => {
     if (!open) return;
-    setSelected(undefined);
-    setChildren({});
-    setExpanded(new Set());
-    setLoadingNodes(new Set());
-    parentRef.current = new Map();
-    setRootLoading(true);
     void (async () => {
       try {
         const passphrase = getPassphrase();
@@ -248,7 +259,7 @@ export function MoveToFolderDialog({
     setMoving(true);
     try {
       // The page-supplied override re-keys across a protection boundary (decrypt
-      // under source pass → rewrap under dest pass → rekeyFile) THEN moves; the
+      // under source pass → rewrap under dest pass) in the same request as the move; the
       // fallback is a plain move (unprotected → unprotected, byte-for-byte same).
       if (onMoveFile) await onMoveFile(fileId, selected);
       else await moveFile(fileId, selected);

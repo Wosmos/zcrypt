@@ -39,7 +39,7 @@ import type {
 } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
-import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
 import { throwResponseError, parseErrorJson } from "@/lib/http-error";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -55,7 +55,16 @@ async function readChunkResponse(
   };
 }
 
-async function request<T>(path: string, options?: RequestInit, retries = 2): Promise<T> {
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await requestResponse(path, options);
+  return res.json() as Promise<T>;
+}
+
+async function requestResponse(
+  path: string,
+  options?: RequestInit,
+  retries = 2,
+): Promise<Response> {
   const { accessToken } = useAuthStore.getState();
 
   const headers: Record<string, string> = {
@@ -90,7 +99,7 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
   }
 
   // On 401, try refreshing the token and retry once
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401 && shouldRefreshOn401(accessToken)) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
@@ -104,12 +113,12 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
   // Retry on 5xx server errors with backoff
   if (res.status >= 500 && retries > 0) {
     await new Promise((r) => setTimeout(r, 1000 * (3 - retries)));
-    return request<T>(path, options, retries - 1);
+    return requestResponse(path, options, retries - 1);
   }
 
   if (!res.ok) await throwResponseError(res);
 
-  return res.json() as Promise<T>;
+  return res;
 }
 
 // ─── Per-device UI preferences (color theme + light/dark mode) ───
@@ -260,12 +269,19 @@ export async function getFileChunk(
   }
 }
 
-export function listFiles(filter?: string, limit?: number): Promise<FileMetadata[]> {
-  const params = new URLSearchParams();
-  if (filter) params.set("filter", filter);
-  if (limit) params.set("limit", String(limit));
-  const qs = params.toString();
-  return request<FileMetadata[]>(`/api/files${qs ? `?${qs}` : ""}`);
+/** With a limit, the newest `limit` files. Without one, the whole library,
+ *  following the server's X-Next-Cursor pages until the last one. */
+export async function listFiles(limit?: number): Promise<FileMetadata[]> {
+  if (limit) return request<FileMetadata[]>(`/api/files?limit=${limit}`);
+  const files: FileMetadata[] = [];
+  let cursor: string | null = null;
+  do {
+    const qs: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const res = await requestResponse(`/api/files${qs}`);
+    files.push(...((await res.json()) as FileMetadata[]));
+    cursor = res.headers.get("X-Next-Cursor");
+  } while (cursor);
+  return files;
 }
 
 // --- Insights / analytics (server-aggregated: see app/backend/cmd/analytics.go) ---
@@ -461,12 +477,43 @@ export function deleteFolder(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folders/${id}`, { method: "DELETE" });
 }
 
-export function moveFile(id: string, folderId: string | null): Promise<{ success: boolean }> {
+/** A file's re-wrapped envelope (base64 salt + wrapped_cek) for a protection-boundary change. */
+export interface FileRekey {
+  file_id: string;
+  salt: string;
+  wrapped_cek: string;
+}
+
+/** Move a file. `rekey`, when given, is the file's envelope for the destination
+ *  zone: the server applies it in the same update as the move, so a failure can
+ *  never leave the file keyed for one folder while sitting in another. */
+export function moveFile(
+  id: string,
+  folderId: string | null,
+  rekey?: Omit<FileRekey, "file_id">,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/files/${id}/move`, {
     method: "PATCH",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ folder_id: folderId }),
+    body: JSON.stringify({ folder_id: folderId, ...rekey }),
   });
+}
+
+/** Give a degraded file's not-yet-durable chunks a fresh retry budget. */
+export function retryFileSync(id: string): Promise<{ requeued: number }> {
+  return request<{ requeued: number }>(`/api/files/${id}/retry-sync`, { method: "POST" });
+}
+
+export interface VerifyFilesReport {
+  checked_files: number;
+  damaged_files: string[];
+  recovered_files: string[];
+  unverified_repos: number;
+}
+
+/** Check every stored chunk against the platforms; marks lost files damaged. */
+export function verifyFiles(): Promise<VerifyFilesReport> {
+  return request<VerifyFilesReport>("/api/files/verify", { method: "POST" });
 }
 
 /** Set/clear a file's custom card style (icon + color). `encryptedStyle` is
@@ -487,36 +534,32 @@ export function updateFileStyle(
 // verifier (see lib/folder-crypto.ts) and sends only those opaque base64 blobs;
 // the server stores them but can never recover the password.
 
-/** Set/replace a folder's password protection. `pw_salt` + `pw_verifier` are base64. */
+/** Set/replace a folder's password protection. `pw_salt` + `pw_verifier` are base64.
+ *  `rekeys` are the folder's files re-wrapped under the new password; the server
+ *  applies them and the protection record in one transaction. */
 export function setFolderPassword(
   id: string,
   pw_salt: string,
   pw_verifier: string,
+  rekeys: FileRekey[] = [],
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folders/${id}/password`, {
     method: "POST",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ pw_salt, pw_verifier }),
+    body: JSON.stringify({ pw_salt, pw_verifier, rekeys }),
   });
 }
 
-/** Remove a folder's password protection (server nulls both columns). The client
- *  must re-key the folder's files back to the vault passphrase BEFORE calling this. */
-export function removeFolderPassword(id: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/folders/${id}/password`, { method: "DELETE" });
-}
-
-/** Re-key a file: update ONLY its `salt` (base64) + `wrapped_cek` (base64) when it
- *  crosses a protection boundary. The server never sees keys. */
-export function rekeyFile(
+/** Remove a folder's password protection. `rekeys` are the folder's files
+ *  re-wrapped back under the vault passphrase, applied in the same transaction. */
+export function removeFolderPassword(
   id: string,
-  salt: string,
-  wrapped_cek: string,
+  rekeys: FileRekey[] = [],
 ): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/files/${id}/rekey`, {
-    method: "PUT",
+  return request<{ success: boolean }>(`/api/folders/${id}/password`, {
+    method: "DELETE",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ salt, wrapped_cek }),
+    body: JSON.stringify({ rekeys }),
   });
 }
 
@@ -630,10 +673,24 @@ export function updateConfig(updates: Record<string, unknown>): Promise<{ succes
   });
 }
 
-export function createEventSource(): EventSource {
-  const { accessToken } = useAuthStore.getState();
-  const params = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
-  return new EventSource(`${API_BASE}/api/events${params}`);
+export interface FileChange {
+  file_id: string;
+  rev: number;
+  deleted: boolean;
+  folder_id?: string;
+}
+
+export const CHANGES_PAGE_LIMIT = 1000;
+
+export function getChanges(since: number): Promise<{ changes: FileChange[]; cursor: number }> {
+  return request(`/api/changes?since=${since}`);
+}
+
+/** Opens /api/events with a single-use ticket, so the access token never
+ *  rides in a URL (EventSource cannot send an Authorization header). */
+export async function createEventSource(): Promise<EventSource> {
+  const { ticket } = await request<{ ticket: string }>("/api/sse/ticket", { method: "POST" });
+  return new EventSource(`${API_BASE}/api/events?ticket=${encodeURIComponent(ticket)}`);
 }
 
 // ─── Admin API ───
@@ -732,17 +789,32 @@ export async function getDownloadTotal(): Promise<number> {
   return body.total;
 }
 
-export function adminSetUserRole(userId: string, role: string): Promise<{ success: boolean }> {
+/** The acting admin's own password, plus a fresh 2FA code when they have 2FA. */
+export interface AdminReauth {
+  password: string;
+  code: string;
+}
+
+export function adminSetUserRole(
+  userId: string,
+  role: string,
+  reauth: AdminReauth,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/role`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ role, ...reauth }),
   });
 }
 
-export function adminDeleteUser(userId: string): Promise<{ success: boolean }> {
+export function adminDeleteUser(
+  userId: string,
+  reauth: AdminReauth,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}`, {
     method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reauth),
   });
 }
 
@@ -753,33 +825,42 @@ export function adminListTokens(): Promise<{
   return request<{ tokens: PlatformTokenInfo[]; others_count: number }>("/api/admin/tokens");
 }
 
-export function adminCreateToken(data: {
-  user_id?: string;
-  platform: string;
-  token: string;
-  is_global: boolean;
-}): Promise<{ success: boolean; username: string }> {
+export function adminCreateToken(
+  data: {
+    user_id?: string;
+    platform: string;
+    token: string;
+    is_global: boolean;
+  },
+  reauth: AdminReauth,
+): Promise<{ success: boolean; username: string }> {
   return request<{ success: boolean; username: string }>("/api/admin/tokens", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ...reauth }),
   });
 }
 
-export function adminDeleteToken(tokenId: string): Promise<{ success: boolean }> {
+export function adminDeleteToken(
+  tokenId: string,
+  reauth: AdminReauth,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}`, {
     method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reauth),
   });
 }
 
 export function adminToggleTokenScope(
   tokenId: string,
   isGlobal: boolean,
+  reauth: AdminReauth,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}/scope`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ is_global: isGlobal }),
+    body: JSON.stringify({ is_global: isGlobal, ...reauth }),
   });
 }
 

@@ -274,16 +274,7 @@ export default function LoginPage() {
           </form>
         ) : (
           <form onSubmit={handleMagicLink} className="space-y-3 animate-fade-in">
-            <Input
-              label={t("email")}
-              type="email"
-              placeholder={t("emailPlaceholder")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail className="h-4 w-4" />}
-              required
-              autoComplete="email"
-            />
+            <EmailField value={email} onChange={setEmail} />
 
             <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
               {tl("magicNote")}
