@@ -15,6 +15,10 @@ import (
 // authoritative, user-facing rejection string for an attempted cyclic folder move.
 var ErrFolderCycle = errors.New("cannot move a folder into its own subfolder")
 
+// ErrMoveNotFound is returned by MoveFolder, MoveFile and PinFileOffline when the
+// item or its destination is not a live record owned by the caller.
+var ErrMoveNotFound = errors.New("item or destination not found")
+
 // folderTimeStr formats a non-zero time as RFC3339, or returns nil for the zero value.
 func folderTimeStr(t *time.Time) *string {
 	if t == nil || t.IsZero() {
@@ -164,21 +168,27 @@ func (db *DB) UpdateFolderStyle(ctx context.Context, userID, folderID string, en
 
 // MoveFolder reparents a folder, scoped to the owning user. newParentID nil = move to root.
 //
-// Cycle guard (authoritative for both the dialog and drag paths): a folder may not be
-// moved into itself OR into any of its own descendants: doing so would detach the
-// subtree from the tree. A recursive CTE walks the subtree rooted at folderID; if the
-// requested newParentID is anywhere in that subtree the move is rejected with
-// ErrFolderCycle (which handlers surface as a 4xx). Moving to root (nil) is always safe.
+// The folder and its new parent must both be live folders owned by the user, or
+// ErrMoveNotFound is returned. A folder may not be moved into itself or any of its
+// descendants (ErrFolderCycle). The check and the update run in one transaction
+// that holds a per-user advisory lock, so two concurrent moves cannot each pass
+// the cycle check and together detach a subtree.
 func (db *DB) MoveFolder(ctx context.Context, userID, folderID string, newParentID *string) error {
+	if newParentID != nil && *newParentID == folderID {
+		return ErrFolderCycle
+	}
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('folder-move:' || $1, 0))`, userID); err != nil {
+		return fmt.Errorf("lock folder tree: %w", err)
+	}
 	if newParentID != nil {
-		// Fast path: a direct self-move is always a cycle.
-		if *newParentID == folderID {
-			return ErrFolderCycle
-		}
-		// Walk the subtree rooted at folderID (folder + all descendants), scoped to
-		// the user, and check whether the requested parent is inside it.
-		var inSubtree bool
-		err := db.pool.QueryRow(ctx,
+		var parentLive, inSubtree bool
+		err := tx.QueryRow(ctx,
 			`WITH RECURSIVE subtree AS (
 			     SELECT id FROM folders WHERE id = $1 AND user_id = $3
 			     UNION ALL
@@ -186,24 +196,31 @@ func (db *DB) MoveFolder(ctx context.Context, userID, folderID string, newParent
 			     JOIN subtree s ON f.parent_id = s.id
 			     WHERE f.user_id = $3
 			 )
-			 SELECT EXISTS (SELECT 1 FROM subtree WHERE id = $2::uuid)`,
+			 SELECT EXISTS (SELECT 1 FROM folders WHERE id = $2::uuid AND user_id = $3 AND deleted_at IS NULL),
+			        EXISTS (SELECT 1 FROM subtree WHERE id = $2::uuid)`,
 			folderID, *newParentID, userID,
-		).Scan(&inSubtree)
+		).Scan(&parentLive, &inSubtree)
 		if err != nil {
-			return fmt.Errorf("check folder cycle: %w", err)
+			return fmt.Errorf("check folder move: %w", err)
+		}
+		if !parentLive {
+			return ErrMoveNotFound
 		}
 		if inSubtree {
 			return ErrFolderCycle
 		}
 	}
-	_, err := db.pool.Exec(ctx,
-		`UPDATE folders SET parent_id = $3 WHERE id = $1 AND user_id = $2`,
+	tag, err := tx.Exec(ctx,
+		`UPDATE folders SET parent_id = $3 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
 		folderID, userID, newParentID,
 	)
 	if err != nil {
 		return fmt.Errorf("move folder: %w", err)
 	}
-	return nil
+	if tag.RowsAffected() == 0 {
+		return ErrMoveNotFound
+	}
+	return tx.Commit(ctx)
 }
 
 // SoftDeleteFolder moves a folder and all of its descendants (folders + files) to the

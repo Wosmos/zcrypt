@@ -233,8 +233,8 @@ func (db *DB) RemotePathTaken(ctx context.Context, userID, platform, account, re
 // share lock on the source and destination folders, so it serialises with a
 // concurrent (un)protect, and it returns ErrProtectionMismatch when the caller
 // sent a re-key for a move that crosses no boundary or omitted one for a move
-// that does. Returns pgx.ErrNoRows when the caller owns no such file or
-// destination folder.
+// that does. Returns ErrMoveNotFound unless the file is the caller's and not in
+// trash and the destination (when set) is a live folder the caller owns.
 func (db *DB) MoveFileWithKey(ctx context.Context, userID, fileID string, folderID *string, salt []byte, wrappedCEK string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
@@ -244,10 +244,10 @@ func (db *DB) MoveFileWithKey(ctx context.Context, userID, fileID string, folder
 
 	var src *string
 	if err := tx.QueryRow(ctx,
-		`SELECT folder_id::text FROM files WHERE id = $1 AND user_id = $2`,
+		`SELECT folder_id::text FROM files WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
 		fileID, userID).Scan(&src); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return pgx.ErrNoRows
+			return ErrMoveNotFound
 		}
 		return fmt.Errorf("read file folder: %w", err)
 	}
@@ -260,9 +260,10 @@ func (db *DB) MoveFileWithKey(ctx context.Context, userID, fileID string, folder
 	}
 	slices.Sort(ids)
 	protected := make(map[string]bool, len(ids))
+	live := make(map[string]bool, len(ids))
 	if len(ids) > 0 {
 		rows, err := tx.Query(ctx,
-			`SELECT id::text, pw_salt IS NOT NULL FROM folders
+			`SELECT id::text, pw_salt IS NOT NULL, deleted_at IS NULL FROM folders
 			 WHERE user_id = $1 AND id = ANY($2::uuid[]) ORDER BY id FOR SHARE`,
 			userID, ids)
 		if err != nil {
@@ -270,22 +271,21 @@ func (db *DB) MoveFileWithKey(ctx context.Context, userID, fileID string, folder
 		}
 		for rows.Next() {
 			var id string
-			var p bool
-			if err := rows.Scan(&id, &p); err != nil {
+			var p, l bool
+			if err := rows.Scan(&id, &p, &l); err != nil {
 				rows.Close()
 				return fmt.Errorf("scan folder: %w", err)
 			}
 			protected[id] = p
+			live[id] = l
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
 			return fmt.Errorf("lock folders: %w", err)
 		}
 	}
-	if folderID != nil {
-		if _, ok := protected[*folderID]; !ok {
-			return pgx.ErrNoRows
-		}
+	if folderID != nil && !live[*folderID] {
+		return ErrMoveNotFound
 	}
 
 	sameFolder := (src == nil && folderID == nil) || (src != nil && folderID != nil && *src == *folderID)
@@ -300,7 +300,7 @@ func (db *DB) MoveFileWithKey(ctx context.Context, userID, fileID string, folder
 		`UPDATE files SET folder_id = $3,
 		        salt = COALESCE($4, salt),
 		        wrapped_cek = CASE WHEN $4::bytea IS NULL THEN wrapped_cek ELSE $5 END
-		 WHERE id = $1 AND user_id = $2 AND folder_id IS NOT DISTINCT FROM $6::uuid`,
+		 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $6::uuid`,
 		fileID, userID, folderID, salt, wrappedCEK, src)
 	if err != nil {
 		return fmt.Errorf("move file: %w", err)

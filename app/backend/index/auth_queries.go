@@ -372,8 +372,8 @@ func (db *DB) SetSystemSetting(ctx context.Context, key, value string) error {
 // InsertRefreshToken stores a refresh token hash with client binding.
 func (db *DB) InsertRefreshToken(ctx context.Context, rt *types.RefreshToken) error {
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent) VALUES ($1, $2, $3, $4, $5, $6)`,
-		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, decoy) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.Decoy,
 	)
 	if err != nil {
 		return fmt.Errorf("insert refresh token: %w", err)
@@ -385,11 +385,11 @@ func (db *DB) InsertRefreshToken(ctx context.Context, rt *types.RefreshToken) er
 func (db *DB) GetRefreshTokenByHash(ctx context.Context, hash string) (*types.RefreshToken, error) {
 	row := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, token_hash, expires_at, created_at,
-		        COALESCE(ip, ''), COALESCE(user_agent, '')
+		        COALESCE(ip, ''), COALESCE(user_agent, ''), decoy
 		 FROM refresh_tokens WHERE token_hash = $1`, hash,
 	)
 	rt := &types.RefreshToken{}
-	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent)
+	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent, &rt.Decoy)
 	if err != nil {
 		return nil, fmt.Errorf("get refresh token: %w", err)
 	}

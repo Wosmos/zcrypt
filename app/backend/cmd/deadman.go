@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -80,7 +79,7 @@ func (s *Server) HandleSetupDeadManSwitch(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := s.db.UpsertDeadManSwitch(r.Context(), dms); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"setup: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "SetupDeadManSwitch", err)
 		return
 	}
 

@@ -36,6 +36,81 @@ const maxChunkSize = 17 * 1024 * 1024
 // off. A future desktop/MTProto path can lift this per-client.
 const maxUploadBytes = int64(10) << 30
 
+// minChunkBytes is the smallest plaintext chunk a real client slices with.
+// Per-chunk overhead is only credited for this many chunks, so splitting a file
+// into tiny chunks cannot inflate what the declared size allows.
+const minChunkBytes = int64(64) << 10
+
+// chunkLayoutValid reports whether chunk_count is consistent with the declared
+// size: every chunk carries at least one plaintext byte, and the count is
+// exactly ceil(size / chunk_size) when the client sends its chunk size.
+func chunkLayoutValid(size int64, count int, chunkSize int64) bool {
+	if int64(count) > size {
+		return false
+	}
+	return chunkSize == 0 || int64(count) == (size+chunkSize-1)/chunkSize
+}
+
+// maxEncryptedTotal is the most ciphertext a file of the declared size can
+// produce. Compression is only kept when it shrinks a chunk, so each chunk is at
+// most its plaintext plus the 28-byte AES-GCM envelope; the slack also covers
+// legacy clients that always compressed (zstd's worst-case expansion).
+func maxEncryptedTotal(size int64, count int) int64 {
+	credited := min(int64(count), (size+minChunkBytes-1)/minChunkBytes)
+	return size + size/64 + credited*64
+}
+
+// chunkFitsDeclaredSize refuses a chunk that would push the file's stored
+// ciphertext past what its declared size allows, so a client cannot declare a
+// tiny file to pass the quota check and then upload far more.
+func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWriter, session *types.UploadSession, n int64) bool {
+	received, err := s.db.GetTotalReceivedChunkSize(ctx, session.FileID)
+	if err != nil {
+		internalError(w, "upload: received size", err)
+		return false
+	}
+	if received+n > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
+		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		return false
+	}
+	return true
+}
+
+func writeChunkStoreError(w http.ResponseWriter, msg string, err error) {
+	if errors.Is(err, index.ErrChunkExceedsDeclaredSize) {
+		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		return
+	}
+	log.Printf("%s: %v", msg, err)
+	writeError(w, http.StatusInternalServerError, "failed to store chunk")
+}
+
+// discardUpload cancels the session and deletes its file, queueing synced chunks
+// for remote deletion and removing staged ones locally.
+func (s *Server) discardUpload(ctx context.Context, userID string, session *types.UploadSession) error {
+	if err := s.db.CancelUploadSession(ctx, session.ID); err != nil {
+		return err
+	}
+	if staged, err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
+		fmt.Printf("warn: delete file on cancel: %v\n", err)
+	} else {
+		removeStagedChunkFiles(staged)
+		s.signalDeletion()
+	}
+	return nil
+}
+
+func writeSharedStorageFull(w http.ResponseWriter, used, quota, needed int64) {
+	writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
+		"error":        "shared storage is full",
+		"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
+		"used_bytes":   used,
+		"quota_bytes":  quota,
+		"needed_bytes": needed,
+		"remedy":       "connect_own_storage",
+	})
+}
+
 // chunkUploadSem limits concurrent chunk uploads being processed server-wide.
 // Each chunk can use ~35MB (raw data + base64 for GitHub API), so 10 concurrent = ~350MB.
 // Suitable for containers with 1-4GB RAM. For direct upload platforms (HuggingFace),
@@ -87,6 +162,10 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	// not be negative. It is persisted for cross-device resume.
 	if req.ChunkSize < 0 {
 		http.Error(w, `{"error":"chunk_size must be non-negative"}`, http.StatusBadRequest)
+		return
+	}
+	if !chunkLayoutValid(req.OriginalSize, req.ChunkCount, req.ChunkSize) {
+		http.Error(w, `{"error":"chunk_count does not match original_size and chunk_size"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -167,6 +246,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	var platform, account, repoID, repoURL string
 	var directUpload bool
+	var quota int64
 
 	if mode == "byos-direct" {
 		if req.Platform == "" || !byosPlatforms[req.Platform] {
@@ -196,7 +276,9 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// carries a cap (see getEffectiveQuota). Check it before reserving a
 		// session, not after, so a user who is over the line never starts an
 		// upload that cannot finish.
-		if quota := s.getEffectiveQuota(ctx, userID); quota > 0 {
+		// The file insert below re-checks under a lock, so concurrent inits
+		// cannot share the same headroom.
+		if quota = s.getEffectiveQuota(ctx, userID); quota > 0 {
 			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
 			if uErr != nil {
 				log.Printf("upload: storage usage lookup failed: %v", uErr)
@@ -204,14 +286,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if used+req.OriginalSize > quota {
-				writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
-					"error":        "shared storage is full",
-					"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
-					"used_bytes":   used,
-					"quota_bytes":  quota,
-					"needed_bytes": req.OriginalSize,
-					"remedy":       "connect_own_storage",
-				})
+				writeSharedStorageFull(w, used, quota, req.OriginalSize)
 				return
 			}
 		}
@@ -271,7 +346,18 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		FolderID:      req.FolderID,
 	}
 
-	if err := s.db.InsertFile(ctx, userID, fileMeta); err != nil {
+	insert := s.db.InsertFile
+	if quota > 0 {
+		insert = func(ctx context.Context, userID string, f *types.FileMetadata) error {
+			return s.db.InsertFileWithinQuota(ctx, userID, f, quota)
+		}
+	}
+	if err := insert(ctx, userID, fileMeta); err != nil {
+		var full *index.QuotaExceededError
+		if errors.As(err, &full) {
+			writeSharedStorageFull(w, full.Used, quota, req.OriginalSize)
+			return
+		}
 		log.Printf("upload: create file record failed for user %s: %v", userID, err)
 		http.Error(w, `{"error":"create file record failed"}`, http.StatusInternalServerError)
 		return
@@ -418,6 +504,9 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk too small"}`, http.StatusBadRequest)
 		return
 	}
+	if !s.chunkFitsDeclaredSize(ctx, w, session, int64(len(data))) {
+		return
+	}
 
 	// Verify SHA-256
 	hash := sha256.Sum256(data)
@@ -456,10 +545,9 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Compressed: compressed,
 	}
 
-	inserted, err := s.storeStagedChunk(ctx, userID, dbChunk, stagingPath)
+	inserted, err := s.storeStagedChunk(ctx, userID, dbChunk, stagingPath, maxEncryptedTotal(session.OriginalSize, session.ChunkCount))
 	if err != nil {
-		log.Printf("upload: store chunk ref failed: %v", err)
-		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+		writeChunkStoreError(w, "upload: store chunk ref failed", err)
 		return
 	}
 
@@ -504,9 +592,10 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 // storeStagedChunk records a relay chunk whose bytes were just staged at
 // stagingPath. If the row isn't inserted (a racing duplicate PUT already owns
 // the index, with its own staged file) or the insert fails, the staged copy is
-// removed: no row points at it, so nothing would ever sync or sweep it.
-func (s *Server) storeStagedChunk(ctx context.Context, userID string, c *types.ChunkRef, stagingPath string) (bool, error) {
-	inserted, err := s.db.InsertClientChunk(ctx, userID, c)
+// removed: no row points at it, so nothing would ever sync or sweep it. The
+// insert is refused with index.ErrChunkExceedsDeclaredSize past maxTotal.
+func (s *Server) storeStagedChunk(ctx context.Context, userID string, c *types.ChunkRef, stagingPath string, maxTotal int64) (bool, error) {
+	inserted, err := s.db.InsertClientChunk(ctx, userID, c, maxTotal)
 	if err != nil || !inserted {
 		if rmErr := os.Remove(stagingPath); rmErr != nil && !os.IsNotExist(rmErr) {
 			log.Printf("upload: remove unreferenced staging file: %v", rmErr)
@@ -560,6 +649,18 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(uploadedIndices) != session.ChunkCount {
 		http.Error(w, `{"error":"not all chunks have been uploaded"}`, http.StatusBadRequest)
+		return
+	}
+	received, err := s.db.GetTotalReceivedChunkSize(ctx, session.FileID)
+	if err != nil {
+		internalError(w, "upload: received size", err)
+		return
+	}
+	if received > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
+		if err := s.discardUpload(ctx, userID, session); err != nil {
+			log.Printf("upload: discard oversized upload failed: %v", err)
+		}
+		writeError(w, http.StatusBadRequest, "uploaded data exceeds the declared file size")
 		return
 	}
 
@@ -720,20 +821,10 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cancel session
-	if err := s.db.CancelUploadSession(ctx, sessionID); err != nil {
+	if err := s.discardUpload(ctx, userID, session); err != nil {
 		log.Printf("upload: cancel session failed: %v", err)
 		http.Error(w, `{"error":"failed to cancel upload"}`, http.StatusInternalServerError)
 		return
-	}
-
-	// Delete file and queue synced chunks for remote deletion; staged-but-unsynced
-	// chunks never reached a platform, so their .enc files are removed locally.
-	if staged, err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
-		fmt.Printf("warn: delete file on cancel: %v\n", err)
-	} else {
-		removeStagedChunkFiles(staged)
-		s.signalDeletion()
 	}
 
 	// Emit error event so frontend knows
@@ -824,6 +915,10 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	if chunkIndex < 0 || chunkIndex >= session.ChunkCount {
 		http.Error(w, `{"error":"chunk index out of range"}`, http.StatusBadRequest)
+		return
+	}
+	if err := s.db.ReserveChunk(ctx, session.FileID, chunkIndex, req.Size, maxEncryptedTotal(session.OriginalSize, session.ChunkCount)); err != nil {
+		writeChunkStoreError(w, "upload: reserve chunk failed", err)
 		return
 	}
 
@@ -1017,6 +1112,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chunkID := uuid.New().String()
+	maxTotal := maxEncryptedTotal(session.OriginalSize, session.ChunkCount)
 	var inserted bool
 
 	if session.Mode == "byos-direct" {
@@ -1065,10 +1161,9 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			RemotePath: req.RemotePath,
 			Compressed: req.Compressed,
 		}
-		inserted, err = s.db.InsertDirectChunk(ctx, userID, dbChunk)
+		inserted, err = s.db.InsertDirectChunk(ctx, userID, dbChunk, maxTotal)
 		if err != nil {
-			log.Printf("upload: store direct chunk ref failed: %v", err)
-			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			writeChunkStoreError(w, "upload: store direct chunk ref failed", err)
 			return
 		}
 		// Credit the user's own repo usage from the confirmed size (the server
@@ -1106,10 +1201,9 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			RemotePath: req.RemotePath,
 			Compressed: req.Compressed,
 		}
-		inserted, err = s.db.InsertClientChunk(ctx, userID, dbChunk)
+		inserted, err = s.db.InsertClientChunk(ctx, userID, dbChunk, maxTotal)
 		if err != nil {
-			log.Printf("upload: store chunk ref failed: %v", err)
-			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			writeChunkStoreError(w, "upload: store chunk ref failed", err)
 			return
 		}
 	}

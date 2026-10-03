@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"context"
+	"math"
 
 	"github.com/zcrypt/zcrypt/config"
 
@@ -67,7 +68,7 @@ func (s *Server) SyncPendingOnce(ctx context.Context) bool {
 //
 // integration build tag only, never in a production binary.
 func (s *Server) StoreStagedChunk(ctx context.Context, userID string, c *types.ChunkRef, stagingPath string) (bool, error) {
-	return s.storeStagedChunk(ctx, userID, c, stagingPath)
+	return s.storeStagedChunk(ctx, userID, c, stagingPath, math.MaxInt64)
 }
 
 // ExpireSyncBackoff makes every backed-off chunk due now, simulating the wait.

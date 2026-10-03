@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -123,7 +122,7 @@ func (s *Server) HandleSetupDecoy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.UpsertDecoyVault(r.Context(), dv); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"setup decoy: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "setup decoy", err)
 		return
 	}
 
@@ -150,7 +149,7 @@ func (s *Server) HandleListDecoyFiles(w http.ResponseWriter, r *http.Request) {
 
 	files, err := s.db.ListDecoyFiles(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"list decoy files: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "list decoy files", err)
 		return
 	}
 
@@ -191,7 +190,7 @@ func (s *Server) HandleAddDecoyFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.InsertDecoyFile(r.Context(), file); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"add decoy file: %s"}`, err.Error()), http.StatusInternalServerError)
+		internalError(w, "add decoy file", err)
 		return
 	}
 

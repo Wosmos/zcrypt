@@ -153,7 +153,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validatePassword(req.Password); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -329,6 +329,10 @@ const refreshReuseGrace = 60 * time.Second
 // HandleRefreshToken exchanges a refresh token for a new access token.
 func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if s.refreshCookieCrossSite(r) {
+		writeError(w, http.StatusForbidden, "cross-site request refused")
+		return
+	}
 
 	refreshToken := extractRefreshToken(r)
 	if refreshToken == "" {
@@ -367,12 +371,20 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.RetireRefreshToken(ctx, rt.ID, refreshReuseGrace); err != nil {
 		log.Printf("refresh: retire token: %v", err)
 	}
+	if rt.Decoy {
+		s.issueDecoyTokens(w, r, user)
+		return
+	}
 	s.issueTokens(w, r, user)
 }
 
 // HandleLogout invalidates the refresh token.
 func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if s.refreshCookieCrossSite(r) {
+		writeError(w, http.StatusForbidden, "cross-site request refused")
+		return
+	}
 
 	refreshToken := extractRefreshToken(r)
 	if refreshToken != "" {
@@ -480,7 +492,7 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validatePassword(req.NewPassword); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -1059,6 +1071,9 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
+	if claims.Decoy {
+		user = decoyView(user)
+	}
 
 	writeJSON(w, http.StatusOK, user)
 }
@@ -1149,7 +1164,7 @@ func (s *Server) HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	req.AvatarURL = strings.TrimSpace(req.AvatarURL)
 	if req.AvatarURL != "" {
 		if err := validateAvatar(req.AvatarURL); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
@@ -1210,7 +1225,7 @@ func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validatePassword(req.NewPassword); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -1451,23 +1466,33 @@ func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, user, accessToken, false)
 }
 
-// issueDecoyTokens issues JWT tokens with the decoy flag set.
+// issueDecoyTokens issues JWT tokens with the decoy flag set. The session
+// presents as a plain user, and its refresh token stays decoy so refreshing can
+// never upgrade it to the real vault.
 func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
+	shown := decoyView(user)
+	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, shown.ID, shown.Email, shown.Username, shown.Role.String(), shown.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-	s.writeTokenResponse(w, r, user, accessToken)
+	s.writeTokenResponse(w, r, shown, accessToken, true)
+}
+
+// decoyView is the account as a decoy session is allowed to see it.
+func decoyView(user *types.User) *types.User {
+	shown := *user
+	shown.Role = types.RoleUser
+	return &shown
 }
 
 // writeTokenResponse generates a refresh token for an already-generated access
 // token, persists it, sets the web refresh cookie, and writes the JSON
 // response shared by issueTokens and issueDecoyTokens.
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string) {
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string, decoy bool) {
 	ctx := r.Context()
 
 	refreshToken, err := auth.GenerateRandomToken()
@@ -1483,6 +1508,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
 		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
+		Decoy:     decoy,
 	})
 
 	setRefreshCookie(w, refreshToken)

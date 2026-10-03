@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
@@ -176,7 +177,7 @@ func (s *Server) HandleMoveFolder(w http.ResponseWriter, r *http.Request) {
 	folderID := r.PathValue("id")
 
 	var req types.FolderMoveRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !validMoveIDs(folderID, req.ParentID) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
@@ -184,6 +185,10 @@ func (s *Server) HandleMoveFolder(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.MoveFolder(ctx, userID, folderID, req.ParentID); err != nil {
 		if errors.Is(err, index.ErrFolderCycle) {
 			http.Error(w, `{"error":"cannot move a folder into its own subfolder"}`, http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, index.ErrMoveNotFound) {
+			http.Error(w, `{"error":"folder or destination not found"}`, http.StatusNotFound)
 			return
 		}
 		log.Printf("folders: move: %v", err)
@@ -222,7 +227,7 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 	fileID := r.PathValue("id")
 
 	var req types.FileMoveRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !validMoveIDs(fileID, req.FolderID) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
@@ -240,8 +245,8 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.MoveFileWithKey(ctx, userID, fileID, req.FolderID, salt, req.WrappedCEK); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+		if errors.Is(err, index.ErrMoveNotFound) {
+			http.Error(w, `{"error":"file or destination folder not found"}`, http.StatusNotFound)
 			return
 		}
 		if errors.Is(err, index.ErrProtectionMismatch) {
@@ -496,4 +501,12 @@ func decodeRekeys(entries []types.FileRekeyEntry) ([]index.FileKey, bool) {
 		keys = append(keys, index.FileKey{FileID: e.FileID, Salt: salt, WrappedCEK: e.WrappedCEK})
 	}
 	return keys, true
+}
+
+// validMoveIDs reports whether a move's subject and optional destination are UUIDs.
+func validMoveIDs(id string, dest *string) bool {
+	if uuid.Validate(id) != nil {
+		return false
+	}
+	return dest == nil || uuid.Validate(*dest) == nil
 }

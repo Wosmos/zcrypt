@@ -40,8 +40,8 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	subID := uuid.New().String()
-	isAdmin := claims.Role == types.RoleAdmin.String()
-	ch := s.progress.Subscribe(subID, claims.Sub, isAdmin)
+	subUser, isAdmin := sseSubscriber(claims)
+	ch := s.progress.Subscribe(subID, subUser, isAdmin)
 	defer s.progress.Unsubscribe(subID)
 
 	// Send initial connected event
@@ -67,4 +67,13 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// sseSubscriber picks the stream identity for a session. A decoy session gets
+// one no real event targets, so it never sees the real vault's uploads or audit.
+func sseSubscriber(claims *auth.Claims) (string, bool) {
+	if claims.Decoy {
+		return "decoy:" + claims.Sub, false
+	}
+	return claims.Sub, claims.Role == types.RoleAdmin.String()
 }

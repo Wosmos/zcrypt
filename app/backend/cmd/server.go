@@ -30,6 +30,8 @@ type Server struct {
 	progress  *pipeline.ProgressEmitter
 	masterKey []byte
 
+	allowedOrigins map[string]bool
+
 	// Per-user adapter cache: userID → (platform:username → adapter)
 	adapterMu    sync.RWMutex
 	adapterCache map[string]map[string]adapters.PlatformAdapter
@@ -156,6 +158,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		cfg:                 cfg,
 		progress:            progress,
 		masterKey:           masterKey,
+		allowedOrigins:      AllowedOrigins(),
 		adapterCache:        make(map[string]map[string]adapters.PlatformAdapter),
 		poolCache:           make(map[string]map[string]*reppool.Manager),
 		adapterCacheExpiry:  make(map[string]time.Time),
@@ -689,15 +692,15 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
 	mux.HandleFunc("POST /api/auth/2fa/backup-codes", maxJSON(s.AuthMiddleware(s.Handle2FARegenerateBackupCodes)))
 	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
-	mux.HandleFunc("PATCH /api/auth/profile", s.AuthMiddleware(s.HandleUpdateProfile))
-	mux.HandleFunc("POST /api/auth/change-password", s.AuthMiddleware(s.HandleChangePassword))
+	mux.HandleFunc("PATCH /api/auth/profile", maxJSON(s.AuthMiddleware(s.HandleUpdateProfile)))
+	mux.HandleFunc("POST /api/auth/change-password", maxJSON(s.AuthMiddleware(s.HandleChangePassword)))
 	mux.HandleFunc("GET /api/auth/activity", s.AuthMiddleware(s.HandleUserActivity))
 	mux.HandleFunc("GET /api/auth/linked-accounts", s.AuthMiddleware(s.HandleLinkedAccounts))
-	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", s.AuthMiddleware(s.HandleUnlinkAccount))
+	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", maxJSON(s.AuthMiddleware(s.HandleUnlinkAccount)))
 
 	// Protected data routes (all require auth)
 	mux.HandleFunc("GET /api/files", s.AuthMiddleware(s.HandleListFiles))
-	mux.HandleFunc("DELETE /api/files/{id}", s.AuthMiddleware(s.HandleDeleteFile))
+	mux.HandleFunc("DELETE /api/files/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteFile)))
 	mux.HandleFunc("POST /api/files/bulk-delete", maxJSON(s.AuthMiddleware(s.HandleBulkDeleteFiles)))
 	mux.HandleFunc("POST /api/files/bulk-purge", maxJSON(s.AuthMiddleware(s.HandleBulkPurgeFiles)))
 	mux.HandleFunc("POST /api/files/bulk-restore", maxJSON(s.AuthMiddleware(s.HandleBulkRestoreFiles)))
@@ -708,12 +711,12 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", maxJSON(s.AuthMiddleware(s.HandleToggleTokenScope)))
 	mux.HandleFunc("GET /api/repos", s.AuthMiddleware(s.HandleListRepos))
 	mux.HandleFunc("POST /api/repos/register", maxJSON(s.AuthMiddleware(s.HandleRegisterRepo)))
-	mux.HandleFunc("POST /api/repos/{id}/deactivate", s.AuthMiddleware(s.HandleDeactivateRepo))
+	mux.HandleFunc("POST /api/repos/{id}/deactivate", maxJSON(s.AuthMiddleware(s.HandleDeactivateRepo)))
 	mux.HandleFunc("GET /api/config", s.AuthMiddleware(s.HandleGetConfig))
 	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
 	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via query param
 	mux.HandleFunc("GET /api/quota", s.AuthMiddleware(s.HandleGetQuota))
-	mux.HandleFunc("POST /api/onboarding/complete", s.AuthMiddleware(s.HandleMarkOnboarded))
+	mux.HandleFunc("POST /api/onboarding/complete", maxJSON(s.AuthMiddleware(s.HandleMarkOnboarded)))
 
 	// Insights/analytics: backend-aggregated (not full-file-list-to-client) so
 	// KPIs stay cheap at any vault size. Rate-limited per user on top of auth
@@ -729,7 +732,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/upload/{sid}/presign/{idx}", maxJSON(s.AuthMiddleware(s.HandlePresignChunk)))
 	mux.HandleFunc("POST /api/upload/{sid}/confirm/{idx}", maxJSON(s.AuthMiddleware(s.HandleConfirmChunk)))
 	mux.HandleFunc("POST /api/upload/{sid}/complete", maxJSON(s.AuthMiddleware(s.HandleUploadComplete)))
-	mux.HandleFunc("DELETE /api/upload/{sid}", s.AuthMiddleware(s.HandleUploadCancel))
+	mux.HandleFunc("DELETE /api/upload/{sid}", maxJSON(s.AuthMiddleware(s.HandleUploadCancel)))
 	mux.HandleFunc("GET /api/upload/{sid}/status", s.AuthMiddleware(s.HandleUploadStatus))
 	mux.HandleFunc("GET /api/upload/incomplete", s.AuthMiddleware(s.HandleListIncompleteUploads))
 
@@ -742,7 +745,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Share management (authenticated)
 	mux.HandleFunc("POST /api/shares", maxJSON(s.AuthMiddleware(s.HandleCreateShare)))
 	mux.HandleFunc("GET /api/shares", s.AuthMiddleware(s.HandleListShares))
-	mux.HandleFunc("DELETE /api/shares/{id}", s.AuthMiddleware(s.HandleRevokeShare))
+	mux.HandleFunc("DELETE /api/shares/{id}", maxJSON(s.AuthMiddleware(s.HandleRevokeShare)))
 
 	// Installer downloads of the app itself (no auth, rate-limited). One stable
 	// URL per platform; records the click, then redirects to the release asset.
@@ -753,17 +756,17 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
 	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
-	mux.HandleFunc("POST /api/share/{token}/complete", s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload))
+	mux.HandleFunc("POST /api/share/{token}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload)))
 
 	// Folder shares: public link for a whole folder (management is authed;
 	// access mirrors the single-file public share above)
 	mux.HandleFunc("POST /api/folder-shares", maxJSON(s.AuthMiddleware(s.HandleCreateFolderShare)))
 	mux.HandleFunc("GET /api/folder-shares", s.AuthMiddleware(s.HandleListFolderShares))
-	mux.HandleFunc("DELETE /api/folder-shares/{id}", s.AuthMiddleware(s.HandleRevokeFolderShare))
+	mux.HandleFunc("DELETE /api/folder-shares/{id}", maxJSON(s.AuthMiddleware(s.HandleRevokeFolderShare)))
 	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareChunk))
-	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload))
+	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload)))
 
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.HandleSendInit)))
@@ -782,42 +785,42 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/clipboard", maxJSON(s.AuthMiddleware(s.HandleClipboardPush)))
 	mux.HandleFunc("GET /api/clipboard", s.AuthMiddleware(s.HandleClipboardList))
 	mux.HandleFunc("GET /api/clipboard/{id}", s.AuthMiddleware(s.HandleClipboardGet))
-	mux.HandleFunc("DELETE /api/clipboard/{id}", s.AuthMiddleware(s.HandleClipboardDelete))
+	mux.HandleFunc("DELETE /api/clipboard/{id}", maxJSON(s.AuthMiddleware(s.HandleClipboardDelete)))
 
 	// Selective folder sync (authenticated)
 	mux.HandleFunc("GET /api/sync/folders", s.AuthMiddleware(s.HandleListSyncFolders))
 	mux.HandleFunc("POST /api/sync/folders", maxJSON(s.AuthMiddleware(s.HandleCreateSyncFolder)))
 	mux.HandleFunc("PUT /api/sync/folders/{id}", maxJSON(s.AuthMiddleware(s.HandleUpdateSyncFolder)))
 	mux.HandleFunc("PUT /api/sync/folders/{id}/stats", maxJSON(s.AuthMiddleware(s.HandleUpdateSyncFolderStats)))
-	mux.HandleFunc("DELETE /api/sync/folders/{id}", s.AuthMiddleware(s.HandleDeleteSyncFolder))
+	mux.HandleFunc("DELETE /api/sync/folders/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteSyncFolder)))
 
 	// Plausible deniability: decoy vault (authenticated)
 	mux.HandleFunc("GET /api/decoy", s.AuthMiddleware(s.HandleGetDecoyStatus))
 	mux.HandleFunc("POST /api/decoy/setup", maxJSON(s.AuthMiddleware(s.HandleSetupDecoy)))
-	mux.HandleFunc("DELETE /api/decoy", s.AuthMiddleware(s.HandleDeleteDecoy))
+	mux.HandleFunc("DELETE /api/decoy", maxJSON(s.AuthMiddleware(s.HandleDeleteDecoy)))
 	mux.HandleFunc("GET /api/decoy/files", s.AuthMiddleware(s.HandleListDecoyFiles))
 	mux.HandleFunc("POST /api/decoy/files", maxJSON(s.AuthMiddleware(s.HandleAddDecoyFile)))
-	mux.HandleFunc("DELETE /api/decoy/files/{id}", s.AuthMiddleware(s.HandleDeleteDecoyFile))
+	mux.HandleFunc("DELETE /api/decoy/files/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteDecoyFile)))
 	mux.HandleFunc("PATCH /api/decoy/files/{id}", maxJSON(s.AuthMiddleware(s.HandleRenameDecoyFile)))
 
 	// Dead man's switch (authenticated)
 	mux.HandleFunc("GET /api/deadman", s.AuthMiddleware(s.HandleGetDeadManSwitch))
 	mux.HandleFunc("POST /api/deadman", maxJSON(s.AuthMiddleware(s.HandleSetupDeadManSwitch)))
-	mux.HandleFunc("POST /api/deadman/checkin", s.AuthMiddleware(s.HandleCheckinDeadManSwitch))
-	mux.HandleFunc("DELETE /api/deadman", s.AuthMiddleware(s.HandleDeleteDeadManSwitch))
+	mux.HandleFunc("POST /api/deadman/checkin", maxJSON(s.AuthMiddleware(s.HandleCheckinDeadManSwitch)))
+	mux.HandleFunc("DELETE /api/deadman", maxJSON(s.AuthMiddleware(s.HandleDeleteDeadManSwitch)))
 
 	// Expiring vaults (authenticated)
 	mux.HandleFunc("GET /api/vaults", s.AuthMiddleware(s.HandleListExpiringVaults))
 	mux.HandleFunc("POST /api/vaults", maxJSON(s.AuthMiddleware(s.HandleCreateExpiringVault)))
 	mux.HandleFunc("GET /api/vaults/{id}", s.AuthMiddleware(s.HandleGetExpiringVault))
-	mux.HandleFunc("DELETE /api/vaults/{id}", s.AuthMiddleware(s.HandleDeleteExpiringVault))
+	mux.HandleFunc("DELETE /api/vaults/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteExpiringVault)))
 
 	// Secure notes (authenticated)
 	mux.HandleFunc("GET /api/notes", s.AuthMiddleware(s.HandleListNotes))
 	mux.HandleFunc("POST /api/notes", maxJSON(s.AuthMiddleware(s.HandleCreateNote)))
 	mux.HandleFunc("GET /api/notes/{id}", s.AuthMiddleware(s.HandleGetNote))
 	mux.HandleFunc("PUT /api/notes/{id}", maxJSON(s.AuthMiddleware(s.HandleUpdateNote)))
-	mux.HandleFunc("DELETE /api/notes/{id}", s.AuthMiddleware(s.HandleDeleteNote))
+	mux.HandleFunc("DELETE /api/notes/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteNote)))
 
 	// Folders + trash (soft-delete) + file moves (authenticated)
 	mux.HandleFunc("GET /api/folders", s.AuthMiddleware(s.HandleListFolders))
@@ -829,16 +832,16 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Folder (un)protect carries one re-wrapped envelope per file in the folder.
 	mux.HandleFunc("POST /api/folders/{id}/password", MaxBodyMiddleware(16<<20, s.AuthMiddleware(s.HandleSetFolderPassword)))
 	mux.HandleFunc("DELETE /api/folders/{id}/password", MaxBodyMiddleware(16<<20, s.AuthMiddleware(s.HandleRemoveFolderPassword)))
-	mux.HandleFunc("DELETE /api/folders/{id}", s.AuthMiddleware(s.HandleDeleteFolder))
+	mux.HandleFunc("DELETE /api/folders/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteFolder)))
 	mux.HandleFunc("GET /api/files/trash", s.AuthMiddleware(s.HandleListTrash))
 	mux.HandleFunc("PATCH /api/files/{id}/move", maxJSON(s.AuthMiddleware(s.HandleMoveFile)))
 	mux.HandleFunc("PATCH /api/files/{id}/style", maxJSON(s.AuthMiddleware(s.HandleUpdateFileStyle)))
 	mux.HandleFunc("PATCH /api/files/{id}/name", maxJSON(s.AuthMiddleware(s.HandleSetFileName)))
 	mux.HandleFunc("PUT /api/files/{id}/rekey", maxJSON(s.AuthMiddleware(s.HandleRekeyFile)))
-	mux.HandleFunc("POST /api/files/{id}/retry-sync", s.AuthMiddleware(s.HandleRetryFileSync))
-	mux.HandleFunc("POST /api/files/verify", s.AuthMiddleware(s.HandleVerifyFiles))
+	mux.HandleFunc("POST /api/files/{id}/retry-sync", maxJSON(s.AuthMiddleware(s.HandleRetryFileSync)))
+	mux.HandleFunc("POST /api/files/verify", maxJSON(s.AuthMiddleware(s.HandleVerifyFiles)))
 	mux.HandleFunc("POST /api/files/{id}/restore", maxJSON(s.AuthMiddleware(s.HandleRestoreFile)))
-	mux.HandleFunc("DELETE /api/files/{id}/purge", s.AuthMiddleware(s.HandlePurgeFile))
+	mux.HandleFunc("DELETE /api/files/{id}/purge", maxJSON(s.AuthMiddleware(s.HandlePurgeFile)))
 
 	// File integrity monitor (authenticated)
 	mux.HandleFunc("GET /api/integrity", s.AuthMiddleware(s.HandleListIntegritySnapshots))
@@ -850,25 +853,25 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/snapshots", s.AuthMiddleware(s.HandleListVaultSnapshots))
 	mux.HandleFunc("POST /api/snapshots", maxJSON(s.AuthMiddleware(s.HandleCreateVaultSnapshot)))
 	mux.HandleFunc("GET /api/snapshots/{id}", s.AuthMiddleware(s.HandleGetVaultSnapshot))
-	mux.HandleFunc("DELETE /api/snapshots/{id}", s.AuthMiddleware(s.HandleDeleteVaultSnapshot))
+	mux.HandleFunc("DELETE /api/snapshots/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteVaultSnapshot)))
 
 	// Shared vaults (authenticated)
 	mux.HandleFunc("GET /api/shared-vaults", s.AuthMiddleware(s.HandleListSharedVaults))
 	mux.HandleFunc("POST /api/shared-vaults", maxJSON(s.AuthMiddleware(s.HandleCreateSharedVault)))
 	mux.HandleFunc("GET /api/shared-vaults/{id}", s.AuthMiddleware(s.HandleGetSharedVault))
-	mux.HandleFunc("DELETE /api/shared-vaults/{id}", s.AuthMiddleware(s.HandleDeleteSharedVault))
+	mux.HandleFunc("DELETE /api/shared-vaults/{id}", maxJSON(s.AuthMiddleware(s.HandleDeleteSharedVault)))
 	mux.HandleFunc("PATCH /api/shared-vaults/{id}", maxJSON(s.AuthMiddleware(s.HandleUpdateSharedVault)))
 	mux.HandleFunc("PATCH /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(s.HandleUpdateSharedVaultMemberRole)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultMember)))
-	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", s.AuthMiddleware(s.HandleRemoveSharedVaultMember))
+	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(s.HandleRemoveSharedVaultMember)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultFile)))
-	mux.HandleFunc("DELETE /api/shared-vaults/{id}/files/{fid}", s.AuthMiddleware(s.HandleRemoveSharedVaultFile))
+	mux.HandleFunc("DELETE /api/shared-vaults/{id}/files/{fid}", maxJSON(s.AuthMiddleware(s.HandleRemoveSharedVaultFile)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/rotate", maxJSON(s.AuthMiddleware(s.HandleRotateSharedVault)))
 
 	// Offline pins (authenticated)
 	mux.HandleFunc("GET /api/offline", s.AuthMiddleware(s.HandleListOfflinePins))
 	mux.HandleFunc("POST /api/offline", maxJSON(s.AuthMiddleware(s.HandlePinOffline)))
-	mux.HandleFunc("DELETE /api/offline/{fileId}", s.AuthMiddleware(s.HandleUnpinOffline))
+	mux.HandleFunc("DELETE /api/offline/{fileId}", maxJSON(s.AuthMiddleware(s.HandleUnpinOffline)))
 
 	// Per-device UI preferences (color theme + light/dark mode)
 	mux.HandleFunc("GET /api/preferences", s.AuthMiddleware(s.HandleGetPreferences))
@@ -892,10 +895,10 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/downloads", s.AdminMiddleware(s.HandleAdminDownloads))
 	mux.HandleFunc("GET /api/admin/reconcile", s.AdminMiddleware(s.HandleAdminReconcile))
 	mux.HandleFunc("PUT /api/admin/users/{id}/role", maxJSON(s.AdminMiddleware(s.HandleAdminSetRole)))
-	mux.HandleFunc("DELETE /api/admin/users/{id}", s.AdminMiddleware(s.HandleAdminDeleteUser))
+	mux.HandleFunc("DELETE /api/admin/users/{id}", maxJSON(s.AdminMiddleware(s.HandleAdminDeleteUser)))
 	mux.HandleFunc("GET /api/admin/tokens", s.AdminMiddleware(s.HandleAdminListTokens))
 	mux.HandleFunc("POST /api/admin/tokens", maxJSON(s.AdminMiddleware(s.HandleAdminCreateToken)))
-	mux.HandleFunc("DELETE /api/admin/tokens/{id}", s.AdminMiddleware(s.HandleAdminDeleteToken))
+	mux.HandleFunc("DELETE /api/admin/tokens/{id}", maxJSON(s.AdminMiddleware(s.HandleAdminDeleteToken)))
 	mux.HandleFunc("PUT /api/admin/tokens/{id}/scope", maxJSON(s.AdminMiddleware(s.HandleAdminToggleTokenScope)))
 	mux.HandleFunc("GET /api/admin/quota", s.AdminMiddleware(s.HandleAdminGetDefaultQuota))
 	mux.HandleFunc("PUT /api/admin/quota", maxJSON(s.AdminMiddleware(s.HandleAdminSetDefaultQuota)))

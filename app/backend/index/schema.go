@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_user ON chunks(user_id);
 
+-- Sizes granted to presigned (direct-to-platform) chunks that are not confirmed
+-- yet, so they count against the file's declared size before they land.
+CREATE TABLE IF NOT EXISTS chunk_reservations (
+	file_id UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+	idx     INTEGER NOT NULL,
+	size    BIGINT NOT NULL,
+	PRIMARY KEY (file_id, idx)
+);
+
 CREATE TABLE IF NOT EXISTS repos (
 	id         TEXT PRIMARY KEY,
 	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -561,6 +570,18 @@ CREATE TABLE IF NOT EXISTS decoy_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_decoy_files_user ON decoy_files(user_id);
+
+-- Refresh tokens minted before the decoy flag existed cannot say whether they
+-- belong to a decoy session, so a decoy-vault owner's sessions are revoked once
+-- instead of being upgraded to full access on their next refresh.
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+	               WHERE table_schema = current_schema() AND table_name = 'refresh_tokens' AND column_name = 'decoy') THEN
+		ALTER TABLE refresh_tokens ADD COLUMN decoy BOOLEAN NOT NULL DEFAULT FALSE;
+		DELETE FROM refresh_tokens WHERE user_id IN (SELECT user_id FROM decoy_vaults);
+	END IF;
+END $$;
 
 -- Dead man's switch
 CREATE TABLE IF NOT EXISTS dead_man_switches (
