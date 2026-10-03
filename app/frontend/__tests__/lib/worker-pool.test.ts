@@ -178,11 +178,31 @@ describe("WorkerPool", () => {
     await expect(p1).rejects.toThrow("Worker error");
   });
 
-  it("terminate() stops all workers, rejects queued items, and zeroes the pool", async () => {
+  it("rejects the caller when the worker posts a failure message and frees the worker", async () => {
+    const pool = new WorkerPool(1);
+    const p1 = pool.process(decryptInput(0));
+    const p2 = pool.process(decryptInput(1));
+
+    postedLog[0].worker.emitMessage({ chunkIndex: 0, error: "OperationError" });
+    await expect(p1).rejects.toThrow("OperationError");
+
+    expect(postedLog).toHaveLength(2);
+    postedLog[1].worker.emitMessage({ chunkIndex: 1, plaintext: new ArrayBuffer(1) });
+    await expect(p2).resolves.toMatchObject({ chunkIndex: 1 });
+  });
+
+  it("falls back to a generic message when a failure message is empty", async () => {
+    const pool = new WorkerPool(1);
+    const p1 = pool.process(decryptInput(0));
+    postedLog[0].worker.emitMessage({ chunkIndex: 0, error: "" });
+    await expect(p1).rejects.toThrow("Worker error");
+  });
+
+  it("terminate() stops all workers, rejects in-flight and queued items, and zeroes the pool", async () => {
     const pool = new WorkerPool(2);
     // Fill both workers so a third task is queued rather than dispatched.
-    pool.process(encryptInput(0));
-    pool.process(encryptInput(1));
+    const p1 = pool.process(encryptInput(0));
+    const p2 = pool.process(encryptInput(1));
     const p3 = pool.process(encryptInput(2));
 
     expect(postedLog).toHaveLength(2);
@@ -191,6 +211,8 @@ describe("WorkerPool", () => {
 
     expect(FakeWorker.instances.every((w) => w.terminated)).toBe(true);
     expect(pool.size).toBe(0);
+    await expect(p1).rejects.toThrow("Worker pool terminated");
+    await expect(p2).rejects.toThrow("Worker pool terminated");
     await expect(p3).rejects.toThrow("Worker pool terminated");
   });
 

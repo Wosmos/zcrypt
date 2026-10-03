@@ -6,19 +6,20 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use base64::Engine as _;
 use tokio::sync::mpsc;
 use zeroize::Zeroize;
 
-use crate::adapters::{self, PlatformAdapter};
-use crate::api::types::ChunkLocator;
+use crate::adapters::{self, AdapterError, PlatformAdapter};
+use crate::api::types::{ChunkLocator, FileMetaResponse};
 use crate::api::Client;
 use crate::crypto::{self, ContentHasher};
 use crate::types::{ChunkRef, Progress, Stage};
 
-use super::{ordered_writer, pipeline, EngineContext, EngineError};
+use super::{chunk_cache, ordered_writer, pipeline, EngineContext, EngineError};
 
 /// Per-chunk direct-download sources for byos-direct: the owner's locators plus
 /// one own-token adapter per platform. Any chunk absent here (or on a platform
@@ -59,9 +60,9 @@ pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -
             if !adapters_by_platform.contains_key(&c.platform) {
                 if let Some(creds) = (ctx.creds)(&c.platform) {
                     if let Some(a) =
-                        adapters::new_adapter(&c.platform, &creds.token, &creds.account)
+                        adapters::shared_adapter(&c.platform, &creds.token, &creds.account)
                     {
-                        adapters_by_platform.insert(c.platform.clone(), Arc::from(a));
+                        adapters_by_platform.insert(c.platform.clone(), a);
                     }
                 }
             }
@@ -80,15 +81,90 @@ pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -
 /// look complete-but-wrong, but never past the caps. Only when BOTH paths are
 /// exhausted does it error. Shared by the streaming `download` and the in-memory
 /// `decrypt_to_memory` so the fallback/resilience logic lives in one place.
+/// A chunk whose sha is known up front (the owner's locator) is served from
+/// the on-disk ciphertext cache when present. With `cache_fetched`, every
+/// verified fetch with a known sha is written back to it; streaming saves pass
+/// false so one large download doesn't rewrite itself to disk and evict the
+/// open cache.
 pub(super) async fn acquire_chunk(
     client: &Arc<Client>,
-    direct: Option<(ChunkLocator, Arc<dyn PlatformAdapter>)>,
+    loc: Option<ChunkLocator>,
+    adapter: Option<Arc<dyn PlatformAdapter>>,
     file_id: &str,
     idx: i64,
+    cache_fetched: bool,
 ) -> Result<(Vec<u8>, bool), EngineError> {
+    if let Some(l) = &loc {
+        if let Some(data) = chunk_cache::get(&l.sha256).await {
+            return Ok((data, l.compressed));
+        }
+    }
+    let (data, compressed, sha) = fetch_chunk(client, loc, adapter, file_id, idx).await?;
+    if cache_fetched && !sha.is_empty() {
+        chunk_cache::put(&sha, &data);
+    }
+    Ok((data, compressed))
+}
+
+/// The per-chunk source pair for `idx`: its locator (when the caller owns the
+/// file) and, when this device holds a token for that platform, the warm
+/// adapter to pull it byos-direct.
+pub(super) fn chunk_source(
+    sources: &DirectSources,
+    idx: i64,
+) -> (Option<ChunkLocator>, Option<Arc<dyn PlatformAdapter>>) {
+    let (locs, adapters) = sources;
+    let loc = locs.get(&idx).cloned();
+    let adapter = loc
+        .as_ref()
+        .and_then(|l| adapters.get(&l.platform))
+        .cloned();
+    (loc, adapter)
+}
+
+/// How long a platform that failed to even connect byos-direct is skipped in
+/// favour of the relay. Without it every chunk of every open re-paid the
+/// connect timeout before falling back.
+const DIRECT_UNREACHABLE_FOR: Duration = Duration::from_secs(600);
+
+fn unreachable_platforms() -> &'static StdMutex<HashMap<String, Instant>> {
+    static SET: OnceLock<StdMutex<HashMap<String, Instant>>> = OnceLock::new();
+    SET.get_or_init(|| StdMutex::new(HashMap::new()))
+}
+
+fn direct_unreachable(platform: &str) -> bool {
+    unreachable_platforms()
+        .lock()
+        .unwrap()
+        .get(platform)
+        .is_some_and(|at| at.elapsed() < DIRECT_UNREACHABLE_FOR)
+}
+
+fn mark_direct_unreachable(platform: &str) {
+    unreachable_platforms()
+        .lock()
+        .unwrap()
+        .insert(platform.to_string(), Instant::now());
+}
+
+fn is_unreachable(e: &AdapterError) -> bool {
+    matches!(e, AdapterError::Http(h) if h.is_connect() || h.is_timeout())
+}
+
+async fn fetch_chunk(
+    client: &Arc<Client>,
+    loc: Option<ChunkLocator>,
+    adapter: Option<Arc<dyn PlatformAdapter>>,
+    file_id: &str,
+    idx: i64,
+) -> Result<(Vec<u8>, bool, String), EngineError> {
     let sha_ok = |data: &[u8], sha: &str| sha.is_empty() || crypto::sha256_hex(data) == *sha;
     let mut last_err: Option<EngineError> = None;
-    let mut out: Option<(Vec<u8>, bool)> = None;
+    let mut out: Option<(Vec<u8>, bool, String)> = None;
+    let direct = match (loc, adapter) {
+        (Some(l), Some(a)) if !direct_unreachable(&l.platform) => Some((l, a)),
+        _ => None,
+    };
 
     // --- byos-direct (fast: 2 attempts, then hand off to relay) ---
     if let Some((loc, adapter)) = &direct {
@@ -105,13 +181,23 @@ pub(super) async fn acquire_chunk(
             };
             match adapter.download(&r).await {
                 Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
-                    out = Some((bytes, loc.compressed));
+                    out = Some((bytes, loc.compressed, loc.sha256.clone()));
                     break;
                 }
                 Ok(_) => {
                     last_err = Some(EngineError::Integrity(format!(
                         "chunk {idx}: sha mismatch (direct)"
                     )))
+                }
+                Err(e) if is_unreachable(&e) => {
+                    eprintln!(
+                        "zcrypt: {} unreachable byos-direct ({e}), relaying for {}s",
+                        loc.platform,
+                        DIRECT_UNREACHABLE_FOR.as_secs()
+                    );
+                    mark_direct_unreachable(&loc.platform);
+                    last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
+                    break;
                 }
                 Err(e) => last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}"))),
             }
@@ -126,7 +212,7 @@ pub(super) async fn acquire_chunk(
         for n in 0..4u32 {
             match client.get_chunk(file_id, idx).await {
                 Ok(c) if sha_ok(&c.data, &c.sha256) => {
-                    out = Some((c.data, c.compressed));
+                    out = Some((c.data, c.compressed, c.sha256));
                     break;
                 }
                 Ok(_) => {
@@ -173,7 +259,6 @@ pub async fn run(
     space_key: Option<Vec<u8>>,
     save_path: &Path,
 ) -> Result<(), EngineError> {
-    let is_space_mode = space_key.is_some();
     let emit = |stage: Stage, done: u32, total: u32, bytes: i64, total_bytes: i64| {
         (ctx.progress)(Progress {
             file_id: file_id.to_string(),
@@ -190,106 +275,20 @@ pub async fn run(
         });
     };
 
-    // 1. Metadata. Retry the control-plane call: on a flaky/filtered network a
-    //    single dropped request here used to kill the whole download before a
-    //    byte moved (the "error sending request for url .../meta" failure). The
-    //    detail() surfaces reqwest's hidden underlying cause if it still fails.
-    emit(Stage::FetchingMeta, 0, 0, 0, 0);
-    let client = ctx.client.clone();
-    let retry_client = client.clone();
-    let meta = client
-        .with_retry(6, move || {
-            let c = retry_client.clone();
-            async move { c.get_file_meta(file_id).await }
-        })
-        .await
-        .map_err(|e| {
-            let d = e.detail();
-            // Full cause to stderr too: the UI toast truncates it, and this is
-            // the one line that says WHY a flaky/filtered network is failing.
-            eprintln!("zcrypt download {file_id}: metadata fetch failed after retries: {d}");
-            EngineError::Other(format!("fetch metadata: {d}"))
-        })?;
+    let OpenedFile {
+        meta,
+        mut key,
+        mut hasher,
+        can_verify_hash,
+        sources,
+    } = open_file(ctx, file_id, passphrase, user_id, space_key, None, &emit).await?;
     let total = meta.chunk_count as u32;
-    let b64 = base64::engine::general_purpose::STANDARD;
-    let salt = b64
-        .decode(&meta.salt)
-        .map_err(|e| EngineError::Integrity(format!("salt b64: {e}")))?;
-    let wrapped = if meta.wrapped_cek.is_empty() {
-        None
-    } else {
-        Some(
-            b64.decode(&meta.wrapped_cek)
-                .map_err(|e| EngineError::Integrity(format!("cek b64: {e}")))?,
-        )
-    };
-
-    // 2. Key. `space_key` here is actually the file's ALREADY-RESOLVED content
-    //    key, not the space's raw symmetric key: a shared file's CEK is wrapped
-    //    under the space key in the SharedVaultFile record (a field the generic
-    //    file-meta response above does NOT carry, meta.wrapped_cek is the
-    //    OWNER's passphrase-wrapped envelope, a different ciphertext entirely).
-    //    So the caller (lib/spaces.ts's spaceFileKey()) unwraps client-side
-    //    using data it already holds and hands us the final key directly, this
-    //    mirrors the web client's `resolveKey` override exactly (no unwrap
-    //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
-    emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
-    let mut key = if let Some(space_key) = space_key {
-        space_key
-    } else {
-        let pass = passphrase.to_string();
-        let fid = file_id.to_string();
-        tokio::task::spawn_blocking(move || {
-            crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
-        })
-        .await
-        .map_err(|e| EngineError::Other(format!("join: {e}")))??
-    };
-
-    // Whole-file hasher + whether its result is actually comparable against
-    // meta.sha256. hmac_v1 files store a per-user KEYED MAC there, which needs
-    // the passphrase (owner/folder path) to recompute: a space download has no
-    // passphrase, so it CANNOT verify that MAC. Mirrors the web client's
-    // canVerifyHash exactly (lib/download-session.ts): still hash (falling back
-    // to plain SHA-256) for uniform per-chunk work, but skip the final
-    // comparison rather than derive a MAC key from nothing, which would just
-    // produce a value that can never match and make every hmac_v1 space file
-    // spuriously "fail" integrity. Per-chunk SHA-256 (already verified during
-    // fetch) plus the chunk-count assertion (ordered_writer::drain) are what
-    // space/share downloads rely on instead: same trust level as the
-    // public-share path.
-    let mac_key = if meta.sha256_scheme == "hmac_v1" && !is_space_mode {
-        let pass = passphrase.to_string();
-        let uid = user_id.to_string();
-        Some(
-            tokio::task::spawn_blocking(move || crypto::derive_dedup_key(&pass, &uid).to_vec())
-                .await
-                .map_err(|e| EngineError::Other(format!("join: {e}")))?,
-        )
-    } else {
-        None
-    };
-    let can_verify_hash = crypto::can_verify_whole_file_hash(&meta.sha256_scheme, is_space_mode);
-    let mut hasher = match &mac_key {
-        Some(k) => ContentHasher::new("hmac_v1", Some(k)),
-        None => ContentHasher::new("plain", None),
-    };
-    // HMAC's new_from_slice() above already copied the key into its own
-    // internal state: this caller-side copy is no longer needed.
-    if let Some(mut mk) = mac_key {
-        mk.zeroize();
-    }
 
     // 3. Concurrent fetch/decrypt feeding the ordered writer. The sink writes
     //    synchronously through a BufWriter (big sequential chunk writes).
     let part_path = save_path.with_extension("zcrypt-part");
     let mut out = std::io::BufWriter::new(std::fs::File::create(&part_path)?);
     let (tx, rx) = mpsc::channel::<(u32, Vec<u8>)>((ctx.profile.concurrent_downloads * 2).max(4));
-
-    // byos-direct: pull each chunk straight from the user's OWN storage with the
-    // user's OWN token (no relay/egress). Chunks with no direct source fall back
-    // to the relay endpoint, so a mixed or managed-pool file still downloads.
-    let (loc_by_idx, direct_adapters) = resolve_direct_sources(ctx, file_id).await;
 
     let sem = Arc::new(tokio::sync::Semaphore::new(
         ctx.profile.concurrent_downloads,
@@ -314,14 +313,8 @@ pub async fn run(
         let tx = tx.clone();
         let key = key.clone();
         let fid = file_id.to_string();
-        // Resolve this chunk's direct source (locator + own-token adapter) up
-        // front so the task owns cheap clones, not the shared maps.
-        let direct = loc_by_idx.get(&idx).and_then(|loc| {
-            direct_adapters
-                .get(&loc.platform)
-                .map(|a| (loc.clone(), a.clone()))
-        });
-        if direct.is_some() {
+        let (loc, adapter) = chunk_source(&sources, idx);
+        if adapter.is_some() {
             direct_chunks += 1;
         } else {
             relay_chunks += 1;
@@ -331,7 +324,7 @@ pub async fn run(
             if cancel.is_cancelled() {
                 return Err(EngineError::Cancelled);
             }
-            let (data, compressed) = acquire_chunk(&client, direct, &fid, idx).await?;
+            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx, false).await?;
             let plain = tokio::task::spawn_blocking(move || {
                 decrypt_chunk_zeroizing(&data, key, compressed)
             })
@@ -429,4 +422,144 @@ pub async fn run(
     tokio::fs::rename(&part_path, save_path).await?;
     emit(Stage::Done, total, total, written_bytes, meta.original_size);
     Ok(())
+}
+
+/// Everything a download needs before its first chunk fetch.
+pub(super) struct OpenedFile {
+    pub meta: FileMetaResponse,
+    pub key: Vec<u8>,
+    pub hasher: ContentHasher,
+    pub can_verify_hash: bool,
+    pub sources: DirectSources,
+}
+
+/// Steps 1-2 shared by `download` and `decrypt_to_memory`, with every
+/// independent step overlapped: metadata and byos-direct locators fetch
+/// together, and the per-user MAC key derives while they are in flight (it
+/// needs only the passphrase, and is cached for the session after the first
+/// derivation). `max_bytes` rejects an oversized file before any key work.
+pub(super) async fn open_file(
+    ctx: &EngineContext,
+    file_id: &str,
+    passphrase: &str,
+    user_id: &str,
+    space_key: Option<Vec<u8>>,
+    max_bytes: Option<i64>,
+    emit: &(dyn Fn(Stage, u32, u32, i64, i64) + Sync),
+) -> Result<OpenedFile, EngineError> {
+    let is_space_mode = space_key.is_some();
+    let join_err = |e: tokio::task::JoinError| EngineError::Other(format!("join: {e}"));
+
+    // 1. Metadata. Retry the control-plane call: on a flaky/filtered network a
+    //    single dropped request here used to kill the whole download before a
+    //    byte moved (the "error sending request for url .../meta" failure). The
+    //    detail() surfaces reqwest's hidden underlying cause if it still fails.
+    //    Locators are owner-only, so a space read skips them and relays.
+    emit(Stage::FetchingMeta, 0, 0, 0, 0);
+    let mac_task = (!is_space_mode).then(|| {
+        let pass = passphrase.to_string();
+        let uid = user_id.to_string();
+        tokio::task::spawn_blocking(move || crypto::derive_dedup_key_cached(&pass, &uid).to_vec())
+    });
+    let client = ctx.client.clone();
+    let retry_client = client.clone();
+    let meta_fut = client.with_retry(6, move || {
+        let c = retry_client.clone();
+        async move { c.get_file_meta(file_id).await }
+    });
+    let sources_fut = async {
+        if is_space_mode {
+            DirectSources::default()
+        } else {
+            resolve_direct_sources(ctx, file_id).await
+        }
+    };
+    let (meta, sources) = tokio::join!(meta_fut, sources_fut);
+    let meta = meta.map_err(|e| {
+        let d = e.detail();
+        // Full cause to stderr too: the UI toast truncates it, and this is
+        // the one line that says WHY a flaky/filtered network is failing.
+        eprintln!("zcrypt open {file_id}: metadata fetch failed after retries: {d}");
+        EngineError::Other(format!("fetch metadata: {d}"))
+    })?;
+
+    if let Some(cap) = max_bytes {
+        if meta.original_size > cap {
+            return Err(EngineError::Other(format!(
+                "file too large for in-memory decrypt: {} bytes (cap {cap})",
+                meta.original_size
+            )));
+        }
+    }
+
+    let total = meta.chunk_count as u32;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let salt = b64
+        .decode(&meta.salt)
+        .map_err(|e| EngineError::Integrity(format!("salt b64: {e}")))?;
+    let wrapped = if meta.wrapped_cek.is_empty() {
+        None
+    } else {
+        Some(
+            b64.decode(&meta.wrapped_cek)
+                .map_err(|e| EngineError::Integrity(format!("cek b64: {e}")))?,
+        )
+    };
+
+    // 2. Key. `space_key` here is actually the file's ALREADY-RESOLVED content
+    //    key, not the space's raw symmetric key: a shared file's CEK is wrapped
+    //    under the space key in the SharedVaultFile record (a field the generic
+    //    file-meta response above does NOT carry, meta.wrapped_cek is the
+    //    OWNER's passphrase-wrapped envelope, a different ciphertext entirely).
+    //    So the caller (lib/spaces.ts's spaceFileKey()) unwraps client-side
+    //    using data it already holds and hands us the final key directly, this
+    //    mirrors the web client's `resolveKey` override exactly (no unwrap
+    //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
+    emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
+    let key = if let Some(space_key) = space_key {
+        space_key
+    } else {
+        let pass = passphrase.to_string();
+        let fid = file_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
+        })
+        .await
+        .map_err(join_err)??
+    };
+
+    // Whole-file hasher + whether its result is actually comparable against
+    // meta.sha256. hmac_v1 files store a per-user KEYED MAC there, which needs
+    // the passphrase (owner/folder path) to recompute: a space download has no
+    // passphrase, so it CANNOT verify that MAC. Mirrors the web client's
+    // canVerifyHash exactly (lib/download-session.ts): still hash (falling back
+    // to plain SHA-256) for uniform per-chunk work, but skip the final
+    // comparison rather than derive a MAC key from nothing, which would just
+    // produce a value that can never match and make every hmac_v1 space file
+    // spuriously "fail" integrity. Per-chunk SHA-256 (already verified during
+    // fetch) plus the chunk-count assertion (ordered_writer::drain) are what
+    // space/share downloads rely on instead: same trust level as the
+    // public-share path.
+    let mac_key = match mac_task {
+        Some(task) if meta.sha256_scheme == "hmac_v1" => Some(task.await.map_err(join_err)?),
+        _ => None,
+    };
+    let can_verify_hash = crypto::can_verify_whole_file_hash(&meta.sha256_scheme, is_space_mode);
+    let hasher = match &mac_key {
+        Some(k) => ContentHasher::new("hmac_v1", Some(k)),
+        None => ContentHasher::new("plain", None),
+    };
+    // HMAC's new_from_slice() above already copied the key into its own
+    // internal state: this caller-side copy is no longer needed.
+    if let Some(mut mk) = mac_key {
+        mk.zeroize();
+    }
+
+    Ok(OpenedFile {
+        meta,
+        key,
+        hasher,
+        can_verify_hash,
+        sources,
+    })
 }

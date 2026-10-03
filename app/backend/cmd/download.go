@@ -2,14 +2,19 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
@@ -210,6 +215,13 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			if streamer, ok := adapter.(adapters.ChunkStreamer); ok {
+				if serr := relayStreamedChunk(ctx, w, streamer, *chunk); serr != nil {
+					s.writeChunkFetchError(ctx, w, adapter, ownerID, chunk, serr, "download")
+				}
+				return
+			}
+
 			data, err = adapter.Download(ctx, *chunk)
 			if err != nil {
 				s.writeChunkFetchError(ctx, w, adapter, ownerID, chunk, err, "download")
@@ -221,14 +233,66 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Set headers and stream raw encrypted bytes. Chunks are immutable by
-	// design (a new upload gets a new file id) so clients may cache forever.
+	setChunkHeaders(w, *chunk)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.Write(data)
+}
+
+// setChunkHeaders marks a raw encrypted chunk response. Chunks are immutable by
+// design (a new upload gets a new file id) so clients may cache forever.
+func setChunkHeaders(w http.ResponseWriter, chunk types.ChunkRef) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.Header().Set("X-Chunk-SHA256", chunk.SHA256)
 	if chunk.Compressed {
 		w.Header().Set("X-Chunk-Compressed", "true")
 	}
-	w.Write(data)
+}
+
+// countingWriter records whether any byte reached the client yet.
+type countingWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.n += int64(n)
+	return n, err
+}
+
+// relayStreamedChunk forwards a chunk to the client as its bytes arrive from
+// the platform, instead of downloading the whole chunk before the first byte,
+// and tees it into the ciphertext cache. The bytes are hashed on the way
+// through and only cached when they match the stored sha. A failure before the
+// first byte writes nothing and is returned, so the caller answers it like any
+// other fetch failure (including confirming a lost chunk); after it, the
+// response is aborted so a truncated chunk can never look complete (clients
+// verify the sha anyway).
+func relayStreamedChunk(ctx context.Context, w http.ResponseWriter, streamer adapters.ChunkStreamer, chunk types.ChunkRef) error {
+	setChunkHeaders(w, chunk)
+	hasher := sha256.New()
+	cache := openChunkCacheWriter(chunk.ChunkID)
+	out := &countingWriter{w: w}
+	_, err := streamer.DownloadTo(ctx, chunk, io.MultiWriter(out, hasher, cache))
+	if err == nil && chunk.SHA256 != "" && !strings.EqualFold(hex.EncodeToString(hasher.Sum(nil)), chunk.SHA256) {
+		err = fmt.Errorf("sha mismatch for chunk %s", chunk.ChunkID)
+	}
+	if err == nil {
+		if chunk.SHA256 != "" {
+			cache.commit()
+		} else {
+			cache.discard()
+		}
+		return nil
+	}
+	cache.discard()
+	log.Printf("download: chunk stream failed: %v", err)
+	if out.n > 0 {
+		panic(http.ErrAbortHandler)
+	}
+	for _, h := range []string{"Cache-Control", "X-Chunk-SHA256", "X-Chunk-Compressed"} {
+		w.Header().Del(h)
+	}
+	return err
 }

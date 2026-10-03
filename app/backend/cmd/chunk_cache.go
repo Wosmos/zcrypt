@@ -106,6 +106,65 @@ func chunkHashMatches(data []byte, want string) bool {
 	return strings.EqualFold(hex.EncodeToString(sum[:]), want)
 }
 
+// chunkCacheWriter tees a streamed chunk into the cache. Writes never fail the
+// stream they ride on: a cache error only means this chunk isn't cached. A nil
+// writer (cache dir unavailable) is a no-op.
+type chunkCacheWriter struct {
+	f      *os.File
+	dir    string
+	final  string
+	failed bool
+}
+
+// openChunkCacheWriter starts a temp file for chunkID, or returns nil when the
+// cache is unavailable.
+func openChunkCacheWriter(chunkID string) *chunkCacheWriter {
+	dir, err := config.ChunkCacheDir()
+	if err != nil {
+		return nil
+	}
+	f, err := os.CreateTemp(dir, chunkID+".*.tmp")
+	if err != nil {
+		return nil
+	}
+	return &chunkCacheWriter{f: f, dir: dir, final: filepath.Join(dir, chunkID+".enc")}
+}
+
+func (c *chunkCacheWriter) Write(p []byte) (int, error) {
+	if c == nil || c.failed {
+		return len(p), nil
+	}
+	if _, err := c.f.Write(p); err != nil {
+		c.failed = true
+	}
+	return len(p), nil
+}
+
+// commit moves verified bytes into place, then sweeps the cache.
+func (c *chunkCacheWriter) commit() {
+	if c == nil {
+		return
+	}
+	if err := c.f.Close(); err != nil || c.failed {
+		os.Remove(c.f.Name())
+		return
+	}
+	if err := os.Rename(c.f.Name(), c.final); err != nil {
+		os.Remove(c.f.Name())
+		return
+	}
+	sweepChunkCache(c.dir, chunkCacheBudget())
+}
+
+// discard drops a partial or unverified chunk.
+func (c *chunkCacheWriter) discard() {
+	if c == nil {
+		return
+	}
+	c.f.Close()
+	os.Remove(c.f.Name())
+}
+
 // sweepChunkCache deletes oldest-mtime files until the directory is under
 // budget. Concurrent sweeps are harmless: a lost Remove race just means the
 // other sweep got there first.

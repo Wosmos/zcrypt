@@ -143,6 +143,7 @@ export function ImageViewer({
           src={url}
           alt={alt}
           draggable={false}
+          decoding="async"
           onLoad={() => setLoaded(true)}
           className={cn(
             "max-h-full max-w-full object-contain",

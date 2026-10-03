@@ -24,7 +24,8 @@ pub async fn run(ctx: &EngineContext, file_id: &str) -> Result<(), EngineError> 
             all_client_deleted = false; // no creds, backend handles this chunk
             continue;
         };
-        let Some(adapter) = adapters::new_adapter(&c.platform, &creds.token, &creds.account) else {
+        let Some(adapter) = adapters::shared_adapter(&c.platform, &creds.token, &creds.account)
+        else {
             all_client_deleted = false;
             continue;
         };

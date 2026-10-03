@@ -315,6 +315,13 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(ok).toBe(true);
   });
 
+  it("fileSizes invokes file_sizes with the paths and returns the sizes", async () => {
+    invokeMock.mockResolvedValue([10, 0]);
+    const mod = await import("@/lib/tauri");
+    await expect(mod.fileSizes(["/a", "/b"])).resolves.toEqual([10, 0]);
+    expect(invokeMock).toHaveBeenCalledWith("file_sizes", { paths: ["/a", "/b"] });
+  });
+
   it("keychainSet invokes keychain_set with key/value", async () => {
     const mod = await import("@/lib/tauri");
     await mod.keychainSet("k", "v");

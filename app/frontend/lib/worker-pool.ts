@@ -10,6 +10,7 @@ import type {
   WorkerOutput,
   DecryptInput,
   DecryptOutput,
+  WorkerFailure,
 } from "@/workers/crypto-worker";
 import { getDeviceProfile } from "@/lib/device-profile";
 
@@ -26,6 +27,7 @@ export class WorkerPool {
   private workers: Worker[] = [];
   private idle: Worker[] = [];
   private queue: QueueItem[] = [];
+  private inFlight = new Set<QueueItem>();
   private terminated = false;
 
   constructor(poolSize?: number) {
@@ -59,13 +61,12 @@ export class WorkerPool {
   }
 
   private dispatch(worker: Worker, item: QueueItem) {
-    const onMessage = (e: MessageEvent<WorkerOutput>) => {
+    this.inFlight.add(item);
+
+    const release = () => {
       worker.removeEventListener("message", onMessage);
       worker.removeEventListener("error", onError);
-
-      item.resolve(e.data);
-
-      // Process next queued item or return to idle
+      this.inFlight.delete(item);
       const next = this.queue.shift();
       if (next) {
         this.dispatch(worker, next);
@@ -74,19 +75,18 @@ export class WorkerPool {
       }
     };
 
-    const onError = (e: ErrorEvent) => {
-      worker.removeEventListener("message", onMessage);
-      worker.removeEventListener("error", onError);
-
-      item.reject(new Error(e.message || "Worker error"));
-
-      // Return worker to pool even on error
-      const next = this.queue.shift();
-      if (next) {
-        this.dispatch(worker, next);
+    const onMessage = (e: MessageEvent<PoolOutput | WorkerFailure>) => {
+      release();
+      if ("error" in e.data) {
+        item.reject(new Error(e.data.error || "Worker error"));
       } else {
-        this.idle.push(worker);
+        item.resolve(e.data);
       }
+    };
+
+    const onError = (e: ErrorEvent) => {
+      release();
+      item.reject(new Error(e.message || "Worker error"));
     };
 
     worker.addEventListener("message", onMessage);
@@ -107,10 +107,10 @@ export class WorkerPool {
     }
     this.workers = [];
     this.idle = [];
-    // Reject any queued items
-    for (const item of this.queue) {
+    for (const item of [...this.inFlight, ...this.queue]) {
       item.reject(new Error("Worker pool terminated"));
     }
+    this.inFlight.clear();
     this.queue = [];
   }
 

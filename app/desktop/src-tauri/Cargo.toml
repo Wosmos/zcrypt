@@ -60,6 +60,33 @@ objc2-local-authentication = { version = "0.3", default-features = false, featur
     "block2",
 ] }
 
+# Debug builds ran PBKDF2's 600k iterations, AES-GCM and zstd unoptimized, so a
+# dev build took seconds to open a photo. Optimize only the crypto hot path
+# (generic hashing code is instantiated inside zcrypt-core, so it is included).
+[profile.dev.package.zcrypt-core]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.dev.package.pbkdf2]
+opt-level = 3
+
+[profile.dev.package.hmac]
+opt-level = 3
+
+[profile.dev.package.aes-gcm]
+opt-level = 3
+
+[profile.dev.package.aes]
+opt-level = 3
+
+[profile.dev.package.ghash]
+opt-level = 3
+
+[profile.dev.package.zstd-sys]
+opt-level = 3
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -41,6 +42,13 @@ type PlatformAdapter interface {
 // the chunk is present at its full size.
 type ChunkVerifier interface {
 	VerifyChunk(ctx context.Context, ref types.ChunkRef) error
+}
+
+// ChunkStreamer is an optional interface for adapters that can write a chunk's
+// bytes to w as they arrive, so the relay answers before the whole chunk has
+// landed on the server instead of storing and then forwarding it.
+type ChunkStreamer interface {
+	DownloadTo(ctx context.Context, ref types.ChunkRef, w io.Writer) (int64, error)
 }
 
 // BatchCommitter is an optional interface for adapters that can batch multiple

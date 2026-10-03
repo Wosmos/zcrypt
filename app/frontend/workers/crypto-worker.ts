@@ -77,12 +77,31 @@ async function sha256Hex(data: Uint8Array): Promise<string> {
     .join("");
 }
 
+export interface WorkerFailure {
+  chunkIndex: number;
+  error: string;
+}
+
+// A rejection inside an async onmessage never fires the worker's 'error' event,
+// so report failures as a message or the pool's item would never settle.
 self.onmessage = async (e: MessageEvent<WorkerInput | DecryptInput>) => {
+  try {
+    await handle(e.data);
+  } catch (err) {
+    const failure: WorkerFailure = {
+      chunkIndex: e.data.chunkIndex,
+      error: err instanceof Error ? err.message || err.name : String(err),
+    };
+    (self as unknown as Worker).postMessage(failure);
+  }
+};
+
+async function handle(data: WorkerInput | DecryptInput) {
   await initPromise;
 
   // ── Download direction: decrypt (+ decompress) ──
-  if (e.data.mode === "decrypt") {
-    const { chunkIndex, encrypted, keyBytes, compressed } = e.data;
+  if (data.mode === "decrypt") {
+    const { chunkIndex, encrypted, keyBytes, compressed } = data;
     let plain = await decryptChunk(keyBytes, new Uint8Array(encrypted));
     if (compressed && zstd) {
       plain = zstd.ZstdStream.decompress(plain);
@@ -95,7 +114,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput | DecryptInput>) => {
     return;
   }
 
-  const { chunkIndex, plaintext, keyBytes, compress, compressionLevel = 3 } = e.data;
+  const { chunkIndex, plaintext, keyBytes, compress, compressionLevel = 3 } = data;
   const raw = new Uint8Array(plaintext);
   const originalSize = raw.byteLength;
 
@@ -136,4 +155,4 @@ self.onmessage = async (e: MessageEvent<WorkerInput | DecryptInput>) => {
 
   // Transfer the encrypted buffer (zero-copy)
   (self as unknown as Worker).postMessage(output, [encrypted.buffer as ArrayBuffer]);
-};
+}
