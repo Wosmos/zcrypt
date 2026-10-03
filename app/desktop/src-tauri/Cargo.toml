@@ -37,6 +37,17 @@ tauri-plugin-updater = "2"
 # Launch-at-login (desktop-only; mobile lifecycle is OS-managed).
 tauri-plugin-autostart = "2"
 
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-biometric = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Security_Credentials_UI",
+    "Win32_Foundation",
+    "Win32_System_WinRT",
+] }
+windows-future = "0.3"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # Touch ID convenience-unlock via Apple's LocalAuthentication framework.
 # default-features off on objc2-local-authentication: its default pulls in

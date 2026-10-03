@@ -156,6 +156,8 @@ vi.mock("@/lib/tauri", () => ({
   cancelTransfer: vi.fn(async () => true),
 }));
 
+vi.mock("@/lib/android", () => ({ releaseSharedFile: vi.fn() }));
+
 const SMALL_PROFILE = {
   workers: 1,
   chunkSize: 1024,
@@ -1560,13 +1562,19 @@ describe("useUploadStore", () => {
       // Items are flagged desktop so pause is hidden and retry stays on the core.
       expect(useUploadStore.getState().queue.every((i) => i.desktop === true)).toBe(true);
       expect(onRefresh).toHaveBeenCalled();
+      const { releaseSharedFile } = await import("@/lib/android");
+      expect(releaseSharedFile).toHaveBeenCalledWith("/tmp/a.bin");
+      expect(releaseSharedFile).toHaveBeenCalledWith("/tmp/b.bin");
     });
 
     it("marks a path failed when the core upload throws", async () => {
       const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      const { releaseSharedFile } = await import("@/lib/android");
+      (releaseSharedFile as Mock).mockClear();
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
       (sidecarUpload as Mock).mockRejectedValue(new Error("disk read failed"));
       await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      expect(releaseSharedFile).not.toHaveBeenCalled();
 
       expect(useUploadStore.getState().queue[0].status).toBe("failed");
       expect(useUploadStore.getState().queue[0].error).toBe("disk read failed");
@@ -1590,11 +1598,14 @@ describe("useUploadStore", () => {
       const item = useUploadStore.getState().queue[0];
       expect(item.status).toBe("failed");
 
+      const { releaseSharedFile } = await import("@/lib/android");
+      (releaseSharedFile as Mock).mockClear();
       (sidecarUpload as Mock).mockResolvedValueOnce(undefined);
       useUploadStore.getState().retryUpload(item.id, "pw");
       await vi.waitFor(() => {
         expect(useUploadStore.getState().queue[0].status).toBe("done");
       });
+      expect(releaseSharedFile).toHaveBeenCalledWith("/tmp/a.bin");
       // Retry re-drives the streaming core with the desktop path, the item's
       // 0-byte placeholder File never reached the web pipeline's init.
       expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
@@ -1751,6 +1762,8 @@ describe("useUploadStore", () => {
       await flush(3);
       // The queue id doubles as the core's transfer id, so Cancel can reach it.
       expect(cancelTransfer).toHaveBeenCalledWith(id);
+      const { releaseSharedFile } = await import("@/lib/android");
+      expect(releaseSharedFile).toHaveBeenCalled();
       expect(useUploadStore.getState().queue).toHaveLength(0);
       release();
       await run;

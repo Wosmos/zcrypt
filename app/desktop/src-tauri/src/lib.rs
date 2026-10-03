@@ -1,3 +1,5 @@
+mod paths;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant};
@@ -71,6 +73,7 @@ struct EngineState {
     /// Updated by `touch_activity()` on every passphrase-bearing command; the
     /// auto-lock task compares this against `INACTIVITY_TIMEOUT`.
     last_activity: StdMutex<Instant>,
+    saves: paths::SaveApprovals,
 }
 
 impl Default for EngineState {
@@ -84,6 +87,7 @@ impl Default for EngineState {
             passphrase: StdMutex::new(None),
             watcher: StdMutex::new(None),
             last_activity: StdMutex::new(Instant::now()),
+            saves: paths::SaveApprovals::default(),
         }
     }
 }
@@ -230,18 +234,22 @@ fn keychain_creds() -> CredProvider {
 async fn local_upload(
     app: tauri::AppHandle,
     state: tauri::State<'_, EngineState>,
+    reads: tauri::State<'_, paths::ReadApprovals>,
     file_path: String,
     passphrase: String,
     profile: Option<String>,
 ) -> Result<String, String> {
+    reads.check(&file_path)?;
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(name) = profile.as_deref() {
         ctx.profile = profiles::get_profile(name);
     }
-    engines::local_upload(&ctx, Path::new(&file_path), &passphrase)
+    let id = engines::local_upload(&ctx, Path::new(&file_path), &passphrase)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    reads.release(&file_path);
+    Ok(id)
 }
 
 /// Full pipeline upload straight to the backend/platforms.
@@ -258,6 +266,8 @@ async fn upload_file(
     // Vault folder to file the upload into; None = Root.
     folder_id: Option<String>,
 ) -> Result<(), String> {
+    let reads = app.state::<paths::ReadApprovals>();
+    reads.check(&file_path)?;
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(id) = &transfer_id {
@@ -274,7 +284,9 @@ async fn upload_file(
     if let Some(id) = &transfer_id {
         state.finish_transfer(id);
     }
-    res.map_err(|e| e.to_string())
+    res.map_err(|e| e.to_string())?;
+    reads.release(&file_path);
+    Ok(())
 }
 
 /// Await a file already saved via `local_upload` reaching genuine sync
@@ -305,6 +317,7 @@ async fn download_file(
     save_path: String,
     transfer_id: Option<String>,
 ) -> Result<(), String> {
+    state.saves.check(&save_path)?;
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(id) = &transfer_id {
@@ -357,6 +370,7 @@ async fn bulk_download_zip(
     save_path: String,
     transfer_id: Option<String>,
 ) -> Result<(), String> {
+    state.saves.check(&save_path)?;
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(id) = &transfer_id {
@@ -426,6 +440,7 @@ async fn download_space_file(
     space_key_b64: String,
     save_path: String,
 ) -> Result<(), String> {
+    state.saves.check(&save_path)?;
     // Doesn't touch the cached passphrase, but the user is clearly at the app
     // actively using it: counts as activity same as any passphrase-bearing
     // command, so it doesn't get auto-locked out from under them mid-session.
@@ -672,14 +687,35 @@ async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), St
 /// Watch a folder: every newly-created file is encrypted into the local ledger
 /// (the sync worker then pushes it) and a "Backed up" notification is posted.
 /// Requires the vault unlocked (passphrase cached) and the engine connected;
-/// events arriving before that are skipped. Replaces any previous watch.
+/// events arriving before that are skipped. Replaces any previous watch. The
+/// folder is chosen in the native folder dialog here, never passed in by the
+/// webview; resolves to the watched path, or None when the user cancels.
 #[tauri::command]
 async fn start_folder_watch(
+    window: tauri::Window,
     app: tauri::AppHandle,
     state: tauri::State<'_, EngineState>,
-    path: String,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     use notify::{RecursiveMode, Watcher};
+
+    #[cfg(desktop)]
+    let picked = {
+        use tauri_plugin_dialog::DialogExt;
+        window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .blocking_pick_folder()
+    };
+    #[cfg(mobile)]
+    let picked: Option<tauri_plugin_dialog::FilePath> = {
+        let _ = window;
+        None
+    };
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+    let path = picked.simplified().to_string();
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -718,7 +754,7 @@ async fn start_folder_watch(
             }
         }
     });
-    Ok(())
+    Ok(Some(path))
 }
 
 /// Stop the active folder watch (drops the watcher, which ends the processor).
@@ -938,39 +974,125 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
 // Nothing security-sensitive is bypassed: the frontend still holds the real
 // passphrase-derived key; this only gates whether it resurfaces the cached
 // passphrase (see set_passphrase/clear_passphrase above) without a retype.
-// macOS-only for now; every other target gets a compiling no-op.
+// Touch ID on macOS, Windows Hello on Windows, BiometricPrompt on Android;
+// Linux and iOS get a compiling no-op.
 
-/// Whether Touch ID (or another local device-owner biometric) is available
-/// right now. False on non-macOS targets and whenever the Mac has no usable
-/// enrollment (no Touch ID hardware, nothing enrolled, etc).
+/// Whether a local device-owner biometric is available right now. False on
+/// unsupported targets and whenever nothing usable is enrolled.
 #[tauri::command]
-fn biometric_available() -> bool {
+async fn biometric_available(app: tauri::AppHandle) -> bool {
     #[cfg(target_os = "macos")]
     {
+        let _ = app;
         macos_biometrics::available()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
+        let _ = app;
+        tokio::task::spawn_blocking(windows_hello::available)
+            .await
+            .unwrap_or(false)
+    }
+    #[cfg(target_os = "android")]
+    {
+        tokio::task::spawn_blocking(move || android_biometrics::available(&app))
+            .await
+            .unwrap_or(false)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "android")))]
+    {
+        let _ = app;
         false
     }
 }
 
-/// Present the OS Touch ID prompt with `reason` as the shown text.
+/// Present the OS biometric prompt with `reason` as the shown text.
 ///
 /// Returns `Ok(true)` on successful authentication, `Ok(false)` on user
 /// cancel or any authentication failure (not enrolled, locked out, denied,
 /// etc: all expected outcomes of a declined prompt). `Err` only if the OS
 /// never answers the request at all.
 #[tauri::command]
-async fn biometric_authenticate(reason: String) -> Result<bool, String> {
+async fn biometric_authenticate(app: tauri::AppHandle, reason: String) -> Result<bool, String> {
     #[cfg(target_os = "macos")]
     {
+        let _ = app;
         macos_biometrics::authenticate(reason).await
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        let _ = reason;
+        let hwnd = app
+            .get_webview_window("main")
+            .and_then(|w| w.hwnd().ok())
+            .map(|h| h.0 as isize);
+        tokio::task::spawn_blocking(move || windows_hello::authenticate(hwnd, &reason))
+            .await
+            .map_err(|e| format!("biometric authenticate: task join: {e}"))?
+    }
+    #[cfg(target_os = "android")]
+    {
+        tokio::task::spawn_blocking(move || android_biometrics::authenticate(&app, reason))
+            .await
+            .map_err(|e| format!("biometric authenticate: task join: {e}"))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "android")))]
+    {
+        let _ = (app, reason);
         Ok(false)
+    }
+}
+
+/// Windows Hello through `UserConsentVerifier`. The window-bound interop call
+/// parents the prompt to the app window so it opens in front of it.
+#[cfg(target_os = "windows")]
+mod windows_hello {
+    use windows::Security::Credentials::UI::{
+        UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
+    };
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::WinRT::IUserConsentVerifierInterop;
+    use windows::core::{HSTRING, factory};
+    use windows_future::IAsyncOperation;
+
+    pub(super) fn available() -> bool {
+        UserConsentVerifier::CheckAvailabilityAsync()
+            .and_then(|op| op.join())
+            .is_ok_and(|a| a == UserConsentVerifierAvailability::Available)
+    }
+
+    pub(super) fn authenticate(hwnd: Option<isize>, reason: &str) -> Result<bool, String> {
+        let message = HSTRING::from(reason);
+        let op: windows::core::Result<IAsyncOperation<UserConsentVerificationResult>> = match hwnd {
+            Some(h) => factory::<UserConsentVerifier, IUserConsentVerifierInterop>().and_then(
+                |interop| unsafe {
+                    interop.RequestVerificationForWindowAsync(HWND(h as *mut _), &message)
+                },
+            ),
+            None => UserConsentVerifier::RequestVerificationAsync(&message),
+        };
+        let result = op
+            .and_then(|op| op.join())
+            .map_err(|e| format!("windows hello: {e}"))?;
+        Ok(result == UserConsentVerificationResult::Verified)
+    }
+}
+
+/// Android BiometricPrompt through the official biometric plugin. Called on a
+/// blocking thread: the plugin bridge waits for the activity's reply.
+#[cfg(target_os = "android")]
+mod android_biometrics {
+    use tauri_plugin_biometric::{AuthOptions, BiometricExt};
+
+    pub(super) fn available(app: &tauri::AppHandle) -> bool {
+        app.biometric()
+            .status()
+            .is_ok_and(|status| status.is_available)
+    }
+
+    pub(super) fn authenticate(app: &tauri::AppHandle, reason: String) -> bool {
+        app.biometric()
+            .authenticate(reason, AuthOptions::default())
+            .is_ok()
     }
 }
 
@@ -1032,28 +1154,85 @@ mod macos_biometrics {
 // Temp files
 // ---------------------------------------------------------------------------
 
+/// Native open dialog for files to upload. The picks are recorded so the
+/// upload commands accept them; a path the user never picked is refused.
+#[tauri::command]
+async fn pick_files(
+    window: tauri::Window,
+    reads: tauri::State<'_, paths::ReadApprovals>,
+    multiple: bool,
+    title: String,
+) -> Result<Vec<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog = window.dialog().file().set_title(title);
+    #[cfg(desktop)]
+    let dialog = dialog.set_parent(&window);
+    let picked = if multiple {
+        dialog.blocking_pick_files().unwrap_or_default()
+    } else {
+        dialog.blocking_pick_file().into_iter().collect()
+    };
+    let paths: Vec<String> = picked
+        .into_iter()
+        .map(|p| p.simplified().to_string())
+        .collect();
+    reads.approve(&paths);
+    Ok(paths)
+}
+
+/// Native save dialog. The chosen destination is recorded so the download
+/// commands accept it; a path the user never picked is refused.
+#[tauri::command]
+async fn pick_save_path(
+    window: tauri::Window,
+    state: tauri::State<'_, EngineState>,
+    default_name: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let mut dialog = window.dialog().file();
+    #[cfg(desktop)]
+    {
+        dialog = dialog.set_parent(&window);
+    }
+    if let Some(name) = Path::new(&default_name).file_name() {
+        dialog = dialog.set_file_name(name.to_string_lossy());
+    }
+    let Some(picked) = dialog.blocking_save_file() else {
+        return Ok(None);
+    };
+    let path = picked.simplified().to_string();
+    state.saves.approve(&path);
+    Ok(Some(path))
+}
+
 /// Write file data to a temp file. Returns the path.
 #[tauri::command]
 async fn write_temp_file(name: String, data: Vec<u8>) -> Result<String, String> {
-    let tmp = std::env::temp_dir().join(format!("zcrypt-{}-{}", std::process::id(), name));
+    let tmp = paths::temp_file_path(&std::env::temp_dir(), std::process::id(), &name)?;
     std::fs::write(&tmp, &data).map_err(|e| format!("write temp: {}", e))?;
     Ok(tmp.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 async fn remove_temp_file(path: String) -> Result<(), String> {
-    let _ = std::fs::remove_file(&path);
+    let dir = std::env::temp_dir();
+    if let Some(p) = paths::removable_temp_file(&dir, std::process::id(), &path)? {
+        let _ = std::fs::remove_file(p);
+    }
     Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_deep_link::init());
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_biometric::init());
+    builder
         .manage(EngineState::default())
         .invoke_handler(tauri::generate_handler![
             local_upload,
@@ -1075,6 +1254,8 @@ pub fn run() {
             keychain_delete,
             check_for_updates,
             install_update,
+            pick_files,
+            pick_save_path,
             write_temp_file,
             remove_temp_file,
             set_autostart,
@@ -1088,6 +1269,18 @@ pub fn run() {
             biometric_authenticate,
         ])
         .setup(|app| {
+            let store = app
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|d| d.join("approved-uploads.json"));
+            let share_dir = if cfg!(target_os = "android") {
+                app.path().app_cache_dir().ok().map(|d| d.join("shared"))
+            } else {
+                None
+            };
+            app.manage(paths::ReadApprovals::new(store, share_dir));
+
             #[cfg(desktop)]
             {
                 // Launch-at-login support (no auto-enable, the UI toggles it).

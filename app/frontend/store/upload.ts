@@ -35,6 +35,7 @@ import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-pro
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
 import { formatBytes } from "@/lib/utils";
 import { createSemaphore } from "@/lib/async/semaphore";
+import { releaseSharedFile } from "@/lib/android";
 import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
@@ -1269,6 +1270,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // chunk boundary.
     if (meta?.desktopPath) {
       void import("@/lib/tauri").then(({ cancelTransfer }) => cancelTransfer(id).catch(() => {}));
+      releaseSharedFile(meta.desktopPath);
     }
     if (meta?.resume?.sessionId) {
       cancelUpload(meta.resume.sessionId).catch(() => {});
@@ -1488,6 +1490,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           // (removeFromQueue) can abort this in-flight core upload.
           await sidecarUpload(desktopPath, passphrase, meta.platform, id, meta.folderId);
           forgetUploadPath(desktopPath);
+          releaseSharedFile(desktopPath);
           updateStatus(id, "done", 100, "Done");
           void meta.onRefresh?.();
         } catch (err) {
@@ -1674,6 +1677,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           // this core upload mid-flight (see removeFromQueue).
           await sidecarUpload(filePath, passphrase, platform, id, folderId);
           forgetUploadPath(filePath);
+          releaseSharedFile(filePath);
           updateStatus(id, "done", 100, "Done");
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Upload failed";

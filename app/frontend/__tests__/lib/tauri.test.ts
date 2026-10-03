@@ -44,13 +44,13 @@ describe("tauri (outside the Tauri runtime)", () => {
   it("pickFiles resolves to an empty array without opening a dialog", async () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.pickFiles()).resolves.toEqual([]);
-    expect(openMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("pickSaveLocation resolves to null without opening a dialog", async () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.pickSaveLocation("f.txt")).resolves.toBeNull();
-    expect(saveMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("subscribeTokens resolves a no-op unlisten outside Tauri", async () => {
@@ -105,6 +105,29 @@ describe("tauri (outside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.biometricAuthenticate("unlock your vault")).resolves.toBe(false);
     expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  describe("biometricMethodName", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it.each([
+      ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15", "Touch ID"],
+      ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/129.0", "Windows Hello"],
+      ["Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36", null],
+      ["Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15", null],
+    ])("maps %s to %s", async (userAgent, expected) => {
+      vi.stubGlobal("navigator", { userAgent });
+      const mod = await import("@/lib/tauri");
+      expect(mod.biometricMethodName()).toBe(expected);
+    });
+
+    it("is null without a navigator", async () => {
+      vi.stubGlobal("navigator", undefined);
+      const mod = await import("@/lib/tauri");
+      expect(mod.biometricMethodName()).toBeNull();
+    });
   });
 
   it("cancelTransfer resolves false without invoking the bridge", async () => {
@@ -177,38 +200,32 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("cmd", { a: 1 });
   });
 
-  it("pickFiles returns [] when the dialog is cancelled", async () => {
-    openMock.mockResolvedValue(null);
+  it("pickFiles asks the shell's pick_files so the picks are approved", async () => {
+    invokeMock.mockResolvedValue([]);
     const mod = await import("@/lib/tauri");
     await expect(mod.pickFiles()).resolves.toEqual([]);
-    expect(openMock).toHaveBeenCalledWith({
+    expect(invokeMock).toHaveBeenCalledWith("pick_files", {
       multiple: true,
       title: "Select files to upload",
     });
+    expect(openMock).not.toHaveBeenCalled();
   });
 
-  it("pickFiles passes an array result straight through", async () => {
-    openMock.mockResolvedValue(["/a", "/b"]);
+  it("pickFiles forwards the options and the shell's picks", async () => {
+    invokeMock.mockResolvedValue(["/a", "/b"]);
     const mod = await import("@/lib/tauri");
-    await expect(
-      mod.pickFiles({ multiple: true, title: "Pick" })
-    ).resolves.toEqual(["/a", "/b"]);
-    expect(openMock).toHaveBeenCalledWith({ multiple: true, title: "Pick" });
+    await expect(mod.pickFiles({ multiple: false, title: "Pick" })).resolves.toEqual(["/a", "/b"]);
+    expect(invokeMock).toHaveBeenCalledWith("pick_files", { multiple: false, title: "Pick" });
   });
 
-  it("pickFiles wraps a single string result in an array", async () => {
-    openMock.mockResolvedValue("/single");
-    const mod = await import("@/lib/tauri");
-    await expect(mod.pickFiles()).resolves.toEqual(["/single"]);
-  });
-
-  it("pickSaveLocation delegates to save()", async () => {
-    saveMock.mockResolvedValue("/save/path");
+  it("pickSaveLocation asks the shell's pick_save_path so the path is approved", async () => {
+    invokeMock.mockResolvedValue("/save/path");
     const mod = await import("@/lib/tauri");
     await expect(mod.pickSaveLocation("file.bin")).resolves.toBe(
       "/save/path"
     );
-    expect(saveMock).toHaveBeenCalledWith({ defaultPath: "file.bin" });
+    expect(invokeMock).toHaveBeenCalledWith("pick_save_path", { defaultName: "file.bin" });
+    expect(saveMock).not.toHaveBeenCalled();
   });
 
   it("sidecarUpload invokes upload_file with filePath/passphrase/platform", async () => {
