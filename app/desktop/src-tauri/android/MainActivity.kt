@@ -29,7 +29,10 @@
 // 4. "Share to zcrypt": ACTION_SEND / SEND_MULTIPLE (the intent filters are
 //    patched into the generated manifest by device.yml). Shared content:// URIs
 //    are copied into the app cache, because the core reads plain paths, and the
-//    vault collects them through `ZcryptAndroid.takeSharedFiles()`.
+//    vault collects them through `ZcryptAndroid.takeSharedFiles()` and hands
+//    each back through `releaseSharedFile()` once it is uploaded. A share is
+//    handled once: a relaunch from recents replays the task's SEND base intent,
+//    so those are skipped.
 //
 // The package must equal tauri.conf.json's `identifier`; device.yml asserts it.
 package app.zcrypt.desktop
@@ -60,13 +63,21 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
     if (savedInstanceState == null) {
       pruneShares()
-      handleShare(intent)
+      if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) handleShare(intent)
+      consumeShare(intent)
     }
   }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     handleShare(intent)
+    consumeShare(intent)
+  }
+
+  private fun consumeShare(intent: Intent?) {
+    if (intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE) {
+      setIntent(Intent(intent).setAction(null))
+    }
   }
 
   private fun prefs() = getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -105,26 +116,47 @@ class MainActivity : TauriActivity() {
   }
 
   private fun copyToCache(uri: Uri): String? {
+    val (queriedName, size) = describe(uri)
+    val root = File(cacheDir, SHARE_DIR)
+    if (!root.isDirectory && !root.mkdirs()) return null
+    if (size != null && size + SPACE_MARGIN > root.usableSpace) return null
+    val dir = File(root, UUID.randomUUID().toString())
     return try {
-      val dir = File(File(cacheDir, SHARE_DIR), UUID.randomUUID().toString())
       if (!dir.mkdirs()) return null
-      val out = File(dir, displayName(uri))
-      val input = contentResolver.openInputStream(uri) ?: return null
+      val out = File(dir, displayName(uri, queriedName))
+      val input = contentResolver.openInputStream(uri) ?: throw java.io.IOException("unreadable")
       input.use { src -> out.outputStream().use { src.copyTo(it) } }
       out.absolutePath
     } catch (e: Exception) {
+      dir.deleteRecursively()
       null
     }
   }
 
-  private fun displayName(uri: Uri): String {
-    val queried = try {
-      contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
-        if (it.moveToFirst()) it.getString(0) else null
-      }
-    } catch (e: Exception) {
-      null
-    }
+  private fun describe(uri: Uri): Pair<String?, Long?> = try {
+    contentResolver.query(
+      uri,
+      arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+      null,
+      null,
+      null,
+    )?.use {
+      if (!it.moveToFirst()) return@use Pair(null, null)
+      val name = if (it.isNull(0)) null else it.getString(0)
+      val size = if (it.isNull(1)) null else it.getLong(1)
+      Pair(name, size)
+    } ?: Pair(null, null)
+  } catch (e: Exception) {
+    Pair(null, null)
+  }
+
+  private fun releaseShare(path: String) {
+    val root = File(cacheDir, SHARE_DIR).canonicalFile
+    val dir = File(path).canonicalFile.parentFile ?: return
+    if (dir.parentFile == root) dir.deleteRecursively()
+  }
+
+  private fun displayName(uri: Uri, queried: String?): String {
     val name = (queried ?: uri.lastPathSegment ?: "")
       .substringAfterLast('/')
       .substringAfterLast('\\')
@@ -156,6 +188,9 @@ class MainActivity : TauriActivity() {
       pendingShares.clear()
       out.toString()
     }
+
+    @JavascriptInterface
+    fun releaseSharedFile(path: String) = releaseShare(path)
   }
 
   companion object {
@@ -164,6 +199,7 @@ class MainActivity : TauriActivity() {
     private const val SHARE_DIR = "shared"
     private const val SHARED_EVENT = "zcrypt:shared-files"
     private const val SHARE_TTL_MS = 24L * 60 * 60 * 1000
+    private const val SPACE_MARGIN = 64L * 1024 * 1024
   }
 
   override fun onWebViewCreate(webView: WebView) {

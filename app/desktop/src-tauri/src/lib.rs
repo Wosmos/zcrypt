@@ -234,18 +234,22 @@ fn keychain_creds() -> CredProvider {
 async fn local_upload(
     app: tauri::AppHandle,
     state: tauri::State<'_, EngineState>,
+    reads: tauri::State<'_, paths::ReadApprovals>,
     file_path: String,
     passphrase: String,
     profile: Option<String>,
 ) -> Result<String, String> {
+    reads.check(&file_path)?;
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(name) = profile.as_deref() {
         ctx.profile = profiles::get_profile(name);
     }
-    engines::local_upload(&ctx, Path::new(&file_path), &passphrase)
+    let id = engines::local_upload(&ctx, Path::new(&file_path), &passphrase)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    reads.release(&file_path);
+    Ok(id)
 }
 
 /// Full pipeline upload straight to the backend/platforms.
@@ -262,6 +266,8 @@ async fn upload_file(
     // Vault folder to file the upload into; None = Root.
     folder_id: Option<String>,
 ) -> Result<(), String> {
+    let reads = app.state::<paths::ReadApprovals>();
+    reads.check(&file_path)?;
     state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(id) = &transfer_id {
@@ -278,7 +284,9 @@ async fn upload_file(
     if let Some(id) = &transfer_id {
         state.finish_transfer(id);
     }
-    res.map_err(|e| e.to_string())
+    res.map_err(|e| e.to_string())?;
+    reads.release(&file_path);
+    Ok(())
 }
 
 /// Await a file already saved via `local_upload` reaching genuine sync
@@ -679,14 +687,35 @@ async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), St
 /// Watch a folder: every newly-created file is encrypted into the local ledger
 /// (the sync worker then pushes it) and a "Backed up" notification is posted.
 /// Requires the vault unlocked (passphrase cached) and the engine connected;
-/// events arriving before that are skipped. Replaces any previous watch.
+/// events arriving before that are skipped. Replaces any previous watch. The
+/// folder is chosen in the native folder dialog here, never passed in by the
+/// webview; resolves to the watched path, or None when the user cancels.
 #[tauri::command]
 async fn start_folder_watch(
+    window: tauri::Window,
     app: tauri::AppHandle,
     state: tauri::State<'_, EngineState>,
-    path: String,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     use notify::{RecursiveMode, Watcher};
+
+    #[cfg(desktop)]
+    let picked = {
+        use tauri_plugin_dialog::DialogExt;
+        window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .blocking_pick_folder()
+    };
+    #[cfg(mobile)]
+    let picked: Option<tauri_plugin_dialog::FilePath> = {
+        let _ = window;
+        None
+    };
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+    let path = picked.simplified().to_string();
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -725,7 +754,7 @@ async fn start_folder_watch(
             }
         }
     });
-    Ok(())
+    Ok(Some(path))
 }
 
 /// Stop the active folder watch (drops the watcher, which ends the processor).
@@ -1125,6 +1154,32 @@ mod macos_biometrics {
 // Temp files
 // ---------------------------------------------------------------------------
 
+/// Native open dialog for files to upload. The picks are recorded so the
+/// upload commands accept them; a path the user never picked is refused.
+#[tauri::command]
+async fn pick_files(
+    window: tauri::Window,
+    reads: tauri::State<'_, paths::ReadApprovals>,
+    multiple: bool,
+    title: String,
+) -> Result<Vec<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog = window.dialog().file().set_title(title);
+    #[cfg(desktop)]
+    let dialog = dialog.set_parent(&window);
+    let picked = if multiple {
+        dialog.blocking_pick_files().unwrap_or_default()
+    } else {
+        dialog.blocking_pick_file().into_iter().collect()
+    };
+    let paths: Vec<String> = picked
+        .into_iter()
+        .map(|p| p.simplified().to_string())
+        .collect();
+    reads.approve(&paths);
+    Ok(paths)
+}
+
 /// Native save dialog. The chosen destination is recorded so the download
 /// commands accept it; a path the user never picked is refused.
 #[tauri::command]
@@ -1199,6 +1254,7 @@ pub fn run() {
             keychain_delete,
             check_for_updates,
             install_update,
+            pick_files,
             pick_save_path,
             write_temp_file,
             remove_temp_file,
@@ -1213,6 +1269,18 @@ pub fn run() {
             biometric_authenticate,
         ])
         .setup(|app| {
+            let store = app
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|d| d.join("approved-uploads.json"));
+            let share_dir = if cfg!(target_os = "android") {
+                app.path().app_cache_dir().ok().map(|d| d.join("shared"))
+            } else {
+                None
+            };
+            app.manage(paths::ReadApprovals::new(store, share_dir));
+
             #[cfg(desktop)]
             {
                 // Launch-at-login support (no auto-enable, the UI toggles it).

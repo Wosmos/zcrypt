@@ -51,8 +51,9 @@ pub fn removable_temp_file(dir: &Path, pid: u32, path: &str) -> Result<Option<Pa
 }
 
 /// Destinations the user picked in the native save dialog. Commands that write
-/// a user-visible file only accept one of these, so a compromised webview can't
-/// aim a download at an arbitrary path.
+/// a user-visible file only accept one of these, each exactly once, so a
+/// compromised webview can't aim a download at an arbitrary path or reuse an
+/// earlier pick to overwrite it.
 #[derive(Default)]
 pub struct SaveApprovals(Mutex<HashSet<String>>);
 
@@ -62,10 +63,79 @@ impl SaveApprovals {
     }
 
     pub fn check(&self, path: &str) -> Result<(), String> {
-        if self.0.lock().unwrap().contains(path) {
+        if self.0.lock().unwrap().remove(path) {
             Ok(())
         } else {
             Err("save location was not chosen in the save dialog".to_string())
+        }
+    }
+}
+
+/// Source files the user handed to zcrypt: picked in the native open dialog,
+/// or shared into the app's share folder. Upload commands read only these, so
+/// a compromised webview can't pull arbitrary files into the vault. Picks are
+/// persisted to `store` so an unfinished upload still resumes after a restart.
+pub struct ReadApprovals {
+    picked: Mutex<HashSet<String>>,
+    store: Option<PathBuf>,
+    share_dir: Option<PathBuf>,
+}
+
+impl ReadApprovals {
+    pub fn new(store: Option<PathBuf>, share_dir: Option<PathBuf>) -> Self {
+        let picked = store
+            .as_deref()
+            .and_then(|p| std::fs::read(p).ok())
+            .and_then(|raw| serde_json::from_slice::<HashSet<String>>(&raw).ok())
+            .unwrap_or_default();
+        Self {
+            picked: Mutex::new(picked),
+            store,
+            share_dir,
+        }
+    }
+
+    pub fn approve(&self, paths: &[String]) {
+        let mut picked = self.picked.lock().unwrap();
+        picked.extend(paths.iter().cloned());
+        self.persist(&picked);
+    }
+
+    pub fn release(&self, path: &str) {
+        let mut picked = self.picked.lock().unwrap();
+        if picked.remove(path) {
+            self.persist(&picked);
+        }
+    }
+
+    pub fn check(&self, path: &str) -> Result<(), String> {
+        if self.picked.lock().unwrap().contains(path) || self.is_shared(path) {
+            Ok(())
+        } else {
+            Err("file was not chosen in the file picker".to_string())
+        }
+    }
+
+    fn is_shared(&self, path: &str) -> bool {
+        let Some(dir) = self
+            .share_dir
+            .as_deref()
+            .and_then(|d| d.canonicalize().ok())
+        else {
+            return false;
+        };
+        Path::new(path)
+            .canonicalize()
+            .is_ok_and(|p| p.starts_with(&dir) && p != dir && p.is_file())
+    }
+
+    fn persist(&self, picked: &HashSet<String>) {
+        let Some(store) = &self.store else { return };
+        if let Some(parent) = store.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(raw) = serde_json::to_vec(picked) {
+            let _ = std::fs::write(store, raw);
         }
     }
 }
@@ -162,8 +232,65 @@ mod tests {
         let approvals = SaveApprovals::default();
         assert!(approvals.check("/home/u/a.pdf").is_err());
         approvals.approve("/home/u/a.pdf");
-        assert!(approvals.check("/home/u/a.pdf").is_ok());
         assert!(approvals.check("/home/u/b.pdf").is_err());
         assert!(approvals.check("/home/u/../u/a.pdf").is_err());
+        assert!(approvals.check("/home/u/a.pdf").is_ok());
+    }
+
+    #[test]
+    fn save_approvals_are_single_use() {
+        let approvals = SaveApprovals::default();
+        approvals.approve("/home/u/a.pdf");
+        assert!(approvals.check("/home/u/a.pdf").is_ok());
+        assert!(approvals.check("/home/u/a.pdf").is_err());
+    }
+
+    #[test]
+    fn read_approvals_only_accept_picked_paths() {
+        let reads = ReadApprovals::new(None, None);
+        assert!(reads.check("/home/u/.ssh/id_rsa").is_err());
+        reads.approve(&["/home/u/a.pdf".to_string()]);
+        assert!(reads.check("/home/u/a.pdf").is_ok());
+        assert!(reads.check("/home/u/a.pdf").is_ok());
+        assert!(reads.check("/home/u/../u/a.pdf").is_err());
+        reads.release("/home/u/a.pdf");
+        assert!(reads.check("/home/u/a.pdf").is_err());
+    }
+
+    #[test]
+    fn read_approvals_survive_a_restart_until_released() {
+        let dir = scratch("reads-store");
+        let store = dir.join("state").join("reads.json");
+        let first = ReadApprovals::new(Some(store.clone()), None);
+        first.approve(&["/home/u/a.pdf".to_string(), "/home/u/b.pdf".to_string()]);
+        first.release("/home/u/b.pdf");
+        let second = ReadApprovals::new(Some(store), None);
+        assert!(second.check("/home/u/a.pdf").is_ok());
+        assert!(second.check("/home/u/b.pdf").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_approvals_accept_files_in_the_share_dir_only() {
+        let dir = scratch("reads-share");
+        let share = dir.join("shared");
+        std::fs::create_dir_all(share.join("abc")).unwrap();
+        let inside = share.join("abc").join("photo.jpg");
+        let outside = dir.join("secret.txt");
+        std::fs::write(&inside, b"x").unwrap();
+        std::fs::write(&outside, b"x").unwrap();
+        let escape = share.join("abc").join("..").join("..").join("secret.txt");
+        let reads = ReadApprovals::new(None, Some(share.clone()));
+        assert!(reads.check(inside.to_str().unwrap()).is_ok());
+        assert!(reads.check(outside.to_str().unwrap()).is_err());
+        assert!(reads.check(escape.to_str().unwrap()).is_err());
+        assert!(reads.check(share.join("abc").to_str().unwrap()).is_err());
+        assert!(reads.check(share.to_str().unwrap()).is_err());
+        assert!(
+            reads
+                .check(share.join("abc").join("gone.jpg").to_str().unwrap())
+                .is_err()
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
