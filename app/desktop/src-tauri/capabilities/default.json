@@ -6,24 +6,6 @@
   ],
   "permissions": [
     "core:default",
-    "dialog:default",
-    "dialog:allow-open",
-    "dialog:allow-save",
-    "fs:default",
-    "fs:allow-read",
-    "fs:allow-write",
-    "fs:allow-remove",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        {
-          "path": "$TEMP/**"
-        },
-        {
-          "path": "$APPDATA/**"
-        }
-      ]
-    },
     "opener:default",
     "notification:default",
     "notification:allow-notify"

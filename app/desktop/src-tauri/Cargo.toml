@@ -1,6 +1,6 @@
 [package]
 name = "zcrypt-desktop"
-version = "0.1.0"
+version = "0.1.6"
 edition = "2024"
 description = "zcrypt desktop, zero-knowledge encrypted cloud storage"
 license = "MIT"
@@ -37,6 +37,17 @@ tauri-plugin-updater = "2"
 # Launch-at-login (desktop-only; mobile lifecycle is OS-managed).
 tauri-plugin-autostart = "2"
 
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-biometric = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Security_Credentials_UI",
+    "Win32_Foundation",
+    "Win32_System_WinRT",
+] }
+windows-future = "0.3"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # Touch ID convenience-unlock via Apple's LocalAuthentication framework.
 # default-features off on objc2-local-authentication: its default pulls in
@@ -48,6 +59,33 @@ objc2-local-authentication = { version = "0.3", default-features = false, featur
     "LAContext",
     "block2",
 ] }
+
+# Debug builds ran PBKDF2's 600k iterations, AES-GCM and zstd unoptimized, so a
+# dev build took seconds to open a photo. Optimize only the crypto hot path
+# (generic hashing code is instantiated inside zcrypt-core, so it is included).
+[profile.dev.package.zcrypt-core]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.dev.package.pbkdf2]
+opt-level = 3
+
+[profile.dev.package.hmac]
+opt-level = 3
+
+[profile.dev.package.aes-gcm]
+opt-level = 3
+
+[profile.dev.package.aes]
+opt-level = 3
+
+[profile.dev.package.ghash]
+opt-level = 3
+
+[profile.dev.package.zstd-sys]
+opt-level = 3
 
 [features]
 default = ["custom-protocol"]
