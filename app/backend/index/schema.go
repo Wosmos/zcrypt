@@ -344,7 +344,6 @@ ALTER TABLE pending_deletions ALTER COLUMN user_id DROP NOT NULL;
 -- Refresh token client binding (IP + User-Agent)
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip TEXT NOT NULL DEFAULT '';
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEFAULT '';
-ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS decoy BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Token version for JWT revocation
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
@@ -562,6 +561,18 @@ CREATE TABLE IF NOT EXISTS decoy_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_decoy_files_user ON decoy_files(user_id);
+
+-- Refresh tokens minted before the decoy flag existed cannot say whether they
+-- belong to a decoy session, so a decoy-vault owner's sessions are revoked once
+-- instead of being upgraded to full access on their next refresh.
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+	               WHERE table_schema = current_schema() AND table_name = 'refresh_tokens' AND column_name = 'decoy') THEN
+		ALTER TABLE refresh_tokens ADD COLUMN decoy BOOLEAN NOT NULL DEFAULT FALSE;
+		DELETE FROM refresh_tokens WHERE user_id IN (SELECT user_id FROM decoy_vaults);
+	END IF;
+END $$;
 
 -- Dead man's switch
 CREATE TABLE IF NOT EXISTS dead_man_switches (

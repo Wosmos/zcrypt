@@ -4,6 +4,8 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,6 +49,50 @@ func TestDecoySessionStaysIsolated(t *testing.T) {
 		c, err := auth.ValidateAccessToken(integrationJWTSecret, refreshed.AccessToken)
 		require.NoError(t, err)
 		assert.True(t, c.Decoy, "refreshing a decoy session must not mint a real access token")
+	})
+
+	var cookieLogin struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	decodeJSON(t, ts.POST("/api/auth/login", map[string]string{"email": email, "password": "DecoyPass@123!"}, ""), &cookieLogin)
+	require.NotEmpty(t, cookieLogin.RefreshToken)
+	rt := cookieLogin.RefreshToken
+
+	cookieRefresh := func(t *testing.T, origin, fetchSite string) *http.Response {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/auth/refresh", nil)
+		require.NoError(t, err)
+		req.AddCookie(&http.Cookie{Name: "zcrypt_rt", Value: rt})
+		req.Header.Set("Origin", origin)
+		if fetchSite != "" {
+			req.Header.Set("Sec-Fetch-Site", fetchSite)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		return resp
+	}
+	type refreshed struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	t.Run("cookie refresh from an allowed origin stays a decoy", func(t *testing.T) {
+		var out refreshed
+		decodeJSON(t, cookieRefresh(t, "http://localhost:3000", "cross-site"), &out)
+		c, err := auth.ValidateAccessToken(integrationJWTSecret, out.AccessToken)
+		require.NoError(t, err)
+		assert.True(t, c.Decoy)
+		rt = out.RefreshToken
+	})
+
+	t.Run("cookie refresh through the same-origin proxy is accepted", func(t *testing.T) {
+		var out refreshed
+		require.NoError(t, json.Unmarshal(requireStatus(t, cookieRefresh(t, "https://preview.zcrypt.example", "same-origin"), 200), &out))
+		rt = out.RefreshToken
+	})
+
+	t.Run("cookie refresh from a foreign origin is refused", func(t *testing.T) {
+		requireStatus(t, cookieRefresh(t, "https://evil.example", "cross-site"), 403)
 	})
 
 	t.Run("real data and admin routes are hidden", func(t *testing.T) {

@@ -15,7 +15,9 @@ func AllowedOrigins() map[string]bool {
 	allowed := map[string]bool{}
 	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
 		for _, o := range strings.Split(origins, ",") {
-			allowed[strings.TrimSpace(o)] = true
+			if o = strings.TrimRight(strings.TrimSpace(o), "/"); o != "" {
+				allowed[o] = true
+			}
 		}
 	}
 	if frontend := os.Getenv("FRONTEND_URL"); frontend != "" {
@@ -34,10 +36,16 @@ func AllowedOrigins() map[string]bool {
 // refreshCookieCrossSite reports whether a request carrying the refresh cookie
 // was sent by a page outside the allowed origins. The cookie is SameSite=None,
 // so without this any site could make the browser refresh or log out the user.
-// Browsers always send Origin (or at least Sec-Fetch-Site) on such requests;
-// clients that send neither are not browsers and hold the token themselves.
+// The web app reaches the API through its own same-origin proxy, so any page
+// the browser marks same-origin or same-site is trusted whatever host served it;
+// otherwise Origin must be allowlisted. Clients that send neither header are not
+// browsers and hold the token themselves.
 func (s *Server) refreshCookieCrossSite(r *http.Request) bool {
 	if c, err := r.Cookie(refreshCookieName); err != nil || c.Value == "" {
+		return false
+	}
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "same-origin", "same-site":
 		return false
 	}
 	if origin := r.Header.Get("Origin"); origin != "" {

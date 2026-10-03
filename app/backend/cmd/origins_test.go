@@ -9,13 +9,16 @@ import (
 )
 
 func TestAllowedOrigins(t *testing.T) {
-	t.Setenv("ALLOWED_ORIGINS", "https://a.example, https://b.example")
+	t.Setenv("ALLOWED_ORIGINS", "https://a.example, https://b.example/,")
 	t.Setenv("FRONTEND_URL", "https://app.example/")
 	got := AllowedOrigins()
 	for _, o := range []string{"https://a.example", "https://b.example", "https://app.example", "tauri://localhost", "https://tauri.localhost"} {
 		if !got[o] {
 			t.Errorf("%s missing from %v", o, got)
 		}
+	}
+	if got[""] || got["https://b.example/"] {
+		t.Error("origins must be normalised without a trailing slash or empty entry")
 	}
 	if got["http://localhost:3000"] {
 		t.Error("dev default must not be added when origins are configured")
@@ -42,6 +45,9 @@ func TestRefreshCookieCrossSite(t *testing.T) {
 		{"cookie from an opaque origin", true, "null", "", true},
 		{"cookie, no origin, cross-site fetch", true, "", "cross-site", true},
 		{"cookie, no browser headers", true, "", "", false},
+		{"cookie via the same-origin proxy on an unlisted host", true, "https://preview.example", "same-origin", false},
+		{"cookie from a sibling subdomain", true, "https://www.app.example", "same-site", false},
+		{"cookie, unlisted origin, no fetch metadata", true, "https://preview.example", "", true},
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
