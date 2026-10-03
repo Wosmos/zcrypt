@@ -17,19 +17,9 @@ import {
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { SettingGroup, ValueRow } from "@/components/settings/settings-primitives";
 import { AlertTriangle, Download, Key, Shield, Trash2 } from "@/lib/icons";
-import { formatDateShort } from "@/lib/utils";
+import { formatDateShort, saveBlob } from "@/lib/utils";
 
 const GRACE_DAYS = 7;
-
-function saveJSON(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 export function AccountData() {
   const router = useRouter();
@@ -51,7 +41,11 @@ export function AccountData() {
     setExporting(true);
     try {
       const data = await exportAccount(token);
-      saveJSON(data, `zcrypt-account-${new Date().toISOString().split("T")[0]}.json`);
+      saveBlob(
+        `zcrypt-account-${new Date().toISOString().split("T")[0]}.json`,
+        JSON.stringify(data, null, 2),
+        "application/json",
+      );
       toast.success("Account data downloaded");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not export your data");
