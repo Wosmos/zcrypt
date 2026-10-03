@@ -51,7 +51,7 @@ export function useFilesQuery() {
     (data: FileMetadata[]) => resolveFileNames(data, unlocked, epoch),
     [epoch, unlocked],
   );
-  return useQuery({ queryKey: qk.files, queryFn: fetchFiles, select });
+  return useQuery({ queryKey: qk.files, queryFn: fetchFiles, select, refetchOnMount: "always" });
 }
 
 function getRawFiles(): FileMetadata[] {
