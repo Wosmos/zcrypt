@@ -42,6 +42,16 @@ func (s *Server) InjectTestAdapter(userID, platform, account string, adapter ada
 	s.poolCache[userID][key] = reppool.NewManager(s.db, adapter, userID, account, threshold)
 }
 
+// InjectGlobalTestAdapter replaces the shared-pool adapters with one adapter, so a
+// test can drive anonymous Send against a platform it controls.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) InjectGlobalTestAdapter(key string, adapter adapters.PlatformAdapter) {
+	s.globalAdapterMu.Lock()
+	defer s.globalAdapterMu.Unlock()
+	s.globalAdapterCache = map[string]adapters.PlatformAdapter{key: adapter}
+}
+
 // SyncAllChunks synchronously pushes every staged chunk to its platform adapter,
 // draining the sync worker's queue in-line so a test doesn't depend on the
 // background goroutine's timing. After it returns, synced chunks carry a

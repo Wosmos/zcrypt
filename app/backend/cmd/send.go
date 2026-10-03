@@ -24,6 +24,10 @@ import (
 // maxSendFileSize is the maximum file size for anonymous sends (50 MB).
 const maxSendFileSize = 50 * 1024 * 1024
 
+// minSendChunkSize bounds how many chunks a send may declare. The real limit on
+// stored bytes is the running size cap; this only rejects absurd chunk counts.
+const minSendChunkSize = 1 * 1024 * 1024
+
 // maxSendEncryptedSize bounds the stored (encrypted, possibly compressed) bytes
 // for an anonymous send. Plaintext is capped at maxSendFileSize; GCM adds 28B per
 // chunk, so allow modest headroom over the plaintext cap.
@@ -66,7 +70,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 
 	// Bound chunk count so a client can't declare a tiny original_size but a huge
 	// chunk_count to smuggle unbounded data past the size check above.
-	maxChunks := (maxSendEncryptedSize + maxChunkSize - 1) / maxChunkSize
+	maxChunks := (maxSendEncryptedSize + minSendChunkSize - 1) / minSendChunkSize
 	if req.ChunkCount > maxChunks {
 		http.Error(w, `{"error":"too many chunks for maximum send size"}`, http.StatusBadRequest)
 		return
@@ -267,8 +271,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer releaseRepo()
 
-	// Upload to platform
-	chunkRef, err := adapter.Upload(ctx, repoURL, types.Chunk{
+	sendChunk := types.Chunk{
 		Ref: types.ChunkRef{
 			FileID:     transfer.ID,
 			Index:      chunkIndex,
@@ -277,7 +280,19 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 			RemotePath: remotePath,
 		},
 		Data: data,
-	})
+	}
+	chunkRef, err := adapter.Upload(ctx, repoURL, sendChunk)
+	if err != nil && isRepoNotFound(err) {
+		log.Printf("send: stored send repo %s is gone, creating a new one: %v", repoURL, err)
+		if serr := s.db.SetSystemSetting(ctx, "send_repo_"+adapter.PlatformName(), ""); serr != nil {
+			log.Printf("send: forget dead send repo: %v", serr)
+		} else if freshURL, rerr := s.getSendRepo(ctx, adapter); rerr != nil {
+			log.Printf("send: create replacement send repo: %v", rerr)
+		} else {
+			repoURL = freshURL
+			chunkRef, err = adapter.Upload(ctx, repoURL, sendChunk)
+		}
+	}
 	if err != nil {
 		log.Printf("send: platform upload failed: %v", err)
 		http.Error(w, `{"error":"upload to storage failed"}`, http.StatusInternalServerError)
@@ -295,7 +310,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store chunk reference
-	sendChunk := &types.SendChunk{
+	storedChunk := &types.SendChunk{
 		TransferID: transfer.ID,
 		Index:      chunkIndex,
 		Size:       int64(len(data)),
@@ -307,7 +322,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Compressed: compressed,
 	}
 
-	if err := s.db.InsertSendChunk(ctx, sendChunk); err != nil {
+	if err := s.db.InsertSendChunk(ctx, storedChunk); err != nil {
 		log.Printf("send: store chunk ref: %v", err)
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
@@ -467,7 +482,11 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reason, valid := validateSendTransfer(transfer)
+	inFlight := *transfer
+	if inFlight.DownloadCount > 0 {
+		inFlight.DownloadCount--
+	}
+	reason, valid := validateSendTransfer(&inFlight)
 	if !valid {
 		writeError(w, http.StatusGone, reason)
 		return
