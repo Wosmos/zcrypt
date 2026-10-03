@@ -194,8 +194,8 @@ iOS compiles but is not yet built in CI. It is in development.
 | Web frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand 5, Motion 12 |
 | Client core | Rust (`zcrypt-core`): crypto, zstd, chunk pipeline, SQLite ledger, platform adapters |
 | Desktop / mobile | Tauri v2 (Rust core embedded in-process) |
-| TUI | Go 1.25, Bubble Tea |
-| Backend | Go 1.25, stdlib `net/http` (no framework), pgxpool |
+| TUI | Go 1.26, Bubble Tea |
+| Backend | Go 1.26, stdlib `net/http` (no framework), pgxpool |
 | Database | PostgreSQL on Neon (serverless) |
 | Encryption | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF-SHA256, X25519 (sharing), bcrypt, TOTP |
 | Compression | zstd (WebCrypto/WASM in the browser; native in the Rust core) |
@@ -204,7 +204,7 @@ iOS compiles but is not yet built in CI. It is in development.
 ## Quick start
 
 ### Prerequisites
-- Go 1.25+
+- Go 1.26+
 - Node.js 20+ and [Bun](https://bun.sh)
 - PostgreSQL (or a free [Neon](https://neon.tech) database)
 - Rust (stable): only needed to build the desktop/mobile clients
@@ -302,6 +302,7 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `RESEND_API_KEY` / `RESEND_FROM` | [Resend](https://resend.com) credentials: enables verification / reset emails |
 | `CSP_ENFORCE` | `1` enforces the frontend Content-Security-Policy (report-only otherwise) |
 | `DEV_MODE` | `true` disables ALL rate limiting: local load testing only, never in production |
+| `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |
 
 ### Frontend
 
@@ -318,7 +319,7 @@ app/
                     spaces, send, pad, transfer, sync, deadman, decoy, keys, admin, events)
     pipeline/       Server-side upload progress (SSE pub/sub)
     crypto/         Token/TOTP envelope encryption (HKDF per-user KEK), sealed boxes
-    chunks/         Splitting, merging, SHA-256 verification
+    chunks/         SHA-256 hashing and verification of chunk files
     adapters/       Storage adapters: GitHub, GitLab, HuggingFace, Telegram
     reppool/        Repository pool + auto-rotation
     index/          PostgreSQL layer (pgxpool, raw SQL, migrations)

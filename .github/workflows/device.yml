@@ -213,13 +213,14 @@ jobs:
       # placeholder frontend-dist when the real export isn't present, so
       # fmt/clippy never need the download-artifact step to have run first.
       # Mirrors the prepush desktop gate (cargo fmt --check + clippy -D
-      # warnings; clippy subsumes check).
-      - name: Rust lint (fmt + clippy)
+      # warnings + the shell's unit tests).
+      - name: Rust lint and tests (fmt + clippy + test)
         if: matrix.platform == 'ubuntu-22.04'
         working-directory: app/desktop/src-tauri
         run: |
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
+          cargo test
 
       - uses: oven-sh/setup-bun@v2
 
@@ -701,6 +702,38 @@ jobs:
             || { echo "::error::no generated MainActivity.kt to replace."; exit 1; }
           cp "$SRC" "$DEST"
           echo "MainActivity replaced from $SRC -> $DEST"
+
+      # "Share to zcrypt": the generated manifest only has the launcher filter,
+      # so add SEND / SEND_MULTIPLE for any MIME type to the main activity.
+      # MainActivity.kt handles the intents.
+      - name: Register the Android share target
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST=gen/android/app/src/main/AndroidManifest.xml
+          python3 - "$MANIFEST" <<'PY'
+          import sys
+          path = sys.argv[1]
+          xml = open(path).read()
+          if "android.intent.action.SEND_MULTIPLE" in xml:
+              sys.exit(0)
+          filters = "".join(
+              '<intent-filter>'
+              f'<action android:name="android.intent.action.{action}" />'
+              '<category android:name="android.intent.category.DEFAULT" />'
+              '<data android:mimeType="*/*" />'
+              '</intent-filter>\n'
+              for action in ("SEND", "SEND_MULTIPLE")
+          )
+          end = xml.find("</activity>")
+          if end < 0:
+              sys.exit(f"no </activity> in {path}")
+          open(path, "w").write(xml[:end] + filters + xml[end:])
+          PY
+          grep -q 'android.intent.action.SEND_MULTIPLE' "$MANIFEST" \
+            || { echo "::error::share intent filters missing from $MANIFEST"; exit 1; }
+          echo "share target registered"
 
       # MUST run AFTER `android init`, not before. `tauri icon` picks its
       # Android output dir by probing for gen/android/app/src/main/res: if that

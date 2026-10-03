@@ -183,7 +183,7 @@ GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tes
             "backend gofmt" "backend vet" "backend tests + coverage" "backend build" \
             "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
-            "desktop fmt" "desktop clippy" "desktop cargo check")
+            "desktop fmt" "desktop clippy" "desktop tests")
 INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint" "secret scan")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
               "backend new-code lint" "tui new-code lint")
@@ -449,7 +449,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES: desktop (fmt + clippy + compile check; full Tauri bundle stays in
+#  GATES: desktop (fmt + clippy + tests; full Tauri bundle stays in
 #  device.yml)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -467,8 +467,8 @@ if command -v cargo >/dev/null 2>&1; then
   if gate "desktop clippy" "$DESKTOP/src-tauri" cargo clippy --all-targets --quiet -- -D warnings; then
     ok "clippy clean (warnings denied)"
   fi
-  if gate "desktop cargo check" "$DESKTOP/src-tauri" cargo check --quiet; then
-    ok "rust type-checks"
+  if gate "desktop tests" "$DESKTOP/src-tauri" cargo test --quiet; then
+    ok "tests green"
   fi
 else
   warnln "cargo not installed: skipping desktop gates (install rust to enable)"

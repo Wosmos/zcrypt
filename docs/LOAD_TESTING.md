@@ -92,7 +92,7 @@ make test-all
 | Docker | `brew install --cask docker` | Integration test DB |
 | k6 | `brew install k6` | Load testing |
 | Playwright | `bun x playwright install` | E2E browser automation |
-| Go 1.25+ | `brew install go` | Backend tests |
+| Go 1.26+ | `brew install go` | Backend tests |
 | Bun 1.x | `brew install bun` | Frontend tests |
 
 ---
