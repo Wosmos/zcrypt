@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { StoragePool } from "@/components/settings/storage-pool";
+import { VerifyFiles } from "@/components/settings/verify-files";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -26,6 +27,9 @@ import { ProfileSettings } from "@/components/settings/profile-settings";
 import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
+import { ScreenPrivacy } from "@/components/settings/screen-privacy";
+import { SignedInDevices } from "@/components/settings/signed-in-devices";
+import { AccountData } from "@/components/settings/account-data";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
@@ -57,10 +61,13 @@ import {
   Box,
   Database,
   Download,
+  MonitorSmartphone,
+  Archive,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { PLATFORMS, platformName, parseTelegramToken } from "@/lib/platforms";
+import { useOverridesFor } from "@/hooks/useOverridesFor";
 
 /**
  * Desktop-only: mirror a freshly connected platform token into the OS keychain
@@ -99,9 +106,11 @@ type SectionId =
   | "appearance"
   | "updates"
   | "account"
+  | "data"
   | "platforms"
   | "storage"
   | "privacy"
+  | "sessions"
   | "backup"
   | "security";
 
@@ -132,6 +141,11 @@ const SECTIONS: SectionDef[] = [
     group: "Account",
   },
   {
+    id: "data",
+    icon: Archive,
+    group: "Account",
+  },
+  {
     id: "platforms",
     icon: Box,
     group: "Account",
@@ -144,6 +158,11 @@ const SECTIONS: SectionDef[] = [
   {
     id: "privacy",
     icon: ShieldAlert,
+    group: "Privacy & security",
+  },
+  {
+    id: "sessions",
+    icon: MonitorSmartphone,
     group: "Privacy & security",
   },
   {
@@ -171,7 +190,6 @@ export function SettingsContent() {
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
-  const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
   const busyRef = useRef<Set<string>>(new Set());
   const [disconnectTarget, setDisconnectTarget] = useState<{
     platform: string;
@@ -189,9 +207,8 @@ export function SettingsContent() {
   // section (defaults to the first) in the right pane.
   const [active, setActive] = useState<SectionId | null>(null);
 
-  useEffect(() => {
-    setScopeOverrides({});
-  }, [statuses]);
+  // Optimistic scope flips; they clear when fresh statuses arrive.
+  const [scopeOverrides, setScopeOverrides] = useOverridesFor<boolean>(statuses);
 
   const effectiveStatuses = statuses.map((s) =>
     s.token_id && s.token_id in scopeOverrides
@@ -354,29 +371,37 @@ export function SettingsContent() {
         return (
           <div className="space-y-8">
             <RateLimits statuses={statuses} repos={repos} />
+            <VerifyFiles />
             <StoragePool />
           </div>
         );
       case "privacy":
         return (
-          <SettingGroup
-            label="Advanced safeguards"
-            footnote="For high-risk threat models. Both are optional."
-          >
-            <LinkRow
-              href="/settings/deadman"
-              icon={<ShieldAlert className="h-4 w-4" />}
-              title="Dead man's switch"
-              subtitle="Auto-notify a contact if you go silent"
-            />
-            <LinkRow
-              href="/settings/decoy"
-              icon={<Eye className="h-4 w-4" />}
-              title="Decoy profile"
-              subtitle="Plausible deniability with a decoy vault"
-            />
-          </SettingGroup>
+          <div className="space-y-8">
+            <ScreenPrivacy />
+            <SettingGroup
+              label="Advanced safeguards"
+              footnote="For high-risk threat models. Both are optional."
+            >
+              <LinkRow
+                href="/settings/deadman"
+                icon={<ShieldAlert className="h-4 w-4" />}
+                title="Dead man's switch"
+                subtitle="Auto-notify a contact if you go silent"
+              />
+              <LinkRow
+                href="/settings/decoy"
+                icon={<Eye className="h-4 w-4" />}
+                title="Decoy profile"
+                subtitle="Plausible deniability with a decoy vault"
+              />
+            </SettingGroup>
+          </div>
         );
+      case "data":
+        return <AccountData />;
+      case "sessions":
+        return <SignedInDevices />;
       case "backup":
         return <ExportImport files={files} />;
       case "security":

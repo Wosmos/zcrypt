@@ -5,7 +5,8 @@ import { isTauri } from "@/lib/tauri";
 import { primeThumbnails } from "@/hooks/useThumbnail";
 import { ensureUserKeypair } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
-import { useDownloadStore } from "@/store/download";
+import { useDownloadStore, canStreamToDisk, ZIP_IN_MEMORY_MAX_BYTES } from "@/store/download";
+import { zipRefusal } from "@/lib/bulk-download";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
@@ -214,6 +215,8 @@ export function useVaultActions({
       // redundant native dialog (that double-dialog was the flaky-first-
       // attempt bug: the picker that mattered got missed behind the one the
       // dropzone had already opened and resolved).
+      // 0/unset means "unlimited" → defer to the device-profile default.
+      const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
       if (isTauri) {
         const paths = uploadFiles.map(desktopPath).filter((p): p is string => !!p);
         // Only thread paths through when we actually have them (the dropzone's
@@ -224,15 +227,16 @@ export function useVaultActions({
         // web path before, so desktop uploads silently fell back to the
         // backend's Auto default (Telegram-first) ignoring the selection).
         const desktopPlatform = platformOverride ?? selectedPlatform ?? undefined;
-        if (paths.length > 0) {
-          void startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform, folderId);
-        } else {
-          void startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform, folderId);
-        }
+        void startDesktopUpload(
+          wrapPassphrase,
+          refresh,
+          paths.length > 0 ? paths : undefined,
+          desktopPlatform,
+          folderId,
+          maxConcurrent,
+        );
         return;
       }
-      // 0/unset means "unlimited" → defer to the device-profile default.
-      const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
       // The user's picker choice is honored as-is (no size-based re-routing:
       // "Auto" resolves server-side, Telegram first). `platformOverride` pins a
       // resume to its original platform.
@@ -410,22 +414,24 @@ export function useVaultActions({
       const filesToDownload = files.filter((f) => ids.includes(f.id));
       if (filesToDownload.length === 0) return;
       const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
-      // Desktop streams one file at a time into the zip (bounded by the
-      // single largest file, not the sum), so the 2GB cap is a BROWSER-ONLY
-      // limitation: the in-memory-then-zip web path holds every file's full
-      // decrypted bytes simultaneously, which is what that cap protects.
-      const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
-      if (!isTauri && totalSize > MAX_ZIP_SIZE) {
-        toast.warning(
-          `Selected files total ${formatBytes(totalSize)}, too large for ZIP. Download individually instead.`,
-        );
-        return;
-      }
       const bulkFiles = filesToDownload.map((f) => ({
         fileId: f.id,
         filename: f.original_name,
         fileSize: f.original_size,
       }));
+      const refusal = isTauri ? null : zipRefusal(bulkFiles);
+      if (refusal) {
+        toast.warning(refusal);
+        return;
+      }
+      // Desktop and Save-As-capable browsers stream the zip to disk, so the
+      // cap only applies to a browser that must assemble it in memory.
+      if (!isTauri && totalSize > ZIP_IN_MEMORY_MAX_BYTES && !canStreamToDisk()) {
+        toast.warning(
+          `Selected files total ${formatBytes(totalSize)}, too large for ZIP. Download individually instead.`,
+        );
+        return;
+      }
       vault.withPassphrase((passphrase) => {
         if (isTauri) {
           const userId = useAuthStore.getState().user?.id ?? "";
@@ -446,7 +452,7 @@ export function useVaultActions({
   // multi-chunk files several times slower than downloads of the same file. A
   // re-open is now a cache hit and shows instantly.
   const startPreview = useCallback(
-    async (filename: string) => {
+    async function startPreviewOf(filename: string): Promise<void> {
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
 
@@ -479,14 +485,14 @@ export function useVaultActions({
             // folder unlock with an inline error, then retry the same preview.
             folderProtection.clearFolderPassword(fid);
             folderProtection.withFolderPassword(fid, "this folder", () => {
-              void startPreview(filename);
+              void startPreviewOf(filename);
             });
           } else {
             // Wrong VAULT passphrase → re-lock and re-prompt the single vault
             // modal with an inline error, then retry once unlocked.
             vault.lock();
             vault.setError("Incorrect passphrase. Please try again.");
-            vault.reopen(() => void startPreview(filename));
+            vault.reopen(() => void startPreviewOf(filename));
           }
         } else {
           toast.error(msg);
@@ -554,13 +560,18 @@ export function useVaultActions({
         return;
       }
 
-      // Crosses a boundary: recover the CEK under the source password, rewrap
-      // under the destination password (new salt), persist, THEN move. Prompts
-      // for whichever side's password isn't cached.
+      // Crosses a boundary: recover the CEK under the source password and rewrap
+      // it under the destination password (new salt), then send the envelope
+      // WITH the move so the server changes key and folder together. Prompts for
+      // whichever side's password isn't cached.
       const sourcePassword = await passwordForZone(srcFolderId);
       const destPassword = await passwordForZone(destFolderId);
-      await folderProtection.rekeyFileForMove(fileId, sourcePassword, destPassword);
-      await moveFile(fileId, destFolderId);
+      const { salt, wrapped_cek } = await folderProtection.rekeyFileForMove(
+        fileId,
+        sourcePassword,
+        destPassword,
+      );
+      await moveFile(fileId, destFolderId, { salt, wrapped_cek });
       clearDecryptCacheForFile(fileId);
     },
     [fileById, passwordForZone, folderProtection],
@@ -569,7 +580,7 @@ export function useVaultActions({
   // Optimistic drag-to-move reparent. Re-keys across a protection boundary
   // first; an unprotected→unprotected move is byte-for-byte the same as before.
   const handleMoveFileTo = useCallback(
-    (fileId: string, folderId: string | null) => {
+    function moveFileTo(fileId: string, folderId: string | null): void {
       const file = files.find((f) => f.id === fileId);
       if (!file) return;
       const originalFolderId = file.folder_id ?? null;
@@ -587,7 +598,7 @@ export function useVaultActions({
         folderId === null
           ? `Moved "${file.original_name}" to Root`
           : `Moved "${file.original_name}"`,
-        { label: "Undo", onClick: () => handleMoveFileTo(fileId, originalFolderId) },
+        { label: "Undo", onClick: () => moveFileTo(fileId, originalFolderId) },
       );
       // Revert THIS file only (functionally) on failure, never a whole-list
       // snapshot, which would undo sibling moves still in flight from the same

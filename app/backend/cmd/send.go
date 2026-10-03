@@ -346,7 +346,7 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if chunkCount < transfer.ChunkCount {
-		http.Error(w, fmt.Sprintf(`{"error":"missing chunks: %d/%d uploaded"}`, chunkCount, transfer.ChunkCount), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("missing chunks: %d/%d uploaded", chunkCount, transfer.ChunkCount))
 		return
 	}
 
@@ -431,7 +431,7 @@ func (s *Server) HandleGetSendMeta(w http.ResponseWriter, r *http.Request) {
 
 	reason, valid := validateSendTransfer(transfer)
 	if !valid {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusGone)
+		writeError(w, http.StatusGone, reason)
 		return
 	}
 
@@ -469,7 +469,7 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 
 	reason, valid := validateSendTransfer(transfer)
 	if !valid {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusGone)
+		writeError(w, http.StatusGone, reason)
 		return
 	}
 

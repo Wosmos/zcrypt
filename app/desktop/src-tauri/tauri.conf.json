@@ -31,7 +31,21 @@
       "tooltip": "zcrypt"
     },
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost https: wss: http://localhost:* ws://localhost:*",
+        "media-src": "'self' blob:",
+        "worker-src": "'self' blob:",
+        "frame-src": "'self' blob:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'self'"
+      },
+      "dangerousDisableAssetCspModification": true
     }
   },
   "bundle": {

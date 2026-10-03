@@ -23,6 +23,8 @@ pub struct UploadInitRequest {
     /// base64 envelope-wrapped CEK
     pub wrapped_cek: String,
     pub chunk_count: i64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub chunk_size: i64,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub platform: String,
     /// "" (relay) or "byos-direct". See docs/DESKTOP_ARCHITECTURE.md.
@@ -50,6 +52,14 @@ pub struct UploadInitResponse {
     pub direct_upload: bool,
     #[serde(default)]
     pub resumed: bool,
+    #[serde(default)]
+    pub chunk_size: i64,
+    #[serde(default)]
+    pub chunk_count: i64,
+}
+
+fn is_zero(n: &i64) -> bool {
+    *n == 0
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -13,32 +13,21 @@
  * sent-byte counts to the optional onProgress callback.
  */
 
-import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
+import { ApiError, parseErrorBody, throwResponseError } from "@/lib/http-error";
 import { useAuthStore } from "@/store/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-async function extractErrorMessage(res: Response): Promise<string> {
-  const body = await res.text();
-  try {
-    const parsed = JSON.parse(body);
-    return parsed.error || body;
-  } catch {
-    return body;
-  }
-}
-
+// Every HTTP failure is thrown as an ApiError carrying its status, so the retry
+// layer decides by status code (408/429/5xx) rather than by message text.
 async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
+  if (!res.ok) await throwResponseError(res);
   return res.json() as Promise<T>;
 }
 
 async function throwIfNotOk(res: Response): Promise<void> {
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 // Minimal XHR result: enough to reproduce the fetch error-handling shape
@@ -147,22 +136,11 @@ function xhrPut(
   });
 }
 
-// Extract the server's error message from a non-2xx XHR body, same shape as
-// throwIfNotOk above ({ error } JSON if parseable, raw body otherwise).
-function xhrErrorMessage(body: string): string {
-  try {
-    const parsed = JSON.parse(body);
-    return parsed.error || body;
-  } catch {
-    return body;
-  }
-}
-
 /**
  * Authenticated XHR PUT: mirrors authedFetch's contract for chunk payloads:
  * attach the current access token, and on a 401 refresh once (deduped inside
  * tryRefreshToken, so concurrent chunks can't race a rotating refresh token)
- * and retry with the new one. Throws Error(serverMessage) on non-2xx.
+ * and retry with the new one. Throws ApiError(serverMessage, status) on non-2xx.
  */
 async function authedXhrPut(
   url: string,
@@ -182,14 +160,14 @@ async function authedXhrPut(
     );
 
   let res = await send(accessToken);
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401 && shouldRefreshOn401(accessToken)) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       res = await send(newToken);
     }
   }
   if (res.status < 200 || res.status >= 300) {
-    throw new Error(xhrErrorMessage(res.body));
+    throw new ApiError(parseErrorBody(res.body), res.status);
   }
 }
 
@@ -328,7 +306,7 @@ export async function directUploadToURL(
         signal,
       );
       if (res.status >= 200 && res.status < 300) return;
-      lastError = new Error(`Direct upload failed: ${res.status}`);
+      lastError = new ApiError(`Direct upload failed: ${res.status}`, res.status);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       if (lastError.message === "Upload paused") throw lastError;
@@ -383,10 +361,7 @@ export async function cancelUpload(sessionId: string): Promise<void> {
   const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}`, {
     method: "DELETE",
   });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(body);
-  }
+  if (!res.ok) throw new ApiError(await res.text(), res.status);
 }
 
 export interface UploadStatusResponse {

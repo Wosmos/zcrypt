@@ -6,6 +6,7 @@
 //! paths can never drift.
 
 mod bulk_download;
+mod chunk_cache;
 mod decrypt_to_memory;
 mod delete;
 mod download;

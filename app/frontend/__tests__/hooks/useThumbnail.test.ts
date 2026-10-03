@@ -7,51 +7,35 @@ const {
   getFileChunkMock,
   resolveFileKeyMock,
   decryptChunkMock,
-  getZstdCodecMock,
   isForegroundDecryptActiveMock,
-  tauriMock,
-  authUser,
+  runDecryptPipelineMock,
+  cachedDecryptMock,
+  getFilesDataMock,
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
   getFileChunkMock: vi.fn(),
   resolveFileKeyMock: vi.fn(),
   decryptChunkMock: vi.fn(),
-  getZstdCodecMock: vi.fn(),
   isForegroundDecryptActiveMock: vi.fn(),
-  // `isTauri` is a module-level const in lib/tauri, so the desktop decrypt
-  // branch is only reachable by mocking the module and re-importing with it on.
-  tauriMock: { isTauri: false, sidecarDecryptToMemory: vi.fn() },
-  authUser: { current: { id: "user-1" } as { id: string } | undefined },
+  runDecryptPipelineMock: vi.fn(),
+  cachedDecryptMock: vi.fn(),
+  getFilesDataMock: vi.fn(),
 }));
 
-vi.mock("@/lib/api", () => ({
-  getFileMeta: getFileMetaMock,
-  getFileChunk: getFileChunkMock,
+// The thumbnail decrypts through the viewer's own pipeline (covered by its own
+// suite). This stand-in walks the same meta -> key -> chunks steps against the
+// mocks above, so these tests still see each step's calls and failures.
+vi.mock("@/hooks/useFileDecryptor", () => ({
+  runDecryptPipeline: runDecryptPipelineMock,
 }));
 
-vi.mock("@/lib/crypto", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/crypto")>();
-  return {
-    ...actual,
-    resolveFileKey: resolveFileKeyMock,
-    decryptChunk: decryptChunkMock,
-  };
-});
-
-vi.mock("@/lib/zstd", () => ({
-  getZstdCodec: getZstdCodecMock,
-}));
-
-vi.mock("@/lib/tauri", () => tauriMock);
-
-// Mutable: the desktop decrypt passes the signed-in user id to the core and
-// falls back to "" when there isn't one.
-vi.mock("@/store/auth", () => ({
-  useAuthStore: { getState: () => ({ user: authUser.current }) },
+vi.mock("@/store/files", () => ({
+  getFilesData: getFilesDataMock,
 }));
 
 vi.mock("@/lib/decrypt-cache", () => ({
   isForegroundDecryptActive: isForegroundDecryptActiveMock,
+  cachedDecrypt: cachedDecryptMock,
   // useThumbnail registers its clearer here at module load; stub it so the
   // registration call doesn't hit an undefined export.
   onDecryptCacheClear: () => {},
@@ -219,6 +203,27 @@ beforeEach(() => {
   isForegroundDecryptActiveMock.mockReturnValue(false);
   resolveFileKeyMock.mockResolvedValue(new ArrayBuffer(32));
   decryptChunkMock.mockResolvedValue(new Uint8Array([1, 2, 3]));
+  getFilesDataMock.mockReturnValue(
+    ["f1", "f2", "f3", "f4", "f5", "a", "b", "c", "d"].map((id) => ({
+      id,
+      original_name: "photo.jpg",
+      folder_id: null,
+    })),
+  );
+  cachedDecryptMock.mockImplementation(
+    (_id: string, _folderId: string | null, decrypt: () => Promise<Blob>) => decrypt(),
+  );
+  runDecryptPipelineMock.mockImplementation(async (file: { id: string }, password: string) => {
+    const meta = await getFileMetaMock(file.id);
+    const salt = Uint8Array.from(atob(meta.salt), (c) => c.charCodeAt(0));
+    const key = await resolveFileKeyMock(password, salt, meta.wrapped_cek);
+    const parts: Uint8Array[] = [];
+    for (let i = 0; i < meta.chunk_count; i++) {
+      const { data } = await getFileChunkMock(file.id, i);
+      parts.push(await decryptChunkMock(key, new Uint8Array(data)));
+    }
+    return new Blob(parts as BlobPart[]);
+  });
 });
 
 afterEach(() => {
@@ -347,50 +352,6 @@ describe("useThumbnail", () => {
     const { result } = renderHook(() => useThumbnail("f1", "clip.mp4"));
 
     await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
-  });
-
-  it("decompresses a zstd-compressed chunk via the shared codec before rendering", async () => {
-    const decompress = vi.fn(() => new Uint8Array([9, 9, 9]));
-    getZstdCodecMock.mockResolvedValue({ ZstdStream: { decompress } });
-    const { primeThumbnails, useThumbnail } = await loadModule();
-    getFileMetaMock.mockResolvedValue(makeMeta());
-    getFileChunkMock.mockResolvedValue({
-      data: new ArrayBuffer(4),
-      sha256: "x",
-      compressed: true,
-    });
-
-    act(() => primeThumbnails("vault-pass"));
-    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
-
-    await waitFor(() => expect(result.current.thumbnailUrl).not.toBeNull());
-    expect(decompress).toHaveBeenCalledTimes(1);
-  });
-
-  it("concatenates multiple decrypted chunks into one blob before decoding", async () => {
-    let capturedBlob: Blob | undefined;
-    URL.createObjectURL = vi.fn((b: Blob) => {
-      capturedBlob = b;
-      return "blob:mock-url";
-    });
-    const { primeThumbnails, useThumbnail } = await loadModule();
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 2 }));
-    getFileChunkMock.mockResolvedValue({
-      data: new ArrayBuffer(4),
-      sha256: "x",
-      compressed: false,
-    });
-    decryptChunkMock
-      .mockResolvedValueOnce(new Uint8Array([1, 2]))
-      .mockResolvedValueOnce(new Uint8Array([3, 4]));
-
-    act(() => primeThumbnails("vault-pass"));
-    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
-
-    await waitFor(() => expect(result.current.thumbnailUrl).not.toBeNull());
-    expect(capturedBlob).toBeDefined();
-    const bytes = new Uint8Array(await capturedBlob!.arrayBuffer());
-    expect(Array.from(bytes)).toEqual([1, 2, 3, 4]);
   });
 
   it("routes a protected file's thumbnail through the resolvePassword callback, using its folder password", async () => {
@@ -995,25 +956,6 @@ describe("useThumbnail", () => {
     expect(() => lastFakeVideo?.onerror?.()).not.toThrow();
   });
 
-  it("memoizes the zstd codec across multiple compressed chunks in one file", async () => {
-    const decompress = vi.fn(() => new Uint8Array([9, 9, 9]));
-    getZstdCodecMock.mockResolvedValue({ ZstdStream: { decompress } });
-    const { primeThumbnails, useThumbnail } = await loadModule();
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 2 }));
-    getFileChunkMock.mockResolvedValue({
-      data: new ArrayBuffer(4),
-      sha256: "x",
-      compressed: true,
-    });
-
-    act(() => primeThumbnails("vault-pass"));
-    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
-
-    await waitFor(() => expect(result.current.thumbnailUrl).not.toBeNull());
-    expect(decompress).toHaveBeenCalledTimes(2);
-    expect(getZstdCodecMock).toHaveBeenCalledTimes(1); // fetched once, reused for chunk 2
-  });
-
   it("still cleans up (inflight, loading, notify) if acquiring a concurrency slot itself throws", async () => {
     vi.useFakeTimers();
     isForegroundDecryptActiveMock.mockImplementation(() => {
@@ -1361,58 +1303,36 @@ describe("useThumbnail", () => {
     expect(hasCachedThumbnail("f1")).toBe(false);
   });
 
-  // ── Desktop: decrypt in the in-process Rust core ──────────────────────────
-  describe("on desktop", () => {
-    afterEach(() => {
-      tauriMock.isTauri = false;
-      tauriMock.sidecarDecryptToMemory.mockReset();
-      authUser.current = { id: "user-1" };
+  it("decrypts through the shared blob cache as background work, under the file's folder", async () => {
+    getFilesDataMock.mockReturnValue([{ id: "f1", original_name: "photo.jpg", folder_id: "fold-1" }]);
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+    // Same cache the viewer reads, so opening the photo reuses these bytes.
+    expect(cachedDecryptMock).toHaveBeenCalledWith("f1", "fold-1", expect.any(Function), {
+      background: true,
     });
+    expect(runDecryptPipelineMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "f1", folder_id: "fold-1" }),
+      "vault-pass",
+    );
+  });
 
-    it("passes an empty user id to the core when nobody is signed in", async () => {
-      tauriMock.isTauri = true;
-      authUser.current = undefined;
-      tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1, 2]));
-      const { primeThumbnails, useThumbnail } = await loadModule();
+  it("skips a file missing from the loaded list instead of caching it under an unknown folder", async () => {
+    getFilesDataMock.mockReturnValue([]);
+    const { primeThumbnails, useThumbnail } = await loadModule();
 
-      act(() => primeThumbnails("vault-pass"));
-      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-      await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
-      expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("f1", "vault-pass", "");
-    });
-
-    it("rasterizes bytes decrypted by the core, skipping the browser pipeline", async () => {
-      tauriMock.isTauri = true;
-      tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
-      const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
-
-      act(() => primeThumbnails("vault-pass"));
-      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
-
-      await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
-      expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("f1", "vault-pass", "user-1");
-      expect(hasCachedThumbnail("f1")).toBe(true);
-      // Native path only, no meta fetch, no chunk fetch, no key derivation.
-      expect(getFileMetaMock).not.toHaveBeenCalled();
-      expect(getFileChunkMock).not.toHaveBeenCalled();
-      expect(resolveFileKeyMock).not.toHaveBeenCalled();
-    });
-
-    it("falls back to the in-browser pipeline when the core cannot decrypt", async () => {
-      tauriMock.isTauri = true;
-      tauriMock.sidecarDecryptToMemory.mockRejectedValue(new Error("core not connected"));
-      const { primeThumbnails, useThumbnail } = await loadModule();
-      getFileMetaMock.mockResolvedValue(makeMeta());
-      getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
-
-      act(() => primeThumbnails("vault-pass"));
-      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
-
-      await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
-      // The browser path really ran. This is still the zero-knowledge fallback.
-      expect(getFileMetaMock).toHaveBeenCalledWith("f1");
-      expect(resolveFileKeyMock).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(result.current.thumbnailUrl).toBeNull();
+    expect(cachedDecryptMock).not.toHaveBeenCalled();
+    expect(runDecryptPipelineMock).not.toHaveBeenCalled();
   });
 });

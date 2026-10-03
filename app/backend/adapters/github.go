@@ -136,6 +136,9 @@ func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byt
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("download chunk: GET %s: %w", rawURL, ErrNotFound)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download chunk: GET %s: %d %s", rawURL, resp.StatusCode, resp.Status)
 	}

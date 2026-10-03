@@ -156,7 +156,7 @@ export function useRecentUploads(limit = 8) {
   );
   const query = useQuery({
     queryKey: qk.recentUploads(limit),
-    queryFn: () => listFiles(undefined, limit),
+    queryFn: () => listFiles(limit),
     select,
     ...ANALYTICS_QUERY_OPTS,
   });

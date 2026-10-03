@@ -261,6 +261,9 @@ func (h *HuggingFaceAdapter) Download(ctx context.Context, ref types.ChunkRef) (
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("download chunk %s: %w", ref.RemotePath, ErrNotFound)
+	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("download returned %d: %s", resp.StatusCode, string(body))

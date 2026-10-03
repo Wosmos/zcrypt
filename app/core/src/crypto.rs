@@ -162,7 +162,7 @@ pub fn can_verify_whole_file_hash(sha256_scheme: &str, is_space_mode: bool) -> b
 // session is the same trust boundary the app already assumes elsewhere (the
 // desktop shell caches the passphrase itself for folder-watch); this cache
 // holds nothing that isn't already resident for the session's duration.
-const KEY_CACHE_CAP: usize = 64;
+const KEY_CACHE_CAP: usize = 1024;
 
 struct KeyCache {
     map: HashMap<String, Vec<u8>>,
@@ -215,7 +215,9 @@ fn key_cache_key(file_id: &str, passphrase: &str) -> String {
 /// Cached wrapper around [`resolve_file_key`]: a repeat call for the SAME file
 /// id + passphrase (e.g. a folder of thumbnails decrypting one after another)
 /// skips re-deriving PBKDF2 and returns the already-resolved key. A cache miss
-/// falls through to the real derivation and populates the cache.
+/// falls through to the real derivation and populates the cache. The KEK is
+/// cached by salt too: a batch upload wraps every file's CEK under one salt, so
+/// the first open of any file from that batch is one cheap unwrap.
 pub fn resolve_file_key_cached(
     file_id: &str,
     passphrase: &str,
@@ -226,9 +228,27 @@ pub fn resolve_file_key_cached(
     if let Some(key) = key_cache().lock().unwrap().get(&cache_key) {
         return Ok(key);
     }
-    let resolved = resolve_file_key(passphrase, salt, wrapped_cek)?;
-    key_cache().lock().unwrap().put(cache_key, resolved.clone());
-    Ok(resolved)
+    let kek_key = format!(
+        "kek:{}:{}",
+        sha256_hex(salt),
+        sha256_hex(passphrase.as_bytes())
+    );
+    let cached_kek = key_cache().lock().unwrap().get(&kek_key);
+    let mut kek = match cached_kek {
+        Some(k) => k,
+        None => derive_key(passphrase, salt).to_vec(),
+    };
+    let result = match wrapped_cek {
+        Some(wrapped) if !wrapped.is_empty() => unwrap_cek(&kek, wrapped),
+        _ => Ok(kek.clone()),
+    };
+    if let Ok(resolved) = &result {
+        let mut cache = key_cache().lock().unwrap();
+        cache.put(kek_key, kek.clone());
+        cache.put(cache_key, resolved.clone());
+    }
+    kek.zeroize();
+    result
 }
 
 /// Memoized per-user sub-key: same (passphrase, user) pair derives once per
@@ -411,6 +431,29 @@ mod key_cache_tests {
             .unwrap()
             .get(&key_cache_key(file_id, pass))
             .is_none());
+    }
+
+    #[test]
+    fn files_sharing_a_salt_resolve_their_own_ceks() {
+        let salt = generate_salt();
+        let pass = &hex::encode(generate_salt());
+        let kek = derive_key(pass, &salt);
+        let (cek_a, cek_b) = (generate_cek(), generate_cek());
+        let wrapped_a = wrap_cek(&kek, &cek_a).unwrap();
+        let wrapped_b = wrap_cek(&kek, &cek_b).unwrap();
+        let a =
+            resolve_file_key_cached("file-shared-salt-a", pass, &salt, Some(&wrapped_a)).unwrap();
+        let b =
+            resolve_file_key_cached("file-shared-salt-b", pass, &salt, Some(&wrapped_b)).unwrap();
+        assert_eq!(a, cek_a.to_vec());
+        assert_eq!(b, cek_b.to_vec());
+        assert!(resolve_file_key_cached(
+            "file-shared-salt-c",
+            "wrong-pass",
+            &salt,
+            Some(&wrapped_a)
+        )
+        .is_err());
     }
 
     #[test]

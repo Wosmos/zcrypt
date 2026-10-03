@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -30,7 +30,7 @@ import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { LiquidGlassFilter } from "@/components/marketing/liquid-glass-filter";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, readCachedUser } from "@/store/auth";
 import "@/components/marketing/landing/chrome.css";
 
 type IconType = React.ComponentType<{ className?: string; size?: number }>;
@@ -358,6 +358,10 @@ type MegaKey = (typeof MEGA_MENUS)[number]["key"];
 const PANEL_IN = [0.05, 0.7, 0.1, 1] as const;
 const PANEL_OUT = [0.3, 0, 0.8, 0.15] as const;
 
+const noSubscription = () => () => {};
+const isClient = () => true;
+const isServer = () => false;
+
 export function MarketingNav() {
   const t = useTranslations("marketing.nav");
   const pathname = usePathname();
@@ -365,14 +369,15 @@ export function MarketingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<MegaKey | null>(null);
   const hasSession = useAuthStore((s) => Boolean(s.user || s.accessToken));
-  const [hydrated, setHydrated] = useState(false);
-  const signedIn = hydrated && hasSession;
+  // False on the server and during hydration, true afterwards, so the signed-in
+  // state never mismatches the server markup.
+  const hydrated = useSyncExternalStore(noSubscription, isClient, isServer);
+  const signedIn = hydrated && (hasSession || readCachedUser() !== null);
   const headerRef = useRef<HTMLElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
   const glassRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setHydrated(true), []);
   const sheetRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const triggerRefs = useRef<Partial<Record<MegaKey, HTMLButtonElement | null>>>({});
@@ -479,10 +484,12 @@ export function MarketingNav() {
   }, []);
 
   // Close on route change.
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setOpenMenu(null);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

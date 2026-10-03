@@ -28,6 +28,13 @@ export class ApiError extends Error {
   }
 }
 
+/** Statuses worth retrying: request timeout, rate limit, and any server error.
+ *  Decided by status, never by message text: a 5xx body like
+ *  `{"error":"upload failed"}` carries no number to match. */
+export function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
 /** Read a non-ok response body and throw an ApiError carrying the server message + status. */
 export async function throwResponseError(res: Response): Promise<never> {
   throw new ApiError(parseErrorBody(await res.text()), res.status);

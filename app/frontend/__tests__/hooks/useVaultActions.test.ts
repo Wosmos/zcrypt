@@ -99,7 +99,10 @@ vi.mock("@/store/upload", () => ({
   ),
 }));
 
+const mockCanStreamToDisk = vi.fn(() => false);
 vi.mock("@/store/download", () => ({
+  ZIP_IN_MEMORY_MAX_BYTES: 2 * 1024 * 1024 * 1024,
+  canStreamToDisk: () => mockCanStreamToDisk(),
   useDownloadStore: Object.assign(
     (selector?: (s: typeof mockDownloadStoreState) => unknown) =>
       selector ? selector(mockDownloadStoreState) : mockDownloadStoreState,
@@ -297,7 +300,11 @@ function makeFolderProtection(overrides: Partial<UseFolderProtection> = {}): Use
     clearFolderPassword: vi.fn(),
     protectFolder: vi.fn(async () => {}),
     unprotectFolder: vi.fn(async () => {}),
-    rekeyFileForMove: vi.fn(async () => {}),
+    rekeyFileForMove: vi.fn(async (fileId: string) => ({
+      file_id: fileId,
+      salt: "new-salt",
+      wrapped_cek: "new-wrapped",
+    })),
     modalState: {
       open: false,
       folderId: null,
@@ -679,17 +686,63 @@ describe("handleBulkDownload", () => {
     expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
   });
 
+  const MB = 1024 * 1024;
+  const sized = (n: number, size: number) =>
+    Array.from({ length: n }, (_, i) =>
+      makeFile({ id: `f${i}`, original_name: `f${i}.bin`, original_size: size }),
+    );
+
   it("warns and refuses when the total size exceeds the 2GB cap", () => {
-    const bigFile = makeFile({ id: "big", original_size: 3 * 1024 * 1024 * 1024 });
-    const args = makeArgs({ files: [bigFile] });
+    const args = makeArgs({ files: sized(3, 900 * MB) });
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleBulkDownload(["big"]);
+      result.current.handleBulkDownload(["f0", "f1", "f2"]);
     });
 
     expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("too large for ZIP"));
     expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+  });
+
+  it("allows a ZIP over the cap when the browser can stream it to disk", () => {
+    mockCanStreamToDisk.mockReturnValueOnce(true);
+    const args = makeArgs({ files: sized(3, 900 * MB) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f0", "f1", "f2"]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockDownloadStoreState.startBulkZipDownload).toHaveBeenCalled();
+  });
+
+  it("refuses a ZIP past 4 GB even when the browser can stream it to disk", () => {
+    mockCanStreamToDisk.mockReturnValue(true);
+    const args = makeArgs({ files: sized(5, 900 * MB) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f0", "f1", "f2", "f3", "f4"]);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("limited to 4 GB"));
+    expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+    mockCanStreamToDisk.mockReset();
+  });
+
+  it("refuses a ZIP whose only files are each over 1 GB", () => {
+    mockCanStreamToDisk.mockReturnValue(true);
+    const args = makeArgs({ files: sized(1, 3 * 1024 * MB) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f0"]);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("over 1 GB"));
+    expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+    mockCanStreamToDisk.mockReset();
   });
 
   it("starts the bulk zip download when under the cap", () => {
@@ -884,7 +937,7 @@ describe("moveFileWithRekey", () => {
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
   });
 
-  it("re-keys across a protection boundary before moving", async () => {
+  it("sends the re-keyed envelope WITH the move across a protection boundary", async () => {
     const file = makeFile({ id: "f1", folder_id: "src-protected" });
     mockFolderRegistryState.isProtected.mockImplementation((fid: string) => fid === "src-protected");
     const folderProtection = makeFolderProtection({
@@ -898,7 +951,8 @@ describe("moveFileWithRekey", () => {
     await result.current.moveFileWithRekey("f1", null);
 
     expect(folderProtection.rekeyFileForMove).toHaveBeenCalledWith("f1", "src-pass", "dest-pass");
-    expect(mockMoveFile).toHaveBeenCalledWith("f1", null);
+    expect(mockMoveFile).toHaveBeenCalledTimes(1);
+    expect(mockMoveFile).toHaveBeenCalledWith("f1", null, { salt: "new-salt", wrapped_cek: "new-wrapped" });
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
   });
 });
@@ -1458,7 +1512,7 @@ describe("Tauri desktop upload routing", () => {
     });
 
     // Platform selection ("github" in this test) is now threaded to desktop too.
-    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith("vault-pass", args.refresh, undefined, "github", null);
+    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith("vault-pass", args.refresh, undefined, "github", null, undefined);
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
 
     tauriModuleMock.isTauri = false;
@@ -1501,6 +1555,7 @@ describe("Tauri desktop upload routing", () => {
       ["/Users/me/a.bin", "/Users/me/b.bin"],
       "huggingface",
       null,
+      undefined,
     );
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
     await restoreWeb();
@@ -1522,6 +1577,7 @@ describe("Tauri desktop upload routing", () => {
       undefined,
       undefined,
       null,
+      undefined,
     );
     await restoreWeb();
   });

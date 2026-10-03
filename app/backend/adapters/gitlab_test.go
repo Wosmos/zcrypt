@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -170,8 +171,16 @@ func TestGitlabDownloadErrorStatus(t *testing.T) {
 		return jsonResp(404, `not found`, nil), nil
 	})
 	_, err := g.Download(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "x"})
-	if err == nil || !strings.Contains(err.Error(), "404") {
-		t.Fatalf("expected 404 download error, got %v", err)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for a 404 download, got %v", err)
+	}
+
+	g = newGitlabFake(func(_ *http.Request) (*http.Response, error) {
+		return jsonResp(502, `bad gateway`, nil), nil
+	})
+	_, err = g.Download(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "x"})
+	if err == nil || errors.Is(err, ErrNotFound) || !strings.Contains(err.Error(), "502") {
+		t.Fatalf("a 5xx must stay a plain (retryable) error, got %v", err)
 	}
 }
 

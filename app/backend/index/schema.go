@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_user ON chunks(user_id);
 
+-- Sizes granted to presigned (direct-to-platform) chunks that are not confirmed
+-- yet, so they count against the file's declared size before they land.
+CREATE TABLE IF NOT EXISTS chunk_reservations (
+	file_id UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+	idx     INTEGER NOT NULL,
+	size    BIGINT NOT NULL,
+	PRIMARY KEY (file_id, idx)
+);
+
 CREATE TABLE IF NOT EXISTS repos (
 	id         TEXT PRIMARY KEY,
 	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -562,6 +571,18 @@ CREATE TABLE IF NOT EXISTS decoy_files (
 
 CREATE INDEX IF NOT EXISTS idx_decoy_files_user ON decoy_files(user_id);
 
+-- Refresh tokens minted before the decoy flag existed cannot say whether they
+-- belong to a decoy session, so a decoy-vault owner's sessions are revoked once
+-- instead of being upgraded to full access on their next refresh.
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+	               WHERE table_schema = current_schema() AND table_name = 'refresh_tokens' AND column_name = 'decoy') THEN
+		ALTER TABLE refresh_tokens ADD COLUMN decoy BOOLEAN NOT NULL DEFAULT FALSE;
+		DELETE FROM refresh_tokens WHERE user_id IN (SELECT user_id FROM decoy_vaults);
+	END IF;
+END $$;
+
 -- Dead man's switch
 CREATE TABLE IF NOT EXISTS dead_man_switches (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -942,4 +963,46 @@ CREATE TABLE IF NOT EXISTS share_ticket_chunks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_share_ticket_chunks_time ON share_ticket_chunks(created_at);
+
+-- Sync retry backoff. A failed sync or commit-verify attempt schedules the next
+-- one at next_attempt_at (exponential with jitter), so a short platform outage
+-- no longer burns the whole retry budget in seconds. NULL = due now.
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ;
+
+-- File durability as the user sees it. 'ok' = nothing known wrong. 'degraded' =
+-- a chunk exhausted its sync/commit retries and is not confirmed on any platform
+-- (retryable from the UI). 'damaged' = a chunk is confirmed missing on the
+-- platform (download 404 or a verify sweep), so the file must be re-uploaded.
+ALTER TABLE files ADD COLUMN IF NOT EXISTS health TEXT NOT NULL DEFAULT 'ok';
+
+-- The remote path minted at presign for a direct (HuggingFace LFS) chunk, so the
+-- confirm can be held to it instead of trusting a client-supplied path. One row
+-- per (session, idx); a re-presign of the same index replaces it.
+CREATE TABLE IF NOT EXISTS upload_presigns (
+	session_id  UUID NOT NULL REFERENCES upload_sessions(id) ON DELETE CASCADE,
+	idx         INTEGER NOT NULL,
+	remote_path TEXT NOT NULL,
+	sha256      TEXT NOT NULL,
+	size        BIGINT NOT NULL,
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (session_id, idx)
+);
+
+-- A byos-direct confirm checks that no other chunk of the user already lives at
+-- the reported remote path, on every chunk of every direct upload.
+CREATE INDEX IF NOT EXISTS idx_chunks_user_remote_path ON chunks(user_id, repo, remote_path) WHERE remote_path <> '';
+-- Sign-in sessions. A session is the family of refresh tokens one sign-in
+-- rotates through: every rotation inherits session_id and session_started_at,
+-- so the Devices list shows one row per signed-in device, not per rotation.
+-- Rows from before sessions existed become their own one-token session.
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS session_id UUID;
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+UPDATE refresh_tokens SET session_id = id, session_started_at = created_at WHERE session_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session ON refresh_tokens(user_id, session_id);
+
+-- Self-serve account deletion. A request only schedules it: the account keeps
+-- working (so the owner can sign in and cancel) until the cleanup worker purges
+-- it once this time passes. NULL means no deletion is pending.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_deletion_scheduled ON users(deletion_scheduled_at) WHERE deletion_scheduled_at IS NOT NULL;
 `

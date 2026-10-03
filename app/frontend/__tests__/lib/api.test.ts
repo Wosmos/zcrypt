@@ -22,6 +22,7 @@ import {
   bulkPurgeFiles,
   getFolderShareFileMeta,
   listFiles,
+  getChanges,
   getAnalyticsSummary,
   getAnalyticsTimeseries,
   getAnalyticsStorageGrowth,
@@ -177,18 +178,36 @@ describe("listFiles", () => {
     expect(url).not.toContain("?");
   });
 
-  it("includes the filter param when given", async () => {
-    fetchMock.mockResolvedValueOnce(jsonRes([]));
-    await listFiles("report");
-    const [url] = fetchMock.mock.calls[0];
-    expect(url).toContain("filter=report");
+  it("follows X-Next-Cursor pages until the last one and concatenates them", async () => {
+    const page = (ids: string[], next: string | null) => ({
+      ...jsonRes(ids.map((id) => ({ id }))),
+      headers: { get: (h: string) => (h === "X-Next-Cursor" ? next : null) },
+    });
+    fetchMock
+      .mockResolvedValueOnce(page(["a", "b"], "c/1+"))
+      .mockResolvedValueOnce(page(["c", "d"], "c2"))
+      .mockResolvedValueOnce(page(["e"], null));
+    const files = await listFiles();
+    expect(files.map((f) => f.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][0]).toContain("/api/files?cursor=c%2F1%2B");
+    expect(fetchMock.mock.calls[2][0]).toContain("/api/files?cursor=c2");
   });
 
-  it("includes the limit param when given", async () => {
+  it("includes the limit param when given and fetches a single page", async () => {
     fetchMock.mockResolvedValueOnce(jsonRes([]));
-    await listFiles(undefined, 8);
+    await listFiles(8);
     const [url] = fetchMock.mock.calls[0];
     expect(url).toContain("limit=8");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("getChanges", () => {
+  it("GETs the delta since the given rev", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ changes: [], cursor: 4 }));
+    await expect(getChanges(4)).resolves.toEqual({ changes: [], cursor: 4 });
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/changes?since=4");
   });
 });
 

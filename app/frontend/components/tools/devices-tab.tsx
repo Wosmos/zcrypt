@@ -10,13 +10,13 @@ import {
   listClipboard,
   getClipboardContent,
   deleteClipboardItem,
-  createEventSource,
   listSyncFolders,
   createSyncFolder,
   updateSyncFolder,
   deleteSyncFolder,
 } from "@/lib/api";
 import { useFilesQuery } from "@/store/files";
+import { subscribeEvents } from "@/lib/event-stream";
 import { useQuery } from "@tanstack/react-query";
 import { qk } from "@/lib/query-keys";
 import { setListData } from "@/lib/query-cache";
@@ -205,50 +205,23 @@ function ClipboardSyncSection() {
       .catch(() => {});
   }, []);
 
-  // SSE for real-time sync. Manual exponential backoff (1s→30s) like
-  // useOperationStatus/useFileEvents, without onerror, the browser's native
-  // EventSource retry (~3s fixed, uncapped) hammers /api/events on any flaky
-  // connection and keeps the backend/DB awake for no reason.
-  useEffect(() => {
-    let es: EventSource | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let reconnectAttempt = 0;
-    let disposed = false;
-
-    function connect() {
-      if (disposed) return;
-      es = createEventSource();
-      es.addEventListener("clipboard", (e: MessageEvent) => {
-        try {
-          const item = JSON.parse(e.data) as ClipboardItem;
-          setItems((prev) => {
-            if (prev.some((p) => p.id === item.id)) return prev;
-            return [item, ...prev].slice(0, 30);
-          });
-        } catch {
-          /* ignore */
-        }
-      });
-      es.onopen = () => {
-        reconnectAttempt = 0;
-      };
-      es.onerror = () => {
-        es?.close();
-        es = null;
-        if (disposed) return;
-        const delay = Math.min(1_000 * 2 ** reconnectAttempt, 30_000);
-        reconnectAttempt++;
-        reconnectTimer = setTimeout(connect, delay);
-      };
-    }
-
-    connect();
-    return () => {
-      disposed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      es?.close();
-    };
-  }, []);
+  useEffect(
+    () =>
+      subscribeEvents({
+        clipboard: (e) => {
+          try {
+            const item = JSON.parse(e.data) as ClipboardItem;
+            setItems((prev) => {
+              if (prev.some((p) => p.id === item.id)) return prev;
+              return [item, ...prev].slice(0, 30);
+            });
+          } catch {
+            /* ignore */
+          }
+        },
+      }),
+    [],
+  );
 
   const handlePush = async () => {
     if (!input.trim()) return;

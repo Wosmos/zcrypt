@@ -8,7 +8,9 @@
 //! `"msgId:fileId"` for a single part, or
 //! `"msgId:fileId,msgId:fileId,..."` for multi-part chunks, in part order.
 
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
@@ -29,6 +31,19 @@ const RETRY_BASE: Duration = Duration::from_secs(2);
 
 const PLATFORM: &str = "telegram";
 
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+/// Short on purpose, and downloads only: when api.telegram.org is filtered on
+/// this network the caller falls back to the server relay, and every second
+/// spent here is a second the user stares at a spinner. Uploads keep the long
+/// connect timeout so slow mobile networks still get through.
+const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+const GET_FILE_TIMEOUT: Duration = Duration::from_secs(10);
+const PART_DEADLINE_BASE: Duration = Duration::from_secs(20);
+const FILE_PATH_TTL: Duration = Duration::from_secs(50 * 60);
+const FILE_PATH_CACHE_CAP: usize = 4096;
+
+type FilePathCache = Mutex<HashMap<String, (String, u64, Instant)>>;
+
 /// Telegram Bot API adapter. `account` is the chat id (`@channel_username` or
 /// a numeric id): the chat IS the storage location; there are no repos.
 pub struct Telegram {
@@ -36,23 +51,29 @@ pub struct Telegram {
     chat_id: String,
     api_base: String,
     client: reqwest::Client,
+    dl_client: reqwest::Client,
+    file_paths: FilePathCache,
 }
 
 impl Telegram {
     pub fn new(token: &str, account: &str) -> Self {
-        let client = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(30))
-            .pool_idle_timeout(Duration::from_secs(90))
-            .pool_max_idle_per_host(4)
-            // No overall request timeout: uploads can be large (matches the
-            // timeout-less Go upload client).
-            .build()
-            .expect("build reqwest client");
+        // No overall request timeout: uploads can be large (matches the
+        // timeout-less Go upload client).
+        let build = |connect: Duration| {
+            reqwest::Client::builder()
+                .connect_timeout(connect)
+                .pool_idle_timeout(Duration::from_secs(90))
+                .pool_max_idle_per_host(4)
+                .build()
+                .expect("build reqwest client")
+        };
         Self {
             token: token.trim().to_string(),
             chat_id: account.trim().to_string(),
             api_base: API_BASE.to_string(),
-            client,
+            client: build(CONNECT_TIMEOUT),
+            dl_client: build(DOWNLOAD_CONNECT_TIMEOUT),
+            file_paths: Mutex::new(HashMap::new()),
         }
     }
 
@@ -125,28 +146,60 @@ impl Telegram {
     /// Fetches a file by `file_id`: `getFile` → file_path → direct download
     /// from `https://api.telegram.org/file/bot<token>/<file_path>`.
     async fn download_file(&self, file_id: &str) -> Result<Vec<u8>, AdapterError> {
+        let (file_path, file_size) = self.resolve_file_path(file_id).await?;
+        let dl_url = format!("{}/file/bot{}/{}", self.api_base, self.token, file_path);
+        let res = async {
+            let dl = self
+                .dl_client
+                .get(&dl_url)
+                .timeout(part_deadline(file_size))
+                .send()
+                .await?;
+            let dl_status = dl.status().as_u16();
+            if dl_status != 200 {
+                let dl_body = dl.text().await.unwrap_or_default();
+                return Err(AdapterError::Api {
+                    platform: PLATFORM,
+                    status: dl_status,
+                    body: dl_body,
+                });
+            }
+            Ok(dl.bytes().await?.to_vec())
+        }
+        .await;
+        if res.is_err() {
+            self.file_paths.lock().unwrap().remove(file_id);
+        }
+        res
+    }
+
+    /// `getFile` → (file_path, file_size), memoized: a file_path stays valid for
+    /// at least an hour, so a repeat open skips one serial round trip per part.
+    async fn resolve_file_path(&self, file_id: &str) -> Result<(String, u64), AdapterError> {
+        if let Some((path, size, at)) = self.file_paths.lock().unwrap().get(file_id) {
+            if at.elapsed() < FILE_PATH_TTL {
+                return Ok((path.clone(), *size));
+            }
+        }
         let url = format!("{}?file_id={}", self.api_url("getFile"), file_id);
-        let resp = self.client.get(&url).send().await?;
+        let resp = self
+            .dl_client
+            .get(&url)
+            .timeout(GET_FILE_TIMEOUT)
+            .send()
+            .await?;
         let status = resp.status().as_u16();
         let body = resp.text().await?;
         let result: GetFileResult = parse_envelope("getFile", status, &body)?;
-
-        let dl_url = format!(
-            "{}/file/bot{}/{}",
-            self.api_base, self.token, result.file_path
-        );
-        let dl = self.client.get(&dl_url).send().await?;
-        let dl_status = dl.status().as_u16();
-        if dl_status != 200 {
-            let dl_body = dl.text().await.unwrap_or_default();
-            return Err(AdapterError::Api {
-                platform: PLATFORM,
-                status: dl_status,
-                body: dl_body,
-            });
+        let mut paths = self.file_paths.lock().unwrap();
+        if paths.len() >= FILE_PATH_CACHE_CAP {
+            paths.clear();
         }
-
-        Ok(dl.bytes().await?.to_vec())
+        paths.insert(
+            file_id.to_string(),
+            (result.file_path.clone(), result.file_size, Instant::now()),
+        );
+        Ok((result.file_path, result.file_size))
     }
 
     /// Deletes one message from the chat.
@@ -316,6 +369,15 @@ struct DocumentInfo {
 struct GetFileResult {
     #[serde(default)]
     file_path: String,
+    #[serde(default)]
+    file_size: u64,
+}
+
+/// Overall deadline for one part's file download: a fixed allowance plus the
+/// part's size at a slow-but-alive 512 KiB/s. Without it a stalled transfer on
+/// a filtered network sat until the OS gave up before the relay fallback ran.
+fn part_deadline(size: u64) -> Duration {
+    PART_DEADLINE_BASE + Duration::from_secs(size / (512 * 1024))
 }
 
 /// Decodes a Bot API response. `ok:false` with `parameters.retry_after` (or an
@@ -426,6 +488,15 @@ mod tests {
     #[test]
     fn parse_part_ref_rejects_missing_colon() {
         assert!(parse_part_ref("12345").is_err());
+    }
+
+    #[test]
+    fn part_deadline_scales_with_size() {
+        assert_eq!(part_deadline(0), PART_DEADLINE_BASE);
+        assert_eq!(
+            part_deadline(19 * 1024 * 1024),
+            PART_DEADLINE_BASE + Duration::from_secs(38)
+        );
     }
 
     #[test]

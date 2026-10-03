@@ -13,28 +13,62 @@ import (
 // byte budget breaks first (risking storage-account throttling), move state
 // to Redis/PG at that point, not before.
 type rateLimiter struct {
-	mu       sync.Mutex
-	requests map[string][]time.Time
-	limit    int
-	window   time.Duration
+	mu        sync.Mutex
+	requests  map[string][]time.Time
+	limit     int
+	window    time.Duration
+	lastSweep time.Time
 }
 
 func newRateLimiter(limit int, window time.Duration) *rateLimiter {
 	return &rateLimiter{
-		requests: make(map[string][]time.Time),
-		limit:    limit,
-		window:   window,
+		requests:  make(map[string][]time.Time),
+		limit:     limit,
+		window:    window,
+		lastSweep: time.Now(),
 	}
 }
 
+// allow records an attempt for key and reports whether it is within the limit.
 func (rl *rateLimiter) allow(key string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
 	now := time.Now()
-	cutoff := now.Add(-rl.window)
+	rl.sweepLocked(now)
+	valid := rl.liveLocked(key, now)
+	if len(valid) >= rl.limit {
+		metrics.rateLimited.Add(1)
+		return false
+	}
+	rl.requests[key] = append(valid, now)
+	return true
+}
 
-	// Remove expired entries
+// exceeded reports whether key is already at its limit without recording an
+// attempt. Paired with record, it lets a caller count only failures.
+func (rl *rateLimiter) exceeded(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	rl.sweepLocked(now)
+	return len(rl.liveLocked(key, now)) >= rl.limit
+}
+
+// record counts one attempt against key.
+func (rl *rateLimiter) record(key string) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	rl.sweepLocked(now)
+	rl.requests[key] = append(rl.liveLocked(key, now), now)
+}
+
+// liveLocked trims key's expired attempts, dropping the key once none remain.
+func (rl *rateLimiter) liveLocked(key string, now time.Time) []time.Time {
+	cutoff := now.Add(-rl.window)
 	times := rl.requests[key]
 	valid := times[:0]
 	for _, t := range times {
@@ -42,14 +76,24 @@ func (rl *rateLimiter) allow(key string) bool {
 			valid = append(valid, t)
 		}
 	}
-
-	if len(valid) >= rl.limit {
-		rl.requests[key] = valid
-		return false
+	if len(valid) == 0 {
+		delete(rl.requests, key)
+		return nil
 	}
+	rl.requests[key] = valid
+	return valid
+}
 
-	rl.requests[key] = append(valid, now)
-	return true
+// sweepLocked drops every idle key at most once per window, so keys an
+// attacker invents (emails, IPs) cannot grow the map without bound.
+func (rl *rateLimiter) sweepLocked(now time.Time) {
+	if now.Sub(rl.lastSweep) < rl.window {
+		return
+	}
+	rl.lastSweep = now
+	for key := range rl.requests {
+		rl.liveLocked(key, now)
+	}
 }
 
 // RateLimitMiddleware limits requests per client IP to the given rate. trustedHops
@@ -57,30 +101,6 @@ func (rl *rateLimiter) allow(key string) bool {
 // (see clientIP), so the limit cannot be bypassed by spoofing X-Forwarded-For.
 func RateLimitMiddleware(limit int, window time.Duration, trustedHops int, next http.Handler) http.Handler {
 	rl := newRateLimiter(limit, window)
-
-	// Cleanup stale entries every minute
-	go func() {
-		for {
-			time.Sleep(time.Minute)
-			rl.mu.Lock()
-			now := time.Now()
-			cutoff := now.Add(-rl.window)
-			for key, times := range rl.requests {
-				valid := times[:0]
-				for _, t := range times {
-					if t.After(cutoff) {
-						valid = append(valid, t)
-					}
-				}
-				if len(valid) == 0 {
-					delete(rl.requests, key)
-				} else {
-					rl.requests[key] = valid
-				}
-			}
-			rl.mu.Unlock()
-		}
-	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !rl.allow(clientIP(r, trustedHops)) {

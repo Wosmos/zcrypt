@@ -71,6 +71,15 @@ func (db *DB) ListDecoyFiles(ctx context.Context, userID string) ([]types.DecoyF
 	return files, nil
 }
 
+// GetDecoyStorageUsed returns the total declared size of a user's decoy files.
+func (db *DB) GetDecoyStorageUsed(ctx context.Context, userID string) (int64, error) {
+	var used int64
+	err := db.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(size), 0) FROM decoy_files WHERE user_id = $1`, userID,
+	).Scan(&used)
+	return used, err
+}
+
 // DeleteDecoyFile removes a specific decoy file.
 // SetDecoyFileName replaces a decoy file's stored name: used to migrate a legacy
 // plaintext name to its sealed (enc1:) form. Returns false when not the user's.

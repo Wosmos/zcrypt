@@ -85,15 +85,16 @@ export async function verifyFolderPassword(
 
 /**
  * Re-wrap an already-recovered CEK under a new password + new per-file salt,
- * producing the base64 `wrapped_cek` to persist via `rekeyFile`. Used when a
+ * producing the base64 `wrapped_cek` to persist with the move or folder
+ * (un)protect it belongs to. Used when a
  * file crosses a protection boundary (protect/unprotect a folder, or move a file
  * between protection zones).
  *
  * IMPORTANT: this does NOT generate a new CEK: the caller must first recover the
  * EXISTING CEK (via `resolveFileKey` under the SOURCE password) so the file's
  * already-uploaded chunks stay decryptable. This helper only changes the KEK that
- * wraps that CEK. Returns `{ salt, wrapped_cek }` (both base64) ready for
- * `rekeyFile`. The salt MUST be the same one fed to `newSalt` so the server's
+ * wraps that CEK. Returns `{ salt, wrapped_cek }` (both base64) ready to send.
+ * The salt MUST be the same one fed to `newSalt` so the server's
  * stored salt matches the KEK used here.
  */
 export async function rewrapFileKey(

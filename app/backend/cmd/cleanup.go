@@ -150,6 +150,8 @@ func (s *Server) runCleanupBatch(ctx context.Context) {
 
 	s.cleanupExpiredSendTransfers(ctx)
 
+	s.purgeScheduledDeletions(ctx)
+
 	// Slow retry lane: give deletions that exhausted the fast worker's attempt
 	// budget (e.g. a platform outage that outlasted 5 quick retries) one more
 	// chance per cleanup cycle, up to slowLaneMaxAttempts.

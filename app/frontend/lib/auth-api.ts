@@ -1,5 +1,6 @@
 import type { AuthUser, AuditEvent } from "@/types";
 import { isTauri } from "@/lib/tauri";
+import { useAuthStore } from "@/store/auth";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
 // types→lib inversion): re-exported here so its existing consumers keep
@@ -135,12 +136,32 @@ export function setup2FA(accessToken: string): Promise<{ secret: string; uri: st
   });
 }
 
-export function enable2FA(accessToken: string, code: string): Promise<{ success: boolean }> {
-  return authRequest("/api/auth/2fa/enable", {
+/** Toggling 2FA signs out every other session and answers with a fresh pair
+ *  for this one. The wrappers adopt it themselves (setTokens, which the desktop
+ *  AuthGuard hands to the engine), so no caller can sign out its own session.
+ *  session_rotated is false when the change landed but the rotation failed:
+ *  the old session is then revoked and the user signs in again. */
+export interface TwoFAToggleResponse {
+  success: boolean;
+  session_rotated: boolean;
+  access_token?: string;
+  refresh_token?: string;
+  backup_codes?: string[];
+}
+
+function adoptRotatedSession(res: TwoFAToggleResponse): TwoFAToggleResponse {
+  if (res.access_token && res.refresh_token) {
+    useAuthStore.getState().setTokens(res.access_token, res.refresh_token);
+  }
+  return res;
+}
+
+export function enable2FA(accessToken: string, code: string): Promise<TwoFAToggleResponse> {
+  return authRequest<TwoFAToggleResponse>("/api/auth/2fa/enable", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ code }),
-  });
+  }).then(adoptRotatedSession);
 }
 
 export function verify2FA(temp_token: string, code: string): Promise<LoginResponse> {
@@ -154,12 +175,12 @@ export function disable2FA(
   accessToken: string,
   password: string,
   code: string,
-): Promise<{ success: boolean }> {
-  return authRequest("/api/auth/2fa/disable", {
+): Promise<TwoFAToggleResponse> {
+  return authRequest<TwoFAToggleResponse>("/api/auth/2fa/disable", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ password, code }),
-  });
+  }).then(adoptRotatedSession);
 }
 
 export function getMe(accessToken: string): Promise<AuthUser> {
@@ -285,6 +306,65 @@ export function unlinkAccount(
 
 export function getUserActivity(accessToken: string): Promise<AuditEvent[]> {
   return authRequest("/api/auth/activity", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+// --- Signed-in devices ---
+
+export interface SessionInfo {
+  id: string;
+  ip: string;
+  user_agent: string;
+  started_at: string;
+  last_active: string;
+  expires_at: string;
+  current: boolean;
+}
+
+export function listSessions(accessToken: string): Promise<SessionInfo[]> {
+  return authRequest("/api/auth/sessions", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function revokeSession(accessToken: string, id: string): Promise<{ success: boolean }> {
+  return authRequest(`/api/auth/sessions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function revokeOtherSessions(accessToken: string): Promise<{ revoked: number }> {
+  return authRequest("/api/auth/sessions/revoke-others", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+// --- Account data and deletion ---
+
+export function deleteAccount(
+  accessToken: string,
+  password: string,
+  code = "",
+): Promise<{ deletion_scheduled_at: string }> {
+  return authRequest("/api/auth/me", {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ password, code }),
+  });
+}
+
+export function cancelAccountDeletion(accessToken: string): Promise<{ success: boolean }> {
+  return authRequest("/api/auth/me/deletion/cancel", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function exportAccount(accessToken: string): Promise<Record<string, unknown>> {
+  return authRequest("/api/auth/me/export", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 }

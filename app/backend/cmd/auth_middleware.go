@@ -14,9 +14,13 @@ type contextKey string
 
 const userContextKey contextKey = "user_claims"
 
-// AuthMiddleware validates the JWT from the Authorization header
-// and injects Claims into the request context.
+// AuthMiddleware validates the JWT from the Authorization header, injects
+// Claims into the request context, and confines decoy sessions to decoyRoutes.
 func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return s.authenticate(decoyGate(next))
+}
+
+func (s *Server) authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
@@ -36,7 +40,7 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			internalError(w, "token version lookup", err)
 			return
 		}
-		if claims.TokenVersion != curVer {
+		if claims.TokenVersion != curVer || s.revokedSessions.has(claims.SessionID) {
 			http.Error(w, `{"error":"token revoked, please log in again"}`, http.StatusUnauthorized)
 			return
 		}
@@ -64,7 +68,7 @@ func (s *Server) OptionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc 
 			next.ServeHTTP(w, r)
 			return
 		}
-		if curVer, vErr := s.tokenVersions.current(r.Context(), claims.Sub); vErr != nil || claims.TokenVersion != curVer {
+		if curVer, vErr := s.tokenVersions.current(r.Context(), claims.Sub); vErr != nil || claims.TokenVersion != curVer || s.revokedSessions.has(claims.SessionID) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -72,11 +76,12 @@ func (s *Server) OptionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc 
 	}
 }
 
-// AdminMiddleware validates JWT and checks for admin role.
+// AdminMiddleware validates JWT and checks for admin role. A decoy session is
+// never an admin, whatever role its token carries.
 func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return s.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	return s.authenticate(func(w http.ResponseWriter, r *http.Request) {
 		claims := GetUserClaims(r)
-		if claims == nil || claims.Role != types.RoleAdmin.String() {
+		if claims == nil || claims.Decoy || claims.Role != types.RoleAdmin.String() {
 			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
 			return
 		}
@@ -123,7 +128,12 @@ func (s *Server) AnalyticsRateLimitMiddleware(next http.HandlerFunc) http.Handle
 // internalError logs the real error and returns a generic message to the client.
 func internalError(w http.ResponseWriter, msg string, err error) {
 	log.Printf("error: %s: %v", msg, err)
-	http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+	writeError(w, http.StatusInternalServerError, "internal error")
+}
+
+// writeError writes {"error": msg} as properly escaped JSON.
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
 }
 
 // MaxBodyMiddleware limits the request body size for JSON endpoints.
@@ -153,7 +163,7 @@ func GetUserID(r *http.Request) string {
 // IsAdmin returns whether the current user has admin role.
 func IsAdmin(r *http.Request) bool {
 	claims := GetUserClaims(r)
-	return claims != nil && claims.Role == types.RoleAdmin.String()
+	return claims != nil && !claims.Decoy && claims.Role == types.RoleAdmin.String()
 }
 
 // IsDecoy returns whether the current session is in decoy mode.

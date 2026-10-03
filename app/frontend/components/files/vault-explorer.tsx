@@ -47,7 +47,15 @@
  * ════════════════════════════════════════════════════════════════════════════
  */
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
@@ -216,6 +224,30 @@ function ColHeader({
   );
 }
 
+// Persisted view preferences are only written by this tab, so the store never
+// notifies; the server snapshot is null so SSR renders the defaults.
+const noStoreUpdates = () => () => {};
+const noStoredValue = () => null;
+
+function readStored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null; // localStorage unavailable, defaults are fine
+  }
+}
+
+function readStoredView(): ViewMode | null {
+  const v = readStored("zcrypt-explorer-view");
+  return v === "grid" || v === "list" ? v : null;
+}
+
+function readStoredGridCols(): GridCols | null {
+  const g = readStored("zcrypt-explorer-gridcols");
+  if (g === "auto") return "auto";
+  return g && /^[1-6]$/.test(g) ? (Number(g) as GridCols) : null;
+}
+
 export interface VaultExplorerHandle {
   startNewFolder: () => void;
 }
@@ -282,11 +314,17 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     };
 
     // ── View / sort / search / selection state (owned here) ────────────────────
-    const [view, setView] = useState<ViewMode>("grid");
+    // View + grid density persist across reloads. The stored choice is read as an
+    // external store whose server snapshot is null, so the server-rendered markup
+    // matches the first client render and the saved value swaps in right after.
+    const storedView = useSyncExternalStore(noStoreUpdates, readStoredView, noStoredValue);
+    const [chosenView, setView] = useState<ViewMode | null>(null);
+    const view: ViewMode = chosenView ?? storedView ?? "grid";
     // User-chosen grid density: "auto" = responsive (2/3/4 by width), or a fixed
-    // 1–4 columns the user locks in. Persisted across reloads (loaded after mount,
-    // below, to avoid an SSR/hydration mismatch).
-    const [gridCols, setGridCols] = useState<GridCols>("auto");
+    // 1–4 columns the user locks in.
+    const storedGridCols = useSyncExternalStore(noStoreUpdates, readStoredGridCols, noStoredValue);
+    const [chosenGridCols, setGridCols] = useState<GridCols | null>(null);
+    const gridCols: GridCols = chosenGridCols ?? storedGridCols ?? "auto";
     const [sortField, setSortField] = useState<SortField>("date");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     // Search is controlled by the page header when `search`/`onSearchChange` are
@@ -298,22 +336,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
 
     const [selectMode, setSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-    // Restore persisted view + grid density once on the client (post-mount so the
-    // server-rendered markup matches the first client render).
-    useEffect(() => {
-      try {
-        const v = localStorage.getItem("zcrypt-explorer-view");
-        if (v === "grid" || v === "list") setView(v);
-        const g = localStorage.getItem("zcrypt-explorer-gridcols");
-        if (g === "auto") setGridCols("auto");
-        else if (g && /^[1-6]$/.test(g)) {
-          setGridCols(Number(g) as GridCols);
-        }
-      } catch {
-        /* localStorage unavailable, defaults are fine */
-      }
-    }, []);
 
     const changeView = (v: ViewMode) => {
       setView(v);
@@ -408,18 +430,17 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       [sortedFolders, sortedFiles],
     );
 
-    // Keep selection in sync with what's actually visible (drop stale ids).
-    useEffect(() => {
-      if (selectedIds.size === 0) return;
-      const visible = new Set(sortedFiles.map((f) => f.id));
-      let changed = false;
-      const next = new Set<string>();
-      selectedIds.forEach((id) => {
-        if (visible.has(id)) next.add(id);
-        else changed = true;
-      });
-      if (changed) setSelectedIds(next);
-    }, [sortedFiles, selectedIds]);
+    // Keep selection in sync with what's actually visible (drop stale ids) when
+    // the listing changes. Adjusted during render so no stale frame is painted.
+    const [prevSortedFiles, setPrevSortedFiles] = useState(sortedFiles);
+    if (sortedFiles !== prevSortedFiles) {
+      setPrevSortedFiles(sortedFiles);
+      if (selectedIds.size > 0) {
+        const visible = new Set(sortedFiles.map((f) => f.id));
+        const next = new Set([...selectedIds].filter((id) => visible.has(id)));
+        if (next.size !== selectedIds.size) setSelectedIds(next);
+      }
+    }
 
     const toggleSelect = (id: string) => {
       setSelectedIds((prev) => {
@@ -445,11 +466,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const fileIds = useMemo(() => sortedFiles.map((f) => f.id), [sortedFiles]);
 
     // Keep the roving focus pointed at something real as the listing changes.
-    useEffect(() => {
-      if (focusedId && !entryIds.includes(focusedId)) {
-        setFocusedId(entryIds[0] ?? null);
-      }
-    }, [entryIds, focusedId]);
+    const [prevEntryIds, setPrevEntryIds] = useState(entryIds);
+    if (entryIds !== prevEntryIds) {
+      setPrevEntryIds(entryIds);
+      if (focusedId && !entryIds.includes(focusedId)) setFocusedId(entryIds[0] ?? null);
+    }
 
     // The single roving tab-stop: the focused entry, or the first one when nothing
     // is focused yet (so Tab lands on the list, then arrows move within it).
@@ -575,8 +596,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       }
     };
 
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
     // Per-entry keydown (rows/cards forward their event here). Handles roving
-    // arrows, Space toggle, Shift+arrow range extend, Enter open, Esc clear.
+    // arrows, Space toggle, Shift+arrow range extend, Enter open, Delete/F2,
+    // Esc clear.
     const handleEntryKeyDown = (entry: ExplorerEntry, e: React.KeyboardEvent) => {
       const isFile = entry.kind === "file";
       const id = isFile ? entry.file.id : entry.folder.id;
@@ -628,6 +652,20 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             exitSelectMode();
           }
           return;
+        case "Delete":
+        case "Backspace":
+          if (e.key === "Backspace" && !e.metaKey) return;
+          e.preventDefault();
+          if (!isFile) setDeleteTarget(entry.folder);
+          else if (onBulkDelete && selectedIds.size > 1 && selectedIds.has(id))
+            onBulkDelete(Array.from(selectedIds));
+          else onDelete(id);
+          return;
+        case "F2":
+          e.preventDefault();
+          if (isFile) startRenameFile(entry.file);
+          else startRename(entry.folder);
+          return;
         default:
           return;
       }
@@ -636,10 +674,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // ⌘/Ctrl+A selects every visible file; Esc clears (when something is selected).
     // Scoped to the listing container so it never hijacks page-wide shortcuts.
     const handleContainerKeyDown = (e: React.KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const typing =
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      if (e.key === "?" && !typing) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && (e.key === "a" || e.key === "A")) {
-        const target = e.target as HTMLElement;
-        const typing =
-          target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
         if (typing) return;
         if (sortedFiles.length === 0) return;
         e.preventDefault();
@@ -667,6 +710,12 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // one of them) this holds the WHOLE selection; otherwise just the one file.
     // Kept in a ref because dragover/drop can't read dataTransfer payloads.
     const bulkDragIdsRef = useRef<string[]>([]);
+    // Render-side mirror of the bulk set, so a row can tell it is part of the drag.
+    const [bulkDragIds, setBulkDragIdsState] = useState<string[]>([]);
+    const setBulkDragIds = (ids: string[]) => {
+      bulkDragIdsRef.current = ids;
+      setBulkDragIdsState(ids);
+    };
     // A file id currently hovered as a "combine into folder" target (file-on-file).
     const [combineOver, setCombineOver] = useState<string | null>(null);
     // The pending file-on-file merge (drives the create-folder-from-files dialog).
@@ -847,7 +896,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           onDragStart: (e) => {
             e.dataTransfer.setData(DRAG_MIME, folder.id);
             e.dataTransfer.effectAllowed = "move";
-            bulkDragIdsRef.current = [];
+            setBulkDragIds([]);
             startDrag(folderDragItem);
             setDragGhost(e, { tilt: !prefersReducedMotion, label: folder.name, kind: "folder" });
           },
@@ -864,7 +913,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const isInBulk = selectedIds.has(file.id) && selectedIds.size >= 2;
       const isBeingDragged =
         dragging?.kind === "file" &&
-        (dragging.id === file.id || (isInBulk && bulkDragIdsRef.current.includes(file.id)));
+        (dragging.id === file.id || (isInBulk && bulkDragIds.includes(file.id)));
       return {
         draggable: !isMobile,
         onDragStart: (e) => {
@@ -874,7 +923,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 .filter((en) => en.kind === "file" && selectedIds.has(en.file.id))
                 .map((en) => (en as { kind: "file"; file: FileMetadata }).file.id)
             : [file.id];
-          bulkDragIdsRef.current = ids;
+          setBulkDragIds(ids);
           e.dataTransfer.setData(DRAG_MIME, file.id);
           e.dataTransfer.effectAllowed = "move";
           startDrag({ kind: "file", id: file.id, name: file.original_name });
@@ -885,7 +934,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           });
         },
         onDragEnd: () => {
-          bulkDragIdsRef.current = [];
+          setBulkDragIds([]);
           setCombineOver(null);
           endDrag();
         },
@@ -1242,6 +1291,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             Unlock your vault to read encrypted folder names, preview, and download.
           </p>
         )}
+
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {selectedIds.size > 0 ? `${selectedIds.size} selected` : ""}
+        </p>
 
         {/* Select-mode action bar */}
         {selectMode && (
@@ -1601,6 +1654,27 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           allowBackgroundDesign={customizeTarget?.type === "folder"}
         />
 
+        <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+          <DialogContent className={DIALOG_PANEL}>
+            <DialogHeader>
+              <DialogTitle>Keyboard shortcuts</DialogTitle>
+              <DialogDescription>Focus a file or folder in the list, then:</DialogDescription>
+            </DialogHeader>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
+                <div key={keys} className="contents">
+                  <dt>
+                    <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-xs">
+                      {keys}
+                    </kbd>
+                  </dt>
+                  <dd className="text-[var(--color-text-secondary)]">{action}</dd>
+                </div>
+              ))}
+            </dl>
+          </DialogContent>
+        </Dialog>
+
         {/* Delete folder confirm */}
         <ConfirmDialog
           open={!!deleteTarget}
@@ -1639,6 +1713,18 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     );
   },
 );
+
+const KEYBOARD_SHORTCUTS: [string, string][] = [
+  ["Arrow keys", "Move between items"],
+  ["Shift + Arrow", "Extend the selection"],
+  ["Space", "Select a file, or open a folder"],
+  ["Enter", "Open"],
+  ["Ctrl/Cmd + A", "Select all files"],
+  ["Delete", "Move to Trash"],
+  ["F2", "Rename"],
+  ["Esc", "Clear the selection"],
+  ["?", "Show these shortcuts"],
+];
 
 /**
  * ── DEVIATIONS FROM SPEC ─────────────────────────────────────────────────────

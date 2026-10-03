@@ -2,9 +2,16 @@ package adapters
 
 import (
 	"context"
+	"errors"
+	"io"
 
 	"github.com/zcrypt/zcrypt/types"
 )
+
+// ErrNotFound means the platform answered that the chunk does not exist (HTTP
+// 404), as opposed to a transient, rate-limit or auth failure. Download wraps it
+// so callers can tell lost data from a network blip.
+var ErrNotFound = errors.New("chunk not found on platform")
 
 // PlatformAdapter defines the unified interface for all platform backends.
 type PlatformAdapter interface {
@@ -28,6 +35,20 @@ type PlatformAdapter interface {
 
 	// PlatformName returns the name of this platform.
 	PlatformName() string
+}
+
+// ChunkVerifier is an optional interface for adapters that cannot list a repo
+// but can confirm one chunk is stored intact (e.g., Telegram). A nil error means
+// the chunk is present at its full size.
+type ChunkVerifier interface {
+	VerifyChunk(ctx context.Context, ref types.ChunkRef) error
+}
+
+// ChunkStreamer is an optional interface for adapters that can write a chunk's
+// bytes to w as they arrive, so the relay answers before the whole chunk has
+// landed on the server instead of storing and then forwarding it.
+type ChunkStreamer interface {
+	DownloadTo(ctx context.Context, ref types.ChunkRef, w io.Writer) (int64, error)
 }
 
 // BatchCommitter is an optional interface for adapters that can batch multiple

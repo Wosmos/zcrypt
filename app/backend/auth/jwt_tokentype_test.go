@@ -58,6 +58,22 @@ func TestDecoyTokenValidatesAsAccess(t *testing.T) {
 	assert.True(t, claims.Decoy)
 }
 
+func TestSessionAccessTokenCarriesSessionID(t *testing.T) {
+	tok, err := GenerateSessionAccessToken(tokenTestSecret, "user-1", "u@test.com", "user", "user", 3, "sess-1", false)
+	require.NoError(t, err)
+	claims, err := ValidateAccessToken(tokenTestSecret, tok)
+	require.NoError(t, err)
+	assert.Equal(t, "sess-1", claims.SessionID)
+	assert.Equal(t, 3, claims.TokenVersion)
+	assert.False(t, claims.Decoy)
+
+	plain, err := GenerateAccessToken(tokenTestSecret, "user-1", "u@test.com", "user", "user", 0)
+	require.NoError(t, err)
+	claims, err = ValidateAccessToken(tokenTestSecret, plain)
+	require.NoError(t, err)
+	assert.Empty(t, claims.SessionID)
+}
+
 // TestLegacyUntypedTokenAcceptedAsAccess verifies backward compatibility: tokens
 // minted before token typing existed (no "typ" claim) still validate as access
 // tokens, so deploying the fix does not force-log-out existing sessions.

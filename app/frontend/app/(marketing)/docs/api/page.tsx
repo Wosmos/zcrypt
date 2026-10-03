@@ -574,15 +574,19 @@ export default function ApiDocPage() {
       <DocSection id="events" title="Events (SSE)">
         <DocP>
           Real-time progress (uploads, syncs) streams over Server-Sent Events. Because{" "}
-          <code>EventSource</code> cannot set headers, this endpoint authenticates with the JWT in a
-          query parameter instead of the <code>Authorization</code> header.
+          <code>EventSource</code> cannot set headers, first trade your access token for a
+          single-use ticket, then open the stream with it. The ticket is valid for 30 seconds, so
+          the token itself never appears in a URL or a proxy log.
         </DocP>
-        <DocCode label="text/event-stream">{`GET /api/events?token=<access-token>`}</DocCode>
+        <DocCode label="text/event-stream">{`POST /api/sse/ticket            -> {"ticket": "..."}
+GET  /api/events?ticket=<ticket>`}</DocCode>
         <DocP>
           The stream carries upload and sync progress plus a <code>clipboard</code> event, emitted
-          to your other connections when a new clipboard item is pushed. A separate WebSocket
-          endpoint, <code>GET /api/transfer/ws</code>, backs live device-to-device transfer. Both
-          long-lived endpoints bypass the per-request rate limiter.
+          to your other connections when a new clipboard item is pushed. It closes when the access
+          token it was opened with expires, or as soon as your sessions are revoked, so reconnect
+          with a fresh ticket. Each account can hold a limited number of open streams. A separate
+          WebSocket endpoint, <code>GET /api/transfer/ws</code>, backs live device-to-device
+          transfer. Both long-lived endpoints bypass the per-request rate limiter.
         </DocP>
       </DocSection>
 
@@ -620,10 +624,18 @@ export default function ApiDocPage() {
           rows={[
             ["GET", <code key="p">/api/admin/users</code>, "List all users."],
             ["GET", <code key="p">/api/admin/stats</code>, "System statistics."],
-            ["PUT", <code key="p">/api/admin/users/{`{id}`}/role</code>, "Set a user's role."],
+            [
+              "PUT",
+              <code key="p">/api/admin/users/{`{id}`}/role</code>,
+              "Set a user's role. Send the acting admin's password, and a 2FA code if enabled.",
+            ],
             ["PUT", <code key="p">/api/admin/users/{`{id}`}/plan</code>, "Set a user's plan."],
             ["PUT", <code key="p">/api/admin/users/{`{id}`}/quota</code>, "Set a user's quota."],
-            ["DELETE", <code key="p">/api/admin/users/{`{id}`}</code>, "Delete a user."],
+            [
+              "DELETE",
+              <code key="p">/api/admin/users/{`{id}`}</code>,
+              "Delete a user. Needs the same re-authentication as a role change.",
+            ],
             ["GET", <code key="p">/api/admin/tokens</code>, "List global storage tokens."],
             ["GET", <code key="p">/api/admin/audit</code>, "Read the audit log."],
           ]}

@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { getFileMeta, getFileChunk } from "@/lib/api";
-import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
-import { isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";
-import { isImageFile, isVideoFile, mimeForFile } from "@/lib/utils";
-import { isTauri, sidecarDecryptToMemory } from "@/lib/tauri";
+import { cachedDecrypt, isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";
+import { isImageFile, isVideoFile } from "@/lib/utils";
+import { getFilesData } from "@/store/files";
+import { runDecryptPipeline } from "@/hooks/useFileDecryptor";
 
 // A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
 // background grid preview is allowed to pull. Files above this just show their
@@ -109,6 +108,12 @@ function isPermanentlyFailed(id: string): boolean {
 function isHardFailed(id: string): boolean {
   const f = failed.get(id);
   return !!f && f.hard;
+}
+/** Is this tile still inside its shimmer window: not yet started (about to
+ *  dispatch), or started less than SHIMMER_MAX_MS ago. */
+function withinShimmerGrace(id: string): boolean {
+  const startedAt = genStartedAt.get(id);
+  return startedAt === undefined || Date.now() - startedAt < SHIMMER_MAX_MS;
 }
 /** May a (re)generation run now, never tried, or a prior failure's backoff has
  *  elapsed and attempts remain. */
@@ -468,7 +473,6 @@ async function decryptFileToBlob(
   fileId: string,
   passphrase: string,
   resolvePassword?: ThumbnailPasswordResolver,
-  mime = "application/octet-stream",
 ): Promise<Blob> {
   const filePassphrase = resolvePassword ? resolvePassword(fileId) : passphrase;
   if (filePassphrase == null) {
@@ -476,46 +480,20 @@ async function decryptFileToBlob(
     throw new Error("locked");
   }
 
-  // Desktop: decrypt natively in the in-process Rust core (byos-direct bytes,
-  // native speed). Falls back to the in-browser path below on any error.
-  if (isTauri) {
-    try {
-      const { useAuthStore } = await import("@/store/auth");
-      const userId = useAuthStore.getState().user?.id ?? "";
-      const buf = await sidecarDecryptToMemory(fileId, filePassphrase, userId);
-      return new Blob([buf as BlobPart], { type: mime });
-    } catch {
-      // fall through to the in-browser pipeline
-    }
-  }
-
-  const meta = await getFileMeta(fileId);
-  const salt = fromBase64(meta.salt);
-  // resolveFileKey memoizes its PBKDF2 derivation (lib/crypto's derived-key
-  // cache), so a thumbnail no longer pays 600k iterations that the preview /
-  // download of the same file will just re-pay.
-  const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
-
-  // Use the single app-wide zstd codec, NEVER call ZstdInit() here. The
-  // thumbnail loader runs several decrypts concurrently; a per-call ZstdInit()
-  // re-initialises the shared wasm mid-use and corrupts other in-flight
-  // decompression (the file viewer's), throwing "ZSTD_ERROR: Src size is
-  // incorrect, -72". See lib/zstd.ts.
-  const { getZstdCodec } = await import("@/lib/zstd");
-  let zstd: Awaited<ReturnType<typeof getZstdCodec>> | null = null;
-
-  const chunks: Uint8Array[] = [];
-  for (let i = 0; i < meta.chunk_count; i++) {
-    const { data, compressed } = await getFileChunk(fileId, i);
-    let plain = await decryptChunk(keyBytes, new Uint8Array(data));
-    if (compressed) {
-      if (!zstd) zstd = await getZstdCodec();
-      plain = zstd.ZstdStream.decompress(plain);
-    }
-    chunks.push(plain);
-  }
-
-  return new Blob(chunks as BlobPart[], { type: mime });
+  // A thumbnail rasterizes from the full original, so decrypt it through the
+  // viewer's own pipeline and blob cache: opening the photo after its tile
+  // rendered reuses these bytes instead of downloading and decrypting the file
+  // a second time. Both caches are keyed by the file's folder so a folder
+  // re-lock evicts them, so a file missing from the loaded list (folder
+  // unknown) is skipped rather than cached under the wrong folder.
+  const file = getFilesData().find((f) => f.id === fileId);
+  if (!file) throw new Error("locked");
+  return cachedDecrypt(
+    fileId,
+    file.folder_id ?? null,
+    () => runDecryptPipeline(file, filePassphrase),
+    { background: true },
+  );
 }
 
 async function fetchAndCacheThumbnail(
@@ -560,7 +538,7 @@ async function fetchAndCacheThumbnail(
     let blob: Blob;
     try {
       blob = await withTimeout(
-        decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename)),
+        decryptFileToBlob(fileId, passphrase, resolvePassword),
         30_000,
         "thumbnail decrypt",
       );
@@ -784,8 +762,7 @@ export function useThumbnail(
   // the real thumbnail swaps in via memCache the moment generation succeeds.
   // Gated on `hydrated` so a reload never flashes a shimmer over previews that
   // are cached on disk and about to appear instantly.
-  const startedAt = genStartedAt.get(fileId);
-  const withinGrace = startedAt === undefined ? true : Date.now() - startedAt < SHIMMER_MAX_MS;
+  const withinGrace = withinShimmerGrace(fileId);
   const pending =
     hydrated &&
     thumbable &&

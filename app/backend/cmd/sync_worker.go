@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
+	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/disguise"
 	"github.com/zcrypt/zcrypt/types"
@@ -44,9 +47,74 @@ func resetTimer(t *time.Timer, d time.Duration) {
 // maxSyncAttempts caps how many times the sync worker will retry a single
 // pending chunk before giving up on it. A chunk whose staging file is gone (or
 // that fails every upload) would otherwise be retried forever, starving the
-// queue. Once a chunk hits this cap it's left in place (remote_path still ”)
-// and logged so the data-loss risk is visible rather than silently looping.
-const maxSyncAttempts = 8
+// queue. Once a chunk hits this cap it's left in place (remote_path still ”),
+// its file is marked degraded so the user sees it and can retry, and it's logged.
+// With the backoff below the eleven waits between those attempts add up to
+// just over five hours before jitter (30s doubling to 32m, then four 1h
+// waits), so a platform outage of that length no longer strands chunks.
+const maxSyncAttempts = 12
+
+const (
+	syncRetryBase = 30 * time.Second
+	syncRetryMax  = time.Hour
+)
+
+// syncRetryDelay is how long to wait before the next attempt after `attempts`
+// failures: exponential from syncRetryBase, capped at syncRetryMax, with +/-20%
+// jitter so chunks that failed together don't retry in lockstep.
+func syncRetryDelay(attempts int) time.Duration {
+	d := syncRetryBackoff(attempts)
+	jitter := time.Duration(rand.Int63n(int64(d)*2/5+1)) - d/5 // #nosec G404 -- retry jitter, not security
+	return d + jitter
+}
+
+// syncRetryBackoff is syncRetryDelay before jitter.
+func syncRetryBackoff(attempts int) time.Duration {
+	if attempts < 16 {
+		if e := syncRetryBase << attempts; e < syncRetryMax {
+			return e
+		}
+	}
+	return syncRetryMax
+}
+
+// platformUnhealthyRe matches adapter errors that mean the platform itself is
+// failing (rate limit or 5xx) rather than this one chunk.
+var platformUnhealthyRe = regexp.MustCompile(`(?i)\b(429|5\d\d)\b|rate.?limit|too many requests|service unavailable|bad gateway`)
+
+func isPlatformUnhealthy(err error) bool {
+	return err != nil && platformUnhealthyRe.MatchString(err.Error())
+}
+
+// nextSyncWake returns how long the worker may sleep: the idle backoff, cut
+// short when a backed-off chunk becomes due sooner.
+func (s *Server) nextSyncWake(ctx context.Context, idle time.Duration) time.Duration {
+	next, err := s.db.NextChunkAttemptAt(ctx, maxSyncAttempts)
+	if err != nil || next == nil {
+		return idle
+	}
+	d := time.Until(*next)
+	if d < time.Second {
+		d = time.Second
+	}
+	if d < idle {
+		return d
+	}
+	return idle
+}
+
+// markDegraded flags a file whose chunk just exhausted its retry budget and
+// pushes the change to the owner's devices so the UI can offer a retry.
+func (s *Server) markDegraded(ctx context.Context, userID, fileID string) {
+	changed, err := s.db.MarkFileDegraded(ctx, fileID)
+	if err != nil {
+		log.Printf("sync-worker: mark file %s degraded: %v", fileID, err)
+		return
+	}
+	if changed {
+		s.emitFileChange(ctx, userID, fileID, "updated")
+	}
+}
 
 // StartSyncWorker launches a background goroutine that flushes pending chunks
 // to their respective storage adapters.
@@ -80,7 +148,7 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 		}
 
 		backoff := syncMinInterval
-		fallback := time.NewTimer(backoff)
+		fallback := time.NewTimer(s.nextSyncWake(ctx, backoff))
 		defer fallback.Stop()
 
 		for {
@@ -94,7 +162,7 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 				for s.drainAll(ctx) {
 				}
 				backoff = syncMinInterval
-				resetTimer(fallback, backoff)
+				resetTimer(fallback, s.nextSyncWake(ctx, backoff))
 			case <-fallback.C:
 				// Safety net: catch chunks left over from a restart AND re-attempt
 				// any uncommitted (never-durably-committed) chunks.
@@ -112,7 +180,7 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 						backoff = syncMaxInterval
 					}
 				}
-				resetTimer(fallback, backoff)
+				resetTimer(fallback, s.nextSyncWake(ctx, backoff))
 			}
 		}
 	}()
@@ -171,16 +239,31 @@ func (s *Server) syncPendingChunks(ctx context.Context) bool {
 		return true
 	}
 
+	paused := map[string]bool{}
 	for _, chunk := range chunks {
 		if ctx.Err() != nil {
 			return true
 		}
-		s.syncOneChunk(ctx, chunk, stagingDir)
+		key := chunk.Platform + ":" + chunk.Account
+		if paused[key] {
+			continue
+		}
+		if err := s.syncOneChunk(ctx, chunk, stagingDir); isPlatformUnhealthy(err) {
+			paused[key] = true
+			delay := syncRetryDelay(chunk.SyncAttempts)
+			log.Printf("sync-worker: %s looks unhealthy, pausing its queue for %s: %v", key, delay.Round(time.Second), err)
+			if derr := s.db.DeferPendingChunks(ctx, chunk.Platform, chunk.Account, delay, maxSyncAttempts); derr != nil {
+				log.Printf("sync-worker: defer %s queue: %v", key, derr)
+			}
+		}
 	}
 	return true
 }
 
-func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, stagingDir string) {
+// syncOneChunk pushes one staged chunk to its platform. It returns the upload
+// error (nil otherwise) so the caller can pause a platform that is failing as a
+// whole; every other failure is already recorded against the chunk.
+func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, stagingDir string) error {
 	stagingPath := filepath.Join(stagingDir, chunk.ChunkID+".enc")
 
 	// failAttempt records a failed sync attempt and bumps the retry counter so
@@ -189,13 +272,14 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	// chunk (a real data-loss risk) is visible rather than silently looping.
 	failAttempt := func(format string, args ...interface{}) {
 		log.Printf("sync-worker: "+format, args...)
-		if err := s.db.IncrementChunkSyncAttempts(ctx, chunk.ChunkID); err != nil {
+		if err := s.db.IncrementChunkSyncAttempts(ctx, chunk.ChunkID, syncRetryDelay(chunk.SyncAttempts)); err != nil {
 			log.Printf("sync-worker: increment attempts for %s: %v", chunk.ChunkID, err)
 			return
 		}
 		if chunk.SyncAttempts+1 >= maxSyncAttempts {
 			log.Printf("sync-worker: WARNING chunk %s (file %s, idx %d) hit %d sync attempts and will no longer be retried. It is NOT durable on any platform",
 				chunk.ChunkID, chunk.FileID, chunk.Index, maxSyncAttempts)
+			s.markDegraded(ctx, chunk.UserID, chunk.FileID)
 		}
 	}
 
@@ -203,14 +287,14 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	data, err := os.ReadFile(stagingPath)
 	if err != nil {
 		failAttempt("read staging file %s: %v", chunk.ChunkID, err)
-		return
+		return nil
 	}
 
 	// Resolve adapter
 	adapter := s.resolveAdapterForUser(ctx, chunk.UserID, chunk.Platform, chunk.Account)
 	if adapter == nil {
 		failAttempt("no adapter for chunk %s (platform=%s account=%s)", chunk.ChunkID, chunk.Platform, chunk.Account)
-		return
+		return nil
 	}
 
 	// Resolve the disguised remote path. Reuse a path already planned on a prior
@@ -233,11 +317,11 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		}
 		if err != nil {
 			failAttempt("generate filename: %v", err)
-			return
+			return nil
 		}
 		if err := s.db.SetPlannedRemotePath(ctx, chunk.ChunkID, remotePath); err != nil {
 			failAttempt("record planned remote path for %s: %v", chunk.ChunkID, err)
-			return
+			return nil
 		}
 	}
 
@@ -267,14 +351,14 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		select {
 		case <-time.After(delay):
 		case <-ctx.Done():
-			return // shutdown, not a failed attempt
+			return nil // shutdown, not a failed attempt
 		}
 	}
 
 	// Acquire per-repo slot to prevent GitHub 409 storms
 	releaseRepo, err := acquireRepoSlot(ctx, chunk.Repo)
 	if err != nil {
-		return // context cancelled: shutdown, not a real failure; don't count it
+		return nil // context cancelled: shutdown, not a real failure; don't count it
 	}
 	defer releaseRepo()
 
@@ -291,14 +375,19 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	})
 	if err != nil {
 		failAttempt("upload chunk %s to %s failed: %v", chunk.ChunkID, chunk.Platform, err)
-		return
+		return err
 	}
 
 	// Update remote_path in DB (marks chunk as synced).
 	rows, err := s.db.UpdateChunkRemotePath(ctx, chunk.ChunkID, ref.RemotePath)
 	if err != nil {
 		failAttempt("update remote path for %s: %v", chunk.ChunkID, err)
-		return
+		return nil
+	}
+	if _, batch := adapter.(adapters.BatchCommitter); !batch && rows > 0 {
+		if err := s.db.MarkChunksCommitted(ctx, []string{chunk.ChunkID}); err != nil {
+			log.Printf("sync-worker: mark %s committed: %v", chunk.ChunkID, err)
+		}
 	}
 	if rows == 0 {
 		// The chunk row vanished while this upload was in flight, the file was
@@ -319,4 +408,5 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	if err := os.Remove(stagingPath); err != nil {
 		fmt.Printf("sync-worker: warn: remove staging file %s: %v\n", stagingPath, err)
 	}
+	return nil
 }

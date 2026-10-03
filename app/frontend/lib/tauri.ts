@@ -25,20 +25,17 @@ export async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>
   return invoke<T>(cmd, args);
 }
 
-/** Open a native file picker dialog. Returns selected file paths. */
+/** Open the shell's native file picker. Returns the selected paths, which the
+ *  shell then lets the upload commands read. */
 export async function pickFiles(options?: {
   multiple?: boolean;
   title?: string;
 }): Promise<string[]> {
   if (!isTauri) return [];
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  const result = await open({
+  return tauriInvoke<string[]>("pick_files", {
     multiple: options?.multiple ?? true,
     title: options?.title ?? "Select files to upload",
   });
-  if (!result) return [];
-  if (Array.isArray(result)) return result as string[];
-  return [result as string];
 }
 
 /**
@@ -82,11 +79,11 @@ export async function openExternal(url: string): Promise<void> {
   await openUrl(url);
 }
 
-/** Open a native save dialog. Returns the selected path. */
+/** Open a native save dialog. Returns the selected path. The shell only lets
+ *  the download commands write to a path picked here. */
 export async function pickSaveLocation(defaultName: string): Promise<string | null> {
   if (!isTauri) return null;
-  const { save } = await import("@tauri-apps/plugin-dialog");
-  return save({ defaultPath: defaultName });
+  return tauriInvoke<string | null>("pick_save_path", { defaultName });
 }
 
 /**
@@ -109,6 +106,11 @@ export async function sidecarUpload(
     transferId,
     folderId: folderId ?? undefined,
   });
+}
+
+/** Byte sizes of local paths (0 for any the shell can't stat). */
+export async function fileSizes(paths: string[]): Promise<number[]> {
+  return tauriInvoke<number[]>("file_sizes", { paths });
 }
 
 /**
@@ -399,10 +401,21 @@ export async function onUpdateProgress(cb: (p: UpdateProgress) => void): Promise
   return listen<UpdateProgress>("update-progress", (e) => cb(e.payload));
 }
 
+/** The OS name for the biometric unlock on this device, or null when it has
+ *  no brand name worth showing (Android says "fingerprint" or "face"). */
+export function biometricMethodName(): string | null {
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return null;
+  if (/Windows/i.test(ua)) return "Windows Hello";
+  if (/Macintosh|Mac OS X/i.test(ua)) return "Touch ID";
+  return null;
+}
+
 /**
- * Whether Touch ID (or another local device-owner biometric) is available
- * right now. Always false outside Tauri. False on non-macOS targets and
- * whenever the Mac has no usable enrollment.
+ * Whether a local device-owner biometric (Touch ID, Windows Hello, Android
+ * BiometricPrompt) is available right now. Always false outside Tauri and
+ * whenever nothing usable is enrolled.
  */
 export async function biometricAvailable(): Promise<boolean> {
   if (!isTauri) return false;
@@ -410,7 +423,7 @@ export async function biometricAvailable(): Promise<boolean> {
 }
 
 /**
- * Present the OS Touch ID prompt with `reason` as the shown text. Resolves
+ * Present the OS biometric prompt with `reason` as the shown text. Resolves
  * `false` outside Tauri, on user cancel, or on any declined/failed
  * authentication (not enrolled, locked out, denied, etc). Callers should
  * still guard against a rejected promise: the shell only rejects if the OS

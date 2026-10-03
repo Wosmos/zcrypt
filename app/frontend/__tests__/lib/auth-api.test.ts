@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as authApi from "@/lib/auth-api";
+import { useAuthStore } from "@/store/auth";
 
 // auth-api.ts is a small authRequest() core (json headers, 15s timeout, error
 // parsing, abort->timeout) plus thin per-endpoint wrappers. We assert the core
@@ -130,6 +131,13 @@ describe("auth-api endpoint wrappers", () => {
     { name: "getUserActivity", run: () => authApi.getUserActivity("at"), path: "/api/auth/activity", auth: "at" },
     { name: "updateProfile", run: () => authApi.updateProfile("at", { display_name: "Wasif", avatar_url: "data:image/jpeg;base64,AA" }), path: "/api/auth/profile", method: "PATCH", body: { display_name: "Wasif", avatar_url: "data:image/jpeg;base64,AA" }, auth: "at" },
     { name: "changePassword", run: () => authApi.changePassword("at", "old", "new"), path: "/api/auth/change-password", method: "POST", body: { current_password: "old", new_password: "new", force: false }, auth: "at" },
+    { name: "listSessions", run: () => authApi.listSessions("at"), path: "/api/auth/sessions", auth: "at" },
+    { name: "revokeSession", run: () => authApi.revokeSession("at", "s 1"), path: "/api/auth/sessions/s%201", method: "DELETE", auth: "at" },
+    { name: "revokeOtherSessions", run: () => authApi.revokeOtherSessions("at"), path: "/api/auth/sessions/revoke-others", method: "POST", auth: "at" },
+    { name: "deleteAccount", run: () => authApi.deleteAccount("at", "pw", "123456"), path: "/api/auth/me", method: "DELETE", body: { password: "pw", code: "123456" }, auth: "at" },
+    { name: "deleteAccount (no 2FA)", run: () => authApi.deleteAccount("at", "pw"), path: "/api/auth/me", method: "DELETE", body: { password: "pw", code: "" }, auth: "at" },
+    { name: "cancelAccountDeletion", run: () => authApi.cancelAccountDeletion("at"), path: "/api/auth/me/deletion/cancel", method: "POST", auth: "at" },
+    { name: "exportAccount", run: () => authApi.exportAccount("at"), path: "/api/auth/me/export", auth: "at" },
     { name: "changePassword (force)", run: () => authApi.changePassword("at", "old", "new", true), path: "/api/auth/change-password", method: "POST", body: { current_password: "old", new_password: "new", force: true }, auth: "at" },
   ];
 
@@ -145,6 +153,45 @@ describe("auth-api endpoint wrappers", () => {
     if (c.auth) {
       expect(init.headers["Authorization"]).toBe(`Bearer ${c.auth}`);
     }
+  });
+});
+
+describe("2FA toggles adopt the rotated session", () => {
+  beforeEach(() => {
+    useAuthStore.getState().setTokens("old-at", "old-rt");
+  });
+
+  it("enable2FA stores the new pair and returns the backup codes", async () => {
+    fetchMock.mockResolvedValueOnce(
+      resp(200, {
+        success: true,
+        session_rotated: true,
+        access_token: "new-at",
+        refresh_token: "new-rt",
+        backup_codes: ["a-b"],
+      }),
+    );
+    const out = await authApi.enable2FA("old-at", "123456");
+    expect(out.backup_codes).toEqual(["a-b"]);
+    expect(useAuthStore.getState().accessToken).toBe("new-at");
+    expect(useAuthStore.getState().refreshTokenValue).toBe("new-rt");
+  });
+
+  it("disable2FA stores the new pair", async () => {
+    fetchMock.mockResolvedValueOnce(
+      resp(200, { success: true, session_rotated: true, access_token: "d-at", refresh_token: "d-rt" }),
+    );
+    await authApi.disable2FA("old-at", "pw", "123456");
+    expect(useAuthStore.getState().accessToken).toBe("d-at");
+  });
+
+  it("keeps the tokens untouched when the rotation failed but still returns the codes", async () => {
+    fetchMock.mockResolvedValueOnce(
+      resp(200, { success: true, session_rotated: false, backup_codes: ["x-y"] }),
+    );
+    const out = await authApi.enable2FA("old-at", "123456");
+    expect(out.backup_codes).toEqual(["x-y"]);
+    expect(useAuthStore.getState().accessToken).toBe("old-at");
   });
 });
 

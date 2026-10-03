@@ -35,6 +35,10 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   /** Disables actions and shows a spinner on confirm. */
   loading?: boolean;
+  /** Keeps the confirm action disabled until the extra content is complete. */
+  confirmDisabled?: boolean;
+  /** Extra content rendered between the description and the actions. */
+  children?: ReactNode;
 }
 
 /**
@@ -52,6 +56,8 @@ export function ConfirmDialog({
   destructive = false,
   onConfirm,
   loading = false,
+  confirmDisabled = false,
+  children,
 }: ConfirmDialogProps) {
   const t = useTranslations("common");
   return (
@@ -63,6 +69,7 @@ export function ConfirmDialog({
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel
             disabled={loading}
@@ -71,7 +78,7 @@ export function ConfirmDialog({
             {cancelLabel ?? t("cancel")}
           </AlertDialogCancel>
           <AlertDialogAction
-            disabled={loading}
+            disabled={loading || confirmDisabled}
             onClick={(e) => {
               // Keep the dialog mounted while the async action runs.
               e.preventDefault();

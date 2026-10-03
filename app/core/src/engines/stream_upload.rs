@@ -13,7 +13,7 @@
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use base64::Engine as _;
@@ -21,7 +21,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use zeroize::Zeroize;
 
 use crate::adapters;
-use crate::api::types::{ConfirmChunkRequest, UploadInitRequest};
+use crate::api::types::{ConfirmChunkRequest, UploadInitRequest, UploadInitResponse};
 use crate::compression;
 use crate::crypto;
 use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage};
@@ -32,6 +32,43 @@ use super::{EngineContext, EngineError};
 /// In-flight RAM window ceiling. `conc` is also capped so `conc * chunk_size`
 /// stays under this, so even a huge chunk size can't blow up memory.
 const RAM_WINDOW_BYTES: i64 = 256 * 1024 * 1024;
+
+/// Chunks in flight across EVERY concurrent upload in this process. The app
+/// runs several files at once, and each file's own `conc` window would
+/// otherwise multiply (6 files x 16 chunks), oversubscribing RAM and the
+/// uplink. Sized by the first upload's `conc`: the profile, and so the chunk
+/// size behind it, is fixed for the process.
+fn global_window(conc: usize) -> Arc<tokio::sync::Semaphore> {
+    static WINDOW: OnceLock<Arc<tokio::sync::Semaphore>> = OnceLock::new();
+    WINDOW
+        .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(conc)))
+        .clone()
+}
+
+fn count_chunks(file_size: i64, chunk_size: i64) -> i64 {
+    if file_size == 0 {
+        1
+    } else {
+        (file_size + chunk_size - 1) / chunk_size
+    }
+}
+
+/// The chunk layout a resumed session was cut at, so re-streamed chunks land on
+/// the same offsets as the ones the backend already holds. `None` when the
+/// session's layout can't be reproduced and the session must be restarted.
+fn session_layout(
+    file_size: i64,
+    chunk_size: i64,
+    chunk_count: i64,
+    resp: &UploadInitResponse,
+) -> Option<(i64, i64)> {
+    let (size, count) = if resp.chunk_size > 0 {
+        (resp.chunk_size, count_chunks(file_size, resp.chunk_size))
+    } else {
+        (chunk_size, chunk_count)
+    };
+    (resp.chunk_count <= 0 || resp.chunk_count == count).then_some((size, count))
+}
 
 pub async fn run(
     ctx: &EngineContext,
@@ -46,12 +83,9 @@ pub async fn run(
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".to_string());
     let file_size = tokio::fs::metadata(file_path).await?.len() as i64;
-    let chunk_size = ctx.profile.chunk_size as i64;
-    let chunk_count = if file_size == 0 {
-        1
-    } else {
-        (file_size + chunk_size - 1) / chunk_size
-    };
+    let mut chunk_size = ctx.profile.chunk_size as i64;
+    let mut chunk_count = count_chunks(file_size, chunk_size);
+    let total = AtomicU32::new(chunk_count as u32);
 
     let emit = |stage: Stage, done: u32, bytes: i64| {
         (ctx.progress)(Progress {
@@ -59,7 +93,7 @@ pub async fn run(
             file_name: file_name.clone(),
             stage,
             chunks_done: done,
-            chunks_total: chunk_count as u32,
+            chunks_total: total.load(Ordering::Relaxed),
             bytes_done: bytes,
             bytes_total: file_size,
             speed: 0.0,
@@ -118,6 +152,7 @@ pub async fn run(
         salt: b64.encode(salt),
         wrapped_cek: b64.encode(&wrapped_cek),
         chunk_count,
+        chunk_size,
         platform: if byos {
             plat.clone()
         } else {
@@ -131,7 +166,29 @@ pub async fn run(
         folder_id,
         ..Default::default()
     };
-    let resp = ctx.client.init_upload(&req).await?;
+    let mut resp = ctx.client.init_upload(&req).await?;
+    if resp.resumed {
+        match session_layout(file_size, chunk_size, chunk_count, &resp) {
+            Some((size, count)) => {
+                chunk_size = size;
+                chunk_count = count;
+                total.store(count as u32, Ordering::Relaxed);
+            }
+            None => {
+                eprintln!(
+                    "zcrypt stream upload {file_name}: resumable session was cut at a different \
+                     chunk layout, restarting it"
+                );
+                ctx.client.cancel_upload(&resp.session_id).await?;
+                resp = ctx.client.init_upload(&req).await?;
+                if resp.resumed {
+                    return Err(EngineError::Other(
+                        "resume: session chunk layout does not match this file".into(),
+                    ));
+                }
+            }
+        }
+    }
     let session_id = resp.session_id;
     let backend_id = resp.file_id;
     let direct = resp.direct_upload;
@@ -195,6 +252,7 @@ pub async fn run(
 
     emit(Stage::Uploading, have.len() as u32, 0);
     let sem = Arc::new(tokio::sync::Semaphore::new(conc));
+    let window = global_window(conc);
     let done = Arc::new(AtomicU32::new(have.len() as u32));
     let enc_total = Arc::new(AtomicI64::new(0));
     let comp_total = Arc::new(AtomicI64::new(0));
@@ -220,6 +278,7 @@ pub async fn run(
         // resident. This is the RAM window. Reads are serialized (one at a
         // time, here in the loop); encrypt+upload run concurrently in tasks.
         let permit = sem.clone().acquire_owned().await.expect("semaphore");
+        let slot = window.clone().acquire_owned().await.expect("semaphore");
         let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
         f.seek(std::io::SeekFrom::Start((idx * chunk_size) as u64))
             .await?;
@@ -239,6 +298,7 @@ pub async fn run(
         let first_err = first_err.clone();
         join.spawn(async move {
             let _permit = permit;
+            let _slot = slot;
             // Encrypt IN MEMORY (native, off the async runtime).
             let processed = match tokio::task::spawn_blocking(move || {
                 let mut cek = cek;
@@ -386,7 +446,7 @@ async fn upload_one(
     if let Some(repo) = repo {
         let creds = (ctx.creds)(platform)
             .ok_or_else(|| EngineError::Other(format!("no personal token for {platform}")))?;
-        let adapter = adapters::new_adapter(platform, &creds.token, &creds.account)
+        let adapter = adapters::shared_adapter(platform, &creds.token, &creds.account)
             .ok_or_else(|| EngineError::Other(format!("no adapter for {platform}")))?;
         let cref = ChunkRef {
             platform: platform.to_string(),
@@ -476,4 +536,59 @@ fn set_err(slot: &Mutex<Option<EngineError>>, e: EngineError) {
 
 fn join_err(e: tokio::task::JoinError) -> EngineError {
     EngineError::Other(format!("task join: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MIB: i64 = 1024 * 1024;
+
+    fn resumed(chunk_size: i64, chunk_count: i64) -> UploadInitResponse {
+        UploadInitResponse {
+            resumed: true,
+            chunk_size,
+            chunk_count,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn count_chunks_rounds_up() {
+        assert_eq!(count_chunks(0, 10 * MIB), 1);
+        assert_eq!(count_chunks(10 * MIB, 10 * MIB), 1);
+        assert_eq!(count_chunks(10 * MIB + 1, 10 * MIB), 2);
+    }
+
+    #[test]
+    fn resume_adopts_the_sessions_chunk_size() {
+        let file = 100 * MIB;
+        let r = resumed(16 * MIB, 7);
+        assert_eq!(session_layout(file, 10 * MIB, 10, &r), Some((16 * MIB, 7)));
+    }
+
+    #[test]
+    fn resume_without_size_keeps_ours_when_counts_match() {
+        let r = resumed(0, 10);
+        assert_eq!(
+            session_layout(100 * MIB, 10 * MIB, 10, &r),
+            Some((10 * MIB, 10))
+        );
+        assert_eq!(
+            session_layout(100 * MIB, 10 * MIB, 10, &resumed(0, 0)),
+            Some((10 * MIB, 10))
+        );
+    }
+
+    #[test]
+    fn resume_rejects_an_unreproducible_layout() {
+        assert_eq!(
+            session_layout(100 * MIB, 10 * MIB, 10, &resumed(0, 7)),
+            None
+        );
+        assert_eq!(
+            session_layout(100 * MIB, 10 * MIB, 10, &resumed(16 * MIB, 9)),
+            None
+        );
+    }
 }

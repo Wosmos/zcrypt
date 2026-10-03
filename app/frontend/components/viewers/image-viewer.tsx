@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -39,6 +38,7 @@ export function ImageViewer({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [loaded, setLoaded] = useState(false);
   const draggingRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
   const lastPointer = useRef({ x: 0, y: 0 });
 
   const reset = useCallback(() => {
@@ -47,11 +47,14 @@ export function ImageViewer({
     setOffset({ x: 0, y: 0 });
   }, []);
 
-  // Reset transforms + the load flag whenever the image source changes (nav).
-  useEffect(() => {
+  // Reset transforms + the load flag whenever the image source changes (nav),
+  // during render so the new image never paints with the old transform.
+  const [prevUrl, setPrevUrl] = useState(url);
+  if (url !== prevUrl) {
+    setPrevUrl(url);
     reset();
     setLoaded(false);
-  }, [url, reset]);
+  }
 
   const clampScale = (s: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
 
@@ -76,6 +79,7 @@ export function ImageViewer({
       if (scale <= 1) return;
       e.currentTarget.setPointerCapture(e.pointerId);
       draggingRef.current = true;
+      setDragging(true);
       lastPointer.current = { x: e.clientX, y: e.clientY };
     },
     [scale],
@@ -92,6 +96,7 @@ export function ImageViewer({
   const endDrag = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
+    setDragging(false);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -143,12 +148,13 @@ export function ImageViewer({
           src={url}
           alt={alt}
           draggable={false}
+          decoding="async"
           onLoad={() => setLoaded(true)}
           className={cn(
             "max-h-full max-w-full object-contain",
             // Fade the full image in over the blurred placeholder once decoded.
             placeholderUrl && !loaded ? "opacity-0" : "opacity-100",
-            !reduce && !draggingRef.current
+            !reduce && !dragging
               ? "transition-[opacity,transform] duration-200"
               : "transition-opacity duration-200",
           )}

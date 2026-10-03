@@ -64,7 +64,7 @@ func setupTestServer(t *testing.T) *testServer {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTSecret:   "integration-test-secret-must-be-32chars!!",
+		JWTSecret:   integrationJWTSecret,
 		FrontendURL: "http://localhost:3000",
 		BackendURL:  "http://localhost:8080",
 		// Trust one proxy hop so the per-request X-Forwarded-For set by the request
