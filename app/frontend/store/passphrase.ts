@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persistPassphrase, loadPassphrase, clearPersistedPassphrase } from "@/lib/device-vault";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
-import { isTauri, setShellPassphrase, clearShellPassphrase } from "@/lib/tauri";
+import { setShellPassphrase, clearShellPassphrase } from "@/lib/tauri";
 import { ttlDeadline, minutesUntil } from "@/lib/ttl";
 
 // clearDecryptCache() drops the in-memory blob cache + derived KEKs AND fans out
@@ -19,12 +19,10 @@ const SESSION_TTL_MIN = 15;
 function readRememberPref(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    // Web defaults OFF: a remembered passphrase leaves the vault open to anyone
-    // with this browser profile, so it is only ever the explicit "keep me
-    // unlocked" choice at unlock. Desktop keeps its default until the
-    // passphrase moves into the OS keychain.
-    const pref = localStorage.getItem(REMEMBER_KEY);
-    return isTauri ? pref !== "0" : pref === "1";
+    // Defaults OFF everywhere: a remembered passphrase leaves the vault open to
+    // anyone holding this device or browser profile, so it is only ever the
+    // explicit "keep me unlocked" choice at unlock.
+    return localStorage.getItem(REMEMBER_KEY) === "1";
   } catch {
     return false;
   }
@@ -47,7 +45,6 @@ interface PassphraseStore {
   persistent: boolean;
   /** Preference: persist the passphrase on this device on unlock (survives reloads). */
   rememberDevice: boolean;
-  rememberByDefault: boolean;
 
   setPassphrase: (passphrase: string, ttlMinutes?: number) => void;
   getPassphrase: () => string | null;
@@ -64,7 +61,6 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   cacheUntil: null,
   persistent: false,
   rememberDevice: readRememberPref(),
-  rememberByDefault: isTauri,
 
   setPassphrase: (passphrase, ttlMinutes = SESSION_TTL_MIN) => {
     if (clearTimer) {

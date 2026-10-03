@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { platformName } from "@/lib/platforms";
 
@@ -22,11 +23,15 @@ export function TokenScopeConfirm({
   loading,
   onCancel,
   onConfirm,
+  confirmDisabled,
+  children,
 }: {
   target: TokenScopeTarget | null;
   loading: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  confirmDisabled?: boolean;
+  children?: ReactNode;
 }) {
   return (
     <ConfirmDialog
@@ -90,7 +95,10 @@ export function TokenScopeConfirm({
       }
       confirmLabel={target?.toGlobal ? "Share with all users" : "Make it local"}
       loading={loading}
+      confirmDisabled={confirmDisabled}
       onConfirm={onConfirm}
-    />
+    >
+      {children}
+    </ConfirmDialog>
   );
 }

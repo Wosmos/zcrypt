@@ -7,12 +7,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 // than mocking global fetch underneath it. The XHR-backed chunk PUTs
 // (uploadChunk/directUploadToURL) go through useAuthStore + tryRefreshToken
 // for their own 401-refresh-retry logic.
-const { authedFetch, tryRefreshToken, getState } = vi.hoisted(() => ({
+const { authedFetch, tryRefreshToken, getState, shouldRefreshOn401 } = vi.hoisted(() => ({
   authedFetch: vi.fn(),
   tryRefreshToken: vi.fn(),
   getState: vi.fn(),
+  shouldRefreshOn401: vi.fn((token: string | null) => !!token),
 }));
-vi.mock("@/lib/auth-fetch", () => ({ authedFetch, tryRefreshToken }));
+vi.mock("@/lib/auth-fetch", () => ({ authedFetch, tryRefreshToken, shouldRefreshOn401 }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 
 import {
@@ -326,7 +327,25 @@ describe("uploadChunk (authedXhrPut over XMLHttpRequest)", () => {
     expect(FakeXHR.instances.length).toBe(1);
   });
 
-  it("does not attempt a refresh on 401 when there was no access token to begin with", async () => {
+  it("refreshes on a 401 without a token when the session may live in the cookie", async () => {
+    getState.mockReturnValue({ accessToken: null });
+    shouldRefreshOn401.mockReturnValueOnce(true);
+    tryRefreshToken.mockResolvedValueOnce("cookie-tok");
+    const promise = uploadChunk("sess-1", 0, new Uint8Array([1]), "sha", false);
+    const first = lastXHR();
+    first.status = 401;
+    first.onload?.();
+
+    await flushMicrotasks();
+
+    const second = lastXHR();
+    expect(second.headers.Authorization).toBe("Bearer cookie-tok");
+    second.status = 200;
+    second.onload?.();
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  it("does not attempt a refresh on 401 without a token where none can be probed", async () => {
     getState.mockReturnValue({ accessToken: null });
     const promise = uploadChunk("sess-1", 0, new Uint8Array([1]), "sha", false);
     const first = lastXHR();

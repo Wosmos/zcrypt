@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { badgeVariants } from "@/components/ui/badge";
 import { adminCreateToken, adminDeleteToken, adminToggleTokenScope } from "@/lib/api";
+import { EMPTY_REAUTH, ReauthFields, reauthReady } from "@/components/admin/reauth-fields";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
 import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
@@ -43,6 +44,7 @@ export function TokenManagement({
   const [deleteTarget, setDeleteTarget] = useState<PlatformTokenInfo | null>(null);
   const [scopeTarget, setScopeTarget] = useState<PlatformTokenInfo | null>(null);
   const [scopeChanging, setScopeChanging] = useState(false);
+  const [reauth, setReauth] = useState(EMPTY_REAUTH);
 
   // Clear optimistic overrides when fresh data arrives from parent
   useEffect(() => {
@@ -56,13 +58,13 @@ export function TokenManagement({
     if (!token.trim()) return;
     setCreating(true);
     try {
-      const result = await adminCreateToken({
-        platform,
-        token: token.trim(),
-        is_global: isGlobal,
-      });
+      const result = await adminCreateToken(
+        { platform, token: token.trim(), is_global: isGlobal },
+        reauth,
+      );
       toast.success(`Token added for @${result.username}`);
       setToken("");
+      setReauth(EMPTY_REAUTH);
       setShowForm(false);
       onRefresh();
     } catch (err) {
@@ -79,9 +81,10 @@ export function TokenManagement({
     setScopeChanging(true);
     setScopeOverrides((prev) => ({ ...prev, [t.id]: newScope }));
     try {
-      await adminToggleTokenScope(t.id, newScope);
+      await adminToggleTokenScope(t.id, newScope, reauth);
       onRefresh();
       setScopeTarget(null);
+      setReauth(EMPTY_REAUTH);
     } catch (err) {
       setScopeOverrides((prev) => {
         const next = { ...prev };
@@ -98,9 +101,10 @@ export function TokenManagement({
     if (!deleteTarget) return;
     setDeleting(deleteTarget.id);
     try {
-      await adminDeleteToken(deleteTarget.id);
+      await adminDeleteToken(deleteTarget.id, reauth);
       toast.success("Token deleted");
       setDeleteTarget(null);
+      setReauth(EMPTY_REAUTH);
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete token");
@@ -131,7 +135,10 @@ export function TokenManagement({
           <Button
             variant={showForm ? "secondary" : "primary"}
             size="sm"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setShowForm(!showForm);
+              setReauth(EMPTY_REAUTH);
+            }}
           >
             {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             {showForm ? "Cancel" : "Add token"}
@@ -163,6 +170,7 @@ export function TokenManagement({
                 />
               </div>
             </div>
+            <ReauthFields value={reauth} onChange={setReauth} className="" />
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <label className="flex cursor-pointer items-center gap-2">
                 <Checkbox
@@ -175,7 +183,7 @@ export function TokenManagement({
               </label>
               <Button
                 onClick={handleCreate}
-                disabled={creating || !token.trim()}
+                disabled={creating || !token.trim() || !reauthReady(reauth)}
                 className="w-full sm:w-auto"
               >
                 {creating ? (
@@ -268,7 +276,10 @@ export function TokenManagement({
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {
+            setDeleteTarget(null);
+            setReauth(EMPTY_REAUTH);
+          }
         }}
         destructive
         title="Delete token?"
@@ -279,8 +290,11 @@ export function TokenManagement({
         }
         confirmLabel="Delete token"
         loading={deleting === deleteTarget?.id}
+        confirmDisabled={!reauthReady(reauth)}
         onConfirm={executeDelete}
-      />
+      >
+        <ReauthFields value={reauth} onChange={setReauth} className="" />
+      </ConfirmDialog>
       <TokenScopeConfirm
         target={
           scopeTarget
@@ -292,9 +306,15 @@ export function TokenManagement({
             : null
         }
         loading={scopeChanging}
-        onCancel={() => setScopeTarget(null)}
+        onCancel={() => {
+          setScopeTarget(null);
+          setReauth(EMPTY_REAUTH);
+        }}
         onConfirm={() => void executeScopeChange()}
-      />
+        confirmDisabled={!reauthReady(reauth)}
+      >
+        <ReauthFields value={reauth} onChange={setReauth} className="" />
+      </TokenScopeConfirm>
     </>
   );
 }

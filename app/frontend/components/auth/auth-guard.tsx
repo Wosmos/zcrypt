@@ -18,7 +18,9 @@ export function AuthGuard({
 }) {
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
+  const [stranded, setStranded] = useState(false);
   const initRunning = useRef(false);
+  const recovered = useRef(false);
   const {
     user,
     accessToken,
@@ -101,6 +103,7 @@ export function AuthGuard({
           // Offline or a 5xx: keep the session and paint what this device knows.
           const known = readCachedUser();
           if (known) setUser(known);
+          setStranded(true);
           setInitialized(true);
           return;
         }
@@ -183,6 +186,55 @@ export function AuthGuard({
     clearAuth,
   ]);
 
+  // A reload that could not reach the server has no access token, and nothing
+  // else may fetch one: keep retrying the cookie refresh with backoff, and
+  // right away when the browser comes back online.
+  useEffect(() => {
+    if (!stranded || accessToken) return;
+    recovered.current = false;
+    let cancelled = false;
+    let inFlight = false;
+    let delay = 2_000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const attempt = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      clearTimeout(timer);
+      const outcome = await refreshSessionToken();
+      inFlight = false;
+      if (cancelled || outcome.token) return;
+      if (outcome.rejected) {
+        setStranded(false);
+        clearAuth();
+        router.replace("/login");
+        return;
+      }
+      delay = Math.min(delay * 2, 60_000);
+      timer = setTimeout(() => void attempt(), delay);
+    };
+    timer = setTimeout(() => void attempt(), delay);
+    const onOnline = () => void attempt();
+    window.addEventListener("online", onOnline);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [stranded, accessToken, router, clearAuth]);
+
+  // Recovered, by the retry above or by any request that refreshed on a 401:
+  // finish what the reload could not.
+  useEffect(() => {
+    if (!stranded || !accessToken || recovered.current) return;
+    recovered.current = true;
+    if (!useAuthStore.getState().user) {
+      getMe(accessToken)
+        .then(setUser)
+        .catch(() => {});
+    }
+    void prefetchVault();
+  }, [stranded, accessToken, setUser]);
+
   // The engine rotates on its own during uploads and sync: adopt its pair so
   // the webview never refreshes with a token the engine already spent.
   useEffect(() => {
@@ -207,7 +259,7 @@ export function AuthGuard({
     startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
   }, [accessToken, refreshTokenValue]);
 
-  if (!initialized || redirecting) {
+  if (!initialized || redirecting || (stranded && !accessToken && !user)) {
     return (
       <div className="flex items-center justify-center h-dvh">
         <LogoSpinner size="lg" speed="slow" />

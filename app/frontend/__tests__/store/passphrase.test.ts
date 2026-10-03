@@ -268,7 +268,6 @@ describe("usePassphraseStore", () => {
       vi.resetModules();
       const off = await import("@/store/passphrase");
       expect(off.usePassphraseStore.getState().rememberDevice).toBe(false);
-      expect(off.usePassphraseStore.getState().rememberByDefault).toBe(false);
 
       localStorage.setItem("zcrypt-remember-device", "1");
       vi.resetModules();
@@ -278,20 +277,20 @@ describe("usePassphraseStore", () => {
       vi.resetModules();
     });
 
-    it("readRememberPref keeps desktop on unless the user opted out", async () => {
+    it("readRememberPref defaults desktop to off as well until the user opts in", async () => {
       vi.resetModules();
       vi.doMock("@/lib/tauri", async (orig) => ({
         ...(await orig<typeof import("@/lib/tauri")>()),
         isTauri: true,
       }));
       localStorage.removeItem("zcrypt-remember-device");
-      const on = await import("@/store/passphrase");
-      expect(on.usePassphraseStore.getState().rememberDevice).toBe(true);
-
-      localStorage.setItem("zcrypt-remember-device", "0");
-      vi.resetModules();
       const off = await import("@/store/passphrase");
       expect(off.usePassphraseStore.getState().rememberDevice).toBe(false);
+
+      localStorage.setItem("zcrypt-remember-device", "1");
+      vi.resetModules();
+      const on = await import("@/store/passphrase");
+      expect(on.usePassphraseStore.getState().rememberDevice).toBe(true);
       vi.doUnmock("@/lib/tauri");
       localStorage.removeItem("zcrypt-remember-device");
       vi.resetModules();

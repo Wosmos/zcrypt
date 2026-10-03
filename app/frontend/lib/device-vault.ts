@@ -1,6 +1,6 @@
 "use client";
 
-import { isTauri } from "@/lib/tauri";
+import { isTauri, keychainDelete, keychainGet, keychainSet } from "@/lib/tauri";
 
 /**
  * device-vault: persist the vault passphrase ON THIS DEVICE so the user unlocks
@@ -16,6 +16,10 @@ import { isTauri } from "@/lib/tauri";
  * unlocked on a device. The key lives beside the ciphertext, so anyone with
  * this browser profile can unlock too: on the web it is therefore off unless
  * the user ticks "keep me unlocked" (store/passphrase.ts).
+ *
+ * The Tauri shell keeps the passphrase in the OS keychain instead (see
+ * KEYCHAIN_PASSPHRASE below). The IndexedDB copy there is legacy, read once to
+ * move it into the keychain and then deleted.
  *
  * extractable: false in the browser, true in the Tauri desktop shell.
  * WebKit's keychain quirk:
@@ -42,6 +46,7 @@ const DB_NAME = "zcrypt-device-vault";
 const STORE = "kv";
 const KEY_ID = "device-key";
 const PP_ID = "passphrase";
+const KEYCHAIN_PASSPHRASE = "vault.passphrase";
 
 interface StoredPassphrase {
   iv: Uint8Array;
@@ -137,8 +142,27 @@ async function getDeviceKey(): Promise<CryptoKey> {
   return key;
 }
 
+/** Drop the IndexedDB passphrase record, keeping the device key. */
+async function deleteStoredRecord(): Promise<void> {
+  if (!available()) return;
+  try {
+    await tx("readwrite", (s) => s.delete(PP_ID));
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Encrypt + store the passphrase on this device. Best-effort (never throws). */
 export async function persistPassphrase(passphrase: string): Promise<void> {
+  if (isTauri) {
+    try {
+      await keychainSet(KEYCHAIN_PASSPHRASE, passphrase);
+    } catch {
+      /* no keychain: stay unremembered rather than fall back to IndexedDB */
+    }
+    await deleteStoredRecord();
+    return;
+  }
   if (!available()) return;
   try {
     const key = await getDeviceKey();
@@ -156,6 +180,27 @@ export async function persistPassphrase(passphrase: string): Promise<void> {
 
 /** Decrypt + return the device-persisted passphrase, or null if none / unreadable. */
 export async function loadPassphrase(): Promise<string | null> {
+  if (isTauri) {
+    try {
+      const kept = await keychainGet(KEYCHAIN_PASSPHRASE);
+      if (kept) return kept;
+    } catch {
+      /* fall through to a legacy copy */
+    }
+    const legacy = await loadStoredRecord();
+    if (legacy === null) return null;
+    await deleteStoredRecord();
+    try {
+      await keychainSet(KEYCHAIN_PASSPHRASE, legacy);
+    } catch {
+      /* unlocked this once; the next unlock re-persists it */
+    }
+    return legacy;
+  }
+  return loadStoredRecord();
+}
+
+async function loadStoredRecord(): Promise<string | null> {
   if (!available()) return null;
   try {
     const key = await readDeviceKey();
@@ -176,10 +221,12 @@ export async function loadPassphrase(): Promise<string | null> {
 
 /** Forget the device-persisted passphrase (on lock / opt-out). Keeps the key. */
 export async function clearPersistedPassphrase(): Promise<void> {
-  if (!available()) return;
-  try {
-    await tx("readwrite", (s) => s.delete(PP_ID));
-  } catch {
-    /* ignore */
+  if (isTauri) {
+    try {
+      await keychainDelete(KEYCHAIN_PASSPHRASE);
+    } catch {
+      /* ignore */
+    }
   }
+  await deleteStoredRecord();
 }

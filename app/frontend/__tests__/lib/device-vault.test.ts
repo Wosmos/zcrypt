@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
+
+const invokeMock = vi.hoisted(() => vi.fn());
+vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 import {
   persistPassphrase,
   loadPassphrase,
@@ -137,12 +140,13 @@ describe("device-vault", () => {
 });
 
 // The Tauri shell uses extractable keys to stay out of WebKit's keychain-backed
-// WebCrypto master key. A non-extractable key left over from an older build
-// must be migrated once: otherwise it prompts for the Mac login password on
-// every use, forever.
-describe("device-vault (Tauri shell): legacy key migration", () => {
+// The Tauri shell keeps the passphrase in the OS keychain. An IndexedDB record
+// left by an older build is read once (migrating a legacy non-extractable key
+// on the way, its last keychain prompt), moved into the keychain and deleted.
+describe("device-vault (Tauri shell): OS keychain", () => {
   const DB = "zcrypt-device-vault";
   const STORE = "kv";
+  const keychain = new Map<string, string>();
 
   function open(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -179,22 +183,21 @@ describe("device-vault (Tauri shell): legacy key migration", () => {
         }),
     );
   }
-  async function seedLegacy(passphrase?: string): Promise<CryptoKey> {
-    const legacy = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+  async function seedRecord(extractable: boolean, passphrase?: string): Promise<void> {
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, extractable, [
       "encrypt",
       "decrypt",
     ]);
-    await put("device-key", legacy);
+    await put("device-key", key);
     if (passphrase !== undefined) {
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const ct = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
-        legacy,
+        key,
         new TextEncoder().encode(passphrase),
       );
       await put("passphrase", { iv, ct });
     }
-    return legacy;
   }
   async function mod() {
     vi.resetModules();
@@ -203,6 +206,14 @@ describe("device-vault (Tauri shell): legacy key migration", () => {
 
   beforeEach(() => {
     globalThis.indexedDB = new IDBFactory();
+    keychain.clear();
+    invokeMock.mockReset();
+    invokeMock.mockImplementation(async (cmd: string, args: { key: string; value?: string }) => {
+      if (cmd === "keychain_set") keychain.set(args.key, args.value as string);
+      if (cmd === "keychain_get") return keychain.get(args.key) ?? null;
+      if (cmd === "keychain_delete") keychain.delete(args.key);
+      return undefined;
+    });
     (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
   });
   afterEach(() => {
@@ -210,40 +221,76 @@ describe("device-vault (Tauri shell): legacy key migration", () => {
     vi.resetModules();
   });
 
-  it("generates an extractable key on a fresh install", async () => {
+  it("stores the passphrase in the keychain and never in IndexedDB", async () => {
     const m = await mod();
     await m.persistPassphrase("fresh");
-    const key = await get<CryptoKey>("device-key");
-    expect(key?.extractable).toBe(true);
+    expect(keychain.get("vault.passphrase")).toBe("fresh");
+    expect(await get("passphrase")).toBeUndefined();
     expect(await m.loadPassphrase()).toBe("fresh");
   });
 
-  it("re-wraps the stored passphrase under a new extractable key on load, then stops touching the legacy key", async () => {
-    await seedLegacy("keep-me");
+  it("returns null when neither the keychain nor IndexedDB holds a passphrase", async () => {
     const m = await mod();
-    expect(await m.loadPassphrase()).toBe("keep-me");
-    const key = await get<CryptoKey>("device-key");
-    expect(key?.extractable).toBe(true);
-    // Second load hits the already-migrated branch and still decrypts.
-    expect(await m.loadPassphrase()).toBe("keep-me");
+    expect(await m.loadPassphrase()).toBeNull();
   });
 
-  it("drops an unreadable record during migration instead of failing forever", async () => {
-    await seedLegacy("secret");
+  it("moves a record from a recent build into the keychain and deletes it", async () => {
+    await seedRecord(true, "recent");
+    const m = await mod();
+    expect(await m.loadPassphrase()).toBe("recent");
+    expect(keychain.get("vault.passphrase")).toBe("recent");
+    expect(await get("passphrase")).toBeUndefined();
+  });
+
+  it("migrates a legacy non-extractable key to read the old record once", async () => {
+    await seedRecord(false, "keep-me");
+    const m = await mod();
+    expect(await m.loadPassphrase()).toBe("keep-me");
+    expect(keychain.get("vault.passphrase")).toBe("keep-me");
+    expect(await get("passphrase")).toBeUndefined();
+    expect((await get<CryptoKey>("device-key"))?.extractable).toBe(true);
+  });
+
+  it("drops an unreadable legacy record instead of failing forever", async () => {
+    await seedRecord(false, "secret");
     const rec = (await get<{ iv: Uint8Array; ct: ArrayBuffer }>("passphrase"))!;
     new Uint8Array(rec.ct)[0] ^= 0xff;
     await put("passphrase", rec);
     const m = await mod();
     expect(await m.loadPassphrase()).toBeNull();
     expect(await get("passphrase")).toBeUndefined();
+  });
+
+  it("migrates a legacy key that has no stored passphrase", async () => {
+    await seedRecord(false);
+    const m = await mod();
+    expect(await m.loadPassphrase()).toBeNull();
     expect((await get<CryptoKey>("device-key"))?.extractable).toBe(true);
   });
 
-  it("migrates a legacy key that has no stored passphrase yet", async () => {
-    await seedLegacy();
+  it("stays unremembered when the keychain is unavailable", async () => {
+    invokeMock.mockRejectedValue(new Error("no keychain"));
     const m = await mod();
-    await m.persistPassphrase("later");
-    expect((await get<CryptoKey>("device-key"))?.extractable).toBe(true);
-    expect(await m.loadPassphrase()).toBe("later");
+    await expect(m.persistPassphrase("x")).resolves.toBeUndefined();
+    expect(await get("passphrase")).toBeUndefined();
+    expect(await m.loadPassphrase()).toBeNull();
+    await expect(m.clearPersistedPassphrase()).resolves.toBeUndefined();
+  });
+
+  it("still unlocks from a legacy record when the keychain write fails", async () => {
+    await seedRecord(true, "once");
+    invokeMock.mockRejectedValue(new Error("no keychain"));
+    const m = await mod();
+    expect(await m.loadPassphrase()).toBe("once");
+    expect(await get("passphrase")).toBeUndefined();
+  });
+
+  it("forgets the keychain entry and any legacy record on clear", async () => {
+    await seedRecord(true, "legacy");
+    keychain.set("vault.passphrase", "kept");
+    const m = await mod();
+    await m.clearPersistedPassphrase();
+    expect(keychain.has("vault.passphrase")).toBe(false);
+    expect(await get("passphrase")).toBeUndefined();
   });
 });

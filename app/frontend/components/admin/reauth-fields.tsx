@@ -2,24 +2,28 @@
 
 import { useAuthStore } from "@/store/auth";
 import type { AdminReauth } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export const EMPTY_REAUTH: AdminReauth = { password: "", code: "" };
 
 const inputClass =
   "w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all";
 
-/** The server refuses role changes and account deletions on a bare session,
- *  so the acting admin re-enters their password (and a 2FA code if enabled). */
+/** The server refuses role changes, account deletions and platform-token
+ *  changes on a bare session, so the acting admin re-enters their password
+ *  (and a 2FA code if enabled). */
 export function ReauthFields({
   value,
   onChange,
+  className = "mx-6 mt-4",
 }: {
   value: AdminReauth;
   onChange: (next: AdminReauth) => void;
+  className?: string;
 }) {
   const needsCode = useAuthStore((s) => s.user?.totp_enabled === true);
   return (
-    <div className="mx-6 mt-4 space-y-2">
+    <div className={cn("space-y-2", className)}>
       <p className="text-xs text-[var(--color-text-muted)]">Confirm it&apos;s you to continue.</p>
       <input
         type="password"

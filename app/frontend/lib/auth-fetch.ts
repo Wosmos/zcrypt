@@ -16,6 +16,14 @@ export interface RefreshOutcome {
   rejected: boolean;
 }
 
+/** Whether a 401 is worth a refresh. The web keeps its access token in memory
+ *  only, so a reload that could not refresh holds none while the httpOnly
+ *  session cookie may still be valid: it refreshes anyway. Desktop never
+ *  probes without a token. */
+export function shouldRefreshOn401(accessToken: string | null): boolean {
+  return !!accessToken || !isTauri;
+}
+
 export async function tryRefreshToken(): Promise<string | null> {
   return (await refreshSessionToken()).token;
 }
@@ -87,7 +95,7 @@ export async function authedFetch(input: string, init?: RequestInit): Promise<Re
 
   let res = await fetch(input, { ...init, headers });
 
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401 && shouldRefreshOn401(accessToken)) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;

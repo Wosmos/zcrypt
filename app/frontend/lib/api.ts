@@ -39,7 +39,7 @@ import type {
 } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
-import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
 import { throwResponseError, parseErrorJson } from "@/lib/http-error";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -90,7 +90,7 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
   }
 
   // On 401, try refreshing the token and retry once
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401 && shouldRefreshOn401(accessToken)) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
@@ -769,33 +769,42 @@ export function adminListTokens(): Promise<{
   return request<{ tokens: PlatformTokenInfo[]; others_count: number }>("/api/admin/tokens");
 }
 
-export function adminCreateToken(data: {
-  user_id?: string;
-  platform: string;
-  token: string;
-  is_global: boolean;
-}): Promise<{ success: boolean; username: string }> {
+export function adminCreateToken(
+  data: {
+    user_id?: string;
+    platform: string;
+    token: string;
+    is_global: boolean;
+  },
+  reauth: AdminReauth,
+): Promise<{ success: boolean; username: string }> {
   return request<{ success: boolean; username: string }>("/api/admin/tokens", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ...reauth }),
   });
 }
 
-export function adminDeleteToken(tokenId: string): Promise<{ success: boolean }> {
+export function adminDeleteToken(
+  tokenId: string,
+  reauth: AdminReauth,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}`, {
     method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reauth),
   });
 }
 
 export function adminToggleTokenScope(
   tokenId: string,
   isGlobal: boolean,
+  reauth: AdminReauth,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}/scope`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ is_global: isGlobal }),
+    body: JSON.stringify({ is_global: isGlobal, ...reauth }),
   });
 }
 

@@ -13,7 +13,7 @@
  * sent-byte counts to the optional onProgress callback.
  */
 
-import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
 import { useAuthStore } from "@/store/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -182,7 +182,7 @@ async function authedXhrPut(
     );
 
   let res = await send(accessToken);
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401 && shouldRefreshOn401(accessToken)) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       res = await send(newToken);
