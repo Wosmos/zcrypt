@@ -99,17 +99,13 @@ func (db *DB) BumpRepoUsage(ctx context.Context, repoID string, delta int64) err
 // ciphertext to its own platform AND (for git/Telegram) committed it, so this
 // is stored committed = TRUE immediately. There is no server-side commit pass.
 // Idempotent via ON CONFLICT (file_id, idx); returns whether a new row landed.
-func (db *DB) InsertDirectChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
-	tag, err := db.pool.Exec(ctx,
-		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
-		 ON CONFLICT (file_id, idx) DO NOTHING`,
-		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath, c.Compressed,
-	)
+// Refused with ErrChunkExceedsDeclaredSize past maxTotal.
+func (db *DB) InsertDirectChunk(ctx context.Context, userID string, c *types.ChunkRef, maxTotal int64) (bool, error) {
+	inserted, err := db.insertChunkWithinBudget(ctx, userID, c, true, maxTotal)
 	if err != nil {
 		return false, fmt.Errorf("insert direct chunk: %w", err)
 	}
-	return tag.RowsAffected() > 0, nil
+	return inserted, nil
 }
 
 // GetFileLocatorsForOwner returns the per-chunk platform locations for a file,

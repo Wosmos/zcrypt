@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_user ON chunks(user_id);
 
+-- Sizes granted to presigned (direct-to-platform) chunks that are not confirmed
+-- yet, so they count against the file's declared size before they land.
+CREATE TABLE IF NOT EXISTS chunk_reservations (
+	file_id UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+	idx     INTEGER NOT NULL,
+	size    BIGINT NOT NULL,
+	PRIMARY KEY (file_id, idx)
+);
+
 CREATE TABLE IF NOT EXISTS repos (
 	id         TEXT PRIMARY KEY,
 	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

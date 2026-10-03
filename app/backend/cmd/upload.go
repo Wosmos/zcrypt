@@ -70,10 +70,34 @@ func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWrite
 		return false
 	}
 	if received+n > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
-		writeError(w, http.StatusRequestEntityTooLarge, "chunk data exceeds the declared file size")
+		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
 		return false
 	}
 	return true
+}
+
+func writeChunkStoreError(w http.ResponseWriter, msg string, err error) {
+	if errors.Is(err, index.ErrChunkExceedsDeclaredSize) {
+		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		return
+	}
+	log.Printf("%s: %v", msg, err)
+	writeError(w, http.StatusInternalServerError, "failed to store chunk")
+}
+
+// discardUpload cancels the session and deletes its file, queueing synced chunks
+// for remote deletion and removing staged ones locally.
+func (s *Server) discardUpload(ctx context.Context, userID string, session *types.UploadSession) error {
+	if err := s.db.CancelUploadSession(ctx, session.ID); err != nil {
+		return err
+	}
+	if staged, err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
+		fmt.Printf("warn: delete file on cancel: %v\n", err)
+	} else {
+		removeStagedChunkFiles(staged)
+		s.signalDeletion()
+	}
+	return nil
 }
 
 func writeSharedStorageFull(w http.ResponseWriter, used, quota, needed int64) {
@@ -521,11 +545,10 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Compressed: compressed,
 	}
 
-	inserted, err := s.db.InsertClientChunk(ctx, userID, dbChunk)
+	inserted, err := s.db.InsertClientChunk(ctx, userID, dbChunk, maxEncryptedTotal(session.OriginalSize, session.ChunkCount))
 	if err != nil {
 		os.Remove(stagingPath) // clean up staging file
-		log.Printf("upload: store chunk ref failed: %v", err)
-		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+		writeChunkStoreError(w, "upload: store chunk ref failed", err)
 		return
 	}
 
@@ -609,6 +632,9 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if received > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
+		if err := s.discardUpload(ctx, userID, session); err != nil {
+			log.Printf("upload: discard oversized upload failed: %v", err)
+		}
 		writeError(w, http.StatusBadRequest, "uploaded data exceeds the declared file size")
 		return
 	}
@@ -770,20 +796,10 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cancel session
-	if err := s.db.CancelUploadSession(ctx, sessionID); err != nil {
+	if err := s.discardUpload(ctx, userID, session); err != nil {
 		log.Printf("upload: cancel session failed: %v", err)
 		http.Error(w, `{"error":"failed to cancel upload"}`, http.StatusInternalServerError)
 		return
-	}
-
-	// Delete file and queue synced chunks for remote deletion; staged-but-unsynced
-	// chunks never reached a platform, so their .enc files are removed locally.
-	if staged, err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
-		fmt.Printf("warn: delete file on cancel: %v\n", err)
-	} else {
-		removeStagedChunkFiles(staged)
-		s.signalDeletion()
 	}
 
 	// Emit error event so frontend knows
@@ -876,7 +892,8 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk index out of range"}`, http.StatusBadRequest)
 		return
 	}
-	if !s.chunkFitsDeclaredSize(ctx, w, session, req.Size) {
+	if err := s.db.ReserveChunk(ctx, session.FileID, chunkIndex, req.Size, maxEncryptedTotal(session.OriginalSize, session.ChunkCount)); err != nil {
+		writeChunkStoreError(w, "upload: reserve chunk failed", err)
 		return
 	}
 
@@ -1060,11 +1077,9 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if !s.chunkFitsDeclaredSize(ctx, w, session, req.Size) {
-		return
-	}
 
 	chunkID := uuid.New().String()
+	maxTotal := maxEncryptedTotal(session.OriginalSize, session.ChunkCount)
 	var inserted bool
 
 	if session.Mode == "byos-direct" {
@@ -1102,10 +1117,9 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			RemotePath: req.RemotePath,
 			Compressed: req.Compressed,
 		}
-		inserted, err = s.db.InsertDirectChunk(ctx, userID, dbChunk)
+		inserted, err = s.db.InsertDirectChunk(ctx, userID, dbChunk, maxTotal)
 		if err != nil {
-			log.Printf("upload: store direct chunk ref failed: %v", err)
-			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			writeChunkStoreError(w, "upload: store direct chunk ref failed", err)
 			return
 		}
 		// Credit the user's own repo usage from the confirmed size (the server
@@ -1132,10 +1146,9 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			RemotePath: req.RemotePath,
 			Compressed: req.Compressed,
 		}
-		inserted, err = s.db.InsertClientChunk(ctx, userID, dbChunk)
+		inserted, err = s.db.InsertClientChunk(ctx, userID, dbChunk, maxTotal)
 		if err != nil {
-			log.Printf("upload: store chunk ref failed: %v", err)
-			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			writeChunkStoreError(w, "upload: store chunk ref failed", err)
 			return
 		}
 	}

@@ -1192,23 +1192,19 @@ func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, 
 // InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
 // Returns inserted=false when a row for this (file_id, idx) already exists, a
 // racy duplicate PUT, so the caller can avoid double-counting uploaded_chunks.
-// Relies on the uq_chunks_file_idx unique index (see schema.go).
-func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
+// Relies on the uq_chunks_file_idx unique index (see schema.go). A chunk that
+// would take the file past maxTotal is refused with ErrChunkExceedsDeclaredSize.
+func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef, maxTotal int64) (bool, error) {
 	// committed=FALSE: this is the DIRECT-upload path (HuggingFace), where the
 	// client PUT the LFS blob but no tree-pointer commit exists yet. The sync
 	// worker's reconcile pass commits it and flips committed=TRUE only after
 	// verifying the object is actually present on the platform, so a chunk is
 	// never recorded durable on an uncommitted blob (the silent-loss bug).
-	tag, err := db.pool.Exec(ctx,
-		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, FALSE)
-		 ON CONFLICT (file_id, idx) DO NOTHING`,
-		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath, c.Compressed,
-	)
+	inserted, err := db.insertChunkWithinBudget(ctx, userID, c, false, maxTotal)
 	if err != nil {
 		return false, fmt.Errorf("insert client chunk: %w", err)
 	}
-	return tag.RowsAffected() > 0, nil
+	return inserted, nil
 }
 
 // GetChunkByIndex returns a single chunk by file ID and index (including pending-sync chunks).

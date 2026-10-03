@@ -3,8 +3,10 @@
 package integration_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -45,6 +47,26 @@ func TestUploadSizeIsEnforced(t *testing.T) {
 		requireStatus(t, ts.POST("/api/upload/"+init.SessionID+"/complete", map[string]interface{}{}, token), http.StatusOK)
 	})
 
+	t.Run("parallel chunks cannot share the same declared-size headroom", func(t *testing.T) {
+		var init struct {
+			SessionID string `json:"session_id"`
+		}
+		require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", uploadInitBody(100, 2, 0, "d1"), token), http.StatusOK), &init))
+		var wg sync.WaitGroup
+		codes := make([]int, 2)
+		for i := range codes {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				resp := ts.PUT("/api/upload/"+init.SessionID+"/chunk/"+strconv.Itoa(i), make([]byte, 128), token)
+				resp.Body.Close()
+				codes[i] = resp.StatusCode
+			}(i)
+		}
+		wg.Wait()
+		assert.ElementsMatch(t, []int{http.StatusOK, http.StatusRequestEntityTooLarge}, codes)
+	})
+
 	t.Run("concurrent inits cannot share the same quota headroom", func(t *testing.T) {
 		size := 600 * mib
 		var wg sync.WaitGroup
@@ -62,4 +84,29 @@ func TestUploadSizeIsEnforced(t *testing.T) {
 		assert.ElementsMatch(t, []int{http.StatusOK, http.StatusRequestEntityTooLarge}, codes,
 			"two 600 MiB inits against a 1 GiB shared quota: only one may reserve")
 	})
+}
+
+func TestPresignReservesDeclaredSize(t *testing.T) {
+	ts := setupTestServer(t)
+	const email = "presign-budget@example.com"
+	token := ts.registerAndLogin(email, "SecurePass@123!")
+	user, err := ts.db.GetUserByEmail(context.Background(), email)
+	require.NoError(t, err)
+	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", newMockDirectAdapter(), 10<<30)
+
+	var init struct {
+		SessionID    string `json:"session_id"`
+		DirectUpload bool   `json:"direct_upload"`
+	}
+	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", uploadInitBody(100, 2, 0, hex64), token), http.StatusOK), &init))
+	require.True(t, init.DirectUpload)
+
+	presign := func(idx string) int {
+		resp := ts.POST("/api/upload/"+init.SessionID+"/presign/"+idx, map[string]interface{}{"sha256": hex64, "size": 100}, token)
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	assert.Equal(t, http.StatusOK, presign("0"))
+	assert.Equal(t, http.StatusRequestEntityTooLarge, presign("1"), "an unconfirmed presign must count against the declared size")
+	assert.Equal(t, http.StatusOK, presign("0"), "re-presigning the same index replaces its reservation")
 }
