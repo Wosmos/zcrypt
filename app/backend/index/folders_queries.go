@@ -299,11 +299,11 @@ func (db *DB) SoftDeleteFolder(ctx context.Context, userID, folderID string) err
 
 // MoveFile reparents a file into a folder, scoped to the owning user. folderID nil = root.
 // The destination must be a live folder owned by the user and the file must be
-// the user's, or ErrMoveNotFound is returned.
+// the user's and not in trash, or ErrMoveNotFound is returned.
 func (db *DB) MoveFile(ctx context.Context, userID, fileID string, folderID *string) error {
 	tag, err := db.pool.Exec(ctx,
 		`UPDATE files SET folder_id = $3
-		 WHERE id = $1 AND user_id = $2
+		 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 		   AND ($3::uuid IS NULL OR EXISTS (
 		       SELECT 1 FROM folders WHERE id = $3::uuid AND user_id = $2 AND deleted_at IS NULL))`,
 		fileID, userID, folderID,

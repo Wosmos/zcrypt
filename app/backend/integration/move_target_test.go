@@ -80,6 +80,11 @@ func TestMoveAndPinValidateTarget(t *testing.T) {
 		requireStatus(t, ts.PATCH("/api/files/"+fileID+"/move", map[string]string{"folder_id": ownFolder}, owner), 200)
 		requireStatus(t, ts.PATCH("/api/files/"+fileID+"/move", map[string]interface{}{"folder_id": nil}, owner), 200)
 	})
+	t.Run("a trashed file cannot be moved", func(t *testing.T) {
+		trashedFile := ts.insertOwnedFile(ownerEmail)
+		requireStatus(t, ts.DELETE("/api/files/"+trashedFile, owner), 200)
+		requireStatus(t, ts.PATCH("/api/files/"+trashedFile+"/move", map[string]string{"folder_id": ownFolder}, owner), 404)
+	})
 	t.Run("folder into another user's folder is refused", func(t *testing.T) {
 		requireStatus(t, ts.PATCH("/api/folders/"+ownFolder+"/move", map[string]string{"parent_id": foreignFolder}, owner), 404)
 	})
