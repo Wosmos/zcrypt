@@ -297,7 +297,11 @@ function makeFolderProtection(overrides: Partial<UseFolderProtection> = {}): Use
     clearFolderPassword: vi.fn(),
     protectFolder: vi.fn(async () => {}),
     unprotectFolder: vi.fn(async () => {}),
-    rekeyFileForMove: vi.fn(async () => {}),
+    rekeyFileForMove: vi.fn(async (fileId: string) => ({
+      file_id: fileId,
+      salt: "new-salt",
+      wrapped_cek: "new-wrapped",
+    })),
     modalState: {
       open: false,
       folderId: null,
@@ -884,7 +888,7 @@ describe("moveFileWithRekey", () => {
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
   });
 
-  it("re-keys across a protection boundary before moving", async () => {
+  it("sends the re-keyed envelope WITH the move across a protection boundary", async () => {
     const file = makeFile({ id: "f1", folder_id: "src-protected" });
     mockFolderRegistryState.isProtected.mockImplementation((fid: string) => fid === "src-protected");
     const folderProtection = makeFolderProtection({
@@ -898,7 +902,8 @@ describe("moveFileWithRekey", () => {
     await result.current.moveFileWithRekey("f1", null);
 
     expect(folderProtection.rekeyFileForMove).toHaveBeenCalledWith("f1", "src-pass", "dest-pass");
-    expect(mockMoveFile).toHaveBeenCalledWith("f1", null);
+    expect(mockMoveFile).toHaveBeenCalledTimes(1);
+    expect(mockMoveFile).toHaveBeenCalledWith("f1", null, { salt: "new-salt", wrapped_cek: "new-wrapped" });
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
   });
 });

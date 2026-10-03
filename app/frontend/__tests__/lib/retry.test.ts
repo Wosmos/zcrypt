@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { isTransientError, retryTransient } from "@/lib/retry";
+import { ApiError } from "@/lib/http-error";
 
 describe("isTransientError", () => {
   it("never retries an abort", () => {
@@ -27,6 +28,14 @@ describe("isTransientError", () => {
 
   it("does not match a 4xx as a 5xx", () => {
     expect(isTransientError(new Error("404 not found"))).toBe(false);
+  });
+
+  it.each([408, 429, 500, 502, 503])("retries an HTTP %i by status, whatever the body says", (status) => {
+    expect(isTransientError(new ApiError("upload failed", status))).toBe(true);
+  });
+
+  it.each([400, 401, 404, 409, 410])("never retries an HTTP %i, even with a transient-sounding body", (status) => {
+    expect(isTransientError(new ApiError("service temporarily unavailable", status))).toBe(false);
   });
 
   it("stringifies non-Error values before matching", () => {

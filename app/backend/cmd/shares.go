@@ -374,7 +374,7 @@ func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID 
 			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
 			return
 		}
-	} else if data = readCachedChunk(chunk.ChunkID); data == nil {
+	} else if data = readCachedChunk(chunk.ChunkID, chunk.SHA256); data == nil {
 		adapter := s.resolveAdapterForUser(r.Context(), ownerID, chunk.Platform, chunk.Account)
 		if adapter == nil {
 			if reason := s.adapterError(ownerID, chunk.Platform); reason != "" {
@@ -391,11 +391,10 @@ func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID 
 		var err error
 		data, err = adapter.Download(r.Context(), *chunk)
 		if err != nil {
-			log.Printf("%s: download chunk failed: %v", logPrefix, err)
-			http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+			s.writeChunkFetchError(r.Context(), w, adapter, ownerID, chunk, err, logPrefix)
 			return
 		}
-		writeCachedChunk(chunk.ChunkID, data)
+		writeCachedChunk(chunk.ChunkID, chunk.SHA256, data)
 	}
 
 	if commit != nil {

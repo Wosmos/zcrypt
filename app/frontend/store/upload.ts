@@ -38,6 +38,7 @@ import { createSemaphore } from "@/lib/async/semaphore";
 import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
+import { ApiError, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
 
 // Mirrors the server's per-file cap (HandleUploadInit rejects larger with
@@ -449,15 +450,17 @@ async function withRetry<T>(
       if (isPauseError(err) || shouldStop?.()) throw new PausedError();
       const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
       const transient =
-        msg.includes("too many requests") ||
-        msg.includes("slow down") ||
-        msg.includes("network request failed") ||
-        msg.includes("timed out") ||
-        msg.includes("stalled") ||
-        msg.includes("aborted") ||
-        msg.includes("temporarily") ||
-        msg.includes("unavailable") ||
-        /\b5\d\d\b/.test(msg); // 5xx server errors
+        err instanceof ApiError
+          ? isRetryableStatus(err.status)
+          : msg.includes("too many requests") ||
+            msg.includes("slow down") ||
+            msg.includes("network request failed") ||
+            msg.includes("timed out") ||
+            msg.includes("stalled") ||
+            msg.includes("aborted") ||
+            msg.includes("temporarily") ||
+            msg.includes("unavailable") ||
+            /\b5\d\d\b/.test(msg); // 5xx server errors
       if (transient && attempt < maxRetries) {
         const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
         await new Promise((r) => setTimeout(r, backoff));

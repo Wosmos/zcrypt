@@ -5,9 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -225,10 +227,33 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.MoveFile(ctx, userID, fileID, req.FolderID); err != nil {
+	// A move across a protection boundary carries the file's re-wrapped envelope
+	// so the key and the folder change together: applied separately, a failure
+	// between them leaves a file keyed for one folder sitting in the other.
+	var salt []byte
+	if req.Salt != "" || req.WrappedCEK != "" {
+		var ok bool
+		if salt, ok = decodeRekeySalt(req.Salt); !ok || req.WrappedCEK == "" {
+			http.Error(w, `{"error":"salt must be 32 bytes base64-encoded and wrapped_cek is required"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.db.MoveFileWithKey(ctx, userID, fileID, req.FolderID, salt, req.WrappedCEK); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, index.ErrProtectionMismatch) {
+			http.Error(w, `{"error":"folder protection changed; reload and try again"}`, http.StatusConflict)
+			return
+		}
 		log.Printf("files: move: %v", err)
 		http.Error(w, `{"error":"failed to move file"}`, http.StatusInternalServerError)
 		return
+	}
+	if salt != nil {
+		s.audit(r, &userID, "file_rekey", map[string]interface{}{"file_id": fileID})
 	}
 
 	// Cross-device: the file's folder changed: notify the user's other devices.
@@ -305,7 +330,20 @@ func (s *Server) HandleSetFolderPassword(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.db.SetFolderPassword(ctx, userID, folderID, req.PwSalt, req.PwVerifier); err != nil {
+	keys, ok := decodeRekeys(req.Rekeys)
+	if !ok {
+		http.Error(w, `{"error":"each rekey needs a file_id, a 32-byte base64 salt and a wrapped_cek"}`, http.StatusBadRequest)
+		return
+	}
+	if err := s.db.SetFolderProtection(ctx, userID, folderID, req.PwSalt, req.PwVerifier, keys); err != nil {
+		if errors.Is(err, index.ErrRekeyTargetMissing) {
+			http.Error(w, `{"error":"the re-keyed files do not match this folder's files; reload and try again"}`, http.StatusConflict)
+			return
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error":"folder not found"}`, http.StatusNotFound)
+			return
+		}
 		log.Printf("folders: set password: %v", err)
 		http.Error(w, `{"error":"failed to set folder password"}`, http.StatusInternalServerError)
 		return
@@ -318,14 +356,35 @@ func (s *Server) HandleSetFolderPassword(w http.ResponseWriter, r *http.Request)
 }
 
 // HandleRemoveFolderPassword clears a folder's password protection (sets both columns NULL).
-// DELETE /api/folders/{id}/password
-// The client must re-key the folder's files back to the vault passphrase BEFORE calling this.
+// DELETE /api/folders/{id}/password  optional body { rekeys: [{file_id, salt, wrapped_cek}] }
+// The folder's files re-keyed back to the vault passphrase are applied in the same
+// transaction as the removal, so a failure can never leave them half-converted.
 func (s *Server) HandleRemoveFolderPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
 	folderID := r.PathValue("id")
 
-	if err := s.db.RemoveFolderPassword(ctx, userID, folderID); err != nil {
+	var req types.FolderUnprotectRequest
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+			return
+		}
+	}
+	keys, ok := decodeRekeys(req.Rekeys)
+	if !ok {
+		http.Error(w, `{"error":"each rekey needs a file_id, a 32-byte base64 salt and a wrapped_cek"}`, http.StatusBadRequest)
+		return
+	}
+	if err := s.db.SetFolderProtection(ctx, userID, folderID, "", "", keys); err != nil {
+		if errors.Is(err, index.ErrRekeyTargetMissing) {
+			http.Error(w, `{"error":"the re-keyed files do not match this folder's files; reload and try again"}`, http.StatusConflict)
+			return
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error":"folder not found"}`, http.StatusNotFound)
+			return
+		}
 		log.Printf("folders: remove password: %v", err)
 		http.Error(w, `{"error":"failed to remove folder password"}`, http.StatusInternalServerError)
 		return
@@ -358,8 +417,8 @@ func (s *Server) HandleRekeyFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode salt to raw bytes (salt is BYTEA in the files table), mirroring upload-init.
-	salt, err := base64.StdEncoding.DecodeString(req.Salt)
-	if err != nil || len(salt) != 32 {
+	salt, ok := decodeRekeySalt(req.Salt)
+	if !ok {
 		http.Error(w, `{"error":"salt must be 32 bytes base64-encoded"}`, http.StatusBadRequest)
 		return
 	}
@@ -414,4 +473,27 @@ func (s *Server) HandleRestoreFile(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// decodeRekeySalt decodes a base64 file salt, which must be 32 raw bytes
+// (mirroring upload-init).
+func decodeRekeySalt(b64 string) ([]byte, bool) {
+	salt, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil || len(salt) != 32 {
+		return nil, false
+	}
+	return salt, true
+}
+
+// decodeRekeys validates a bulk folder (un)protect's file envelopes.
+func decodeRekeys(entries []types.FileRekeyEntry) ([]index.FileKey, bool) {
+	keys := make([]index.FileKey, 0, len(entries))
+	for _, e := range entries {
+		salt, ok := decodeRekeySalt(e.Salt)
+		if !ok || e.FileID == "" || e.WrappedCEK == "" {
+			return nil, false
+		}
+		keys = append(keys, index.FileKey{FileID: e.FileID, Salt: salt, WrappedCEK: e.WrappedCEK})
+	}
+	return keys, true
 }

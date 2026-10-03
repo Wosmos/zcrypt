@@ -196,7 +196,7 @@ func (db *DB) UpdateFileStyle(ctx context.Context, userID, fileID string, encryp
 // explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
 // case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
 func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style,
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style, health,
 	                 COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
@@ -225,7 +225,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Platform); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Health, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -242,7 +242,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 // IS NOT DISTINCT FROM. This is a sibling of ListFiles so existing callers stay untouched.
 func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *string) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style, health,
 		        COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 		 FROM files
 		 WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2
@@ -262,7 +262,7 @@ func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *st
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Platform); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Health, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -990,7 +990,8 @@ func (db *DB) UpdateUploadSessionRepo(ctx context.Context, sessionID, repoID, re
 // CompleteUploadSession marks a session as complete.
 func (db *DB) CompleteUploadSession(ctx context.Context, sessionID string) error {
 	_, err := db.pool.Exec(ctx,
-		`UPDATE upload_sessions SET status = 'complete' WHERE id = $1`,
+		`WITH done AS (UPDATE upload_sessions SET status = 'complete' WHERE id = $1 RETURNING id)
+		 DELETE FROM upload_presigns WHERE session_id IN (SELECT id FROM done)`,
 		sessionID,
 	)
 	if err != nil {
@@ -1167,7 +1168,7 @@ func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.Chu
 // GetChunkByIndex returns a single chunk by file ID and index (including pending-sync chunks).
 func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, userIDs ...string) (*types.ChunkRef, error) {
 	c := &types.ChunkRef{}
-	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed
 		 FROM chunks WHERE file_id = $1 AND idx = $2`
 	args := []interface{}{fileID, index}
 	if len(userIDs) > 0 && userIDs[0] != "" {
@@ -1175,7 +1176,7 @@ func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, use
 		args = append(args, userIDs[0])
 	}
 	err := db.pool.QueryRow(ctx, query, args...,
-	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
+	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed, &c.Committed)
 	if err != nil {
 		return nil, fmt.Errorf("get chunk by index: %w", err)
 	}
@@ -1226,6 +1227,7 @@ func (db *DB) GetPendingChunks(ctx context.Context, limit, maxAttempts int) ([]t
 	rows, err := db.pool.Query(ctx,
 		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, planned_remote_path, compressed, sync_attempts
 		 FROM chunks WHERE remote_path = '' AND sync_attempts < $1
+		   AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
 		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
 	)
 	if err != nil {
@@ -1255,6 +1257,7 @@ func (db *DB) GetUncommittedChunks(ctx context.Context, limit, maxAttempts int) 
 	rows, err := db.pool.Query(ctx,
 		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, sync_attempts
 		 FROM chunks WHERE committed = FALSE AND remote_path <> '' AND sync_attempts < $1
+		   AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
 		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
 	)
 	if err != nil {
@@ -1315,11 +1318,14 @@ func (db *DB) MarkChunksCommitted(ctx context.Context, chunkIDs []string) error 
 }
 
 // IncrementChunkSyncAttempts bumps the retry counter for a chunk after a failed
-// sync attempt. Once it reaches the cap the chunk is no longer returned by
-// GetPendingChunks.
-func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string) error {
+// sync or commit attempt and schedules the next attempt retryIn from now, so the
+// worker backs off instead of re-selecting the chunk immediately. Once it reaches
+// the cap the chunk is no longer returned by GetPendingChunks.
+func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string, retryIn time.Duration) error {
 	_, err := db.pool.Exec(ctx,
-		`UPDATE chunks SET sync_attempts = sync_attempts + 1 WHERE chunk_id = $1`, chunkID)
+		`UPDATE chunks SET sync_attempts = sync_attempts + 1,
+		        next_attempt_at = NOW() + make_interval(secs => $2)
+		 WHERE chunk_id = $1`, chunkID, retryIn.Seconds())
 	if err != nil {
 		return fmt.Errorf("increment chunk sync attempts: %w", err)
 	}

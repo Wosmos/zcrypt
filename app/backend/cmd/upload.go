@@ -22,6 +22,7 @@ import (
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -455,9 +456,8 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Compressed: compressed,
 	}
 
-	inserted, err := s.db.InsertClientChunk(ctx, userID, dbChunk)
+	inserted, err := s.storeStagedChunk(ctx, userID, dbChunk, stagingPath)
 	if err != nil {
-		os.Remove(stagingPath) // clean up staging file
 		log.Printf("upload: store chunk ref failed: %v", err)
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
@@ -501,6 +501,20 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// storeStagedChunk records a relay chunk whose bytes were just staged at
+// stagingPath. If the row isn't inserted (a racing duplicate PUT already owns
+// the index, with its own staged file) or the insert fails, the staged copy is
+// removed: no row points at it, so nothing would ever sync or sweep it.
+func (s *Server) storeStagedChunk(ctx context.Context, userID string, c *types.ChunkRef, stagingPath string) (bool, error) {
+	inserted, err := s.db.InsertClientChunk(ctx, userID, c)
+	if err != nil || !inserted {
+		if rmErr := os.Remove(stagingPath); rmErr != nil && !os.IsNotExist(rmErr) {
+			log.Printf("upload: remove unreferenced staging file: %v", rmErr)
+		}
+	}
+	return inserted, err
+}
+
 // HandleUploadComplete finalizes a chunked upload.
 // POST /api/upload/{sid}/complete
 func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
@@ -520,6 +534,17 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
 		return
+	}
+	if session.Status == "complete" {
+		// A retried complete whose first response was lost: the upload is done,
+		// so answer exactly as the first call did instead of failing it.
+		if file, ferr := s.db.GetFileByID(ctx, userID, session.FileID); ferr == nil && file.Status == "complete" {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"success": true,
+				"file_id": session.FileID,
+			})
+			return
+		}
 	}
 	if session.Status != "active" {
 		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
@@ -852,6 +877,14 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Pin the confirm to this exact path, hash and size: the client only echoes
+	// the path back, it never gets to choose where the chunk is recorded.
+	if err := s.db.SavePresign(ctx, session.ID, chunkIndex, remotePath, req.SHA256, req.Size); err != nil {
+		log.Printf("upload: save presign failed: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"upload_url":     uploadURL,
@@ -988,9 +1021,10 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 
 	if session.Mode == "byos-direct" {
 		// byos-direct: the client pushed the ciphertext to its OWN platform with
-		// its OWN token and (git/Telegram atomic, HF LFS+commit) already committed
-		// it. Record committed = TRUE immediately. There is no server-side commit
-		// pass. Trust the client's location fields but pin the repo to one the
+		// its OWN token and reports it committed. That claim is not trusted: the
+		// chunk is recorded committed = FALSE and only flipped once the server
+		// lists it on the platform with the user's stored token (on complete, and
+		// by the reconcile worker after that). The repo is pinned to one the
 		// caller actually OWNS (never store an unvalidated client repo_id).
 		repoURL := session.RepoURL
 		if req.RepoID != "" {
@@ -1008,6 +1042,16 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		account := req.Account
 		if account == "" {
 			account = session.Account
+		}
+		taken, terr := s.db.RemotePathTaken(ctx, userID, platform, account, repoURL, req.RemotePath)
+		if terr != nil {
+			log.Printf("upload: check direct remote path: %v", terr)
+			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			return
+		}
+		if taken {
+			http.Error(w, `{"error":"remote_path already holds another chunk"}`, http.StatusConflict)
+			return
 		}
 		dbChunk := &types.ChunkRef{
 			ChunkID:    chunkID,
@@ -1039,6 +1083,17 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		// is uploaded but has no tree pointer yet; durability is established later
 		// by commit+verify (on upload-complete and by the reconcile worker),
 		// driven entirely from this DB row, no fragile in-memory commit buffer.
+		// The path must be the one minted at presign, so a client can neither
+		// point the chunk at another blob nor skip the presign.
+		if perr := s.db.CheckPresign(ctx, session.ID, chunkIndex, req.RemotePath, req.SHA256, req.Size); perr != nil {
+			if errors.Is(perr, index.ErrPresignMismatch) {
+				http.Error(w, `{"error":"confirm does not match the presigned chunk"}`, http.StatusConflict)
+				return
+			}
+			log.Printf("upload: check presign: %v", perr)
+			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			return
+		}
 		dbChunk := &types.ChunkRef{
 			ChunkID:    chunkID,
 			FileID:     session.FileID,

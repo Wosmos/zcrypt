@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zcrypt/zcrypt/config"
@@ -31,15 +34,25 @@ func chunkCacheBudget() int64 {
 }
 
 // readCachedChunk returns the cached ciphertext for a chunk, or nil on any
-// miss/error. A hit bumps the file's mtime so the sweep evicts LRU-ish.
-func readCachedChunk(chunkID string) []byte {
+// miss/error. An entry whose bytes don't hash to the chunk's recorded SHA-256 is
+// deleted and treated as a miss, so a corrupt entry can't be served (as
+// immutable) forever. A hit bumps the file's mtime so the sweep evicts LRU-ish.
+func readCachedChunk(chunkID, wantSHA256 string) []byte {
 	dir, err := config.ChunkCacheDir()
 	if err != nil {
 		return nil
 	}
-	path := filepath.Join(dir, chunkID+".enc")
-	data, err := os.ReadFile(path)
+	return readCachedChunkIn(dir, chunkID, wantSHA256)
+}
+
+func readCachedChunkIn(dir, chunkID, wantSHA256 string) []byte {
+	path := filepath.Join(dir, filepath.Base(chunkID)+".enc")
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
+		return nil
+	}
+	if !chunkHashMatches(data, wantSHA256) {
+		_ = os.Remove(path)
 		return nil
 	}
 	now := time.Now()
@@ -48,16 +61,49 @@ func readCachedChunk(chunkID string) []byte {
 }
 
 // writeCachedChunk stores downloaded ciphertext, then sweeps the cache if it
-// exceeds its budget. Write errors are ignored: the chunk was already served.
-func writeCachedChunk(chunkID string, data []byte) {
+// exceeds its budget. Bytes that don't match the chunk's SHA-256 are never
+// cached. The entry is written to a temp file and renamed into place, so a crash
+// or a concurrent reader never sees a truncated chunk. Write errors are ignored:
+// the chunk was already served.
+func writeCachedChunk(chunkID, wantSHA256 string, data []byte) {
 	dir, err := config.ChunkCacheDir()
 	if err != nil {
 		return
 	}
-	if err := os.WriteFile(filepath.Join(dir, chunkID+".enc"), data, 0600); err != nil {
-		return
+	if writeCachedChunkIn(dir, chunkID, wantSHA256, data) {
+		sweepChunkCache(dir, chunkCacheBudget())
 	}
-	sweepChunkCache(dir, chunkCacheBudget())
+}
+
+func writeCachedChunkIn(dir, chunkID, wantSHA256 string, data []byte) bool {
+	if !chunkHashMatches(data, wantSHA256) {
+		return false
+	}
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return false
+	}
+	_, werr := tmp.Write(data)
+	cerr := tmp.Close()
+	if werr != nil || cerr != nil {
+		_ = os.Remove(tmp.Name())
+		return false
+	}
+	if err := os.Rename(tmp.Name(), filepath.Join(dir, filepath.Base(chunkID)+".enc")); err != nil {
+		_ = os.Remove(tmp.Name())
+		return false
+	}
+	return true
+}
+
+// chunkHashMatches reports whether data hashes to want (hex SHA-256). A chunk
+// with no recorded hash can't be verified and is never trusted from the cache.
+func chunkHashMatches(data []byte, want string) bool {
+	if want == "" {
+		return false
+	}
+	sum := sha256.Sum256(data)
+	return strings.EqualFold(hex.EncodeToString(sum[:]), want)
 }
 
 // sweepChunkCache deletes oldest-mtime files until the directory is under

@@ -5,6 +5,7 @@ import NextImage from "next/image";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
+import { FileHealthBadge } from "./health-badge";
 import {
   formatBytes,
   formatDate,
@@ -319,6 +320,7 @@ function FileRow({
         >
           {midTrunc(displayName, 16, 6)}
         </span>
+        <FileHealthBadge file={file} />
       </div>
       <span className="hidden w-[110px] flex-shrink-0 truncate text-sm text-[var(--color-text-secondary)] sm:block">
         {typeInfo.label}

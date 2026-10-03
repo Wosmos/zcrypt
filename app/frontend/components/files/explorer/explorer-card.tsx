@@ -5,6 +5,7 @@ import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types"
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import { folderLook } from "./folder-look";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
+import { FileHealthBadge } from "./health-badge";
 import {
   formatBytes,
   getFileTypeInfo,
@@ -271,6 +272,7 @@ function FileCardInner({
           >
             {displayName}
           </p>
+          <FileHealthBadge file={file} />
         </div>
       </ContextMenuTrigger>
 
