@@ -25,20 +25,17 @@ export async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>
   return invoke<T>(cmd, args);
 }
 
-/** Open a native file picker dialog. Returns selected file paths. */
+/** Open the shell's native file picker. Returns the selected paths, which the
+ *  shell then lets the upload commands read. */
 export async function pickFiles(options?: {
   multiple?: boolean;
   title?: string;
 }): Promise<string[]> {
   if (!isTauri) return [];
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  const result = await open({
+  return tauriInvoke<string[]>("pick_files", {
     multiple: options?.multiple ?? true,
     title: options?.title ?? "Select files to upload",
   });
-  if (!result) return [];
-  if (Array.isArray(result)) return result as string[];
-  return [result as string];
 }
 
 /**

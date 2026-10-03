@@ -7,6 +7,7 @@ interface AndroidBridge {
   isScreenCaptureAllowed(): boolean;
   setScreenCaptureAllowed(allowed: boolean): void;
   takeSharedFiles(): string;
+  releaseSharedFile(path: string): void;
 }
 
 /** Fired by the shell when files shared to zcrypt are ready to collect. */
@@ -29,6 +30,12 @@ export function takeSharedFiles(): string[] {
   } catch {
     return [];
   }
+}
+
+/** Drop the shell's cached copy of a shared file once it is in the vault. The
+ *  shell ignores any path outside its share folder. */
+export function releaseSharedFile(path: string): void {
+  androidBridge()?.releaseSharedFile(path);
 }
 
 /** Whether the app window may appear in screenshots and the recents view.

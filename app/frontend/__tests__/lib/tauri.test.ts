@@ -44,7 +44,7 @@ describe("tauri (outside the Tauri runtime)", () => {
   it("pickFiles resolves to an empty array without opening a dialog", async () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.pickFiles()).resolves.toEqual([]);
-    expect(openMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("pickSaveLocation resolves to null without opening a dialog", async () => {
@@ -200,29 +200,22 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("cmd", { a: 1 });
   });
 
-  it("pickFiles returns [] when the dialog is cancelled", async () => {
-    openMock.mockResolvedValue(null);
+  it("pickFiles asks the shell's pick_files so the picks are approved", async () => {
+    invokeMock.mockResolvedValue([]);
     const mod = await import("@/lib/tauri");
     await expect(mod.pickFiles()).resolves.toEqual([]);
-    expect(openMock).toHaveBeenCalledWith({
+    expect(invokeMock).toHaveBeenCalledWith("pick_files", {
       multiple: true,
       title: "Select files to upload",
     });
+    expect(openMock).not.toHaveBeenCalled();
   });
 
-  it("pickFiles passes an array result straight through", async () => {
-    openMock.mockResolvedValue(["/a", "/b"]);
+  it("pickFiles forwards the options and the shell's picks", async () => {
+    invokeMock.mockResolvedValue(["/a", "/b"]);
     const mod = await import("@/lib/tauri");
-    await expect(
-      mod.pickFiles({ multiple: true, title: "Pick" })
-    ).resolves.toEqual(["/a", "/b"]);
-    expect(openMock).toHaveBeenCalledWith({ multiple: true, title: "Pick" });
-  });
-
-  it("pickFiles wraps a single string result in an array", async () => {
-    openMock.mockResolvedValue("/single");
-    const mod = await import("@/lib/tauri");
-    await expect(mod.pickFiles()).resolves.toEqual(["/single"]);
+    await expect(mod.pickFiles({ multiple: false, title: "Pick" })).resolves.toEqual(["/a", "/b"]);
+    expect(invokeMock).toHaveBeenCalledWith("pick_files", { multiple: false, title: "Pick" });
   });
 
   it("pickSaveLocation asks the shell's pick_save_path so the path is approved", async () => {

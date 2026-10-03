@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   androidBridge,
   isScreenCaptureAllowed,
+  releaseSharedFile,
   setScreenCaptureAllowed,
   takeSharedFiles,
 } from "@/lib/android";
@@ -13,6 +14,7 @@ function installBridge(shared: string, allowed = false) {
     isScreenCaptureAllowed: vi.fn(() => allowed),
     setScreenCaptureAllowed: vi.fn(),
     takeSharedFiles: vi.fn(() => shared),
+    releaseSharedFile: vi.fn(),
   };
   (window as Win).ZcryptAndroid = bridge;
   return bridge;
@@ -29,6 +31,7 @@ describe("android bridge", () => {
     expect(takeSharedFiles()).toEqual([]);
     expect(isScreenCaptureAllowed()).toBeNull();
     expect(() => setScreenCaptureAllowed(true)).not.toThrow();
+    expect(() => releaseSharedFile("/cache/shared/a/photo.jpg")).not.toThrow();
   });
 
   it("is absent without a window", () => {
@@ -53,5 +56,11 @@ describe("android bridge", () => {
     expect(isScreenCaptureAllowed()).toBe(true);
     setScreenCaptureAllowed(false);
     expect(bridge.setScreenCaptureAllowed).toHaveBeenCalledWith(false);
+  });
+
+  it("hands an uploaded share back to the shell", () => {
+    const bridge = installBridge("[]");
+    releaseSharedFile("/cache/shared/a/photo.jpg");
+    expect(bridge.releaseSharedFile).toHaveBeenCalledWith("/cache/shared/a/photo.jpg");
   });
 });
