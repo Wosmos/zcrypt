@@ -30,10 +30,15 @@
 import { clearDerivedKeyCache } from "@/lib/crypto";
 
 const MAX_BYTES = 300 * 1024 * 1024; // 300 MB session budget
+// Background (thumbnail) decrypts get their own small slice of the budget and
+// never evict a foreground entry, so scrolling a photo grid can't push out the
+// files the user actually opened.
+const BACKGROUND_MAX_BYTES = 64 * 1024 * 1024;
 
 interface Entry {
   blob: Blob;
   folderId: string | null;
+  background: boolean;
 }
 
 // Map iteration preserves insertion order; we treat the front as least-recently
@@ -41,6 +46,7 @@ interface Entry {
 const cache = new Map<string, Entry>();
 const inflight = new Map<string, Promise<Blob>>();
 let totalBytes = 0;
+let backgroundBytes = 0;
 
 // Bumped on every clear (vault lock / TTL / logout / folder lock). A decrypt run
 // captures the generation when it starts; if it has changed by the time the run
@@ -54,10 +60,21 @@ function touch(id: string, entry: Entry): void {
   cache.set(id, entry); // re-insert at the most-recently-used end
 }
 
-/** Cached blob for `id`, bumping its recency. Undefined if absent. */
+function drop(id: string, entry: Entry): void {
+  totalBytes -= entry.blob.size;
+  if (entry.background) backgroundBytes -= entry.blob.size;
+  cache.delete(id);
+}
+
+/** Cached blob for `id`, bumping its recency and promoting a background entry
+ *  to foreground. Undefined if absent. */
 export function getCachedBlob(id: string): Blob | undefined {
   const entry = cache.get(id);
   if (entry) {
+    if (entry.background) {
+      entry.background = false;
+      backgroundBytes -= entry.blob.size;
+    }
     touch(id, entry);
     return entry.blob;
   }
@@ -86,20 +103,36 @@ export function isForegroundDecryptActive(): boolean {
 // would hold back every other one. A foreground caller joining one promotes it.
 const backgroundIds = new Set<string>();
 
-function store(id: string, blob: Blob, folderId: string | null): void {
-  if (blob.size > MAX_BYTES) return; // a single file larger than the whole budget
-  const existing = cache.get(id);
-  if (existing) totalBytes -= existing.blob.size;
-  cache.set(id, { blob, folderId });
+function storeBackground(id: string, blob: Blob, folderId: string | null): void {
+  if (blob.size > BACKGROUND_MAX_BYTES) return;
+  for (const [key, entry] of cache) {
+    if (backgroundBytes + blob.size <= BACKGROUND_MAX_BYTES) break;
+    if (entry.background) drop(key, entry);
+  }
+  if (totalBytes + blob.size > MAX_BYTES) return;
+  cache.set(id, { blob, folderId, background: true });
   totalBytes += blob.size;
-  // Evict least-recently-used entries until back under budget (never the one we
-  // just added: iteration starts at the LRU front, and the new entry is at the
-  // back).
-  for (const key of cache.keys()) {
-    if (totalBytes <= MAX_BYTES) break;
-    if (key === id) continue;
-    totalBytes -= cache.get(key)!.blob.size;
-    cache.delete(key);
+  backgroundBytes += blob.size;
+}
+
+function store(id: string, blob: Blob, folderId: string | null, background: boolean): void {
+  const existing = cache.get(id);
+  if (existing) drop(id, existing);
+  if (background) {
+    storeBackground(id, blob, folderId);
+    return;
+  }
+  if (blob.size > MAX_BYTES) return; // a single file larger than the whole budget
+  cache.set(id, { blob, folderId, background: false });
+  totalBytes += blob.size;
+  // Evict until back under budget: background entries first, then foreground
+  // ones least-recently-used first (never the one we just added: iteration
+  // starts at the LRU front, and the new entry is at the back).
+  for (const pass of [true, false]) {
+    for (const [key, entry] of cache) {
+      if (totalBytes <= MAX_BYTES) return;
+      if (key !== id && entry.background === pass) drop(key, entry);
+    }
   }
 }
 
@@ -117,7 +150,7 @@ export function cachedDecrypt(
   decrypt: () => Promise<Blob>,
   { background = false }: { background?: boolean } = {},
 ): Promise<Blob> {
-  const hit = getCachedBlob(id);
+  const hit = background ? cache.get(id)?.blob : getCachedBlob(id);
   if (hit) return Promise.resolve(hit);
 
   const pending = inflight.get(id);
@@ -132,7 +165,7 @@ export function cachedDecrypt(
     // Only cache if no lock/clear happened while we were decrypting, otherwise
     // we'd repopulate a cache the user just locked. The caller still gets the
     // blob it requested (it asked while unlocked); we just don't retain it.
-    if (gen === generation) store(id, blob, folderId);
+    if (gen === generation) store(id, blob, folderId, backgroundIds.has(id));
     return blob;
   });
   inflight.set(id, run);
@@ -240,10 +273,7 @@ export function cachedResolveCEK(
  */
 export function clearDecryptCacheForFile(id: string): void {
   const entry = cache.get(id);
-  if (entry) {
-    totalBytes -= entry.blob.size;
-    cache.delete(id);
-  }
+  if (entry) drop(id, entry);
   cekCache.delete(id);
   // A decrypt/CEK-resolve may still be in flight for this id; bump the
   // generation so it can't repopulate either cache after we've evicted it.
@@ -274,6 +304,7 @@ export function clearDecryptCache(): void {
   cekCache.clear();
   cekInflight.clear();
   totalBytes = 0;
+  backgroundBytes = 0;
   generation++; // invalidate any in-flight run so it can't repopulate post-lock
   // Derived keys are the same exposure class as this plaintext, a lock event
   // must drop both, or a re-lock would leave 600k-iteration PBKDF2 results
@@ -291,10 +322,7 @@ export function clearDecryptCache(): void {
  */
 export function clearDecryptCacheForFolder(folderId: string): void {
   for (const [id, entry] of cache) {
-    if (entry.folderId === folderId) {
-      totalBytes -= entry.blob.size;
-      cache.delete(id);
-    }
+    if (entry.folderId === folderId) drop(id, entry);
   }
   for (const [id, entry] of cekCache) {
     if (entry.folderId === folderId) {

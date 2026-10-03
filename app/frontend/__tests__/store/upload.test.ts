@@ -38,6 +38,7 @@ import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { uploadPathFor } from "@/lib/desktop-paths";
 import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, deriveDedupKeyBytes, contentMacFile, toBase64, fromBase64 } from "@/lib/crypto";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -1606,6 +1607,19 @@ describe("useUploadStore", () => {
       await run;
       expect(sidecarUpload).toHaveBeenCalledTimes(1);
       expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String), null);
+      expect(uploadPathFor("b.bin")).toBeUndefined();
+    });
+
+    it("remembers every picked path as resumable, even ones still waiting for a slot", async () => {
+      const { run, releases } = await startGatedDesktopUpload(["/tmp/a.bin", "/tmp/b.bin"], 1);
+      expect(uploadPathFor("a.bin")).toBe("/tmp/a.bin");
+      expect(uploadPathFor("b.bin")).toBe("/tmp/b.bin");
+      releases[0]();
+      await flush(10);
+      releases[1]();
+      await run;
+      expect(uploadPathFor("a.bin")).toBeUndefined();
+      expect(uploadPathFor("b.bin")).toBeUndefined();
     });
 
     it("marks a path failed when the core upload throws", async () => {

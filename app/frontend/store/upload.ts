@@ -1665,6 +1665,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       // File has 0 bytes, so the web pipeline must never see it), and the UI
       // hides pause.
       patchMeta(id, { desktopPath: filePath, onRefresh, platform, folderId });
+      rememberUploadPath(filePath);
       set((state) => ({
         queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
       }));
@@ -1677,8 +1678,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           await sem.acquire();
           try {
             // Cancelled while it waited for a slot: nothing to start.
-            if (!itemMeta.has(id)) return;
-            rememberUploadPath(filePath);
+            if (!itemMeta.has(id)) {
+              forgetUploadPath(filePath);
+              return;
+            }
             // Streaming upload: encrypt-in-RAM + fire chunks in parallel, resolves
             // only when the bytes are confirmed on the platform. `platform` is the
             // user's picker choice ("github"/"huggingface"/… or undefined = Auto);

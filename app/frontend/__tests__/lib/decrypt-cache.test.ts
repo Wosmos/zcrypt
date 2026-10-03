@@ -246,6 +246,83 @@ describe("decrypt-cache", () => {
     expect(getCachedBlob("x")).toBeUndefined(); // evicted instead of the just-written f1
   });
 
+  describe("background entries", () => {
+    const bg = { background: true };
+
+    it("keep background decrypts inside their own small budget, oldest out first", async () => {
+      await cachedDecrypt("open", null, async () => sizedBlob(10 * MB));
+      for (const id of ["t1", "t2", "t3", "t4", "t5"]) {
+        await cachedDecrypt(id, null, async () => sizedBlob(15 * MB), bg);
+      }
+      expect(isWarmOrInflight("t1")).toBe(false);
+      expect(["open", "t2", "t3", "t4", "t5"].every(isWarmOrInflight)).toBe(true);
+    });
+
+    it("never retain a background blob larger than the background budget", async () => {
+      await cachedDecrypt("big", null, async () => sizedBlob(65 * MB), bg);
+      expect(isWarmOrInflight("big")).toBe(false);
+    });
+
+    it("never evict a foreground entry to make room", async () => {
+      await cachedDecrypt("open", null, async () => sizedBlob(290 * MB));
+      await cachedDecrypt("t1", null, async () => sizedBlob(15 * MB), bg);
+      expect(isWarmOrInflight("t1")).toBe(false);
+      expect(isWarmOrInflight("open")).toBe(true);
+    });
+
+    it("are evicted before older foreground entries when a foreground store overflows", async () => {
+      await cachedDecrypt("a", null, async () => sizedBlob(100 * MB));
+      await cachedDecrypt("t1", null, async () => sizedBlob(15 * MB), bg);
+      await cachedDecrypt("b", null, async () => sizedBlob(100 * MB));
+      await cachedDecrypt("c", null, async () => sizedBlob(100 * MB));
+      expect(isWarmOrInflight("t1")).toBe(false);
+      expect(["a", "b", "c"].every(isWarmOrInflight)).toBe(true);
+    });
+
+    it("serve a background hit without promoting it", async () => {
+      const blob = sizedBlob(15 * MB);
+      await cachedDecrypt("t1", null, async () => blob, bg);
+      const again = vi.fn(async () => sizedBlob(1));
+      await expect(cachedDecrypt("t1", null, again, bg)).resolves.toBe(blob);
+      expect(again).not.toHaveBeenCalled();
+      for (const id of ["t2", "t3", "t4", "t5"]) {
+        await cachedDecrypt(id, null, async () => sizedBlob(15 * MB), bg);
+      }
+      expect(isWarmOrInflight("t1")).toBe(false);
+    });
+
+    it("leave the background budget once a viewer opens them", async () => {
+      for (const id of ["t1", "t2", "t3", "t4"]) {
+        await cachedDecrypt(id, null, async () => sizedBlob(15 * MB), bg);
+      }
+      expect(getCachedBlob("t1")).toBeDefined();
+      await cachedDecrypt("t5", null, async () => sizedBlob(15 * MB), bg);
+      await cachedDecrypt("t6", null, async () => sizedBlob(15 * MB), bg);
+      expect(isWarmOrInflight("t1")).toBe(true);
+      expect(isWarmOrInflight("t2")).toBe(false);
+    });
+
+    it("free their background budget when the file is cleared", async () => {
+      for (const id of ["t1", "t2", "t3", "t4"]) {
+        await cachedDecrypt(id, null, async () => sizedBlob(15 * MB), bg);
+      }
+      clearDecryptCacheForFile("t1");
+      await cachedDecrypt("t5", null, async () => sizedBlob(4 * MB), bg);
+      expect(["t2", "t3", "t4", "t5"].every(isWarmOrInflight)).toBe(true);
+    });
+
+    it("replace a re-entrant background write without double-counting", async () => {
+      const outer = async () => {
+        await cachedDecrypt("t1", null, async () => sizedBlob(15 * MB), bg);
+        return sizedBlob(60 * MB);
+      };
+      await cachedDecrypt("t1", null, outer, bg);
+      await cachedDecrypt("t2", null, async () => sizedBlob(4 * MB), bg);
+      expect(isWarmOrInflight("t1")).toBe(true);
+      expect(isWarmOrInflight("t2")).toBe(true);
+    });
+  });
+
   describe("CEK cache", () => {
     it("getCachedCEK returns undefined for a missing id", () => {
       expect(getCachedCEK("nope")).toBeUndefined();
