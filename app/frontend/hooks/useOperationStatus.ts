@@ -33,10 +33,45 @@ export function useOperationStatus(onProgress: ProgressCallback, onAudit?: Audit
     let hadConnection = false;
     let errorNotified = false;
 
-    function connect() {
+    function reconnect() {
+      es?.close();
+      es = null;
+
       if (disposed) return;
 
-      es = createEventSource();
+      // Notify about server issues after threshold consecutive failures
+      if (reconnectAttempt >= ERROR_THRESHOLD && !errorNotified) {
+        errorNotified = true;
+        notifications.serverError("Lost connection to server. Retrying...");
+        toast.error("Reconnecting to server…");
+        // No OS-level Notification here on purpose: an SSE drop auto-recovers,
+        // so an OS popup that lingers in the notification centre is noise. The
+        // dismissible in-app notification above is enough and it clears on
+        // reconnect (serverReconnected below).
+      }
+
+      // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 30s
+      const delay = Math.min(BASE_DELAY * 2 ** reconnectAttempt, MAX_RECONNECT_DELAY);
+      reconnectAttempt++;
+
+      reconnectTimer = setTimeout(() => void connect(), delay);
+    }
+
+    async function connect() {
+      if (disposed) return;
+
+      let source: EventSource;
+      try {
+        source = await createEventSource();
+      } catch {
+        reconnect();
+        return;
+      }
+      if (disposed) {
+        source.close();
+        return;
+      }
+      es = source;
 
       es.addEventListener("progress", (e) => {
         try {
@@ -67,32 +102,10 @@ export function useOperationStatus(onProgress: ProgressCallback, onAudit?: Audit
         reconnectAttempt = 0;
       };
 
-      es.onerror = () => {
-        es?.close();
-        es = null;
-
-        if (disposed) return;
-
-        // Notify about server issues after threshold consecutive failures
-        if (reconnectAttempt >= ERROR_THRESHOLD && !errorNotified) {
-          errorNotified = true;
-          notifications.serverError("Lost connection to server. Retrying...");
-          toast.error("Reconnecting to server…");
-          // No OS-level Notification here on purpose: an SSE drop auto-recovers,
-          // so an OS popup that lingers in the notification centre is noise. The
-          // dismissible in-app notification above is enough and it clears on
-          // reconnect (serverReconnected below).
-        }
-
-        // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 30s
-        const delay = Math.min(BASE_DELAY * 2 ** reconnectAttempt, MAX_RECONNECT_DELAY);
-        reconnectAttempt++;
-
-        reconnectTimer = setTimeout(connect, delay);
-      };
+      es.onerror = reconnect;
     }
 
-    connect();
+    void connect();
 
     return () => {
       disposed = true;

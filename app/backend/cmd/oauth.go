@@ -428,20 +428,12 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		return
 	}
 
-	refreshToken, err := auth.GenerateRandomToken()
+	refreshToken, err := s.mintRefreshToken(r, user.ID, false)
 	if err != nil {
+		log.Printf("oauth: %v", err)
 		s.oauthError(w, r, "internal error", desktop, session)
 		return
 	}
-
-	s.db.InsertRefreshToken(r.Context(), &types.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		TokenHash: auth.HashToken(refreshToken),
-		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        s.clientIP(r),
-		UserAgent: r.UserAgent(),
-	})
 
 	if desktop && session != "" {
 		s.desktopRelayRedirect(w, r, frontendURL, session, &desktopOAuthResult{

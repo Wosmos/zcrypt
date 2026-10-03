@@ -40,10 +40,31 @@ export function useFileEvents() {
     let es: EventSource | null = null;
     let batch: (FileEvent | null)[] = [];
 
-    function connect() {
+    function reconnect() {
+      es?.close();
+      es = null;
       if (disposed) return;
 
-      es = createEventSource();
+      const delay = Math.min(BASE_DELAY * 2 ** reconnectAttempt, MAX_RECONNECT_DELAY);
+      reconnectAttempt++;
+      reconnectTimer = setTimeout(() => void connect(), delay);
+    }
+
+    async function connect() {
+      if (disposed) return;
+
+      let source: EventSource;
+      try {
+        source = await createEventSource();
+      } catch {
+        reconnect();
+        return;
+      }
+      if (disposed) {
+        source.close();
+        return;
+      }
+      es = source;
 
       es.addEventListener("file", (e: MessageEvent) => {
         let event: FileEvent | null = null;
@@ -76,18 +97,10 @@ export function useFileEvents() {
         reconnectAttempt = 0;
       };
 
-      es.onerror = () => {
-        es?.close();
-        es = null;
-        if (disposed) return;
-
-        const delay = Math.min(BASE_DELAY * 2 ** reconnectAttempt, MAX_RECONNECT_DELAY);
-        reconnectAttempt++;
-        reconnectTimer = setTimeout(connect, delay);
-      };
+      es.onerror = reconnect;
     }
 
-    connect();
+    void connect();
 
     return () => {
       disposed = true;

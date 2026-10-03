@@ -8,9 +8,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // vi.mock is hoisted above module init, so the mock fns must come from
 // vi.hoisted() to exist when the factories run.
-const { getState, tryRefreshToken, authedFetch } = vi.hoisted(() => {
+const { getState, tryRefreshToken, authedFetch, shouldRefreshOn401 } = vi.hoisted(() => {
   const getState = vi.fn();
   const tryRefreshToken = vi.fn();
+  const shouldRefreshOn401 = vi.fn((token: string | null) => !!token);
   // Mirror the real authedFetch (lib/auth-fetch): attach the access token and,
   // on a 401, refresh once and retry with the new token, against the mocked
   // global fetch. getFileChunk now goes through this, so it must exercise the
@@ -29,10 +30,10 @@ const { getState, tryRefreshToken, authedFetch } = vi.hoisted(() => {
     }
     return res;
   });
-  return { getState, tryRefreshToken, authedFetch };
+  return { getState, tryRefreshToken, authedFetch, shouldRefreshOn401 };
 });
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
-vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken, authedFetch }));
+vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken, authedFetch, shouldRefreshOn401 }));
 
 import {
   getConfig,
@@ -115,6 +116,20 @@ describe("api request core", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const retryInit = fetchMock.mock.calls[1][1];
     expect((retryInit.headers as Record<string, string>).Authorization).toBe("Bearer fresh-tok");
+  });
+
+  it("refreshes on a 401 without a token when the session may live in the cookie", async () => {
+    getState.mockReturnValue({ accessToken: null });
+    shouldRefreshOn401.mockReturnValueOnce(true);
+    fetchMock
+      .mockResolvedValueOnce(resp(401, { error: "expired" }))
+      .mockResolvedValueOnce(resp(200, { ok: true }));
+    tryRefreshToken.mockResolvedValueOnce("cookie-tok");
+
+    await expect(getConfig()).resolves.toEqual({ ok: true });
+    expect(shouldRefreshOn401).toHaveBeenCalledWith(null);
+    const retryInit = fetchMock.mock.calls[1][1];
+    expect((retryInit.headers as Record<string, string>).Authorization).toBe("Bearer cookie-tok");
   });
 
   it("surfaces the error when a 401 refresh fails", async () => {

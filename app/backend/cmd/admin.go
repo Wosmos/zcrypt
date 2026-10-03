@@ -142,6 +142,27 @@ func (s *Server) HandleAdminStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(stats)
 }
 
+// adminReauth gates a sensitive admin action on the acting admin's password
+// and TOTP. Attempts are limited per IP, and failures per admin, so a stolen
+// admin token cannot rotate addresses to turn this into an unlimited password
+// oracle. It writes the error response itself and reports whether the caller
+// may proceed.
+func (s *Server) adminReauth(w http.ResponseWriter, r *http.Request, password, code, deniedAction string, details map[string]interface{}) bool {
+	adminID := GetUserID(r)
+	if !s.devMode && (s.twoFAUserLimiter.exceeded(adminID) || !s.authLimiter.allow(s.clientIP(r))) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return false
+	}
+	if err := s.reauthActingUser(r.Context(), r, password, code); err != nil {
+		s.twoFAUserLimiter.record(adminID)
+		details["reason"] = err.Error()
+		s.audit(r, &adminID, deniedAction, details)
+		writeError(w, http.StatusForbidden, "re-authentication required: "+err.Error())
+		return false
+	}
+	return true
+}
+
 // HandleAdminSetRole updates a user's role.
 // PUT /api/admin/users/{id}/role
 func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +174,9 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Role string `json:"role"`
+		Role     string `json:"role"`
+		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
@@ -172,17 +195,24 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Same friction as deleting a user: a stolen admin token alone must not be
+	// able to mint more admins.
+	adminID := GetUserID(r)
+	if !s.adminReauth(w, r, req.Password, req.Code, "admin_role_change_denied", map[string]interface{}{"target_user": userID}) {
+		return
+	}
+
 	if err := s.db.SetUserRole(ctx, userID, role); err != nil {
 		internalError(w, "AdminSetRole", err)
 		return
 	}
 
 	// Invalidate all existing tokens for this user (role change is security-sensitive)
-	_ = s.db.IncrementTokenVersion(ctx, userID)
-	s.tokenVersions.invalidate(userID) // drop cache so the demotion takes effect immediately
-	_ = s.db.DeleteRefreshTokensByUser(ctx, userID)
+	if err := s.revokeSessions(ctx, userID); err != nil {
+		internalError(w, "admin role change: revoke sessions", err)
+		return
+	}
 
-	adminID := GetUserID(r)
 	s.audit(r, &adminID, "admin_role_change", map[string]interface{}{"target_user": userID, "role": req.Role})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
@@ -205,21 +235,13 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Destructive-op friction: a valid admin token is not enough to erase an
-	// account. Re-verify the acting admin (password + TOTP if they have 2FA),
-	// rate-limited per IP so a stolen token can't brute-force the password here.
-	if !s.devMode && !s.authLimiter.allow(s.clientIP(r)) {
-		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
-		return
-	}
+	// account. Re-verify the acting admin (password + TOTP if they have 2FA).
 	var body struct {
 		Password string `json:"password"`
 		Code     string `json:"code"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
-	if err := s.reauthActingUser(ctx, r, body.Password, body.Code); err != nil {
-		adminID := GetUserID(r)
-		s.audit(r, &adminID, "admin_user_delete_denied", map[string]interface{}{"target_user": userID, "reason": err.Error()})
-		writeError(w, http.StatusUnauthorized, "re-authentication required: "+err.Error())
+	if !s.adminReauth(w, r, body.Password, body.Code, "admin_user_delete_denied", map[string]interface{}{"target_user": userID}) {
 		return
 	}
 
@@ -275,6 +297,8 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 		Platform string `json:"platform"`
 		Token    string `json:"token"`
 		IsGlobal bool   `json:"is_global"`
+		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
@@ -290,6 +314,10 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 	case "github", "gitlab", "huggingface":
 	default:
 		http.Error(w, `{"error":"unsupported platform"}`, http.StatusBadRequest)
+		return
+	}
+
+	if !s.adminReauth(w, r, req.Password, req.Code, "admin_token_create_denied", map[string]interface{}{"platform": req.Platform, "target_user": req.UserID}) {
 		return
 	}
 
@@ -355,10 +383,16 @@ func (s *Server) HandleAdminToggleTokenScope(w http.ResponseWriter, r *http.Requ
 	}
 
 	var req struct {
-		IsGlobal bool `json:"is_global"`
+		IsGlobal bool   `json:"is_global"`
+		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	if !s.adminReauth(w, r, req.Password, req.Code, "admin_token_scope_change_denied", map[string]interface{}{"token_id": tokenID}) {
 		return
 	}
 
@@ -385,6 +419,15 @@ func (s *Server) HandleAdminDeleteToken(w http.ResponseWriter, r *http.Request) 
 	tokenID := r.PathValue("id")
 	if tokenID == "" {
 		http.Error(w, `{"error":"token id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if !s.adminReauth(w, r, body.Password, body.Code, "admin_token_delete_denied", map[string]interface{}{"token_id": tokenID}) {
 		return
 	}
 

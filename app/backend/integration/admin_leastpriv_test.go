@@ -91,7 +91,7 @@ func TestAdminDeleteUserRequiresReauth(t *testing.T) {
 
 	t.Run("no password is rejected", func(t *testing.T) {
 		resp := ts.deleteWithBody("/api/admin/users/"+victimUser.ID, map[string]string{}, adminToken)
-		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 		resp.Body.Close()
 		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM users WHERE id=$1`, victimUser.ID),
 			"victim must still exist after a denied delete")
@@ -100,7 +100,7 @@ func TestAdminDeleteUserRequiresReauth(t *testing.T) {
 	t.Run("wrong password is rejected", func(t *testing.T) {
 		resp := ts.deleteWithBody("/api/admin/users/"+victimUser.ID,
 			map[string]string{"password": "WrongPass@1!"}, adminToken)
-		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 		resp.Body.Close()
 		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM users WHERE id=$1`, victimUser.ID))
 	})

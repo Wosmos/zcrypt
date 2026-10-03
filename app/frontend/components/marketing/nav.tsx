@@ -30,7 +30,7 @@ import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { LiquidGlassFilter } from "@/components/marketing/liquid-glass-filter";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, readCachedUser } from "@/store/auth";
 import "@/components/marketing/landing/chrome.css";
 
 type IconType = React.ComponentType<{ className?: string; size?: number }>;
@@ -366,7 +366,7 @@ export function MarketingNav() {
   const [openMenu, setOpenMenu] = useState<MegaKey | null>(null);
   const hasSession = useAuthStore((s) => Boolean(s.user || s.accessToken));
   const [hydrated, setHydrated] = useState(false);
-  const signedIn = hydrated && hasSession;
+  const signedIn = hydrated && (hasSession || readCachedUser() !== null);
   const headerRef = useRef<HTMLElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
   const glassRef = useRef<HTMLSpanElement>(null);

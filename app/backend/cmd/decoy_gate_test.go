@@ -128,6 +128,7 @@ func TestDecoyGateCoversEveryAuthenticatedRoute(t *testing.T) {
 		"GET /api/preferences",
 		"GET /api/quota",
 		"PATCH /api/files/{id}/name",
+		"POST /api/sse/ticket",
 		"PUT /api/preferences",
 	}
 	if strings.Join(passed, "\n") != strings.Join(want, "\n") {
@@ -186,5 +187,19 @@ func TestSSESubscriberIsolatesDecoy(t *testing.T) {
 	id, admin = sseSubscriber(&auth.Claims{Sub: "u1", Role: "admin"})
 	if id != "u1" || !admin {
 		t.Fatalf("real subscriber = (%q, %v), want (u1, true)", id, admin)
+	}
+}
+
+func TestSSETicketCarriesDecoySubscriber(t *testing.T) {
+	tk := sseTicketFor(&auth.Claims{Sub: "u1", Role: "admin", Decoy: true, TokenVersion: 3})
+	if tk.userID != "u1" || tk.tokenVersion != 3 {
+		t.Fatalf("ticket = %+v, want the real user and token version for revocation checks", tk)
+	}
+	if tk.subscriber == "u1" || tk.isAdmin {
+		t.Fatalf("decoy ticket subscribes as (%q, %v), want an isolated id and no admin fan-out", tk.subscriber, tk.isAdmin)
+	}
+	tk = sseTicketFor(&auth.Claims{Sub: "u1", Role: "admin"})
+	if tk.subscriber != "u1" || !tk.isAdmin {
+		t.Fatalf("real ticket subscribes as (%q, %v), want (u1, true)", tk.subscriber, tk.isAdmin)
 	}
 }

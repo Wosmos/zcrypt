@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -87,6 +88,10 @@ func (s *Server) HandleSetupDecoy(w http.ResponseWriter, r *http.Request) {
 
 	if len(req.DecoyPassword) < 6 {
 		http.Error(w, `{"error":"decoy password must be at least 6 characters"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.DecoyPassword) > maxPasswordBytes {
+		http.Error(w, fmt.Sprintf(`{"error":"decoy password must be at most %d bytes"}`, maxPasswordBytes), http.StatusBadRequest)
 		return
 	}
 

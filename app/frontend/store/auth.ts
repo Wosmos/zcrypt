@@ -8,6 +8,18 @@ import { isTauri } from "@/lib/tauri";
 import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
 
 const USER_KEY = "zcrypt-user";
+const ACCESS_KEY = "zcrypt-access-token";
+const REFRESH_KEY = "zcrypt-refresh-token";
+
+/** Desktop restores its access token across restarts. The web never stores it:
+ *  a reload trades the httpOnly refresh cookie for a fresh one instead, so a
+ *  script running in the page cannot lift a live token from storage. */
+function readStoredAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  if (isTauri) return localStorage.getItem(ACCESS_KEY);
+  localStorage.removeItem(ACCESS_KEY);
+  return null;
+}
 
 /** Just enough of the user to render the app shell before /api/auth/me answers.
  *  Never tokens, never the email: getMe fills in the rest moments later. */
@@ -74,7 +86,7 @@ interface AuthStore {
   clearAuth: () => void;
 }
 
-// The refresh token is only ever persisted to localStorage on desktop
+// Tokens are only ever persisted to localStorage on desktop
 // (Tauri): its Rust sync worker needs the raw string across app restarts
 // (lib/tauri.ts's startSync call). On the web, persisting a long-lived
 // refresh token in localStorage means any XSS anywhere gets permanent
@@ -87,9 +99,9 @@ interface AuthStore {
 // in-process right after login), it just isn't written to disk for web.
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
-  accessToken: typeof window !== "undefined" ? localStorage.getItem("zcrypt-access-token") : null,
+  accessToken: readStoredAccessToken(),
   refreshTokenValue:
-    typeof window !== "undefined" && isTauri ? localStorage.getItem("zcrypt-refresh-token") : null,
+    typeof window !== "undefined" && isTauri ? localStorage.getItem(REFRESH_KEY) : null,
   loading: false,
   initialized: false,
 
@@ -104,9 +116,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   setTokens: (accessToken, refreshToken) => {
-    localStorage.setItem("zcrypt-access-token", accessToken);
     if (isTauri) {
-      localStorage.setItem("zcrypt-refresh-token", refreshToken);
+      localStorage.setItem(ACCESS_KEY, accessToken);
+      localStorage.setItem(REFRESH_KEY, refreshToken);
     }
     set({ accessToken, refreshTokenValue: refreshToken });
   },
@@ -115,8 +127,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setInitialized: (initialized) => set({ initialized }),
 
   clearAuth: () => {
-    localStorage.removeItem("zcrypt-access-token");
-    localStorage.removeItem("zcrypt-refresh-token");
+    localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(REFRESH_KEY);
     // Logout is stronger than a vault lock: also drop all decrypted plaintext
     // and forget the vault passphrase (incl. the device-persisted copy) so a
     // different user on the same tab can't inherit the prior session's data.

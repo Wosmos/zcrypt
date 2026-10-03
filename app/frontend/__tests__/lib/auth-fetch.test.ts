@@ -21,7 +21,7 @@ vi.mock("@/lib/tauri", () => ({
   refreshSession,
 }));
 
-import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, refreshSessionToken, tryRefreshToken } from "@/lib/auth-fetch";
 
 function resp(status: number) {
   return { status } as Response;
@@ -130,6 +130,27 @@ describe("tryRefreshToken", () => {
   });
 });
 
+describe("refreshSessionToken", () => {
+  it("reports the new token on success", async () => {
+    refreshTokenApi.mockResolvedValueOnce({ access_token: "a", refresh_token: "r" });
+    expect(await refreshSessionToken()).toEqual({ token: "a", rejected: false });
+  });
+
+  it("tells a definitive rejection apart from a transient miss", async () => {
+    refreshTokenApi.mockRejectedValueOnce(Object.assign(new Error("gone"), { status: 403 }));
+    expect(await refreshSessionToken()).toEqual({ token: null, rejected: true });
+
+    refreshTokenApi.mockRejectedValueOnce(new Error("offline"));
+    expect(await refreshSessionToken()).toEqual({ token: null, rejected: false });
+  });
+
+  it("desktop with no refresh token has no session to recover", async () => {
+    tauriFlag.isTauri = true;
+    getState.mockReturnValue({ refreshTokenValue: null, setTokens, clearAuth });
+    expect(await refreshSessionToken()).toEqual({ token: null, rejected: true });
+  });
+});
+
 describe("authedFetch", () => {
   it("attaches the bearer token and returns the response on success", async () => {
     fetchMock.mockResolvedValueOnce(resp(200));
@@ -184,7 +205,22 @@ describe("authedFetch", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1); // no retry without a fresh token
   });
 
-  it("does not attempt a refresh on 401 when there was no access token to begin with", async () => {
+  it("on the web, refreshes a 401 without a token through the session cookie", async () => {
+    getState.mockReturnValue({ accessToken: null, refreshTokenValue: null, setTokens, clearAuth });
+    fetchMock.mockResolvedValueOnce(resp(401)).mockResolvedValueOnce(resp(200));
+    refreshTokenApi.mockResolvedValueOnce({ access_token: "cookie-at", refresh_token: "cookie-rt" });
+
+    const res = await authedFetch("/api/thing");
+
+    expect(res.status).toBe(200);
+    expect(refreshTokenApi).toHaveBeenCalledWith(null);
+    expect((fetchMock.mock.calls[1][1].headers as Record<string, string>).Authorization).toBe(
+      "Bearer cookie-at",
+    );
+  });
+
+  it("on desktop, does not attempt a refresh on 401 without a token", async () => {
+    tauriFlag.isTauri = true;
     getState.mockReturnValue({ accessToken: null, refreshTokenValue: "refresh-tok", setTokens, clearAuth });
     fetchMock.mockResolvedValueOnce(resp(401));
 
@@ -193,6 +229,7 @@ describe("authedFetch", () => {
     expect(res.status).toBe(401);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(refreshTokenApi).not.toHaveBeenCalled();
+    expect(refreshSession).not.toHaveBeenCalled();
   });
 });
 

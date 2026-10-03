@@ -215,9 +215,29 @@ function ClipboardSyncSection() {
     let reconnectAttempt = 0;
     let disposed = false;
 
-    function connect() {
+    function reconnect() {
+      es?.close();
+      es = null;
       if (disposed) return;
-      es = createEventSource();
+      const delay = Math.min(1_000 * 2 ** reconnectAttempt, 30_000);
+      reconnectAttempt++;
+      reconnectTimer = setTimeout(() => void connect(), delay);
+    }
+
+    async function connect() {
+      if (disposed) return;
+      let source: EventSource;
+      try {
+        source = await createEventSource();
+      } catch {
+        reconnect();
+        return;
+      }
+      if (disposed) {
+        source.close();
+        return;
+      }
+      es = source;
       es.addEventListener("clipboard", (e: MessageEvent) => {
         try {
           const item = JSON.parse(e.data) as ClipboardItem;
@@ -232,17 +252,10 @@ function ClipboardSyncSection() {
       es.onopen = () => {
         reconnectAttempt = 0;
       };
-      es.onerror = () => {
-        es?.close();
-        es = null;
-        if (disposed) return;
-        const delay = Math.min(1_000 * 2 ** reconnectAttempt, 30_000);
-        reconnectAttempt++;
-        reconnectTimer = setTimeout(connect, delay);
-      };
+      es.onerror = reconnect;
     }
 
-    connect();
+    void connect();
     return () => {
       disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);

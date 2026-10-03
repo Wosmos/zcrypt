@@ -3,6 +3,7 @@
 import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
+import { EMPTY_REAUTH, ReauthFields, reauthReady } from "@/components/admin/reauth-fields";
 import { formatBytes, cn, bytesToGb } from "@/lib/utils";
 import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
 import { toast } from "@/store/toast";
@@ -395,6 +396,13 @@ export function UserTable({
     detail: string;
     newValue?: string;
   } | null>(null);
+  const [reauth, setReauth] = useState(EMPTY_REAUTH);
+  const needsReauth = confirmAction?.type === "delete" || confirmAction?.type === "role";
+
+  const closeConfirm = () => {
+    setConfirmAction(null);
+    setReauth(EMPTY_REAUTH);
+  };
 
   const startEditQuota = (u: AdminUser) => {
     setEditingQuota(u.id);
@@ -496,16 +504,16 @@ export function UserTable({
     setBusy(confirmAction.userId);
     try {
       if (confirmAction.type === "delete") {
-        await adminDeleteUser(confirmAction.userId);
+        await adminDeleteUser(confirmAction.userId, reauth);
         toast.success("User deleted");
       } else if (confirmAction.type === "role") {
-        await adminSetUserRole(confirmAction.userId, confirmAction.newValue!);
+        await adminSetUserRole(confirmAction.userId, confirmAction.newValue!, reauth);
         toast.success(`Role updated to ${confirmAction.newValue}`);
       } else if (confirmAction.type === "plan") {
         await adminSetUserPlan(confirmAction.userId, confirmAction.newValue!);
         toast.success(`Plan updated to ${confirmAction.newValue}`);
       }
-      setConfirmAction(null);
+      closeConfirm();
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : `Failed to ${confirmAction.type}`);
@@ -629,14 +637,17 @@ export function UserTable({
         <ConfirmModal
           open={!!confirmAction}
           onConfirm={executeConfirmAction}
-          onClose={() => setConfirmAction(null)}
+          onClose={closeConfirm}
           title={modalProps.title}
           description={modalProps.description}
           details={confirmAction?.userName}
           confirmLabel={modalProps.confirmLabel}
           variant={modalProps.variant}
           loading={busy === confirmAction?.userId}
-        />
+          confirmDisabled={needsReauth && !reauthReady(reauth)}
+        >
+          {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
+        </ConfirmModal>
       )}
     </>
   );

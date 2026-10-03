@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as authApi from "@/lib/auth-api";
+import { useAuthStore } from "@/store/auth";
 
 // auth-api.ts is a small authRequest() core (json headers, 15s timeout, error
 // parsing, abort->timeout) plus thin per-endpoint wrappers. We assert the core
@@ -145,6 +146,45 @@ describe("auth-api endpoint wrappers", () => {
     if (c.auth) {
       expect(init.headers["Authorization"]).toBe(`Bearer ${c.auth}`);
     }
+  });
+});
+
+describe("2FA toggles adopt the rotated session", () => {
+  beforeEach(() => {
+    useAuthStore.getState().setTokens("old-at", "old-rt");
+  });
+
+  it("enable2FA stores the new pair and returns the backup codes", async () => {
+    fetchMock.mockResolvedValueOnce(
+      resp(200, {
+        success: true,
+        session_rotated: true,
+        access_token: "new-at",
+        refresh_token: "new-rt",
+        backup_codes: ["a-b"],
+      }),
+    );
+    const out = await authApi.enable2FA("old-at", "123456");
+    expect(out.backup_codes).toEqual(["a-b"]);
+    expect(useAuthStore.getState().accessToken).toBe("new-at");
+    expect(useAuthStore.getState().refreshTokenValue).toBe("new-rt");
+  });
+
+  it("disable2FA stores the new pair", async () => {
+    fetchMock.mockResolvedValueOnce(
+      resp(200, { success: true, session_rotated: true, access_token: "d-at", refresh_token: "d-rt" }),
+    );
+    await authApi.disable2FA("old-at", "pw", "123456");
+    expect(useAuthStore.getState().accessToken).toBe("d-at");
+  });
+
+  it("keeps the tokens untouched when the rotation failed but still returns the codes", async () => {
+    fetchMock.mockResolvedValueOnce(
+      resp(200, { success: true, session_rotated: false, backup_codes: ["x-y"] }),
+    );
+    const out = await authApi.enable2FA("old-at", "123456");
+    expect(out.backup_codes).toEqual(["x-y"]);
+    expect(useAuthStore.getState().accessToken).toBe("old-at");
   });
 });
 

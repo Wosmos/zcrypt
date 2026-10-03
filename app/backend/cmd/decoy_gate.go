@@ -33,6 +33,7 @@ var decoyRoutes = map[string]decoyRule{
 	"GET /api/analytics/timeseries":     decoyPass,
 	"GET /api/analytics/storage-growth": decoyPass,
 	"GET /api/analytics/file-types":     decoyPass,
+	"POST /api/sse/ticket":              decoyPass,
 	"GET /api/folders":                  decoyEmpty(`[]`),
 	"GET /api/folders/tree":             decoyEmpty(`[]`),
 	"GET /api/files/trash":              decoyEmpty(`[]`),

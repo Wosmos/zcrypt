@@ -404,17 +404,21 @@ describe("createEventSource", () => {
   }
   beforeEach(() => vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource));
 
-  it("appends the auth token as a query param when present", () => {
+  it("trades the access token for a single-use ticket and keeps the token out of the URL", async () => {
     getState.mockReturnValue({ accessToken: "abc" });
-    const es = api.createEventSource() as unknown as FakeEventSource;
-    expect(es.url).toContain("/api/events?token=abc");
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { ticket: "t/1+" } }));
+    const es = (await api.createEventSource()) as unknown as FakeEventSource;
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/sse/ticket");
+    expect(init().method).toBe("POST");
+    expect(init().headers?.Authorization).toBe("Bearer abc");
+    expect(es.url).toContain("/api/events?ticket=t%2F1%2B");
+    expect(es.url).not.toContain("abc");
   });
 
-  it("omits the token param when there is no session", () => {
+  it("rejects without opening a stream when no ticket is issued", async () => {
     getState.mockReturnValue({ accessToken: null });
-    const es = api.createEventSource() as unknown as FakeEventSource;
-    expect(es.url).toContain("/api/events");
-    expect(es.url).not.toContain("token=");
+    fetchMock.mockResolvedValueOnce(mk(401, { json: { error: "unauthorized" } }));
+    await expect(api.createEventSource()).rejects.toThrow();
   });
 });
 

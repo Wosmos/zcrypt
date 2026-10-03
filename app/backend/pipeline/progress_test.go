@@ -219,3 +219,21 @@ func TestConcurrentSubscribeEmit(t *testing.T) {
 	}
 	require.True(t, true) // reached here = no race panic
 }
+
+func TestSubscribeLimitedCapsPerUser(t *testing.T) {
+	pe := NewProgressEmitter()
+
+	_, ok := pe.SubscribeLimited("a", "user-1", false, 2)
+	require.True(t, ok)
+	_, ok = pe.SubscribeLimited("b", "user-1", false, 2)
+	require.True(t, ok)
+	_, ok = pe.SubscribeLimited("c", "user-1", false, 2)
+	assert.False(t, ok, "a third stream for the same user is refused")
+
+	_, ok = pe.SubscribeLimited("d", "user-2", false, 2)
+	assert.True(t, ok, "other users are unaffected")
+
+	pe.Unsubscribe("a")
+	_, ok = pe.SubscribeLimited("e", "user-1", false, 2)
+	assert.True(t, ok, "closing a stream frees a slot")
+}
