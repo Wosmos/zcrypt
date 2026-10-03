@@ -31,10 +31,12 @@ const RETRY_BASE: Duration = Duration::from_secs(2);
 
 const PLATFORM: &str = "telegram";
 
-/// Short on purpose: when api.telegram.org is filtered on this network the
-/// caller falls back to the server relay, and every second spent here is a
-/// second the user stares at a spinner.
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+/// Short on purpose, and downloads only: when api.telegram.org is filtered on
+/// this network the caller falls back to the server relay, and every second
+/// spent here is a second the user stares at a spinner. Uploads keep the long
+/// connect timeout so slow mobile networks still get through.
+const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const GET_FILE_TIMEOUT: Duration = Duration::from_secs(10);
 const PART_DEADLINE_BASE: Duration = Duration::from_secs(20);
 const FILE_PATH_TTL: Duration = Duration::from_secs(50 * 60);
@@ -49,24 +51,28 @@ pub struct Telegram {
     chat_id: String,
     api_base: String,
     client: reqwest::Client,
+    dl_client: reqwest::Client,
     file_paths: FilePathCache,
 }
 
 impl Telegram {
     pub fn new(token: &str, account: &str) -> Self {
-        let client = reqwest::Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .pool_idle_timeout(Duration::from_secs(90))
-            .pool_max_idle_per_host(4)
-            // No overall request timeout: uploads can be large (matches the
-            // timeout-less Go upload client).
-            .build()
-            .expect("build reqwest client");
+        // No overall request timeout: uploads can be large (matches the
+        // timeout-less Go upload client).
+        let build = |connect: Duration| {
+            reqwest::Client::builder()
+                .connect_timeout(connect)
+                .pool_idle_timeout(Duration::from_secs(90))
+                .pool_max_idle_per_host(4)
+                .build()
+                .expect("build reqwest client")
+        };
         Self {
             token: token.trim().to_string(),
             chat_id: account.trim().to_string(),
             api_base: API_BASE.to_string(),
-            client,
+            client: build(CONNECT_TIMEOUT),
+            dl_client: build(DOWNLOAD_CONNECT_TIMEOUT),
             file_paths: Mutex::new(HashMap::new()),
         }
     }
@@ -144,7 +150,7 @@ impl Telegram {
         let dl_url = format!("{}/file/bot{}/{}", self.api_base, self.token, file_path);
         let res = async {
             let dl = self
-                .client
+                .dl_client
                 .get(&dl_url)
                 .timeout(part_deadline(file_size))
                 .send()
@@ -177,7 +183,7 @@ impl Telegram {
         }
         let url = format!("{}?file_id={}", self.api_url("getFile"), file_id);
         let resp = self
-            .client
+            .dl_client
             .get(&url)
             .timeout(GET_FILE_TIMEOUT)
             .send()

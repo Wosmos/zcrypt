@@ -84,7 +84,7 @@ pub async fn run(
         }
         fetchers.spawn(async move {
             let _permit = permit;
-            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx).await?;
+            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx, true).await?;
             let plain = tokio::task::spawn_blocking(move || {
                 decrypt_chunk_zeroizing(&data, key, compressed)
             })

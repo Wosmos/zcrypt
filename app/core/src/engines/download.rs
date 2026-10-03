@@ -82,14 +82,17 @@ pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -
 /// exhausted does it error. Shared by the streaming `download` and the in-memory
 /// `decrypt_to_memory` so the fallback/resilience logic lives in one place.
 /// A chunk whose sha is known up front (the owner's locator) is served from
-/// the on-disk ciphertext cache when present, and every verified fetch with a
-/// known sha is written back to it.
+/// the on-disk ciphertext cache when present. With `cache_fetched`, every
+/// verified fetch with a known sha is written back to it; streaming saves pass
+/// false so one large download doesn't rewrite itself to disk and evict the
+/// open cache.
 pub(super) async fn acquire_chunk(
     client: &Arc<Client>,
     loc: Option<ChunkLocator>,
     adapter: Option<Arc<dyn PlatformAdapter>>,
     file_id: &str,
     idx: i64,
+    cache_fetched: bool,
 ) -> Result<(Vec<u8>, bool), EngineError> {
     if let Some(l) = &loc {
         if let Some(data) = chunk_cache::get(&l.sha256).await {
@@ -97,7 +100,7 @@ pub(super) async fn acquire_chunk(
         }
     }
     let (data, compressed, sha) = fetch_chunk(client, loc, adapter, file_id, idx).await?;
-    if !sha.is_empty() {
+    if cache_fetched && !sha.is_empty() {
         chunk_cache::put(&sha, &data);
     }
     Ok((data, compressed))
@@ -321,7 +324,7 @@ pub async fn run(
             if cancel.is_cancelled() {
                 return Err(EngineError::Cancelled);
             }
-            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx).await?;
+            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx, false).await?;
             let plain = tokio::task::spawn_blocking(move || {
                 decrypt_chunk_zeroizing(&data, key, compressed)
             })

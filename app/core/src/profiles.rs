@@ -64,12 +64,17 @@ pub fn get_profile(name: &str) -> Profile {
 
 /// Pick a profile for this device from its core count. Mobile is held at
 /// `normal` at most (less RAM and thermal headroom per core); `ludicrous` is
-/// never auto-picked since its 32 MiB chunks multiply every RAM window.
+/// never auto-picked since its 32 MiB chunks multiply every RAM window. The
+/// chunk size stays at `normal` so upload layouts match across devices and
+/// across resumes of sessions started before detection existed.
 pub fn detect() -> Profile {
     let cores = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4);
-    for_cores(cores, cfg!(any(target_os = "android", target_os = "ios")))
+    Profile {
+        chunk_size: NORMAL.chunk_size,
+        ..for_cores(cores, cfg!(any(target_os = "android", target_os = "ios")))
+    }
 }
 
 fn for_cores(cores: usize, mobile: bool) -> Profile {
@@ -110,6 +115,11 @@ mod tests {
 
     #[test]
     fn detect_never_picks_ludicrous() {
-        assert_ne!(detect(), LUDICROUS);
+        assert_ne!(detect().name, LUDICROUS.name);
+    }
+
+    #[test]
+    fn detect_keeps_the_normal_chunk_size() {
+        assert_eq!(detect().chunk_size, NORMAL.chunk_size);
     }
 }

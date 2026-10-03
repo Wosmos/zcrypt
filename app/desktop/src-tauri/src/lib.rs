@@ -215,28 +215,45 @@ fn keychain_read(key: &str) -> Option<String> {
 /// user's OWN: the managed-pool token never lives on the client.
 fn keychain_creds() -> CredProvider {
     Arc::new(|platform: &str| {
-        if let Some(hit) = creds_cache().lock().unwrap().get(platform) {
-            return hit.clone();
-        }
+        let generation = {
+            let cache = creds_cache().lock().unwrap();
+            if let Some(hit) = cache.entries.get(platform) {
+                return hit.clone();
+            }
+            cache.generation
+        };
         let creds = keychain_read(&format!("platform.{platform}.token")).map(|token| {
             let account =
                 keychain_read(&format!("platform.{platform}.account")).unwrap_or_default();
             PlatformCreds { token, account }
         });
-        creds_cache()
-            .lock()
-            .unwrap()
-            .insert(platform.to_string(), creds.clone());
+        let mut cache = creds_cache().lock().unwrap();
+        if cache.generation == generation {
+            cache.entries.insert(platform.to_string(), creds.clone());
+        }
         creds
     })
 }
 
+#[derive(Default)]
+struct CredsCache {
+    generation: u64,
+    entries: HashMap<String, Option<PlatformCreds>>,
+}
+
 /// Memoized keychain reads for `keychain_creds`: every open and upload used to
 /// hit the OS keychain twice per platform. `keychain_set` / `keychain_delete`
-/// drop it, so connecting or disconnecting a platform is seen immediately.
-fn creds_cache() -> &'static StdMutex<HashMap<String, Option<PlatformCreds>>> {
-    static CACHE: OnceLock<StdMutex<HashMap<String, Option<PlatformCreds>>>> = OnceLock::new();
-    CACHE.get_or_init(|| StdMutex::new(HashMap::new()))
+/// drop it once the keychain has changed, and bump the generation so a read
+/// that raced the change can't put the old value back.
+fn creds_cache() -> &'static StdMutex<CredsCache> {
+    static CACHE: OnceLock<StdMutex<CredsCache>> = OnceLock::new();
+    CACHE.get_or_init(|| StdMutex::new(CredsCache::default()))
+}
+
+fn invalidate_creds() {
+    let mut cache = creds_cache().lock().unwrap();
+    cache.generation += 1;
+    cache.entries.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -778,10 +795,11 @@ fn notify_backup(app: &tauri::AppHandle, path: &Path) {
 
 #[tauri::command]
 async fn keychain_set(key: String, value: String) -> Result<(), String> {
-    creds_cache().lock().unwrap().clear();
-    keychain_entry(&key)?
+    let res = keychain_entry(&key)?
         .set_password(&value)
-        .map_err(|e| format!("keychain set: {}", e))
+        .map_err(|e| format!("keychain set: {}", e));
+    invalidate_creds();
+    res
 }
 
 #[tauri::command]
@@ -795,11 +813,12 @@ async fn keychain_get(key: String) -> Result<Option<String>, String> {
 
 #[tauri::command]
 async fn keychain_delete(key: String) -> Result<(), String> {
-    creds_cache().lock().unwrap().clear();
-    match keychain_entry(&key)?.delete_credential() {
+    let res = match keychain_entry(&key)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("keychain delete: {}", e)),
-    }
+    };
+    invalidate_creds();
+    res
 }
 
 // ---------------------------------------------------------------------------
