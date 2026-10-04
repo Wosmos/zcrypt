@@ -279,3 +279,165 @@ describe("analytics endpoints", () => {
     expect(url).toContain("range=all");
   });
 });
+
+describe("admin health API", () => {
+  it("adminGetHealthDetails GETs the health/details endpoint", async () => {
+    const data = {
+      users: [{ user_id: "u1", email: "a@b", username: "alice", degraded_files: 1, damaged_files: 0, stuck_chunks: 2 }],
+      totals: { degraded_files: 1, damaged_files: 0, stuck_chunks: 2 },
+      sample_files: [],
+    };
+    fetchMock.mockResolvedValueOnce(jsonRes(data));
+    const { adminGetHealthDetails } = await import("@/lib/api");
+    const result = await adminGetHealthDetails();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/admin/health/details");
+    expect(result).toEqual(data);
+  });
+
+  it("adminRunReconcile GETs the reconcile endpoint without user_id", async () => {
+    const data = { total_orphans: 0, total_missing: 5, note: "done" };
+    fetchMock.mockResolvedValueOnce(jsonRes(data));
+    const { adminRunReconcile } = await import("@/lib/api");
+    const result = await adminRunReconcile();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/admin/reconcile");
+    expect(url).not.toContain("user_id");
+    expect(result).toEqual(data);
+  });
+
+  it("adminRunReconcile includes user_id when provided", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ total_orphans: 0, total_missing: 0, note: "" }));
+    const { adminRunReconcile } = await import("@/lib/api");
+    await adminRunReconcile("user-abc");
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("user_id=user-abc");
+  });
+});
+
+describe("send admin API", () => {
+  it("adminGetSendStorage GETs the send/storage endpoint", async () => {
+    const data = {
+      platform_setting: "telegram",
+      options: [{ key: "tg:bot1", platform: "telegram", account: "bot1" }],
+      active: { platform: "telegram", account: "bot1", repo: "ch1" },
+      usage: {
+        transfers: 2,
+        chunks: 20,
+        bytes: 1048576,
+        oldest_expires_at: null,
+        by_location: [
+          {
+            platform: "telegram",
+            account: "bot1",
+            repo: "ch1",
+            transfers: 2,
+            chunks: 20,
+            bytes: 1048576,
+          },
+        ],
+      },
+      limits: {
+        max_file_bytes: 52428800,
+        anon_daily_bytes: 524288000,
+        user_daily_bytes: 5368709120,
+      },
+    };
+    fetchMock.mockResolvedValueOnce(jsonRes(data));
+    const { adminGetSendStorage } = await import("@/lib/api");
+    const result = await adminGetSendStorage();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/admin/send/storage");
+    expect(result).toEqual(data);
+  });
+
+  it("adminSetSendPlatform PUTs to the send/platform endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ success: true }));
+    const { adminSetSendPlatform } = await import("@/lib/api");
+    await adminSetSendPlatform("github");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/admin/send/platform");
+    expect(init.method).toBe("PUT");
+    const body = JSON.parse(init.body as string);
+    expect(body.platform).toBe("github");
+  });
+});
+
+describe("send init error handling", () => {
+  it("sendInit throws SendInitError with 429 status and code", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({
+        error: "daily send limit reached; log in to send more",
+        code: "send_daily_limit",
+        login_required: true,
+      }),
+    });
+    const { sendInit } = await import("@/lib/api");
+    try {
+      await sendInit({
+        filename: "test.txt",
+        original_size: 100,
+        sha256: "hash",
+        salt: "salt",
+        chunk_count: 1,
+      });
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect((err as any).status).toBe(429);
+      expect((err as any).code).toBe("send_daily_limit");
+      expect((err as any).loginRequired).toBe(true);
+    }
+  });
+
+  it("sendInit preserves error message from response", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({
+        error: "daily send limit reached; log in to send more",
+        code: "send_daily_limit",
+        login_required: true,
+      }),
+    });
+    const { sendInit } = await import("@/lib/api");
+    try {
+      await sendInit({
+        filename: "test.txt",
+        original_size: 100,
+        sha256: "hash",
+        salt: "salt",
+        chunk_count: 1,
+      });
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect((err as any).message).toBe(
+        "daily send limit reached; log in to send more",
+      );
+    }
+  });
+
+  it("sendInit handles 503 with default message", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+    });
+    const { sendInit } = await import("@/lib/api");
+    try {
+      await sendInit({
+        filename: "test.txt",
+        original_size: 100,
+        sha256: "hash",
+        salt: "salt",
+        chunk_count: 1,
+      });
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect((err as any).message).toBe("Send is temporarily unavailable.");
+      expect((err as any).status).toBe(503);
+    }
+  });
+});

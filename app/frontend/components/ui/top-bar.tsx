@@ -3,6 +3,7 @@
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { AvatarDropdown } from "@/components/ui/avatar-dropdown";
 import { Logo } from "@/components/ui/logo";
+import { UpdatePill } from "@/components/ui/update-pill";
 import { VaultLock } from "@/components/ui/vault-lock";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 
@@ -34,6 +35,7 @@ export function TopBar() {
             className="h-10 w-10 justify-center rounded-full px-0"
           />
         </div>
+        <UpdatePill />
         <NotificationCenter />
         <AvatarDropdown />
       </div>

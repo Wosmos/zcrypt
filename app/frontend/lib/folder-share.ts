@@ -17,6 +17,8 @@ import { sealText, keyFromBytes } from "@/lib/sealed";
 import { sealFileNameForLink } from "@/lib/file-share";
 import { usePassphraseStore } from "@/store/passphrase";
 
+const SHARE_CONCURRENCY = 6;
+
 export interface FolderShareOptions {
   password?: string;
   expiresHours?: number;
@@ -74,6 +76,32 @@ async function buildFolderPaths(rootId: string, nameKey: CryptoKey): Promise<Map
 }
 
 /**
+ * Run the per-file key derivations ahead of time, while the share dialog is
+ * open and the user is still choosing options. The derivations are memoized per
+ * (passphrase, salt), so the real link creation afterwards only pays for the
+ * wrapping. Best effort: a file that can't be prepared is simply handled (or
+ * skipped) when the link is created.
+ */
+export async function warmFolderShareKeys(files: { id: string }[]): Promise<void> {
+  const passphrase = usePassphraseStore.getState().getPassphrase();
+  if (!passphrase) return;
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < files.length; i = next++) {
+      try {
+        const meta = await getFileMeta(files[i].id);
+        if (meta.wrapped_cek) {
+          await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
+        }
+      } catch {
+        /* handled when the link is created */
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(SHARE_CONCURRENCY, files.length) }, worker));
+}
+
+/**
  * Create a public link for a folder's files. `files` is the set of files to
  * include (the caller gathers the folder's subtree). Files whose CEK can't be
  * recovered with the vault passphrase (legacy files, or files inside a
@@ -124,15 +152,15 @@ export async function createFolderShareLink(
   }
   const linkKey = await keyFromBytes(folderKey);
 
-  const wraps: { file_id: string; wrapped_cek: string; name?: string }[] = [];
+  const slots: ({ file_id: string; wrapped_cek: string; name?: string } | undefined)[] = [];
   const manifest: Record<string, string> = {}; // file_id -> relative directory (subfolder files only)
   let skipped = 0;
-  for (const f of files) {
+  const shareOne = async (f: (typeof files)[number], at: number) => {
     try {
       const meta = await getFileMeta(f.id);
       if (!meta.wrapped_cek) {
         skipped++; // legacy file (no envelope), can't be link-shared
-        continue;
+        return;
       }
       // Recover the file's CEK with the owner's passphrase, then re-wrap it under
       // the folder-share key so a recipient can decrypt with just the link.
@@ -146,7 +174,7 @@ export async function createFolderShareLink(
         nameKey,
         linkKey,
       );
-      wraps.push({ file_id: f.id, wrapped_cek: toBase64(wrapped), name: sealedName });
+      slots[at] = { file_id: f.id, wrapped_cek: toBase64(wrapped), name: sealedName };
 
       // Record the directory only when the file sits in a subfolder; files in the
       // shared root fall back to their filename on the recipient side.
@@ -155,7 +183,16 @@ export async function createFolderShareLink(
     } catch {
       skipped++; // e.g. protected-folder file whose CEK is under the folder password
     }
-  }
+  };
+  // Every file has its own salt, so each one costs a 600k-iteration PBKDF2 plus a
+  // metadata round trip. WebCrypto runs the derivations off the main thread, so
+  // overlapping them cuts the wait roughly by the pool size.
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < files.length; i = next++) await shareOne(files[i], i);
+  };
+  await Promise.all(Array.from({ length: Math.min(SHARE_CONCURRENCY, files.length) }, worker));
+  const wraps = slots.filter((w): w is NonNullable<typeof w> => w !== undefined);
   if (wraps.length === 0) {
     throw new Error(
       "None of this folder's files could be shared. They may be in a password-protected folder, or were uploaded before sharing was supported.",

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useAdminQuery, fetchAdminOverview } from "@/hooks/useAdminGuardedFetch";
-import { adminGetStats, adminListTokens } from "@/lib/api";
+import { useAdminQuery, fetchAdminOverview, fetchAdminHealthDetails } from "@/hooks/useAdminGuardedFetch";
+import { adminGetStats, adminListTokens, adminGetHealthDetails } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { Role } from "@/types";
 
@@ -15,6 +15,11 @@ vi.mock("@/store/auth", () => ({
 vi.mock("@/lib/api", () => ({
   adminGetStats: vi.fn(async () => ({ users: 1 })),
   adminListTokens: vi.fn(async () => ({ tokens: [{ id: "t" }], others_count: 3 })),
+  adminGetHealthDetails: vi.fn(async () => ({
+    users: [{ user_id: "u1", email: "a@b", username: "alice", degraded_files: 1, damaged_files: 0, stuck_chunks: 2 }],
+    totals: { degraded_files: 1, damaged_files: 0, stuck_chunks: 2 },
+    sample_files: [],
+  })),
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -116,5 +121,26 @@ describe("useAdminQuery", () => {
       tokens: [],
       othersCount: 0,
     });
+  });
+
+  it("fetchAdminHealthDetails returns health details", async () => {
+    const result = await fetchAdminHealthDetails();
+    expect(result).toEqual({
+      users: [{ user_id: "u1", email: "a@b", username: "alice", degraded_files: 1, damaged_files: 0, stuck_chunks: 2 }],
+      totals: { degraded_files: 1, damaged_files: 0, stuck_chunks: 2 },
+      sample_files: [],
+    });
+    expect(adminGetHealthDetails).toHaveBeenCalled();
+  });
+
+  it("fetchAdminHealthDetails returns empty arrays when no problems", async () => {
+    vi.mocked(adminGetHealthDetails).mockResolvedValueOnce({
+      users: [],
+      totals: { degraded_files: 0, damaged_files: 0, stuck_chunks: 0 },
+      sample_files: [],
+    });
+    const result = await fetchAdminHealthDetails();
+    expect(result.totals.degraded_files).toBe(0);
+    expect(result.users).toEqual([]);
   });
 });

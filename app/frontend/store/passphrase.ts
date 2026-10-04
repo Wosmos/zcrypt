@@ -182,6 +182,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     const pp = await loadPassphrase();
     if (pp && !get().cachedPassphrase) {
       set({ cachedPassphrase: pp, cacheUntil: null, persistent: true });
+      void setShellPassphrase(pp);
     }
   },
 }));

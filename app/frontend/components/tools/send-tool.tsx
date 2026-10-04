@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import Link from "next/link";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
-import { sendInit, sendChunkUpload, sendComplete } from "@/lib/api";
+import { sendInit, SendInitError, sendChunkUpload, sendComplete } from "@/lib/api";
 import { sealText, keyFromBytes } from "@/lib/sealed";
 import { useCopyFeedback } from "@/hooks/useCopyFeedback";
 import { SelectedFileCard } from "./shared/selected-file-card";
@@ -28,6 +29,7 @@ export function SendTool() {
   const [progress, setProgress] = useState({ stage: "", percent: 0 });
   const [shareUrl, setShareUrl] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [loginRequired, setLoginRequired] = useState(false);
   const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
   const abortRef = useRef(false);
 
@@ -120,8 +122,23 @@ export function SendTool() {
       setProgress({ stage: "Done!", percent: 100 });
       setState("done");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
+      let msg = "Upload failed";
+      if (err instanceof SendInitError && (err as any).status === 429) {
+        if ((err as any).loginRequired) {
+          setErrorMsg("Daily limit reached. Log in to send more.");
+          setLoginRequired(true);
+        } else {
+          setErrorMsg("You've reached today's limit. Try again tomorrow.");
+          setLoginRequired(false);
+        }
+        setState("error");
+        return;
+      }
+      if (err instanceof Error) {
+        msg = err.message;
+      }
       setErrorMsg(msg);
+      setLoginRequired(false);
       setState("error");
     }
   }, [selectedFile, burnAfterRead, expiryHours]);
@@ -133,6 +150,7 @@ export function SendTool() {
     setShareUrl("");
     setProgress({ stage: "", percent: 0 });
     setErrorMsg("");
+    setLoginRequired(false);
     reset();
   }, [reset]);
 
@@ -215,7 +233,26 @@ export function SendTool() {
       )}
 
       {state === "error" && (
-        <ToolErrorState title="Upload Failed" message={errorMsg} onAction={handleReset} wrapped />
+        <ToolErrorState
+          title="Upload Failed"
+          message={
+            loginRequired ? (
+              <div className="space-y-2">
+                <div>{errorMsg}</div>
+                <Link
+                  href="/login"
+                  className="inline-block text-cyan-600 dark:text-cyan-400 hover:underline text-xs font-medium"
+                >
+                  Log in
+                </Link>
+              </div>
+            ) : (
+              errorMsg
+            )
+          }
+          onAction={handleReset}
+          wrapped
+        />
       )}
     </div>
   );

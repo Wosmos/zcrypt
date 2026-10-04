@@ -313,8 +313,8 @@ export async function keychainDelete(key: string): Promise<void> {
  * Cache the vault passphrase in the shell (in-memory only, never persisted)
  * so the desktop core's background folder-watch agent can encrypt newly
  * dropped files without prompting. No-op outside Tauri. Call on unlock;
- * pair with `clearShellPassphrase` on lock/logout. Not yet wired to a caller
- *. See the passphrase store's `setPassphrase`/`clear`.
+ * pair with `clearShellPassphrase` on lock/logout. Called from the passphrase
+ * store's `setPassphrase`, `rehydrate` and `clear`.
  */
 export async function setShellPassphrase(passphrase: string): Promise<void> {
   if (!isTauri) return;

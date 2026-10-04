@@ -2,6 +2,7 @@
 
 import { SystemStatsCards } from "@/components/admin/system-stats";
 import { TokenManagement } from "@/components/admin/token-management";
+import { AdminSendStorage } from "@/components/admin/send-storage";
 import { FeedbackList } from "@/components/admin/feedback-list";
 import { Role } from "@/types";
 import { OverviewSkeleton } from "@/components/admin/skeletons";
@@ -37,6 +38,7 @@ export function AdminOverviewContent() {
     <div className="space-y-8">
       {stats && <SystemStatsCards stats={stats} />}
       <TokenManagement tokens={tokens} othersCount={data?.othersCount ?? 0} onRefresh={refresh} />
+      <AdminSendStorage />
       <FeedbackList />
     </div>
   );

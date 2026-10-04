@@ -7,6 +7,7 @@ import type {
   AppConfig,
   AdminUser,
   SystemStats,
+  AdminHealthDetails,
   PlatformTokenInfo,
   QuotaInfo,
   PlanConfigs,
@@ -40,7 +41,7 @@ import type {
 import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
-import { throwResponseError, parseErrorJson } from "@/lib/http-error";
+import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -703,6 +704,17 @@ export function adminGetStats(): Promise<SystemStats> {
   return request<SystemStats>("/api/admin/stats");
 }
 
+export function adminGetHealthDetails(): Promise<AdminHealthDetails> {
+  return request<AdminHealthDetails>("/api/admin/health/details");
+}
+
+export async function adminRunReconcile(
+  userId?: string,
+): Promise<{ total_orphans: number; total_missing: number; note: string }> {
+  const params = userId ? `?user_id=${userId}` : "";
+  return request(`/api/admin/reconcile${params}`);
+}
+
 // ─── App installer downloads ─────────────────────────────────
 // Downloads of the zcrypt app itself, recorded by the /dl/<target> redirect.
 // Not to be confused with a user downloading a file from their vault.
@@ -861,6 +873,59 @@ export function adminToggleTokenScope(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ is_global: isGlobal, ...reauth }),
+  });
+}
+
+// ─── Send Storage Admin API ───
+
+export interface AdminSendStorageOption {
+  key: string;
+  platform: string;
+  account: string;
+}
+
+export interface AdminSendStorageUsage {
+  transfers: number;
+  chunks: number;
+  bytes: number;
+  oldest_expires_at: string | null;
+  by_location: Array<{
+    platform: string;
+    account: string;
+    repo: string;
+    transfers: number;
+    chunks: number;
+    bytes: number;
+  }>;
+}
+
+export interface AdminSendStorageLimits {
+  max_file_bytes: number;
+  anon_daily_bytes: number;
+  user_daily_bytes: number;
+}
+
+export interface AdminSendStorageResponse {
+  platform_setting: string;
+  options: AdminSendStorageOption[];
+  active: {
+    platform: string;
+    account: string;
+    repo: string;
+  };
+  usage: AdminSendStorageUsage;
+  limits: AdminSendStorageLimits;
+}
+
+export function adminGetSendStorage(): Promise<AdminSendStorageResponse> {
+  return request<AdminSendStorageResponse>("/api/admin/send/storage");
+}
+
+export function adminSetSendPlatform(platform: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/admin/send/platform", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ platform }),
   });
 }
 
@@ -1360,13 +1425,35 @@ export async function getFolderShareChunk(
 
 // ─── Anonymous Send API (no auth) ───
 
+export class SendInitError extends ApiError {
+  code?: string;
+  loginRequired?: boolean;
+  constructor(message: string, status: number, code?: string, loginRequired?: boolean) {
+    super(message, status);
+    this.name = "SendInitError";
+    this.code = code;
+    this.loginRequired = loginRequired;
+  }
+}
+
 export async function sendInit(data: SendInitRequest): Promise<SendInitResponse> {
   const res = await fetch(`${API_BASE}/api/send/init`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to start send"));
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}) as unknown)) as {
+      error?: string;
+      code?: string;
+      login_required?: boolean;
+    };
+    const message =
+      body.error ||
+      (res.status === 503 ? "Send is temporarily unavailable." : "Failed to start send");
+    const err = new SendInitError(message, res.status, body.code, body.login_required ?? false);
+    throw err;
+  }
   return res.json();
 }
 

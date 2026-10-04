@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from "vitest";
 import { usePassphraseStore } from "@/store/passphrase";
 import * as deviceVault from "@/lib/device-vault";
+import { setShellPassphrase } from "@/lib/tauri";
+
+vi.mock("@/lib/tauri", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/tauri")>()),
+  setShellPassphrase: vi.fn(),
+  clearShellPassphrase: vi.fn(),
+}));
 
 // Device persistence is exercised via the store; mock it so tests never touch
 // real IndexedDB/WebCrypto and can drive the "remember on this device" paths.
@@ -145,6 +152,7 @@ describe("usePassphraseStore", () => {
       const s = usePassphraseStore.getState();
       expect(s.cachedPassphrase).toBe("remembered");
       expect(s.persistent).toBe(true);
+      expect(setShellPassphrase).toHaveBeenCalledWith("remembered");
     });
 
     it("rehydrate stays locked and wipes any stored copy when remember-device is off", async () => {

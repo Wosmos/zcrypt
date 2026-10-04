@@ -6,6 +6,7 @@ import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { isTauri } from "@/lib/tauri";
 import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
+import { broadcastTokens, onTokensFromOtherTabs } from "@/lib/auth-sync";
 
 const USER_KEY = "zcrypt-user";
 const ACCESS_KEY = "zcrypt-access-token";
@@ -121,6 +122,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       localStorage.setItem(REFRESH_KEY, refreshToken);
     }
     set({ accessToken, refreshTokenValue: refreshToken });
+    if (!isTauri) broadcastTokens({ accessToken, refreshToken });
   },
 
   setLoading: (loading) => set({ loading }),
@@ -142,3 +144,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ user: null, accessToken: null, refreshTokenValue: null });
   },
 }));
+
+if (typeof window !== "undefined" && !isTauri) {
+  onTokensFromOtherTabs(({ accessToken, refreshToken }) => {
+    if (useAuthStore.getState().accessToken === null) return;
+    useAuthStore.setState({ accessToken, refreshTokenValue: refreshToken });
+  });
+}

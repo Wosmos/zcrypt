@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Link2, Copy, Check, Lock, Loader2, Trash2, FolderOpen } from "@/lib/icons";
 import { listFolderShares, revokeFolderShare, type FolderShareLink } from "@/lib/api";
-import { createFolderShareLink } from "@/lib/folder-share";
+import { createFolderShareLink, warmFolderShareKeys } from "@/lib/folder-share";
 import { copyToClipboard } from "@/lib/clipboard";
 import { collectSubtreeFolderIds } from "@/lib/folder-tree";
 import { queryClient } from "@/lib/query-client";
@@ -62,6 +62,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
   const [subtreeIds, setSubtreeIds] = useState<Set<string> | null>(null);
   useEffect(() => {
     if (!open || !folder) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setSubtreeIds(null);
       return;
     }
@@ -87,6 +88,10 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
     () => (subtreeIds ? files.filter((f) => f.folder_id && subtreeIds.has(f.folder_id)) : []),
     [subtreeIds, files],
   );
+
+  useEffect(() => {
+    if (open && folderFiles.length > 0) void warmFolderShareKeys(folderFiles);
+  }, [open, folderFiles]);
 
   const linksQuery = useQuery({
     queryKey: qk.folderShares(folder?.id ?? ""),

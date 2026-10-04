@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth";
 import { queryClient } from "@/lib/query-client";
-import { adminGetStats, adminListTokens } from "@/lib/api";
+import { adminGetStats, adminListTokens, adminGetHealthDetails } from "@/lib/api";
 import { Role } from "@/types";
 
 /** The admin overview's data (stats + platform tokens). Shared by the page and
@@ -15,6 +15,10 @@ export async function fetchAdminOverview() {
     tokens: legacy ? (owned as unknown as typeof owned.tokens) : (owned.tokens ?? []),
     othersCount: legacy ? 0 : (owned.others_count ?? 0),
   };
+}
+
+export async function fetchAdminHealthDetails() {
+  return adminGetHealthDetails();
 }
 
 /**

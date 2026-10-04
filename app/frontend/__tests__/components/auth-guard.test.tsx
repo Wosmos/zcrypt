@@ -76,6 +76,19 @@ describe("AuthGuard web reload", () => {
     expect(m.refreshSessionToken).toHaveBeenCalledTimes(1);
   });
 
+  it("returns to login instead of a blank page when the session ends mid-use", async () => {
+    useAuthStore.setState({ user, accessToken: "at", refreshTokenValue: "rt", initialized: true });
+    mount();
+    await flush();
+    expect(screen.getByTestId("app")).toBeInTheDocument();
+    expect(m.replace).not.toHaveBeenCalled();
+    act(() => useAuthStore.getState().clearAuth());
+    await flush();
+    expect(screen.queryByTestId("app")).toBeNull();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    expect(m.replace).toHaveBeenCalledWith("/login");
+  });
+
   it("sends a rejected session to login", async () => {
     m.refreshSessionToken.mockResolvedValue({ token: null, rejected: true });
     mount();

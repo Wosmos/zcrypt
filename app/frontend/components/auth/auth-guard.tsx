@@ -259,7 +259,15 @@ export function AuthGuard({
     startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
   }, [accessToken, refreshTokenValue]);
 
-  if (!initialized || redirecting || (stranded && !accessToken && !user)) {
+  // A session that ends mid-use (refresh token rejected: expired, revoked, or
+  // rotated by another tab) clears auth after the guard has initialized. Without
+  // this the shell unmounted to a blank page and nothing sent the user back.
+  const signedOut = initialized && !user && !accessToken && !stranded;
+  useEffect(() => {
+    if (signedOut) router.replace("/login");
+  }, [signedOut, router]);
+
+  if (!initialized || redirecting || signedOut || (stranded && !accessToken && !user)) {
     return (
       <div className="flex items-center justify-center h-dvh">
         <LogoSpinner size="lg" speed="slow" />
@@ -267,7 +275,13 @@ export function AuthGuard({
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-dvh">
+        <LogoSpinner size="lg" speed="slow" />
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }

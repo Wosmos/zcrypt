@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { isTauri, refreshSession } from "@/lib/tauri";
+import { withRefreshLock } from "@/lib/auth-sync";
 
 // Shared across the JSON API client (lib/api.ts) and the chunked-upload path
 // (lib/upload-session.ts) so refreshes are deduped. This is critical: refresh
@@ -42,29 +43,39 @@ export async function refreshSessionToken(): Promise<RefreshOutcome> {
   // same session), so rotate through it. Refreshing here as well would spend a
   // token the engine still holds and log the user out. Before the engine is
   // connected there is nothing to race, so fall back to the plain call.
-  const rotate = isTauri
-    ? refreshSession().catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("not connected")) return refreshTokenApi(refreshTokenValue);
-        if (msg.includes("unauthorized")) throw Object.assign(new Error(msg), { status: 401 });
-        throw err;
-      })
-    : refreshTokenApi(refreshTokenValue);
+  const rotateViaEngine = () =>
+    refreshSession().catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("not connected")) return refreshTokenApi(refreshTokenValue);
+      if (msg.includes("unauthorized")) throw Object.assign(new Error(msg), { status: 401 });
+      throw err;
+    });
 
-  refreshPromise = rotate
+  const sentWith = refreshTokenValue;
+  const adopted = (): string | null => {
+    const now = useAuthStore.getState();
+    return now.refreshTokenValue !== sentWith ? now.accessToken : null;
+  };
+  // Another tab of this browser may rotate the same session first. Take turns,
+  // and use the pair it stored instead of spending a token it already used.
+  const turn = isTauri
+    ? rotateViaEngine()
+    : withRefreshLock(async () => {
+        const fromOtherTab = adopted();
+        return fromOtherTab ? null : refreshTokenApi(sentWith);
+      });
+
+  refreshPromise = turn
     .then((data): RefreshOutcome => {
+      if (!data) return { token: adopted(), rejected: false };
       setTokens(data.access_token, data.refresh_token);
       return { token: data.access_token, rejected: false };
     })
     .catch((err: unknown): RefreshOutcome => {
-      // Only a DEFINITIVE auth failure (the refresh token itself is invalid/
-      // expired → 401/403) should log the user out. A transient failure, network
-      // blip, timeout, or 5xx during a long upload: must NOT clearAuth, or the
-      // whole transfer dies and the user is bounced to login mid-upload (the prod
-      // bug). On a transient miss we return null; the caller keeps the old token
-      // and the next chunk simply retries the refresh.
       const status = (err as { status?: number })?.status;
       const rejected = status === 401 || status === 403;
+      const fromOtherTab = rejected ? adopted() : null;
+      if (fromOtherTab) return { token: fromOtherTab, rejected: false };
       if (rejected) clearAuth();
       return { token: null, rejected };
     })

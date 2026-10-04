@@ -85,6 +85,8 @@ function saveBlob(name: string, bytes: Uint8Array, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+const CHUNK_CONCURRENCY = 4;
+
 export default function FolderSharePage() {
   const { token } = useParams<{ token: string }>();
   const [state, setState] = useState<PageState>("loading");
@@ -101,6 +103,7 @@ export default function FolderSharePage() {
     if (!token) return;
     const k = keyFromFragment();
     if (!k) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setErrorMsg("This link is missing its decryption key. Make sure you copied the whole URL.");
       setState("error");
       return;
@@ -158,18 +161,24 @@ export default function FolderSharePage() {
       const keyBytes = cek.buffer.slice(0) as ArrayBuffer;
 
       const parts: Uint8Array[] = new Array(meta.chunk_count);
-      for (let i = 0; i < meta.chunk_count; i++) {
-        const { data, compressed } = await getFolderShareChunk(
-          token,
-          file.file_id,
-          i,
-          password || undefined,
-          meta.download_ticket,
-        );
-        let plain = await decryptChunk(keyBytes, new Uint8Array(data));
-        if (compressed && zstd) plain = zstd.ZstdStream.decompress(plain);
-        parts[i] = plain;
-      }
+      let nextChunk = 0;
+      const chunkWorker = async () => {
+        for (let i = nextChunk++; i < meta.chunk_count; i = nextChunk++) {
+          const { data, compressed } = await getFolderShareChunk(
+            token,
+            file.file_id,
+            i,
+            password || undefined,
+            meta.download_ticket,
+          );
+          let plain = await decryptChunk(keyBytes, new Uint8Array(data));
+          if (compressed && zstd) plain = zstd.ZstdStream.decompress(plain);
+          parts[i] = plain;
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(CHUNK_CONCURRENCY, meta.chunk_count) }, chunkWorker),
+      );
 
       const total = parts.reduce((s, c) => s + c.byteLength, 0);
       const full = new Uint8Array(total);
@@ -294,7 +303,7 @@ export default function FolderSharePage() {
         );
       }
 
-      const zipped = zipSync(entries);
+      const zipped = zipSync(entries, { level: 0 });
       const zipName = `${(info.name || "shared-folder").replace(/[/\\]/g, "_")}.zip`;
       saveBlob(zipName, zipped, "application/zip");
 

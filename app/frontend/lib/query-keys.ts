@@ -50,6 +50,8 @@ export const qk = {
   adminReviews: (status: string, offset: number) => ["admin", "reviews", status, offset] as const,
   myReview: ["review", "mine"] as const,
   adminPlans: ["admin", "plans"] as const,
+  adminHealthDetails: ["admin", "health", "details"] as const,
+  adminSendStorage: ["admin", "send", "storage"] as const,
   // Settings + tools. Memory only (never persisted): several hold opened
   // sealed labels.
   securityActivity: ["settings", "security-activity"] as const,

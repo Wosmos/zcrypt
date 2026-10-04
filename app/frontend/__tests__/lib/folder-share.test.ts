@@ -43,7 +43,7 @@ vi.mock("@/lib/sealed", () => ({
   userNameKey: () => Promise.resolve(null),
 }));
 
-import { createFolderShareLink } from "@/lib/folder-share";
+import { createFolderShareLink, warmFolderShareKeys } from "@/lib/folder-share";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -303,5 +303,23 @@ describe("createFolderShareLink", () => {
       // Path build failed -> no manifest -> flat link.
       expect(result.url).not.toContain("&paths=");
     });
+  });
+});
+
+describe("warmFolderShareKeys", () => {
+  it("derives every file's key ahead of the share, skipping legacy files and failures", async () => {
+    getFileMeta
+      .mockResolvedValueOnce({ wrapped_cek: "w1", salt: "s1" })
+      .mockResolvedValueOnce({ wrapped_cek: "", salt: "s2" })
+      .mockRejectedValueOnce(new Error("offline"));
+    await warmFolderShareKeys([{ id: "a" }, { id: "b" }, { id: "c" }]);
+    expect(resolveFileKey).toHaveBeenCalledTimes(1);
+    expect(resolveFileKey).toHaveBeenCalledWith("correct-horse-battery", expect.anything(), "w1");
+  });
+
+  it("does nothing while the vault is locked", async () => {
+    getPassphrase.mockReturnValue(null);
+    await warmFolderShareKeys([{ id: "a" }]);
+    expect(getFileMeta).not.toHaveBeenCalled();
   });
 });

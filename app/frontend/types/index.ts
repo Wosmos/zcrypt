@@ -163,6 +163,32 @@ export interface SystemStats {
   stuck_chunks?: number;
 }
 
+export interface HealthUserStatus {
+  user_id: string;
+  email: string;
+  username: string;
+  degraded_files: number;
+  damaged_files: number;
+  stuck_chunks: number;
+}
+
+export interface ProblemFile {
+  id: string;
+  user_id: string;
+  status: "degraded" | "damaged";
+  reason: string;
+}
+
+export interface AdminHealthDetails {
+  users: HealthUserStatus[];
+  totals: {
+    degraded_files: number;
+    damaged_files: number;
+    stuck_chunks: number;
+  };
+  sample_files: ProblemFile[];
+}
+
 export interface QuotaInfo {
   used_bytes: number;
   quota_bytes: number;

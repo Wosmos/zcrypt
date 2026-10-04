@@ -21,6 +21,8 @@ vi.mock("@/lib/tauri", () => ({
   refreshSession,
 }));
 
+vi.mock("@/lib/auth-sync", () => ({ withRefreshLock: (fn: () => Promise<unknown>) => fn() }));
+
 import { authedFetch, refreshSessionToken, tryRefreshToken } from "@/lib/auth-fetch";
 
 function resp(status: number) {
@@ -261,6 +263,29 @@ describe("tryRefreshToken on desktop", () => {
   it("keeps the session on a transient engine failure", async () => {
     refreshSession.mockRejectedValueOnce(new Error("network: timed out"));
     await expect(tryRefreshToken()).resolves.toBeNull();
+    expect(clearAuth).not.toHaveBeenCalled();
+  });
+});
+
+describe("tryRefreshToken across tabs", () => {
+  it("adopts the pair another tab stored while this one waited its turn, without spending the token", async () => {
+    getState
+      .mockReturnValueOnce({ accessToken: "old", refreshTokenValue: "old-rt", setTokens, clearAuth })
+      .mockReturnValue({ accessToken: "from-tab", refreshTokenValue: "new-rt", setTokens, clearAuth });
+
+    expect(await tryRefreshToken()).toBe("from-tab");
+    expect(refreshTokenApi).not.toHaveBeenCalled();
+    expect(setTokens).not.toHaveBeenCalled();
+  });
+
+  it("does not log out when the server rejects a token another tab already replaced", async () => {
+    getState
+      .mockReturnValueOnce({ accessToken: "old", refreshTokenValue: "old-rt", setTokens, clearAuth })
+      .mockReturnValueOnce({ accessToken: "old", refreshTokenValue: "old-rt", setTokens, clearAuth })
+      .mockReturnValue({ accessToken: "from-tab", refreshTokenValue: "new-rt", setTokens, clearAuth });
+    refreshTokenApi.mockRejectedValueOnce(Object.assign(new Error("no"), { status: 401 }));
+
+    expect(await refreshSessionToken()).toEqual({ token: "from-tab", rejected: false });
     expect(clearAuth).not.toHaveBeenCalled();
   });
 });

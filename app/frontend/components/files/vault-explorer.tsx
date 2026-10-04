@@ -724,9 +724,12 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       target: FileMetadata;
     } | null>(null);
 
+    const liveDragging = () => useDragMove.getState().dragging;
+
     const acceptsDrag = (destId: string | null): boolean => {
-      if (!dragging) return false;
-      if (dragging.kind === "folder") return canDrop(dragging, destId);
+      const item = liveDragging();
+      if (!item) return false;
+      if (item.kind === "folder") return canDrop(item, destId);
       return true; // file: same-folder moves are no-ops in the page
     };
 
@@ -759,7 +762,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const handleDropOnto = (destId: string | null, e: React.DragEvent) => {
       e.preventDefault();
       setOverTarget(undefined);
-      const item = dragging;
+      const item = liveDragging();
       endDrag();
       const fileId = e.dataTransfer.getData(DRAG_MIME);
       if (item?.kind === "folder") {
@@ -790,11 +793,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // (macOS/iOS merge). Only a single-file drag combines; a bulk drag onto a file
     // is ignored (use a folder/crumb to move many). A file onto itself no-ops.
     // Disabled while the vault is locked (folder names can't be encrypted).
-    const canCombineWith = (targetFile: FileMetadata): boolean =>
-      !locked &&
-      dragging?.kind === "file" &&
-      bulkDragIdsRef.current.length <= 1 &&
-      dragging.id !== targetFile.id;
+    const canCombineWith = (targetFile: FileMetadata): boolean => {
+      const item = liveDragging();
+      return (
+        !locked &&
+        item?.kind === "file" &&
+        bulkDragIdsRef.current.length <= 1 &&
+        item.id !== targetFile.id
+      );
+    };
 
     const fileDropHandlers = (targetFile: FileMetadata) => ({
       onDragOver: (e: React.DragEvent) => {
@@ -811,7 +818,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       onDrop: (e: React.DragEvent) => {
         if (!canCombineWith(targetFile)) return;
         e.preventDefault();
-        const sourceId = dragging?.id ?? e.dataTransfer.getData(DRAG_MIME);
+        const sourceId = liveDragging()?.id ?? e.dataTransfer.getData(DRAG_MIME);
         setCombineOver(null);
         setOverTarget(undefined);
         endDrag();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,7 +206,10 @@ export function SettingsContent() {
 
   // active === null → mobile shows the grouped index. Desktop always shows a
   // section (defaults to the first) in the right pane.
-  const [active, setActive] = useState<SectionId | null>(null);
+  const requested = useSearchParams().get("section");
+  const [active, setActive] = useState<SectionId | null>(() =>
+    SECTIONS.some((s) => s.id === requested) ? (requested as SectionId) : null,
+  );
 
   // Optimistic scope flips; they clear when fresh statuses arrive.
   const [scopeOverrides, setScopeOverrides] = useOverridesFor<boolean>(statuses);
