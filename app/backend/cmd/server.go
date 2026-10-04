@@ -582,7 +582,11 @@ func (s *Server) getGlobalAdapters(ctx context.Context) (map[string]adapters.Pla
 	return result, nil
 }
 
-// selectGlobalAdapter picks a global adapter for anonymous send operations.
+// selectGlobalAdapter picks the global adapter for a Send. The admin's
+// send_platform setting ("auto" or unset = any) narrows it to one platform; when
+// that platform has no connected global adapter it fails rather than silently
+// storing elsewhere. Selection is deterministic (first key in sorted order) so
+// the admin view shows exactly where the next Send lands.
 func (s *Server) selectGlobalAdapter(ctx context.Context) (string, adapters.PlatformAdapter, error) {
 	adaptersMap, err := s.getGlobalAdapters(ctx)
 	if err != nil {
@@ -591,11 +595,21 @@ func (s *Server) selectGlobalAdapter(ctx context.Context) (string, adapters.Plat
 	if len(adaptersMap) == 0 {
 		return "", nil, fmt.Errorf("no global platform tokens configured")
 	}
-	// Pick the first available adapter
-	for key, adapter := range adaptersMap {
-		return key, adapter, nil
+	want := ""
+	if v, serr := s.db.GetSystemSetting(ctx, sendPlatformSetting); serr == nil && v != "auto" {
+		want = v
 	}
-	return "", nil, fmt.Errorf("no global platform available")
+	keys := make([]string, 0, len(adaptersMap))
+	for key := range adaptersMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if want == "" || strings.HasPrefix(key, want+":") {
+			return key, adaptersMap[key], nil
+		}
+	}
+	return "", nil, fmt.Errorf("no global adapter for the configured send platform %q", want)
 }
 
 // resolveGlobalAdapter returns the global adapter matching a specific
@@ -794,7 +808,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload)))
 
 	// Anonymous send (no auth, rate-limited by IP)
-	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.HandleSendInit)))
+	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.OptionalAuthMiddleware(s.HandleSendInit))))
 	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(s.HandleSendChunkUpload))
 	mux.HandleFunc("POST /api/send/{sid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleSendComplete)))
 	mux.HandleFunc("GET /api/send/{token}", s.ShareRateLimitMiddleware(s.HandleGetSendInfo))
@@ -917,6 +931,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Admin routes
 	mux.HandleFunc("GET /api/admin/users", s.AdminMiddleware(s.HandleAdminListUsers))
 	mux.HandleFunc("GET /api/admin/stats", s.AdminMiddleware(s.HandleAdminStats))
+	mux.HandleFunc("GET /api/admin/health/details", s.AdminMiddleware(s.HandleAdminHealthDetails))
+	mux.HandleFunc("GET /api/admin/send/storage", s.AdminMiddleware(s.HandleAdminSendStorage))
+	mux.HandleFunc("PUT /api/admin/send/platform", maxJSON(s.AdminMiddleware(s.HandleAdminSetSendPlatform)))
 	mux.HandleFunc("GET /api/admin/downloads", s.AdminMiddleware(s.HandleAdminDownloads))
 	mux.HandleFunc("GET /api/admin/reconcile", s.AdminMiddleware(s.HandleAdminReconcile))
 	mux.HandleFunc("PUT /api/admin/users/{id}/role", maxJSON(s.AdminMiddleware(s.HandleAdminSetRole)))

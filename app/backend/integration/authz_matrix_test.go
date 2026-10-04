@@ -85,7 +85,6 @@ var publicRouteAllowlist = []string{
 	"POST /api/folder-share/{token}/files/{fid}/complete",
 	"POST /api/internal/maintenance",
 	"POST /api/pad",
-	"POST /api/send/init",
 	"POST /api/send/{sid}/complete",
 	"POST /api/share/{token}/complete",
 	"PUT /api/send/{sid}/chunk/{idx}",

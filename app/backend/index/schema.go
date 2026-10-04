@@ -1005,4 +1005,20 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session ON refresh_tokens(user_id,
 -- it once this time passes. NULL means no deletion is pending.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_deletion_scheduled ON users(deletion_scheduled_at) WHERE deletion_scheduled_at IS NOT NULL;
+
+-- Who an anonymous-Send transfer came from, for the per-user daily cap. NULL for
+-- an anonymous sender. send_usage is the cap ledger: it outlives the transfer
+-- row (burn-after-read and expiry delete the row) so deleting a send does not
+-- hand the sender their quota back inside the 24h window.
+ALTER TABLE send_transfers ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+CREATE TABLE IF NOT EXISTS send_usage (
+	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	sender_ip  TEXT NOT NULL DEFAULT '',
+	user_id    UUID REFERENCES users(id) ON DELETE CASCADE,
+	bytes      BIGINT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_send_usage_ip ON send_usage(sender_ip, created_at) WHERE user_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_send_usage_user ON send_usage(user_id, created_at) WHERE user_id IS NOT NULL;
+ALTER TABLE send_transfers ADD COLUMN IF NOT EXISTS served_chunks INTEGER[] NOT NULL DEFAULT '{}';
 `

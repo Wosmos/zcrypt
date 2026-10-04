@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -18,11 +19,19 @@ import (
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/auth"
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
 // maxSendFileSize is the maximum file size for anonymous sends (50 MB).
 const maxSendFileSize = 50 * 1024 * 1024
+
+// Rolling 24h byte allowances for Send. An anonymous sender is keyed by its
+// coarsened IP; a signed-in sender by user id and is exempt from the IP cap.
+const (
+	sendAnonDailyBytes = 500 * 1024 * 1024
+	sendUserDailyBytes = 5 * 1024 * 1024 * 1024
+)
 
 // minSendChunkSize bounds how many chunks a send may declare. The real limit on
 // stored bytes is the running size cap; this only rejects absurd chunk counts.
@@ -87,7 +96,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 	adapterKey, _, err := s.selectGlobalAdapter(ctx)
 	if err != nil {
 		log.Printf("send: no global adapter: %v", err)
-		http.Error(w, `{"error":"send service not available, no global storage configured"}`, http.StatusServiceUnavailable)
+		http.Error(w, `{"error":"send storage not available"}`, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -127,7 +136,25 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		SenderIP:      anonIP(s.clientIP(r)),
 	}
 
-	if err := s.db.CreateSendTransfer(ctx, transfer); err != nil {
+	dailyLimit := int64(sendAnonDailyBytes)
+	if claims := GetUserClaims(r); claims != nil && !claims.Decoy {
+		transfer.UserID = claims.Sub
+		dailyLimit = sendUserDailyBytes
+	}
+
+	if err := s.db.CreateSendTransferCapped(ctx, transfer, dailyLimit); err != nil {
+		if errors.Is(err, index.ErrSendDailyCap) {
+			msg := "daily send limit reached"
+			if transfer.UserID == "" {
+				msg = "daily send limit reached; log in to send more"
+			}
+			writeJSON(w, http.StatusTooManyRequests, map[string]interface{}{
+				"error":          msg,
+				"code":           "send_daily_limit",
+				"login_required": transfer.UserID == "",
+			})
+			return
+		}
 		log.Printf("send: create transfer: %v", err)
 		http.Error(w, `{"error":"failed to create transfer"}`, http.StatusInternalServerError)
 		return
@@ -527,7 +554,37 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 	if chunk.Compressed {
 		w.Header().Set("X-Chunk-Compressed", "true")
 	}
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		return
+	}
+	s.burnIfFullyServed(ctx, transfer, chunkIndex)
+}
+
+// burnIfFullyServed deletes a one-shot send (burn-after-read, or one whose
+// download limit is reached) once every one of its chunks has been delivered:
+// the chunks are queued for platform deletion and the transfer row removed.
+// Readers fetch chunks concurrently and out of order, so "the last chunk" is
+// judged by distinct chunks served, not by the highest index.
+func (s *Server) burnIfFullyServed(ctx context.Context, t *types.SendTransfer, idx int) {
+	if !t.BurnAfterRead && (t.MaxDownloads <= 0 || t.DownloadCount < t.MaxDownloads) {
+		return
+	}
+	served, err := s.db.MarkSendChunkServed(ctx, t.ID, idx)
+	if err != nil {
+		log.Printf("send: track served chunk: %v", err)
+		return
+	}
+	if served < t.ChunkCount {
+		return
+	}
+	queued, err := s.db.DeleteSendTransfer(ctx, t.ID)
+	if err != nil {
+		log.Printf("send: delete consumed transfer: %v", err)
+		return
+	}
+	if queued > 0 {
+		s.signalDeletion()
+	}
 }
 
 // validateSendTransfer checks if a send transfer is still valid.

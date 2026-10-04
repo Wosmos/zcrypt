@@ -147,6 +147,81 @@ func (db *DB) CountHealth(ctx context.Context, maxAttempts int) (HealthCounts, e
 	return hc, nil
 }
 
+// UserHealth is one user's durability problems, counts only.
+type UserHealth struct {
+	UserID        string
+	Email         string
+	Username      string
+	DegradedFiles int
+	DamagedFiles  int
+	StuckChunks   int
+}
+
+// ListUserHealth returns up to limit users with a degraded or damaged file or a
+// stuck chunk, worst first, using the same conditions as CountHealth.
+func (db *DB) ListUserHealth(ctx context.Context, maxAttempts, limit int) ([]UserHealth, error) {
+	rows, err := db.pool.Query(ctx,
+		`WITH f AS (
+		   SELECT user_id,
+		          COUNT(*) FILTER (WHERE health = 'degraded') AS degraded,
+		          COUNT(*) FILTER (WHERE health = 'damaged') AS damaged
+		   FROM files WHERE deleted_at IS NULL AND health IN ('degraded', 'damaged') GROUP BY user_id
+		 ), c AS (
+		   SELECT user_id, COUNT(*) AS stuck FROM chunks
+		   WHERE (remote_path = '' OR committed = FALSE) AND sync_attempts >= $1 GROUP BY user_id
+		 ), p AS (
+		   SELECT user_id FROM f UNION SELECT user_id FROM c
+		 )
+		 SELECT u.id, u.email, u.username, COALESCE(f.degraded, 0), COALESCE(f.damaged, 0), COALESCE(c.stuck, 0)
+		 FROM p JOIN users u ON u.id = p.user_id
+		 LEFT JOIN f ON f.user_id = p.user_id
+		 LEFT JOIN c ON c.user_id = p.user_id
+		 ORDER BY COALESCE(f.damaged, 0) DESC, COALESCE(f.degraded, 0) DESC, COALESCE(c.stuck, 0) DESC, u.id
+		 LIMIT $2`, maxAttempts, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list user health: %w", err)
+	}
+	defer rows.Close()
+	out := []UserHealth{}
+	for rows.Next() {
+		var h UserHealth
+		if err := rows.Scan(&h.UserID, &h.Email, &h.Username, &h.DegradedFiles, &h.DamagedFiles, &h.StuckChunks); err != nil {
+			return nil, fmt.Errorf("scan user health: %w", err)
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+// ProblemFile is a file id with its health state, no name or key material.
+type ProblemFile struct {
+	ID     string
+	UserID string
+	Health string
+}
+
+// ListProblemFiles returns up to limit live files that are damaged or degraded,
+// damaged first.
+func (db *DB) ListProblemFiles(ctx context.Context, limit int) ([]ProblemFile, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, user_id, health FROM files
+		 WHERE deleted_at IS NULL AND health IN ('degraded', 'damaged')
+		 ORDER BY (health = 'damaged') DESC, created_at DESC, id LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list problem files: %w", err)
+	}
+	defer rows.Close()
+	out := []ProblemFile{}
+	for rows.Next() {
+		var f ProblemFile
+		if err := rows.Scan(&f.ID, &f.UserID, &f.Health); err != nil {
+			return nil, fmt.Errorf("scan problem file: %w", err)
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // RepoChunk is one durable chunk's location inside a repo, for a verify sweep.
 type RepoChunk struct {
 	ChunkID    string

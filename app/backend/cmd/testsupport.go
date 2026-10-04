@@ -52,6 +52,17 @@ func (s *Server) InjectGlobalTestAdapter(key string, adapter adapters.PlatformAd
 	s.globalAdapterCache = map[string]adapters.PlatformAdapter{key: adapter}
 }
 
+// InjectGlobalTestAdapters is InjectGlobalTestAdapter for several platform:account
+// keys at once, to exercise platform selection.
+func (s *Server) InjectGlobalTestAdapters(m map[string]adapters.PlatformAdapter) {
+	s.globalAdapterMu.Lock()
+	defer s.globalAdapterMu.Unlock()
+	s.globalAdapterCache = make(map[string]adapters.PlatformAdapter, len(m))
+	for k, v := range m {
+		s.globalAdapterCache[k] = v
+	}
+}
+
 // SyncAllChunks synchronously pushes every staged chunk to its platform adapter,
 // draining the sync worker's queue in-line so a test doesn't depend on the
 // background goroutine's timing. After it returns, synced chunks carry a

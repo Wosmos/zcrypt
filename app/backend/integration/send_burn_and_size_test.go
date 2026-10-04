@@ -105,8 +105,8 @@ func TestBurnAfterReadSendCanBeDownloadedOnce(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, ts.sendGet("/api/send/"+token+"/meta"), "the first reader gets the metadata")
 	assert.Equal(t, http.StatusOK, ts.sendGet("/api/send/"+token+"/chunks/0"), "and can fetch the chunks after claiming the link")
-	assert.Equal(t, http.StatusGone, ts.sendGet("/api/send/"+token+"/meta"), "a second reader is refused")
-	assert.Equal(t, http.StatusOK, ts.sendGet("/api/send/"+token+"/chunks/0"), "the first reader can still finish")
+	assert.Equal(t, http.StatusNotFound, ts.sendGet("/api/send/"+token+"/meta"), "once fully read the transfer is deleted, so a second reader finds nothing")
+	assert.Equal(t, http.StatusNotFound, ts.sendGet("/api/send/"+token+"/chunks/0"), "and its chunks are gone")
 }
 
 func TestSendOf45MBIsAccepted(t *testing.T) {

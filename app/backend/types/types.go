@@ -524,6 +524,7 @@ type SendTransfer struct {
 	DownloadCount int       `json:"download_count"`
 	ExpiresAt     time.Time `json:"expires_at"`
 	SenderIP      string    `json:"-"`
+	UserID        string    `json:"-"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

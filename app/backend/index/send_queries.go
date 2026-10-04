@@ -2,23 +2,174 @@ package index
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
 )
 
+// ErrSendDailyCap is returned by CreateSendTransferCapped when the sender has
+// already used up the rolling 24h byte allowance.
+var ErrSendDailyCap = errors.New("daily send limit reached")
+
+const insertSendTransferSQL = `INSERT INTO send_transfers (id, token, original_name, original_size, chunk_count, sha256, salt, status, burn_after_read, max_downloads, expires_at, sender_ip, user_id)
+	 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NULLIF($13, '')::uuid)`
+
 // CreateSendTransfer inserts a new anonymous send transfer.
 func (db *DB) CreateSendTransfer(ctx context.Context, t *types.SendTransfer) error {
-	_, err := db.pool.Exec(ctx,
-		`INSERT INTO send_transfers (id, token, original_name, original_size, chunk_count, sha256, salt, status, burn_after_read, max_downloads, expires_at, sender_ip)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+	_, err := db.pool.Exec(ctx, insertSendTransferSQL,
 		t.ID, t.Token, t.OriginalName, t.OriginalSize, t.ChunkCount, t.SHA256, t.Salt,
-		t.Status, t.BurnAfterRead, t.MaxDownloads, t.ExpiresAt, t.SenderIP,
+		t.Status, t.BurnAfterRead, t.MaxDownloads, t.ExpiresAt, t.SenderIP, t.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("create send transfer: %w", err)
 	}
 	return nil
+}
+
+// CreateSendTransferCapped inserts the transfer and its send_usage ledger row
+// only if the sender (the user when UserID is set, otherwise the coarsened IP
+// among anonymous senders) has sent at most limit-OriginalSize bytes in the last
+// 24h. The check and insert share a transaction under a per-sender advisory
+// lock, so parallel inits cannot each slip under the cap. The ledger, not the
+// transfer row, is what is summed: burn-after-read and expiry delete the row.
+func (db *DB) CreateSendTransferCapped(ctx context.Context, t *types.SendTransfer, limit int64) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var used int64
+	if t.UserID != "" {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, "send-user:"+t.UserID); err != nil {
+			return fmt.Errorf("lock sender: %w", err)
+		}
+		err = tx.QueryRow(ctx,
+			`SELECT COALESCE(SUM(bytes), 0) FROM send_usage WHERE user_id = $1::uuid AND created_at > NOW() - INTERVAL '24 hours'`,
+			t.UserID).Scan(&used)
+	} else {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, "send-ip:"+t.SenderIP); err != nil {
+			return fmt.Errorf("lock sender: %w", err)
+		}
+		err = tx.QueryRow(ctx,
+			`SELECT COALESCE(SUM(bytes), 0) FROM send_usage WHERE user_id IS NULL AND sender_ip = $1 AND created_at > NOW() - INTERVAL '24 hours'`,
+			t.SenderIP).Scan(&used)
+	}
+	if err != nil {
+		return fmt.Errorf("sum send usage: %w", err)
+	}
+	if used+t.OriginalSize > limit {
+		return ErrSendDailyCap
+	}
+
+	if _, err := tx.Exec(ctx, insertSendTransferSQL,
+		t.ID, t.Token, t.OriginalName, t.OriginalSize, t.ChunkCount, t.SHA256, t.Salt,
+		t.Status, t.BurnAfterRead, t.MaxDownloads, t.ExpiresAt, t.SenderIP, t.UserID,
+	); err != nil {
+		return fmt.Errorf("create send transfer: %w", err)
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO send_usage (sender_ip, user_id, bytes) VALUES ($1, NULLIF($2, '')::uuid, $3)`,
+		t.SenderIP, t.UserID, t.OriginalSize); err != nil {
+		return fmt.Errorf("record send usage: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// MarkSendChunkServed records that a chunk was delivered and returns how many
+// distinct chunks of the transfer have now been served.
+func (db *DB) MarkSendChunkServed(ctx context.Context, id string, idx int) (int, error) {
+	var n int
+	err := db.pool.QueryRow(ctx,
+		`UPDATE send_transfers
+		 SET served_chunks = ARRAY(SELECT DISTINCT unnest(served_chunks || $2::int))
+		 WHERE id = $1 RETURNING cardinality(served_chunks)`, id, idx).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("mark send chunk served: %w", err)
+	}
+	return n, nil
+}
+
+// DeleteSendTransfer queues one transfer's synced chunks into pending_deletions
+// (user_id NULL, resolved through the global adapter set) and deletes the row,
+// in one transaction. Returns the number of chunk deletions queued; the caller
+// should signalDeletion() when it is above zero.
+func (db *DB) DeleteSendTransfer(ctx context.Context, id string) (int, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	queueTag, err := tx.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 SELECT NULL, platform, account, repo, remote_path FROM send_chunks
+		 WHERE transfer_id = $1 AND remote_path != ''`, id)
+	if err != nil {
+		return 0, fmt.Errorf("queue send chunk deletions: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM send_transfers WHERE id = $1`, id); err != nil {
+		return 0, fmt.Errorf("delete send transfer: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit: %w", err)
+	}
+	return int(queueTag.RowsAffected()), nil
+}
+
+// SendLocationUsage is the stored footprint of live sends in one repo.
+type SendLocationUsage struct {
+	Platform  string
+	Account   string
+	Repo      string
+	Transfers int64
+	Chunks    int64
+	Bytes     int64
+}
+
+// SendStorageUsage summarises everything live sends currently hold on the
+// platforms: totals, the earliest expiry, and a per-repo breakdown. Metadata only.
+type SendStorageUsage struct {
+	Transfers       int64
+	Chunks          int64
+	Bytes           int64
+	OldestExpiresAt *time.Time
+	ByLocation      []SendLocationUsage
+}
+
+// GetSendStorageUsage reads the live-send footprint for the admin view.
+func (db *DB) GetSendStorageUsage(ctx context.Context) (SendStorageUsage, error) {
+	var u SendStorageUsage
+	err := db.pool.QueryRow(ctx,
+		`SELECT (SELECT COUNT(*) FROM send_transfers),
+		        (SELECT COUNT(*) FROM send_chunks),
+		        (SELECT COALESCE(SUM(size), 0) FROM send_chunks),
+		        (SELECT MIN(expires_at) FROM send_transfers)`,
+	).Scan(&u.Transfers, &u.Chunks, &u.Bytes, &u.OldestExpiresAt)
+	if err != nil {
+		return u, fmt.Errorf("send storage totals: %w", err)
+	}
+	rows, err := db.pool.Query(ctx,
+		`SELECT platform, account, repo, COUNT(DISTINCT transfer_id), COUNT(*), COALESCE(SUM(size), 0)
+		 FROM send_chunks GROUP BY platform, account, repo ORDER BY SUM(size) DESC, platform, account, repo`)
+	if err != nil {
+		return u, fmt.Errorf("send storage by location: %w", err)
+	}
+	defer rows.Close()
+	u.ByLocation = []SendLocationUsage{}
+	for rows.Next() {
+		var l SendLocationUsage
+		if err := rows.Scan(&l.Platform, &l.Account, &l.Repo, &l.Transfers, &l.Chunks, &l.Bytes); err != nil {
+			return u, fmt.Errorf("scan send location: %w", err)
+		}
+		u.ByLocation = append(u.ByLocation, l)
+	}
+	return u, rows.Err()
 }
 
 // GetSendTransferByID retrieves a send transfer by its ID.
@@ -189,6 +340,10 @@ func (db *DB) CleanupExpiredSendTransfers(ctx context.Context) (int, int, error)
 	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("queue send chunk deletions: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM send_usage WHERE created_at < NOW() - INTERVAL '48 hours'`); err != nil {
+		return 0, 0, fmt.Errorf("prune send usage: %w", err)
 	}
 
 	tag, err := tx.Exec(ctx, `DELETE FROM send_transfers WHERE id IN (`+expiredTransfers+`)`)
