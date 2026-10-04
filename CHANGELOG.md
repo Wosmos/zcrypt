@@ -10,19 +10,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Send: 50 MB per file and 500 MB per day for signed-out senders; more needs an account
-- Admin: see where Send files are stored and choose Telegram, Hugging Face, GitHub or GitLab for them
-- Admin: the data-safety banner now says which users and files are affected and can run the repair
-- Desktop: a small "new version is out" pill
+- Real update check instead of a false up to date
+- Put pad, send and transfer on the site design
+- Bug reports, reviews and stricter Spaces roles
+- Guided tour, report a bug, reviews, redesigned Spaces and eight languages
+- Move the language picker into the nav beside the theme toggle
+- Use the translate icon for the language picker
+- List only the admin's own platform tokens and count the rest
+- Admin token panel shows own tokens, and nudge shared-storage users to connect their own
+- Cap anonymous sends at 50 MB per file and 500 MB per day, delete on burn, and let an admin see and choose where Send files are stored
+- Actionable health banner, Send storage panel, update pill, faster folder links, cross-tab sign-in sync, and drag-and-drop and blank-screen fixes
 
 ### Fixed
 
-- Desktop and Android uploads now seal file names and use a keyed content hash instead of storing them in plaintext
-- Burn-after-read Send links can be read to the end, and a deleted Send storage repo is replaced automatically
-- Dragging files onto a folder works more than once
-- Creating and opening folder share links is much faster
-- A session that ends mid-use returns to sign-in instead of a blank page
-- Tabs of the same browser now share a rotated sign-in, so one no longer logs the others out
+- Give shared files and folders their real names
+- Stop pinning the first release lookup for the life of the server
+- Transfer key off the relay, 2FA on every login, approved desktop OAuth, server-counted share downloads, drained shutdown (#23)
+- Stop the hero window body going blank mid-scroll
+- Color html so trackpad overscroll doesn't flash gray
+- Tolerate legacy array token response so overview can't crash on deploy skew
+- Version the overview query key so stale persisted snapshots are dropped
+- Keep a rotated refresh token valid for 60s so racing clients don't log the user out
+- One shared session for the engine and webview, and file uploads into the open folder
+- Refresh through the desktop engine, upload into the open folder, one-click resume for this device's uploads
+- 39 audit action items, desktop speed, and Next.js RCE patch (#30)
+- Admin-only token sharing, own-account direct confirms, authz matrix test, and e2e repairs (#31)
+- Replace a deleted storage repo and retry, let a burn-after-read link be read to the end, and accept sends up to 50 MB
+- Seal file names and use a keyed content hash on desktop and Android uploads
+- Satisfy the strict type check in the cross-tab refresh lock
+
+### Performance
+
+- Make the hero scroll smooth
+- Cached, parallel vault loading and stale-while-revalidate pages
+- Lighter hero, and run every quality gate in CI instead of on the laptop (#25)
 
 ## [0.1.6] - 2026-09-30
 
