@@ -36,5 +36,5 @@ export function onTokensFromOtherTabs(handler: (tokens: SyncedTokens) => void): 
 /** Run `fn` while no other tab is refreshing. Without Web Locks it just runs. */
 export function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
-  return locks ? locks.request("zcrypt-refresh", fn) : fn();
+  return locks ? (locks.request("zcrypt-refresh", fn) as Promise<T>) : fn();
 }
