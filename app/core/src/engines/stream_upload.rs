@@ -102,6 +102,7 @@ pub async fn run(
 
     // Keys + file hash.
     emit(Stage::Hashing, 0, 0);
+    let keys = super::upload_keys(ctx, passphrase).await?;
     // Report hash progress (throttled to ~1% steps) so the bar moves during the
     // whole-file read instead of freezing: hashing a multi-GB file is a big
     // slice of the wall-clock and looked "stuck at 0%" before.
@@ -109,7 +110,7 @@ pub async fn run(
     let hfn = file_name.clone();
     let mut last_emit = 0i64;
     let step = (file_size / 100).max(1);
-    let sha256 = super::local_upload::sha256_file_progress(file_path, |done| {
+    let content_mac = super::local_upload::hash_file_progress(file_path, keys.hasher(), |done| {
         if done - last_emit >= step {
             last_emit = done;
             (progress)(Progress {
@@ -146,9 +147,7 @@ pub async fn run(
     let byos = mode == "byos-direct";
     let b64 = base64::engine::general_purpose::STANDARD;
     let req = UploadInitRequest {
-        filename: file_name.clone(),
         original_size: file_size,
-        sha256: sha256.clone(),
         salt: b64.encode(salt),
         wrapped_cek: b64.encode(&wrapped_cek),
         chunk_count,
@@ -165,7 +164,8 @@ pub async fn run(
         },
         folder_id,
         ..Default::default()
-    };
+    }
+    .with_identity(keys.seal_name(&file_name)?, content_mac);
     let mut resp = ctx.client.init_upload(&req).await?;
     if resp.resumed {
         match session_layout(file_size, chunk_size, chunk_count, &resp) {

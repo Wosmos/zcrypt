@@ -117,6 +117,21 @@ pub struct UploadCompleteRequest {
     pub compressed_size: i64,
 }
 
+impl UploadInitRequest {
+    /// Set the identity fields the way the web does: the file name only as a
+    /// sealed `encrypted_name` (the plaintext `filename` stays empty and is
+    /// never serialized) and `sha256` as the keyed `hmac_v1` content MAC. This
+    /// is the only way an engine fills them, so no init path can send the
+    /// plaintext name or a plain content hash.
+    pub fn with_identity(mut self, encrypted_name: String, content_mac: String) -> Self {
+        self.filename = String::new();
+        self.encrypted_name = encrypted_name;
+        self.sha256 = content_mac;
+        self.sha256_scheme = crate::crypto::CONTENT_MAC_SCHEME.to_string();
+        self
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct UploadCompleteResponse {
     pub success: bool,
@@ -225,6 +240,50 @@ mod tests {
         assert_eq!(
             r.upload_headers.get("Authorization").map(String::as_str),
             Some("Bearer z")
+        );
+    }
+}
+
+#[cfg(test)]
+mod init_identity_tests {
+    use super::*;
+    use crate::crypto;
+
+    #[test]
+    fn init_request_carries_only_the_sealed_name_and_keyed_mac() {
+        let pass = uuid::Uuid::new_v4().to_string();
+        let user = uuid::Uuid::new_v4().to_string();
+        let name = "tax return 2025.pdf";
+        let content = b"plaintext bytes of the file".repeat(10);
+
+        let name_key = crypto::derive_name_key(&pass, &user);
+        let dedup_key = crypto::derive_dedup_key(&pass, &user);
+        let mut hasher = crypto::ContentHasher::new(crypto::CONTENT_MAC_SCHEME, Some(&dedup_key));
+        hasher.update(&content);
+        let mac = hasher.finalize_hex();
+
+        let req = UploadInitRequest {
+            filename: name.to_string(),
+            sha256: crypto::sha256_hex(&content),
+            original_size: content.len() as i64,
+            ..Default::default()
+        }
+        .with_identity(crypto::seal_name(&name_key, name).unwrap(), mac.clone());
+
+        let wire = serde_json::to_value(&req).unwrap();
+        assert!(
+            wire.get("filename").is_none(),
+            "plaintext name must not be sent"
+        );
+        assert!(!wire.to_string().contains(name));
+        assert_eq!(wire["sha256_scheme"], "hmac_v1");
+        assert_ne!(req.sha256, crypto::sha256_hex(&content), "no plain hash");
+        assert_eq!(req.sha256, crypto::hmac_sha256_hex(&dedup_key, &content));
+        assert_eq!(req.sha256, mac);
+        assert!(!req.encrypted_name.is_empty());
+        assert_eq!(
+            crypto::open_name(&name_key, &req.encrypted_name).unwrap(),
+            name
         );
     }
 }

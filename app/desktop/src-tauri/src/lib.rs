@@ -130,6 +130,7 @@ impl EngineState {
             progress: progress_emitter(app),
             creds: keychain_creds(),
             cancel: CancelToken::new(),
+            vault_passphrase: self.passphrase.lock().unwrap().clone(),
         })
     }
 
@@ -630,6 +631,8 @@ async fn start_sync(
         // The background sync loop is cancelled via its own watch channel
         // (`cancel_rx`), not the per-transfer token. Leave it never-cancelled.
         cancel: CancelToken::new(),
+        // Sync only replays what local_upload already sealed; it derives no keys.
+        vault_passphrase: None,
     };
     tauri::async_runtime::spawn(async move {
         engines::run_sync(ctx, cancel_rx).await;

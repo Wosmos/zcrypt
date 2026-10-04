@@ -109,6 +109,20 @@ pub struct Client {
     on_rotate: Option<RotateHook>,
 }
 
+fn user_id_from_token(access: &str) -> Option<String> {
+    use base64::Engine as _;
+    let payload = access.split('.').nth(1)?;
+    let raw = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload.trim_end_matches('='))
+        .ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&raw).ok()?;
+    claims
+        .get("sub")?
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 #[derive(Serialize)]
 struct RefreshRequest<'a> {
     refresh_token: &'a str,
@@ -151,6 +165,14 @@ impl Client {
 
     pub async fn access_token(&self) -> String {
         self.tokens.lock().await.access.clone()
+    }
+
+    /// The signed-in user's id: the `sub` claim of the current access token. It
+    /// salts the per-user name and content-MAC keys. The claim is only read,
+    /// never trusted for authorization (the server does that).
+    pub async fn user_id(&self) -> Result<String, ApiError> {
+        user_id_from_token(&self.access_token().await)
+            .ok_or_else(|| ApiError::Other("cannot read the user id from the session token".into()))
     }
 
     pub async fn tokens(&self) -> (String, String) {
@@ -285,6 +307,34 @@ fn is_retryable(e: &ApiError) -> bool {
             !(400..500).contains(status) || matches!(status, 408 | 429)
         }
         _ => true,
+    }
+}
+
+#[cfg(test)]
+mod user_id_tests {
+    use super::*;
+    use base64::Engine as _;
+
+    fn token(payload: &str) -> String {
+        let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        format!("{}.{}.sig", b.encode("{}"), b.encode(payload))
+    }
+
+    #[test]
+    fn reads_sub_from_an_access_token() {
+        let uid = uuid::Uuid::new_v4().to_string();
+        assert_eq!(
+            user_id_from_token(&token(&format!(r#"{{"sub":"{uid}","role":"user"}}"#))),
+            Some(uid)
+        );
+    }
+
+    #[test]
+    fn rejects_tokens_without_a_usable_sub() {
+        assert_eq!(user_id_from_token(""), None);
+        assert_eq!(user_id_from_token("not-a-jwt"), None);
+        assert_eq!(user_id_from_token(&token(r#"{"sub":""}"#)), None);
+        assert_eq!(user_id_from_token(&token(r#"{"role":"user"}"#)), None);
     }
 }
 

@@ -122,6 +122,56 @@ pub struct EngineContext {
     /// a never-cancelled token (via [`Default`]) so non-cancellable and test
     /// callers can `..Default::default()` or leave it untouched.
     pub cancel: CancelToken,
+    /// The vault passphrase when the shell holds it. Names are sealed under the
+    /// vault's name key even when `passphrase` is a protected folder's password
+    /// (as on the web); absent, the call's own `passphrase` is used.
+    pub vault_passphrase: Option<String>,
+}
+
+/// The per-user keys an upload needs to build its server-facing identity: the
+/// name key (seals the file name) and the dedup key (keys the content MAC).
+pub(crate) struct UploadKeys {
+    name_key: [u8; crate::crypto::KEY_SIZE],
+    dedup_key: [u8; crate::crypto::KEY_SIZE],
+}
+
+impl UploadKeys {
+    pub(crate) fn seal_name(&self, name: &str) -> Result<String, EngineError> {
+        Ok(crate::crypto::seal_name(&self.name_key, name)?)
+    }
+
+    pub(crate) fn hasher(&self) -> crate::crypto::ContentHasher {
+        crate::crypto::ContentHasher::new(crate::crypto::CONTENT_MAC_SCHEME, Some(&self.dedup_key))
+    }
+}
+
+impl Drop for UploadKeys {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.name_key.zeroize();
+        self.dedup_key.zeroize();
+    }
+}
+
+/// Derive the upload identity keys for the signed-in user. The content MAC key
+/// comes from `passphrase` (the key the file itself is protected with, as on the
+/// web); the name key from the vault passphrase when known.
+pub(crate) async fn upload_keys(
+    ctx: &EngineContext,
+    passphrase: &str,
+) -> Result<UploadKeys, EngineError> {
+    let user_id = ctx.client.user_id().await?;
+    let name_pass = ctx
+        .vault_passphrase
+        .clone()
+        .unwrap_or_else(|| passphrase.to_string());
+    let dedup_pass = passphrase.to_string();
+    tokio::task::spawn_blocking(move || UploadKeys {
+        name_key: crate::crypto::derive_name_key_cached(&name_pass, &user_id),
+        dedup_key: crate::crypto::derive_dedup_key_cached(&dedup_pass, &user_id),
+    })
+    .await
+    .map_err(|e| EngineError::Other(format!("task join: {e}")))
 }
 
 impl EngineContext {

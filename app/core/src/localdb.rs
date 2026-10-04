@@ -44,7 +44,13 @@ pub struct LocalFile {
     pub id: String,
     pub original_name: String,
     pub original_size: i64,
+    /// What the server is sent as `sha256`: the keyed `hmac_v1` content MAC.
     pub sha256: String,
+    /// Scheme of `sha256`; empty on a row staged before the MAC existed.
+    pub sha256_scheme: String,
+    /// The sealed file name sent as `encrypted_name`; `original_name` never
+    /// leaves the device.
+    pub encrypted_name: String,
     pub salt: Vec<u8>,
     pub wrapped_cek: Vec<u8>,
     pub chunk_count: i64,
@@ -156,6 +162,12 @@ impl LocalDb {
             "ALTER TABLE files ADD COLUMN mode TEXT NOT NULL DEFAULT 'relay'",
             [],
         );
+        for col in ["sha256_scheme", "encrypted_name"] {
+            let _ = conn.execute(
+                &format!("ALTER TABLE files ADD COLUMN {col} TEXT NOT NULL DEFAULT ''"),
+                [],
+            );
+        }
         Ok(LocalDb {
             conn: Mutex::new(conn),
         })
@@ -184,9 +196,9 @@ impl LocalDb {
         };
         self.with(|c| {
             c.execute(
-                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status, platform, mode)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, sync_status, f.platform, mode_or_default(&f.mode)],
+                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status, platform, mode, sha256_scheme, encrypted_name)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, sync_status, f.platform, mode_or_default(&f.mode), f.sha256_scheme, f.encrypted_name],
             )
             .map(|_| ())
         })
@@ -236,7 +248,7 @@ impl LocalDb {
         self.with(|c| {
             let mut stmt = c.prepare(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
-                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE sync_status IN ('pending','init_done','uploading') ORDER BY created_at",
             )?;
             let rows = stmt.query_map([], row_to_file)?;
@@ -248,7 +260,7 @@ impl LocalDb {
         self.with(|c| {
             c.query_row(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
-                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE id=?1",
                 params![file_id],
                 row_to_file,
@@ -325,7 +337,7 @@ impl LocalDb {
         self.with(|c| {
             c.query_row(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
-                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE sha256=?1 AND original_size=?2
                    AND sync_status IN ('staging','pending','init_done','uploading')
                  ORDER BY created_at DESC LIMIT 1",
@@ -375,7 +387,7 @@ impl LocalDb {
         self.with(|c| {
             let mut stmt = c.prepare(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
-                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE sync_status=?1 ORDER BY created_at",
             )?;
             let rows = stmt.query_map(params![status], row_to_file)?;
@@ -481,6 +493,8 @@ fn row_to_file(r: &rusqlite::Row<'_>) -> Result<LocalFile, rusqlite::Error> {
         direct_upload: r.get(13)?,
         mode: r.get(14)?,
         error_msg: r.get(15)?,
+        sha256_scheme: r.get(16)?,
+        encrypted_name: r.get(17)?,
     })
 }
 

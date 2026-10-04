@@ -144,6 +144,7 @@ mod tests {
             progress: Arc::new(|_p: Progress| {}),
             creds: no_creds(),
             cancel,
+            vault_passphrase: None,
         };
 
         let files = vec![BulkFile {

@@ -8,7 +8,6 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
-use sha2::{Digest, Sha256};
 use tokio::io::AsyncReadExt;
 use zeroize::Zeroize;
 
@@ -75,9 +74,12 @@ pub async fn run(
         });
     };
 
-    // 1. Hash the original file (streaming, constant memory).
+    // 1. Keyed content MAC of the original file (streaming, constant memory)
+    // and the sealed name: the only forms of either the server ever sees.
     emit(Stage::Hashing, 0, 0, 0);
-    let file_sha256 = sha256_file(file_path).await?;
+    let keys = super::upload_keys(ctx, passphrase).await?;
+    let file_sha256 = hash_file_progress(file_path, keys.hasher(), |_| {}).await?;
+    let encrypted_name = keys.seal_name(&file_name)?;
 
     // Dedup: identical content already staging or syncing → reuse that row
     // instead of re-encrypting into a second one. The backend collapses
@@ -128,6 +130,8 @@ pub async fn run(
         original_name: file_name.clone(),
         original_size: file_size,
         sha256: file_sha256,
+        sha256_scheme: crypto::CONTENT_MAC_SCHEME.to_string(),
+        encrypted_name,
         salt: salt.to_vec(),
         wrapped_cek: wrapped_cek.clone(),
         chunk_count,
@@ -277,19 +281,16 @@ fn bump_progress(
     });
 }
 
-pub(super) async fn sha256_file(path: &Path) -> Result<String, EngineError> {
-    sha256_file_progress(path, |_| {}).await
-}
-
-/// Like [`sha256_file`] but reports cumulative bytes hashed via `on_bytes`, so a
-/// multi-GB hash can drive a moving progress bar instead of sitting frozen (the
-/// "stuck at 0%/deriving_key" the streaming upload showed while hashing).
-pub(super) async fn sha256_file_progress(
+/// Hash a file through `hasher` (the keyed content MAC), reporting cumulative
+/// bytes via `on_bytes` so a multi-GB hash can drive a moving progress bar
+/// instead of sitting frozen (the "stuck at 0%/deriving_key" the streaming
+/// upload showed while hashing).
+pub(super) async fn hash_file_progress(
     path: &Path,
+    mut hasher: crypto::ContentHasher,
     mut on_bytes: impl FnMut(i64),
 ) -> Result<String, EngineError> {
     let mut f = tokio::fs::File::open(path).await?;
-    let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 4 * 1024 * 1024];
     let mut total = 0i64;
     loop {
@@ -301,7 +302,7 @@ pub(super) async fn sha256_file_progress(
         total += n as i64;
         on_bytes(total);
     }
-    Ok(hex::encode(hasher.finalize()))
+    Ok(hasher.finalize_hex())
 }
 
 fn join_err(e: tokio::task::JoinError) -> EngineError {
@@ -313,6 +314,16 @@ mod tests {
     use super::*;
     use crate::localdb::LocalDb;
     use crate::profiles;
+
+    fn fake_access_token(user_id: &str) -> String {
+        use base64::Engine as _;
+        let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        format!(
+            "{}.{}.sig",
+            b.encode("{}"),
+            b.encode(format!(r#"{{"sub":"{user_id}"}}"#))
+        )
+    }
 
     #[tokio::test]
     async fn local_upload_stages_and_records() {
@@ -327,16 +338,23 @@ mod tests {
 
         let events = Arc::new(std::sync::Mutex::new(Vec::new()));
         let ev = events.clone();
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let pass = uuid::Uuid::new_v4().to_string();
         let ctx = EngineContext {
-            client: Arc::new(crate::api::Client::new("http://localhost:0", "", "")),
+            client: Arc::new(crate::api::Client::new(
+                "http://localhost:0",
+                &fake_access_token(&user_id),
+                "",
+            )),
             db: db.clone(),
             profile: profiles::NORMAL,
             progress: Arc::new(move |p: Progress| ev.lock().unwrap().push(p.stage)),
             creds: crate::engines::no_creds(),
             cancel: Default::default(),
+            vault_passphrase: None,
         };
 
-        let file_id = run(&ctx, &src, "test-pass").await.unwrap();
+        let file_id = run(&ctx, &src, &pass).await.unwrap();
 
         let f = db.get_file_by_id(&file_id).unwrap().unwrap();
         assert_eq!(f.chunk_count, 1);
@@ -347,12 +365,28 @@ mod tests {
         assert!(std::path::Path::new(&chunks[0].staging_path).exists());
 
         // Staged bytes decrypt back to the source with the wrapped CEK.
-        let kek = crate::crypto::derive_key("test-pass", &f.salt);
+        let kek = crate::crypto::derive_key(&pass, &f.salt);
         let cek = crate::crypto::unwrap_cek(&kek, &f.wrapped_cek).unwrap();
         let wire = std::fs::read(&chunks[0].staging_path).unwrap();
         let plain =
             super::super::pipeline::unprocess_chunk(&wire, &cek, chunks[0].compressed).unwrap();
         assert_eq!(plain, std::fs::read(&src).unwrap());
+
+        let bytes = std::fs::read(&src).unwrap();
+        assert_ne!(f.sha256, crate::crypto::sha256_hex(&bytes), "no plain hash");
+        assert_eq!(f.sha256_scheme, "hmac_v1");
+        assert_eq!(
+            f.sha256,
+            crate::crypto::hmac_sha256_hex(
+                &crate::crypto::derive_dedup_key(&pass, &user_id),
+                &bytes
+            )
+        );
+        let name_key = crate::crypto::derive_name_key(&pass, &user_id);
+        assert_eq!(
+            crate::crypto::open_name(&name_key, &f.encrypted_name).unwrap(),
+            "hello.txt"
+        );
 
         let stages = events.lock().unwrap();
         assert!(stages.contains(&Stage::Hashing));

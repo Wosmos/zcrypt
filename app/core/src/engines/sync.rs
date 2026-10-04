@@ -420,10 +420,15 @@ async fn init_remote_session(
     // the server creates a metadata-only session (no server repo). Relay leaves
     // mode empty and lets the server pick + create the repo.
     let byos = f.mode == "byos-direct";
+    if f.encrypted_name.is_empty() || f.sha256_scheme != crate::crypto::CONTENT_MAC_SCHEME {
+        return Err(EngineError::Other(
+            "this file was staged by an older version and its name and hash are not sealed; \
+             upload it again"
+                .into(),
+        ));
+    }
     let req = UploadInitRequest {
-        filename: f.original_name.clone(),
         original_size: f.original_size,
-        sha256: f.sha256.clone(),
         salt: b64.encode(&f.salt),
         wrapped_cek: b64.encode(&f.wrapped_cek),
         chunk_count: f.chunk_count,
@@ -438,7 +443,8 @@ async fn init_remote_session(
             String::new()
         },
         ..Default::default()
-    };
+    }
+    .with_identity(f.encrypted_name.clone(), f.sha256.clone());
     let resp = ctx.client.init_upload(&req).await?;
     Ok((
         resp.session_id,
@@ -662,5 +668,35 @@ impl RepoStore for ApiRepoStore {
             .deactivate_repo(repo_id)
             .await
             .map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+    use crate::localdb::LocalDb;
+    use crate::profiles;
+
+    #[tokio::test]
+    async fn a_row_staged_before_name_sealing_is_not_sent_to_the_server() {
+        let dir = std::env::temp_dir().join(format!("zcrypt-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new("http://127.0.0.1:0", "", "")),
+            db: Arc::new(LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+        let legacy = LocalFile {
+            original_name: "plain-name.txt".into(),
+            sha256: "ab".repeat(32),
+            ..Default::default()
+        };
+        let err = init_remote_session(&ctx, &legacy, None).await.unwrap_err();
+        assert!(err.to_string().contains("not sealed"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

@@ -295,6 +295,28 @@ pub fn hmac_sha256_hex(key: &[u8], data: &[u8]) -> String {
     hex::encode(mac.finalize().into_bytes())
 }
 
+/// The `sha256_scheme` every upload from this client declares.
+pub const CONTENT_MAC_SCHEME: &str = "hmac_v1";
+
+/// Seal a file name for the server: standard base64 of `[IV || ct || tag]` under
+/// the per-user name key. Byte-identical to the web's `encryptName`
+/// (`lib/name-crypto.ts`); there is no `enc1:` prefix on a file's
+/// `encrypted_name`.
+pub fn seal_name(name_key: &[u8], name: &str) -> Result<String, CryptoError> {
+    use base64::Engine as _;
+    let wire = encrypt_chunk(name_key, name.as_bytes())?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(wire))
+}
+
+/// Inverse of [`seal_name`]. Fails closed on a wrong key or tampering.
+pub fn open_name(name_key: &[u8], sealed: &str) -> Result<String, CryptoError> {
+    use base64::Engine as _;
+    let wire = base64::engine::general_purpose::STANDARD
+        .decode(sealed)
+        .map_err(|_| CryptoError::AuthFailed)?;
+    String::from_utf8(decrypt_chunk(name_key, &wire)?).map_err(|_| CryptoError::AuthFailed)
+}
+
 /// Incremental file-level integrity hasher matching `sha256_scheme`.
 pub enum ContentHasher {
     Plain(Sha256),
@@ -324,6 +346,46 @@ impl ContentHasher {
             ContentHasher::Plain(h) => hex::encode(h.finalize()),
             ContentHasher::HmacV1(m) => hex::encode(m.finalize().into_bytes()),
         }
+    }
+}
+
+#[cfg(test)]
+mod name_seal_tests {
+    use super::*;
+
+    // Fixed vector from app/backend/crypto/testvectors/vectors.json
+    // (`name_decrypt`), produced by the web's encryptName.
+    const VECTOR_PASSPHRASE: &str = "correct horse battery staple";
+    const VECTOR_USER: &str = "11111111-2222-3333-4444-555555555555";
+    const VECTOR_SEALED: &str =
+        "8ODQwLCgkIBwYFBPmVa5VElhYWMCgk0z6hKPn5ikP4hD57T9hAg5nXYeGKnX1grjkzZpUUmnfCJeXFyGa4pIRQ==";
+    const VECTOR_NAME: &str = "Quarterly Report \u{2014} \u{5bc6}\u{7801} \u{1f510}.pdf";
+
+    #[test]
+    fn opens_a_name_sealed_by_the_web() {
+        let key = derive_name_key(VECTOR_PASSPHRASE, VECTOR_USER);
+        assert_eq!(open_name(&key, VECTOR_SEALED).unwrap(), VECTOR_NAME);
+    }
+
+    #[test]
+    fn sealed_name_has_the_web_wire_shape_and_round_trips() {
+        let key = generate_cek();
+        let sealed = seal_name(&key, VECTOR_NAME).unwrap();
+        assert!(!sealed.starts_with("enc1:"));
+        let wire = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::STANDARD
+                .decode(&sealed)
+                .unwrap()
+        };
+        assert_eq!(
+            wire.len(),
+            IV_SIZE + VECTOR_NAME.len() + TAG_SIZE,
+            "[IV || ciphertext || tag]"
+        );
+        assert_eq!(open_name(&key, &sealed).unwrap(), VECTOR_NAME);
+        assert_ne!(sealed, seal_name(&key, VECTOR_NAME).unwrap(), "fresh IV");
+        assert!(open_name(&generate_cek(), &sealed).is_err());
     }
 }
 
