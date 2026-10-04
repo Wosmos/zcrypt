@@ -1,6 +1,6 @@
 [package]
 name = "zcrypt-desktop"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 description = "zcrypt desktop, zero-knowledge encrypted cloud storage"
 license = "MIT"

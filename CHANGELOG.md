@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.1.7] - 2026-10-04
+
+### Added
+
+- Send: 50 MB per file and 500 MB per day for signed-out senders; more needs an account
+- Admin: see where Send files are stored and choose Telegram, Hugging Face, GitHub or GitLab for them
+- Admin: the data-safety banner now says which users and files are affected and can run the repair
+- Desktop: a small "new version is out" pill
+
+### Fixed
+
+- Desktop and Android uploads now seal file names and use a keyed content hash instead of storing them in plaintext
+- Burn-after-read Send links can be read to the end, and a deleted Send storage repo is replaced automatically
+- Dragging files onto a folder works more than once
+- Creating and opening folder share links is much faster
+- A session that ends mid-use returns to sign-in instead of a blank page
+- Tabs of the same browser now share a rotated sign-in, so one no longer logs the others out
+
 ## [0.1.6] - 2026-09-30
 
 ### Added
