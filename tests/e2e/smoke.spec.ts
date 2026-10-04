@@ -1,4 +1,4 @@
-import { test, expect, request, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect, request, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { execFileSync } from "child_process";
 import { createHash, randomBytes } from "crypto";
 import fs from "fs";
@@ -25,6 +25,12 @@ interface SmokeFile {
 
 const single: SmokeFile = { name: "smoke-report.bin", bytes: randomBytes(96 * 1024) };
 const folderName = "Smoke Folder";
+const dragFolder = "Drag Target";
+const dragFiles: SmokeFile[] = [
+  { name: "drag-one.bin", bytes: randomBytes(8 * 1024) },
+  { name: "drag-two.bin", bytes: randomBytes(8 * 1024) },
+  { name: "drag-three.bin", bytes: randomBytes(8 * 1024) },
+];
 const folderFiles: SmokeFile[] = [
   { name: "alpha-notes.bin", bytes: randomBytes(24 * 1024) },
   { name: "beta-data.bin", bytes: randomBytes(40 * 1024) },
@@ -113,6 +119,17 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
   }
 }
 
+async function dragOnto(page: Page, source: Locator, target: Locator) {
+  const from = (await source.boundingBox())!;
+  const to = (await target.boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2 + 12, { steps: 4 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.move(to.x + to.width / 2 + 2, to.y + to.height / 2 + 2, { steps: 3 });
+  await page.mouse.up();
+}
+
 async function adminPage(browser: Browser): Promise<Page | null> {
   const adminEmail = testEmail("smoke-admin");
   const ctx = await freshContext(browser);
@@ -196,6 +213,27 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     const ttfr = Date.now() - started;
     test.info().annotations.push({ type: "ttfr_ms", description: String(ttfr) });
     expect(ttfr).toBeLessThan(TTFR_BUDGET_MS);
+  });
+
+  test("dragging files onto a folder moves every one, not just the first", async () => {
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "New folder" }).first().click();
+    await page.getByPlaceholder("Folder name").fill(dragFolder);
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    const folder = page.getByText(dragFolder, { exact: true }).first();
+    await expect(folder).toBeVisible();
+    await uploadViaUI(page, dragFiles);
+
+    for (const f of dragFiles) {
+      await dragOnto(page, page.getByText(f.name, { exact: true }).first(), folder);
+      await expect(page.getByText(f.name, { exact: true })).toHaveCount(0, { timeout: 10_000 });
+    }
+
+    await folder.click();
+    for (const f of dragFiles) {
+      await expect(page.getByText(f.name, { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    }
+    await page.goto("/dashboard");
   });
 
   test("file share: fresh browser downloads the original name and bytes", async ({ browser }) => {
