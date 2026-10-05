@@ -1,4 +1,4 @@
-import { Globe, Monitor, Smartphone, Terminal } from "@/lib/icons";
+import { Globe, Monitor, Smartphone } from "@/lib/icons";
 import { desktopEngine } from "@/lib/data";
 import type { ReactNode } from "react";
 
@@ -30,18 +30,17 @@ export interface AppsPageData {
 
 export const apps: AppsPageData = {
   hero: {
-    eyebrow: "Web, desktop, Android & terminal",
-    title: "One drive, four ways in",
+    eyebrow: "Web, desktop & Android",
+    title: "One drive, three ways in",
     subtext: (
       <>
         The same zero-knowledge core, wherever you work: a web app in any browser, a native desktop
-        app for macOS, Windows and Linux, an Android app you sideload in a minute, and a
-        single-binary terminal app that runs over SSH. The encryption never changes, only the
-        interface does.
+        app for macOS, Windows and Linux, and an Android app you sideload in a minute. The
+        encryption never changes, only the interface does.
       </>
     ),
-    secondaryLabel: "See the terminal app",
-    secondaryHref: "/tui",
+    secondaryLabel: "Download the apps",
+    secondaryHref: "/download",
   },
 
   sharedCoreNote: (
@@ -50,17 +49,16 @@ export const apps: AppsPageData = {
         The same encryption everywhere.
       </span>{" "}
       The web app runs the pipeline in Web Workers; desktop and Android run {desktopEngine.name},
-      the in-process {desktopEngine.language} engine; the terminal app runs the same pipeline in Go.
-      Every surface compresses, encrypts with AES-256-GCM, chunks, and uploads entirely on your
-      device. Pick a surface for the workflow, not for the security: it&apos;s the same vault and
-      the same guarantees on all four.
+      the in-process {desktopEngine.language} engine. Every surface compresses, encrypts with
+      AES-256-GCM, chunks, and uploads entirely on your device. Pick a surface for the workflow, not
+      for the security: it&apos;s the same vault and the same guarantees on all three.
     </>
   ),
 
   surfacesSection: {
     heading: "Pick where you work",
     subheading:
-      "Four front ends over one encrypted backend. Use whichever fits the moment, or all four.",
+      "Three front ends over one encrypted backend. Use whichever fits the moment, or all three.",
   },
   surfaces: [
     {
@@ -106,15 +104,6 @@ export const apps: AppsPageData = {
       cta: "Android app docs",
       badge: "Beta",
     },
-    {
-      Icon: Terminal,
-      name: "Terminal app (TUI)",
-      tagline: "One binary, works over SSH",
-      desc: "A single-binary terminal app written in Go. No runtime, no browser: just one small executable that runs anywhere you have a shell, including headless servers over SSH.",
-      points: ["Single binary", "Zero dependencies", "Runs over SSH", "Scriptable & fast"],
-      href: "/tui",
-      cta: "Explore the TUI",
-    },
   ],
 
   comparisonSection: {
@@ -142,12 +131,6 @@ export const apps: AppsPageData = {
       install: "Sideload the APK (beta)",
       runsOn: "Android phones & tablets",
     },
-    {
-      surface: "Terminal (TUI)",
-      bestFor: "Servers, SSH, and the keyboard",
-      install: "One binary",
-      runsOn: "Linux, macOS, Windows · amd64 & arm64",
-    },
   ],
 
   related: [
@@ -171,6 +154,6 @@ export const apps: AppsPageData = {
   cta: {
     heading: "The same drive, wherever you are",
     subtext:
-      "Free and open source. Create an account once and reach it from the web, your desktop, your phone, or a terminal.",
+      "Free and open source. Create an account once and reach it from the web, your desktop, or your phone.",
   },
 };

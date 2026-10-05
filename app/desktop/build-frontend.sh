@@ -52,7 +52,7 @@ cp -r "$FRONTEND_DIR/.next-export" "$OUT_DIR"
 # ── Strip pages that don't belong in the desktop app ──
 # Marketing / public pages
 rm -rf "$OUT_DIR/docs" "$OUT_DIR/philosophy" "$OUT_DIR/privacy" \
-       "$OUT_DIR/terms" "$OUT_DIR/tui" "$OUT_DIR/pricing"
+       "$OUT_DIR/terms" "$OUT_DIR/pricing"
 # Public share/send/pad/transfer/demo pages
 rm -rf "$OUT_DIR/pad" "$OUT_DIR/s" "$OUT_DIR/send" \
        "$OUT_DIR/transfer" "$OUT_DIR/demo"

@@ -2,8 +2,6 @@
 // All static content used across marketing/landing components.
 // Icon references use string keys. Map them in the consuming component.
 
-import { SITE_URL } from "@/lib/site";
-
 // ─── Types ────────────────────────────────────────────────────
 
 export interface BentoFeature {
@@ -194,7 +192,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: "Does it work on iPhone?",
-    a: "The website does, in Safari. There's no iPhone app yet. There are apps for Mac, Windows, Linux, Android (beta) and the terminal.",
+    a: "The website does, in Safari. There's no iPhone app yet. There are apps for Mac, Windows, Linux, and Android (beta).",
   },
   {
     q: "What if a platform removes my files?",
@@ -248,7 +246,7 @@ export const downloadPageContent = {
   hero: {
     badge: "Apps for every device",
     subtext:
-      "Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
+      "Native desktop apps, an Android app, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
     trustItems: [
       "Free & open source",
       "Only you can open your files",
@@ -266,12 +264,6 @@ export const downloadPageContent = {
     subheading:
       "Not on the Play Store, so grab the APK directly and install it yourself. Takes about a minute.",
   },
-  cli: {
-    badge: "Terminal app",
-    heading: "Live in the terminal",
-    subheading:
-      "A single Go binary with zero dependencies, so it works great over SSH and on headless servers. Pick a package manager:",
-  },
   web: {
     heading: "Prefer no install",
     body: "The full encrypted drive runs in any modern browser: folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
@@ -279,7 +271,7 @@ export const downloadPageContent = {
   },
   openSource: {
     heading: "Every build is open source",
-    body: "Desktop, terminal, and web, all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
+    body: "Desktop, Android, and web, all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
     githubCta: "Source on GitHub",
     selfHostCta: "Self-host zcrypt",
   },
@@ -289,206 +281,12 @@ export const downloadPageContent = {
 
 export const trustBadges = ["AES-256-GCM encryption", "Zero-knowledge", "Open source"] as const;
 
-// ─── TUI Page Data ──────────────────────────────────────────
-
-export interface TUIFeature {
-  icon: string;
-  title: string;
-  desc: string;
-}
-
-export const tuiFeatures: TUIFeature[] = [
-  {
-    icon: "Upload",
-    title: "Upload & Download",
-    desc: "Encrypt and upload files with real-time progress tracking: chunks, bytes, speed. Download and decrypt in one step.",
-  },
-  {
-    icon: "Search",
-    title: "Vim-Style File Browser",
-    desc: "Search with /, bulk-select with space, jump with g/G, and run commands with :. Feels like home.",
-  },
-  {
-    icon: "HardDrive",
-    title: "Multi-Platform Storage",
-    desc: "See connection status for GitHub, GitLab, and Hugging Face right from settings. Your backends, at a glance.",
-  },
-  {
-    icon: "Lock",
-    title: "Full Encryption Pipeline",
-    desc: "Same zero-knowledge pipeline as the web app: compress with zstd, encrypt with AES-256-GCM, chunk, and upload. All on your machine.",
-  },
-  {
-    icon: "Gauge",
-    title: "Performance Profiles",
-    desc: "Four tunable profiles from Light (2 workers, 4 MB chunks) to Ludicrous (all CPU cores, 32 MB chunks). Pick your speed.",
-  },
-  {
-    icon: "Shield",
-    title: "2FA Built In",
-    desc: "Full TOTP two-factor authentication. Secure your account with any authenticator app, right from the terminal.",
-  },
-  {
-    icon: "Terminal",
-    title: "Command Mode",
-    desc: "Press : for vim-style commands: upload, download, delete, search, select-all, and more. Power at your fingertips.",
-  },
-  {
-    icon: "Cpu",
-    title: "Single Binary, Zero Dependencies",
-    desc: "One ~8 MB binary. No runtime, no browser, no Electron. Runs on any machine with a terminal, including headless servers over SSH.",
-  },
-];
-
-export interface TUIShortcut {
-  keys: string;
-  action: string;
-}
-
-export const tuiShortcuts: TUIShortcut[] = [
-  { keys: "Arrow keys", action: "Navigate up / down" },
-  { keys: "g / G", action: "Jump to top / bottom" },
-  { keys: "space", action: "Toggle file selection" },
-  { keys: "Shift+J/K", action: "Range select" },
-  { keys: "Ctrl+a", action: "Select / deselect all" },
-  { keys: "u", action: "Upload a file" },
-  { keys: "d / Enter", action: "Download selected" },
-  { keys: "x / Delete", action: "Delete selected" },
-  { keys: "/", action: "Search files" },
-  { keys: ":", action: "Command mode" },
-  { keys: "r", action: "Refresh vault" },
-  { keys: "s", action: "Open settings" },
-];
-
-export interface TUICommand {
-  cmd: string;
-  desc: string;
-}
-
-export const tuiCommands: TUICommand[] = [
-  { cmd: ":upload [path]", desc: "Upload a file (optionally pre-fill path)" },
-  { cmd: ":dl", desc: "Download the selected file" },
-  { cmd: ":rm", desc: "Delete selected files" },
-  { cmd: ":search [term]", desc: "Filter files by name" },
-  { cmd: ":select-all", desc: "Select all visible files" },
-  { cmd: ":clear", desc: "Clear search and deselect" },
-  { cmd: ":settings", desc: "Open settings screen" },
-  { cmd: ":logout", desc: "Sign out and return to login" },
-  { cmd: ":help", desc: "Show available commands" },
-];
-
-export interface TUIProfile {
-  name: string;
-  workers: string;
-  chunkSize: string;
-  compression: string;
-  desc: string;
-}
-
-export const tuiProfiles: TUIProfile[] = [
-  {
-    name: "Light",
-    workers: "2",
-    chunkSize: "4 MB",
-    compression: "Level 1",
-    desc: "Low resource usage. Great for background tasks or constrained machines.",
-  },
-  {
-    name: "Normal",
-    workers: "4",
-    chunkSize: "10 MB",
-    compression: "Level 2",
-    desc: "Balanced speed and resource usage. The default for most users.",
-  },
-  {
-    name: "Intense",
-    workers: "8",
-    chunkSize: "16 MB",
-    compression: "Level 3",
-    desc: "Fast uploads on powerful machines. Uses more CPU and memory.",
-  },
-  {
-    name: "Ludicrous",
-    workers: "All cores",
-    chunkSize: "32 MB",
-    compression: "Level 3",
-    desc: "Maximum throughput. Uses every CPU core. For when speed is everything.",
-  },
-];
-
-export const tuiInstallMethods = [
-  {
-    label: "Homebrew",
-    command: "brew tap Wosmos/zcrypt && brew install zcrypt",
-    note: "macOS / Linux",
-  },
-  {
-    label: "npm / bun / yarn / pnpm",
-    command: "npm i -g @zcrypt/cli",
-    note: "All platforms",
-  },
-  {
-    label: "Scoop",
-    command:
-      "scoop bucket add zcrypt https://github.com/Wosmos/scoop-zcrypt && scoop install zcrypt",
-    note: "Windows",
-  },
-  {
-    label: "Shell Script",
-    command: `curl -fsSL ${SITE_URL}/install.sh | sh`,
-    note: "macOS / Linux",
-  },
-  {
-    label: "Direct Download",
-    command: `${SITE_URL}/download`,
-    note: "All platforms, prebuilt binaries",
-  },
-  {
-    label: "Build from Source",
-    command:
-      "git clone https://github.com/Wosmos/zcrypt.git && cd zcrypt/app/tui && go build -o zcrypt .",
-    note: "Requires Go 1.25+",
-  },
-] as const;
-
 // ─── Repo / releases ────────────────────────────────────────
 // The /download page resolves actual download URLs at runtime from the latest
 // GitHub release (see lib/releases.ts), so no versions/filenames live here.
 
 export const GITHUB_REPO = "https://github.com/Wosmos/zcrypt";
 export const RELEASES_URL = `${GITHUB_REPO}/releases`;
-
-export interface TUIQuickStep {
-  step: string;
-  title: string;
-  command?: string;
-  desc: string;
-}
-
-export const tuiQuickStart: TUIQuickStep[] = [
-  {
-    step: "01",
-    title: "Install",
-    command: "brew install Wosmos/zcrypt/zcrypt",
-    desc: "Install via Homebrew, npm, Scoop, or download from GitHub Releases.",
-  },
-  {
-    step: "02",
-    title: "Launch",
-    command: "zcrypt",
-    desc: "Open the TUI. Log in or create an account.",
-  },
-  {
-    step: "03",
-    title: "Upload",
-    desc: "Press u, enter a file path and passphrase. Watch real-time progress as your file is compressed, encrypted, and uploaded.",
-  },
-  {
-    step: "04",
-    title: "Download",
-    desc: "Select a file and press d. Enter your passphrase. The file is downloaded, decrypted, and saved locally.",
-  },
-];
 
 // ─── Docs Navigation ────────────────────────────────────────
 // Single source of truth for the docs sidebar, the docs index grid, and the
@@ -501,7 +299,7 @@ export interface DocsNavLink {
   href: string;
   desc: string;
   badge?: "Beta" | "Roadmap" | "New";
-  /** External (e.g. the TUI marketing page). Render with a normal anchor. */
+  /** External link. Render with a normal anchor. */
   external?: boolean;
 }
 
@@ -738,7 +536,7 @@ export const docsNav: DocsNavGroup[] = [
   },
   {
     title: "Apps",
-    summary: "zcrypt on the web, desktop, terminal, and Android.",
+    summary: "zcrypt on the web, desktop, and Android.",
     links: [
       { title: "Web app", href: "/docs/web-app", desc: "Use zcrypt in any modern browser." },
       {
@@ -751,12 +549,6 @@ export const docsNav: DocsNavGroup[] = [
         href: "/docs/android-app",
         desc: "Sideload the APK, same zero-knowledge core as desktop.",
         badge: "Beta",
-      },
-      {
-        title: "Terminal app (TUI)",
-        href: "/tui",
-        desc: "Manage your vault from the command line.",
-        external: true,
       },
     ],
   },
@@ -875,7 +667,7 @@ export const featuresNav: FeaturesNavLink[] = [
   {
     href: "/features/apps",
     icon: "Monitor",
-    title: "Web, desktop, Android & terminal",
-    desc: "The same zero-knowledge core across every surface, including a Rust-powered Android app and a single-binary TUI.",
+    title: "Web, desktop & Android",
+    desc: "The same zero-knowledge core across every surface, including a Rust-powered Android app.",
   },
 ];

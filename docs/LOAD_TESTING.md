@@ -465,7 +465,6 @@ semgrep --config=p/react .
 # Go: check for known CVEs
 go install golang.org/x/vuln/cmd/govulncheck@latest
 cd app/backend && govulncheck ./...
-cd app/tui && govulncheck ./...
 
 # Frontend: audit npm dependencies
 cd app/frontend && bun audit
@@ -586,8 +585,6 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 # Check backend
 cd app/backend && govulncheck ./...
 
-# Check TUI
-cd app/tui && govulncheck ./...
 ```
 
 ### 5. AI-Assisted Test Review (Claude Code)

@@ -15,18 +15,12 @@ const FULL_ASSETS: RawAsset[] = [
   { name: "zcrypt_0.1.0_amd64.AppImage", browser_download_url: "url-lin-appimage" },
   { name: "zcrypt_0.1.0_amd64.deb", browser_download_url: "url-lin-deb" },
   { name: "zcrypt-0.1.0-1.x86_64.rpm", browser_download_url: "url-lin-rpm" },
-  { name: "zcrypt_0.1.0_darwin_arm64.tar.gz", browser_download_url: "url-cli-mac-arm" },
-  { name: "zcrypt_0.1.0_darwin_amd64.tar.gz", browser_download_url: "url-cli-mac-intel" },
-  { name: "zcrypt_0.1.0_linux_amd64.tar.gz", browser_download_url: "url-cli-linux-x64" },
-  { name: "zcrypt_0.1.0_linux_arm64.tar.gz", browser_download_url: "url-cli-linux-arm" },
-  { name: "zcrypt_0.1.0_windows_amd64.zip", browser_download_url: "url-cli-win-x64" },
-  { name: "zcrypt_0.1.0_windows_arm64.zip", browser_download_url: "url-cli-win-arm" },
   { name: "checksums.txt", browser_download_url: "url-checksums" },
   { name: "some-unrelated-source.tar.gz", browser_download_url: "url-unmatched" },
 ];
 
 describe("parseAssets", () => {
-  it("categorizes a full release into desktop, cli, and checksums", () => {
+  it("categorizes a full release into desktop and checksums", () => {
     const data = parseAssets(FULL_ASSETS, "v0.1.0", "https://github.com/x/y/releases/tag/v0.1.0");
 
     expect(data.version).toBe("0.1.0");
@@ -70,14 +64,6 @@ describe("parseAssets", () => {
       },
     ]);
 
-    expect(data.cli).toEqual([
-      { os: "macOS", arch: "Apple Silicon", href: "/dl/cli-darwin-arm64" },
-      { os: "macOS", arch: "Intel", href: "/dl/cli-darwin-amd64" },
-      { os: "Linux", arch: "x64", href: "/dl/cli-linux-amd64" },
-      { os: "Linux", arch: "ARM64", href: "/dl/cli-linux-arm64" },
-      { os: "Windows", arch: "x64", href: "/dl/cli-windows-amd64" },
-      { os: "Windows", arch: "ARM64", href: "/dl/cli-windows-arm64" },
-    ]);
 
     expect(data.checksumsUrl).toBe("url-checksums");
   });
@@ -103,14 +89,12 @@ describe("parseAssets", () => {
       "https://example.com"
     );
     expect(data.desktop.map((p) => p.id)).toEqual(["macos"]);
-    expect(data.cli).toEqual([]);
     expect(data.checksumsUrl).toBeNull();
   });
 
-  it("returns fully empty desktop/cli for no assets at all", () => {
+  it("returns fully empty desktop for no assets at all", () => {
     const data = parseAssets([], "v0.0.1", "https://example.com");
     expect(data.desktop).toEqual([]);
-    expect(data.cli).toEqual([]);
     expect(data.checksumsUrl).toBeNull();
   });
 });
@@ -226,7 +210,7 @@ describe("getLatestRelease", () => {
     expect(data?.isFallback).toBe(true);
   });
 
-  it("builds a fully-populated fallback release (all platforms, cli, checksums)", async () => {
+  it("builds a fully-populated fallback release (all platforms, checksums)", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("down"));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -239,7 +223,6 @@ describe("getLatestRelease", () => {
     expect(data!.desktop.find((p) => p.id === "macos")!.options).toHaveLength(1);
     expect(data!.desktop.find((p) => p.id === "windows")!.options).toHaveLength(2);
     expect(data!.desktop.find((p) => p.id === "linux")!.options).toHaveLength(3);
-    expect(data!.cli).toHaveLength(6);
     // The fallback names no version and no filename: every href is a /dl
     // redirect the backend resolves, so there is no checksums asset to point
     // at, and the page link is just /releases/latest.
@@ -247,8 +230,7 @@ describe("getLatestRelease", () => {
     expect(data!.htmlUrl).toBe(`${GITHUB_REPO}/releases/latest`);
     const hrefs = [
       ...data!.desktop.flatMap((p) => p.options.map((o) => o.href)),
-      ...data!.cli.map((c) => c.href),
-    ];
+          ];
     expect(hrefs.every((h) => h.startsWith("/dl/"))).toBe(true);
   });
 
@@ -258,8 +240,7 @@ describe("getLatestRelease", () => {
     const data = await getLatestRelease();
     const hrefs = [
       ...data!.desktop.flatMap((p) => p.options.map((o) => o.href)),
-      ...data!.cli.map((c) => c.href),
-    ];
+          ];
     expect(hrefs.some((h) => /\d+\.\d+\.\d+/.test(h))).toBe(false);
   });
 });

@@ -20,7 +20,6 @@ for security problems.**
 ```
 app/backend/    Go backend (module: github.com/zcrypt/zcrypt)
 app/frontend/   Next.js 16 / React 19 frontend
-app/tui/        Go Bubble Tea terminal client (module: github.com/zcrypt/zcrypt-tui)
 ```
 
 ## Local setup
@@ -56,13 +55,6 @@ bun run lint       # lint
 bun run typecheck  # type check
 ```
 
-### TUI
-
-```bash
-cd app/tui
-go build ./...
-```
-
 ## Environment variables
 
 Never commit a real `.env`; it is gitignored. The backend template lives at
@@ -85,7 +77,7 @@ a maintainer know.
 ## Quality gate
 
 Before pushing, run the change-scoped quality gate. It runs typecheck, lint,
-tests, and build for whichever modules you touched (frontend / backend / tui /
+tests, and build for whichever modules you touched (frontend / backend / core /
 desktop), mirroring CI:
 
 ```bash

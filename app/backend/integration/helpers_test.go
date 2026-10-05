@@ -188,7 +188,7 @@ func requireStatus(t *testing.T, resp *http.Response, expected int) []byte {
 //
 // Registration intentionally does NOT return tokens (the handler responds with
 // {success, user}); tokens are obtained via a separate login, matching what the
-// real frontend and TUI clients do.
+// real frontend and desktop clients do.
 func (ts *testServer) registerAndLogin(email, password string) string {
 	ts.t.Helper()
 

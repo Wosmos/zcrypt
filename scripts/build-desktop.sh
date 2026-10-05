@@ -31,7 +31,7 @@ echo "== [4/5] prepare frontend-dist =="
 rm -rf app/desktop/frontend-dist
 cp -r app/frontend/.next-export app/desktop/frontend-dist
 cd app/desktop/frontend-dist
-rm -rf docs philosophy privacy terms tui pricing pad s send transfer demo features vs
+rm -rf docs philosophy privacy terms pricing pad s send transfer demo features vs
 rm -f sitemap.xml robots.txt opengraph-image* twitter-image*
 cat > index.html << 'HTMLEOF'
 <!DOCTYPE html>

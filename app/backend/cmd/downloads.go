@@ -97,15 +97,6 @@ var downloadTargets = map[string]downloadTarget{
 		match: suffix(".rpm")},
 	"android": {platform: "android", stable: "zcrypt.apk", android: true,
 		match: suffix(".apk")},
-
-	// CLI / TUI archives from GoReleaser. No stable aliases for these, the
-	// resolver falls through to the versioned name.
-	"cli-darwin-arm64":  {platform: "macos", match: suffix("_darwin_arm64.tar.gz")},
-	"cli-darwin-amd64":  {platform: "macos", match: suffix("_darwin_amd64.tar.gz")},
-	"cli-linux-amd64":   {platform: "linux", match: suffix("_linux_amd64.tar.gz")},
-	"cli-linux-arm64":   {platform: "linux", match: suffix("_linux_arm64.tar.gz")},
-	"cli-windows-amd64": {platform: "windows", match: suffix("_windows_amd64.zip")},
-	"cli-windows-arm64": {platform: "windows", match: suffix("_windows_arm64.zip")},
 }
 
 type ghAsset struct {

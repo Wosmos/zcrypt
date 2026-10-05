@@ -9,7 +9,7 @@ const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/
  * Every installer is served through our own redirect rather than linked at
  * GitHub directly. Bundler filenames embed the version
  * (`zcrypt_0.1.4_aarch64.dmg`), so a direct link has to know the current
- * release: which is why the download page, the docs and install.sh had each
+ * release: which is why the download page and the docs had each
  * drifted onto a different URL. `/dl/<target>` is stable forever: the backend
  * resolves the asset at click time, and records the download on the way past.
  */
@@ -21,13 +21,7 @@ export type DownloadTarget =
   | "linux-appimage"
   | "linux-deb"
   | "linux-rpm"
-  | "android"
-  | "cli-darwin-arm64"
-  | "cli-darwin-amd64"
-  | "cli-linux-amd64"
-  | "cli-linux-arm64"
-  | "cli-windows-amd64"
-  | "cli-windows-arm64";
+  | "android";
 
 const dl = (target: DownloadTarget): string => `/dl/${target}`;
 
@@ -62,17 +56,10 @@ interface DesktopPlatform {
   options: DownloadOption[];
 }
 
-export interface CliBinary {
-  os: "macOS" | "Linux" | "Windows";
-  arch: string;
-  href: string;
-}
-
 export interface ReleaseData {
   version: string; // e.g. "0.1.0" (tag without leading "v")
   htmlUrl: string;
   desktop: DesktopPlatform[];
-  cli: CliBinary[];
   checksumsUrl: string | null;
   /** True when this is the hardcoded fallback (GitHub API was unreachable). */
   isFallback?: boolean;
@@ -148,14 +135,6 @@ function buildFallbackRelease(): ReleaseData {
           },
         ],
       },
-    ],
-    cli: [
-      { os: "macOS", arch: "Apple Silicon", href: dl("cli-darwin-arm64") },
-      { os: "macOS", arch: "Intel", href: dl("cli-darwin-amd64") },
-      { os: "Linux", arch: "x64", href: dl("cli-linux-amd64") },
-      { os: "Linux", arch: "ARM64", href: dl("cli-linux-arm64") },
-      { os: "Windows", arch: "x64", href: dl("cli-windows-amd64") },
-      { os: "Windows", arch: "ARM64", href: dl("cli-windows-arm64") },
     ],
     checksumsUrl: null,
   };
@@ -255,44 +234,12 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   ];
   const desktop = allPlatforms.filter((p) => p.options.length > 0);
 
-  // CLI/TUI binaries (GoReleaser): zcrypt_<ver>_<os>_<arch>.(tar.gz|zip)
-  const cliRe = /_(darwin|linux|windows)_(amd64|arm64)\.(tar\.gz|zip)$/;
-  // Mirrors cliRe's arch group. See archName below.
-  type CliArch = "amd64" | "arm64";
-  const osName: Record<string, CliBinary["os"]> = {
-    darwin: "macOS",
-    linux: "Linux",
-    windows: "Windows",
-  };
-  // Closed key set, matching cliRe's arch group exactly, so the lookup below is
-  // total and needs no runtime fallback. Widening cliRe without adding the arch
-  // here is a compile error rather than a raw "386" leaking into the UI.
-  const archName: Record<CliArch, string> = {
-    amd64: "x64",
-    arm64: "ARM64",
-  };
-  const cli: CliBinary[] = assets
-    .map((a) => {
-      const m = a.name.toLowerCase().match(cliRe);
-      if (!m) return null;
-      const os = osName[m[1]];
-      const arch =
-        m[1] === "darwin"
-          ? m[2] === "arm64"
-            ? "Apple Silicon"
-            : "Intel"
-          : archName[m[2] as CliArch];
-      return { os, arch, href: dl(`cli-${m[1]}-${m[2]}` as DownloadTarget) };
-    })
-    .filter(Boolean) as CliBinary[];
-
   const checksums = assets.find((a) => /checksums?\.txt$/i.test(a.name));
 
   return {
     version,
     htmlUrl,
     desktop,
-    cli,
     checksumsUrl: checksums?.browser_download_url ?? null,
   };
 }

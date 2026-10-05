@@ -1,15 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Globe,
-  Monitor,
-  Smartphone,
-  Terminal,
-  ShieldCheck,
-  Server,
-  Check,
-} from "@/lib/icons";
+import { ArrowRight, Globe, Monitor, Smartphone, ShieldCheck, Server, Check } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
@@ -21,27 +12,23 @@ import { apps } from "../_data/apps";
 import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Web, Desktop, Android & Terminal. One Encrypted Vault, Four Surfaces",
+  title: "Web, Desktop & Android. One Encrypted Vault, Three Surfaces",
   description:
-    "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, an Android app you sideload in a minute, and a single-binary terminal app (TUI) that runs over SSH. Your encryption never changes, only the interface does.",
+    "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, and an Android app you sideload in a minute. Your encryption never changes, only the interface does.",
   keywords: [
     "encrypted storage apps",
     "web app",
     "desktop app",
     "Android app",
     "sideload APK",
-    "terminal app",
-    "TUI",
-    "CLI encrypted storage",
     "macOS Windows Linux",
-    "SSH file storage",
     "cross-platform encryption",
   ],
   alternates: { canonical: `${SITE_URL}/features/apps` },
   openGraph: {
-    title: "Web, Desktop, Android & Terminal. One Encrypted Vault | zcrypt",
+    title: "Web, Desktop & Android. One Encrypted Vault | zcrypt",
     description:
-      "One zero-knowledge core across four surfaces: web in any browser, a native desktop app, an Android sideload APK, and a single-binary TUI that works over SSH.",
+      "One zero-knowledge core across three surfaces: web in any browser, a native desktop app, and an Android sideload APK.",
     url: `${SITE_URL}/features/apps`,
     type: "website",
   },
@@ -77,9 +64,9 @@ export default function AppsPage() {
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
       >
-        {/* Four-surface mock */}
+        {/* Three-surface mock */}
         <div className="mx-auto mt-16 max-w-4xl">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* browser */}
             <div className={cn(cardSurfaceSm, "overflow-hidden")}>
               <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]">
@@ -134,21 +121,6 @@ export default function AppsPage() {
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
                   sideload APK
                 </div>
-              </div>
-            </div>
-
-            {/* terminal */}
-            <div className="overflow-hidden rounded-[22px] corner-squircle border border-[var(--color-border)] bg-[#09090b] shadow-xl shadow-black/30">
-              <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.02] px-3 py-2.5">
-                <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
-                <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
-                <span className="h-2 w-2 rounded-full bg-[#28c840]" />
-                <span className="ml-2 font-mono text-[9px] text-white/30">ssh · zcrypt</span>
-              </div>
-              <div className="flex flex-col items-center gap-2 p-6 text-center">
-                <Terminal className="h-7 w-7 text-cyan-400" />
-                <div className="text-xs font-bold text-white/90">Terminal</div>
-                <div className="font-mono text-[10px] text-white/30">one binary</div>
               </div>
             </div>
           </div>

@@ -11,10 +11,6 @@ app/frontend/out/
 app/backend/zcrypt
 app/backend/zcrypt-server
 app/backend/zcrypt-server.exe
-app/tui/zcrypt
-app/tui/zcrypt.exe
-app/tui/test-tui.exe
-app/tui/zstash-tui.exe
 
 # Tauri sidecar binaries
 app/desktop/src-tauri/zcrypt-sidecar-*
@@ -69,7 +65,6 @@ tests/e2e/.cache/
 app/backend/coverage.out
 app/backend/coverage.html
 app/backend/coverage/
-app/tui/coverage.out
 
 # Frontend coverage
 app/frontend/coverage/

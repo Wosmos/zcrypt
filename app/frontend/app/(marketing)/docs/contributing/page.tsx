@@ -105,11 +105,6 @@ bun run dev        # dev server
 bun run build      # production build
 bun run lint       # lint
 bun run typecheck  # type check`}</DocCode>
-        <DocP>
-          <strong>TUI</strong>
-        </DocP>
-        <DocCode label="shell">{`cd app/tui
-go build ./...`}</DocCode>
       </DocSection>
 
       <DocSection id="env" title="Environment variables">
@@ -146,8 +141,7 @@ go build ./...`}</DocCode>
       <DocSection id="gate" title="Quality gate">
         <DocP>
           Before pushing, run the change-scoped quality gate. It runs typecheck, lint, tests, and
-          build for whichever modules you touched (frontend / backend / tui / desktop), mirroring
-          CI:
+          build for whichever modules you touched (frontend / backend / desktop), mirroring CI:
         </DocP>
         <DocCode label="shell">{`bash scripts/install-hooks.sh          # once per clone, wires the pre-push hook
 bash scripts/prepush.sh --gates-only   # fast: gates only

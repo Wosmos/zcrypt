@@ -45,8 +45,6 @@ function parseUserAgent(ua: string): { browser: string; os: string; device: stri
   } else if (ua.includes("Safari/") && !ua.includes("Chrome")) {
     const m = ua.match(/Version\/([\d.]+)/);
     browser = `Safari ${m?.[1]?.split(".")[0] ?? ""}`;
-  } else if (ua.includes("zcrypt-tui") || ua.includes("zcrypt-cli")) {
-    browser = "zcrypt CLI";
   }
 
   // OS detection

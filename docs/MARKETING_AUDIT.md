@@ -77,7 +77,7 @@ The top five went through an adversarial check. None is a proven cause of bounce
 | Sticky mobile CTA once the hero scrolls out | `app/(marketing)/page.tsx` |
 | Capacity cards: import from `lib/platforms.ts`, lead with Telegram as unlimited | `components/marketing/landing/storage-platforms.ts`, `bring-your-own-storage.tsx` |
 | Inline password rules on register; drop or derive username | `app/(auth)/register/page.tsx`, `app/backend/cmd/auth.go` |
-| Credibility sweep: install command, "Military-grade", zcrypt.com, `&mdash;` | `lib/data.ts`, `app/(auth)/layout.tsx`, `macos-showcase.tsx`, `tui/page.tsx`, `terms/page.tsx`, `about/_data/about.tsx` |
+| Credibility sweep: install command, "Military-grade", zcrypt.com, `&mdash;` | `lib/data.ts`, `app/(auth)/layout.tsx`, `macos-showcase.tsx`, `terms/page.tsx`, `about/_data/about.tsx` |
 | Marquee: 12 items to 4, lead with free, fix contrast, label the 8 icon buttons | `lib/data.ts`, `hero-section.tsx` |
 
 ### Restructure (days)

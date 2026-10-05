@@ -33,6 +33,8 @@ filter_unconventional = true
 split_commits = false
 # Map conventional-commit types to Keep a Changelog sections.
 commit_parsers = [
+  { message = "(?i)\\btui\\b", skip = true },
+  { message = "download page with desktop apps, CLI", skip = true },
   { message = "^feat", group = "Added" },
   { message = "^fix", group = "Fixed" },
   { message = "^perf", group = "Performance" },

@@ -4,7 +4,6 @@
 zcrypt is a zero-knowledge encrypted cloud storage system.
 - **Backend:** Go 1.25, stdlib HTTP server, pgxpool (PostgreSQL), AES-256-GCM encryption, zstd compression
 - **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Motion (Framer Motion)
-- **TUI:** Go, Bubble Tea terminal interface
 - **Database:** PostgreSQL (Neon serverless) via pgx/v5
 - **Deploy:** Frontend on Vercel, Backend on Railway (Docker), DB on Neon
 
@@ -23,8 +22,6 @@ app/backend/          - Go backend (module: github.com/zcrypt/zcrypt)
   config/             - Environment config, directories
   disguise/           - Fake filenames, commit messages, repo names
   types/              - Shared types
-app/tui/              - Go TUI app (module: github.com/zcrypt/zcrypt-tui)
-  internal/           - TUI internals (api, auth, config, ui)
 app/core/             - Shared Rust client engine (crate: zcrypt-core). Crypto,
                         chunk pipeline, local SQLite store, platform adapters.
                         No Tauri dependency - the shells embed it.
@@ -34,7 +31,7 @@ app/desktop/          - Tauri v2 shell for desktop AND Android. Links app/core
 app/frontend/         - Next.js frontend
   app/(app)/          - Authenticated app pages (dashboard, settings, analytics, admin)
   app/(auth)/         - Auth pages (login, register, forgot-password, etc.)
-  app/(marketing)/    - Landing page, philosophy, privacy, terms, docs, TUI
+  app/(marketing)/    - Landing page, philosophy, privacy, terms, docs
   components/         - UI components
   store/              - Zustand stores (auth, upload, passphrase, toast)
   hooks/              - Custom hooks (useFileList, useOperationStatus, etc.)
@@ -48,9 +45,6 @@ app/frontend/         - Next.js frontend
 cd app/backend && go build -o zcrypt-server .
 cd app/backend && go test ./...
 cd app/backend && go vet ./...
-
-# TUI
-cd app/tui && go build ./...
 
 # Frontend (Rust-native toolchain: oxlint / biome / tsgo)
 cd app/frontend && bun run dev
@@ -71,7 +65,7 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 ### Pre-push gate
 `scripts/prepush.sh` only runs the gates for modules that changed vs `origin/main`
 (mirrors the `dorny/paths-filter` in `.github/workflows/ci.yml`): `frontend` /
-`backend` / `tui` / `desktop`. A changed shared/root file (e.g. `scripts/`,
+`backend` / `desktop` / `core`. A changed shared/root file (e.g. `scripts/`,
 `Dockerfile`, `.github/`) runs everything; docs-only changes run nothing.
 - **Gates** (blocking): typecheck (tsgo) / format (biome) / lint (oxlint) / test / build per module; Go gofmt/vet; core + desktop = `cargo fmt`/`clippy`/`cargo test` (full Tauri bundle stays in CI). The lint gate blocks on oxlint errors; warnings are ratcheted.
 - **Hardening** (`--enforce`, blocking, diff-scoped): fails only on issues *your change* introduces: `oxlint --max-warnings=0` + jscpd on changed FE files, `golangci-lint --new-from-rev` for Go. Never blocks on the pre-existing backlog.

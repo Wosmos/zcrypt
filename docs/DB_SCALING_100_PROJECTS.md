@@ -65,7 +65,6 @@ flowchart LR
         WEB["Web app (Next.js 16)"]
         DESK["Desktop (Tauri v2 + zcrypt-core Rust)"]
         AND["Android APK (Tauri mobile, beta)"]
-        TUI["TUI (Go, Bubble Tea)"]
     end
 
     subgraph Server["Railway - Go backend (control plane)"]
@@ -85,7 +84,6 @@ flowchart LR
     WEB -->|HTTPS + SSE| API
     DESK -->|HTTPS| API
     AND -->|HTTPS| API
-    TUI -->|HTTPS| API
 
     DESK -.->|"byos-direct: ciphertext pushed/pulled<br/>directly with user's own token -<br/>bytes NEVER transit the server"| Storage
     API -->|relay mode chunks| Storage

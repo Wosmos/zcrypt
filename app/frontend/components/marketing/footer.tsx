@@ -28,7 +28,6 @@ const FOOTER_COLUMNS: { titleKey: string; links: FooterLink[] }[] = [
       { key: "vsDropbox", href: "/vs/dropbox" },
       { key: "vsGoogle", href: "/vs/google-drive" },
       { key: "vsProton", href: "/vs/proton-drive" },
-      { key: "tui", href: "/tui" },
     ],
   },
   {

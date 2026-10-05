@@ -17,8 +17,8 @@ GitLab, Hugging Face, and Telegram. The server never sees the passphrase or any
 plaintext.
 
 It is a **hosted web service** (not a local-only desktop app): a Next.js frontend
-and a Go HTTP backend with a PostgreSQL database. A terminal client (TUI) and a
-Tauri desktop app are secondary clients of the same backend.
+and a Go HTTP backend with a PostgreSQL database. The Tauri desktop and
+Android apps are secondary clients of the same backend.
 
 ## 2. Architecture
 
@@ -26,7 +26,7 @@ Tauri desktop app are secondary clients of the same backend.
 Clients                         Backend (Go / Railway)          Storage
 ┌─────────────────────────┐     ┌────────────────────────┐      ┌────────────────┐
 │ Web app (Next.js/Vercel)│     │ stdlib net/http        │ ───> │ GitHub (850MB) │
-│ TUI (Bubble Tea)        │ ──> │ chunk relay + commit   │ ───> │ GitLab (9GB)   │
+│                         │ ──> │ chunk relay + commit   │ ───> │ GitLab (9GB)   │
 │ Desktop+Android (Tauri) │JSON │ repo pool + rotation   │ ───> │ HuggingFace    │
 │                         │ SSE │ token envelope crypto  │      │  (90GB/repo)   │
 │ crypto + zstd run HERE  │     │ pgxpool (Neon Postgres)│ ───> │ Telegram       │
@@ -35,7 +35,7 @@ Clients                         Backend (Go / Railway)          Storage
 
 - **File encryption and zstd compression run client-side** (browser Web Crypto /
   `@noble/*` / `@oneidentity/zstd-js`; the Rust core mirrors it for desktop and
-  Android, and the TUI has its own Go implementation). The
+  Android). The
   backend is **I/O-bound**: it relays already-encrypted chunks and commits them to
   storage. Do not move file crypto server-side, and do not parallelize server crypto.
 - The backend's `crypto/` package only does **platform-token envelope encryption**
@@ -65,7 +65,6 @@ app/backend/    Go backend (module github.com/zcrypt/zcrypt)
   reppool/      Repository pool + auto-rotation
   auth/ config/ disguise/ types/
 app/frontend/   Next.js app (see app/(app), app/(auth), app/(marketing))
-app/tui/        Terminal client (Go, Bubble Tea; module ...-tui)
 app/core/       Shared Rust client engine (zcrypt-core): crypto, chunk
                 pipeline, local store, platform adapters. No Tauri dependency.
 app/desktop/    Tauri v2 shell for desktop AND Android; links app/core

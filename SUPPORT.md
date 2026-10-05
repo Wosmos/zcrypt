@@ -22,7 +22,7 @@ The more of this you include, the faster it gets fixed:
 
 1. **What you did**: the exact steps to reproduce.
 2. **What you expected** vs. **what actually happened.**
-3. **Which client**: web (and browser + version), desktop (and OS), Android, or TUI.
+3. **Which client**: web (and browser + version), desktop (and OS), or Android.
 4. **Version / build**: the app version, or the commit hash if you built from source.
 5. **Logs or screenshots**: with anything sensitive redacted.
 
@@ -30,7 +30,7 @@ The more of this you include, the faster it gets fixed:
 
 ## What's in scope
 
-- The web app, desktop app, Android app, TUI, and the backend in this repository.
+- The web app, desktop app, Android app, and the backend in this repository.
 - Self-hosting help: build, configuration, and environment variables (see the [README](README.md) and [`app/backend/.env.example`](app/backend/.env.example)).
 
 ## What's out of scope

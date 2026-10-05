@@ -1,7 +1,7 @@
 # zcrypt Cryptographic Format Specification
 
 **Status: NORMATIVE.** Every zcrypt client implementation (web TypeScript, Rust
-core, Go TUI/backend) MUST produce byte-identical results for the
+core, Go backend) MUST produce byte-identical results for the
 operations below. A file encrypted by any client must decrypt on every other
 client. Conformance is enforced by the shared test vectors in
 `app/backend/crypto/testvectors/vectors.json`. See the README there for how to

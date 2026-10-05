@@ -193,7 +193,7 @@ export const dropbox: VsData = {
         <strong className="text-[var(--color-text)]">
           zcrypt&apos;s native mobile apps are still on the roadmap
         </strong>
-        . We ship web, desktop, and a terminal app right now. Dropbox&apos;s mobile experience is
+        . We ship web, desktop, and an Android beta right now. Dropbox&apos;s mobile experience is
         mature and complete.
       </>,
       <>

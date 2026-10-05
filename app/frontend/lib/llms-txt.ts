@@ -58,7 +58,7 @@ const featureLinks: Array<[string, string, string]> = [
   [
     "Apps",
     "/features/apps",
-    "Web, desktop (Tauri), and terminal (TUI) clients sharing one encrypted core.",
+    "Web, desktop (Tauri), and Android clients sharing one encrypted core.",
   ],
 ];
 
@@ -81,8 +81,7 @@ const compareLinks: Array<[string, string, string]> = [
 ];
 
 const productLinks: Array<[string, string, string]> = [
-  ["Download", "/download", "Get the desktop app (macOS, Windows, Linux) and the CLI."],
-  ["Terminal app (TUI)", "/tui", "Manage your vault from the command line."],
+  ["Download", "/download", "Get the desktop app (macOS, Windows, Linux) and Android (beta)."],
   ["Anonymous Send", "/send", "Send an encrypted file to anyone without an account."],
   ["Encrypted Pad", "/pad", "Share a one-time, end-to-end encrypted note."],
   [
@@ -130,7 +129,7 @@ zcrypt (pronounced "z-crypt") is a privacy-first cloud drive. It is free and ope
 
 - **Storage backends:** GitHub, GitLab, Hugging Face, Telegram: you bring your own accounts and tokens (encrypted at rest).
 - **Encryption:** AES-256-GCM; PBKDF2-SHA256 at 600k iterations; per-file envelope keys; X25519 ECIES sealed boxes for shared vaults.
-- **Clients:** web app, desktop app (Tauri; macOS/Windows/Linux), and a terminal app (TUI).
+- **Clients:** web app, desktop app (Tauri; macOS/Windows/Linux), and Android app (beta).
 - **Pricing:** free and open source: no paid tiers.
 - **Tech:** Next.js + React frontend; Go (stdlib net/http) backend; PostgreSQL. Frontend on Vercel, backend on Railway.
 - **Not this:** not a storage reseller, not a place that can read your files, not closed source.

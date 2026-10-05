@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Check, Github, ShieldCheck } from "@/lib/icons";
-import { tuiInstallMethods, GITHUB_REPO, downloadPageContent } from "@/lib/data";
+import { GITHUB_REPO, downloadPageContent } from "@/lib/data";
 import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { DownloadCta } from "@/components/marketing/download/download-cta";
 import { DownloadCount } from "@/components/marketing/download/download-count";
-import { InstallCommands } from "@/components/marketing/download/install-commands";
 import { DesktopGrid } from "@/components/marketing/download/desktop-grid";
 import { AndroidDownload } from "@/components/marketing/download/android-download";
-import { CliBinaries } from "@/components/marketing/download/cli-binaries";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { PillLink } from "@/components/marketing/ui/pill-link";
 import { IconWell, cardSurface } from "@/components/marketing/ui/card";
@@ -17,9 +15,9 @@ import { getLatestRelease } from "@/lib/releases";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Download zcrypt. Desktop Apps for macOS, Windows & Linux, plus the CLI",
+  title: "Download zcrypt. Desktop Apps for macOS, Windows & Linux",
   description:
-    "Get the zcrypt encrypted drive on every device. Native desktop apps for macOS, Windows, and Linux, a single-binary terminal client, and a web app that needs no install. Free, open source, zero-knowledge.",
+    "Get the zcrypt encrypted drive on every device. Native desktop apps for macOS, Windows, and Linux, an Android app, and a web app that needs no install. Free, open source, zero-knowledge.",
   keywords: [
     "download zcrypt",
     "encrypted cloud storage download",
@@ -29,16 +27,15 @@ export const metadata: Metadata = {
     "zcrypt for Linux",
     "encrypted drive download",
     "zero-knowledge storage app",
-    "zcrypt CLI",
     "AppImage",
     "dmg",
     "open source",
   ],
   alternates: { canonical: `${SITE_URL}/download` },
   openGraph: {
-    title: "Download zcrypt. Apps for macOS, Windows, Linux & the Terminal",
+    title: "Download zcrypt. Apps for macOS, Windows, Linux & Android",
     description:
-      "Native desktop apps, a single-binary CLI, and a no-install web app. Free, open source, zero-knowledge encrypted storage on every device.",
+      "Native desktop apps, an Android app, and a no-install web app. Free, open source, zero-knowledge encrypted storage on every device.",
     url: `${SITE_URL}/download`,
     type: "website",
   },
@@ -46,13 +43,13 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Download zcrypt. Encrypted storage for every device",
     description:
-      "Desktop apps for macOS, Windows, Linux, a single-binary CLI, and a web app. Free and open source.",
+      "Desktop apps for macOS, Windows, Linux, Android, and a web app. Free and open source.",
   },
 };
 
 export default async function DownloadPage() {
   const release = await getLatestRelease();
-  const { hero, desktop, android, cli, web, openSource } = downloadPageContent;
+  const { hero, desktop, android, web, openSource } = downloadPageContent;
 
   return (
     <>
@@ -115,14 +112,6 @@ export default async function DownloadPage() {
             lede={android.subheading}
           />
           <AndroidDownload />
-        </div>
-      </section>
-
-      <section id="cli" className="pv2-sec pv2-sec-join" aria-labelledby="h-cli">
-        <div className="pv2-wrap pv2-wrap-narrow">
-          <SectionHead id="h-cli" eyebrow={cli.badge} title={cli.heading} lede={cli.subheading} />
-          <InstallCommands methods={tuiInstallMethods} />
-          <CliBinaries release={release} />
         </div>
       </section>
 

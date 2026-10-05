@@ -1,4 +1,4 @@
-import { Lock, HardDrive, Github, Terminal } from "@/lib/icons";
+import { Lock, HardDrive, Github } from "@/lib/icons";
 import type { VsData } from "@/components/marketing/features/comparison-page";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
 import { VS_RELATED_LINKS, vsBreadcrumb } from "./shared";
@@ -132,11 +132,6 @@ const pillars: VsData["pillars"] = [
     title: "Self-host the entire stack",
     desc: "Run your own zcrypt server and keep both the keys and the infrastructure under your control. Proton Drive is hosted only. You can't operate your own instance.",
   },
-  {
-    Icon: Terminal,
-    title: "A real terminal app",
-    desc: "zcrypt ships a full TUI alongside web and desktop, so you can manage your encrypted drive straight from the command line: handy for servers and power users.",
-  },
 ];
 
 export const protonDrive: VsData = {
@@ -148,8 +143,7 @@ export const protonDrive: VsData = {
       <>
         Proton Drive is a genuinely excellent, audited, zero-knowledge drive, and we respect it. The
         differences are narrower here and more about philosophy: zcrypt is open source <em>and</em>{" "}
-        self-hostable, stores files in accounts you already own, has no artificial caps, and even
-        ships a terminal app.
+        self-hostable, stores files in accounts you already own, and has no artificial caps.
       </>
     ),
     secondaryLabel: "See how it works",
@@ -219,8 +213,7 @@ export const protonDrive: VsData = {
       </>,
       <>
         zcrypt is the better fit when you want an encrypted drive you can fully self-host, store in
-        accounts you already own, scale without artificial caps, and drive from the terminal, all
-        open source and free.
+        accounts you already own, and scale without artificial caps, all open source and free.
       </>,
     ],
   },

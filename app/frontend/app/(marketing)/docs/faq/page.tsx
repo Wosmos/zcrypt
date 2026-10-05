@@ -64,9 +64,9 @@ export default function FaqDocPage() {
 
       <DocSection id="devices" title="Can I access my files across multiple devices?">
         <DocP>
-          Yes. Sign in to zcrypt from any modern browser or the terminal app (TUI), enter your
-          passphrase, and your encrypted files are there. Everything is decrypted locally on
-          whichever device you're using: the plaintext is never reconstructed on our servers.
+          Yes. Sign in to zcrypt from any modern browser or app, enter your passphrase, and your
+          encrypted files are there. Everything is decrypted locally on whichever device you're
+          using: the plaintext is never reconstructed on our servers.
         </DocP>
       </DocSection>
 

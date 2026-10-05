@@ -33,7 +33,7 @@ export default function LicenseDocPage() {
     >
       <DocSection id="overview" title="Overview">
         <DocP>
-          The entire zcrypt codebase: backend, frontend, TUI, and everything else in the repository
+          The entire zcrypt codebase: backend, frontend, apps, and everything else in the repository
           : is released under the <strong>MIT License</strong>. It&apos;s a short, permissive
           license: you can do almost anything with the code as long as you keep the copyright notice
           attached.

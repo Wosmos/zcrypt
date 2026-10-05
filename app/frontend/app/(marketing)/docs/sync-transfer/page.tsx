@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -115,9 +115,8 @@ export default function SyncTransferDocPage() {
           folders &mdash; that work is done by the desktop client.
         </DocP>
         <DocP>
-          To run the actual backup, run the sync command on each device where those folders live:
+          The backup runs while the desktop app is open on the device where those folders live.
         </DocP>
-        <DocCode label="Terminal">zcrypt sync</DocCode>
         <DocNote type="info" title="Removing a folder">
           Deleting a folder configuration only stops future syncing for it. Files that were already
           backed up stay in your vault.

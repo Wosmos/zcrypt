@@ -21,7 +21,6 @@ const toc = [
   { id: "backend", title: "Backend" },
   { id: "web", title: "Web app" },
   { id: "core", title: "Native core & apps" },
-  { id: "tui", title: "Terminal app" },
   { id: "crypto", title: "Crypto & compression" },
   { id: "data", title: "Data & storage" },
   { id: "infra", title: "Infrastructure & hosting" },
@@ -38,12 +37,12 @@ export default function TechStackPage() {
     >
       <DocSection id="principles" title="How it's put together">
         <DocP>
-          zcrypt is one product across four surfaces: web, desktop, Android, and a terminal app:
-          sharing a single design principle: all encryption happens on your device, and the server
-          only ever handles ciphertext. That principle drives the stack. The backend stays
-          deliberately thin (standard-library Go, no framework), the cryptography lives in code that
-          runs on the client (a Rust core for native, Web Workers for the browser), and the database
-          stores only metadata and encrypted blobs.
+          zcrypt is one product across three surfaces: web, desktop, and Android, sharing a single
+          design principle: all encryption happens on your device, and the server only ever handles
+          ciphertext. That principle drives the stack. The backend stays deliberately thin
+          (standard-library Go, no framework), the cryptography lives in code that runs on the
+          client (a Rust core for native, Web Workers for the browser), and the database stores only
+          metadata and encrypted blobs.
         </DocP>
         <DocNote type="info" title="The manifests are canonical">
           Exact versions live in <code>app/backend/go.mod</code>,{" "}
@@ -160,14 +159,6 @@ export default function TechStackPage() {
             Android app
           </Link>{" "}
           for how the shared core reaches each platform.
-        </DocP>
-      </DocSection>
-
-      <DocSection id="tui" title="Terminal app">
-        <DocP>
-          The TUI is a separate, single-binary Go program built with Bubble Tea. It runs the same
-          client-side encryption pipeline and talks to the same backend API, no runtime, no browser,
-          works over SSH.
         </DocP>
       </DocSection>
 

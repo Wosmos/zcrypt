@@ -23,7 +23,6 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
-      tui: ${{ steps.filter.outputs.tui }}
       desktop: ${{ steps.filter.outputs.desktop }}
       core: ${{ steps.filter.outputs.core }}
     steps:
@@ -44,8 +43,6 @@ jobs:
             frontend:
               - 'app/frontend/**'
               - 'tests/e2e/**'
-            tui:
-              - 'app/tui/**'
             desktop:
               - 'app/desktop/**'
               # The desktop shell embeds zcrypt-core in-process.
@@ -426,40 +423,6 @@ jobs:
       - name: Tests (incl. cross-implementation conformance)
         working-directory: app/core
         run: cargo test
-
-  # ── TUI: vet + build + test ───────────────────────────────────────────────────
-  # vet/build/test already ran locally via the (now-installed) pre-push hook:
-  # identical commands, zero added value on a plain `push`. Gated to
-  # `pull_request` only (fork PRs never ran your local hook); the job still
-  # runs and reports success on push, so it doesn't affect anything downstream.
-  tui:
-    name: Go TUI
-    needs: changes
-    if: needs.changes.outputs.tui == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.6"
-          cache-dependency-path: app/tui/go.sum
-
-      - name: Download dependencies
-        working-directory: app/tui
-        run: go mod download
-
-      - name: Vet
-        working-directory: app/tui
-        run: go vet ./...
-
-      - name: Build
-        working-directory: app/tui
-        run: CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=ci" -o zcrypt .
-
-      - name: Test
-        working-directory: app/tui
-        run: go test ./...
 
   # ── Backend: confirm the deploy actually landed ───────────────────────────────
   # Railway deploys the backend itself, from its GitHub connection. This job does

@@ -74,7 +74,7 @@ func ValidateTOTPCodeCounter(secret, code string) (int64, bool) {
 }
 
 // TOTPCodeAt returns the code the secret produces at the given time. Clients
-// (TUI, tests) use it to compute codes without duplicating the algorithm.
+// (tests) use it to compute codes without duplicating the algorithm.
 func TOTPCodeAt(secret string, t time.Time) string {
 	return generateCode(secret, t.Unix()/totpPeriod)
 }

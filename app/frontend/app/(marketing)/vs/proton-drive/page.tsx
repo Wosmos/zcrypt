@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "zcrypt vs Proton Drive: Private, Open-Source Encrypted Drive",
   description:
-    "A fair comparison of two end-to-end encrypted drives. Proton Drive is audited, established, and has mobile apps. zcrypt adds open-source self-hosting, bring-your-own-storage, no artificial caps, and a terminal app, all free.",
+    "A fair comparison of two end-to-end encrypted drives. Proton Drive is audited, established, and has mobile apps. zcrypt adds open-source self-hosting, bring-your-own-storage, and no artificial caps, all free.",
   keywords: [
     "proton drive alternative",
     "open source proton drive alternative",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "zcrypt vs Proton Drive: Private, Open-Source Encrypted Drive",
     description:
-      "Both are end-to-end encrypted. zcrypt adds open-source self-hosting, bring-your-own-storage, no caps, and a terminal app. A fair look at both.",
+      "Both are end-to-end encrypted. zcrypt adds open-source self-hosting, bring-your-own-storage, and no caps. A fair look at both.",
     url: `${SITE_URL}/vs/proton-drive`,
     type: "website",
   },

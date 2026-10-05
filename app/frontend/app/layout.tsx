@@ -227,14 +227,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               with AES-256-GCM before they ever leave your device.
             </p>
             <p style={{ lineHeight: 1.6, color: "#a1a1aa", marginTop: "1rem" }}>
-              JavaScript is required to use the zcrypt web app. If you prefer not to enable
-              JavaScript, try our <strong>terminal app (TUI)</strong> which works entirely from the
-              command line.
-            </p>
-            <p style={{ marginTop: "1.5rem" }}>
-              <a href={`${SITE_URL}/tui`} style={{ color: "#00d5e4", textDecoration: "underline" }}>
-                Learn about the TUI
-              </a>
+              JavaScript is required to use the zcrypt web app. The{" "}
+              <a
+                href={`${SITE_URL}/download`}
+                style={{ color: "#00d5e4", textDecoration: "underline" }}
+              >
+                desktop app
+              </a>{" "}
+              is the alternative.
             </p>
           </div>
         </noscript>

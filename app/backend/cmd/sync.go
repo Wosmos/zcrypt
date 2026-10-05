@@ -121,7 +121,7 @@ func (s *Server) HandleUpdateSyncFolder(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// HandleUpdateSyncFolderStats reports sync results from a TUI/desktop client.
+// HandleUpdateSyncFolderStats reports sync results from a desktop client.
 // PUT /api/sync/folders/{id}/stats
 func (s *Server) HandleUpdateSyncFolderStats(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)

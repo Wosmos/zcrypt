@@ -74,10 +74,9 @@ export default function HowItWorksDocPage() {
           file-size limits, enables parallel and resumable transfers, and means one failed piece can
           be retried without re-sending the whole file.
         </DocP>
-        <DocNote type="info" title="Tunable chunk size">
-          ~10 MB is the typical size (the browser picks 4–16 MB based on your device). The terminal
-          app exposes performance profiles that range from 4 MB chunks (light) up to 32 MB
-          (ludicrous), trading memory for throughput.
+        <DocNote type="info" title="Chunk size per device">
+          ~10 MB is the typical size. zcrypt picks 4, 10, 16 or 32 MB based on your device, trading
+          memory for throughput.
         </DocNote>
       </DocSection>
 

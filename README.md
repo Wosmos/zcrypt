@@ -85,7 +85,6 @@ zcrypt has **two data planes**, and which one you use depends on the client:
 flowchart LR
     subgraph clients["Clients"]
         W["Web · Next.js"]
-        T["TUI · Go"]
         D["Desktop · Tauri + Rust core"]
         A["Android · Tauri + Rust core"]
     end
@@ -104,14 +103,14 @@ flowchart LR
         TG["Telegram"]
     end
 
-    W & T -->|"ciphertext via relay"| RL
+    W -->|"ciphertext via relay"| RL
     D & A -. "byos-direct: your token,<br/>server never sees it" .-> storage
-    W & T & D & A --> CP
+    W & D & A --> CP
     RL --> storage
     CP --> DB
 ```
 
-- **Relay plane (web + TUI):** browser sandboxing blocks direct platform access, so the web app encrypts locally and relays ciphertext through the backend, which commits it to the storage platforms.
+- **Relay plane (web):** browser sandboxing blocks direct platform access, so the web app encrypts locally and relays ciphertext through the backend, which commits it to the storage platforms.
 - **BYOS-direct plane (desktop + Android):** the native clients hold your platform tokens in the OS keychain and push/pull encrypted chunks **straight to your own accounts**. The backend is used only for auth and metadata. It never touches your storage token or your chunks.
 
 Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that implements the crypto, compression, chunk pipeline, offline ledger, and platform adapters. Its byte-format is locked to the Go backend and the TypeScript web client by a shared conformance test suite, so a file encrypted by one client decrypts identically on another.
@@ -123,7 +122,6 @@ Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that imple
 | **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane. |
 | **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater. Installers are currently unsigned. |
 | **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Distributed as a sideload from the rolling [`android-latest`](https://github.com/Wosmos/zcrypt/releases) prerelease. Signed with an ephemeral CI key today, so it is not Play-Store-eligible and updates do not install over a prior sideload. |
-| **TUI** (Go · Bubble Tea) | Shippable | Cross-platform static binaries via GoReleaser, also published to npm as `@zcrypt/cli`. Talks to the backend HTTP API. |
 
 iOS compiles but is not yet built in CI. It is in development.
 
@@ -194,7 +192,6 @@ iOS compiles but is not yet built in CI. It is in development.
 | Web frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand 5, Motion 12 |
 | Client core | Rust (`zcrypt-core`): crypto, zstd, chunk pipeline, SQLite ledger, platform adapters |
 | Desktop / mobile | Tauri v2 (Rust core embedded in-process) |
-| TUI | Go 1.26, Bubble Tea |
 | Backend | Go 1.26, stdlib `net/http` (no framework), pgxpool |
 | Database | PostgreSQL on Neon (serverless) |
 | Encryption | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF-SHA256, X25519 (sharing), bcrypt, TOTP |
@@ -242,13 +239,6 @@ cd app/desktop
 bun install
 bun run tauri dev      # run the desktop app against your local/remote backend
 bun run tauri build    # produce an installer for the current OS
-```
-
-### TUI
-
-```bash
-cd app/tui
-go build ./... && ./zcrypt-tui
 ```
 
 ### Docker (backend)
@@ -341,7 +331,6 @@ app/
     components/ store/ hooks/ lib/ types/
 
   desktop/          Tauri v2 shell (macOS / Windows / Linux + Android build) - embeds core
-  tui/              Go Bubble Tea terminal client - module github.com/zcrypt/zcrypt-tui
 ```
 
 ## API overview

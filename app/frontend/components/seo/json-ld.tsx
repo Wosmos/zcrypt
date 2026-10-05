@@ -96,7 +96,6 @@ export function SoftwareApplicationJsonLd() {
       "Bring Your Own Backend (BYOB)",
       "Stored in your own cloud accounts",
       "Open source",
-      "Terminal app (TUI)",
     ],
   };
 
@@ -139,47 +138,6 @@ export function FAQJsonLd({ faqs }: { faqs: { q: string; a: string }[] }) {
         text: faq.a,
       },
     })),
-  };
-
-  return (
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
-  );
-}
-
-export function TUIApplicationJsonLd() {
-  const data = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "zcrypt TUI",
-    url: `${SITE_URL}/tui`,
-    applicationCategory: "DeveloperApplication",
-    operatingSystem: "Windows, macOS, Linux",
-    description:
-      "Terminal interface for zcrypt encrypted cloud storage. Upload, download, and manage your zero-knowledge encrypted vault from the command line with vim-style navigation.",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      name: "Free",
-      description: "Free and open source terminal client for zcrypt encrypted storage",
-    },
-    featureList: [
-      "Vim-style keyboard navigation",
-      "Real-time upload and download progress",
-      "AES-256-GCM client-side encryption",
-      "Zstd compression",
-      "TOTP two-factor authentication",
-      "Bulk file operations",
-      "Command mode with ex-style commands",
-      "Four performance profiles",
-      "SSH-friendly headless operation",
-      "Single binary with zero dependencies",
-    ],
-    softwareRequirements: "Go 1.25 or later",
-    downloadUrl: "https://github.com/zcrypt/zcrypt-tui",
-    installUrl: `${SITE_URL}/tui#install`,
-    releaseNotes: "https://github.com/zcrypt/zcrypt-tui/releases",
-    programmingLanguage: "Go",
   };
 
   return (

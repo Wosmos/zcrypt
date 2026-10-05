@@ -104,12 +104,7 @@ const nextConfig: NextConfig = {
   // rewrites are incompatible with static export
   ...(!isTauriExport && {
     async rewrites() {
-      const rules = [
-        {
-          source: "/install.sh",
-          destination: "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
-        },
-      ];
+      const rules: { source: string; destination: string }[] = [];
       // Short, stable installer URLs: /dl/macos-arm64 and friends. The backend
       // resolves each target to the current release asset and records the
       // download, so nothing on the site, in the docs, or in a shell snippet

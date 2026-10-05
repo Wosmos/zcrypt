@@ -195,7 +195,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
         <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
       </a>
       <WebApp />
-      <Note>Pick your platform below: macOS, Windows, Linux &amp; the terminal app.</Note>
+      <Note>Pick your platform below: macOS, Windows, Linux &amp; Android.</Note>
     </>
   );
 }

@@ -197,7 +197,7 @@ export const googleDrive: VsData = {
         <strong className="text-[var(--color-text)]">
           zcrypt&apos;s mobile apps are still on the roadmap
         </strong>
-        . We ship web, desktop, and a terminal app now; Google Drive&apos;s mobile apps are mature
+        . We ship web, desktop, and an Android beta now; Google Drive&apos;s mobile apps are mature
         and complete.
       </>,
       <>

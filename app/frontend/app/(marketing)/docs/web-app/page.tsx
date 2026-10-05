@@ -160,7 +160,7 @@ export default function WebAppDocPage() {
               href="/features/apps"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              zcrypt everywhere: the same vault across web, desktop, and terminal
+              zcrypt everywhere: the same vault across web, desktop, and Android
             </Link>,
           ]}
         />

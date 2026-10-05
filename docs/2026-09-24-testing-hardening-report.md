@@ -43,7 +43,7 @@ New findings (both Low):
 
 Checked clean: all 20 `/api/admin/*` routes correctly role-gated per-handler; destructive admin actions require password+TOTP re-auth; share/send tokens are 256-bit random with revocation/expiry/rate-limiting; no path traversal in chunk storage (server-generated UUIDs); no adapter logs/returns raw platform tokens; `telegram_probe.go` only calls a fixed host (no SSRF).
 
-Reference scans: `govulncheck` — 0 exploitable vulnerabilities (backend + tui). `gosec` (via golangci-lint) — 15 findings, all Low/Info, all pre-existing in the accepted baseline (`docs/prepush-baseline.env`), no new issues.
+Reference scans: `govulncheck` — 0 exploitable vulnerabilities (backend). `gosec` (via golangci-lint) — 15 findings, all Low/Info, all pre-existing in the accepted baseline (`docs/prepush-baseline.env`), no new issues.
 
 ---
 

@@ -40,10 +40,6 @@ jobs:
         working-directory: app/backend
         run: govulncheck ./...
 
-      - name: Check TUI vulnerabilities
-        working-directory: app/tui
-        run: govulncheck ./...
-
   gitleaks:
     name: Secret Scan
     runs-on: ubuntu-latest

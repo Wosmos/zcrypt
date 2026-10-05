@@ -95,8 +95,7 @@ export default function ThreatModelPage() {
             <>
               <strong>Frontend supply-chain risk.</strong> The web app is code we serve, so in
               principle a compromised build could be made to exfil a passphrase. This is mitigated
-              by the project being open source (you can audit and self-host) and by the TUI, a
-              compiled binary with no browser supply chain.
+              by the project being open source: you can audit and self-host it.
             </>,
           ]}
         />
@@ -128,7 +127,11 @@ export default function ThreatModelPage() {
             ],
             ["Compromised user device", "No", "Plaintext and passphrase are exposed on-device"],
             ["Weak / reused passphrase", "No", "A guessable passphrase reproduces the key"],
-            ["Frontend supply-chain attack", "Partial", "Mitigated by open source + the TUI"],
+            [
+              "Frontend supply-chain attack",
+              "Partial",
+              "Mitigated by open source and self-hosting",
+            ],
           ]}
         />
         <DocP>
@@ -164,7 +167,7 @@ export default function ThreatModelPage() {
             <>Keep the device you use with zcrypt patched and free of untrusted software.</>,
             <>
               For the strongest assurance, <strong>audit the open-source code</strong> or use the{" "}
-              <strong>TUI</strong> to sidestep browser-delivered JavaScript entirely.
+              <strong>desktop app</strong>, which avoids browser-delivered JavaScript.
             </>,
             <>
               Put sensitivity-by-name files inside an{" "}

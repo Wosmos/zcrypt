@@ -69,7 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Drop the em dashes from backend and TUI comments
 - Drop the em dashes from core, desktop and the Android activity
 - Drop the em dashes from the app, styles and scripts
 
@@ -412,9 +411,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Revamp TUI page with real install commands, fix false claims
 - Add 10 interactive bottom navigation bar samples
-- Bulk delete, revamped upload queue, TUI file picker & new logo
 - Integrate Vercel Analytics and add .env.prod to gitignore
 - Enhance upload pipeline integration tests with mock adapter and improved validation
 - Implement unique X-Forwarded-For handling in integration tests
@@ -424,7 +421,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default grid view with selectable column density and reachable card actions
 - Squircle logo mark, hero and showcase polish
 - Add comparison page for zcrypt vs Proton Drive
-- Add download page with desktop apps, CLI, and web app sections
 - Resolve downloads from the latest GitHub release at runtime
 
 ### Changed
@@ -481,7 +477,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add GitHub storage adapter and implement a new chunked file upload API with concurrency control.
 - Establish foundational application with backend services, admin panel, and comprehensive frontend UI.
 - Enable Turbopack, configure local `sql-wasm.wasm` loading, update Next.js type imports, and adjust marquee text color.
-- Rebrand zpush to zcrypt across backend, TUI, and root configs
 - Premium UI overhaul — design system, auth layout, landing page, new pages
 - Implement comprehensive file management with file table, sorting, selection, download, preview, and sharing capabilities.
 - Implement comprehensive admin and user-facing features, including token management, audit logs, and new application pages.
@@ -491,7 +486,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Introduce core application structure, backend services, and frontend UI for ZStash features including shared vaults, deadman, send, pad, and settings.
 - Implement initial application structure with frontend UI, documentation, and backend services.
 - Implement file upload, sharing, and download features with backend indexing and frontend components.
-- Add cross-platform TUI distribution pipeline
 
 ### Fixed
 

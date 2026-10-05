@@ -147,7 +147,7 @@ export default function AndroidAppDocPage() {
               href="/features/apps"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              zcrypt everywhere: one vault across web, desktop, terminal, and mobile
+              zcrypt everywhere: one vault across web, desktop, and mobile
             </Link>,
           ]}
         />

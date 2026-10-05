@@ -466,7 +466,7 @@ function FolderSyncSection() {
   return (
     <Section
       title="Folder sync"
-      description="Managed by the zcrypt TUI: point it at local folders to back them up automatically."
+      description="Folders a linked device backs up automatically."
       actions={
         <Button
           onClick={() => {
@@ -573,11 +573,7 @@ function FolderSyncSection() {
       ) : null}
 
       <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-        Run{" "}
-        <code className="rounded bg-[var(--color-surface-1)] px-1 py-0.5 font-mono text-[var(--color-accent)]">
-          zcrypt sync
-        </code>{" "}
-        on each device to keep these folders in sync.
+        Keep the desktop app open on each device to keep these folders in sync.
       </p>
 
       <ConfirmDialog

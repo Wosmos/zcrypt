@@ -73,7 +73,6 @@ done
 ROOT="$(git rev-parse --show-toplevel)"
 FE="$ROOT/app/frontend"
 BE="$ROOT/app/backend"
-TUI="$ROOT/app/tui"
 DESKTOP="$ROOT/app/desktop"
 CORE="$ROOT/app/core"
 LOGDIR="$(mktemp -d)"
@@ -132,7 +131,6 @@ klog="$LOGDIR/knip.log"
 jlog="$LOGDIR/jscpd.log"
 talog="$LOGDIR/typeaware.log"
 glog="$LOGDIR/golangci.log"
-tglog="$LOGDIR/golangci-tui.log"
 slog="$LOGDIR/gitleaks.log"
 
 hr()      { printf '%s────────────────────────────────────────────────────────────%s\n' "$DIM" "$RST"; }
@@ -181,12 +179,11 @@ md_status() {
 }
 GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tests + coverage" "frontend build" \
             "backend gofmt" "backend vet" "backend tests + coverage" "backend build" \
-            "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
             "desktop fmt" "desktop clippy" "desktop tests")
-INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint" "secret scan")
+INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "secret scan")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
-              "backend new-code lint" "tui new-code lint")
+              "backend new-code lint")
 
 # ── old-backlog baseline (for --ratchet / --baseline) ───────────────────────────
 # A set of B_<check>=<count> lines in docs/ (gitignored, local). Read here; the
@@ -233,7 +230,7 @@ persist_baseline() {
   local kv k v
   for kv in "${NEW_BASELINE[@]:-}"; do [ -n "$kv" ] && eval "$kv"; done
   : > "$BASELINE_FILE"
-  for k in B_frontend_lint_warnings B_frontend_typeaware_lint B_frontend_dead_code B_frontend_duplication B_backend_deep_lint B_tui_deep_lint; do
+  for k in B_frontend_lint_warnings B_frontend_typeaware_lint B_frontend_dead_code B_frontend_duplication B_backend_deep_lint; do
     v="${!k:-}"; [ -n "$v" ] && printf '%s=%s\n' "$k" "$v" >> "$BASELINE_FILE"
   done
 }
@@ -261,8 +258,8 @@ else
                git diff --name-only --cached 2>/dev/null; } | sort -u | sed '/^$/d')"
 fi
 
-RUN_FE=0; RUN_BE=0; RUN_TUI=0; RUN_DESKTOP=0; RUN_CORE=0; SCOPE_NOTE=""
-enable_all() { RUN_FE=1; RUN_BE=1; RUN_TUI=1; RUN_DESKTOP=1; RUN_CORE=1; }
+RUN_FE=0; RUN_BE=0; RUN_DESKTOP=0; RUN_CORE=0; SCOPE_NOTE=""
+enable_all() { RUN_FE=1; RUN_BE=1; RUN_DESKTOP=1; RUN_CORE=1; }
 
 if [ "${PREPUSH_ALL:-0}" = 1 ]; then
   enable_all; SCOPE_NOTE="PREPUSH_ALL set, full suite"
@@ -275,7 +272,6 @@ else
       # The conformance vectors are the core's contract, regenerate ⇒ recheck core.
       app/backend/crypto/testvectors/*) RUN_BE=1; RUN_CORE=1 ;;
       app/backend/*|tests/load/*) RUN_BE=1 ;;
-      app/tui/*)                  RUN_TUI=1 ;;
       # The desktop shell embeds zcrypt-core in-process.
       app/core/*)                 RUN_CORE=1; RUN_DESKTOP=1 ;;
       app/desktop/*)              RUN_DESKTOP=1 ;;
@@ -291,7 +287,6 @@ fi
 MODS=""
 [ "$RUN_FE" = 1 ]      && MODS="${MODS}frontend "
 [ "$RUN_BE" = 1 ]      && MODS="${MODS}backend "
-[ "$RUN_TUI" = 1 ]     && MODS="${MODS}tui "
 [ "$RUN_CORE" = 1 ]    && MODS="${MODS}core "
 [ "$RUN_DESKTOP" = 1 ] && MODS="${MODS}desktop "
 [ -z "$MODS" ] && MODS="(nothing to check) "
@@ -389,39 +384,6 @@ fi
 
 else
   step "backend gates ${DIM}(skipped, no backend changes)${RST}"
-fi
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  GATES, tui
-# ══════════════════════════════════════════════════════════════════════════════
-
-if [ "$RUN_TUI" = 1 ]; then
-
-step "tui gofmt ${DIM}(gate)${RST}"
-tuifmt="$(cd "$TUI" && gofmt -l . 2>/dev/null)"
-if [ -z "$tuifmt" ]; then
-  PASS+=("tui gofmt"); ok "all files formatted"
-  echo "all files formatted" > "$LOGDIR/tui_gofmt.log"
-else
-  FAIL+=("tui gofmt"); failln "unformatted files (fix: cd app/tui && gofmt -w .):"
-  echo "$tuifmt" | sed 's/^/    /'
-  { echo "unformatted files (fix: gofmt -w .):"; echo "$tuifmt"; } > "$LOGDIR/tui_gofmt.log"
-fi
-
-if gate "tui vet" "$TUI" go vet ./...; then
-  ok "no issues"
-fi
-
-if gate "tui tests" "$TUI" go test ./...; then
-  grep -E '^ok ' "$LOGDIR/tui_tests.log" | sed -E 's/\t+/ /g' | summarise
-fi
-
-if gate "tui build" "$TUI" go build ./...; then
-  ok "builds clean"
-fi
-
-else
-  step "tui gates ${DIM}(skipped, no tui changes)${RST}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -549,7 +511,7 @@ if [ "$RUN_FE" = 1 ]; then
 fi  # end RUN_FE inspections
 
 # golangci-lint: deep Go analysis: dead code, dup, security (gosec),
-# bad practice (revive/staticcheck/errcheck). Run for backend and TUI.
+# bad practice (revive/staticcheck/errcheck). Run for the backend.
 if command -v golangci-lint >/dev/null 2>&1; then
   if [ "$RUN_BE" = 1 ]; then
     step "backend deep lint ${DIM}(inspect · golangci-lint · ${MODE_LABEL})${RST}"
@@ -559,15 +521,7 @@ if command -v golangci-lint >/dev/null 2>&1; then
     [ "$gc" -gt 0 ] && note "→ cd app/backend && golangci-lint run ./..."
     handle_backlog "backend deep lint" "$gc"
   fi
-  if [ "$RUN_TUI" = 1 ]; then
-    step "tui deep lint ${DIM}(inspect · golangci-lint · ${MODE_LABEL})${RST}"
-    tglog="$LOGDIR/golangci-tui.log"
-    (cd "$TUI" && golangci-lint run ./...) >"$tglog" 2>&1
-    tgc="$(count_golangci "$tglog")"
-    [ "$tgc" -gt 0 ] && note "→ cd app/tui && golangci-lint run ./..."
-    handle_backlog "tui deep lint" "$tgc"
-  fi
-elif [ "$RUN_BE" = 1 ] || [ "$RUN_TUI" = 1 ]; then
+elif [ "$RUN_BE" = 1 ]; then
   step "go deep lint ${DIM}(inspect)${RST}"
   warnln "golangci-lint not installed, skipping (brew install golangci-lint)"
 fi
@@ -667,18 +621,6 @@ if [ "$ENFORCE" = 1 ]; then
       sed 's/^/    /' "$hlog"
     fi
   fi
-
-  # 4) tui new-code lint: same, for the TUI module
-  if [ "$RUN_TUI" = 1 ] && command -v golangci-lint >/dev/null 2>&1; then
-    step "tui new-code lint ${DIM}(harden · golangci --new-from-rev)${RST}"
-    hlog="$LOGDIR/tui_new-code_lint.log"
-    if (cd "$TUI" && golangci-lint run --new-from-rev="$BASE" ./...) >"$hlog" 2>&1; then
-      PASS+=("tui new-code lint"); ok "no new findings on changed lines"
-    else
-      FAIL+=("tui new-code lint"); failln "new findings on changed lines, output below:"
-      sed 's/^/    /' "$hlog"
-    fi
-  fi
 fi  # end: ENFORCE
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -767,10 +709,6 @@ write_report() {
     echo "## Backend deep lint, golangci-lint"
     echo
     fence "$glog"
-    echo
-    echo "## TUI deep lint, golangci-lint"
-    echo
-    fence "$tglog"
     echo
     echo "## Secret scan, gitleaks"
     echo

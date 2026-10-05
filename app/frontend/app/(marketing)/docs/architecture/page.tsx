@@ -50,7 +50,7 @@ export default function ArchitectureDocPage() {
       </DocSection>
 
       <DocSection id="diagram" title="The big picture">
-        <DocCode label="data flow">{`Your device (browser / TUI)            zcrypt backend (Go, stateless)         Your storage
+        <DocCode label="data flow">{`Your device (browser / app)            zcrypt backend (Go, stateless)         Your storage
 ┌─────────────────────────┐            ┌──────────────────────────┐         ┌──────────────┐
 │  1. zstd compress        │            │  Chunked HTTP API        │         │  GitHub      │
 │  2. AES-256-GCM encrypt  │  chunks    │  (JSON + raw chunk bytes)│         │  GitLab      │
@@ -100,8 +100,8 @@ export default function ArchitectureDocPage() {
         <DocP>
           The same pipeline runs everywhere zcrypt runs: in the web app&rsquo;s Web Worker pool, in{" "}
           <strong>{desktopEngine.name}</strong> &mdash; the native {desktopEngine.language} engine
-          behind the desktop and Android apps &mdash; and in the Go terminal app (TUI). A file
-          uploaded from any one of them decrypts cleanly in the others.
+          behind the desktop and Android apps &mdash; so a file uploaded from any one of them
+          decrypts cleanly in the others.
         </DocP>
       </DocSection>
 
@@ -168,10 +168,10 @@ export default function ArchitectureDocPage() {
           ]}
         />
         <DocNote type="info" title="Desktop and Android skip the relay">
-          This staging-and-relay path is how the web app and the TUI move chunks. The desktop and
-          Android apps upload <strong>directly</strong> to your connected platform using credentials
-          from your OS keychain &mdash; the backend only receives metadata (file ID, chunk index,
-          platform, ciphertext hash), never the chunk bytes or your platform token. See{" "}
+          This staging-and-relay path is how the web app moves chunks. The desktop and Android apps
+          upload <strong>directly</strong> to your connected platform using credentials from your OS
+          keychain &mdash; the backend only receives metadata (file ID, chunk index, platform,
+          ciphertext hash), never the chunk bytes or your platform token. See{" "}
           <Link
             href="/docs/desktop-app"
             className="text-cyan-600 hover:underline dark:text-cyan-400"

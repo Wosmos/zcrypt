@@ -47,8 +47,8 @@ export default function EncryptionModelPage() {
           zcrypt uses a small, deliberately boring set of well-understood primitives. There is no
           custom cipher and no novel construction: just standard authenticated encryption and a
           standard key-derivation function, run client-side via the Web Crypto API (in the browser)
-          or the Go standard library (in the TUI). The exact parameters below are shared by both
-          clients, so a file encrypted in the browser decrypts in the TUI and vice versa.
+          or native Rust (in the desktop and Android apps). The exact parameters below are shared by
+          every client, so a file encrypted in one decrypts in any other.
         </DocP>
         <DocTable
           head={["Purpose", "Primitive", "Parameters"]}
@@ -236,8 +236,8 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
       <DocSection id="pipeline" title="The upload pipeline">
         <DocP>
           When you add a file, all of the heavy lifting happens locally: in a Web Worker in the
-          browser, or on-device in the TUI. The server only ever receives finished, encrypted
-          chunks.
+          browser, or on-device in the desktop and Android apps. The server only ever receives
+          finished, encrypted chunks.
         </DocP>
         <DocList
           ordered

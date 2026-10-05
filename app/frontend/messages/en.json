@@ -427,7 +427,6 @@
         "vsDropbox": "vs Dropbox",
         "vsGoogle": "vs Google Drive",
         "vsProton": "vs Proton Drive",
-        "tui": "Terminal app",
         "documentation": "Documentation",
         "selfHosting": "Self-hosting",
         "api": "API reference",

@@ -93,7 +93,7 @@ export default function TroubleshootingDocPage() {
           items={[
             "Retry or resume the transfer from the transfer manager: only the missing chunks are re-sent.",
             "Check your network connection; large files over flaky links may pause and resume several times.",
-            "Leave the tab open while a big upload finishes, or use the desktop or terminal app for long transfers.",
+            "Leave the tab open while a big upload finishes, or use the desktop app for long transfers.",
           ]}
         />
         <DocP>

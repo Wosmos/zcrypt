@@ -134,9 +134,6 @@ export default function DesktopAppDocPage() {
             >
               Web app: the same product in any modern browser
             </Link>,
-            <Link key="b" href="/tui" className="text-cyan-600 hover:underline dark:text-cyan-400">
-              Terminal app (TUI): manage your vault from the command line
-            </Link>,
             <Link
               key="d"
               href="/download#android"
@@ -156,7 +153,7 @@ export default function DesktopAppDocPage() {
               href="/features/apps"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              zcrypt everywhere: the same vault across web, desktop, and terminal
+              zcrypt everywhere: the same vault across web, desktop, and Android
             </Link>,
           ]}
         />

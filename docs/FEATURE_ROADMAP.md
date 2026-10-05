@@ -49,7 +49,6 @@
 - Resumable transfers: connection drops at 80%, resume from 80%
 - Auto bandwidth detection on connect (100KB test packet)
 - Connection resilience: auto-retry on WiFi drops, resume on reconnect
-- TUI support: `zcrypt send file.pdf --to laptop`
 
 ### Clipboard Sync
 - Copy on PC, paste on laptop: end-to-end encrypted
@@ -142,7 +141,6 @@
 | Dead man's switch | No | No | No | Yes |
 | BYOB storage | No | No | No | Yes |
 | Time travel | No | No | No | Yes (git) |
-| TUI app | No | No | No | Yes |
 | Plausible deniability | No | No | No | Yes |
 | Burn after read | No | No | No | Yes |
 | QR share | No | No | No | Yes |

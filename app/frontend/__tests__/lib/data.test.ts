@@ -6,14 +6,8 @@ import {
   steps,
   faqs,
   trustBadges,
-  tuiFeatures,
-  tuiShortcuts,
-  tuiCommands,
-  tuiProfiles,
-  tuiInstallMethods,
   GITHUB_REPO,
   RELEASES_URL,
-  tuiQuickStart,
   docsNav,
 } from "@/lib/data";
 
@@ -66,33 +60,6 @@ describe("static content arrays", () => {
   });
 });
 
-describe("TUI marketing content", () => {
-  it("tuiFeatures, tuiShortcuts, tuiCommands, tuiProfiles are populated", () => {
-    expect(tuiFeatures.length).toBeGreaterThan(0);
-    expect(tuiShortcuts.length).toBeGreaterThan(0);
-    expect(tuiCommands.length).toBeGreaterThan(0);
-    expect(tuiProfiles.length).toBeGreaterThan(0);
-  });
-
-  it("tuiInstallMethods each have a label and command", () => {
-    expect(tuiInstallMethods.length).toBeGreaterThan(0);
-    for (const m of tuiInstallMethods) {
-      expect(m.label.length).toBeGreaterThan(0);
-      expect(m.command.length).toBeGreaterThan(0);
-      expect(m.note.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("tuiQuickStart steps are ordered and describe an action", () => {
-    expect(tuiQuickStart.length).toBeGreaterThan(0);
-    for (const s of tuiQuickStart) {
-      expect(s.step.length).toBeGreaterThan(0);
-      expect(s.title.length).toBeGreaterThan(0);
-      expect(s.desc.length).toBeGreaterThan(0);
-    }
-  });
-});
-
 describe("repo/releases constants", () => {
   it("GITHUB_REPO points at the zcrypt repo and RELEASES_URL derives from it", () => {
     expect(GITHUB_REPO).toBe("https://github.com/Wosmos/zcrypt");
@@ -118,14 +85,6 @@ describe("docsNav", () => {
         expect(link.desc.length).toBeGreaterThan(0);
       }
     }
-  });
-
-  it("includes the external TUI link with the external flag set", () => {
-    const tuiLink = docsNav
-      .flatMap((g) => g.links)
-      .find((l) => l.href === "/tui");
-    expect(tuiLink).toBeDefined();
-    expect(tuiLink?.external).toBe(true);
   });
 
   it("badged links only use Beta, Roadmap, or New", () => {

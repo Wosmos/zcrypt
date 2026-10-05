@@ -1,12 +1,12 @@
-.PHONY: dev dev-backend dev-frontend dev-tui \
-       build build-backend build-frontend build-tui \
-       test test-backend test-frontend test-tui \
+.PHONY: dev dev-backend dev-frontend \
+       build build-backend build-frontend \
+       test test-backend test-frontend \
        test-integration test-e2e test-load test-all \
        test-load-smoke test-load-auth test-load-upload test-load-stress test-load-soak \
        loadtest-docker-up loadtest-docker-seed loadtest-docker-smoke loadtest-docker-auth \
        loadtest-docker-upload loadtest-docker-safe loadtest-docker-down loadtest-docker-reset \
        coverage coverage-backend coverage-frontend \
-       lint lint-backend lint-frontend vet-tui \
+       lint lint-backend lint-frontend \
        security security-go security-frontend \
        clean install install-test-deps \
        db-test-up db-test-down
@@ -21,12 +21,9 @@ dev-backend:
 dev-frontend:
 	cd app/frontend && bun run dev
 
-dev-tui:
-	cd app/tui && go run .
-
 # ── Build ─────────────────────────────────────────────────────────────────────
 
-build: build-backend build-frontend build-tui
+build: build-backend build-frontend
 
 build-backend:
 	cd app/backend && go build -o ../../dist/zcrypt-server .
@@ -34,21 +31,15 @@ build-backend:
 build-frontend:
 	cd app/frontend && bun run build
 
-build-tui:
-	cd app/tui && CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=dev" -o ../../dist/zcrypt .
-
 # ── Unit Tests ────────────────────────────────────────────────────────────────
 
-test: test-backend test-frontend test-tui
+test: test-backend test-frontend
 
 test-backend:
 	cd app/backend && go test -race ./...
 
 test-frontend:
 	cd app/frontend && bun run test
-
-test-tui:
-	cd app/tui && go test ./...
 
 # ── Integration Tests ─────────────────────────────────────────────────────────
 # Supports two modes:
@@ -201,7 +192,6 @@ coverage: coverage-backend coverage-frontend
 security-go:
 	@which govulncheck > /dev/null || go install golang.org/x/vuln/cmd/govulncheck@latest
 	cd app/backend && govulncheck ./...
-	cd app/tui && govulncheck ./...
 	@which gosec > /dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
 	cd app/backend && gosec ./...
 
@@ -212,16 +202,13 @@ security: security-go security-frontend
 
 # ── Lint ─────────────────────────────────────────────────────────────────────
 
-lint: lint-backend lint-frontend vet-tui
+lint: lint-backend lint-frontend
 
 lint-backend:
 	cd app/backend && go vet ./...
 
 lint-frontend:
 	cd app/frontend && bun run lint
-
-vet-tui:
-	cd app/tui && go vet ./...
 
 # ── Test Database ─────────────────────────────────────────────────────────────
 
@@ -239,7 +226,6 @@ db-test-reset:
 
 install:
 	cd app/backend && go mod download
-	cd app/tui && go mod download
 	cd app/frontend && bun install
 
 install-test-deps:

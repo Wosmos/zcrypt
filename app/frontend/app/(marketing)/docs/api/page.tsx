@@ -77,8 +77,8 @@ export default function ApiDocPage() {
           ]}
         />
         <DocNote type="info" title="Stability">
-          This documents the routes the web and terminal apps use today. zcrypt is open source and
-          pre-1.0. Treat the surface as evolving, and read <code>RegisterRoutes</code> in{" "}
+          This documents the routes the web, desktop, and Android apps use today. zcrypt is open
+          source and pre-1.0. Treat the surface as evolving, and read <code>RegisterRoutes</code> in{" "}
           <code>app/backend/cmd/server.go</code> as the authoritative route table.
         </DocNote>
       </DocSection>
@@ -547,9 +547,9 @@ export default function ApiDocPage() {
 
       <DocSection id="sync" title="Sync folders">
         <DocP>
-          Sync folders are a per-device registry of local folders the desktop or terminal client
-          keeps in sync. The server stores only the configuration and the stats a client reports
-          back &mdash; the actual file syncing happens on your machine.
+          Sync folders are a per-device registry of local folders the desktop client keeps in sync.
+          The server stores only the configuration and the stats a client reports back &mdash; the
+          actual file syncing happens on your machine.
         </DocP>
         <DocTable
           head={["Method", "Path", "Purpose"]}

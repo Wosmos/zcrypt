@@ -21,7 +21,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     make("", 1, "weekly"),
     make("/download", 0.9, "weekly"),
     make("/features", 0.8, "monthly"),
-    make("/tui", 0.8, "monthly"),
     make("/about", 0.6, "monthly"),
     make("/philosophy", 0.6, "yearly"),
     make("/send", 0.7, "monthly"),

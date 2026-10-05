@@ -24,7 +24,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Features. The Encrypted Cloud Drive",
   description:
-    "Everything zcrypt does: a real encrypted file explorer with folders, in-browser previews, per-folder passwords, sharing, bring-your-own-storage, a transfer manager, and apps for web, desktop, Android, and terminal.",
+    "Everything zcrypt does: a real encrypted file explorer with folders, in-browser previews, per-folder passwords, sharing, bring-your-own-storage, a transfer manager, and apps for web, desktop, and Android.",
   keywords: [
     "encrypted drive features",
     "encrypted file manager",
