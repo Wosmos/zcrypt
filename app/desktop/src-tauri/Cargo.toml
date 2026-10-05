@@ -46,7 +46,7 @@ windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_System_WinRT",
 ] }
-windows-future = "0.3"
+windows-future = "0.100"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Touch ID convenience-unlock via Apple's LocalAuthentication framework.
