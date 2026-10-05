@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Download, ChevronDown, ArrowRight } from "@/lib/icons";
 import {
@@ -42,6 +42,8 @@ export function detectDevice(): DetectedDevice | null {
   return null;
 }
 
+const noopSubscribe = () => () => {};
+
 const PRIMARY_BTN = cn("group", pillClass("primary"));
 
 function Note({ children }: { children: React.ReactNode }) {
@@ -62,13 +64,11 @@ function WebApp() {
  * platform grid / releases page while loading or when detection fails.
  */
 export function DownloadCta({ release }: { release: ReleaseData | null }) {
-  const [device, setDevice] = useState<DetectedDevice | null>(null);
+  const device = useSyncExternalStore(noopSubscribe, detectDevice, () => null);
   const [macIntel, setMacIntel] = useState(false);
 
   useEffect(() => {
-    const detected = detectDevice();
-    setDevice(detected);
-    if (detected === "macos") {
+    if (device === "macos") {
       const uaData = (
         navigator as Navigator & {
           userAgentData?: {
@@ -83,7 +83,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
         })
         .catch(() => {});
     }
-  }, []);
+  }, [device]);
 
   // iOS/iPadOS: there's no native app yet: the web app is the real answer,
   // and a Mac installer would just fail silently with no explanation.

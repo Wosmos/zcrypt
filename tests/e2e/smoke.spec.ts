@@ -443,7 +443,8 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
       await guest.goto("/");
       await expect(guest.locator("html")).not.toHaveAttribute("dir", "rtl");
       await expect(guest.getByRole("link", { name: "Log in" }).first()).toBeVisible();
-      await guest.getByLabel("Language").selectOption("ar");
+      await guest.getByLabel("Language").click();
+      await guest.getByRole("menuitem", { name: "العربية" }).click();
       await expect(guest.locator("html")).toHaveAttribute("dir", "rtl");
       await expect(guest.locator("html")).toHaveAttribute("lang", "ar");
       await expect(guest.getByRole("link", { name: "تسجيل الدخول" }).first()).toBeVisible();
