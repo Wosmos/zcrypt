@@ -7,19 +7,19 @@ license = "MIT"
 
 [dependencies]
 # Crypto: must stay byte-compatible with docs/CRYPTO_FORMAT.md.
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 pbkdf2 = { version = "0.12", features = ["simple"] }
-sha2 = "0.10"
-hmac = "0.12"
+sha2 = "0.11"
+hmac = "0.13"
 subtle = "2"
 zeroize = "1"
 
 # Compression (standard zstd frames, interoperable with klauspost/Go + wasm/web).
-zstd = "0.13"
+zstd = "0.14"
 
 # Encoding
 hex = "0.4"
-base64 = "0.22"
+base64 = "0.23"
 
 # Errors
 thiserror = "2"
@@ -43,7 +43,7 @@ futures-util = "0.3"
 bytes = "1"
 
 # Local ledger (offline-first SQLite, bundled so no system dependency)
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 
 # Bulk download: pack multiple downloaded files into one ZIP. zlib-rs is a
 # pure-Rust zlib-compatible implementation (not a C binding), no system zlib.
@@ -53,7 +53,7 @@ zip = { version = "8", default-features = false, features = ["deflate-flate2-zli
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
-dirs = "5"
+dirs = "7"
 urlencoding = "2"
 
 [dev-dependencies]
