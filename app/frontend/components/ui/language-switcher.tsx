@@ -2,8 +2,14 @@
 
 import { useTranslations } from "next-intl";
 import { useLocaleControl } from "@/components/providers/i18n-provider";
-import { LOCALES, isLocale } from "@/lib/i18n";
-import { ChevronDown, Languages } from "@/lib/icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LOCALES } from "@/lib/i18n";
+import { Check, ChevronDown, Languages } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export function LanguageSwitcher({
@@ -18,56 +24,47 @@ export function LanguageSwitcher({
   const nav = variant === "nav";
   const current = LOCALES.find((l) => l.code === locale)?.name;
 
-  const options = LOCALES.map((l) => (
-    <option key={l.code} value={l.code} lang={l.code}>
-      {l.name}
-    </option>
-  ));
-
-  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (isLocale(e.target.value)) setLocale(e.target.value);
-  };
-
-  if (nav) {
-    return (
-      <div
-        title={current}
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={t("language")}
+        title={nav ? current : undefined}
         className={cn(
-          "relative flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors has-[select:focus-visible]:outline-2 has-[select:focus-visible]:outline-offset-2 has-[select:focus-visible]:outline-[var(--color-accent)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]",
+          "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]",
+          nav
+            ? "flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)] data-[state=open]:bg-[var(--color-surface-1)]/60 data-[state=open]:text-[var(--color-text)]"
+            : "inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 ps-3 pe-2.5 text-sm font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)]/40 data-[state=open]:border-[var(--color-accent)]/40",
           className,
         )}
       >
-        <Languages aria-hidden="true" className="pointer-events-none h-4 w-4" />
-        <select
-          aria-label={t("language")}
-          value={locale}
-          onChange={onChange}
-          className="absolute inset-0 cursor-pointer appearance-none opacity-0"
-        >
-          {options}
-        </select>
-      </div>
-    );
-  }
-
-  return (
-    <div className={cn("relative inline-flex items-center", className)}>
-      <Languages
-        aria-hidden="true"
-        className="pointer-events-none absolute start-3 h-4 w-4 text-[var(--color-text-muted)]"
-      />
-      <select
-        aria-label={t("language")}
-        value={locale}
-        onChange={onChange}
-        className="appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 ps-9 pe-8 text-sm font-medium text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-      >
-        {options}
-      </select>
-      <ChevronDown
-        aria-hidden="true"
-        className="pointer-events-none absolute end-2.5 h-4 w-4 text-[var(--color-text-muted)]"
-      />
-    </div>
+        <Languages
+          aria-hidden="true"
+          className={cn("h-4 w-4", !nav && "text-[var(--color-text-muted)]")}
+        />
+        {nav ? null : (
+          <>
+            <span>{current}</span>
+            <ChevronDown aria-hidden="true" className="h-4 w-4 text-[var(--color-text-muted)]" />
+          </>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[11rem]">
+        {LOCALES.map((l) => {
+          const active = l.code === locale;
+          return (
+            <DropdownMenuItem
+              key={l.code}
+              lang={l.code}
+              dir={l.dir}
+              onSelect={() => setLocale(l.code)}
+              className={cn("justify-between", active && "font-semibold")}
+            >
+              {l.name}
+              {active ? <Check aria-hidden="true" className="text-[var(--color-accent)]" /> : null}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

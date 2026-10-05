@@ -51,7 +51,7 @@ a.pv2-card, .pv2-card-link { transition: transform 200ms var(--ease-hover), box-
   .pv2-h3 { font-family: var(--font-heading); font-weight: 700; font-size: 1.125rem; line-height: 1.25; letter-spacing: -0.015em; color: var(--color-text); text-wrap: balance; }
   .pv2-body { font-size: 15px; line-height: 1.6; color: var(--color-text-secondary); text-wrap: pretty; }
 }
-.pv2-hero { position: relative; isolation: isolate; padding: clamp(112px, 8svh + 80px, 168px) 0 clamp(16px, 3vw, 40px); text-align: center; }
+.pv2-hero { position: relative; z-index: 1; isolation: isolate; padding: clamp(112px, 8svh + 80px, 168px) 0 clamp(16px, 3vw, 40px); text-align: center; }
 .pv2-hero::before { content: ""; position: absolute; inset: -16px 0 0; z-index: -1; pointer-events: none; background: radial-gradient(60% 46% at 50% 8%, color-mix(in oklab, var(--color-accent) 11%, transparent), transparent 70%); }
 .pv2-hero-head { display: flex; flex-direction: column; align-items: center; max-width: 60rem; margin-inline: auto; }
 .pv2-hero-left { text-align: left; }
