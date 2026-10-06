@@ -150,7 +150,7 @@ jobs:
           retention-days: 1
 
   build-desktop:
-    needs: [build-frontend, check-updater-signing]
+    needs: [build-frontend, check-updater-signing, check-windows-signing]
     strategy:
       fail-fast: false
       matrix:
@@ -357,9 +357,11 @@ jobs:
       # ── Publish installers to the GitHub Release (tag pushes only) ──
       # release.yml creates the release and owns its notes; this step waits for
       # that release to exist, then appends this platform's installers. Each
-      # matrix leg uploads only the files it built.
+      # matrix leg uploads only the files it built. When SignPath is configured
+      # the Windows leg skips this: sign-windows below publishes its installers
+      # once they are signed, so an unsigned .exe never reaches the release.
       - name: Publish installers to release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && !(matrix.platform == 'windows-latest' && needs.check-windows-signing.outputs.configured == 'true')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -399,40 +401,7 @@ jobs:
           if [ ${#files[@]} -eq 0 ]; then
             echo "no installer files found for this platform"; exit 0
           fi
-          printf 'uploading: %s\n' "${files[@]}"
-          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
-
-          # Version-less aliases. Every bundler name embeds the version
-          # (zcrypt_0.1.4_aarch64.dmg), so none of them can be fetched from a
-          # stable /releases/latest/download/<name> URL, the download page,
-          # the docs and install scripts all had to know the version. Upload a
-          # second copy of each under a fixed name (the same trick the Android
-          # job already uses for zcrypt.apk) so one URL per platform keeps
-          # working across releases. Identical bytes, --clobber replaces.
-          alias_for() {
-            case "$1" in
-              *_aarch64.dmg)    echo zcrypt-macos-arm64.dmg ;;
-              *_x64.dmg)        echo zcrypt-macos-x64.dmg ;;
-              *-setup.exe)      echo zcrypt-windows-x64-setup.exe ;;
-              *.msi)            echo zcrypt-windows-x64.msi ;;
-              *.AppImage)       echo zcrypt-linux-amd64.AppImage ;;
-              *.deb)            echo zcrypt-linux-amd64.deb ;;
-              *.rpm)            echo zcrypt-linux-x86_64.rpm ;;
-              *)                echo "" ;;
-            esac
-          }
-          aliasdir=$(mktemp -d)
-          aliases=()
-          for f in "${files[@]}"; do
-            name=$(alias_for "$f")
-            [ -z "$name" ] && continue   # .sig files and anything unmapped
-            cp "$f" "$aliasdir/$name"
-            aliases+=("$aliasdir/$name")
-          done
-          if [ ${#aliases[@]} -gt 0 ]; then
-            printf 'alias: %s\n' "${aliases[@]}"
-            gh release upload "$TAG" "${aliases[@]}" --repo "$GITHUB_REPOSITORY" --clobber
-          fi
+          bash scripts/publish-installers.sh "$TAG" "${files[@]}"
 
   # ── Gate: is updater signing configured? ─────────────────────────────────────
   # The `secrets` context isn't available in `jobs.<job_id>.if` (only in `env:`
@@ -456,6 +425,126 @@ jobs:
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # ── Gate: is Windows code signing configured? ───────────────────────────────
+  # Same pattern as check-updater-signing: SIGNPATH_API_TOKEN is only readable
+  # through `env:`, so this republishes "is it set" as a job output.
+  check-windows-signing:
+    name: Check Windows signing secret
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check for SIGNPATH_API_TOKEN
+        id: check
+        env:
+          KEY: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Windows code signing (tag pushes, SignPath configured only) ─────────────
+  # SmartScreen stops any installer that isn't Authenticode-signed, and nothing
+  # inside the file can change that. SignPath Foundation signs open-source
+  # builds for free from its HSM, but only artifacts it can trace to a
+  # GitHub-hosted workflow run: the unsigned installers go up as a workflow
+  # artifact and come back signed. Signing changes the bytes, so the updater
+  # signature made at build time is regenerated over the signed files before
+  # anything is published; publish-updater-manifest reads the new .sig.
+  #
+  # Needs the SIGNPATH_API_TOKEN secret plus the SIGNPATH_ORGANIZATION_ID,
+  # SIGNPATH_PROJECT_SLUG and SIGNPATH_SIGNING_POLICY_SLUG repository
+  # variables. Without the secret the Windows leg publishes its unsigned
+  # installers itself, exactly as before. Release signing needs a one-click
+  # approval in SignPath by a team member, so this job waits up to an hour.
+  sign-windows:
+    name: Sign Windows installers
+    needs: [build-desktop, check-windows-signing, check-updater-signing]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.check-windows-signing.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the unsigned Windows build
+        uses: actions/download-artifact@v8
+        with:
+          name: zcrypt-windows-x86_64-pc-windows-msvc
+          path: unsigned
+
+      - name: Collect the installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p to-sign
+          mapfile -t files < <(find unsigned -type f \( -name '*.exe' -o -name '*.msi' \))
+          [ ${#files[@]} -gt 0 ] || { echo "no Windows installers in the build artifact"; exit 1; }
+          cp "${files[@]}" to-sign/
+          ls -la to-sign
+
+      - name: Upload the unsigned installers for SignPath
+        id: unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: zcrypt-windows-unsigned
+          path: to-sign
+          retention-days: 1
+
+      - name: Submit to SignPath and wait for approval
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed
+
+      - name: Regenerate the updater signatures over the signed files
+        if: needs.check-updater-signing.outputs.configured == 'true'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find signed -type f \( -name '*.exe' -o -name '*.msi' \))
+          [ ${#files[@]} -gt 0 ] || { echo "SignPath returned no installers"; exit 1; }
+          for f in "${files[@]}"; do
+            npx --yes @tauri-apps/cli@2 signer sign --app-version "${TAG#v}" "$f"
+            test -s "$f.sig"
+          done
+          ls -la signed
+
+      # The manifest job reads the .sig next to each installer from this
+      # artifact, so it has to hold the signed files, not the build's output.
+      - name: Replace the build artifact with the signed files
+        uses: actions/upload-artifact@v7
+        with:
+          name: zcrypt-windows-x86_64-pc-windows-msvc
+          path: signed
+          overwrite: true
+
+      - name: Publish signed installers to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "release $TAG exists"; break
+            fi
+            echo "waiting for release $TAG ($i/30)…"; sleep 10
+          done
+          mapfile -t files < <(find signed -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.sig' \))
+          bash scripts/publish-installers.sh "$TAG" "${files[@]}"
+
   # ── Updater manifest (tag pushes, signing configured only) ──────────────────
   # Builds the Tauri updater's latest.json from each platform's .sig sidecar
   # (uploaded as part of the build-desktop matrix above) and attaches it to the
@@ -470,8 +559,15 @@ jobs:
   # case `cargo tauri build` never actually produced any .sig files to work with.
   publish-updater-manifest:
     name: Publish updater manifest
-    needs: [build-desktop, check-updater-signing]
-    if: startsWith(github.ref, 'refs/tags/v') && needs.check-updater-signing.outputs.configured == 'true'
+    needs: [build-desktop, check-updater-signing, sign-windows]
+    # sign-windows is skipped when SignPath isn't configured, which would skip
+    # this job too without the explicit result check.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      && needs.check-updater-signing.outputs.configured == 'true'
+      && !cancelled()
+      && needs.build-desktop.result == 'success'
+      && (needs.sign-windows.result == 'success' || needs.sign-windows.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Download platform build artifacts
