@@ -6,6 +6,7 @@ import { DownloadCta } from "@/components/marketing/download/download-cta";
 import { DownloadCount } from "@/components/marketing/download/download-count";
 import { DesktopGrid } from "@/components/marketing/download/desktop-grid";
 import { AndroidDownload } from "@/components/marketing/download/android-download";
+import { QuickInstall } from "@/components/marketing/download/quick-install";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { PillLink } from "@/components/marketing/ui/pill-link";
 import { IconWell, cardSurface } from "@/components/marketing/ui/card";
@@ -87,6 +88,10 @@ export default async function DownloadPage() {
           />
 
           <DesktopGrid release={release} />
+
+          <div id="install" className="mt-8 scroll-mt-28">
+            <QuickInstall />
+          </div>
 
           <p className="mx-auto mt-8 max-w-xl text-center text-[13px] text-[var(--color-text-muted)]">
             Looking for a specific build or an older version? Browse{" "}

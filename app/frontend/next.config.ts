@@ -99,6 +99,15 @@ const nextConfig: NextConfig = {
             : []),
         ],
       },
+      // The one-line installers are piped into sh / iex, so they must arrive
+      // as text and pick up a new release quickly.
+      ...["/install.sh", "/install.ps1"].map((source) => ({
+        source,
+        headers: [
+          { key: "Content-Type", value: "text/plain; charset=utf-8" },
+          { key: "Cache-Control", value: "public, max-age=300" },
+        ],
+      })),
     ];
   },
   // rewrites are incompatible with static export

@@ -158,11 +158,11 @@ const BLURB: Record<PlatformId, string> = {
 const SECURITY_NOTE: Record<"macos" | "windows", { title: string; body: string }> = {
   macos: {
     title: "macOS will block it once, that's expected",
-    body: "zcrypt isn't notarized yet, so Gatekeeper flags it as from an unidentified developer the first time you open it. Right-click (or Control-click) the app, choose Open, then confirm in the dialog, a one-time step. Still blocked? System Settings → Privacy & Security → Open Anyway.",
+    body: "zcrypt isn't notarized yet, so macOS says it can't verify the app the first time you open it. Click Done, then open System Settings → Privacy & Security, scroll down and click Open Anyway. A one-time step. Or skip it entirely with the one-line install below.",
   },
   windows: {
     title: "Windows SmartScreen will flag it, that's expected",
-    body: 'We haven\'t bought a code-signing certificate yet, so Windows treats the installer as unrecognized. Click "More info", then "Run anyway". Normal for an independently-published app without a paid certificate, not a sign anything\'s wrong with the file.',
+    body: 'We haven\'t bought a code-signing certificate yet, so Windows treats the installer as unrecognized. Click "More info", then "Run anyway". Normal for an independently-published app without a paid certificate, not a sign anything\'s wrong with the file. Or skip it with the one-line PowerShell install below.',
   },
 };
 

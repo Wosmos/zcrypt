@@ -143,7 +143,16 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
         <WebApp />
-        <Note>Fedora, Debian/Ubuntu, or a portable build. Pick yours below.</Note>
+        <Note>
+          Fedora, Debian/Ubuntu, or a portable build. Pick yours below, or{" "}
+          <a
+            href="#install"
+            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+          >
+            install with one command
+          </a>
+          .
+        </Note>
       </>
     );
   }
@@ -179,6 +188,13 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
             className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
           >
             Other options
+          </a>
+          <span aria-hidden> · </span>
+          <a
+            href="#install"
+            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+          >
+            Install with one command
           </a>
         </Note>
       </>
