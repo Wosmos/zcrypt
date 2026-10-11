@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { motion } from "motion/react";
@@ -43,6 +44,7 @@ function daysUntil(date: string): number {
 const TIMEOUT_OPTIONS = [7, 14, 30, 60, 90, 180, 365];
 
 export function DeadManContent() {
+  const t = useTranslations("settings.deadman");
   const [dms, setDms] = useState<DeadManSwitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [notConfigured, setNotConfigured] = useState(false);
@@ -84,11 +86,11 @@ export function DeadManContent() {
     setError("");
     setSuccess("");
     if (!contactEmail.trim()) {
-      setError("Contact email is required");
+      setError(t("emailRequired"));
       return;
     }
     if (timeoutDays < 7 || timeoutDays > 365) {
-      setError("Timeout must be between 7 and 365 days");
+      setError(t("timeoutRange"));
       return;
     }
     setSaving(true);
@@ -103,9 +105,9 @@ export function DeadManContent() {
       setDms(result);
       queryClient.setQueryData(qk.deadman, result);
       setNotConfigured(false);
-      setSuccess("Dead man's switch saved successfully");
+      setSuccess(t("saved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -120,9 +122,9 @@ export function DeadManContent() {
       const data = await getDeadManSwitch();
       if (data && data.id) setDms(data);
       queryClient.setQueryData(qk.deadman, data);
-      setSuccess("Check-in successful, timer reset.");
+      setSuccess(t("checkinDone"));
     } catch {
-      setError("Check-in failed");
+      setError(t("checkinFailed"));
     } finally {
       setCheckinLoading(false);
     }
@@ -142,9 +144,9 @@ export function DeadManContent() {
       setMessage("");
       setIncludeFiles(false);
       setConfirmDelete(false);
-      setSuccess("Dead man's switch deleted.");
+      setSuccess(t("deleted"));
     } catch {
-      setError("Failed to delete");
+      setError(t("deleteFailed"));
       setConfirmDelete(false);
     } finally {
       setDeleting(false);
@@ -172,14 +174,10 @@ export function DeadManContent() {
         href="/settings"
         className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
       >
-        <ArrowLeft className="h-3 w-3" /> Back to settings
+        <ArrowLeft className="h-3 w-3" /> {t("back")}
       </Link>
 
-      <PageHeader
-        eyebrow="Privacy"
-        title="Dead man's switch"
-        description="Automatically notify a trusted contact if you stop checking in. Your check-in resets every time you log in."
-      />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
 
       {error && (
         <div
@@ -205,11 +203,12 @@ export function DeadManContent() {
         <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
           <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500 dark:text-red-400" />
           <div>
-            <p className="text-sm font-medium text-red-500 dark:text-red-400">Switch triggered</p>
+            <p className="text-sm font-medium text-red-500 dark:text-red-400">{t("triggered")}</p>
             <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              Your dead man&apos;s switch was triggered on{" "}
-              {dms.triggered_at ? formatDateTime(dms.triggered_at) : "an unknown date"}. Your
-              contact ({dms.contact_email}) has been notified.
+              {t("triggeredDesc", {
+                date: dms.triggered_at ? formatDateTime(dms.triggered_at) : t("unknownDate"),
+                email: dms.contact_email,
+              })}
             </p>
           </div>
         </div>
@@ -224,7 +223,7 @@ export function DeadManContent() {
           className="panel p-6"
         >
           <Section
-            title="Status"
+            title={t("status")}
             actions={
               <Badge
                 variant="outline"
@@ -234,18 +233,18 @@ export function DeadManContent() {
                     : "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"
                 }
               >
-                {dms.enabled ? "Active" : "Paused"}
+                {dms.enabled ? t("active") : t("paused")}
               </Badge>
             }
           >
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <StatCard
-                  label="Days until trigger"
+                  label={t("daysUntil")}
                   value={`${daysLeft}d`}
                   icon={Clock}
                   accent={daysAccent === "ok"}
-                  hint={`Timeout: ${dms.timeout_days} days`}
+                  hint={t("timeoutHint", { days: dms.timeout_days })}
                   className={
                     daysAccent === "danger"
                       ? "ring-1 ring-red-500/30"
@@ -255,24 +254,24 @@ export function DeadManContent() {
                   }
                 />
                 <StatCard
-                  label="Contact"
+                  label={t("contact")}
                   value={
                     <span className="block truncate text-base font-semibold">
                       {dms.contact_name || dms.contact_email}
                     </span>
                   }
                   icon={dms.contact_name ? User : Mail}
-                  hint={`Last check-in: ${formatDateTime(dms.last_checkin)}`}
+                  hint={t("lastCheckin", { date: formatDateTime(dms.last_checkin) })}
                 />
               </div>
               <Button onClick={handleCheckin} disabled={checkinLoading} className="w-full">
                 {checkinLoading ? (
                   <span className="flex items-center gap-2">
-                    <LogoSpinner size={14} speed="fast" /> Checking in...
+                    <LogoSpinner size={14} speed="fast" /> {t("checkingIn")}
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4" /> Check in now
+                    <RefreshCw className="h-4 w-4" /> {t("checkInNow")}
                   </span>
                 )}
               </Button>
@@ -289,20 +288,20 @@ export function DeadManContent() {
         className="panel p-6"
       >
         <Section
-          title={notConfigured ? "Configure" : "Update configuration"}
-          description="Set who gets notified and how long you can stay silent before the switch fires."
+          title={notConfigured ? t("configure") : t("updateConfig")}
+          description={t("configDesc")}
         >
           <div className="space-y-4">
             <Input
               type="email"
-              label="Contact email *"
+              label={t("contactEmail")}
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               placeholder="trusted-contact@example.com"
             />
             <Input
               type="text"
-              label="Contact name"
+              label={t("contactName")}
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
               placeholder="Jane Doe"
@@ -312,7 +311,7 @@ export function DeadManContent() {
                 htmlFor="dms-timeout"
                 className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]"
               >
-                Timeout (days)
+                {t("timeoutLabel")}
               </label>
               <select
                 id="dms-timeout"
@@ -322,7 +321,7 @@ export function DeadManContent() {
               >
                 {TIMEOUT_OPTIONS.map((d) => (
                   <option key={d} value={d}>
-                    {d} days{d === 90 ? " (default)" : ""}
+                    {d === 90 ? t("daysDefault", { days: d }) : t("days", { days: d })}
                   </option>
                 ))}
               </select>
@@ -332,13 +331,13 @@ export function DeadManContent() {
                 htmlFor="dms-message"
                 className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]"
               >
-                Message to contact
+                {t("messageLabel")}
               </label>
               <Textarea
                 id="dms-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Optional message sent when the switch triggers..."
+                placeholder={t("messagePlaceholder")}
                 rows={3}
                 className="resize-none"
               />
@@ -346,10 +345,7 @@ export function DeadManContent() {
                 role="note"
                 className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5"
               >
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  This message is sent by email from our server and is not end-to-end encrypted.
-                  Never put your passphrase in it.
-                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">{t("messageWarning")}</p>
               </div>
             </div>
             <label className="flex cursor-pointer items-center gap-3">
@@ -357,21 +353,19 @@ export function DeadManContent() {
                 checked={includeFiles}
                 onCheckedChange={(checked) => setIncludeFiles(checked === true)}
               />
-              <span className="text-sm text-[var(--color-text)]">
-                Include file listing in notification
-              </span>
+              <span className="text-sm text-[var(--color-text)]">{t("includeFiles")}</span>
             </label>
 
             <div className="flex flex-col gap-2 pt-1 sm:flex-row">
               <Button onClick={handleSave} disabled={saving} className="flex-1">
                 {saving ? (
                   <span className="flex items-center gap-2">
-                    <LogoSpinner size={14} speed="fast" /> Saving...
+                    <LogoSpinner size={14} speed="fast" /> {t("saving")}
                   </span>
                 ) : notConfigured ? (
-                  "Enable dead man's switch"
+                  t("enable")
                 ) : (
-                  "Update configuration"
+                  t("updateConfig")
                 )}
               </Button>
               {dms && (
@@ -380,7 +374,7 @@ export function DeadManContent() {
                   onClick={() => setConfirmDelete(true)}
                   className="sm:w-auto"
                 >
-                  Delete
+                  {t("delete")}
                 </Button>
               )}
             </div>
@@ -394,9 +388,9 @@ export function DeadManContent() {
           if (!open) setConfirmDelete(false);
         }}
         destructive
-        title="Delete dead man's switch?"
-        description="This permanently removes your dead man's switch configuration. Your trusted contact will no longer be notified if you go silent."
-        confirmLabel="Delete"
+        title={t("confirmTitle")}
+        description={t("confirmDesc")}
+        confirmLabel={t("delete")}
         loading={deleting}
         onConfirm={handleDelete}
       />

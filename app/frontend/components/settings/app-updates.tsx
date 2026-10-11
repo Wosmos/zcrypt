@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SettingGroup } from "@/components/settings/settings-primitives";
 import {
@@ -19,6 +20,8 @@ type Phase = "idle" | "checking" | "installing";
 
 const REINSTALL_NOTE_KEY = "zcrypt:android-reinstall-note-dismissed";
 
+const noSubscription = () => () => {};
+
 function readNoteDismissed() {
   try {
     return localStorage.getItem(REINSTALL_NOTE_KEY) === "1";
@@ -32,19 +35,18 @@ function formatMB(bytes: number) {
 }
 
 export function AppUpdates() {
+  const t = useTranslations("settings.appUpdates");
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [devBuild, setDevBuild] = useState<string | null>(null);
-  const [noteDismissed, setNoteDismissed] = useState(true);
-
-  useEffect(() => {
-    setNoteDismissed(readNoteDismissed());
-  }, []);
+  const storedDismissed = useSyncExternalStore(noSubscription, readNoteDismissed, () => true);
+  const [dismissedNow, setDismissedNow] = useState(false);
+  const noteDismissed = storedDismissed || dismissedNow;
 
   const dismissNote = () => {
-    setNoteDismissed(true);
+    setDismissedNow(true);
     try {
       localStorage.setItem(REINSTALL_NOTE_KEY, "1");
     } catch {}
@@ -73,14 +75,15 @@ export function AppUpdates() {
   // Check once when the panel opens, so the row is informative before the
   // user clicks anything.
   useEffect(() => {
-    void check();
+    const id = setTimeout(() => void check(), 0);
+    return () => clearTimeout(id);
   }, []);
 
   const downloadAndroid = async () => {
     try {
       await openExternal(`${SITE_URL}/dl/android`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't open the download");
+      toast.error(err instanceof Error ? err.message : t("openFailed"));
     }
   };
 
@@ -92,7 +95,7 @@ export function AppUpdates() {
       // On success the app relaunches and this promise never settles.
       await installUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Update failed");
+      toast.error(err instanceof Error ? err.message : t("updateFailed"));
       setPhase("idle");
     } finally {
       unlisten();
@@ -106,24 +109,25 @@ export function AppUpdates() {
 
   if (info && !info.updatable && !info.channel) {
     return (
-      <SettingGroup label="App updates">
+      <SettingGroup label={t("label")}>
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <p className="text-sm font-medium text-[var(--color-text)]">
             zcrypt v{info.current_version}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-            This build doesn&apos;t check for updates automatically. It was installed as a native
-            Linux package, which manages updates through your system&apos;s package manager instead.
-            Get new releases from{" "}
-            <a
-              href={`${SITE_URL}/download`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
-            >
-              {SITE_URL.replace(/^https?:\/\//, "")}/download
-            </a>
-            .
+            {t.rich("nativePackage", {
+              url: SITE_URL.replace(/^https?:\/\//, ""),
+              link: (chunks) => (
+                <a
+                  href={`${SITE_URL}/download`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </div>
       </SettingGroup>
@@ -131,11 +135,11 @@ export function AppUpdates() {
   }
 
   const status = (() => {
-    if (phase === "checking") return "Checking for updates…";
-    if (checkError) return "Couldn't check for updates";
+    if (phase === "checking") return t("checking");
+    if (checkError) return t("checkFailed");
     if (!info) return "";
-    if (info.channel === "ios") return "Updates come from the App Store";
-    return info.available ? `Version ${info.version} is available` : "You're on the latest version";
+    if (info.channel === "ios") return t("fromAppStore");
+    return info.available ? t("available", { version: info.version ?? "" }) : t("upToDate");
   })();
 
   const percent =
@@ -144,14 +148,7 @@ export function AppUpdates() {
       : null;
 
   return (
-    <SettingGroup
-      label="App updates"
-      footnote={
-        isAndroid
-          ? "Android updates download as a signed APK. Open it to install over this copy; your vault stays in the cloud."
-          : "Updates are signed with zcrypt's release key and verified before install. Only builds signed with that key are ever accepted."
-      }
-    >
+    <SettingGroup label={t("label")} footnote={isAndroid ? t("footnoteAndroid") : t("footnote")}>
       <div className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -160,7 +157,7 @@ export function AppUpdates() {
             </p>
             {devBuild && !info?.available && !checkError && (
               <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                Development build ({devBuild}), ahead of v{info?.version}
+                {t("devBuild", { build: devBuild, version: info?.version ?? "" })}
               </p>
             )}
             <p
@@ -182,16 +179,16 @@ export function AppUpdates() {
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => void check()} disabled={phase !== "idle"}>
-              {phase === "checking" ? "Checking…" : "Check again"}
+              {phase === "checking" ? t("checkingShort") : t("checkAgain")}
             </Button>
             {info?.available && isAndroid && (
               <Button onClick={() => void downloadAndroid()} disabled={phase !== "idle"}>
-                Download update
+                {t("downloadUpdate")}
               </Button>
             )}
             {info?.available && !isAndroid && (
               <Button onClick={() => void install()} disabled={phase !== "idle"}>
-                {phase === "installing" ? "Installing…" : "Install & restart"}
+                {phase === "installing" ? t("installing") : t("installRestart")}
               </Button>
             )}
           </div>
@@ -200,17 +197,18 @@ export function AppUpdates() {
         {isAndroid && !noteDismissed && (
           <div className="flex items-start justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
             <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-              <span className="font-medium text-[var(--color-text)]">Installed before v0.1.7?</span>{" "}
-              Older copies were signed with a different key, so Android will refuse the update with
-              &quot;App not installed&quot;. Let pending uploads finish, uninstall zcrypt once, then
-              install the download and sign back in. Every update after that installs in place.
+              {t.rich("reinstallNote", {
+                b: (chunks) => (
+                  <span className="font-medium text-[var(--color-text)]">{chunks}</span>
+                ),
+              })}
             </p>
             <button
               type="button"
               onClick={dismissNote}
               className="shrink-0 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             >
-              Got it
+              {t("gotIt")}
             </button>
           </div>
         )}
@@ -226,16 +224,21 @@ export function AppUpdates() {
             <p className="text-xs text-[var(--color-text-muted)]">
               {progress
                 ? progress.total
-                  ? `${formatMB(progress.downloaded)} of ${formatMB(progress.total)}`
-                  : `${formatMB(progress.downloaded)} downloaded`
-                : "Starting download…"}
+                  ? t("progressOf", {
+                      done: formatMB(progress.downloaded),
+                      total: formatMB(progress.total),
+                    })
+                  : t("progressDone", { done: formatMB(progress.downloaded) })
+                : t("starting")}
             </p>
           </div>
         )}
 
         {info?.available && info.notes && (
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
-            <p className="mb-1 text-xs font-medium text-[var(--color-text-muted)]">What's new</p>
+            <p className="mb-1 text-xs font-medium text-[var(--color-text-muted)]">
+              {t("whatsNew")}
+            </p>
             <p className="whitespace-pre-wrap text-xs text-[var(--color-text)]">{info.notes}</p>
           </div>
         )}

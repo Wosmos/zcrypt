@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PlatformStatus, RepoInfo } from "@/types";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { PLATFORM_BY_ID, type PlatformId } from "@/lib/platforms";
@@ -47,6 +48,7 @@ function formatPct(p: number): string {
 }
 
 export function RateLimits({ statuses, repos }: RateLimitsProps) {
+  const t = useTranslations("settings.rateLimits");
   const connectedPlatforms = statuses.filter((s) => s.connected);
 
   if (connectedPlatforms.length === 0) return null;
@@ -62,12 +64,8 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
   return (
     <div className="space-y-3">
       <div className="px-1">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">
-          Platform quotas &amp; limits
-        </h3>
-        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-          Known rate limits and storage quotas per connected platform.
-        </p>
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">{t("title")}</h3>
+        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t("description")}</p>
       </div>
       {/* Mobile: horizontal snap-scroll, ~one card per view with a peek of the
           next. Desktop (sm+): a clean 3-up grid. */}
@@ -102,7 +100,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                 </div>
                 {pRepos.length > 0 && (
                   <span className="absolute left-3 top-3 z-10 rounded-full bg-[var(--color-surface-2)]/80 px-2 py-0.5 text-[10px] font-medium tabular-nums text-[var(--color-text-muted)] backdrop-blur-sm">
-                    {pRepos.length} {pRepos.length === 1 ? "repo" : "repos"}
+                    {t("repoCount", { count: pRepos.length })}
                   </span>
                 )}
                 {/* Ring gauge: the percentage lives inside the arc */}
@@ -159,7 +157,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                   </p>
                   <p className="truncate text-[11px] tabular-nums text-[var(--color-text-muted)]">
                     {pRepos.length > 0
-                      ? `${formatBytes(totalUsed)} of ${formatBytes(totalMax)}`
+                      ? t("usedOf", { used: formatBytes(totalUsed), max: formatBytes(totalMax) })
                       : status.username
                         ? `@${status.username}`
                         : " "}

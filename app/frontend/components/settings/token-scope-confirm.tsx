@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { platformName } from "@/lib/platforms";
 
@@ -33,6 +34,7 @@ export function TokenScopeConfirm({
   confirmDisabled?: boolean;
   children?: ReactNode;
 }) {
+  const t = useTranslations("settings.tokenScope");
   return (
     <ConfirmDialog
       open={!!target}
@@ -40,16 +42,12 @@ export function TokenScopeConfirm({
         if (!open && !loading) onCancel();
       }}
       destructive
-      title={
-        target?.toGlobal
-          ? "Share this account with every user?"
-          : "Stop sharing this account with other users?"
-      }
+      title={target?.toGlobal ? t("shareTitle") : t("unshareTitle")}
       description={
         target ? (
           <div className="space-y-2">
             <p>
-              {platformName(target.platform)} account
+              {t("accountLabel", { platform: platformName(target.platform) })}
               {target.username && (
                 <>
                   {" "}
@@ -60,32 +58,18 @@ export function TokenScopeConfirm({
             {target.toGlobal ? (
               <ul className="list-disc space-y-1 pl-5">
                 <li>
-                  Every user on this instance will upload to and download from{" "}
-                  <span className="font-medium">this</span> account. Its holder can never see what
-                  they store (it is encrypted with keys they do not have) but is the account holder
-                  of record for it.
+                  {t.rich("shareReach", {
+                    b: (chunks) => <span className="font-medium">{chunks}</span>,
+                  })}
                 </li>
-                <li>
-                  Its quota, rate limits, and any enforcement the platform applies are shared with
-                  all of them. One user's abuse can get the whole account restricted.
-                </li>
-                <li>
-                  Files stored through it keep depending on it. Making it local again later cuts
-                  those users off from their own files.
-                </li>
+                <li>{t("shareQuota")}</li>
+                <li>{t("shareDependence")}</li>
               </ul>
             ) : (
               <ul className="list-disc space-y-1 pl-5">
-                <li>
-                  Other users lose access through this account immediately. Their uploads to it
-                  stop.
-                </li>
-                <li>
-                  Any of their files whose chunks live in repositories under this account can no
-                  longer be downloaded until it is shared again or the files are re-uploaded
-                  elsewhere.
-                </li>
-                <li>The owner&apos;s own files are not affected.</li>
+                <li>{t("unshareAccess")}</li>
+                <li>{t("unshareFiles")}</li>
+                <li>{t("unshareOwner")}</li>
               </ul>
             )}
           </div>
@@ -93,7 +77,7 @@ export function TokenScopeConfirm({
           ""
         )
       }
-      confirmLabel={target?.toGlobal ? "Share with all users" : "Make it local"}
+      confirmLabel={target?.toGlobal ? t("shareConfirm") : t("unshareConfirm")}
       loading={loading}
       confirmDisabled={confirmDisabled}
       onConfirm={onConfirm}

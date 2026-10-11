@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   adminGetBugReportScreenshot,
@@ -36,11 +37,11 @@ import {
 
 const PAGE_SIZE = 20;
 
-const STATUSES: { value: BugReportStatus; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "triaged", label: "Triaged" },
-  { value: "fixed", label: "Fixed" },
-  { value: "wontfix", label: "Won't fix" },
+const STATUSES: { value: BugReportStatus; key: string }[] = [
+  { value: "open", key: "statusOpen" },
+  { value: "triaged", key: "statusTriaged" },
+  { value: "fixed", key: "statusFixed" },
+  { value: "wontfix", key: "statusWontfix" },
 ];
 
 const STATUS_VARIANT = {
@@ -51,33 +52,33 @@ const STATUS_VARIANT = {
 } as const;
 
 function StatusBadge({ status }: { status: BugReportStatus }) {
-  const label = STATUSES.find((s) => s.value === status)?.label ?? status;
-  return <Badge variant={STATUS_VARIANT[status] ?? "muted"}>{label}</Badge>;
+  const t = useTranslations("admin.bugs");
+  const key = STATUSES.find((s) => s.value === status)?.key;
+  return <Badge variant={STATUS_VARIANT[status] ?? "muted"}>{key ? t(key) : status}</Badge>;
 }
 
 function Screenshot({ id }: { id: string }) {
+  const t = useTranslations("admin.bugs");
   const { data, isError } = useQuery({
     queryKey: ["admin", "bug-report-screenshot", id],
     queryFn: () => adminGetBugReportScreenshot(id),
     staleTime: Infinity,
   });
-  const [url, setUrl] = useState<string | null>(null);
+  const url = useMemo(() => (data ? URL.createObjectURL(data) : null), [data]);
 
   useEffect(() => {
-    if (!data) return;
-    const objectUrl = URL.createObjectURL(data);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [data]);
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
 
-  if (isError) return <p className="text-xs text-red-500">Could not load the screenshot.</p>;
+  if (isError) return <p className="text-xs text-red-500">{t("screenshotError")}</p>;
   if (!url) return <div className="h-40 animate-pulse rounded-xl bg-[var(--color-surface-1)]" />;
   return (
     <a href={url} target="_blank" rel="noreferrer">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
-        alt="Screenshot attached to the report"
+        alt={t("screenshotAlt")}
         className="max-h-96 w-full rounded-xl border border-[var(--color-border)] object-contain"
       />
     </a>
@@ -85,11 +86,12 @@ function Screenshot({ id }: { id: string }) {
 }
 
 function Field({ label, value }: { label: string; value: string }) {
+  const t = useTranslations("admin.bugs");
   return (
     <div className="text-xs">
       <dt className="text-[var(--color-text-muted)]">{label}</dt>
       <dd className="mt-0.5 break-words font-medium text-[var(--color-text-secondary)]">
-        {value || "Unknown"}
+        {value || t("unknown")}
       </dd>
     </div>
   );
@@ -104,33 +106,34 @@ function ReportDrawer({
   onClose: () => void;
   onStatus: (id: string, status: BugReportStatus) => void;
 }) {
+  const t = useTranslations("admin.bugs");
   return (
     <Sheet open={!!report} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
         {report && (
           <>
             <SheetHeader>
-              <SheetTitle>Bug report</SheetTitle>
+              <SheetTitle>{t("drawerTitle")}</SheetTitle>
               <SheetDescription>
-                {report.username || report.email || "Signed-out user"} ·{" "}
+                {report.username || report.email || t("signedOutUser")} ·{" "}
                 {formatDateTime(report.created_at)}
               </SheetDescription>
             </SheetHeader>
 
             <div className="mt-5 space-y-5">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-[var(--color-text-muted)]">Status</span>
+                <span className="text-xs text-[var(--color-text-muted)]">{t("status")}</span>
                 <Select
                   value={report.status}
                   onValueChange={(v) => onStatus(report.id, v as BugReportStatus)}
                 >
-                  <SelectTrigger className="h-9 w-40 text-xs" aria-label="Report status">
+                  <SelectTrigger className="h-9 w-40 text-xs" aria-label={t("reportStatus")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
-                        {s.label}
+                        {t(s.key)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -144,12 +147,12 @@ function ReportDrawer({
               {report.has_screenshot && <Screenshot id={report.id} />}
 
               <dl className="grid grid-cols-2 gap-3 border-t border-[var(--color-border)] pt-4">
-                <Field label="Reporter" value={report.email} />
-                <Field label="App version" value={report.app_version} />
-                <Field label="Platform" value={report.platform} />
-                <Field label="Route" value={report.route} />
+                <Field label={t("reporter")} value={report.email} />
+                <Field label={t("appVersion")} value={report.app_version} />
+                <Field label={t("platform")} value={report.platform} />
+                <Field label={t("route")} value={report.route} />
                 <div className="col-span-2">
-                  <Field label="User agent" value={report.user_agent} />
+                  <Field label={t("userAgent")} value={report.user_agent} />
                 </div>
               </dl>
             </div>
@@ -161,6 +164,7 @@ function ReportDrawer({
 }
 
 export function BugReports() {
+  const t = useTranslations("admin.bugs");
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<BugReportStatus | "">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -179,7 +183,7 @@ export function BugReports() {
       await adminUpdateBugReport(id, next);
       await queryClient.invalidateQueries({ queryKey: ["admin", "bug-reports"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update the report");
+      toast.error(err instanceof Error ? err.message : t("updateFailed"));
     }
   };
 
@@ -189,7 +193,7 @@ export function BugReports() {
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-[var(--color-text-muted)]" />
           <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Bug reports
+            {t("title")}
           </h2>
           <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({total})</span>
         </div>
@@ -201,14 +205,14 @@ export function BugReports() {
               setPage(0);
             }}
           >
-            <SelectTrigger className="h-9 text-xs" aria-label="Filter by status">
+            <SelectTrigger className="h-9 text-xs" aria-label={t("filterStatus")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="all">{t("allStatuses")}</SelectItem>
               {STATUSES.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
-                  {s.label}
+                  {t(s.key)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -225,10 +229,8 @@ export function BugReports() {
       ) : reports.length === 0 ? (
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title="No bug reports"
-          description={
-            status ? "No reports match this status." : "Nothing has been reported from the app yet."
-          }
+          title={t("emptyTitle")}
+          description={status ? t("emptyFiltered") : t("emptyAll")}
         />
       ) : (
         <ul className="divide-y divide-[var(--color-border)]">
@@ -243,8 +245,8 @@ export function BugReports() {
                     {r.description}
                   </p>
                   <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
-                    {r.username || r.email || "Signed out"} · {r.platform || "unknown"} ·{" "}
-                    {r.app_version || "unknown"} · {formatRelativeTime(r.created_at)}
+                    {r.username || r.email || t("signedOut")} · {r.platform || t("unknownLower")} ·{" "}
+                    {r.app_version || t("unknownLower")} · {formatRelativeTime(r.created_at)}
                   </p>
                 </div>
                 <StatusBadge status={r.status} />

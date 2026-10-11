@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import { COLOR_THEMES, CUSTOM_COLOR_THEME } from "@/lib/themes";
@@ -17,6 +18,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
  * (plus an optional decorative background design) instead of a curated preset.
  */
 export function ThemePicker() {
+  const t = useTranslations("settings.themePicker");
   const { colorTheme, setColorTheme, resolvedTheme, customTheme, setCustomTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const isCustomActive = colorTheme === CUSTOM_COLOR_THEME;
@@ -27,25 +29,25 @@ export function ThemePicker() {
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-        Color theme
+        {t("colorTheme")}
       </p>
       <div
         role="radiogroup"
-        aria-label="Color theme"
+        aria-label={t("colorTheme")}
         className="grid grid-cols-2 gap-3 sm:grid-cols-3"
       >
-        {COLOR_THEMES.map((t) => {
-          const sw = isDark ? t.dark : t.light;
-          const active = colorTheme === t.id;
+        {COLOR_THEMES.map((theme) => {
+          const sw = isDark ? theme.dark : theme.light;
+          const active = colorTheme === theme.id;
           return (
             <button
-              key={t.id}
+              key={theme.id}
               type="button"
               role="radio"
               aria-checked={active}
-              aria-label={t.label}
-              title={t.description}
-              onClick={() => setColorTheme(t.id)}
+              aria-label={t(`themes.${theme.id}.label`)}
+              title={t(`themes.${theme.id}.description`)}
+              onClick={() => setColorTheme(theme.id)}
               className={cn(
                 "squircle group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                 active
@@ -89,7 +91,7 @@ export function ThemePicker() {
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="truncate text-xs font-medium text-[var(--color-text)]">
-                  {t.label}
+                  {t(`themes.${theme.id}.label`)}
                 </span>
                 {active && (
                   <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
@@ -105,8 +107,8 @@ export function ThemePicker() {
           type="button"
           role="radio"
           aria-checked={isCustomActive}
-          aria-label="Custom"
-          title="Your own accent, canvas color, and background design"
+          aria-label={t("custom")}
+          title={t("customDesc")}
           onClick={() => setColorTheme(CUSTOM_COLOR_THEME)}
           className={cn(
             "squircle group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
@@ -141,7 +143,9 @@ export function ThemePicker() {
             </div>
           </div>
           <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="truncate text-xs font-medium text-[var(--color-text)]">Custom</span>
+            <span className="truncate text-xs font-medium text-[var(--color-text)]">
+              {t("custom")}
+            </span>
             {isCustomActive && (
               <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
             )}
@@ -152,8 +156,8 @@ export function ThemePicker() {
       {isCustomActive && <CustomThemeEditor values={customTheme} onChange={setCustomTheme} />}
 
       <p className="text-xs text-[var(--color-text-muted)]">
-        Applies to the app only, set per device. Light and dark follow the mode above.
-        {isCustomActive && " Custom colors stay on this device only."}
+        {t("footnote")}
+        {isCustomActive && ` ${t("footnoteCustom")}`}
       </p>
     </div>
   );
@@ -166,6 +170,7 @@ function CustomThemeEditor({
   values: { accent: string; bg: string; background?: string };
   onChange: (next: { accent: string; bg: string; background?: string }) => void;
 }) {
+  const t = useTranslations("settings.themePicker");
   const [accentHex, setAccentHex] = useState(values.accent);
   const [bgHex, setBgHex] = useState(values.bg);
 
@@ -184,25 +189,25 @@ function CustomThemeEditor({
   return (
     <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
       <div className="grid grid-cols-2 gap-3">
-        <ColorField label="Accent" hex={accentHex} onChange={commitAccent} />
-        <ColorField label="Canvas" hex={bgHex} onChange={commitBg} />
+        <ColorField label={t("accent")} hex={accentHex} onChange={commitAccent} />
+        <ColorField label={t("canvas")} hex={bgHex} onChange={commitBg} />
       </div>
 
       <div className="space-y-1.5">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-          Background design (optional)
+          {t("backgroundDesign")}
         </p>
         <div
           role="radiogroup"
-          aria-label="Background design"
+          aria-label={t("backgroundDesignLabel")}
           className="grid grid-cols-5 gap-2 sm:grid-cols-6"
         >
           <button
             type="button"
             role="radio"
             aria-checked={!values.background}
-            aria-label="None"
-            title="None, flat canvas color"
+            aria-label={t("none")}
+            title={t("noneDesc")}
             onClick={() => selectDesign(undefined)}
             className={cn(
               "relative flex h-10 items-center justify-center rounded-lg border text-[10px] font-medium text-[var(--color-text-muted)] transition-all duration-200",
@@ -211,7 +216,7 @@ function CustomThemeEditor({
                 : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
             )}
           >
-            None
+            {t("none")}
           </button>
           {APP_BACKGROUNDS.map((design) => {
             const active = values.background === design.key;
@@ -221,8 +226,8 @@ function CustomThemeEditor({
                 type="button"
                 role="radio"
                 aria-checked={active}
-                aria-label={design.label}
-                title={design.label}
+                aria-label={t(`backgrounds.${design.key}`)}
+                title={t(`backgrounds.${design.key}`)}
                 onClick={() => selectDesign(design.key)}
                 style={{ background: design.css }}
                 className={cn(
@@ -253,6 +258,7 @@ function ColorField({
   hex: string;
   onChange: (value: string) => void;
 }) {
+  const t = useTranslations("settings.themePicker");
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -267,7 +273,7 @@ function ColorField({
             type="color"
             value={HEX_COLOR_RE.test(hex) ? hex : "#000000"}
             onChange={(e) => onChange(e.target.value)}
-            aria-label={`${label} color`}
+            aria-label={t("colorOf", { label })}
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
         </label>
@@ -280,7 +286,7 @@ function ColorField({
           placeholder="#3B82F6"
           maxLength={7}
           className="h-8 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 font-mono text-xs uppercase text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-          aria-label={`${label} hex`}
+          aria-label={t("hexOf", { label })}
         />
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { telegramProbe, type TelegramDetectedChat } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,13 +38,14 @@ type Step = "token" | "detect";
 const POLL_MS = 2500;
 const POLL_TIMEOUT_MS = 120_000;
 
-const CHAT_TYPE_LABEL: Record<TelegramDetectedChat["type"], string> = {
-  channel: "Channel",
-  group: "Group",
-  supergroup: "Group",
+const CHAT_TYPE_KEY: Record<TelegramDetectedChat["type"], "channel" | "group"> = {
+  channel: "channel",
+  group: "group",
+  supergroup: "group",
 };
 
 export function TelegramConnect({ onConnect, connecting, hasAccounts }: TelegramConnectProps) {
+  const t = useTranslations("settings.telegram");
   const [step, setStep] = useState<Step>("token");
   const [botToken, setBotToken] = useState("");
   const [botUsername, setBotUsername] = useState("");
@@ -93,13 +95,13 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
         }
         return false;
       } catch (e) {
-        if (!silent) toast.error("Invalid bot token. Double-check it and try again.");
+        if (!silent) toast.error(t("invalidToken"));
         throw e;
       } finally {
         inFlight.current = false;
       }
     },
-    [botToken, stopPolling],
+    [botToken, stopPolling, t],
   );
 
   // Sequential polling: schedule the NEXT probe only after the current one
@@ -152,7 +154,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
     // appeared.
     void openExternal(`https://t.me/${botUsername}?${param}=true&admin=${admin}`)
       .then(startPolling)
-      .catch(() => toast.error("Couldn't open Telegram on this device"));
+      .catch(() => toast.error(t("openFailed")));
   };
 
   const reset = useCallback(() => {
@@ -182,17 +184,18 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
       {step === "token" && (
         <div className="space-y-3">
           <p className="text-xs text-[var(--color-text-secondary)]">
-            Paste your bot token from{" "}
-            <a
-              href="https://t.me/BotFather"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--color-accent)] hover:underline"
-            >
-              @BotFather
-            </a>
-            . We&apos;ll help you add it to a channel and find the chat ID for you, no manual ID
-            hunting.
+            {t.rich("pasteToken", {
+              link: (chunks) => (
+                <a
+                  href="https://t.me/BotFather"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--color-accent)] hover:underline"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1">
@@ -203,7 +206,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                 onChange={(e) => setBotToken(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleValidate()}
                 icon={<Key className="h-4 w-4" />}
-                aria-label="Telegram bot token"
+                aria-label={t("tokenLabel")}
               />
             </div>
             <Button
@@ -214,11 +217,11 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
               {validating ? (
                 <span className="flex items-center gap-2">
                   <LogoSpinner size={14} speed="fast" />
-                  Checking...
+                  {t("checking")}
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5">
-                  Continue
+                  {t("continue")}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </span>
               )}
@@ -232,7 +235,10 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           <div className="flex items-center gap-2 text-sm text-[var(--color-text)]">
             <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
             <span>
-              Bot <span className="font-medium">@{botUsername}</span> verified.
+              {t.rich("botVerified", {
+                bot: `@${botUsername}`,
+                b: (chunks) => <span className="font-medium">{chunks}</span>,
+              })}
             </span>
             <button
               type="button"
@@ -240,16 +246,16 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
               className="ml-auto inline-flex items-center gap-1 rounded text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
             >
               <ArrowLeft className="h-3 w-3" />
-              Different bot
+              {t("differentBot")}
             </button>
           </div>
 
           {chats.length === 0 ? (
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Add the bot to where you want files stored, then we detect the chat automatically.
-                You never enter a chat ID. On the Telegram{" "}
-                <span className="font-medium">mobile app</span> the button below does it in one tap.
+                {t.rich("addBotIntro", {
+                  b: (chunks) => <span className="font-medium">{chunks}</span>,
+                })}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
@@ -258,7 +264,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                   className="flex-1"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Add to a channel
+                  {t("addToChannel")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -266,7 +272,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                   className="flex-1"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Add to a group
+                  {t("addToGroup")}
                 </Button>
               </div>
 
@@ -276,18 +282,22 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
               <details className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3 py-2.5">
                 <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)] outline-none transition-colors hover:text-[var(--color-text)]">
                   <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                  On desktop? The button opens a chat. Add the bot manually instead
+                  {t("desktopSummary")}
                 </summary>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-[var(--color-text-secondary)]">
-                  <li>Open (or create) your channel/group in Telegram.</li>
+                  <li>{t("manualStep1")}</li>
                   <li>
-                    Channel name → <span className="font-medium">Administrators → Add Admin</span>.
+                    {t.rich("manualStep2", {
+                      b: (chunks) => <span className="font-medium">{chunks}</span>,
+                    })}
                   </li>
                   <li>
-                    Search <span className="font-medium">@{botUsername}</span>, add it, and leave{" "}
-                    <span className="font-medium">Post Messages</span> enabled.
+                    {t.rich("manualStep3", {
+                      bot: `@${botUsername}`,
+                      b: (chunks) => <span className="font-medium">{chunks}</span>,
+                    })}
                   </li>
-                  <li>Come back here: it&apos;s detected automatically (or hit Check now).</li>
+                  <li>{t("manualStep4")}</li>
                 </ol>
               </details>
 
@@ -295,10 +305,10 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                 {polling ? (
                   <>
                     <LogoSpinner size={14} speed="fast" />
-                    <span>Waiting for you to add the bot…</span>
+                    <span>{t("waiting")}</span>
                   </>
                 ) : (
-                  <span>Added the bot already?</span>
+                  <span>{t("alreadyAdded")}</span>
                 )}
                 <button
                   type="button"
@@ -306,7 +316,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                   className="ml-auto inline-flex items-center gap-1 rounded font-medium text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                 >
                   <RefreshCw className="h-3 w-3" />
-                  Check now
+                  {t("checkNow")}
                 </button>
               </div>
 
@@ -317,8 +327,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Found {chats.length === 1 ? "this destination" : "these destinations"}. Pick where
-                to store files:
+                {t("found", { count: chats.length })}
               </p>
               <ul className="space-y-2">
                 {chats.map((chat) => {
@@ -346,10 +355,10 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                           {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text)]">
-                          {chat.title || "Untitled"}
+                          {chat.title || t("untitled")}
                         </span>
                         <span className="flex-shrink-0 text-xs text-[var(--color-text-muted)]">
-                          {CHAT_TYPE_LABEL[chat.type]}
+                          {t(`chatType.${CHAT_TYPE_KEY[chat.type]}`)}
                         </span>
                       </button>
                     </li>
@@ -361,11 +370,11 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                   {connecting ? (
                     <span className="flex items-center gap-2">
                       <LogoSpinner size={14} speed="fast" />
-                      Connecting...
+                      {t("connecting")}
                     </span>
                   ) : (
                     <span className="flex items-center gap-1.5">
-                      {hasAccounts ? "Add this destination" : "Connect"}
+                      {hasAccounts ? t("addDestination") : t("connect")}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </span>
                   )}
@@ -376,7 +385,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                   className="inline-flex items-center gap-1 rounded px-1 text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                 >
                   <RefreshCw className="h-3 w-3" />
-                  Rescan
+                  {t("rescan")}
                 </button>
               </div>
             </div>
@@ -395,7 +404,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           <ChevronDown
             className={cn("h-3.5 w-3.5 transition-transform", showManual && "rotate-180")}
           />
-          Advanced: enter BOT_TOKEN|CHAT_ID manually
+          {t("advanced")}
         </button>
         {showManual && (
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
@@ -406,7 +415,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                 value={manualToken}
                 onChange={(e) => setManualToken(e.target.value)}
                 icon={<Key className="h-4 w-4" />}
-                aria-label="Telegram bot token and chat ID"
+                aria-label={t("tokenAndChatLabel")}
               />
             </div>
             <Button
@@ -415,7 +424,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
               disabled={connecting || !manualToken.trim()}
               className="sm:self-start"
             >
-              Connect
+              {t("connect")}
             </Button>
           </div>
         )}

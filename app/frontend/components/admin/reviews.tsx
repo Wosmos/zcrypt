@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { adminListReviews, adminUpdateReview, type ReviewStatus } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
@@ -23,17 +24,24 @@ import {
 
 const PAGE_SIZE = 20;
 
-const STATUSES: { value: ReviewStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
+const STATUSES: { value: ReviewStatus; key: string }[] = [
+  { value: "pending", key: "statusPending" },
+  { value: "approved", key: "statusApproved" },
+  { value: "rejected", key: "statusRejected" },
 ];
+
+const STATUS_KEY: Record<ReviewStatus, string> = {
+  pending: "statusPending",
+  approved: "statusApproved",
+  rejected: "statusRejected",
+};
 
 const STATUS_VARIANT = { pending: "amber", approved: "accent", rejected: "muted" } as const;
 
 function Stars({ rating }: { rating: number }) {
+  const t = useTranslations("admin.feedback");
   return (
-    <span className="inline-flex" role="img" aria-label={`${rating} out of 5`}>
+    <span className="inline-flex" role="img" aria-label={t("stars", { rating })}>
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
@@ -49,6 +57,7 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export function Reviews() {
+  const t = useTranslations("admin.reviews");
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<ReviewStatus | "">("pending");
 
@@ -65,7 +74,7 @@ export function Reviews() {
       await adminUpdateReview(id, next);
       await queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update the review");
+      toast.error(err instanceof Error ? err.message : t("updateFailed"));
     }
   };
 
@@ -74,7 +83,9 @@ export function Reviews() {
       <div className="flex flex-col justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <Star className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Reviews</h2>
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            {t("title")}
+          </h2>
           <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({total})</span>
         </div>
         <div className="sm:w-44">
@@ -85,14 +96,14 @@ export function Reviews() {
               setPage(0);
             }}
           >
-            <SelectTrigger className="h-9 text-xs" aria-label="Filter by status">
+            <SelectTrigger className="h-9 text-xs" aria-label={t("filterStatus")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="all">{t("allStatuses")}</SelectItem>
               {STATUSES.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
-                  {s.label}
+                  {t(s.key)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -109,8 +120,8 @@ export function Reviews() {
       ) : reviews.length === 0 ? (
         <EmptyState
           icon={<Star className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title="No reviews"
-          description={status ? "No reviews match this status." : "Nobody has reviewed zcrypt yet."}
+          title={t("emptyTitle")}
+          description={status ? t("emptyFiltered") : t("emptyAll")}
         />
       ) : (
         <ul className="divide-y divide-[var(--color-border)]">
@@ -120,18 +131,21 @@ export function Reviews() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Stars rating={r.rating} />
                   <Badge variant={STATUS_VARIANT[r.status] ?? "muted"}>
-                    {STATUSES.find((s) => s.value === r.status)?.label ?? r.status}
+                    {STATUS_KEY[r.status] ? t(STATUS_KEY[r.status]) : r.status}
                   </Badge>
                   <Badge variant={r.public_ok ? "blue" : "muted"}>
-                    {r.public_ok ? "OK to show" : "Private"}
+                    {r.public_ok ? t("okToShow") : t("private")}
                   </Badge>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap break-words text-sm text-[var(--color-text)]">
                   {r.quote}
                 </p>
                 <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
-                  Shown as {r.display_name} · {r.username || r.email || "deleted user"} ·{" "}
-                  {formatRelativeTime(r.updated_at)}
+                  {t("shownAs", {
+                    name: r.display_name,
+                    who: r.username || r.email || t("deletedUser"),
+                    time: formatRelativeTime(r.updated_at),
+                  })}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -140,7 +154,7 @@ export function Reviews() {
                   disabled={r.status === "approved"}
                   onClick={() => void moderate(r.id, "approved")}
                 >
-                  Approve
+                  {t("approve")}
                 </Button>
                 <Button
                   size="sm"
@@ -148,7 +162,7 @@ export function Reviews() {
                   disabled={r.status === "rejected"}
                   onClick={() => void moderate(r.id, "rejected")}
                 >
-                  Reject
+                  {t("reject")}
                 </Button>
               </div>
             </li>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +16,7 @@ export function LoadErrorPanel({
   description: string;
   onRetry: () => void;
 }) {
+  const t = useTranslations("admin.loadError");
   return (
     <div className="panel p-6">
       <EmptyState
@@ -23,7 +25,7 @@ export function LoadErrorPanel({
         description={description}
         action={
           <Button variant="secondary" size="sm" onClick={onRetry}>
-            Try again
+            {t("retry")}
           </Button>
         }
       />

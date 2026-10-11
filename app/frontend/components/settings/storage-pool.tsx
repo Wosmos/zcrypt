@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { formatBytes, cn } from "@/lib/utils";
 import { Database } from "@/lib/icons";
@@ -15,6 +16,7 @@ const PAGE_SIZE = 6;
  * quotas" pane, so it carries a light sub-header rather than its own panel.
  */
 export function StoragePool() {
+  const t = useTranslations("settings.storagePool");
   const { repos } = usePlatformHealth();
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(repos.length / PAGE_SIZE));
@@ -24,19 +26,15 @@ export function StoragePool() {
   return (
     <div className="space-y-3">
       <div className="px-1">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">Storage pool</h3>
-        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-          Repositories zcrypt manages: auto-created and rotated as they fill up.
-        </p>
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">{t("title")}</h3>
+        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t("description")}</p>
       </div>
 
       {repos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">
           <Database className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
-          <p className="text-sm text-[var(--color-text-secondary)]">No repos yet</p>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Auto-created on your first upload.
-          </p>
+          <p className="text-sm text-[var(--color-text-secondary)]">{t("empty")}</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t("emptyDesc")}</p>
         </div>
       ) : (
         <>
@@ -81,7 +79,7 @@ export function StoragePool() {
                         : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
                     )}
                   >
-                    {repo.active ? "Active" : "Full"}
+                    {repo.active ? t("active") : t("full")}
                   </span>
                 </div>
               );

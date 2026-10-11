@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { UserTable } from "@/components/admin/user-table";
 import { adminListUsers, adminGetDefaultQuota, adminGetPlans } from "@/lib/api";
 import { Role } from "@/types";
@@ -10,6 +11,7 @@ import { qk } from "@/lib/query-keys";
 import { AlertTriangle } from "@/lib/icons";
 
 export function AdminUsersContent() {
+  const t = useTranslations("admin.users");
   const { user, data, loading, error, refresh } = useAdminQuery(qk.adminUsers, async () => {
     const [users, q, p] = await Promise.all([
       adminListUsers(),
@@ -29,8 +31,8 @@ export function AdminUsersContent() {
     return (
       <LoadErrorPanel
         icon={<AlertTriangle className="h-7 w-7 text-[var(--color-text-muted)]" />}
-        title="Couldn't load users"
-        description="We couldn't reach the server to load the user list. Check your connection and try again."
+        title={t("errorTitle")}
+        description={t("errorDesc")}
         onRetry={refresh}
       />
     );

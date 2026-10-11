@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
@@ -80,13 +81,14 @@ function QuotaEditor({
   quotaInput: string;
   h: RowHandlers;
 }) {
+  const t = useTranslations("admin.userTable");
   if (!editing) {
     return (
       <button
         onClick={() => h.onStartEditQuota(u)}
         className="group rounded-md text-sm tabular-nums transition-colors hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-        title="Click to edit quota"
-        aria-label={`Edit quota for ${u.username}`}
+        title={t("editQuotaTitle")}
+        aria-label={t("editQuotaAria", { username: u.username })}
       >
         <span>{h.getQuotaDisplay(u)}</span>
         <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
@@ -98,13 +100,13 @@ function QuotaEditor({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Select value={quotaMode} onValueChange={(v) => h.onQuotaModeChange(v as QuotaMode)}>
-        <SelectTrigger className="h-7 w-24 text-xs" aria-label="Quota mode">
+        <SelectTrigger className="h-7 w-24 text-xs" aria-label={t("quotaMode")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="default">Default</SelectItem>
-          <SelectItem value="custom">Custom</SelectItem>
-          <SelectItem value="unlimited">Unlimited</SelectItem>
+          <SelectItem value="default">{t("modeDefault")}</SelectItem>
+          <SelectItem value="custom">{t("modeCustom")}</SelectItem>
+          <SelectItem value="unlimited">{t("modeUnlimited")}</SelectItem>
         </SelectContent>
       </Select>
       {quotaMode === "custom" && (
@@ -115,13 +117,13 @@ function QuotaEditor({
           value={quotaInput}
           onChange={(e) => h.onQuotaInputChange(e.target.value)}
           className="w-16 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-          placeholder="GB"
-          aria-label="Quota in GB"
+          placeholder={t("gb")}
+          aria-label={t("quotaGb")}
         />
       )}
       <IconButton
         icon={Check}
-        label="Save quota"
+        label={t("saveQuota")}
         variant="primary"
         onClick={() => h.onSaveQuota(u.id)}
         disabled={busy}
@@ -130,7 +132,7 @@ function QuotaEditor({
       />
       <IconButton
         icon={X}
-        label="Cancel"
+        label={t("cancel")}
         variant="ghost"
         onClick={h.onCancelEditQuota}
         className="h-7 w-7"
@@ -169,6 +171,7 @@ function UserRowActions({
   h: RowHandlers;
   className: string;
 }) {
+  const t = useTranslations("admin.userTable");
   return (
     <div className={className}>
       <Button
@@ -177,11 +180,11 @@ function UserRowActions({
         onClick={() => h.onRoleToggle(u.id, u.role, u.username)}
         disabled={busy}
       >
-        {u.role === Role.Admin ? "Demote" : "Promote"}
+        {u.role === Role.Admin ? t("demote") : t("promote")}
       </Button>
       <IconButton
         icon={Trash2}
-        label="Delete user"
+        label={t("deleteUser")}
         variant="ghost"
         onClick={() => h.onDelete(u.id, u.username)}
         disabled={busy}
@@ -200,6 +203,7 @@ const UserTableRow = memo(function UserTableRow({
   quotaInput,
   h,
 }: RowProps) {
+  const t = useTranslations("admin.userTable");
   return (
     <tr className="group border-b border-[var(--color-border)] transition-colors last:border-0 hover:bg-[var(--color-surface-1)]">
       <td className="px-5 py-3.5">
@@ -210,7 +214,7 @@ const UserTableRow = memo(function UserTableRow({
           <p className="text-sm font-medium text-[var(--color-text)] transition-colors group-hover/name:text-[var(--color-accent)]">
             {u.username}
             {isSelf && (
-              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>
+              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">{t("you")}</span>
             )}
           </p>
           <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
@@ -228,7 +232,7 @@ const UserTableRow = memo(function UserTableRow({
           >
             <SelectTrigger
               className={planSelectClass(u.plan || "free")}
-              aria-label={`Plan for ${u.username}`}
+              aria-label={t("planFor", { username: u.username })}
             >
               <SelectValue />
             </SelectTrigger>
@@ -282,6 +286,7 @@ const UserMobileCard = memo(function UserMobileCard({
   quotaInput,
   h,
 }: RowProps) {
+  const t = useTranslations("admin.userTable");
   return (
     <div className="space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -292,7 +297,7 @@ const UserMobileCard = memo(function UserMobileCard({
           <p className="truncate text-sm font-medium text-[var(--color-text)] transition-colors group-hover:text-[var(--color-accent)]">
             {u.username}
             {isSelf && (
-              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>
+              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">{t("you")}</span>
             )}
           </p>
           <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
@@ -309,7 +314,7 @@ const UserMobileCard = memo(function UserMobileCard({
             >
               <SelectTrigger
                 className={cn(planSelectClass(u.plan || "free"), "w-[6.5rem]")}
-                aria-label={`Plan for ${u.username}`}
+                aria-label={t("planFor", { username: u.username })}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -327,22 +332,22 @@ const UserMobileCard = memo(function UserMobileCard({
 
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div>
-          <p className="text-[var(--color-text-muted)]">Files</p>
+          <p className="text-[var(--color-text-muted)]">{t("files")}</p>
           <p className="font-medium tabular-nums">{u.file_count}</p>
         </div>
         <div>
-          <p className="text-[var(--color-text-muted)]">Usage</p>
+          <p className="text-[var(--color-text-muted)]">{t("usage")}</p>
           <p className="font-medium tabular-nums">{formatBytes(u.total_size)}</p>
         </div>
         <div>
-          <p className="text-[var(--color-text-muted)]">Joined</p>
+          <p className="text-[var(--color-text-muted)]">{t("joined")}</p>
           <p className="font-medium tabular-nums">{new Date(u.created_at).toLocaleDateString()}</p>
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs">
-          <span className="mr-1 text-[var(--color-text-muted)]">Quota:</span>
+          <span className="mr-1 text-[var(--color-text-muted)]">{t("quota")}:</span>
           <QuotaEditor
             u={u}
             editing={editing}
@@ -383,6 +388,7 @@ export function UserTable({
   onRefresh: () => void;
   planConfigs?: PlanConfig[];
 }) {
+  const t = useTranslations("admin.userTable");
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [editingQuota, setEditingQuota] = useState<string | null>(null);
@@ -415,11 +421,11 @@ export function UserTable({
         return;
       }
       await adminSetUserQuota(userId, parsed.bytes);
-      toast.success("Quota updated");
+      toast.success(t("quotaUpdated"));
       setEditingQuota(null);
       onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update quota");
+      toast.error(err instanceof Error ? err.message : t("quotaFailed"));
     } finally {
       setBusy(null);
     }
@@ -433,7 +439,8 @@ export function UserTable({
     });
   };
 
-  const getQuotaLabel = (u: AdminUser) => (u.storage_quota === null ? "plan" : "override");
+  const getQuotaLabel = (u: AdminUser) =>
+    u.storage_quota === null ? t("quotaPlan") : t("quotaOverride");
 
   const handleRoleToggle = (userId: string, currentRole: Role, username: string) => {
     const newRole = currentRole === Role.Admin ? Role.User : Role.Admin;
@@ -443,8 +450,8 @@ export function UserTable({
       userName: username,
       detail:
         currentRole === Role.Admin
-          ? `${username} will lose admin privileges and become a regular user.`
-          : `${username} will gain full admin access including user management and system settings.`,
+          ? t("roleDemoteDetail", { username })
+          : t("rolePromoteDetail", { username }),
       newValue: newRole,
     });
   };
@@ -454,7 +461,7 @@ export function UserTable({
       type: "delete",
       userId,
       userName: username,
-      detail: `All files, tokens, and data for "${username}" will be permanently deleted. This cannot be undone.`,
+      detail: t("deleteDetail", { username }),
     });
   };
 
@@ -488,7 +495,13 @@ export function UserTable({
       type: "plan",
       userId,
       userName: username,
-      detail: `${username} will be ${isUpgrade ? "upgraded" : "changed"} to ${plan.label} plan (${plan.uploads} concurrent uploads, ${plan.storage} storage, ${plan.fileSize} max file size).`,
+      detail: t(isUpgrade ? "planUpgradeDetail" : "planChangeDetail", {
+        username,
+        plan: plan.label,
+        uploads: plan.uploads,
+        storage: plan.storage,
+        fileSize: plan.fileSize,
+      }),
       newValue: newPlan,
     });
   };
@@ -499,18 +512,28 @@ export function UserTable({
     try {
       if (confirmAction.type === "delete") {
         await adminDeleteUser(confirmAction.userId, reauth);
-        toast.success("User deleted");
+        toast.success(t("userDeleted"));
       } else if (confirmAction.type === "role") {
         await adminSetUserRole(confirmAction.userId, confirmAction.newValue!, reauth);
-        toast.success(`Role updated to ${confirmAction.newValue}`);
+        toast.success(t("roleUpdated", { role: confirmAction.newValue ?? "" }));
       } else if (confirmAction.type === "plan") {
         await adminSetUserPlan(confirmAction.userId, confirmAction.newValue!);
-        toast.success(`Plan updated to ${confirmAction.newValue}`);
+        toast.success(t("planUpdated", { plan: confirmAction.newValue ?? "" }));
       }
       closeConfirm();
       onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : `Failed to ${confirmAction.type}`);
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : t(
+              confirmAction.type === "delete"
+                ? "deleteFailed"
+                : confirmAction.type === "role"
+                  ? "roleFailed"
+                  : "planFailed",
+            ),
+      );
     } finally {
       setBusy(null);
     }
@@ -521,16 +544,16 @@ export function UserTable({
     switch (confirmAction.type) {
       case "delete":
         return {
-          title: "Delete user",
+          title: t("deleteUser"),
           description: confirmAction.detail,
-          confirmLabel: "Delete user",
+          confirmLabel: t("deleteUser"),
           variant: "danger" as const,
         };
       case "role":
         return {
-          title: confirmAction.newValue === "admin" ? "Promote to admin" : "Demote to user",
+          title: confirmAction.newValue === "admin" ? t("promoteTitle") : t("demoteTitle"),
           description: confirmAction.detail,
-          confirmLabel: confirmAction.newValue === "admin" ? "Promote" : "Demote",
+          confirmLabel: confirmAction.newValue === "admin" ? t("promote") : t("demote"),
           variant: "warning" as const,
         };
       case "plan": {
@@ -542,9 +565,11 @@ export function UserTable({
         const planLabel =
           planDetails[confirmAction.newValue || "free"]?.label || confirmAction.newValue;
         return {
-          title: isUpgrade ? `Upgrade to ${planLabel}` : `Change to ${planLabel}`,
+          title: isUpgrade
+            ? t("upgradeTitle", { plan: planLabel ?? "" })
+            : t("changeTitle", { plan: planLabel ?? "" }),
           description: confirmAction.detail,
-          confirmLabel: isUpgrade ? "Upgrade" : "Change plan",
+          confirmLabel: isUpgrade ? t("upgrade") : t("changePlan"),
           variant: isUpgrade ? ("info" as const) : ("warning" as const),
         };
       }
@@ -589,10 +614,11 @@ export function UserTable({
     <>
       <section className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Users</h2>
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            {t("heading")}
+          </h2>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            <span className="tabular-nums">{users.length}</span> registered user
-            {users.length !== 1 ? "s" : ""}
+            {t("registered", { count: users.length })}
           </p>
         </div>
 
@@ -601,14 +627,14 @@ export function UserTable({
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                <th className="px-5 py-3 text-left font-medium">User</th>
-                <th className="px-4 py-3 text-left font-medium">Role</th>
-                <th className="px-4 py-3 text-left font-medium">Plan</th>
-                <th className="px-4 py-3 text-right font-medium">Files</th>
-                <th className="px-4 py-3 text-right font-medium">Usage</th>
-                <th className="px-4 py-3 text-right font-medium">Quota</th>
-                <th className="px-4 py-3 text-left font-medium">Joined</th>
-                <th className="px-5 py-3 text-right font-medium">Actions</th>
+                <th className="px-5 py-3 text-left font-medium">{t("colUser")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("colRole")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("colPlan")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("files")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("usage")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("quota")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("joined")}</th>
+                <th className="px-5 py-3 text-right font-medium">{t("colActions")}</th>
               </tr>
             </thead>
             <tbody>

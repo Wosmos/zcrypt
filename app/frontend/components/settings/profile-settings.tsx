@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SettingGroup } from "@/components/settings/settings-primitives";
@@ -25,12 +26,12 @@ const AVATAR_SOURCE_MAX_BYTES = 1024 * 1024;
 
 /** Mirrors the server's validatePassword so the rules can be shown live.
  *  The server still enforces them: this only removes the surprise. */
-const PASSWORD_RULES: { label: string; ok: (pw: string) => boolean }[] = [
-  { label: "At least 8 characters", ok: (pw) => pw.length >= 8 },
-  { label: "An uppercase letter", ok: (pw) => /[A-Z]/.test(pw) },
-  { label: "A digit", ok: (pw) => /[0-9]/.test(pw) },
-  { label: "A special character", ok: (pw) => /[^a-zA-Z0-9]/.test(pw) },
-  { label: "No longer than 72 bytes", ok: (pw) => new TextEncoder().encode(pw).length <= 72 },
+const PASSWORD_RULES: { key: string; ok: (pw: string) => boolean }[] = [
+  { key: "minLength", ok: (pw) => pw.length >= 8 },
+  { key: "uppercase", ok: (pw) => /[A-Z]/.test(pw) },
+  { key: "digit", ok: (pw) => /[0-9]/.test(pw) },
+  { key: "special", ok: (pw) => /[^a-zA-Z0-9]/.test(pw) },
+  { key: "maxBytes", ok: (pw) => new TextEncoder().encode(pw).length <= 72 },
 ];
 
 /** Center-crop and downscale to a square JPEG data URI in the browser, so the
@@ -67,6 +68,7 @@ async function toAvatarDataURI(file: File): Promise<string | null> {
 }
 
 export function ProfileSettings() {
+  const t = useTranslations("settings.profile");
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
   const setUser = useAuthStore((s) => s.setUser);
@@ -101,22 +103,22 @@ export function ProfileSettings() {
   const pickAvatar = async (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Pick an image file");
+      toast.error(t("pickImage"));
       return;
     }
     if (file.size > AVATAR_SOURCE_MAX_BYTES) {
-      toast.error("That image is too large. Pick one under 1 MB");
+      toast.error(t("imageTooLarge"));
       return;
     }
     try {
       const uri = await toAvatarDataURI(file);
       if (!uri) {
-        toast.error("Could not compress that image small enough, try a simpler one");
+        toast.error(t("imageTooComplex"));
         return;
       }
       setAvatar(uri);
     } catch {
-      toast.error("Could not read that image");
+      toast.error(t("imageUnreadable"));
     }
   };
 
@@ -129,9 +131,9 @@ export function ProfileSettings() {
         avatar_url: avatar,
       });
       setUser(updated);
-      toast.success("Profile updated");
+      toast.success(t("profileUpdated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update profile");
+      toast.error(err instanceof Error ? err.message : t("profileFailed"));
     } finally {
       setSavingProfile(false);
     }
@@ -140,7 +142,7 @@ export function ProfileSettings() {
   const savePassword = async (force = false) => {
     if (!accessToken) return;
     if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match");
+      toast.error(t("mismatch"));
       return;
     }
     setSavingPassword(true);
@@ -149,7 +151,7 @@ export function ProfileSettings() {
       // A breach hit comes back as a 200 with a warning rather than an error,
       // so the user can knowingly accept it.
       if (res.requires === "force" && res.warning) {
-        if (window.confirm(`${res.warning}\n\nUse it anyway?`)) {
+        if (window.confirm(`${res.warning}\n\n${t("useAnyway")}`)) {
           setSavingPassword(false);
           await savePassword(true);
           return;
@@ -159,9 +161,9 @@ export function ProfileSettings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast.success("Password changed: other sessions have been signed out");
+      toast.success(t("passwordChanged"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not change password");
+      toast.error(err instanceof Error ? err.message : t("passwordFailed"));
     } finally {
       setSavingPassword(false);
     }
@@ -169,17 +171,18 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-3">
-      <SettingGroup
-        label="Profile"
-        footnote="Your username and email identify your account and can't be changed here: the username is how others resolve your public key when sharing."
-      >
+      <SettingGroup label={t("label")} footnote={t("footnote")}>
         <div className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <div className="flex items-center gap-4">
             {avatar ? (
               // A local data: URI capped at 128KB. There is nothing for
               // next/image to optimize, and its loader cannot fetch data URIs.
               // oxlint-disable-next-line no-img-element
-              <img src={avatar} alt="Your avatar" className="h-16 w-16 rounded-full object-cover" />
+              <img
+                src={avatar}
+                alt={t("avatarAlt")}
+                className="h-16 w-16 rounded-full object-cover"
+              />
             ) : (
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-accent)] text-xl font-semibold text-white">
                 {initial}
@@ -197,11 +200,11 @@ export function ProfileSettings() {
                 }}
               />
               <Button variant="secondary" onClick={() => fileRef.current?.click()}>
-                Change photo
+                {t("changePhoto")}
               </Button>
               {avatar && (
                 <Button variant="ghost" onClick={() => setAvatar("")}>
-                  Remove
+                  {t("remove")}
                 </Button>
               )}
             </div>
@@ -212,47 +215,48 @@ export function ProfileSettings() {
               htmlFor="display-name"
               className="text-xs font-medium text-[var(--color-text-muted)]"
             >
-              Display name
+              {t("displayName")}
             </label>
             <Input
               id="display-name"
               value={displayName}
               maxLength={MAX_NAME}
-              placeholder={user?.username ?? "Your name"}
+              placeholder={user?.username ?? t("namePlaceholder")}
               onChange={(e) => setDisplayName(e.target.value)}
             />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-[var(--color-text-muted)]">Username</span>
+              <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                {t("username")}
+              </span>
               <p className="truncate text-sm text-[var(--color-text)]">{user?.username}</p>
             </div>
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-[var(--color-text-muted)]">Email</span>
+              <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                {t("email")}
+              </span>
               <p className="truncate text-sm text-[var(--color-text)]">{user?.email}</p>
             </div>
           </div>
 
           <div className="flex justify-end">
             <Button onClick={() => void saveProfile()} disabled={!profileDirty || savingProfile}>
-              {savingProfile ? "Saving…" : "Save profile"}
+              {savingProfile ? t("saving") : t("saveProfile")}
             </Button>
           </div>
         </div>
       </SettingGroup>
 
-      <SettingGroup
-        label="Password"
-        footnote="Changing your password signs out every other device. Your vault passphrase is separate and is never sent to the server."
-      >
+      <SettingGroup label={t("passwordLabel")} footnote={t("passwordFootnote")}>
         <div className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <div className="space-y-1.5">
             <label
               htmlFor="current-password"
               className="text-xs font-medium text-[var(--color-text-muted)]"
             >
-              Current password
+              {t("currentPassword")}
             </label>
             <Input
               id="current-password"
@@ -268,7 +272,7 @@ export function ProfileSettings() {
                 htmlFor="new-password"
                 className="text-xs font-medium text-[var(--color-text-muted)]"
               >
-                New password
+                {t("newPassword")}
               </label>
               <Input
                 id="new-password"
@@ -283,7 +287,7 @@ export function ProfileSettings() {
                 htmlFor="confirm-password"
                 className="text-xs font-medium text-[var(--color-text-muted)]"
               >
-                Confirm new password
+                {t("confirmPassword")}
               </label>
               <Input
                 id="confirm-password"
@@ -296,7 +300,7 @@ export function ProfileSettings() {
               />
               {mismatch && (
                 <p id="confirm-password-error" className="text-xs text-[var(--toast-error)]">
-                  Passwords do not match
+                  {t("mismatchShort")}
                 </p>
               )}
             </div>
@@ -306,7 +310,7 @@ export function ProfileSettings() {
               const met = rule.ok(newPassword);
               return (
                 <li
-                  key={rule.label}
+                  key={rule.key}
                   className={cn(
                     "flex items-center gap-1.5 text-xs",
                     met ? "text-[var(--toast-success)]" : "text-[var(--color-text-muted)]",
@@ -317,19 +321,17 @@ export function ProfileSettings() {
                   ) : (
                     <span className="h-1 w-1 shrink-0 rounded-full bg-current opacity-60 mx-1" />
                   )}
-                  {rule.label}
+                  {t(`rules.${rule.key}`)}
                 </li>
               );
             })}
           </ul>
           {sameAsCurrent && (
-            <p className="text-xs text-[var(--toast-error)]">
-              New password must differ from your current one
-            </p>
+            <p className="text-xs text-[var(--toast-error)]">{t("sameAsCurrent")}</p>
           )}
           <div className="flex justify-end">
             <Button onClick={() => void savePassword()} disabled={!passwordReady || savingPassword}>
-              {savingPassword ? "Changing…" : "Change password"}
+              {savingPassword ? t("changing") : t("changePassword")}
             </Button>
           </div>
         </div>

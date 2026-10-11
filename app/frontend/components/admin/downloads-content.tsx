@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -27,9 +28,9 @@ import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const RANGES = [
-  { value: "7", label: "7d" },
-  { value: "30", label: "30d" },
-  { value: "90", label: "90d" },
+  { value: "7", key: "range7" },
+  { value: "30", key: "range30" },
+  { value: "90", key: "range90" },
 ] as const;
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -49,6 +50,8 @@ const PLATFORM_LABELS: Record<string, string> = {
  * which installers exist, and why the desktop updater is or isn't working.
  */
 function ReleaseCard({ release }: { release: ReleaseInfo }) {
+  const t = useTranslations("admin.downloads");
+  const mono = (chunks: ReactNode) => <span className="font-mono">{chunks}</span>;
   const byPlatform = new Map<string, typeof release.assets>();
   for (const a of release.assets) {
     byPlatform.set(a.platform, [...(byPlatform.get(a.platform) ?? []), a]);
@@ -58,14 +61,14 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-[var(--color-text)]">
-          Released build
+          {t("releasedBuild")}
           <span className="ml-2 font-mono text-xs text-[var(--color-text-muted)]">
             {release.tag}
           </span>
         </h3>
         {release.missing > 0 && (
           <span className="text-xs text-[var(--toast-warning)]">
-            {release.missing} installer{release.missing === 1 ? "" : "s"} missing
+            {t("installersMissing", { count: release.missing })}
           </span>
         )}
       </div>
@@ -79,13 +82,9 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
         )}
       >
         {release.updater_manifest ? (
-          <>Updater manifest published: desktop builds can find this release.</>
+          <>{t("manifestOk")}</>
         ) : (
-          <>
-            No <span className="font-mono">latest.json</span> on {release.tag}, so installed desktop
-            apps report &ldquo;couldn&apos;t check for updates&rdquo;. It is generated only when
-            updater signing succeeds during the release build.
-          </>
+          <>{t.rich("manifestMissing", { tag: release.tag, mono })}</>
         )}
       </div>
 
@@ -105,11 +104,11 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
                   )}
                   <span className="font-mono text-[var(--color-text)]">{a.target}</span>
                   <span className="min-w-0 flex-1 truncate text-[var(--color-text-muted)]">
-                    {a.present ? a.name : "did not publish"}
+                    {a.present ? a.name : t("notPublished")}
                   </span>
                   {a.stable && (
                     <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
-                      stable
+                      {t("stable")}
                     </span>
                   )}
                 </li>
@@ -120,10 +119,7 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
       </div>
 
       <p className="mt-4 border-t border-[var(--color-border)] pt-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-        Releases are cut from the terminal: <span className="font-mono">git tag vX.Y.Z</span> then{" "}
-        <span className="font-mono">git push origin vX.Y.Z</span>, so every one passes the pre-push
-        gates. Android sideloads roll separately on{" "}
-        <span className="font-mono">{release.android_tag || "android-latest"}</span>.
+        {t.rich("releaseNote", { tag: release.android_tag || "android-latest", mono })}
       </p>
     </div>
   );
@@ -172,14 +168,15 @@ function Breakdown({
 }
 
 export function DownloadsContent() {
+  const t = useTranslations("admin.downloads");
   const [days, setDays] = useState<string>("30");
   const { data, loading, error } = useAdminQuery(qk.adminDownloads(days), () =>
     adminGetDownloads(Number(days)),
   );
 
   useEffect(() => {
-    if (error) toast.error("Couldn't load downloads");
-  }, [error]);
+    if (error) toast.error(t("loadFailed"));
+  }, [error, t]);
 
   if (loading && !data) {
     return (
@@ -198,24 +195,28 @@ export function DownloadsContent() {
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Download} label="Downloads (tracked)" value={String(stats.total)} />
-        <StatCard icon={Box} label={`Last ${days} days`} value={String(stats.last_30_days)} />
-        <StatCard icon={Globe} label="Counted by GitHub" value={String(githubTotal)} />
-        <StatCard icon={User} label="While signed in" value={String(stats.signed_in)} />
+        <StatCard icon={Download} label={t("statTracked")} value={String(stats.total)} />
+        <StatCard
+          icon={Box}
+          label={t("statLastDays", { days })}
+          value={String(stats.last_30_days)}
+        />
+        <StatCard icon={Globe} label={t("statGithub")} value={String(githubTotal)} />
+        <StatCard icon={User} label={t("statSignedIn")} value={String(stats.signed_in)} />
       </div>
 
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-[var(--color-text)]">Downloads over time</h3>
+          <h3 className="text-sm font-semibold text-[var(--color-text)]">{t("overTime")}</h3>
           <ToggleGroup
             type="single"
             value={days}
             onValueChange={(v) => v && setDays(v)}
-            aria-label="Time range"
+            aria-label={t("timeRange")}
           >
             {RANGES.map((r) => (
-              <ToggleGroupItem key={r.value} value={r.value} aria-label={r.label}>
-                {r.label}
+              <ToggleGroupItem key={r.value} value={r.value} aria-label={t(r.key)}>
+                {t(r.key)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -223,8 +224,8 @@ export function DownloadsContent() {
         {stats.daily.every((d) => d.count === 0) ? (
           <EmptyState
             icon={<Download className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No downloads recorded yet"
-            description="Installs are counted from the moment someone uses a /dl link on the site."
+            title={t("emptyTitle")}
+            description={t("emptyDesc")}
           />
         ) : (
           <div className="h-56 w-full">
@@ -261,7 +262,7 @@ export function DownloadsContent() {
                 <Area
                   type="monotone"
                   dataKey="count"
-                  name="Downloads"
+                  name={t("chartName")}
                   stroke="var(--color-accent)"
                   fill="url(#dlFill)"
                   strokeWidth={2}
@@ -276,31 +277,20 @@ export function DownloadsContent() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Breakdown
-          title="Platform"
+          title={t("bdPlatform")}
           rows={stats.platforms}
           labels={PLATFORM_LABELS}
-          empty="No downloads yet."
+          empty={t("noDownloads")}
         />
-        <Breakdown title="Build" rows={stats.targets} empty="No downloads yet." />
-        <Breakdown title="Version" rows={stats.versions} empty="No downloads yet." />
-        <Breakdown
-          title="Country"
-          rows={stats.countries}
-          empty="No country data: the CDN header is absent in local dev."
-        />
-        <Breakdown
-          title="Referrer"
-          rows={stats.referrers}
-          empty="No referrers: direct links and bookmarks send none."
-        />
+        <Breakdown title={t("bdBuild")} rows={stats.targets} empty={t("noDownloads")} />
+        <Breakdown title={t("bdVersion")} rows={stats.versions} empty={t("noDownloads")} />
+        <Breakdown title={t("bdCountry")} rows={stats.countries} empty={t("noCountry")} />
+        <Breakdown title={t("bdReferrer")} rows={stats.referrers} empty={t("noReferrers")} />
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-          <h3 className="mb-1 text-sm font-semibold text-[var(--color-text)]">Counted by GitHub</h3>
-          <p className="mb-3 text-xs text-[var(--color-text-muted)]">
-            Per-asset totals straight from the release. Includes people who downloaded from the
-            releases page without passing through the site, which our own counter can never see.
-          </p>
+          <h3 className="mb-1 text-sm font-semibold text-[var(--color-text)]">{t("statGithub")}</h3>
+          <p className="mb-3 text-xs text-[var(--color-text-muted)]">{t("githubDesc")}</p>
           {github.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-muted)]">Nothing reported yet.</p>
+            <p className="text-xs text-[var(--color-text-muted)]">{t("nothingReported")}</p>
           ) : (
             <ul className="space-y-1.5">
               {github

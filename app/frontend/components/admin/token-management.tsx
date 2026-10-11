@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export function TokenManagement({
   othersCount: number;
   onRefresh: () => void;
 }) {
+  const tr = useTranslations("admin.tokens");
   const [showForm, setShowForm] = useState(false);
   const [platform, setPlatform] = useState("github");
   const [token, setToken] = useState("");
@@ -60,13 +62,13 @@ export function TokenManagement({
         { platform, token: token.trim(), is_global: isGlobal },
         reauth,
       );
-      toast.success(`Token added for @${result.username}`);
+      toast.success(tr("added", { username: result.username }));
       setToken("");
       setReauth(EMPTY_REAUTH);
       setShowForm(false);
       onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create token");
+      toast.error(err instanceof Error ? err.message : tr("createFailed"));
     } finally {
       setCreating(false);
     }
@@ -89,7 +91,7 @@ export function TokenManagement({
         delete next[t.id];
         return next;
       });
-      toast.error(err instanceof Error ? err.message : "Failed to update token scope");
+      toast.error(err instanceof Error ? err.message : tr("scopeFailed"));
     } finally {
       setScopeChanging(false);
     }
@@ -100,12 +102,12 @@ export function TokenManagement({
     setDeleting(deleteTarget.id);
     try {
       await adminDeleteToken(deleteTarget.id, reauth);
-      toast.success("Token deleted");
+      toast.success(tr("deleted"));
       setDeleteTarget(null);
       setReauth(EMPTY_REAUTH);
       onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete token");
+      toast.error(err instanceof Error ? err.message : tr("deleteFailed"));
     } finally {
       setDeleting(null);
     }
@@ -123,11 +125,11 @@ export function TokenManagement({
         <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-              Platform tokens
+              {tr("title")}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              {tokens.length} of your token{tokens.length !== 1 ? "s" : ""}
-              {othersCount > 0 && ` · ${othersCount} from other users`}
+              {tr("countMine", { count: tokens.length })}
+              {othersCount > 0 && ` · ${tr("fromOthers", { count: othersCount })}`}
             </p>
           </div>
           <Button
@@ -139,7 +141,7 @@ export function TokenManagement({
             }}
           >
             {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {showForm ? "Cancel" : "Add token"}
+            {showForm ? tr("cancel") : tr("add")}
           </Button>
         </div>
 
@@ -148,7 +150,7 @@ export function TokenManagement({
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="sm:w-44">
                 <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger className="h-10" aria-label="Platform">
+                  <SelectTrigger className="h-10" aria-label={tr("platform")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -161,7 +163,7 @@ export function TokenManagement({
               <div className="flex-1">
                 <Input
                   type="password"
-                  placeholder="Platform access token"
+                  placeholder={tr("placeholder")}
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   icon={<Key className="h-4 w-4" />}
@@ -176,7 +178,7 @@ export function TokenManagement({
                   onCheckedChange={(checked) => setIsGlobal(checked === true)}
                 />
                 <span className="text-sm text-[var(--color-text-secondary)]">
-                  Global token <span className="hidden sm:inline">(available to all users)</span>
+                  {tr("globalToken")} <span className="hidden sm:inline">{tr("globalHint")}</span>
                 </span>
               </label>
               <Button
@@ -187,10 +189,10 @@ export function TokenManagement({
                 {creating ? (
                   <span className="flex items-center gap-2">
                     <LogoSpinner size={14} speed="fast" />
-                    Adding…
+                    {tr("adding")}
                   </span>
                 ) : (
-                  "Add token"
+                  tr("add")
                 )}
               </Button>
             </div>
@@ -200,8 +202,8 @@ export function TokenManagement({
         {tokens.length === 0 ? (
           <EmptyState
             icon={<Key className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No platform tokens"
-            description="Add a GitHub, GitLab, or Hugging Face access token to enable encrypted storage for your users."
+            title={tr("emptyTitle")}
+            description={tr("emptyDesc")}
           />
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
@@ -233,12 +235,8 @@ export function TokenManagement({
                   </div>
                   <button
                     onClick={() => setScopeTarget(t)}
-                    title={
-                      isGlobalResolved
-                        ? "Click to review and make local (owner-only)"
-                        : "Click to review and make global (all users)"
-                    }
-                    aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
+                    title={isGlobalResolved ? tr("makeLocalHint") : tr("makeGlobalHint")}
+                    aria-label={isGlobalResolved ? tr("makeLocal") : tr("makeGlobal")}
                     className={cn(
                       badgeVariants({ variant: scopeVariant(t) }),
                       scopePillClass,
@@ -253,12 +251,12 @@ export function TokenManagement({
                       <User className="h-3.5 w-3.5" />
                     )}
                     <span className="hidden sm:inline">
-                      {isGlobalResolved ? "Global" : "Local"}
+                      {isGlobalResolved ? tr("global") : tr("local")}
                     </span>
                   </button>
                   <IconButton
                     icon={Trash2}
-                    label="Delete token"
+                    label={tr("delete")}
                     variant="ghost"
                     onClick={() => setDeleteTarget(t)}
                     disabled={deleting === t.id}
@@ -280,13 +278,13 @@ export function TokenManagement({
           }
         }}
         destructive
-        title="Delete token?"
+        title={tr("deleteTitle")}
         description={
           deleteTarget
-            ? `Delete the ${platformNames[deleteTarget.platform] ?? deleteTarget.platform} token for @${deleteTarget.username}?${deleteTarget.is_global ? " This is a global token: removing it will affect all users." : ""}`
+            ? `${tr("deleteDesc", { platform: platformNames[deleteTarget.platform] ?? deleteTarget.platform, username: deleteTarget.username })}${deleteTarget.is_global ? ` ${tr("deleteGlobalWarn")}` : ""}`
             : ""
         }
-        confirmLabel="Delete token"
+        confirmLabel={tr("delete")}
         loading={deleting === deleteTarget?.id}
         confirmDisabled={!reauthReady(reauth)}
         onConfirm={executeDelete}
