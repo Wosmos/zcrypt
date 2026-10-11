@@ -1,10 +1,9 @@
 name: Reindex Nudge
 
-# After a marketing/content deploy, ping the search engines that actually
-# support an instant recrawl request (sitemap ping for Google, IndexNow for
-# Bing/Yandex/Seznam) and leave a reminder for anything that needs a manual
-# "Request Indexing" in Search Console. See scripts/reindex-search-engines.sh
-# for why Google itself doesn't get a real push here.
+# After a marketing/content deploy, submit the sitemap to every IndexNow engine
+# (Bing, Yandex, Seznam, Naver). Fails when none of them accepts it. Google has
+# no instant-reindex API; it reads the sitemap from Search Console. See
+# scripts/reindex-search-engines.sh.
 #
 # Optional secret: NTFY_TOPIC (same topic used by neon-watch.yml) to also
 # get a phone push with the result.
