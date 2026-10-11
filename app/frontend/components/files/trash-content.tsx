@@ -384,7 +384,6 @@ export function TrashContent() {
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHeader
-        eyebrow={t("eyebrow")}
         title={t("title")}
         description={t("description")}
         actions={
@@ -401,7 +400,12 @@ export function TrashContent() {
                 </span>
               </Button>
             )}
-            <IconButton icon={RefreshCw} label={t("refresh")} onClick={() => refresh()} />
+            <IconButton
+              icon={RefreshCw}
+              label={t("refresh")}
+              variant="secondary"
+              onClick={() => refresh()}
+            />
           </>
         }
       />

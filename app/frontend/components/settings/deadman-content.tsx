@@ -177,7 +177,7 @@ export function DeadManContent() {
         <ArrowLeft className="h-3 w-3" /> {t("back")}
       </Link>
 
-      <PageHeader eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
+      <PageHeader title={t("title")} description={t("description")} />
 
       {error && (
         <div

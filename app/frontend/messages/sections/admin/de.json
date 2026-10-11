@@ -1,7 +1,6 @@
 {
   "admin": {
     "layout": {
-      "eyebrow": "Verwaltung",
       "title": "Admin",
       "description": "Verwalte Nutzer, Plattform-Tokens und Tarife und prüfe die Systemaktivität.",
       "selectSection": "Admin-Bereich auswählen",

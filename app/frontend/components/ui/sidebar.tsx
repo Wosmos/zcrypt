@@ -60,7 +60,7 @@ const primaryLinks = [
 const advancedLink = { href: "/tools", labelKey: "tools", icon: Wand2 } as const;
 const adminLink = { href: "/admin", labelKey: "admin", icon: Users } as const;
 const settingsLink = { href: "/settings", labelKey: "settings", icon: Settings } as const;
-const trashLink = { href: "/trash", labelKey: "deletedFiles", icon: Trash2 } as const;
+const trashLink = { href: "/trash", labelKey: "trash", icon: Trash2 } as const;
 
 export function Sidebar() {
   const t = useTranslations("shell");

@@ -74,7 +74,6 @@
       "offered": "Ofrecida ahora"
     },
     "list": {
-      "eyebrow": "Colaboración",
       "title": "Espacios",
       "description": "Comparte archivos cifrados con las personas que invites. La clave del espacio se sella con la clave de cada miembro: el servidor nunca la ve.",
       "shortcutsTitle": "Atajos de espacios",

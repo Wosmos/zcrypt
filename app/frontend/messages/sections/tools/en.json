@@ -15,7 +15,6 @@
       "fileCountSelected": "{count, plural, one {# file} other {# files}} selected"
     },
     "page": {
-      "eyebrow": "Toolkit",
       "title": "Tools",
       "description": "Advanced utilities for sharing, syncing and verifying your encrypted vault. Everything runs end-to-end encrypted in your browser.",
       "tabs": {

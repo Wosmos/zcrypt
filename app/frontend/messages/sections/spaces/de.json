@@ -74,7 +74,6 @@
       "offered": "Jetzt angeboten"
     },
     "list": {
-      "eyebrow": "Zusammenarbeit",
       "title": "Spaces",
       "description": "Teile verschlüsselte Dateien mit Personen, die du einlädst. Der Space-Schlüssel wird mit dem Schlüssel jedes Mitglieds versiegelt: Der Server sieht ihn nie.",
       "shortcutsTitle": "Space-Tastenkürzel",

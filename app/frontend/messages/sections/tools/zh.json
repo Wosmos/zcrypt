@@ -15,7 +15,6 @@
       "fileCountSelected": "已选择 {count, plural, other {# 个文件}}"
     },
     "page": {
-      "eyebrow": "工具箱",
       "title": "工具",
       "description": "用于共享、同步和验证加密保险库的高级工具。一切都在你的浏览器中以端到端加密方式运行。",
       "tabs": {

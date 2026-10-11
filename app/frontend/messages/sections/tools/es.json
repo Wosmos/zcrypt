@@ -15,7 +15,6 @@
       "fileCountSelected": "{count, plural, one {# archivo seleccionado} other {# archivos seleccionados}}"
     },
     "page": {
-      "eyebrow": "Herramientas",
       "title": "Herramientas",
       "description": "Utilidades avanzadas para compartir, sincronizar y verificar tu bóveda cifrada. Todo se ejecuta con cifrado de extremo a extremo en tu navegador.",
       "tabs": {

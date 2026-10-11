@@ -1,7 +1,6 @@
 {
   "admin": {
     "layout": {
-      "eyebrow": "管理",
       "title": "管理员",
       "description": "管理用户、平台令牌和套餐，并查看系统活动。",
       "selectSection": "选择管理分区",

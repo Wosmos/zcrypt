@@ -74,7 +74,6 @@
       "offered": "Proposée maintenant"
     },
     "list": {
-      "eyebrow": "Collaboration",
       "title": "Espaces",
       "description": "Partagez des fichiers chiffrés avec les personnes que vous invitez. La clé de l’espace est scellée avec la clé de chaque membre : le serveur ne la voit jamais.",
       "shortcutsTitle": "Raccourcis des espaces",

@@ -1,7 +1,6 @@
 {
   "admin": {
     "layout": {
-      "eyebrow": "Administration",
       "title": "Admin",
       "description": "Gérez les utilisateurs, les jetons de plateforme et les offres, et consultez l'activité du système.",
       "selectSection": "Sélectionner une section d'administration",
