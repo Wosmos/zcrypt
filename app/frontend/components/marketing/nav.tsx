@@ -567,7 +567,7 @@ export function MarketingNav() {
 
               <nav
                 aria-label={t("main")}
-                className="hidden items-center gap-0.5 md:flex"
+                className="hidden items-center gap-0.5 lg:flex"
                 onMouseLeave={scheduleClose}
               >
                 <Link
@@ -627,14 +627,14 @@ export function MarketingNav() {
               </nav>
 
               <div className="flex items-center gap-0.5">
-                <LanguageSwitcher variant="nav" className="max-md:h-11 max-md:w-11" />
-                <ThemeToggle className={cn("max-md:h-11 max-md:w-11", FOCUS_RING)} />
+                <LanguageSwitcher variant="nav" className="max-lg:h-11 max-lg:w-11" />
+                <ThemeToggle className={cn("max-lg:h-11 max-lg:w-11", FOCUS_RING)} />
 
                 {signedIn ? null : (
                   <Link
                     href="/login"
                     className={cn(
-                      "hidden rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] md:flex",
+                      "hidden rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] lg:flex",
                       FOCUS_RING,
                     )}
                   >
@@ -645,7 +645,7 @@ export function MarketingNav() {
                 <Link
                   href={signedIn ? "/dashboard" : "/register"}
                   className={cn(
-                    "group hidden items-center gap-1.5 rounded-lg bg-[var(--color-text)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--color-bg)] shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(0_0_0/0.12)] transition-opacity hover:opacity-90 md:flex",
+                    "group hidden items-center gap-1.5 rounded-lg bg-[var(--color-text)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--color-bg)] shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(0_0_0/0.12)] transition-opacity hover:opacity-90 lg:flex",
                     FOCUS_RING,
                   )}
                 >
@@ -661,7 +661,7 @@ export function MarketingNav() {
                   aria-controls="mobile-menu"
                   aria-label={mobileOpen ? t("closeMenu") : t("openMenu")}
                   className={cn(
-                    "flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)] md:hidden",
+                    "flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)] lg:hidden",
                     FOCUS_RING,
                   )}
                 >
@@ -693,7 +693,7 @@ export function MarketingNav() {
                 onMouseLeave={scheduleClose}
                 role="menu"
                 aria-label={openMenu === "product" ? t("product") : t("documentation")}
-                className="lg-panel pointer-events-auto absolute inset-x-0 top-full z-50 mt-2 hidden min-h-[55dvh] flex-col rounded-3xl corner-squircle md:flex"
+                className="lg-panel pointer-events-auto absolute inset-x-0 top-full z-50 mt-2 hidden min-h-[55dvh] flex-col rounded-3xl corner-squircle lg:flex"
               >
                 {openMenu === "product" ? (
                   <ProductMega onItem={() => setOpenMenu(null)} />
@@ -714,7 +714,7 @@ export function MarketingNav() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
-              className="fixed inset-0 z-40 bg-slate-950/25 md:hidden dark:bg-black/50"
+              className="fixed inset-0 z-40 bg-slate-950/25 lg:hidden dark:bg-black/50"
               onClick={closeMobile}
             />
 
@@ -736,7 +736,7 @@ export function MarketingNav() {
                 transition: { duration: 0.18, ease: PANEL_OUT },
               }}
               style={{ transformOrigin: "top center" }}
-              className="lg-panel fixed inset-x-4 top-20 z-50 flex outline-none max-h-[calc(100dvh-6.5rem)] flex-col overflow-hidden rounded-2xl corner-squircle md:hidden"
+              className="lg-panel fixed inset-x-4 top-20 z-50 flex outline-none max-h-[calc(100dvh-6.5rem)] flex-col overflow-hidden rounded-2xl corner-squircle lg:hidden"
             >
               <nav
                 aria-label={t("mobile")}
