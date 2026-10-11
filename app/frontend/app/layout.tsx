@@ -6,6 +6,7 @@ import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { I18nProvider } from "@/components/providers/i18n-provider";
+import { LocaleSuggestion } from "@/components/i18n/locale-suggestion";
 import { LOCALE_INIT_SCRIPT } from "@/lib/i18n";
 import { KeyboardAvoider } from "@/components/system/keyboard-avoider";
 import { ExternalLinkHandler } from "@/components/providers/external-link-handler";
@@ -245,6 +246,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ExternalLinkHandler />
               {children}
               <ToastContainer />
+              <LocaleSuggestion />
               <Analytics />
             </QueryProvider>
           </ThemeProvider>
