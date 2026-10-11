@@ -62,7 +62,9 @@
     "placeholder": "Deine Verschlüsselungs-Passphrase",
     "keepUnlocked": "Auf diesem Gerät entsperrt lassen",
     "unlockTitle": "Tresor entsperren",
-    "unlockSubtitle": "Gib deine Passphrase ein, um Dateien zu entschlüsseln, anzuzeigen und herunterzuladen"
+    "unlockSubtitle": "Gib deine Passphrase ein, um Dateien zu entschlüsseln, anzuzeigen und herunterzuladen",
+    "tooShort": "Verwende mindestens {min} Zeichen für eine neue Tresor-Passphrase.",
+    "createHint": "Verwende nicht dein Anmeldepasswort. Wir sehen diese Passphrase nie und können sie daher nicht zurücksetzen."
   },
   "explorer": {
     "gridColumns": "Rasterspalten",

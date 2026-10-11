@@ -62,7 +62,9 @@
     "placeholder": "Tu frase de contraseña de cifrado",
     "keepUnlocked": "Mantenerme desbloqueado en este dispositivo",
     "unlockTitle": "Desbloquea tu bóveda",
-    "unlockSubtitle": "Introduce tu frase de contraseña para descifrar, previsualizar y descargar tus archivos"
+    "unlockSubtitle": "Introduce tu frase de contraseña para descifrar, previsualizar y descargar tus archivos",
+    "tooShort": "Usa al menos {min} caracteres para una nueva frase de contraseña de la bóveda.",
+    "createHint": "No reutilices tu contraseña de inicio de sesión. Nunca vemos esta frase de contraseña, así que no podemos restablecerla."
   },
   "explorer": {
     "gridColumns": "Columnas de la cuadrícula",

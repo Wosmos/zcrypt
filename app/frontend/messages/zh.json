@@ -62,7 +62,9 @@
     "placeholder": "你的加密口令",
     "keepUnlocked": "在本设备上保持解锁",
     "unlockTitle": "解锁你的保险库",
-    "unlockSubtitle": "输入口令以解密、预览和下载你的文件"
+    "unlockSubtitle": "输入口令以解密、预览和下载你的文件",
+    "tooShort": "新的保险库口令至少需要 {min} 个字符。",
+    "createHint": "不要重复使用登录密码。我们从不会看到这个口令，因此无法为你重置。"
   },
   "explorer": {
     "gridColumns": "网格列数",

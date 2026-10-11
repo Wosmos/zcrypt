@@ -62,7 +62,9 @@
     "placeholder": "Votre phrase secrète de chiffrement",
     "keepUnlocked": "Garder déverrouillé sur cet appareil",
     "unlockTitle": "Déverrouillez votre coffre",
-    "unlockSubtitle": "Saisissez votre phrase secrète pour déchiffrer, prévisualiser et télécharger vos fichiers"
+    "unlockSubtitle": "Saisissez votre phrase secrète pour déchiffrer, prévisualiser et télécharger vos fichiers",
+    "tooShort": "Utilisez au moins {min} caractères pour une nouvelle phrase secrète du coffre.",
+    "createHint": "Ne réutilisez pas votre mot de passe de connexion. Nous ne voyons jamais cette phrase secrète, nous ne pouvons donc pas la réinitialiser."
   },
   "explorer": {
     "gridColumns": "Colonnes de la grille",

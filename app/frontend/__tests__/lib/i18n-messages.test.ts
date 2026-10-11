@@ -22,8 +22,32 @@ const flatten = (tree: Tree, prefix = ""): Record<string, string> =>
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)(?=[,}])/g)].map((m) => m[1]).sort();
 const tags = (s: string) => [...s.matchAll(/<(\w+)>/g)].map((m) => m[1]).sort();
 
-const catalogs: Record<string, Tree> = { ar, de, es, fr, ru, ur, zh };
-const base = flatten(en as Tree);
+const sectionFiles = import.meta.glob<{ default: Tree }>("../../messages/{sections,site}/*/*.json", {
+  eager: true,
+});
+const sectionTree = (code: string): Tree =>
+  Object.entries(sectionFiles)
+    .filter(([path]) => path.endsWith(`/${code}.json`))
+    .reduce<Tree>((out, [, mod]) => ({ ...out, ...mod.default }), {});
+const withSections = (code: string, tree: Tree): Tree => {
+  const out: Tree = { ...tree };
+  for (const [ns, value] of Object.entries(sectionTree(code))) {
+    const current = out[ns];
+    out[ns] =
+      current && typeof current === "object" && typeof value === "object"
+        ? { ...current, ...value }
+        : value;
+  }
+  return out;
+};
+
+const catalogs: Record<string, Tree> = Object.fromEntries(
+  Object.entries({ ar, de, es, fr, ru, ur, zh }).map(([code, tree]) => [
+    code,
+    withSections(code, tree as Tree),
+  ]),
+);
+const base = flatten(withSections("en", en as Tree));
 
 describe("message catalogs", () => {
   it("ships a catalog for every non-default locale", () => {
