@@ -2,7 +2,8 @@
 
 import { NextIntlClientProvider } from "next-intl";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import en from "@/messages/en.json";
+import baseEn from "@/messages/en.json";
+import { APP_SECTIONS_EN, APP_SECTIONS_LOADERS } from "@/messages/app-sections";
 import {
   DEFAULT_LOCALE,
   applyDocumentLocale,
@@ -11,6 +12,11 @@ import {
   persistLocale,
   type Locale,
 } from "@/lib/i18n";
+
+const en = APP_SECTIONS_EN.reduce<typeof baseEn>(
+  (acc, section) => mergeMessages(acc, section),
+  baseEn,
+);
 
 type Messages = typeof en;
 
@@ -27,8 +33,14 @@ const loaders: Record<Locale, () => Promise<{ default: Record<string, unknown> }
 
 async function loadMessages(locale: Locale): Promise<Messages> {
   if (locale === DEFAULT_LOCALE) return en;
-  const { default: overlay } = await loaders[locale]();
-  return mergeMessages(en, overlay);
+  const [{ default: overlay }, sections] = await Promise.all([
+    loaders[locale](),
+    APP_SECTIONS_LOADERS[locale as Exclude<Locale, "en">](),
+  ]);
+  return sections.reduce<Messages>(
+    (acc, section) => mergeMessages(acc, section),
+    mergeMessages(en, overlay),
+  );
 }
 
 interface LocaleContextValue {
@@ -59,8 +71,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const detected = detectLocale();
-    if (detected !== DEFAULT_LOCALE) void activate(detected);
-  }, [activate]);
+    if (detected === DEFAULT_LOCALE) return;
+    let cancelled = false;
+    void loadMessages(detected).then((messages) => {
+      if (cancelled) return;
+      applyDocumentLocale(detected);
+      setState({ locale: detected, messages });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setLocale = useCallback(
     (locale: Locale) => {
