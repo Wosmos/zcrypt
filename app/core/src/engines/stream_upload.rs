@@ -204,15 +204,17 @@ pub async fn run(
         let orig_salt = b64
             .decode(&meta.salt)
             .map_err(|e| EngineError::Other(format!("resume: bad stored salt: {e}")))?;
-        let orig_wrapped = b64
-            .decode(&meta.wrapped_cek)
-            .map_err(|e| EngineError::Other(format!("resume: bad stored envelope: {e}")))?;
+        let orig_wrapped = crypto::WrappedKey::parse(&meta.wrapped_cek)?
+            .ok_or_else(|| EngineError::Other("resume: stored file has no envelope".into()))?;
+        if orig_wrapped.is_mk1() {
+            super::ensure_master_key(ctx, passphrase).await?;
+        }
         let pass = passphrase.to_string();
-        let mut kek = tokio::task::spawn_blocking(move || crypto::derive_key(&pass, &orig_salt))
-            .await
-            .map_err(join_err)?;
-        let mut recovered = crypto::unwrap_cek(&kek, &orig_wrapped)?;
-        kek.zeroize();
+        let mut recovered = tokio::task::spawn_blocking(move || {
+            crypto::resolve_file_key(&pass, &orig_salt, Some(&orig_wrapped))
+        })
+        .await
+        .map_err(join_err)??;
         if recovered.len() != cek.len() {
             recovered.zeroize();
             return Err(EngineError::Other(

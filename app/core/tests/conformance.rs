@@ -137,10 +137,9 @@ fn conformance_cek_unwrap() {
 
 #[test]
 fn conformance_resolve_file_key() {
-    let b64 = base64::engine::general_purpose::STANDARD;
     for c in load().resolve_file_key {
-        let wrapped = b64.decode(&c.wrapped_cek_b64).expect("b64");
-        let cek = crypto::resolve_file_key(&c.passphrase, &unhex(&c.salt_hex), Some(&wrapped))
+        let wrapped = crypto::WrappedKey::parse(&c.wrapped_cek_b64).expect("b64");
+        let cek = crypto::resolve_file_key(&c.passphrase, &unhex(&c.salt_hex), wrapped.as_ref())
             .unwrap_or_else(|e| panic!("resolve {}: {e}", c.name));
         assert_eq!(hex::encode(cek), c.cek_hex, "resolve {}", c.name);
     }

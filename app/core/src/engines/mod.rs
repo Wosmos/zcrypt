@@ -174,6 +174,42 @@ pub(crate) async fn upload_keys(
     .map_err(|e| EngineError::Other(format!("task join: {e}")))
 }
 
+/// Make sure the session holds the account master key, fetching and unwrapping
+/// it from `/api/keys/me` when absent. Read-only: never creates a key. The
+/// account KEK derives from the vault passphrase when known.
+pub(crate) async fn ensure_master_key(
+    ctx: &EngineContext,
+    passphrase: &str,
+) -> Result<(), EngineError> {
+    if crate::crypto::cached_master_key().is_some() {
+        return Ok(());
+    }
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let rec = ctx.client.get_my_key().await?.unwrap_or_default();
+    crate::crypto::set_master_key_writes(rec.master_key_writes);
+    if rec.wrapped_master_key.is_empty() {
+        return Err(crate::crypto::CryptoError::MasterKeyMissing.into());
+    }
+    let wrapped = b64
+        .decode(&rec.wrapped_master_key)
+        .map_err(|e| EngineError::Integrity(format!("wrapped master key b64: {e}")))?;
+    let kdf_salt = b64
+        .decode(&rec.kdf_salt)
+        .map_err(|e| EngineError::Integrity(format!("kdf salt b64: {e}")))?;
+    let pass = ctx
+        .vault_passphrase
+        .clone()
+        .unwrap_or_else(|| passphrase.to_string());
+    let mk = tokio::task::spawn_blocking(move || {
+        crate::crypto::unwrap_master_key(&pass, &kdf_salt, &wrapped)
+    })
+    .await
+    .map_err(|e| EngineError::Other(format!("task join: {e}")))??;
+    crate::crypto::set_master_key(mk);
+    Ok(())
+}
+
 impl EngineContext {
     /// `Err(Cancelled)` if the caller has requested cancellation, else `Ok`.
     /// Engines call this at chunk boundaries to abort promptly.
