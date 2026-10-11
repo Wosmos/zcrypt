@@ -3,7 +3,8 @@
 import { tr } from "@/store/translate";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getFileMeta, setFolderPassword, removeFolderPassword, type FileRekey } from "@/lib/api";
-import { resolveFileKey, generateSalt, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, generateSalt, fromBase64, toBase64 } from "@/lib/crypto";
+import { wrapCekForVault } from "@/lib/master-key";
 import {
   deriveFolderPwSalt,
   makeFolderVerifier,
@@ -133,9 +134,18 @@ export interface UseFolderProtection {
     fileId: string,
     sourcePassword: string,
     destPassword: string,
+    destVault?: VaultDestination,
   ) => Promise<FileRekey>;
   /** Spread onto exactly ONE folder-unlock modal rendered by the page. */
   modalState: FolderUnlockModalState;
+}
+
+/** Set when the destination of a re-key is the VAULT scheme (no folder
+ *  password): the file may then take an mk1 envelope. `folderId` is the
+ *  unprotected destination folder, or null for the root. Omit it for any
+ *  password-protected destination, which always stays on the legacy scheme. */
+export interface VaultDestination {
+  folderId: string | null;
 }
 
 // Best-effort folder name for the prompt (we only have ids here). The modal
@@ -314,7 +324,12 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
   // server only ever receives it together with the move / protection change it
   // belongs to, in one transaction, so no failure can strand a file half re-keyed.
   const rewrapOneFile = useCallback(
-    async (fileId: string, sourcePassword: string, destPassword: string): Promise<FileRekey> => {
+    async (
+      fileId: string,
+      sourcePassword: string,
+      destPassword: string,
+      destVault?: VaultDestination,
+    ): Promise<FileRekey> => {
       const meta = await getFileMeta(fileId);
       const salt = fromBase64(meta.salt);
       // Recover the EXISTING CEK under the source password (never regenerate it:
@@ -323,6 +338,8 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       const cek = new Uint8Array(cekBuf);
       // Rewrap that same CEK under the destination password with a fresh salt.
       const newSalt = generateSalt();
+      const mk1 = destVault ? await wrapCekForVault(cek, destPassword, destVault.folderId) : null;
+      if (mk1) return { file_id: fileId, salt: toBase64(newSalt), wrapped_cek: mk1 };
       const { salt: saltB64, wrapped_cek } = await rewrapFileKey(cek, destPassword, newSalt);
       return { file_id: fileId, salt: saltB64, wrapped_cek };
     },
@@ -338,12 +355,13 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       destPassword: string,
       title: string,
       onProgress?: (p: RekeyProgress) => void,
+      destVault?: VaultDestination,
     ): Promise<FileRekey[]> => {
       const total = files.length;
       const rekeys: FileRekey[] = [];
       onProgress?.({ title, done: 0, total });
       for (const f of files) {
-        rekeys.push(await rewrapOneFile(f.id, sourcePassword, destPassword));
+        rekeys.push(await rewrapOneFile(f.id, sourcePassword, destPassword, destVault));
         onProgress?.({ title, done: rekeys.length, total });
       }
       return rekeys;
@@ -407,6 +425,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
         vaultPassphrase,
         "Removing protection",
         onProgress,
+        { folderId: null },
       );
       await removeFolderPassword(fid, rekeys);
       // Clear local protection state + cached password.

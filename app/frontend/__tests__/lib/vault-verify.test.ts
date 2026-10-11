@@ -20,6 +20,13 @@ const { getFileMeta, ensureFiles, resolveFileKey, fromBase64, IncorrectPassphras
   };
 });
 
+const { verifyPassphraseAgainstMasterKey } = vi.hoisted(() => ({
+  verifyPassphraseAgainstMasterKey: vi.fn(async (): Promise<boolean | null> => null),
+}));
+vi.mock("@/lib/master-key", () => ({
+  verifyPassphraseAgainstMasterKey,
+  isMk1: (w?: string | null) => !!w && w.startsWith("mk1:"),
+}));
 vi.mock("@/lib/api", () => ({ getFileMeta }));
 vi.mock("@/store/files", () => ({ ensureFiles }));
 vi.mock("@/lib/crypto", () => ({ resolveFileKey, fromBase64, IncorrectPassphraseError }));
@@ -35,7 +42,29 @@ function file(id: string, folder_id: string | null = null) {
 beforeEach(() => {
   vi.clearAllMocks();
   getFileMeta.mockReset();
+  verifyPassphraseAgainstMasterKey.mockReset().mockResolvedValue(null);
   useFolderRegistry.setState({ byId: {} });
+});
+
+describe("verifyVaultPassphrase with an account master key", () => {
+  it("a wrong passphrase fails by the MK unwrap alone, even for an empty vault", async () => {
+    verifyPassphraseAgainstMasterKey.mockResolvedValueOnce(false);
+    expect(await verifyVaultPassphrase("bad")).toBe(false);
+    expect(ensureFiles).not.toHaveBeenCalled();
+  });
+
+  it("the right passphrase is verified without touching any file", async () => {
+    verifyPassphraseAgainstMasterKey.mockResolvedValueOnce(true);
+    expect(await verifyVaultPassphrase("good")).toBe(true);
+    expect(getFileMeta).not.toHaveBeenCalled();
+  });
+
+  it("inconclusive MK check falls back to files and never unwraps mk1 files with a cached MK", async () => {
+    ensureFiles.mockResolvedValueOnce([file("m")]);
+    getFileMeta.mockResolvedValueOnce({ salt: "s", wrapped_cek: "mk1:AAAA" });
+    expect(await verifyVaultPassphrase("pw")).toBe(true);
+    expect(resolveFileKey).not.toHaveBeenCalled();
+  });
 });
 
 describe("verifyVaultPassphrase", () => {

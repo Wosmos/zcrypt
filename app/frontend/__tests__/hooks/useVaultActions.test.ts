@@ -950,7 +950,7 @@ describe("moveFileWithRekey", () => {
 
     await result.current.moveFileWithRekey("f1", null);
 
-    expect(folderProtection.rekeyFileForMove).toHaveBeenCalledWith("f1", "src-pass", "dest-pass");
+    expect(folderProtection.rekeyFileForMove).toHaveBeenCalledWith("f1", "src-pass", "dest-pass", { folderId: null });
     expect(mockMoveFile).toHaveBeenCalledTimes(1);
     expect(mockMoveFile).toHaveBeenCalledWith("f1", null, { salt: "new-salt", wrapped_cek: "new-wrapped" });
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");

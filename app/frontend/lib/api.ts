@@ -169,6 +169,10 @@ export interface UserKeyRecord extends PublicKeyRecord {
   wrapped_private_key: string;
   kdf_salt: string;
   updated_at: string;
+  /** Account master key (mk1) wrapped under the account KEK; "" until set. */
+  wrapped_master_key?: string;
+  /** Admin rollout switch: clients may write mk1 envelopes only while true. */
+  master_key_writes?: boolean;
 }
 
 /** The caller's own key record (incl. the wrapped private key), or null if
@@ -187,6 +191,28 @@ export function publishKey(body: {
 }): Promise<{ success: boolean }> {
   return request(`/api/keys`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Store the account master key. Set-once: the server answers 409 (ApiError)
+ *  when one already exists. */
+export function putMasterKey(wrappedMasterKey: string): Promise<{ stored: boolean }> {
+  return request(`/api/keys/master`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wrapped_master_key: wrappedMasterKey }),
+  });
+}
+
+/** Replace one file's salt + wrapped_cek (same CEK, new wrapping). */
+export function rekeyFile(
+  fileId: string,
+  body: { salt: string; wrapped_cek: string },
+): Promise<{ success: boolean }> {
+  return request(`/api/files/${fileId}/rekey`, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });

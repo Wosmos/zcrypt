@@ -575,6 +575,7 @@ export function useVaultActions({
         fileId,
         sourcePassword,
         destPassword,
+        destProtected ? undefined : { folderId: destFolderId },
       );
       await moveFile(fileId, destFolderId, { salt, wrapped_cek });
       clearDecryptCacheForFile(fileId);

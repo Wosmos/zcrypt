@@ -14,6 +14,7 @@
 import { x25519 } from "@noble/curves/ed25519.js";
 import {
   deriveKeyBytes,
+  deriveKeyBytesCached,
   wrapKey,
   unwrapKey,
   generateSalt,
@@ -21,8 +22,9 @@ import {
   fromBase64,
   sha256Hex,
 } from "@/lib/crypto";
-import { getMyKey, publishKey } from "@/lib/api";
+import { getMyKey, publishKey, type UserKeyRecord } from "@/lib/api";
 import { useKeysStore } from "@/store/keys";
+import { loadMasterKey } from "@/lib/master-key";
 
 /** Short, human-verifiable fingerprint of a public key (first 16 hex chars of
  *  its SHA-256, grouped): for out-of-band verification against a MITM. */
@@ -108,6 +110,17 @@ export async function openSealed(sealed: string): Promise<Uint8Array> {
   return unwrapKey(aesKey, wrapped);
 }
 
+/** The keypair is already unlocked and usable; a master-key failure (network,
+ *  server hiccup) must not undo that. It is retried lazily by ensureMasterKey
+ *  the first time an mk1 file or an mk1 write needs it. */
+async function loadMasterKeySafely(kek: ArrayBuffer, record: UserKeyRecord): Promise<void> {
+  try {
+    await loadMasterKey(kek, record);
+  } catch {
+    /* retried lazily */
+  }
+}
+
 /**
  * Ensure the user has an X25519 keypair loaded into the session store: fetch +
  * unwrap it if already published, otherwise generate + publish one. Idempotent
@@ -121,7 +134,9 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
   try {
     const existing = await getMyKey();
     if (existing) {
-      const kek = await deriveKeyBytes(passphrase, fromBase64(existing.kdf_salt));
+      // One derivation serves the private key AND the master key (and is
+      // memoized, so a later lazy master-key load pays nothing).
+      const kek = await deriveKeyBytesCached(passphrase, fromBase64(existing.kdf_salt));
       // Throws if the passphrase is wrong (GCM auth failure), we leave the
       // store not-ready and let a later unlock retry.
       const privateKey = await unwrapKey(kek, fromBase64(existing.wrapped_private_key));
@@ -137,6 +152,7 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
         ready: true,
         loading: false,
       });
+      await loadMasterKeySafely(kek, existing);
       return;
     }
 
@@ -158,6 +174,16 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
       fingerprint,
       ready: true,
       loading: false,
+    });
+    await loadMasterKeySafely(kek, {
+      user_id: "",
+      public_key: toBase64(publicKey),
+      fingerprint,
+      wrapped_private_key: toBase64(wrapped),
+      kdf_salt: toBase64(salt),
+      updated_at: "",
+      wrapped_master_key: "",
+      master_key_writes: false,
     });
   } catch (err) {
     useKeysStore.setState({ loading: false });

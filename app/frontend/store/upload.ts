@@ -8,13 +8,14 @@ import {
   deriveKeyBytes,
   generateCEK,
   wrapKey,
-  unwrapKey,
+  resolveFileKey,
   contentMacFile,
   deriveDedupKeyBytes,
   toBase64,
   fromBase64,
 } from "@/lib/crypto";
 import { encryptName } from "@/lib/name-crypto";
+import { wrapCekForVault } from "@/lib/master-key";
 import { nameKeyFor } from "@/lib/sealed";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -277,12 +278,11 @@ async function loadPersistedResume(file: File, passphrase: string): Promise<Resu
     if (status.status !== "active") return undefined;
     const meta = await getFileMeta(rec.fileId);
     if (!meta.wrapped_cek) return undefined; // legacy/no envelope, can't rebuild the key
-    const kek = await deriveKeyBytes(passphrase, fromBase64(meta.salt));
-    const cek = await unwrapKey(kek, fromBase64(meta.wrapped_cek));
+    const cekBytes = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
     return {
       sessionId: rec.sessionId,
       fileId: rec.fileId,
-      cekBytes: cek.buffer.slice(0) as ArrayBuffer,
+      cekBytes,
       chunkCount: rec.chunkCount,
       chunkSize: rec.chunkSize,
       directUpload: rec.directUpload,
@@ -615,9 +615,16 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // The file's stored `salt` becomes the shared batch salt. Retry/resume
       // pass no batchKek and derive per-file, exactly as before.
       const salt = opts.batchKek?.salt ?? generateSalt();
-      const kekBytes = opts.batchKek?.kekBytes ?? (await deriveKeyBytes(passphrase, salt));
       const cek = generateCEK();
-      const wrappedCek = await wrapKey(kekBytes, cek);
+      // Vault files go under the account master key once the server enables
+      // mk1 writes; wrapCekForVault returns null for anything else (protected
+      // folder, switch off, MK unavailable), which keeps today's legacy wrap.
+      const mk1Wrapped = await wrapCekForVault(cek, passphrase, destFolderId);
+      const wrappedCek =
+        mk1Wrapped ??
+        toBase64(
+          await wrapKey(opts.batchKek?.kekBytes ?? (await deriveKeyBytes(passphrase, salt)), cek),
+        );
       cekBytes = cek.buffer.slice(0) as ArrayBuffer;
       if (pauseCheckpoint()) return;
 
@@ -642,7 +649,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               sha256: fileSha256,
               sha256_scheme: fileScheme,
               salt: toBase64(salt),
-              wrapped_cek: toBase64(wrappedCek),
+              wrapped_cek: wrappedCek,
               chunk_count: chunkCount,
               chunk_size: chunkSize,
               platform: explicitPlatform ?? platform,
@@ -1111,8 +1118,7 @@ async function adoptServerSession(
   try {
     const meta = await getFileMeta(session.file_id);
     if (!meta.wrapped_cek) return undefined;
-    const kek = await deriveKeyBytes(passphrase, fromBase64(meta.salt));
-    const cek = await unwrapKey(kek, fromBase64(meta.wrapped_cek));
+    const cekBytes = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
     const rec = readPersistedResume(file);
     const chunkSize = session.chunk_size || rec?.chunkSize || 0;
     const chunkCount = session.chunk_count || rec?.chunkCount || 0;
@@ -1120,7 +1126,7 @@ async function adoptServerSession(
     return {
       sessionId: session.session_id,
       fileId: session.file_id,
-      cekBytes: cek.buffer.slice(0) as ArrayBuffer,
+      cekBytes,
       chunkCount,
       chunkSize,
       directUpload: session.direct_upload,

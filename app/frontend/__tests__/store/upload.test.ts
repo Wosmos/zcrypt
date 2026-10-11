@@ -40,7 +40,7 @@ import { setFilesData } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { uploadPathFor } from "@/lib/desktop-paths";
-import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, deriveDedupKeyBytes, contentMacFile, toBase64, fromBase64 } from "@/lib/crypto";
+import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, resolveFileKey, sha256File, deriveDedupKeyBytes, contentMacFile, toBase64, fromBase64 } from "@/lib/crypto";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
@@ -88,6 +88,7 @@ vi.mock("@/lib/crypto", () => ({
   generateCEK: vi.fn(() => new Uint8Array([1, 2, 3, 4])),
   wrapKey: vi.fn(async () => new Uint8Array([9, 9, 9])),
   unwrapKey: vi.fn(async () => new Uint8Array([5, 6, 7, 8])),
+  resolveFileKey: vi.fn(async () => new Uint8Array([5, 6, 7, 8]).buffer),
   sha256File: vi.fn(async (file: File, onProgress?: (n: number) => void) => {
     onProgress?.(file.size);
     return `sha-${file.name}-${file.size}`;
@@ -112,6 +113,10 @@ vi.mock("@/store/auth", () => ({
 vi.mock("@/store/passphrase", () => ({
   usePassphraseStore: { getState: vi.fn(() => ({ getPassphrase: () => "vault-pass" })) },
 }));
+const { wrapCekForVault } = vi.hoisted(() => ({
+  wrapCekForVault: vi.fn(async (): Promise<string | null> => null),
+}));
+vi.mock("@/lib/master-key", () => ({ wrapCekForVault }));
 vi.mock("@/lib/name-crypto", () => ({
   deriveNameKey: vi.fn(async () => ({}) as CryptoKey),
   encryptName: vi.fn(async (name: string) => `enc:${name}`),
@@ -228,6 +233,7 @@ describe("useUploadStore", () => {
     (generateCEK as Mock).mockClear();
     (wrapKey as Mock).mockClear();
     (unwrapKey as Mock).mockClear();
+    (resolveFileKey as Mock).mockClear();
     (sha256File as Mock).mockClear();
     (deriveDedupKeyBytes as Mock).mockClear();
     (contentMacFile as Mock).mockClear();
@@ -358,6 +364,27 @@ describe("useUploadStore", () => {
         original_size: 10,
         folder_id: "folder-9",
       });
+    });
+
+    it("keeps the legacy KEK wrap when the master-key gate says no", async () => {
+      wrapCekForVault.mockResolvedValueOnce(null);
+      const file = makeFile("a.txt", 10, "0123456789");
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(wrapKey).toHaveBeenCalled();
+      expect((initUpload as Mock).mock.calls[0][0].wrapped_cek).toBe("b64:9,9,9");
+    });
+
+    it("sends an mk1 envelope when the gate returns one, asking it about the destination folder", async () => {
+      wrapCekForVault.mockResolvedValueOnce("mk1:ENVELOPE");
+      const file = makeFile("a.txt", 10, "0123456789");
+      useUploadStore.getState().startUpload([file], "vault-pass", "telegram", undefined, undefined, "folder-9");
+      await flush();
+
+      expect(wrapCekForVault).toHaveBeenCalledWith(expect.any(Uint8Array), "vault-pass", "folder-9");
+      expect((initUpload as Mock).mock.calls[0][0].wrapped_cek).toBe("mk1:ENVELOPE");
+      expect(wrapKey).not.toHaveBeenCalled();
     });
 
     it("does not duplicate the optimistic row if it's already present", async () => {
@@ -2964,7 +2991,7 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("done");
       // The staged chunks were encrypted with the ORIGINAL key, so the adopted
       // envelope must be unwrapped rather than our fresh CEK being used.
-      expect(unwrapKey).toHaveBeenCalled();
+      expect(resolveFileKey).toHaveBeenCalled();
     });
 
     it("restarts on the session's own platform when the envelope is missing", async () => {

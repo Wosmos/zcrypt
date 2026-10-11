@@ -11,6 +11,10 @@ interface KeysStore {
   privateKey: Uint8Array | null;
   publicKey: Uint8Array | null;
   fingerprint: string | null;
+  /** Account master key (mk1). Memory only; same lifecycle as privateKey. */
+  masterKey: Uint8Array | null;
+  /** Server rollout switch: new vault files may be wrapped under masterKey. */
+  masterKeyWrites: boolean;
   ready: boolean;
   loading: boolean;
   /** True when the server's public key for us did not match our private key. */
@@ -22,6 +26,8 @@ export const useKeysStore = create<KeysStore>((set) => ({
   privateKey: null,
   publicKey: null,
   fingerprint: null,
+  masterKey: null,
+  masterKeyWrites: false,
   ready: false,
   loading: false,
   mismatch: false,
@@ -30,6 +36,8 @@ export const useKeysStore = create<KeysStore>((set) => ({
       privateKey: null,
       publicKey: null,
       fingerprint: null,
+      masterKey: null,
+      masterKeyWrites: false,
       ready: false,
       loading: false,
       mismatch: false,
