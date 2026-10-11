@@ -249,6 +249,14 @@
       "seeFull": "Voir tout le journal des modifications",
       "gotIt": "Compris",
       "loading": "Chargement"
+    },
+    "globalSearch": {
+      "placeholder": "Rechercher dans votre coffre",
+      "recents": "Récents",
+      "files": "Fichiers",
+      "noMatches": "Aucun fichier ne correspond",
+      "showAll": "Voir tous les résultats pour « {query} »",
+      "clear": "Effacer la recherche"
     }
   }
 }

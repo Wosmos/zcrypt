@@ -249,6 +249,14 @@
       "seeFull": "Vollständigen Changelog ansehen",
       "gotIt": "Verstanden",
       "loading": "Wird geladen"
+    },
+    "globalSearch": {
+      "placeholder": "Tresor durchsuchen",
+      "recents": "Zuletzt verwendet",
+      "files": "Dateien",
+      "noMatches": "Keine passenden Dateien",
+      "showAll": "Alle Ergebnisse für „{query}“ anzeigen",
+      "clear": "Suche löschen"
     }
   }
 }

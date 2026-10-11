@@ -249,6 +249,14 @@
       "seeFull": "See full changelog",
       "gotIt": "Got it",
       "loading": "Loading"
+    },
+    "globalSearch": {
+      "placeholder": "Search your vault",
+      "recents": "Recents",
+      "files": "Files",
+      "noMatches": "No files match",
+      "showAll": "Show all results for “{query}”",
+      "clear": "Clear search"
     }
   }
 }

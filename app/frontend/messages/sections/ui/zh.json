@@ -249,6 +249,14 @@
       "seeFull": "查看完整更新日志",
       "gotIt": "知道了",
       "loading": "加载中"
+    },
+    "globalSearch": {
+      "placeholder": "搜索你的保险库",
+      "recents": "最近使用",
+      "files": "文件",
+      "noMatches": "没有匹配的文件",
+      "showAll": "显示“{query}”的全部结果",
+      "clear": "清除搜索"
     }
   }
 }

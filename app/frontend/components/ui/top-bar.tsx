@@ -5,6 +5,7 @@ import { AvatarDropdown } from "@/components/ui/avatar-dropdown";
 import { Logo } from "@/components/ui/logo";
 import { UpdatePill } from "@/components/ui/update-pill";
 import { VaultLock } from "@/components/ui/vault-lock";
+import { GlobalSearch } from "@/components/ui/global-search";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 
 export function TopBar() {
@@ -15,10 +16,10 @@ export function TopBar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-lg px-2 pb-6 pt-[calc(1.5rem+var(--safe-top))] md:mt-0 md:py-0 md:pt-0">
-      {/* Left: logo on mobile (the global search bar was removed; the per-page
-          file search lives in the page header, and ⌘K still opens the palette). */}
-      <div className="flex min-w-0 flex-1 items-center">
-        <Logo size="lg" iconOnly href="/dashboard" className="sm:hidden" />
+      {/* Left: logo on mobile, then the global vault search on every page. */}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <Logo size="lg" iconOnly href="/dashboard" className="shrink-0 sm:hidden" />
+        <GlobalSearch className="max-w-2xl" />
       </div>
 
       {/* Right: vault lock (mobile only), notification + avatar, pinned right */}

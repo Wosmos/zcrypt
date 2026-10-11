@@ -249,6 +249,14 @@
       "seeFull": "Ver todas las novedades",
       "gotIt": "Entendido",
       "loading": "Cargando"
+    },
+    "globalSearch": {
+      "placeholder": "Busca en tu bóveda",
+      "recents": "Recientes",
+      "files": "Archivos",
+      "noMatches": "Ningún archivo coincide",
+      "showAll": "Ver todos los resultados de «{query}»",
+      "clear": "Borrar búsqueda"
     }
   }
 }

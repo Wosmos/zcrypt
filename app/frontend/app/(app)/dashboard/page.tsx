@@ -29,7 +29,6 @@ import { VaultLock } from "@/components/ui/vault-lock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ShareModal } from "@/components/ui/share-modal";
 import { BulkShareModal } from "@/components/ui/bulk-share-modal";
@@ -63,7 +62,7 @@ import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 import { useRecentlyViewedStore } from "@/store/recently-viewed";
-import { RecentlyViewedStrip } from "@/components/files/recently-viewed-strip";
+import { useVaultSearch } from "@/components/ui/command-palette";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 
 import {
@@ -73,8 +72,6 @@ import {
   FileUpload,
   HardDrive,
   FolderAdd,
-  Search,
-  X,
 } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 import { useAutoTour } from "@/components/onboarding/tour-provider";
@@ -94,9 +91,10 @@ export default function VaultPage() {
   const ta = useTranslations("app");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const search = useVaultSearch((s) => s.query);
+  const setSearch = useVaultSearch((s) => s.setQuery);
   const explorerRef = useRef<VaultExplorerHandle>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => () => useVaultSearch.getState().setQuery(""), []);
 
   // OS file drop anywhere on the page. dragDepth counts nested enter/leave
   // pairs (every descendant fires its own dragenter/dragleave as the pointer
@@ -127,23 +125,6 @@ export default function VaultPage() {
     e.preventDefault();
     dragDepth.current = Math.max(0, dragDepth.current - 1);
     if (dragDepth.current === 0) setDragActive(false);
-  }, []);
-
-  // "/" focuses the search box (GitHub/Slack convention), unless the user is
-  // already typing in a field. Escape (handled on the input) clears + blurs.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
-      const el = document.activeElement;
-      const typing =
-        el instanceof HTMLElement &&
-        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-      if (typing) return;
-      e.preventDefault();
-      searchRef.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   // Modal targets the explorer hands back to the page.
@@ -358,6 +339,19 @@ export default function VaultPage() {
     [files, handleOpenFile],
   );
 
+  const pendingOpen = useVaultSearch((s) => s.pendingOpen);
+  useEffect(() => {
+    if (!pendingOpen || !vault.ready) return;
+    const file = files.find((f) => f.id === pendingOpen);
+    useVaultSearch.getState().requestOpen(null);
+    if (!file) return;
+    const fid = file.folder_id ?? null;
+    handleOpenFile(
+      file,
+      files.filter((f) => (f.folder_id ?? null) === fid),
+    );
+  }, [pendingOpen, vault.ready, files, handleOpenFile]);
+
   const closeViewer = useCallback(() => setViewerOpen(false), []);
 
   const executeDelete = useCallback(() => {
@@ -444,46 +438,11 @@ export default function VaultPage() {
           </div>
         </div>
       )}
-      {/* Top row, search + actions. DESKTOP (sm+): search with the vault-lock
-          toggle hugging its right edge, then [New folder, Upload, refresh] far right.
-          On MOBILE this row is sticky and carries only search, the vault-lock toggle
-          lives in the global TopBar and refresh is replaced by pull-to-refresh; New
-          folder + Upload move beside the type filters. */}
-      <div className="sticky -top-1 z-20 -mx-3 flex flex-row items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 sm:static sm:z-auto sm:mx-0 sm:justify-between sm:gap-3 sm:border-b-0 sm:bg-transparent sm:p-0">
-        {/* Left group: search + the vault lock hugging its right edge (desktop). */}
+      {/* Desktop actions row: vault lock, then [New folder, Upload, refresh]. Search
+          is the global bar in the TopBar; on mobile the lock lives in the TopBar and
+          New folder + Upload move beside the type filters. */}
+      <div className="hidden flex-row items-center justify-between gap-3 sm:flex">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
-          <div className="relative w-full min-w-0 flex-1 sm:w-80" data-tour="vault-search">
-            <Input
-              ref={searchRef}
-              type="search"
-              placeholder={t("searchVault")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setSearch("");
-                  e.currentTarget.blur();
-                }
-              }}
-              icon={<Search className="h-4 w-4" />}
-              className="h-9 pe-9"
-              aria-label={t("searchVault")}
-            />
-            {search ? (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label={t("clearSearch")}
-                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <kbd className="pointer-events-none absolute end-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)] sm:block">
-                /
-              </kbd>
-            )}
-          </div>
           <VaultLock
             unlocked={vault.unlocked}
             remainingSeconds={vault.remainingSeconds}
@@ -559,10 +518,6 @@ export default function VaultPage() {
         <IncompleteUploads
           onResume={(file, upload) => actions.handleResumeIncomplete(file, upload)}
         />
-
-        {!currentFolderId && vault.ready && files.length > 0 && (
-          <RecentlyViewedStrip files={files} onOpen={handleOpenFile} />
-        )}
 
         {/* Empty vault → CTA; otherwise the unified explorer. The explorer
               renders its own loading / locked / no-results states. Until the

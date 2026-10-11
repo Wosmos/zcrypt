@@ -43,10 +43,14 @@ const useCommandPalette = create<CommandPaletteState>((set) => ({
 interface VaultSearchState {
   query: string;
   setQuery: (query: string) => void;
+  pendingOpen: string | null;
+  requestOpen: (fileId: string | null) => void;
 }
 export const useVaultSearch = create<VaultSearchState>((set) => ({
   query: "",
   setQuery: (query) => set({ query }),
+  pendingOpen: null,
+  requestOpen: (pendingOpen) => set({ pendingOpen }),
 }));
 
 const NAV = [
