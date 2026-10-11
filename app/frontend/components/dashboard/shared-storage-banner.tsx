@@ -4,24 +4,23 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Database, ArrowRight } from "@/lib/icons";
+import { X, Database, AlertTriangle, ArrowRight } from "@/lib/icons";
 import { useQuota } from "@/hooks/useQuota";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 /**
- * Tells a user on shared storage that they are on shared storage, and that
- * connecting their own account removes the cap.
+ * The single storage-state strip on the vault page.
  *
- * Why this exists: zcrypt lets a brand new user upload immediately using a
- * shared global token, which is the best thing about the product and was
- * previously invisible. Nobody was told they were using it, that it is capped,
- * or that their own account is one click away and unlimited. Of the 8 people
- * who have ever stored a file, 6 were on shared storage and had no idea.
- *
- * Dismissible for 24 hours while usage is under half the cap; past that it
- * stays put, and ConnectStorageDialog handles the first-visit and cap-reached
- * moments.
+ * Two states share one slim row (icon, message, one CTA):
+ * - storage unavailable (quota says uploads cannot start): always shown, not
+ *   dismissible, wins over everything else.
+ * - shared storage nudge: tells a user riding zcrypt's shared token that they
+ *   are capped and that connecting their own account removes the cap. Of the 8
+ *   people who ever stored a file, 6 were on shared storage and had no idea.
+ *   Dismissible for 24 hours while usage is under half the cap; past that it
+ *   stays put, and ConnectStorageDialog handles the first-visit and cap-reached
+ *   moments.
  */
 const DISMISS_KEY = "zcrypt:shared-storage-banner-dismissed-at";
 const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
@@ -43,11 +42,13 @@ function dismissedRecently(): boolean {
 
 export function SharedStorageBanner() {
   const t = useTranslations("app.sharedBanner");
+  const td = useTranslations("dashboard");
   const { quota } = useQuota();
   // Start hidden and decide on the client. localStorage is not available during
   // SSR, so rendering it server-side would flash a banner the user dismissed.
   const [visible, setVisible] = useState(false);
 
+  const unavailable = Boolean(quota && !quota.can_upload);
   const onShared = Boolean(quota && !quota.has_personal_key && !quota.is_unlimited);
 
   const sticky = Boolean(
@@ -57,13 +58,17 @@ export function SharedStorageBanner() {
   );
 
   useEffect(() => {
-    if (!onShared) {
+    if (unavailable) {
       // oxlint-disable-next-line react/set-state-in-effect
+      setVisible(true);
+      return;
+    }
+    if (!onShared) {
       setVisible(false);
       return;
     }
     setVisible(sticky || !dismissedRecently());
-  }, [onShared, sticky]);
+  }, [unavailable, onShared, sticky]);
 
   const dismiss = () => {
     setVisible(false);
@@ -80,7 +85,9 @@ export function SharedStorageBanner() {
   const total = quota.quota_bytes;
   const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
   // Past 80% the tone shifts from informational to "do something now".
-  const nearlyFull = pct >= 80;
+  const warn = unavailable || pct >= 80;
+  const Icon = unavailable ? AlertTriangle : Database;
+  const canDismiss = !unavailable && pct < STICKY_FROM_PCT;
 
   return (
     <AnimatePresence>
@@ -94,59 +101,62 @@ export function SharedStorageBanner() {
         >
           <div
             className={cn(
-              "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-3",
-              nearlyFull
+              "flex items-center gap-3 rounded-xl border py-2 ps-3 pe-2",
+              warn
                 ? "border-amber-500/30 bg-amber-500/5"
                 : "border-[var(--color-border)] bg-[var(--color-surface-1)]",
             )}
           >
-            <Database
+            <Icon
               className={cn(
                 "h-4 w-4 shrink-0",
-                nearlyFull ? "text-amber-500" : "text-[var(--color-text-muted)]",
+                warn ? "text-amber-500" : "text-[var(--color-text-muted)]",
               )}
             />
 
-            <div className="min-w-0 flex-1 sm:basis-64">
-              <p className="text-sm text-[var(--color-text)]">
-                {nearlyFull ? t("nearlyFull") : t("using")}{" "}
-                <span className="text-[var(--color-text-muted)]">
-                  {t("usedOf", { used: formatBytes(used), total: formatBytes(total) })}
-                </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-[var(--color-text)]">
+                {unavailable ? td("storageUnavailable") : pct >= 80 ? t("nearlyFull") : t("using")}
               </p>
-
-              <div
-                className="mt-2 h-1 w-full max-w-xs overflow-hidden rounded-full bg-[var(--color-surface-3)]"
-                role="progressbar"
-                aria-valuenow={Math.round(pct)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={t("usedAria")}
-              >
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-[width] duration-500",
-                    nearlyFull ? "bg-amber-500" : "bg-[var(--color-accent)]",
-                  )}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              {!unavailable && (
+                <div className="mt-1 flex items-center gap-2">
+                  <div
+                    className="h-1 w-full max-w-24 shrink-0 overflow-hidden rounded-full bg-[var(--color-surface-3)]"
+                    role="progressbar"
+                    aria-valuenow={Math.round(pct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={t("usedAria")}
+                  >
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-[width] duration-500",
+                        warn ? "bg-amber-500" : "bg-[var(--color-accent)]",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="truncate text-xs tabular-nums text-[var(--color-text-muted)]">
+                    {t("usedOf", { used: formatBytes(used), total: formatBytes(total) })}
+                  </span>
+                </div>
+              )}
             </div>
 
             <Link
               href="/settings?tab=storage"
-              className="order-last inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-2 sm:order-none sm:w-auto sm:py-1.5 text-sm font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
             >
               {t("connectOwn")}
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
             </Link>
 
-            {pct < STICKY_FROM_PCT && (
+            {canDismiss && (
               <button
                 type="button"
                 onClick={dismiss}
                 aria-label={t("dismiss")}
-                className="ms-auto shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                className="shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 <X className="h-4 w-4" />
               </button>
