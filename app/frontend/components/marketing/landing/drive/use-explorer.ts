@@ -277,7 +277,14 @@ export function useExplorer() {
     pos.current = next;
   });
 
-  return {
+  const refocus = () =>
+    requestAnimationFrame(() => {
+      const el = opener.current;
+      if (el?.isConnected) el.focus({ preventScroll: true });
+      else gridRef.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+    });
+
+  const explorer = {
     state,
     dispatch,
     gh,
@@ -293,7 +300,6 @@ export function useExplorer() {
     closePreview,
     setPreviewIndex,
     toast,
-    gridRef,
-    opener,
   };
+  return [explorer, gridRef, refocus] as const;
 }

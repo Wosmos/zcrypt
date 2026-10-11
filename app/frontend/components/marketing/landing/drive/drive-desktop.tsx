@@ -31,7 +31,7 @@ import { useDriveText } from "./drive-i18n";
 import { DriveRow } from "./drive-card";
 import { FilterMenu } from "./drive-parts";
 import { TransfersDock } from "./transfers-dock";
-import { ExplorerCards, ExplorerOverlays, useRefocus } from "./explorer-shared";
+import { ExplorerCards, ExplorerOverlays } from "./explorer-shared";
 import { useExplorer } from "./use-explorer";
 
 const NAV = [
@@ -46,7 +46,7 @@ const ACCOUNT = [
 
 /** The desktop app shell: sidebar, top bar and the explorer panel, with sample data. */
 export function DriveDesktop({ onPick }: { onPick: () => void }) {
-  const x = useExplorer();
+  const [x, gridRef, refocus] = useExplorer();
   const { t, folder } = useDriveText();
   const { state, dispatch, gh, cards, recent } = x;
   const search = useRef<HTMLInputElement>(null);
@@ -54,7 +54,6 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
   const fo = FOLDERS.find((f) => f.id === state.folder);
   const count = countLabel(t, state.view, x.entries, state.dropped, state.folder);
   const list = state.layout === "list" && !gh;
-  const refocus = useRefocus(x);
 
   return (
     <div
@@ -311,7 +310,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                   <span className="zh-row-m">{t("drive.row.modified")}</span>
                   <span className="zh-row-c" />
                 </div>
-                <div ref={x.gridRef} className="zh-list-body">
+                <div ref={gridRef} className="zh-list-body">
                   {cards
                     .filter((c) => !c.hidden)
                     .map((c) => (
@@ -328,7 +327,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
               </div>
             ) : (
               <div
-                ref={x.gridRef}
+                ref={gridRef}
                 className={cn("zh-grid", state.extra && "zh-grid-extra")}
                 role="group"
                 aria-label={t("drive.desktop.sampleFiles")}

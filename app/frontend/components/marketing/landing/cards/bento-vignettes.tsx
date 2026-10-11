@@ -20,14 +20,14 @@ import {
   Users,
   X,
 } from "@/lib/icons";
-import { cn, fileIconFor, getFileTypeInfo } from "@/lib/utils";
+import { FileTypeIcon } from "@/components/marketing/landing/file-type-icon";
+import { cn, getFileTypeInfo } from "@/lib/utils";
 
 function FileIc({ name, className }: { name: string; className?: string }) {
   const info = getFileTypeInfo(name);
-  const Icon = fileIconFor(name);
   return (
     <span className={cn("zc-fic", info.bg, className)}>
-      <Icon className={info.color} strokeWidth={1.6} />
+      <FileTypeIcon name={name} className={info.color} strokeWidth={1.6} />
     </span>
   );
 }

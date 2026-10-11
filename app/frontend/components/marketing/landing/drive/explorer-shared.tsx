@@ -5,17 +5,7 @@ import { DropOverlay, HintToast, UnlockDialog } from "./drive-parts";
 import { FilePreview } from "./file-preview";
 import type { useExplorer } from "./use-explorer";
 
-type Explorer = ReturnType<typeof useExplorer>;
-
-/** Returns focus to the card that opened a dialog, or the first card if it is gone. */
-export function useRefocus(x: Explorer) {
-  return () =>
-    requestAnimationFrame(() => {
-      const el = x.opener.current;
-      if (el?.isConnected) el.focus({ preventScroll: true });
-      else x.gridRef.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
-    });
-}
+type Explorer = ReturnType<typeof useExplorer>[0];
 
 /** The visible cards plus the locked-view-only extra pieces. */
 export function ExplorerCards({ x }: { x: Explorer }) {

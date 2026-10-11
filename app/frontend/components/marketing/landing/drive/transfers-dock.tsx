@@ -52,9 +52,12 @@ export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
 
   useEffect(() => {
     if (variant !== "sheet" || upload !== "done" || !uploadAt) return;
-    setHold(true);
-    const t = window.setTimeout(() => setHold(false), 1600);
-    return () => window.clearTimeout(t);
+    const on = window.setTimeout(() => setHold(true), 0);
+    const off = window.setTimeout(() => setHold(false), 1600);
+    return () => {
+      window.clearTimeout(on);
+      window.clearTimeout(off);
+    };
   }, [variant, upload, uploadAt]);
 
   const running = upload === "running";

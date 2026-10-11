@@ -14,7 +14,8 @@ import {
   ZoomIn,
   ZoomOut,
 } from "@/lib/icons";
-import { cn, fileIconFor, formatBytes } from "@/lib/utils";
+import { FileTypeIcon } from "@/components/marketing/landing/file-type-icon";
+import { cn, formatBytes } from "@/lib/utils";
 import { seededHex, typeOf, type ArtKey } from "./drive-data";
 import { useDriveText } from "./drive-i18n";
 import { PreviewArt } from "./preview-art";
@@ -317,12 +318,11 @@ export function AudioBody({ file }: { file: PreviewFile }) {
     const v = Number.parseInt(seededHex(i * 131 + file.name.length, 2), 16) / 255;
     return 0.22 + 0.78 * Math.abs(Math.sin(i * 0.55)) * (0.55 + 0.45 * v);
   });
-  const Icon = fileIconFor(file.name);
   const tp = typeOf(file.name);
   return (
     <div className="zh-pv-aud">
       <span className={cn("zh-pv-aud-ic", tp.bg, tp.color)}>
-        <Icon className="h-8 w-8" />
+        <FileTypeIcon name={file.name} className="h-8 w-8" />
       </span>
       <p className="zh-pv-fname">{file.name}</p>
       <div className="zh-pv-wave" aria-hidden="true">
@@ -378,12 +378,11 @@ export function FallbackBody({
 }) {
   const { t, type } = useDriveText();
   const DL = t("drive.preview.dl");
-  const Icon = fileIconFor(file.name);
   const tp = typeOf(file.name);
   return (
     <div className="zh-pv-fb">
       <span className={cn("zh-pv-fb-ic corner-squircle", tp.bg, tp.color)}>
-        <Icon className="h-9 w-9" />
+        <FileTypeIcon name={file.name} className="h-9 w-9" />
       </span>
       <div className="zh-pv-fb-t">
         <p className="zh-pv-fname">{file.name}</p>

@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Folder as FolderIcon, Lock, ChevronRight } from "@/lib/icons";
+import { FileTypeIcon } from "@/components/marketing/landing/file-type-icon";
 import { cn, fileIconFor, formatBytes } from "@/lib/utils";
 import {
   DownloadSimple,
@@ -287,7 +288,6 @@ export function DriveRow({
   }
   const fi = item as DriveFile | DroppedFile;
   const tp = typeOf(fi.name);
-  const Icon = fileIconFor(fi.name);
   const url = isDropped(fi) ? fi.url : null;
   return (
     <button
@@ -306,7 +306,7 @@ export function DriveRow({
           // oxlint-disable-next-line nextjs/no-img-element
           <img src={url} alt="" className="zh-row-img" />
         ) : (
-          <Icon className="h-[18px] w-[18px]" />
+          <FileTypeIcon name={fi.name} className="h-[18px] w-[18px]" />
         )}
       </span>
       <span className="zh-row-n">{fi.name}</span>
