@@ -63,16 +63,10 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 import { useRecentlyViewedStore } from "@/store/recently-viewed";
 import { useVaultSearch } from "@/components/ui/command-palette";
+import { VaultShortcuts } from "@/components/files/vault-shortcuts";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 
-import {
-  Shield,
-  AlertTriangle,
-  RefreshCw,
-  FileUpload,
-  HardDrive,
-  FolderAdd,
-} from "@/lib/icons";
+import { Shield, AlertTriangle, RefreshCw, FileUpload, HardDrive, FolderAdd } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 import { useAutoTour } from "@/components/onboarding/tour-provider";
 
@@ -456,6 +450,7 @@ export default function VaultPage() {
         </div>
         {/* Desktop actions. New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
         <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
+          <VaultShortcuts />
           <Button
             variant="secondary"
             onClick={() => explorerRef.current?.startNewFolder()}

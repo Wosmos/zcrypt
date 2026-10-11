@@ -561,8 +561,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       return () => window.removeEventListener("resize", compute);
     }, [view, gridCols]);
 
-    const [shortcutsOpen, setShortcutsOpen] = useState(false);
-
     // Per-entry keydown (rows/cards forward their event here). Handles roving
     // arrows, Space toggle, Shift+arrow range extend, Enter open, Delete/F2,
     // Esc clear.
@@ -642,11 +640,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const target = e.target as HTMLElement;
       const typing =
         target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
-      if (e.key === "?" && !typing) {
-        e.preventDefault();
-        setShortcutsOpen(true);
-        return;
-      }
       if ((e.metaKey || e.ctrlKey) && (e.key === "a" || e.key === "A")) {
         if (typing) return;
         if (sortedFiles.length === 0) return;
@@ -1625,29 +1618,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           allowBackgroundDesign={customizeTarget?.type === "folder"}
         />
 
-        <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
-          <DialogContent className={DIALOG_PANEL}>
-            <DialogHeader>
-              <DialogTitle>{ta("shortcutsTitle")}</DialogTitle>
-              <DialogDescription>{ta("shortcutsIntro")}</DialogDescription>
-            </DialogHeader>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-              {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
-                <div key={keys} className="contents">
-                  <dt>
-                    <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-xs">
-                      {keys}
-                    </kbd>
-                  </dt>
-                  <dd className="text-[var(--color-text-secondary)]">
-                    {ta(`shortcuts.${action}`)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </DialogContent>
-        </Dialog>
-
         {/* Delete folder confirm */}
         <ConfirmDialog
           open={!!deleteTarget}
@@ -1686,18 +1656,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     );
   },
 );
-
-const KEYBOARD_SHORTCUTS: [string, string][] = [
-  ["Arrow keys", "move"],
-  ["Shift + Arrow", "extend"],
-  ["Space", "select"],
-  ["Enter", "open"],
-  ["Ctrl/Cmd + A", "selectAll"],
-  ["Delete", "trash"],
-  ["F2", "rename"],
-  ["Esc", "clear"],
-  ["?", "show"],
-];
 
 /**
  * ── DEVIATIONS FROM SPEC ─────────────────────────────────────────────────────
