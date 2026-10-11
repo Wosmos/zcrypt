@@ -1,5 +1,6 @@
 "use client";
 
+import { spaceHref } from "@/lib/space-routes";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { HTMLAttributes } from "react";
@@ -86,7 +87,7 @@ export function SpaceCard({
       className="h-full"
     >
       <Link
-        href={`/spaces/${vault.id}`}
+        href={spaceHref(vault.id)}
         role="option"
         {...itemProps}
         className="panel group flex h-full w-full flex-col gap-4 p-5 text-left outline-none transition-colors hover:border-[var(--color-border-hover)] focus-visible:border-[var(--color-accent)]/50 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"

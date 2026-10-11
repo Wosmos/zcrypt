@@ -1,8 +1,10 @@
 "use client";
 
+import { spaceHref } from "@/lib/space-routes";
+import { useSpaceId } from "@/hooks/useSpaceId";
 import Link from "next/link";
 import { spaceKeysReady, useVaultReady } from "@/components/spaces/use-vault-ready";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 import { deleteSharedVault, removeSharedVaultMember, updateSharedVaultMemberRole } from "@/lib/api";
@@ -203,7 +205,7 @@ function KeyStatus({
 
 export function SpaceSettings() {
   const t = useTranslations("spaces");
-  const { id } = useParams<{ id: string }>();
+  const id = useSpaceId();
   const router = useRouter();
   const { query, detail, perms, userId } = useSpaceDetail(id);
   const ready = useVaultReady();
@@ -245,7 +247,7 @@ export function SpaceSettings() {
   const spaceName = meta.name || t("shared.space");
   const crumbs = [
     { label: t("shared.spaces"), href: "/spaces" },
-    { label: spaceName, href: `/spaces/${id}` },
+    { label: spaceName, href: spaceHref(id) },
     { label: t("home.settings") },
   ];
 
@@ -440,7 +442,7 @@ export function SpaceSettings() {
         eyebrow={spaceName}
         title={t("settings.title")}
         actions={
-          <Link href={`/spaces/${id}`} className={buttonClass("secondary", "md")}>
+          <Link href={spaceHref(id)} className={buttonClass("secondary", "md")}>
             {t("settings.backToFiles")}
           </Link>
         }

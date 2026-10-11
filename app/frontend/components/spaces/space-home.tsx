@@ -1,8 +1,9 @@
 "use client";
 
+import { spaceHref } from "@/lib/space-routes";
+import { useSpaceId } from "@/hooks/useSpaceId";
 import Link from "next/link";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
-import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { unshareFileFromSpace, downloadSpaceFile } from "@/lib/spaces";
@@ -89,7 +90,7 @@ export function SpaceHome() {
     ["/", t("home.filterDesc")],
     ["?", t("shared.showShortcuts")],
   ];
-  const { id } = useParams<{ id: string }>();
+  const id = useSpaceId();
   const { query, detail, perms } = useSpaceDetail(id);
   const meta = useSpaceMeta(detail ?? undefined);
   const rows = useSpaceFileRows(detail);
@@ -304,7 +305,7 @@ export function SpaceHome() {
             )}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
               <Link
-                href={`/spaces/${id}/settings#members`}
+                href={spaceHref(id, "/settings", "#members")}
                 className={cn("rounded-full", FOCUS_RING)}
                 aria-label={t("home.manageMembers", { count: members.length })}
               >
@@ -330,12 +331,12 @@ export function SpaceHome() {
                 {t("home.addFiles")}
               </span>
             ) : (
-              <Link href={`/spaces/${id}/add`} className={buttonClass("primary", "md")}>
+              <Link href={spaceHref(id, "/add")} className={buttonClass("primary", "md")}>
                 <Plus className="h-4 w-4" />
                 {t("home.addFiles")}
               </Link>
             ))}
-          <Link href={`/spaces/${id}/settings`} className={buttonClass("secondary", "md")}>
+          <Link href={spaceHref(id, "/settings")} className={buttonClass("secondary", "md")}>
             <Settings className="h-4 w-4" />
             {t("home.settings")}
           </Link>
@@ -353,7 +354,10 @@ export function SpaceHome() {
             {!perms.rotate && ` ${t("home.rotationAsk")}`}
           </p>
           {perms.rotate && (
-            <Link href={`/spaces/${id}/settings#rotate`} className={buttonClass("primary", "sm")}>
+            <Link
+              href={spaceHref(id, "/settings", "#rotate")}
+              className={buttonClass("primary", "sm")}
+            >
               {t("home.rotateKey")}
             </Link>
           )}
@@ -477,7 +481,7 @@ export function SpaceHome() {
               description={canEdit ? t("home.emptyEditor") : t("home.emptyViewer")}
               action={
                 canEdit && !addBlocked ? (
-                  <Link href={`/spaces/${id}/add`} className={buttonClass("primary", "md")}>
+                  <Link href={spaceHref(id, "/add")} className={buttonClass("primary", "md")}>
                     <Plus className="h-4 w-4" />
                     {t("home.addFiles")}
                   </Link>

@@ -1,5 +1,6 @@
 "use client";
 
+import { spaceHref } from "@/lib/space-routes";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
@@ -117,7 +118,7 @@ export function SpaceNew() {
         if (fileIds.length > 0) useSpaceAdds.getState().enqueue(vault, fileIds, name.trim());
         if (invites.length > 0) void runInvites(vault, invites, t);
         toast.success(t("new.created", { name: name.trim() }));
-        router.push(`/spaces/${vault.id}`);
+        router.push(spaceHref(vault.id));
       } catch (err) {
         setError(err instanceof Error ? err.message : t("new.createFailed"));
         setCreating(false);

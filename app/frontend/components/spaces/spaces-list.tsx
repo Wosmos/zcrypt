@@ -1,5 +1,6 @@
 "use client";
 
+import { spaceHref } from "@/lib/space-routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -93,7 +94,7 @@ export function SpacesList() {
     columns,
     selected: noSelection,
     onSelectedChange: () => {},
-    onOpen: (id) => router.push(`/spaces/${id}`),
+    onOpen: (id) => router.push(spaceHref(id)),
   });
 
   const announce = query.trim() ? t("list.matchCount", { count: visible.length }) : "";

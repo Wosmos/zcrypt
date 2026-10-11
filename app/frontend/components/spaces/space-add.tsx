@@ -1,10 +1,12 @@
 "use client";
 
+import { spaceHref } from "@/lib/space-routes";
+import { useSpaceId } from "@/hooks/useSpaceId";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { FileMetadata } from "@/types";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { warmSpaceKeys } from "@/lib/spaces";
 import { useFilesQuery } from "@/store/files";
@@ -31,7 +33,7 @@ export function SpaceAdd() {
     ["/", t("add.search")],
     ["?", t("shared.showShortcuts")],
   ];
-  const { id } = useParams<{ id: string }>();
+  const id = useSpaceId();
   const router = useRouter();
   const { query, detail, perms } = useSpaceDetail(id);
   const meta = useSpaceMeta(detail ?? undefined);
@@ -58,7 +60,7 @@ export function SpaceAdd() {
   const spaceName = meta.name || t("shared.space");
   const crumbs = [
     { label: t("shared.spaces"), href: "/spaces" },
-    { label: spaceName, href: `/spaces/${id}` },
+    { label: spaceName, href: spaceHref(id) },
     { label: t("add.crumb") },
   ];
 
@@ -94,7 +96,7 @@ export function SpaceAdd() {
     if (selected.size === 0 || overLimit || blockedReason) return;
     ready(async () => {
       useSpaceAdds.getState().enqueue(detail, fileIds, spaceName);
-      router.push(`/spaces/${id}`);
+      router.push(spaceHref(id));
     });
   };
 
@@ -111,7 +113,7 @@ export function SpaceAdd() {
         <Notice tone="warn">
           {blockedReason}{" "}
           {perms.rotate && detail.needs_rotation && (
-            <Link href={`/spaces/${id}/settings#rotate`} className="font-medium underline">
+            <Link href={spaceHref(id, "/settings", "#rotate")} className="font-medium underline">
               {t("add.rotateLink")}
             </Link>
           )}
@@ -148,7 +150,7 @@ export function SpaceAdd() {
             )}
           </p>
           <div className="flex items-center gap-2">
-            <Link href={`/spaces/${id}`} className={buttonClass("ghost", "md")}>
+            <Link href={spaceHref(id)} className={buttonClass("ghost", "md")}>
               {t("common.cancel")}
             </Link>
             <Button onClick={submit} disabled={selected.size === 0 || overLimit || !!blockedReason}>
