@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { AlertTriangle, Music, CheckCircle2, Download, File, Eye } from "@/lib/icons";
@@ -30,6 +31,19 @@ export function ViewerLoading({ message }: { message: string }) {
   );
 }
 
+export function useShortExpiry(): (expiresAt: string) => string {
+  const t = useTranslations("tools");
+  return (expiresAt) => {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return t("token.expired");
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 24) return t("token.expiryDH", { days: Math.floor(hours / 24), hours: hours % 24 });
+    if (hours > 0) return t("token.expiryHM", { hours, mins });
+    return t("token.expiryM", { mins });
+  };
+}
+
 /** Red alert panel for an unavailable / invalid link. */
 export function ViewerError({ title, message }: { title: string; message: string }) {
   return (
@@ -45,15 +59,17 @@ export function ViewerError({ title, message }: { title: string; message: string
 
 /** Amber panel shown when the URL fragment is missing its `#key=…`. */
 export function ViewerIncompleteLink() {
+  const t = useTranslations("tools");
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6 gap-3 text-center">
       <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-amber-500/10">
         <AlertTriangle className="h-6 w-6 text-amber-500" />
       </div>
-      <h2 className="text-lg font-semibold">Incomplete Link</h2>
+      <h2 className="text-lg font-semibold">{t("token.incompleteTitle")}</h2>
       <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
-        This link is missing the encryption key. Make sure you copied the full URL including the{" "}
-        <code className="text-[var(--color-text-secondary)]">#key=...</code> part.
+        {t.rich("token.incompleteBody", {
+          code: (chunks) => <code className="text-[var(--color-text-secondary)]">{chunks}</code>,
+        })}
       </p>
     </div>
   );
@@ -70,6 +86,7 @@ export function TokenFileHeader({
   fileSize: number;
   previewType: "image" | "video" | "audio" | "none";
 }) {
+  const t = useTranslations("tools");
   return (
     <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
       <div className="flex items-center gap-3">
@@ -83,8 +100,11 @@ export function TokenFileHeader({
             {previewType !== "none" && (
               <span className="ml-1.5 text-[var(--color-accent)]">
                 &middot;{" "}
-                {previewType === "image" ? "Image" : previewType === "video" ? "Video" : "Audio"}{" "}
-                preview available
+                {previewType === "image"
+                  ? t("token.previewImage")
+                  : previewType === "video"
+                    ? t("token.previewVideo")
+                    : t("token.previewAudio")}
               </span>
             )}
           </p>
@@ -139,6 +159,7 @@ export function ViewerDecryptProgress({
 
 /** Preview pane title bar: filename + a "Save" shortcut, above the media itself. */
 export function PreviewHeader({ name, onSave }: { name: string; onSave: () => void }) {
+  const t = useTranslations("tools");
   return (
     <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
       <div className="flex items-center gap-2 min-w-0">
@@ -150,7 +171,7 @@ export function PreviewHeader({ name, onSave }: { name: string; onSave: () => vo
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors flex-shrink-0"
       >
         <Download className="h-3.5 w-3.5" />
-        Save
+        {t("token.save")}
       </button>
     </div>
   );
@@ -165,6 +186,7 @@ export function DownloadCompletePanel({
   fileName: string;
   children?: ReactNode;
 }) {
+  const t = useTranslations("tools");
   return (
     <div className="p-6">
       <div className="flex flex-col items-center gap-3 py-4 text-center">
@@ -172,9 +194,9 @@ export function DownloadCompletePanel({
           <CheckCircle2 className="h-6 w-6 text-cyan-500" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold">Download Complete</h3>
+          <h3 className="text-sm font-semibold">{t("token.complete")}</h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            {fileName || "File"} decrypted and saved to your device.
+            {t("token.completeBody", { name: fileName || t("token.fileFallback") })}
           </p>
         </div>
         {children}
@@ -195,6 +217,7 @@ export function MediaPreview({
   name: string;
   onSave: () => void;
 }) {
+  const t = useTranslations("tools");
   return (
     <div className="p-4">
       {previewType === "image" && previewUrl && (
@@ -228,13 +251,11 @@ export function MediaPreview({
       {previewType === "none" && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <CheckCircle2 className="h-8 w-8 text-cyan-500" />
-          <p className="text-sm font-medium">File decrypted successfully</p>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            No preview available for this file type.
-          </p>
+          <p className="text-sm font-medium">{t("token.decrypted")}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">{t("token.noPreview")}</p>
           <Button onClick={onSave} className="mt-2">
             <Download className="h-4 w-4 mr-2" />
-            Save to Device
+            {t("token.saveToDevice")}
           </Button>
         </div>
       )}

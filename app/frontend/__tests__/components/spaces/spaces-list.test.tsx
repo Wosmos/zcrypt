@@ -17,7 +17,6 @@ vi.mock("next/link", () => ({
     </a>
   ),
 }));
-vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k }));
 vi.mock("@/components/onboarding/tour-provider", () => ({ useAutoTour: () => {} }));
 vi.mock("@/store/auth", () => ({
   useAuthStore: Object.assign((sel: (s: typeof auth) => unknown) => sel(auth), {

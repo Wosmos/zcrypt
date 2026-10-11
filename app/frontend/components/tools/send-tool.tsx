@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -22,6 +23,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 type SendState = "idle" | "uploading" | "done" | "error";
 
 export function SendTool() {
+  const t = useTranslations("tools");
   const [state, setState] = useState<SendState>("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [burnAfterRead, setBurnAfterRead] = useState(false);
@@ -33,19 +35,22 @@ export function SendTool() {
   const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
   const abortRef = useRef(false);
 
-  const handleFiles = useCallback((files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      setErrorMsg(
-        `File too large (${formatBytes(file.size)}). Maximum is ${formatBytes(MAX_FILE_SIZE)} for anonymous sends.`,
-      );
-      setState("error");
-      return;
-    }
-    setSelectedFile(file);
-    setErrorMsg("");
-  }, []);
+  const handleFiles = useCallback(
+    (files: File[]) => {
+      const file = files[0];
+      if (!file) return;
+      if (file.size > MAX_FILE_SIZE) {
+        setErrorMsg(
+          t("send.sizeError", { size: formatBytes(file.size), max: formatBytes(MAX_FILE_SIZE) }),
+        );
+        setState("error");
+        return;
+      }
+      setSelectedFile(file);
+      setErrorMsg("");
+    },
+    [t],
+  );
 
   const handleUpload = useCallback(async () => {
     if (!selectedFile) return;
@@ -64,10 +69,10 @@ export function SendTool() {
         CHUNK_SIZE: CS,
       } = await import("@/lib/crypto");
 
-      setProgress({ stage: "Hashing file...", percent: 1 });
+      setProgress({ stage: t("send.hashing"), percent: 1 });
       const fileHash = await sha256File(selectedFile);
 
-      setProgress({ stage: "Generating encryption key...", percent: 2 });
+      setProgress({ stage: t("send.keygen"), percent: 2 });
       const randomKey = crypto.getRandomValues(new Uint8Array(32));
       const keyPassphrase = toBase64(randomKey);
       const salt = generateSalt();
@@ -75,7 +80,7 @@ export function SendTool() {
 
       const chunkCount = Math.ceil(selectedFile.size / CS);
 
-      setProgress({ stage: "Starting upload session...", percent: 3 });
+      setProgress({ stage: t("send.session"), percent: 3 });
       // The filename rides sealed under the same link key as the bytes, the
       // server never learns what was sent, only that something was.
       const nameKey = await keyFromBytes(keyBytes);
@@ -99,14 +104,14 @@ export function SendTool() {
         const plaintext = new Uint8Array(await slice.arrayBuffer());
 
         setProgress({
-          stage: `Encrypting chunk ${i + 1}/${chunkCount}...`,
+          stage: t("send.encryptingChunk", { n: i + 1, total: chunkCount }),
           percent: 3 + Math.round((i / chunkCount) * 42),
         });
         const encrypted = await encryptChunk(keyBytes, plaintext);
         const chunkHash = await sha256Hex(encrypted);
 
         setProgress({
-          stage: `Uploading chunk ${i + 1}/${chunkCount}...`,
+          stage: t("send.uploadingChunk", { n: i + 1, total: chunkCount }),
           percent: 45 + Math.round((i / chunkCount) * 47),
         });
         await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false);
@@ -114,21 +119,21 @@ export function SendTool() {
 
       if (abortRef.current) return;
 
-      setProgress({ stage: "Finalizing...", percent: 95 });
+      setProgress({ stage: t("send.finalizing"), percent: 95 });
       await sendComplete(session.session_id);
 
       const url = `${window.location.origin}/send/${session.token}#key=${keyPassphrase}`;
       setShareUrl(url);
-      setProgress({ stage: "Done!", percent: 100 });
+      setProgress({ stage: t("send.done"), percent: 100 });
       setState("done");
     } catch (err) {
-      let msg = "Upload failed";
+      let msg = t("send.failed");
       if (err instanceof SendInitError && (err as any).status === 429) {
         if ((err as any).loginRequired) {
-          setErrorMsg("Daily limit reached. Log in to send more.");
+          setErrorMsg(t("send.dailyLoginRequired"));
           setLoginRequired(true);
         } else {
-          setErrorMsg("You've reached today's limit. Try again tomorrow.");
+          setErrorMsg(t("send.dailyLimit"));
           setLoginRequired(false);
         }
         setState("error");
@@ -141,7 +146,7 @@ export function SendTool() {
       setLoginRequired(false);
       setState("error");
     }
-  }, [selectedFile, burnAfterRead, expiryHours]);
+  }, [selectedFile, burnAfterRead, expiryHours, t]);
 
   const handleReset = useCallback(() => {
     abortRef.current = true;
@@ -160,7 +165,7 @@ export function SendTool() {
         <div className="p-6">
           <UploadZone
             onFiles={handleFiles}
-            hint={`Up to ${formatBytes(MAX_FILE_SIZE)}. Files are encrypted in your browser before upload.`}
+            hint={t("send.hint", { max: formatBytes(MAX_FILE_SIZE) })}
           />
         </div>
       )}
@@ -177,17 +182,14 @@ export function SendTool() {
             <BurnAfterReadToggle
               checked={burnAfterRead}
               onCheckedChange={setBurnAfterRead}
-              description="File is deleted after first download"
+              description={t("send.burnDesc")}
             />
           </div>
           <Button onClick={handleUpload} className="w-full">
-            <Lock className="h-4 w-4 mr-2" /> Encrypt &amp; Send
+            <Lock className="h-4 w-4 mr-2" /> {t("send.submit")}
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-            <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Your file is encrypted in your browser before upload. The encryption key is embedded
-              in the share link: the server never sees your data.
-            </p>
+            <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("send.info")}</p>
           </div>
         </div>
       )}
@@ -219,22 +221,22 @@ export function SendTool() {
 
       {state === "done" && (
         <ShareResult
-          title="File Encrypted &amp; Uploaded"
-          subtitle="Share this link. The recipient can download and decrypt in their browser."
+          title={t("send.doneTitle")}
+          subtitle={t("send.doneSubtitle")}
           shareUrl={shareUrl}
           copied={copied}
           onCopy={handleCopy}
           expiryHours={expiryHours}
           burnAfterRead={burnAfterRead}
           resetIcon={Upload}
-          resetLabel="Send Another File"
+          resetLabel={t("send.another")}
           onReset={handleReset}
         />
       )}
 
       {state === "error" && (
         <ToolErrorState
-          title="Upload Failed"
+          title={t("send.failedTitle")}
           message={
             loginRequired ? (
               <div className="space-y-2">
@@ -243,7 +245,7 @@ export function SendTool() {
                   href="/login"
                   className="inline-block text-cyan-600 dark:text-cyan-400 hover:underline text-xs font-medium"
                 >
-                  Log in
+                  {t("send.login")}
                 </Link>
               </div>
             ) : (

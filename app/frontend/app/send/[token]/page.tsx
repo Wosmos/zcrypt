@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Shield, Send, Download, AlertTriangle, Eye, Clock } from "@/lib/icons";
@@ -19,8 +20,8 @@ import {
   PreviewHeader,
   MediaPreview,
   DownloadCompletePanel,
+  useShortExpiry,
 } from "@/components/tokens/viewer";
-import { formatShortExpiry as formatExpiry } from "@/components/tokens/token-layout";
 import type { SendInfo } from "@/types";
 
 type PageState = "loading" | "ready" | "decrypting" | "preview" | "done" | "error";
@@ -60,6 +61,8 @@ function getMimeType(filename: string): string | undefined {
 const noopSubscribe = () => () => {};
 
 export default function SendDownloadPage() {
+  const t = useTranslations("tools");
+  const formatExpiry = useShortExpiry();
   const { token } = useParams<{ token: string }>();
   const [info, setInfo] = useState<SendInfo | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
@@ -79,16 +82,16 @@ export default function SendDownloadPage() {
         setInfo(data);
         if (!data.valid) {
           setPageState("error");
-          setErrorMsg(data.reason || "This link is no longer valid");
+          setErrorMsg(data.reason || t("pub.send.invalid"));
         } else {
           setPageState("ready");
         }
       })
       .catch(() => {
         setPageState("error");
-        setErrorMsg("Link not found");
+        setErrorMsg(t("pub.send.notFound"));
       });
-  }, [token]);
+  }, [token, t]);
 
   // The filename may be sealed under the link key (enc1:). Open it once both the
   // key (fragment) and the KDF salt (public, in the info response) are known.
@@ -119,10 +122,10 @@ export default function SendDownloadPage() {
     const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
     const { getDeviceProfile } = await import("@/lib/device-profile");
 
-    setProgress({ stage: "Fetching metadata...", percent: 0 });
+    setProgress({ stage: t("pub.fetching"), percent: 0 });
     const meta = await getSendMeta(token);
 
-    setProgress({ stage: "Deriving key...", percent: 1 });
+    setProgress({ stage: t("pub.deriving"), percent: 1 });
     const salt = fromBase64(meta.salt);
     const keyBytes = await deriveKeyBytes(encryptionKey, salt);
 
@@ -138,13 +141,16 @@ export default function SendDownloadPage() {
       try {
         plaintext = await decryptChunk(keyBytes, encrypted);
       } catch {
-        throw new Error("Decryption failed: the link may be incomplete or corrupted");
+        throw new Error(t("pub.decryptCorrupt"));
       }
 
       decryptedChunks[index] = plaintext;
       chunksDone++;
       const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
-      setProgress({ stage: `Decrypting ${chunksDone}/${meta.chunk_count}`, percent });
+      setProgress({
+        stage: t("pub.decryptingN", { done: chunksDone, total: meta.chunk_count }),
+        percent,
+      });
     };
 
     const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
@@ -161,7 +167,7 @@ export default function SendDownloadPage() {
     }
     await Promise.all(workers);
 
-    setProgress({ stage: "Verifying integrity...", percent: 93 });
+    setProgress({ stage: t("pub.verifying"), percent: 93 });
     const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
     const fullFile = new Uint8Array(totalSize);
     let offset = 0;
@@ -173,14 +179,14 @@ export default function SendDownloadPage() {
     const actualHash = await sha256Hex(fullFile);
     const expectedHash = await openSendHash(meta.sha256, await keyFromBytes(keyBytes));
     if (actualHash !== expectedHash) {
-      throw new Error("File integrity check failed. SHA-256 mismatch");
+      throw new Error(t("pub.integrityMismatch"));
     }
 
     const originalName = info?.file_name || "download";
     const mime = getMimeType(originalName) || "application/octet-stream";
     const blob = new Blob([fullFile], { type: mime });
     return { blob, originalName };
-  }, [token, encryptionKey, info]);
+  }, [token, encryptionKey, info, t]);
 
   // Shared entry-point wrapper for both actions below: guard the key, flip to
   // the decrypting state, run decryptFile(), and report any failure. Only what
@@ -218,8 +224,8 @@ export default function SendDownloadPage() {
         }
 
         setPageState("preview");
-      }, "Decryption failed"),
-    [runDecrypt],
+      }, t("pub.decryptFailed")),
+    [runDecrypt, t],
   );
 
   const handleDirectDownload = useCallback(
@@ -228,8 +234,8 @@ export default function SendDownloadPage() {
         saveBlob(originalName, blob);
         setPageState("done");
         setFileName(originalName);
-      }, "Download failed"),
-    [runDecrypt],
+      }, t("pub.downloadFailed")),
+    [runDecrypt, t],
   );
 
   const handleSaveToDevice = useCallback(() => {
@@ -252,9 +258,9 @@ export default function SendDownloadPage() {
       </div>
 
       <ViewerCard>
-        {pageState === "loading" && <ViewerLoading message="Loading..." />}
+        {pageState === "loading" && <ViewerLoading message={t("pub.loading")} />}
 
-        {pageState === "error" && <ViewerError title="Unavailable" message={errorMsg} />}
+        {pageState === "error" && <ViewerError title={t("pub.unavailable")} message={errorMsg} />}
 
         {pageState === "ready" && info && noKey && <ViewerIncompleteLink />}
 
@@ -271,17 +277,17 @@ export default function SendDownloadPage() {
               <div className="flex flex-wrap gap-2 text-[10px] text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
                   <Clock className="h-3 w-3" />
-                  Expires in {formatExpiry(info.expires_at)}
+                  {t("shared.expiresIn", { when: formatExpiry(info.expires_at) })}
                 </span>
                 {info.burn_after_read && (
                   <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
                     <AlertTriangle className="h-3 w-3" />
-                    Burns after download
+                    {t("pub.send.burns")}
                   </span>
                 )}
                 <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
                   <Shield className="h-3 w-3" />
-                  E2E encrypted
+                  {t("shared.e2e")}
                 </span>
               </div>
 
@@ -291,7 +297,7 @@ export default function SendDownloadPage() {
                   <>
                     <Button onClick={handleDecryptAndPreview} className="flex-1">
                       <Eye className="h-4 w-4 mr-2" />
-                      Decrypt &amp; Preview
+                      {t("pub.decryptPreview")}
                     </Button>
                     <Button
                       variant="secondary"
@@ -304,16 +310,13 @@ export default function SendDownloadPage() {
                 ) : (
                   <Button onClick={handleDirectDownload} className="w-full">
                     <Download className="h-4 w-4 mr-2" />
-                    Download &amp; Decrypt
+                    {t("pub.downloadDecrypt")}
                   </Button>
                 )}
               </div>
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-                <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This file is end-to-end encrypted. Decryption happens entirely in your browser:
-                  the server never sees your data.
-                </p>
+                <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pub.send.info")}</p>
               </div>
             </div>
           </>
@@ -343,7 +346,7 @@ export default function SendDownloadPage() {
             {/* Bottom bar */}
             <div className="px-5 py-3 border-t border-[var(--color-border)]">
               <p className="text-[10px] text-[var(--color-text-muted)]">
-                {formatBytes(info.file_size)} &middot; Decrypted in browser
+                {t("pub.decryptedInBrowser", { size: formatBytes(info.file_size) })}
               </p>
             </div>
           </>
@@ -354,8 +357,9 @@ export default function SendDownloadPage() {
 
       {/* Footer */}
       <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-        Sent via <span className="font-semibold">zcrypt</span> &middot; Private encrypted file
-        sharing
+        {t.rich("pub.send.footer", {
+          b: (chunks) => <span className="font-semibold">{chunks}</span>,
+        })}
       </p>
     </div>
   );

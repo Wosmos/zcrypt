@@ -40,7 +40,6 @@ vi.mock("next/link", () => ({
     </a>
   ),
 }));
-vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k }));
 vi.mock("@/lib/spaces", async (orig) => ({
   ...(await orig<typeof import("@/lib/spaces")>()),
   warmSpaceKeys: spaces.warmSpaceKeys,

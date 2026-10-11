@@ -1,24 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { X } from "@/lib/icons";
 import { useSpaceAdds, type SpaceAddJob } from "@/store/space-adds";
 
 const AUTO_DISMISS_MS = 4000;
 
-function label(job: SpaceAddJob): string {
-  const files = (n: number) => `${n} file${n === 1 ? "" : "s"}`;
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+function label(job: SpaceAddJob, t: Translate): string {
+  const name = job.vaultName;
   if (job.status === "done") {
-    const ok = job.total - job.failed.length;
-    return `Added ${files(ok)} to ${job.vaultName}`;
+    return t("strip.done", { count: job.total - job.failed.length, name });
   }
-  if (job.status === "paused") return `Unlock your vault to finish adding to ${job.vaultName}`;
-  if (job.status === "error") return `Couldn't finish adding to ${job.vaultName}`;
-  if (job.status === "queued") return `Waiting to add ${files(job.total)} to ${job.vaultName}`;
-  return `Adding ${job.done} of ${job.total} files to ${job.vaultName}`;
+  if (job.status === "paused") return t("strip.paused", { name });
+  if (job.status === "error") return t("strip.error", { name });
+  if (job.status === "queued") return t("strip.queued", { count: job.total, name });
+  return t("strip.running", { done: job.done, total: job.total, name });
 }
 
 export function SpaceAddsStrip() {
+  const t = useTranslations("spaces");
   const jobs = useSpaceAdds((s) => s.jobs);
   const retryFailed = useSpaceAdds((s) => s.retryFailed);
   const dismiss = useSpaceAdds((s) => s.dismiss);
@@ -49,9 +52,11 @@ export function SpaceAddsStrip() {
       <div className="pointer-events-auto w-full max-w-md overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg">
         <div className="flex items-center gap-3 px-3.5 py-2.5">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-[var(--color-text)]">{label(job)}</p>
+            <p className="truncate text-sm font-medium text-[var(--color-text)]">{label(job, t)}</p>
             {job.failed.length > 0 && (
-              <p className="text-xs text-[var(--color-text-muted)]">{job.failed.length} failed</p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {t("strip.failed", { count: job.failed.length })}
+              </p>
             )}
           </div>
           {job.failed.length > 0 && job.status !== "running" && (
@@ -60,13 +65,13 @@ export function SpaceAddsStrip() {
               onClick={() => retryFailed(job.vaultId)}
               className="flex-shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)]/10"
             >
-              Retry
+              {t("strip.retry")}
             </button>
           )}
           {finished && (
             <button
               type="button"
-              aria-label="Dismiss"
+              aria-label={t("strip.dismiss")}
               onClick={() => dismiss(job.vaultId)}
               className="flex-shrink-0 rounded-lg p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
             >

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,8 @@ import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
 
 const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/^http/, "ws") + "/api/transfer/ws";
 
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
 type Mode = "choose" | "send" | "receive";
 type SendState = "selecting" | "waiting" | "paired" | "transferring" | "done" | "error";
 type RecvState = "entering" | "connecting" | "paired" | "receiving" | "done" | "error";
@@ -52,33 +55,34 @@ function attachWsLifecycle(
   stateRef: { current: string },
   setState: (s: "error") => void,
   setErrorMsg: (msg: string) => void,
+  t: Translate,
 ) {
   ws.onerror = () => {
     if (stateRef.current !== "done" && stateRef.current !== "error") {
       setState("error");
-      setErrorMsg("Connection failed");
+      setErrorMsg(t("transfer.connFailed"));
     }
   };
   ws.onclose = () => {
     if (stateRef.current !== "done" && stateRef.current !== "error") {
       setState("error");
-      setErrorMsg("Connection lost");
+      setErrorMsg(t("transfer.connLost"));
     }
   };
 }
 
 function ConfirmCode({ value }: { value: string }) {
+  const t = useTranslations("tools");
   return (
     <div className="rounded-xl border border-[var(--color-border)] p-3 text-center">
-      <p className="text-xs text-[var(--color-text-muted)]">
-        Both screens must show the same confirmation code
-      </p>
+      <p className="text-xs text-[var(--color-text-muted)]">{t("transfer.confirmCode")}</p>
       <p className="mt-1 font-mono text-xl tracking-[0.2em] tabular-nums">{value}</p>
     </div>
   );
 }
 
 export function TransferTool() {
+  const t = useTranslations("tools");
   const [mode, setMode] = useState<Mode>("choose");
 
   return (
@@ -86,18 +90,13 @@ export function TransferTool() {
       {mode === "choose" && (
         <div className="p-6 space-y-3">
           <Button onClick={() => setMode("send")} className="w-full">
-            <Send className="h-4 w-4 mr-2" /> Send a File
+            <Send className="h-4 w-4 mr-2" /> {t("transfer.sendFile")}
           </Button>
           <Button variant="secondary" onClick={() => setMode("receive")} className="w-full">
-            <Download className="h-4 w-4 mr-2" /> Receive a File
+            <Download className="h-4 w-4 mr-2" /> {t("transfer.receiveFile")}
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-            <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Files are encrypted on the sending device with a key that never touches the server. It
-              travels only in the QR code or link you share, or in the pairing key you read out. The
-              server relays ciphertext and cannot read the file or its name, but it can see that a
-              transfer happened and roughly how large it is.
-            </p>
+            <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("transfer.info")}</p>
           </div>
         </div>
       )}
@@ -108,6 +107,7 @@ export function TransferTool() {
 }
 
 function TransferSendMode({ onBack }: { onBack: () => void }) {
+  const t = useTranslations("tools");
   const [state, setState] = useState<SendState>("selecting");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [code, setCode] = useState("");
@@ -120,62 +120,67 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
   const secretRef = useRef("");
   const codeRef = useRef("");
   const stateRef = useRef<SendState>(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  });
 
   const handleFiles = useCallback((files: File[]) => {
     if (files[0]) setSelectedFile(files[0]);
   }, []);
 
-  const startTransfer = useCallback(async (ws: WebSocket, file: File) => {
-    setState("transferring");
-    try {
-      const { key, confirm: cf } = await deriveTransferKeys(secretRef.current, codeRef.current);
-      setConfirm(cf);
-      const CHUNK = 64 * 1024;
-      const totalChunks = Math.ceil(file.size / CHUNK);
-
-      ws.send(
-        JSON.stringify({
-          type: "file_info",
-          data: {
-            meta: await sealMeta(key, {
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              chunks: totalChunks,
-            }),
-          },
-        }),
-      );
-
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK;
-        const end = Math.min(start + CHUNK, file.size);
-        const slice = file.slice(start, end);
-        const plaintext = new Uint8Array(await slice.arrayBuffer());
-        const payload = await sealChunk(key, i, totalChunks, plaintext);
+  const startTransfer = useCallback(
+    async (ws: WebSocket, file: File) => {
+      setState("transferring");
+      try {
+        const { key, confirm: cf } = await deriveTransferKeys(secretRef.current, codeRef.current);
+        setConfirm(cf);
+        const CHUNK = 64 * 1024;
+        const totalChunks = Math.ceil(file.size / CHUNK);
 
         ws.send(
           JSON.stringify({
-            type: "chunk",
-            data: { index: i, total: totalChunks, payload },
+            type: "file_info",
+            data: {
+              meta: await sealMeta(key, {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                chunks: totalChunks,
+              }),
+            },
           }),
         );
 
-        setProgress({
-          stage: `Sending ${i + 1}/${totalChunks}`,
-          percent: Math.round(((i + 1) / totalChunks) * 100),
-        });
-        if (i % 5 === 0) await new Promise((r) => setTimeout(r, 0));
-      }
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK;
+          const end = Math.min(start + CHUNK, file.size);
+          const slice = file.slice(start, end);
+          const plaintext = new Uint8Array(await slice.arrayBuffer());
+          const payload = await sealChunk(key, i, totalChunks, plaintext);
 
-      ws.send(JSON.stringify({ type: "done" }));
-      setState("done");
-    } catch (err) {
-      setState("error");
-      setErrorMsg(err instanceof Error ? err.message : "Transfer failed");
-    }
-  }, []);
+          ws.send(
+            JSON.stringify({
+              type: "chunk",
+              data: { index: i, total: totalChunks, payload },
+            }),
+          );
+
+          setProgress({
+            stage: t("transfer.sending", { n: i + 1, total: totalChunks }),
+            percent: Math.round(((i + 1) / totalChunks) * 100),
+          });
+          if (i % 5 === 0) await new Promise((r) => setTimeout(r, 0));
+        }
+
+        ws.send(JSON.stringify({ type: "done" }));
+        setState("done");
+      } catch (err) {
+        setState("error");
+        setErrorMsg(err instanceof Error ? err.message : t("transfer.sendFailed"));
+      }
+    },
+    [t],
+  );
 
   const handleStart = useCallback(async () => {
     if (!selectedFile) return;
@@ -209,13 +214,13 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
           break;
         case "error":
           setState("error");
-          setErrorMsg(msg.data || "Transfer error");
+          setErrorMsg(msg.data || t("transfer.error"));
           break;
       }
     };
 
-    attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
-  }, [selectedFile, startTransfer]);
+    attachWsLifecycle(ws, stateRef, setState, setErrorMsg, t);
+  }, [selectedFile, startTransfer, t]);
 
   const pairLink =
     code && secret
@@ -241,11 +246,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       {state === "selecting" && (
         <>
           {!selectedFile ? (
-            <UploadZone
-              onFiles={handleFiles}
-              hint="Select a file to send to another device"
-              compact
-            />
+            <UploadZone onFiles={handleFiles} hint={t("transfer.selectHint")} compact />
           ) : (
             <>
               <SelectedFileCard
@@ -254,7 +255,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
                 onRemove={() => setSelectedFile(null)}
               />
               <Button onClick={handleStart} className="w-full">
-                <Lock className="h-4 w-4 mr-2" /> Start Transfer
+                <Lock className="h-4 w-4 mr-2" /> {t("transfer.start")}
               </Button>
             </>
           )}
@@ -262,7 +263,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             onClick={onBack}
             className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors py-1"
           >
-            Back
+            {t("common.back")}
           </button>
         </>
       )}
@@ -271,11 +272,8 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
         <div className="space-y-4 text-center">
           <div className="flex flex-col items-center gap-3">
             <LogoSpinner size={32} />
-            <p className="text-sm font-medium">Waiting for receiver</p>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Scan the QR code or open the link on the receiving device, or type the code and
-              pairing key there
-            </p>
+            <p className="text-sm font-medium">{t("transfer.waiting")}</p>
+            <p className="text-xs text-[var(--color-text-muted)]">{t("transfer.waitingHint")}</p>
           </div>
           {code && (
             <>
@@ -285,14 +283,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
                 </div>
                 <IconButton
                   icon={copied ? Check : Copy}
-                  label={copied ? "Copied" : "Copy link"}
+                  label={copied ? t("common.copied") : t("common.copyLink")}
                   variant="ghost"
                   onClick={handleCopyCode}
                   iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
                 />
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-[var(--color-text-muted)]">Pairing key</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{t("transfer.pairingKey")}</p>
                 <p className="font-mono text-sm tracking-wider break-all">
                   {formatPairingSecret(secret)}
                 </p>
@@ -316,27 +314,31 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             </div>
           </div>
           {confirm && <ConfirmCode value={confirm} />}
-          <ProgressBar stage={progress.stage || "Preparing..."} percent={progress.percent} />
+          <ProgressBar
+            stage={progress.stage || t("transfer.preparing")}
+            percent={progress.percent}
+          />
         </div>
       )}
 
       {state === "done" && (
         <ToolSuccessState
-          title="Transfer Complete"
-          message={<>{selectedFile?.name} sent successfully</>}
-          actionLabel="Send Another"
+          title={t("transfer.complete")}
+          message={t("transfer.sentOk", { name: selectedFile?.name ?? "" })}
+          actionLabel={t("transfer.sendAnother")}
           onAction={onBack}
         />
       )}
 
       {state === "error" && (
-        <ToolErrorState title="Transfer Failed" message={errorMsg} onAction={onBack} />
+        <ToolErrorState title={t("transfer.failedTitle")} message={errorMsg} onAction={onBack} />
       )}
     </div>
   );
 }
 
 function TransferReceiveMode({ onBack }: { onBack: () => void }) {
+  const t = useTranslations("tools");
   const [state, setState] = useState<RecvState>("entering");
   const [code, setCode] = useState("");
   const [secret, setSecret] = useState("");
@@ -349,12 +351,15 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
   const keyRef = useRef<ArrayBuffer | null>(null);
   const fileInfoRef = useRef<FileInfo | null>(null);
   const stateRef = useRef<RecvState>(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get("code");
+    // oxlint-disable-next-line react/set-state-in-effect
     if (urlCode && /^\d{6}$/.test(urlCode)) setCode(urlCode);
     const urlSecret = secretFromHash(window.location.hash);
     if (urlSecret) {
@@ -395,7 +400,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
             setState("receiving");
           } catch {
             setState("error");
-            setErrorMsg("Pairing key does not match the sender");
+            setErrorMsg(t("transfer.mismatch"));
             ws.close();
           }
           break;
@@ -409,12 +414,12 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
             if (chunksRef.current[index]) throw new Error("Transfer integrity check failed");
             chunksRef.current[index] = await openChunk(key, index, fi.chunks, msg.data.payload);
             setProgress({
-              stage: `Receiving ${index + 1}/${fi.chunks}`,
+              stage: t("transfer.receiving", { n: index + 1, total: fi.chunks }),
               percent: Math.round(((index + 1) / fi.chunks) * 100),
             });
           } catch {
             setState("error");
-            setErrorMsg("Transfer integrity check failed");
+            setErrorMsg(t("transfer.integrity"));
             ws.close();
           }
           break;
@@ -427,7 +432,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
             fullFile = assembleTransfer(chunksRef.current, fi);
           } catch {
             setState("error");
-            setErrorMsg("Transfer integrity check failed: the file was incomplete or altered");
+            setErrorMsg(t("transfer.integrityAlt"));
             ws.close();
             break;
           }
@@ -445,7 +450,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
         }
         case "error":
           setState("error");
-          setErrorMsg(msg.data || "Transfer error");
+          setErrorMsg(msg.data || t("transfer.error"));
           break;
       }
     };
@@ -455,13 +460,13 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
         .then(() => handle(e.data))
         .catch(() => {
           setState("error");
-          setErrorMsg("Transfer error");
+          setErrorMsg(t("transfer.error"));
           ws.close();
         });
     };
 
-    attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
-  }, [code, secret]);
+    attachWsLifecycle(ws, stateRef, setState, setErrorMsg, t);
+  }, [code, secret, t]);
 
   useEffect(() => {
     return () => {
@@ -475,7 +480,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
         <>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Enter 6-digit code
+              {t("transfer.enterCode")}
             </label>
             <Input
               value={code}
@@ -490,7 +495,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Pairing key (skip if you scanned the QR code)
+              {t("transfer.pairingKeyLabel")}
             </label>
             <Input
               value={formatPairingSecret(secret)}
@@ -507,13 +512,13 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
             disabled={code.length !== 6 || !isCompletePairingSecret(secret)}
             className="w-full"
           >
-            <Download className="h-4 w-4 mr-2" /> Connect
+            <Download className="h-4 w-4 mr-2" /> {t("transfer.connect")}
           </Button>
           <button
             onClick={onBack}
             className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors py-1"
           >
-            Back
+            {t("common.back")}
           </button>
         </>
       )}
@@ -521,14 +526,14 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
       {state === "connecting" && (
         <div className="flex flex-col items-center gap-3 py-4">
           <LogoSpinner size={32} />
-          <p className="text-sm text-[var(--color-text-muted)]">Connecting...</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{t("transfer.connecting")}</p>
         </div>
       )}
 
       {state === "paired" && (
         <div className="flex flex-col items-center gap-3 py-4">
           <LogoSpinner size={32} />
-          <p className="text-sm text-[var(--color-text-muted)]">Paired! Waiting for file...</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{t("transfer.paired")}</p>
           {confirm && <ConfirmCode value={confirm} />}
         </div>
       )}
@@ -549,15 +554,19 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
 
       {state === "done" && (
         <ToolSuccessState
-          title="Transfer Complete"
-          message={<>{fileInfo?.name} received and saved</>}
-          actionLabel="Receive Another"
+          title={t("transfer.complete")}
+          message={t("transfer.receivedOk", { name: fileInfo?.name ?? "" })}
+          actionLabel={t("transfer.receiveAnother")}
           onAction={onBack}
         />
       )}
 
       {state === "error" && (
-        <ToolErrorState title="Connection Failed" message={errorMsg} onAction={onBack} />
+        <ToolErrorState
+          title={t("transfer.connFailedTitle")}
+          message={errorMsg}
+          onAction={onBack}
+        />
       )}
     </div>
   );

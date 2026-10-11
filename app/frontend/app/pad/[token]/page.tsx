@@ -2,19 +2,21 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { getPadInfo, getPadContent } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { FileText, Copy, Check, AlertTriangle, CheckCircle2, Clock, Shield } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
-import { ViewerIncompleteLink } from "@/components/tokens/viewer";
-import { formatShortExpiry as formatExpiry } from "@/components/tokens/token-layout";
+import { ViewerIncompleteLink, useShortExpiry } from "@/components/tokens/viewer";
 import type { PadInfo } from "@/types";
 
 type PageState = "loading" | "ready" | "decrypting" | "viewing" | "error";
 
 export default function PadViewPage() {
+  const t = useTranslations("tools");
+  const formatExpiry = useShortExpiry();
   const { token } = useParams<{ token: string }>();
   const [info, setInfo] = useState<PadInfo | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
@@ -24,6 +26,7 @@ export default function PadViewPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     setEncryptionKey(keyFromFragment());
   }, []);
 
@@ -34,16 +37,16 @@ export default function PadViewPage() {
         setInfo(data);
         if (!data.valid) {
           setPageState("error");
-          setErrorMsg(data.reason || "This pad is no longer available");
+          setErrorMsg(data.reason || t("pub.pad.invalid"));
         } else {
           setPageState("ready");
         }
       })
       .catch(() => {
         setPageState("error");
-        setErrorMsg("Pad not found");
+        setErrorMsg(t("pub.pad.notFound"));
       });
-  }, [token]);
+  }, [token, t]);
 
   const handleDecrypt = useCallback(async () => {
     if (!token || !encryptionKey) return;
@@ -61,18 +64,18 @@ export default function PadViewPage() {
       try {
         plaintext = await decryptChunk(keyBytes.buffer as ArrayBuffer, encrypted);
       } catch {
-        throw new Error("Decryption failed: the link may be incomplete or corrupted");
+        throw new Error(t("pub.decryptCorrupt"));
       }
 
       const text = new TextDecoder().decode(plaintext);
       setDecryptedText(text);
       setPageState("viewing");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Decryption failed";
+      const msg = err instanceof Error ? err.message : t("pub.decryptFailed");
       setPageState("error");
       setErrorMsg(msg);
     }
-  }, [token, encryptionKey]);
+  }, [token, encryptionKey, t]);
 
   const handleCopyText = useCallback(async () => {
     if (!decryptedText) return;
@@ -109,7 +112,7 @@ export default function PadViewPage() {
           {pageState === "loading" && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <LogoSpinner size={32} />
-              <p className="text-sm text-[var(--color-text-muted)]">Loading...</p>
+              <p className="text-sm text-[var(--color-text-muted)]">{t("pub.loading")}</p>
             </div>
           )}
 
@@ -118,7 +121,7 @@ export default function PadViewPage() {
               <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
                 <AlertTriangle className="h-6 w-6 text-red-500" />
               </div>
-              <h2 className="text-lg font-semibold">Unavailable</h2>
+              <h2 className="text-lg font-semibold">{t("pub.unavailable")}</h2>
               <p className="text-sm text-[var(--color-text-muted)] max-w-xs">{errorMsg}</p>
             </div>
           )}
@@ -132,7 +135,7 @@ export default function PadViewPage() {
                   <FileText className="h-6 w-6 text-[var(--color-accent)]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Encrypted Pad</p>
+                  <p className="text-sm font-semibold">{t("pub.pad.encryptedPad")}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {formatBytes(info.content_size)}
                   </p>
@@ -142,29 +145,27 @@ export default function PadViewPage() {
               <div className="flex flex-wrap gap-2 text-[10px] text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
                   <Clock className="h-3 w-3" />
-                  Expires in {formatExpiry(info.expires_at)}
+                  {t("shared.expiresIn", { when: formatExpiry(info.expires_at) })}
                 </span>
                 {info.burn_after_read && (
                   <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
                     <AlertTriangle className="h-3 w-3" />
-                    Burns after view
+                    {t("pub.pad.burns")}
                   </span>
                 )}
                 <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
                   <Shield className="h-3 w-3" />
-                  E2E encrypted
+                  {t("shared.e2e")}
                 </span>
               </div>
 
               <Button onClick={handleDecrypt} className="w-full">
                 <Shield className="h-4 w-4 mr-2" />
-                Decrypt &amp; View
+                {t("pub.pad.decryptView")}
               </Button>
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-                <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This text is end-to-end encrypted. Decryption happens entirely in your browser.
-                </p>
+                <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pub.pad.info")}</p>
               </div>
             </div>
           )}
@@ -172,7 +173,7 @@ export default function PadViewPage() {
           {pageState === "decrypting" && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <LogoSpinner size={32} speed="fast" />
-              <p className="text-sm text-[var(--color-text-muted)]">Decrypting...</p>
+              <p className="text-sm text-[var(--color-text-muted)]">{t("pub.pad.decrypting")}</p>
             </div>
           )}
 
@@ -181,14 +182,14 @@ export default function PadViewPage() {
               <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-cyan-500" />
-                  <p className="text-sm font-semibold">Decrypted</p>
+                  <p className="text-sm font-semibold">{t("pub.pad.decrypted")}</p>
                 </div>
                 <button
                   onClick={handleCopyText}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
                 >
                   {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t("common.copied") : t("common.copy")}
                 </button>
               </div>
               <div className="p-5">
@@ -198,8 +199,9 @@ export default function PadViewPage() {
               </div>
               <div className="px-5 py-3 border-t border-[var(--color-border)]">
                 <p className="text-[10px] text-[var(--color-text-muted)]">
-                  {formatBytes(new TextEncoder().encode(decryptedText).length)} &middot; Decrypted
-                  in browser
+                  {t("pub.decryptedInBrowser", {
+                    size: formatBytes(new TextEncoder().encode(decryptedText).length),
+                  })}
                 </p>
               </div>
             </>
@@ -208,8 +210,9 @@ export default function PadViewPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-          Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted
-          text sharing
+          {t.rich("pub.pad.footer", {
+            b: (chunks) => <span className="font-semibold">{chunks}</span>,
+          })}
         </p>
       </div>
     </div>

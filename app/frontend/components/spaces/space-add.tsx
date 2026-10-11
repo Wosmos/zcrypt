@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { FileMetadata } from "@/types";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useParams, useRouter } from "next/navigation";
@@ -14,28 +15,22 @@ import { Button, buttonClass } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FilePicker } from "@/components/spaces/file-picker";
-import {
-  Notice,
-  PageShell,
-  ShortcutsHelp,
-  SpaceBreadcrumb,
-  plural,
-} from "@/components/spaces/shared";
+import { Notice, PageShell, ShortcutsHelp, SpaceBreadcrumb } from "@/components/spaces/shared";
 import { useSpaceDetail } from "@/components/spaces/use-space";
-
-const SHORTCUTS: [string, string][] = [
-  ["Arrow keys", "Move between files and folders"],
-  ["Space / Enter", "Select a file, or open a folder"],
-  ["Shift + Arrow", "Extend the selection"],
-  ["Ctrl/Cmd + A", "Select all files in this folder"],
-  ["Esc", "Clear the selection"],
-  ["/", "Search your files"],
-  ["?", "Show these shortcuts"],
-];
 
 const NO_FILES: FileMetadata[] = [];
 
 export function SpaceAdd() {
+  const t = useTranslations("spaces");
+  const shortcuts: [string, string][] = [
+    [t("shared.arrowKeys"), t("add.moveBetween")],
+    ["Space / Enter", t("add.selectOrOpen")],
+    [t("shared.shiftArrow"), t("shared.extendSelection")],
+    ["Ctrl/Cmd + A", t("add.selectAllHere")],
+    ["Esc", t("shared.clearTheSelection")],
+    ["/", t("add.search")],
+    ["?", t("shared.showShortcuts")],
+  ];
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { query, detail, perms } = useSpaceDetail(id);
@@ -60,11 +55,11 @@ export function SpaceAdd() {
     return files.filter((f) => !taken.has(f.id));
   }, [files, detail, job]);
 
-  const spaceName = meta.name || "Space";
+  const spaceName = meta.name || t("shared.space");
   const crumbs = [
-    { label: "Spaces", href: "/spaces" },
+    { label: t("shared.spaces"), href: "/spaces" },
     { label: spaceName, href: `/spaces/${id}` },
-    { label: "Add files" },
+    { label: t("add.crumb") },
   ];
 
   if (query.isPending && !detail) {
@@ -81,15 +76,15 @@ export function SpaceAdd() {
     return (
       <PageShell>
         <SpaceBreadcrumb crumbs={crumbs} />
-        <Notice tone="error">Couldn&apos;t load this space.</Notice>
+        <Notice tone="error">{t("shared.loadSpaceError")}</Notice>
       </PageShell>
     );
   }
 
   const blockedReason = !perms.editFiles
-    ? "Only editors and admins can add files to this space."
+    ? t("add.blockedPerms")
     : detail.needs_rotation
-      ? "A member was removed, so adding files is paused until the space key is rotated."
+      ? t("add.blockedRotate")
       : null;
 
   const over = selected.size - batchLimit;
@@ -107,9 +102,9 @@ export function SpaceAdd() {
     <PageShell>
       <SpaceBreadcrumb crumbs={crumbs} />
       <PageHeader
-        title="Add files"
-        description={`Choose files from your vault to share into ${spaceName}. They are re-sealed under the space key in the background.`}
-        actions={<ShortcutsHelp items={SHORTCUTS} title="Picker shortcuts" />}
+        title={t("add.crumb")}
+        description={t("add.description", { name: spaceName })}
+        actions={<ShortcutsHelp items={shortcuts} title={t("add.shortcutsTitle")} />}
       />
 
       {blockedReason ? (
@@ -117,7 +112,7 @@ export function SpaceAdd() {
           {blockedReason}{" "}
           {perms.rotate && detail.needs_rotation && (
             <Link href={`/spaces/${id}/settings#rotate`} className="font-medium underline">
-              Rotate the key
+              {t("add.rotateLink")}
             </Link>
           )}
         </Notice>
@@ -128,16 +123,13 @@ export function SpaceAdd() {
             loading={filesLoading}
             selected={selected}
             onSelectedChange={(next) => setSelected(next)}
-            emptyLabel="Every file in your vault is already in this space."
+            emptyLabel={t("add.empty")}
             listClassName="max-h-[min(32rem,55dvh)]"
             autoFocusSearch
           />
 
           {overLimit && (
-            <Notice tone="warn">
-              Your plan adds up to {batchLimit} files at a time. Deselect {plural(over, "file")} to
-              continue, then add the rest in another batch.
-            </Notice>
+            <Notice tone="warn">{t("add.overLimit", { limit: batchLimit, over })}</Notice>
           )}
         </div>
       )}
@@ -145,20 +137,22 @@ export function SpaceAdd() {
       <div className="sticky bottom-[calc(5rem+var(--safe-bottom))] z-10 md:bottom-0 -mx-3 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
           <p className="text-sm tabular-nums text-[var(--color-text-secondary)]" aria-live="polite">
-            <span className="font-medium text-[var(--color-text)]">{selected.size} selected</span>
+            <span className="font-medium text-[var(--color-text)]">
+              {t("shared.selectedShort", { count: selected.size })}
+            </span>
             {Number.isFinite(batchLimit) && (
               <span className="text-[var(--color-text-muted)]">
                 {" "}
-                &middot; up to {batchLimit} at a time on your plan
+                &middot; {t("shared.batchHint", { limit: batchLimit })}
               </span>
             )}
           </p>
           <div className="flex items-center gap-2">
             <Link href={`/spaces/${id}`} className={buttonClass("ghost", "md")}>
-              Cancel
+              {t("common.cancel")}
             </Link>
             <Button onClick={submit} disabled={selected.size === 0 || overLimit || !!blockedReason}>
-              {selected.size > 0 ? `Add ${plural(selected.size, "file")}` : "Add files"}
+              {selected.size > 0 ? t("add.submitN", { count: selected.size }) : t("add.crumb")}
             </Button>
           </div>
         </div>

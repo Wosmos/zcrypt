@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { create } from "zustand";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { KeyChangedError } from "@/lib/key-pins";
@@ -50,13 +51,14 @@ export async function withKeyConfirm<T>(
 }
 
 function Fingerprint({ title, value }: { title: string; value: string }) {
+  const t = useTranslations("spaces");
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
         {title}
       </p>
       <p className="break-all rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2.5 py-1.5 font-mono text-xs text-[var(--color-text)]">
-        {value || "Unknown"}
+        {value || t("common.unknown")}
       </p>
     </div>
   );
@@ -64,6 +66,7 @@ function Fingerprint({ title, value }: { title: string; value: string }) {
 
 /** Mount once in the app shell: confirms a changed peer key from anywhere. */
 export function KeyChangeHost() {
+  const t = useTranslations("spaces");
   const current = useKeyChangeStore((s) => s.queue[0]);
 
   const settle = (accepted: boolean) => {
@@ -79,26 +82,23 @@ export function KeyChangeHost() {
         if (!o) settle(false);
       }}
       destructive
-      title="Encryption key changed"
-      description={
-        <>
-          The key for <span className="font-medium text-[var(--color-text)]">{current?.label}</span>{" "}
-          is not the one this device saw before. That can be a new device or a reset, or someone
-          intercepting the key. Compare the new fingerprint with them over a channel you trust.
-        </>
-      }
-      confirmLabel="Trust the new key"
-      cancelLabel="Cancel"
+      title={t("keyChange.title")}
+      description={t.rich("keyChange.description", {
+        label: current?.label ?? "",
+        b: (chunks) => <span className="font-medium text-[var(--color-text)]">{chunks}</span>,
+      })}
+      confirmLabel={t("keyChange.trust")}
+      cancelLabel={t("common.cancel")}
       onConfirm={() => settle(true)}
     >
       {current && (
         <div className="space-y-2.5">
           <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
             <ShieldAlert className="h-3.5 w-3.5" />
-            Only continue if the new fingerprint matches.
+            {t("keyChange.warn")}
           </p>
-          <Fingerprint title="Previously pinned" value={current.error.previous} />
-          <Fingerprint title="Now offered" value={current.error.fingerprint} />
+          <Fingerprint title={t("keyChange.previous")} value={current.error.previous} />
+          <Fingerprint title={t("keyChange.offered")} value={current.error.fingerprint} />
         </div>
       )}
     </ConfirmDialog>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { FileCard, type DownloadState } from "@/components/demo/file-card";
 import { FileTable, type SortField, type SortDir } from "@/components/demo/file-table";
 import { FileTypeFilter } from "@/components/files/file-type-filter";
@@ -156,6 +157,7 @@ const MOCK_REPOS: RepoInfo[] = [
 
 // ── Demo page (read-only mirror of real vault) ───────────────────
 export default function DemoClient() {
+  const t = useTranslations("tools");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [sortField, setSortField] = useState<SortField>("date");
@@ -168,7 +170,7 @@ export default function DemoClient() {
   const files = MOCK_FILES;
 
   // Block all mutating actions
-  const readOnlyToast = () => toast.info("Read-only demo mode");
+  const readOnlyToast = () => toast.info(t("demo.readOnly"));
   const readOnlyFiles = (_files: File[]) => readOnlyToast();
   const readOnlyStr = (_s: string) => readOnlyToast();
 
@@ -251,9 +253,7 @@ export default function DemoClient() {
       {/* Demo banner */}
       <div className="flex items-center gap-2.5 rounded-2xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
         <Info className="h-4 w-4 text-sky-500 shrink-0" />
-        <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">
-          Demo mode, all data is simulated. Uploads, downloads and deletes are disabled.
-        </p>
+        <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">{t("demo.banner")}</p>
       </div>
 
       {/* Header, matches real vault */}
@@ -265,10 +265,10 @@ export default function DemoClient() {
             </div>
             <div>
               <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">
-                Encrypted Storage
+                {t("demo.eyebrow")}
               </p>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">
-                My Vault
+                {t("demo.title")}
               </h1>
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function DemoClient() {
       </div>
 
       {/* Upload zone (read-only) */}
-      <UploadZone onFiles={readOnlyFiles} hint="Read-only demo, uploads are disabled" />
+      <UploadZone onFiles={readOnlyFiles} hint={t("demo.uploadHint")} />
 
       {/* Mobile vault header */}
       <MobileVaultHeader
@@ -308,7 +308,7 @@ export default function DemoClient() {
           <div className="flex-1">
             <Input
               type="text"
-              placeholder="Search files..."
+              placeholder={t("demo.searchPlaceholder")}
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               icon={<Search className="h-4 w-4" />}
@@ -329,7 +329,7 @@ export default function DemoClient() {
               )}
             >
               <CheckSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Select</span>
+              <span className="hidden sm:inline">{t("demo.select")}</span>
             </button>
 
             <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
@@ -338,12 +338,12 @@ export default function DemoClient() {
                   {
                     mode: "grid" as const,
                     icon: LayoutGrid,
-                    title: "Grid",
+                    title: t("demo.grid"),
                   },
                   {
                     mode: "table" as const,
                     icon: TableProperties,
-                    title: "Table",
+                    title: t("demo.tableView"),
                   },
                 ] as const
               ).map(({ mode, icon: ModeIcon, title }, i) => (
@@ -381,11 +381,14 @@ export default function DemoClient() {
       {filtered.length === 0 && files.length > 0 ? (
         <EmptyState
           icon={<Search className="h-8 w-8 text-[var(--color-text-muted)]" />}
-          title="No matching files"
+          title={t("demo.noMatchTitle")}
           description={
             typeFilter
-              ? `No ${typeFilter.toLowerCase()} files found${search ? ` matching "${search}"` : ""}`
-              : "Try a different search term"
+              ? t(search ? "demo.noMatchTypeSearch" : "demo.noMatchType", {
+                  type: t(`demo.cat.${typeFilter}`).toLocaleLowerCase(),
+                  search,
+                })
+              : t("demo.tryDifferent")
           }
         />
       ) : viewMode === "table" ? (

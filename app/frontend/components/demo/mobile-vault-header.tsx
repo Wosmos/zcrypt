@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Image,
   Video,
@@ -103,6 +104,7 @@ export function MobileVaultHeader({
   onCategoryClick,
   activeCategory,
 }: MobileVaultHeaderProps) {
+  const t = useTranslations("tools");
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, { count: number; size: number }>();
     for (const f of files) {
@@ -133,7 +135,7 @@ export function MobileVaultHeader({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-white/80" />
-              <span className="text-sm font-semibold text-white/90">Encrypted Drive</span>
+              <span className="text-sm font-semibold text-white/90">{t("demo.mobile.drive")}</span>
             </div>
             <button
               onClick={onUnlock}
@@ -143,18 +145,16 @@ export function MobileVaultHeader({
               )}
             >
               {isUnlocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-              {isUnlocked ? "Unlocked" : "Unlock"}
+              {isUnlocked ? t("demo.mobile.unlocked") : t("demo.mobile.unlock")}
             </button>
           </div>
           <div className="text-2xl font-bold tabular-nums">
             {formatBytes(quotaUsed)}
-            <span className="text-sm font-normal text-white/60 ml-1">used</span>
+            <span className="text-sm font-normal text-white/60 ml-1">{t("demo.mobile.used")}</span>
           </div>
           <div className="flex items-center justify-between mt-3 text-xs text-white/60">
-            <span>
-              {files.length} file{files.length !== 1 ? "s" : ""}
-            </span>
-            <span>Unlimited storage</span>
+            <span>{t("common.fileCount", { count: files.length })}</span>
+            <span>{t("demo.mobile.unlimited")}</span>
           </div>
         </div>
       </div>
@@ -163,13 +163,15 @@ export function MobileVaultHeader({
       {activeCategories.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2.5">
-            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)]">Categories</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)]">
+              {t("demo.mobile.categories")}
+            </h3>
             {activeCategory && (
               <button
                 onClick={() => onCategoryClick(null)}
                 className="text-xs font-medium text-[var(--color-accent)]"
               >
-                Show All
+                {t("demo.mobile.showAll")}
               </button>
             )}
           </div>
@@ -200,9 +202,9 @@ export function MobileVaultHeader({
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold truncate">{cat.name}</p>
+                    <p className="text-xs font-semibold truncate">{t(`demo.cat.${cat.name}`)}</p>
                     <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
-                      {data.count} file{data.count !== 1 ? "s" : ""}
+                      {t("common.fileCount", { count: data.count })}
                     </p>
                     <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
                       {formatBytes(data.size)}
@@ -225,9 +227,9 @@ export function MobileVaultHeader({
                   <File className="h-5 w-5 text-gray-500" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold truncate">Other</p>
+                  <p className="text-xs font-semibold truncate">{t("demo.mobile.other")}</p>
                   <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
-                    {otherCount.count} file{otherCount.count !== 1 ? "s" : ""}
+                    {t("common.fileCount", { count: otherCount.count })}
                   </p>
                   <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
                     {formatBytes(otherCount.size)}

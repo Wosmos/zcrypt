@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { listFolders } from "@/lib/api";
 import { decryptNameSafe } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
@@ -16,7 +17,6 @@ import {
   FOCUS_RING,
   FileTypeIcon,
   LiveRegion,
-  plural,
   useSlashToFocus,
   SelectTick,
 } from "@/components/spaces/shared";
@@ -31,6 +31,7 @@ interface FolderEntry {
 }
 
 function useFolderChildren(parentId: string | null): { folders: FolderEntry[]; loading: boolean } {
+  const t = useTranslations("spaces");
   const user = useAuthStore((s) => s.user);
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
   const query = useQuery({
@@ -59,9 +60,9 @@ function useFolderChildren(parentId: string | null): { folders: FolderEntry[]; l
   const folders = useMemo(
     () =>
       (raw ?? [])
-        .map((f) => ({ id: f.id, name: names[f.id] ?? "Folder" }))
+        .map((f) => ({ id: f.id, name: names[f.id] ?? t("shared.folder") }))
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [raw, names],
+    [raw, names, t],
   );
   return { folders, loading: query.isPending };
 }
@@ -82,11 +83,12 @@ export function FilePicker({
   selected,
   onSelectedChange,
   loading = false,
-  emptyLabel = "No files to add.",
+  emptyLabel,
   className,
   listClassName = "max-h-[28rem]",
   autoFocusSearch = false,
 }: FilePickerProps) {
+  const t = useTranslations("spaces");
   const [path, setPath] = useState<FolderEntry[]>([]);
   const [query, setQuery] = useState("");
   const [announce, setAnnounce] = useState("");
@@ -117,7 +119,9 @@ export function FilePicker({
     for (const id of next) if (inView.has(id)) merged.add(id);
     onSelectedChange(merged);
     setAnnounce(
-      merged.size === 0 ? "Selection cleared" : `${plural(merged.size, "file")} selected`,
+      merged.size === 0
+        ? t("shared.selectionCleared")
+        : t("shared.filesSelected", { count: merged.size }),
     );
   };
 
@@ -131,7 +135,11 @@ export function FilePicker({
     if (next.has(id)) next.delete(id);
     else next.add(id);
     onSelectedChange(next);
-    setAnnounce(next.size === 0 ? "Selection cleared" : `${plural(next.size, "file")} selected`);
+    setAnnounce(
+      next.size === 0
+        ? t("shared.selectionCleared")
+        : t("shared.filesSelected", { count: next.size }),
+    );
   };
 
   const nav = useKeyboardSelection<string>({
@@ -141,7 +149,7 @@ export function FilePicker({
     selectableIds: fileIds,
     onSelectedChange: setSelected,
     onOpen: (id) => (id.startsWith(FOLDER_PREFIX) ? openFolder(id.slice(7)) : toggleFile(id)),
-    onEscape: () => setAnnounce("Selection cleared"),
+    onEscape: () => setAnnounce(t("shared.selectionCleared")),
   });
 
   const allInView = fileIds.length > 0 && fileIds.every((id) => selected.has(id));
@@ -166,8 +174,8 @@ export function FilePicker({
                 nav.moveFocus(null, 0, false);
               }
             }}
-            placeholder="Search your files  ( / )"
-            aria-label="Search your files"
+            placeholder={t("picker.searchPlaceholder")}
+            aria-label={t("add.search")}
             autoFocus={autoFocusSearch}
           />
         </div>
@@ -180,13 +188,18 @@ export function FilePicker({
               FOCUS_RING,
             )}
           >
-            {allInView ? "Deselect all here" : `Select all ${fileIds.length}`}
+            {allInView
+              ? t("picker.deselectHere")
+              : t("picker.selectAllN", { count: fileIds.length })}
           </button>
         )}
       </div>
 
       {!searching && (
-        <nav aria-label="Folder path" className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
+        <nav
+          aria-label={t("picker.folderPath")}
+          className="flex min-w-0 items-center gap-0.5 overflow-x-auto"
+        >
           <button
             type="button"
             onClick={() => setPath([])}
@@ -197,7 +210,7 @@ export function FilePicker({
             )}
           >
             <Home className="h-3.5 w-3.5" />
-            My Vault
+            {t("picker.myVault")}
           </button>
           {path.map((c, i) => (
             <span key={c.id} className="flex flex-shrink-0 items-center gap-0.5">
@@ -222,7 +235,7 @@ export function FilePicker({
 
       <div
         role="listbox"
-        aria-label="Your files"
+        aria-label={t("picker.yourFiles")}
         aria-multiselectable="true"
         aria-busy={busy}
         onKeyDown={nav.onContainerKeyDown}
@@ -240,10 +253,10 @@ export function FilePicker({
         ) : ids.length === 0 ? (
           <p className="px-3 py-10 text-center text-sm text-[var(--color-text-muted)]">
             {searching
-              ? `No files match “${query.trim()}”.`
+              ? t("picker.noMatch", { query: query.trim() })
               : files.length === 0
-                ? emptyLabel
-                : "This folder has no files to add."}
+                ? (emptyLabel ?? t("picker.emptyDefault"))
+                : t("picker.folderEmpty")}
           </p>
         ) : (
           <>

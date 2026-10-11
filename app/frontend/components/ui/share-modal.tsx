@@ -3,6 +3,8 @@
 import { useAutoTour } from "@/components/onboarding/tour-provider";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
+import { EXPIRY_KEYS } from "@/components/share/expiry-keys";
 import { X, Share2, Copy, Check, Link2, Lock, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +26,7 @@ interface ShareModalProps {
 }
 
 const DOWNLOAD_LIMIT_OPTIONS = [
-  { label: "Unlimited", value: 0 },
+  { value: 0 },
   { label: "1", value: 1 },
   { label: "5", value: 5 },
   { label: "10", value: 10 },
@@ -33,6 +35,7 @@ const DOWNLOAD_LIMIT_OPTIONS = [
 ];
 
 export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareModalProps) {
+  const t = useTranslations("spaces.share");
   const [step, setStep] = useState<"form" | "link">("form");
   const [password, setPassword] = useState("");
   const [usePassword, setUsePassword] = useState(false);
@@ -84,9 +87,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     // re-wrapped under a share key. The recipient then needs only the link.
     const passphrase = usePassphraseStore.getState().getPassphrase();
     if (!passphrase) {
-      setError(
-        "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
-      );
+      setError(t("passphraseLocked"));
       return;
     }
 
@@ -106,34 +107,34 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
       setGeneratedToken(token);
       setShareKeyB64(shareKey);
       setStep("link");
-      toast.success("Share link created");
+      toast.success(t("created"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create share");
+      setError(err instanceof Error ? err.message : t("createFailed"));
     } finally {
       setLoading(false);
     }
-  }, [fileId, usePassword, password, expiryHours, maxDownloads]);
+  }, [fileId, usePassword, password, expiryHours, maxDownloads, t]);
 
   const handleCopy = useCallback(async () => {
     if (await copyToClipboard(shareUrl)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } else {
-      toast.error("Failed to copy");
+      toast.error(t("copyFailed"));
     }
-  }, [shareUrl]);
+  }, [shareUrl, t]);
 
   const handleRevoke = useCallback(
     async (shareId: string) => {
       try {
         await revokeShare(shareId);
         void invalidateShares(fileId);
-        toast.success("Share link revoked");
+        toast.success(t("revokedToast"));
       } catch {
-        toast.error("Failed to revoke");
+        toast.error(t("revokeFailed"));
       }
     },
-    [fileId],
+    [fileId, t],
   );
 
   if (!open) return null;
@@ -154,7 +155,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
               <Share2 className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold truncate">Share File</h3>
+              <h3 className="text-sm font-semibold truncate">{t("title")}</h3>
               <p className="text-xs text-[var(--color-text-muted)] truncate">
                 {midTrunc(fileName, 18, 8)} ({formatBytes(fileSize)})
               </p>
@@ -162,6 +163,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
           </div>
           <button
             onClick={onClose}
+            aria-label={t("close")}
             className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors p-1"
           >
             <X className="h-4 w-4" />
@@ -179,12 +181,12 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                     checked={usePassword}
                     onCheckedChange={(checked) => setUsePassword(checked === true)}
                   />
-                  <span className="text-sm">Password protect</span>
+                  <span className="text-sm">{t("passwordProtect")}</span>
                 </label>
                 {usePassword && (
                   <Input
                     type="password"
-                    placeholder="Enter share password"
+                    placeholder={t("passwordPlaceholder")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     icon={<Lock className="h-4 w-4" />}
@@ -195,7 +197,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
               {/* Expiry */}
               <div className="space-y-1.5" data-tour="share-expiry">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                  Link expiry
+                  {t("linkExpiry")}
                 </label>
                 <select
                   value={expiryHours}
@@ -204,7 +206,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                 >
                   {EXPIRY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {t(`expiry.${EXPIRY_KEYS[opt.value] ?? "never"}`)}
                     </option>
                   ))}
                 </select>
@@ -213,7 +215,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
               {/* Max downloads */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                  Download limit
+                  {t("downloadLimit")}
                 </label>
                 <select
                   value={maxDownloads}
@@ -222,7 +224,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                 >
                   {DOWNLOAD_LIMIT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {opt.value === 0 ? t("unlimited") : opt.label}
                     </option>
                   ))}
                 </select>
@@ -243,7 +245,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                 className="w-full"
                 data-tour="share-generate"
               >
-                {loading ? "Preparing link…" : error ? "Retry" : "Generate Link"}
+                {loading ? t("preparing") : error ? t("retry") : t("generate")}
               </Button>
             </>
           ) : (
@@ -266,21 +268,21 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                     className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors flex-shrink-0"
                   >
                     {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? "Copied" : "Copy"}
+                    {copied ? t("copied") : t("copy")}
                   </button>
                 </div>
 
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    This link contains the decryption key in its <strong>#fragment</strong>, anyone
-                    with the full link can download <em>and</em> decrypt the file, with no
-                    passphrase needed. The key never reaches our servers. Share the link only with
-                    people you trust, and use a password or expiry for extra safety.
+                    {t.rich("warning", {
+                      strong: (chunks) => <strong>{chunks}</strong>,
+                      em: (chunks) => <em>{chunks}</em>,
+                    })}
                   </p>
                 </div>
 
                 <Button onClick={() => setStep("form")} variant="secondary" className="w-full">
-                  Create Another Link
+                  {t("another")}
                 </Button>
               </div>
             </>
@@ -290,10 +292,10 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
           {shares.length > 0 && (
             <div className="space-y-2 pt-2 border-t border-[var(--color-border)]">
               <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                Active Shares
+                {t("active")}
               </h4>
               {loadingShares ? (
-                <p className="text-xs text-[var(--color-text-muted)]">Loading...</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{t("loading")}</p>
               ) : (
                 <div className="space-y-1.5">
                   {shares.map((s) => (
@@ -309,21 +311,24 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                           {s.has_password && <Lock className="h-3 w-3 text-amber-500" />}
                           {s.revoked && (
                             <span className="text-[10px] font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
-                              Revoked
+                              {t("revokedBadge")}
                             </span>
                           )}
                         </div>
                         <p className="text-[10px] text-[var(--color-text-muted)]">
-                          {s.download_count}
-                          {s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
-                          {s.expires_at && ` · Expires ${formatDateTime(s.expires_at)}`}
+                          {s.max_downloads > 0
+                            ? t("downloadsOf", { count: s.download_count, max: s.max_downloads })
+                            : t("downloadsCount", { count: s.download_count })}
+                          {s.expires_at &&
+                            ` · ${t("expires", { date: formatDateTime(s.expires_at) })}`}
                         </p>
                       </div>
                       {!s.revoked && (
                         <button
                           onClick={() => handleRevoke(s.id)}
                           className="flex items-center justify-center h-7 w-7 rounded-lg text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
-                          title="Revoke"
+                          title={t("revoke")}
+                          aria-label={t("revoke")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

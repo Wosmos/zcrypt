@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { createElement, useEffect, useState, type ReactNode, type RefObject } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { defaultIsTypingTarget } from "@/hooks/useKeyboardSelection";
@@ -9,10 +10,6 @@ import { Check, ChevronRight, Users } from "@/lib/icons";
 
 export const FOCUS_RING =
   "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
-
-export function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
 
 export function FileTypeIcon({ name, className }: { name: string; className?: string }) {
   return createElement(fileIconFor(name), { className });
@@ -37,8 +34,9 @@ export interface Crumb {
 }
 
 export function SpaceBreadcrumb({ crumbs }: { crumbs: Crumb[] }) {
+  const t = useTranslations("spaces");
   return (
-    <nav aria-label="Breadcrumb" className="min-w-0">
+    <nav aria-label={t("shared.breadcrumb")} className="min-w-0">
       <ol className="flex min-w-0 items-center gap-1 text-sm">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
@@ -118,6 +116,7 @@ export function LiveRegion({ message }: { message: string }) {
 }
 
 export function ShortcutsHelp({ items, title }: { items: [string, string][]; title: string }) {
+  const t = useTranslations("spaces");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -136,8 +135,8 @@ export function ShortcutsHelp({ items, title }: { items: [string, string][]; tit
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Keyboard shortcuts"
-          title="Keyboard shortcuts (?)"
+          aria-label={t("shared.shortcutsLabel")}
+          title={t("shared.shortcutsHint")}
           className={cn(
             "hidden h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] font-mono text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] md:inline-flex",
             FOCUS_RING,

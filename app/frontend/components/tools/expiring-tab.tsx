@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { listExpiringVaults, createExpiringVault, deleteExpiringVault } from "@/lib/api";
 import { useFilesQuery } from "@/store/files";
@@ -18,12 +19,12 @@ import { Plus, Trash2, Clock } from "@/lib/icons";
 import { cn, formatDateTime, formatExpiry, fileNameById } from "@/lib/utils";
 
 const EXPIRY_CHOICES = [
-  { value: "1", label: "1 hour" },
-  { value: "6", label: "6 hours" },
-  { value: "24", label: "24 hours" },
-  { value: "168", label: "7 days" },
-  { value: "720", label: "30 days" },
-  { value: "2160", label: "90 days" },
+  { value: "1", key: "h1" },
+  { value: "6", key: "h6" },
+  { value: "24", key: "h24" },
+  { value: "168", key: "d7" },
+  { value: "720", key: "d30" },
+  { value: "2160", key: "d90" },
 ];
 
 const inputClass =
@@ -34,6 +35,7 @@ const NO_VAULTS: ExpiringVault[] = [];
 const NO_FILES: FileMetadata[] = [];
 
 export function ExpiringTab() {
+  const t = useTranslations("tools");
   const reduceMotion = useReducedMotion();
   const vaultsQuery = useQuery({ queryKey: qk.expiring, queryFn: listExpiringVaults });
   const vaults = vaultsQuery.data ?? NO_VAULTS;
@@ -55,11 +57,11 @@ export function ExpiringTab() {
   const handleCreate = async () => {
     setError("");
     if (!name.trim()) {
-      setError("Vault name is required");
+      setError(t("expiring.errName"));
       return;
     }
     if (selectedFiles.length === 0) {
-      setError("Select at least one file");
+      setError(t("expiring.errFiles"));
       return;
     }
     setCreating(true);
@@ -77,7 +79,7 @@ export function ExpiringTab() {
       setDescription("");
       setSelectedFiles([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create vault");
+      setError(err instanceof Error ? err.message : t("expiring.createFailed"));
     } finally {
       setCreating(false);
     }
@@ -100,10 +102,7 @@ export function ExpiringTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          Group files under a shared countdown. When it runs out the vault is flagged expired, your
-          files stay put.
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)]">{t("expiring.intro")}</p>
         <Button
           onClick={() => {
             setShowCreate(!showCreate);
@@ -113,10 +112,10 @@ export function ExpiringTab() {
           variant={showCreate ? "secondary" : "primary"}
         >
           {showCreate ? (
-            "Cancel"
+            t("common.cancel")
           ) : (
             <>
-              <Plus className="h-3.5 w-3.5" /> Create vault
+              <Plus className="h-3.5 w-3.5" /> {t("expiring.create")}
             </>
           )}
         </Button>
@@ -131,29 +130,31 @@ export function ExpiringTab() {
             className="overflow-hidden"
           >
             <div className="panel space-y-4 p-6">
-              <h3 className="text-sm font-semibold text-[var(--color-text)]">New timed vault</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                {t("expiring.newTitle")}
+              </h3>
               <div className="space-y-1.5">
-                <label className={labelClass}>Name *</label>
+                <label className={labelClass}>{t("expiring.nameLabel")}</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Tax Documents 2026"
+                  placeholder={t("expiring.namePlaceholder")}
                   className={inputClass}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={labelClass}>Description</label>
+                <label className={labelClass}>{t("expiring.descLabel")}</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional description..."
+                  placeholder={t("expiring.descPlaceholder")}
                   className={inputClass}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={labelClass}>Expires in</label>
+                <label className={labelClass}>{t("expiring.expiresIn")}</label>
                 <select
                   value={expiresIn}
                   onChange={(e) => setExpiresIn(e.target.value)}
@@ -161,15 +162,15 @@ export function ExpiringTab() {
                 >
                   {EXPIRY_CHOICES.map((c) => (
                     <option key={c.value} value={c.value}>
-                      {c.label}
+                      {t(`expiring.choice.${c.key}`)}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className={labelClass}>Select files *</label>
+                <label className={labelClass}>{t("expiring.selectFiles")}</label>
                 {files.length === 0 ? (
-                  <p className="text-sm text-[var(--color-text-muted)]">No files uploaded yet.</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">{t("common.noFilesYet")}</p>
                 ) : (
                   <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] p-2">
                     {files.map((file) => (
@@ -196,7 +197,7 @@ export function ExpiringTab() {
                 )}
                 {selectedFiles.length > 0 && (
                   <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-                    {selectedFiles.length} file(s) selected
+                    {t("common.fileCountSelected", { count: selectedFiles.length })}
                   </p>
                 )}
               </div>
@@ -209,7 +210,7 @@ export function ExpiringTab() {
                 </div>
               )}
               <Button onClick={handleCreate} disabled={creating} className="w-full">
-                {creating ? "Creating..." : "Create vault"}
+                {creating ? t("expiring.creating") : t("expiring.create")}
               </Button>
             </div>
           </motion.div>
@@ -226,8 +227,8 @@ export function ExpiringTab() {
         <div className="panel">
           <EmptyState
             icon={<Clock className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No timed vaults yet"
-            description="Create one to group files under a countdown. When it expires the vault is flagged: the files themselves stay in your vault."
+            title={t("expiring.emptyTitle")}
+            description={t("expiring.emptyDesc")}
           />
         </div>
       ) : vaults.length > 0 ? (
@@ -251,7 +252,7 @@ export function ExpiringTab() {
                           : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                       )}
                     >
-                      {vault.expired ? "Expired" : formatExpiry(vault.expires_at)}
+                      {vault.expired ? t("expiring.expired") : formatExpiry(vault.expires_at)}
                     </span>
                   </div>
                   {vault.description && (
@@ -260,8 +261,12 @@ export function ExpiringTab() {
                     </p>
                   )}
                   <div className="mt-2 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
-                    <span className="tabular-nums">{vault.file_ids.length} file(s)</span>
-                    <span>Expires {formatDateTime(vault.expires_at)}</span>
+                    <span className="tabular-nums">
+                      {t("common.fileCount", { count: vault.file_ids.length })}
+                    </span>
+                    <span>
+                      {t("expiring.expiresAt", { date: formatDateTime(vault.expires_at) })}
+                    </span>
                   </div>
                   {vault.file_ids.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -275,7 +280,7 @@ export function ExpiringTab() {
                       ))}
                       {vault.file_ids.length > 5 && (
                         <span className="px-1 py-0.5 text-[10px] text-[var(--color-text-muted)]">
-                          +{vault.file_ids.length - 5} more
+                          {t("expiring.more", { count: vault.file_ids.length - 5 })}
                         </span>
                       )}
                     </div>
@@ -283,7 +288,7 @@ export function ExpiringTab() {
                 </div>
                 <IconButton
                   icon={Trash2}
-                  label="Delete vault"
+                  label={t("expiring.deleteLabel")}
                   variant="danger"
                   iconClassName="h-3.5 w-3.5"
                   onClick={() => setPendingDelete(vault)}
@@ -300,15 +305,13 @@ export function ExpiringTab() {
           if (!o) setPendingDelete(null);
         }}
         destructive
-        title="Delete timed vault?"
+        title={t("expiring.confirmTitle")}
         description={
-          <>
-            This removes the vault
-            {pendingDelete?.name ? <> &ldquo;{pendingDelete.name}&rdquo;</> : null} and its timer.
-            The files themselves are not deleted.
-          </>
+          pendingDelete?.name
+            ? t("expiring.confirmDescNamed", { name: pendingDelete.name })
+            : t("expiring.confirmDesc")
         }
-        confirmLabel="Delete"
+        confirmLabel={t("common.delete")}
         loading={deleting}
         onConfirm={handleDelete}
       />

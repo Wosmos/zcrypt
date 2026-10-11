@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { spaceKeysReady, useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 import { deleteSharedVault, removeSharedVaultMember, updateSharedVaultMemberRole } from "@/lib/api";
 import { pinPeerKey } from "@/lib/key-pins";
@@ -35,7 +36,7 @@ import {
   RoleSelect,
 } from "@/components/spaces/invites";
 import { MemberAvatar, RoleBadge } from "@/components/spaces/space-ui";
-import { Notice, PageShell, SpaceBreadcrumb, plural } from "@/components/spaces/shared";
+import { Notice, PageShell, SpaceBreadcrumb } from "@/components/spaces/shared";
 import {
   patchSpace,
   refreshSpace,
@@ -104,6 +105,7 @@ function KeyStatus({
   isSelf: boolean;
   selfFingerprint: string | null;
 }) {
+  const t = useTranslations("spaces");
   const [state, setState] = useState<KeyState | null>(null);
   const [tick, setTick] = useState(0);
   const [pinning, setPinning] = useState(false);
@@ -132,10 +134,10 @@ function KeyStatus({
       <div className="space-y-0.5">
         <p className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
           <Fingerprint className="h-3 w-3 flex-shrink-0" />
-          Your key
+          {t("settings.yourKey")}
         </p>
         <p className="break-all font-mono text-[11px] text-[var(--color-text-secondary)]">
-          {selfFingerprint ?? "Unlock your vault to see it"}
+          {selfFingerprint ?? t("settings.unlockToSee")}
         </p>
       </div>
     );
@@ -149,18 +151,14 @@ function KeyStatus({
   );
 
   if (state.status === "unknown") {
-    return (
-      <p className="text-[11px] text-[var(--color-text-muted)]">
-        No encryption key yet. They need to sign in and unlock their vault once.
-      </p>
-    );
+    return <p className="text-[11px] text-[var(--color-text-muted)]">{t("settings.noKeyYet")}</p>;
   }
   if (state.status === "verified") {
     return (
       <div className="space-y-0.5">
         <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
           <Check className="h-3 w-3 flex-shrink-0" />
-          Verified on this device
+          {t("settings.verified")}
         </p>
         {fp}
       </div>
@@ -171,15 +169,14 @@ function KeyStatus({
       <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
         <p className="flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-          Key changed since you last verified
+          {t("settings.changed")}
         </p>
         <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
-          This can be a new device or a reset, or someone intercepting the key. Compare the
-          fingerprint with them before trusting it.
+          {t("settings.changedBody")}
         </p>
         {fp}
         <Button size="sm" variant="secondary" onClick={() => void pin()} disabled={pinning}>
-          Trust new key
+          {t("settings.trustNew")}
         </Button>
       </div>
     );
@@ -188,7 +185,7 @@ function KeyStatus({
     <div className="space-y-0.5">
       <p className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
         <ShieldCheck className="h-3 w-3 flex-shrink-0" />
-        Not verified yet. Compare this with them out of band.
+        {t("settings.notVerified")}
       </p>
       {fp}
       <button
@@ -197,13 +194,14 @@ function KeyStatus({
         disabled={pinning}
         className="text-[11px] font-medium text-[var(--color-accent)] outline-none hover:underline focus-visible:underline"
       >
-        Mark as verified
+        {t("settings.markVerified")}
       </button>
     </div>
   );
 }
 
 export function SpaceSettings() {
+  const t = useTranslations("spaces");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { query, detail, perms, userId } = useSpaceDetail(id);
@@ -243,16 +241,16 @@ export function SpaceSettings() {
   const [typed, setTyped] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const spaceName = meta.name || "Space";
+  const spaceName = meta.name || t("shared.space");
   const crumbs = [
-    { label: "Spaces", href: "/spaces" },
+    { label: t("shared.spaces"), href: "/spaces" },
     { label: spaceName, href: `/spaces/${id}` },
-    { label: "Settings" },
+    { label: t("home.settings") },
   ];
 
   useEffect(() => {
-    if (meta.ready) document.title = `Settings · ${meta.name} · Spaces`;
-  }, [meta.ready, meta.name]);
+    if (meta.ready) document.title = t("settings.docTitle", { name: meta.name });
+  }, [meta.ready, meta.name, t]);
 
   const loadedId = detail?.id;
   useEffect(() => {
@@ -275,7 +273,7 @@ export function SpaceSettings() {
     return (
       <PageShell>
         <SpaceBreadcrumb crumbs={crumbs} />
-        <Notice tone="error">Couldn&apos;t load this space.</Notice>
+        <Notice tone="error">{t("shared.loadSpaceError")}</Notice>
       </PageShell>
     );
   }
@@ -292,12 +290,12 @@ export function SpaceSettings() {
   const save = async () => {
     setSaveError("");
     if (!name.trim()) {
-      setSaveError("The name can't be empty.");
+      setSaveError(t("settings.errName"));
       return;
     }
     const gb = parseFloat(limitGb);
     if (limitGb.trim() && !(gb > 0)) {
-      setSaveError("Storage limit must be a positive number of GB, or blank for none.");
+      setSaveError(t("settings.errLimit"));
       return;
     }
     const patch: { name?: string; description?: string; size_limit_bytes?: number } = {};
@@ -310,9 +308,9 @@ export function SpaceSettings() {
       try {
         await updateSpaceDetails(d, patch);
         await Promise.all([refreshSpace(d.id), refreshSpaces()]);
-        toast.success("Space updated");
+        toast.success(t("settings.updated"));
       } catch (err) {
-        setSaveError(err instanceof Error ? err.message : "Couldn't save changes");
+        setSaveError(err instanceof Error ? err.message : t("settings.saveFailed"));
       } finally {
         setSaving(false);
       }
@@ -320,7 +318,7 @@ export function SpaceSettings() {
   };
 
   const rotate = async (members: SharedVaultMember[]) => {
-    await withKeyConfirm("a member", (acceptChangedKeys) =>
+    await withKeyConfirm(t("settings.aMember"), (acceptChangedKeys) =>
       rotateSpaceKey(d, members, d.files, { acceptChangedKeys }),
     );
     patchSpace(d.id, (x) => ({ ...x, needs_rotation: false }));
@@ -334,9 +332,15 @@ export function SpaceSettings() {
       setRotating(true);
       try {
         await rotate(d.members);
-        toast.success("Space key rotated");
+        toast.success(t("settings.rotated"));
       } catch (err) {
-        setRotateError(err instanceof Error ? err.message : "Key rotation failed");
+        setRotateError(
+          err instanceof KeyChangeDeclinedError
+            ? t("keyChange.declined")
+            : err instanceof Error
+              ? err.message
+              : t("settings.rotateFailed"),
+        );
       } finally {
         setRotating(false);
       }
@@ -353,7 +357,7 @@ export function SpaceSettings() {
         members: x.members.map((m) => (m.user_id === userIdOf ? { ...m, role } : m)),
       }));
     } catch (err) {
-      setMemberError(err instanceof Error ? err.message : "Failed to change role");
+      setMemberError(err instanceof Error ? err.message : t("settings.roleFailed"));
       void refreshSpace(d.id);
     } finally {
       setRoleBusy(null);
@@ -373,7 +377,7 @@ export function SpaceSettings() {
         );
         queryClient.removeQueries({ queryKey: qk.space(d.id) });
         void refreshSpaces();
-        toast.success("You left the space");
+        toast.success(t("settings.left"));
         router.push("/spaces");
         return;
       }
@@ -385,8 +389,8 @@ export function SpaceSettings() {
         } catch (err) {
           setMemberError(
             err instanceof KeyChangeDeclinedError
-              ? "Member removed and blocked, but re-keying was cancelled. Rotate the key to finish revoking their old key."
-              : "Member removed and blocked, but re-keying failed. Use Rotate key to finish revoking their old key.",
+              ? t("settings.partialCancelled")
+              : t("settings.partialFailed"),
           );
           void refreshSpace(d.id);
         }
@@ -395,7 +399,7 @@ export function SpaceSettings() {
       }
       setRemoveTarget(null);
     } catch (err) {
-      setMemberError(err instanceof Error ? err.message : "Failed to remove member");
+      setMemberError(err instanceof Error ? err.message : t("settings.removeFailed"));
       void refreshSpace(d.id);
       setRemoveTarget(null);
     } finally {
@@ -411,10 +415,10 @@ export function SpaceSettings() {
         (prev ?? []).filter((v) => v.id !== d.id),
       );
       queryClient.removeQueries({ queryKey: qk.space(d.id) });
-      toast.success("Space deleted");
+      toast.success(t("settings.deleted"));
       router.push("/spaces");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't delete the space");
+      toast.error(err instanceof Error ? err.message : t("settings.deleteFailed"));
       setDeleting(false);
     }
   };
@@ -433,10 +437,10 @@ export function SpaceSettings() {
       <SpaceBreadcrumb crumbs={crumbs} />
       <PageHeader
         eyebrow={spaceName}
-        title="Space settings"
+        title={t("settings.title")}
         actions={
           <Link href={`/spaces/${id}`} className={buttonClass("secondary", "md")}>
-            Back to files
+            {t("settings.backToFiles")}
           </Link>
         }
       />
@@ -444,11 +448,9 @@ export function SpaceSettings() {
       <div className="max-w-3xl space-y-6">
         <Section
           id="general"
-          title="General"
+          title={t("settings.general")}
           description={
-            canManage
-              ? "The name and description are sealed under the space key: the server only stores ciphertext."
-              : "Only admins and the owner can change these."
+            canManage ? t("settings.generalHintManage") : t("settings.generalHintReadonly")
           }
         >
           <form
@@ -459,34 +461,34 @@ export function SpaceSettings() {
             }}
           >
             <Input
-              label="Space name"
+              label={t("new.nameLabel")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={80}
               disabled={!canManage}
             />
             <Input
-              label="Description"
+              label={t("new.descriptionLabel")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!canManage}
-              placeholder={canManage ? "Optional" : ""}
+              placeholder={canManage ? t("new.optional") : ""}
             />
             <Input
-              label="Storage limit (GB)"
+              label={t("new.limitLabel")}
               type="number"
               min="0"
               step="0.5"
               value={limitGb}
               onChange={(e) => setLimitGb(e.target.value)}
               disabled={!canManage}
-              placeholder="No limit"
+              placeholder={t("settings.noLimit")}
             />
             {saveError && <Notice tone="error">{saveError}</Notice>}
             {canManage && (
               <div className="flex justify-end">
                 <Button type="submit" disabled={saving || !dirty || !name.trim()}>
-                  {saving ? "Saving..." : "Save changes"}
+                  {saving ? t("settings.saving") : t("settings.save")}
                 </Button>
               </div>
             )}
@@ -495,12 +497,12 @@ export function SpaceSettings() {
 
         <Section
           id="members"
-          title={`Members (${d.members.length})`}
-          description="Each member holds the space key sealed to their own encryption key. Compare fingerprints with them out of band to rule out a key swap."
+          title={t("settings.membersTitle", { count: d.members.length })}
+          description={t("settings.membersHint")}
         >
           <ul className="divide-y divide-[var(--color-border)] rounded-xl border border-[var(--color-border)]">
             {d.members.map((m) => {
-              const label = m.username || m.email || "Member";
+              const label = m.username || m.email || t("shared.member");
               const isSelf = m.user_id === userId;
               const manageable = canManageMember(perms, d, m);
               return (
@@ -512,7 +514,7 @@ export function SpaceSettings() {
                         <span className="truncate">{label}</span>
                         {isSelf && (
                           <span className="text-xs font-normal text-[var(--color-text-muted)]">
-                            (you)
+                            {t("settings.you")}
                           </span>
                         )}
                       </p>
@@ -530,7 +532,7 @@ export function SpaceSettings() {
                         value={m.role}
                         roles={inviteRoles(perms.owner)}
                         onChange={(r) => void handleRole(m.user_id, r)}
-                        label={`Role for ${label}`}
+                        label={t("settings.roleFor", { name: label })}
                         className="h-8 w-[5.5rem] rounded-lg text-xs"
                       />
                     ) : (
@@ -540,7 +542,7 @@ export function SpaceSettings() {
                     {manageable && !isSelf && (
                       <IconButton
                         icon={Trash2}
-                        label={`Remove ${label}`}
+                        label={t("settings.removeMember", { name: label })}
                         onClick={() => setRemoveTarget({ member: m, self: false })}
                         className="h-8 w-8 hover:text-red-500"
                         iconClassName="h-3.5 w-3.5"
@@ -556,15 +558,15 @@ export function SpaceSettings() {
           {canManage && (
             <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
               <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                Invite a member
+                {t("settings.inviteTitle")}
               </h3>
               <InviteForm
                 roles={inviteRoles(perms.owner)}
-                actionLabel="Invite"
+                actionLabel={t("settings.invite")}
                 onSubmit={async (email, role) => {
                   if (!spaceKeysReady()) {
                     ready(async () => {});
-                    return "Unlock your vault, then send the invite again.";
+                    return t("settings.unlockInvite");
                   }
                   try {
                     const member = await inviteMember(d, email, role);
@@ -576,7 +578,7 @@ export function SpaceSettings() {
                     void refreshSpaces();
                     return null;
                   } catch (err) {
-                    return inviteErrorMessage(err);
+                    return inviteErrorMessage(err, t);
                   }
                 }}
               />
@@ -584,27 +586,19 @@ export function SpaceSettings() {
           )}
         </Section>
 
-        <Section
-          id="key"
-          title="Your encryption key"
-          description="Read this fingerprint to the people you share with (call them, don't message it). They should see exactly the same characters under your name in their member list."
-        >
+        <Section id="key" title={t("settings.keyTitle")} description={t("settings.keyHint")}>
           <p className="break-all rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3.5 py-2.5 font-mono text-sm text-[var(--color-text)]">
-            {selfFingerprint ?? localFingerprint() ?? "Unlock your vault to see your fingerprint."}
+            {selfFingerprint ?? localFingerprint() ?? t("settings.unlockFingerprint")}
           </p>
         </Section>
 
         {perms.rotate && (
           <Section
             id="rotate"
-            title="Rotate space key"
-            description="Generates a new space key and re-wraps every file under it, so any old key a former member kept stops working. Needed after removing someone."
+            title={t("settings.rotateTitle")}
+            description={t("settings.rotateHint")}
           >
-            {d.needs_rotation && (
-              <Notice tone="warn">
-                A member was removed. Rotate now to lock out any copy of the old key.
-              </Notice>
-            )}
+            {d.needs_rotation && <Notice tone="warn">{t("settings.rotateNeeded")}</Notice>}
             {rotateError && <Notice tone="error">{rotateError}</Notice>}
             <Button
               variant={d.needs_rotation ? "primary" : "secondary"}
@@ -616,7 +610,7 @@ export function SpaceSettings() {
               ) : (
                 <Key className="h-4 w-4" />
               )}
-              {rotating ? "Rotating..." : "Rotate key"}
+              {rotating ? t("settings.rotating") : t("home.rotateKey")}
             </Button>
           </Section>
         )}
@@ -624,12 +618,8 @@ export function SpaceSettings() {
         <Section
           id="danger"
           tone="danger"
-          title="Danger zone"
-          description={
-            perms.owner
-              ? "Deleting a space revokes access for everyone. Your original files are not deleted."
-              : "Leaving removes your access to every file in this space. An admin can invite you again."
-          }
+          title={t("settings.dangerTitle")}
+          description={perms.owner ? t("settings.dangerOwner") : t("settings.dangerMember")}
         >
           {perms.owner ? (
             <Button
@@ -640,7 +630,7 @@ export function SpaceSettings() {
               }}
             >
               <Trash2 className="h-4 w-4" />
-              Delete this Space
+              {t("settings.deleteSpace")}
             </Button>
           ) : (
             <Button
@@ -651,7 +641,7 @@ export function SpaceSettings() {
               }}
             >
               <LogOut className="h-4 w-4" />
-              Leave this Space
+              {t("settings.leaveSpace")}
             </Button>
           )}
         </Section>
@@ -663,22 +653,18 @@ export function SpaceSettings() {
           if (!removing && !o) setRemoveTarget(null);
         }}
         destructive
-        title={removeTarget?.self ? "Leave this space?" : "Remove member and re-key the space?"}
+        title={removeTarget?.self ? t("settings.leaveTitle") : t("settings.removeTitle")}
         description={
-          removeTarget?.self ? (
-            <>You will lose access to every file in this space.</>
-          ) : (
-            <>
-              <span className="font-medium text-[var(--color-text)]">
-                {removeTarget?.member.username || removeTarget?.member.email}
-              </span>{" "}
-              loses access immediately. The space key is rotated and every file is re-wrapped under
-              it, so any copy of the old key they kept becomes useless. Files stay for everyone
-              else.
-            </>
-          )
+          removeTarget?.self
+            ? t("settings.leaveDesc")
+            : t.rich("settings.removeDesc", {
+                name: removeTarget?.member.username || removeTarget?.member.email || "",
+                b: (chunks) => (
+                  <span className="font-medium text-[var(--color-text)]">{chunks}</span>
+                ),
+              })
         }
-        confirmLabel={removeTarget?.self ? "Leave space" : "Remove and re-key"}
+        confirmLabel={removeTarget?.self ? t("settings.leaveConfirm") : t("settings.removeConfirm")}
         loading={removing}
         onConfirm={() => void handleRemove()}
       />
@@ -689,21 +675,19 @@ export function SpaceSettings() {
           if (!deleting && !o) setDeleteOpen(false);
         }}
         destructive
-        title="Delete this space?"
-        description={
-          <>
-            This deletes <span className="font-medium text-[var(--color-text)]">{spaceName}</span>{" "}
-            and revokes access for {plural(Math.max(0, d.members.length - 1), "other member")}. Type
-            the name to confirm.
-          </>
-        }
-        confirmLabel="Delete space"
+        title={t("settings.deleteTitle")}
+        description={t.rich("settings.deleteDesc", {
+          name: spaceName,
+          others: Math.max(0, d.members.length - 1),
+          b: (chunks) => <span className="font-medium text-[var(--color-text)]">{chunks}</span>,
+        })}
+        confirmLabel={t("settings.deleteConfirm")}
         confirmDisabled={typed.trim() !== meta.name}
         loading={deleting}
         onConfirm={() => void handleDelete()}
       >
         <Input
-          aria-label="Type the space name to confirm"
+          aria-label={t("settings.typeAria")}
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           placeholder={spaceName}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Clock } from "@/lib/icons";
 import { EXPIRY_OPTIONS } from "./expiry";
 
@@ -13,10 +14,11 @@ export function ExpirySelector({
   value: number;
   onChange: (hours: number) => void;
 }) {
+  const t = useTranslations("tools");
   return (
     <div className="space-y-1.5">
       <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-        <Clock className="h-3.5 w-3.5" /> Expires after
+        <Clock className="h-3.5 w-3.5" /> {t("shared.expiresAfter")}
       </label>
       <div className="flex gap-2">
         {EXPIRY_OPTIONS.map((opt) => (
@@ -29,7 +31,7 @@ export function ExpirySelector({
                 : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] text-[var(--color-text-muted)]"
             }`}
           >
-            {opt.label}
+            {t(`shared.expiry.${opt.key}`)}
           </button>
         ))}
       </div>

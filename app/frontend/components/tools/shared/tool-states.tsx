@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
 
@@ -22,7 +23,7 @@ import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
 export function ToolErrorState({
   title,
   message,
-  actionLabel = "Try Again",
+  actionLabel,
   onAction,
   wrapped = false,
 }: {
@@ -32,6 +33,7 @@ export function ToolErrorState({
   onAction: () => void;
   wrapped?: boolean;
 }) {
+  const t = useTranslations("tools");
   const card = (
     <div className="flex flex-col items-center gap-3 py-4 text-center">
       <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
@@ -49,7 +51,7 @@ export function ToolErrorState({
         </>
       )}
       <Button variant="secondary" onClick={onAction} className="mt-2">
-        {actionLabel}
+        {actionLabel ?? t("common.tryAgain")}
       </Button>
     </div>
   );

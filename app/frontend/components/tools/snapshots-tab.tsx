@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import { listVaultSnapshots, createVaultSnapshot, deleteVaultSnapshot } from "@/lib/api";
 import { useFilesQuery } from "@/store/files";
@@ -21,6 +22,7 @@ const NO_SNAPSHOTS: VaultSnapshot[] = [];
 const NO_FILES: FileMetadata[] = [];
 
 export function SnapshotsTab() {
+  const t = useTranslations("tools");
   const snapsQuery = useQuery({ queryKey: qk.snapshots, queryFn: listVaultSnapshots });
   const snapshots = snapsQuery.data ?? NO_SNAPSHOTS;
   const setSnapshots = (fn: (prev: VaultSnapshot[]) => VaultSnapshot[]) =>
@@ -37,7 +39,7 @@ export function SnapshotsTab() {
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const snap = await createVaultSnapshot(label || "Manual snapshot");
+      const snap = await createVaultSnapshot(label || t("snapshots.defaultLabel"));
       setSnapshots((prev) => [snap, ...prev]);
       setLabel("");
     } catch {
@@ -65,23 +67,20 @@ export function SnapshotsTab() {
     <div className="space-y-4">
       {/* Create snapshot */}
       <div className="panel p-6">
-        <Section
-          title="Take snapshot"
-          description="Record a labelled list of what's in your vault right now. This is a manifest, not a backup. It can't restore files."
-        >
+        <Section title={t("snapshots.take")} description={t("snapshots.takeDesc")}>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Snapshot label (optional)"
+              placeholder={t("snapshots.labelPlaceholder")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !creating) void handleCreate();
               }}
               className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
             />
             <Button onClick={handleCreate} disabled={creating} className="sm:w-auto">
-              {creating ? "Creating..." : "Take snapshot"}
+              {creating ? t("snapshots.creating") : t("snapshots.take")}
             </Button>
           </div>
         </Section>
@@ -98,8 +97,8 @@ export function SnapshotsTab() {
         <div className="panel">
           <EmptyState
             icon={<Layers className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No snapshots yet"
-            description="Take a snapshot to record which files are in your vault right now. It's a manifest you can review later, not a backup or restore point."
+            title={t("snapshots.emptyTitle")}
+            description={t("snapshots.emptyDesc")}
           />
         </div>
       ) : (
@@ -116,10 +115,12 @@ export function SnapshotsTab() {
                 <div className="flex items-start justify-between gap-3 p-4">
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-medium text-[var(--color-text)]">
-                      {snap.label || "Unnamed snapshot"}
+                      {snap.label || t("snapshots.unnamed")}
                     </h3>
                     <div className="mt-1 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
-                      <span className="tabular-nums">{snap.file_count} files</span>
+                      <span className="tabular-nums">
+                        {t("common.fileCount", { count: snap.file_count })}
+                      </span>
                       <span className="tabular-nums">{formatBytes(snap.total_size)}</span>
                       <span className="tabular-nums">{formatDateTime(snap.created_at)}</span>
                     </div>
@@ -130,14 +131,14 @@ export function SnapshotsTab() {
                       aria-expanded={isOpen}
                       className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-surface-1)]"
                     >
-                      {isOpen ? "Hide" : "View files"}
+                      {isOpen ? t("snapshots.hide") : t("snapshots.view")}
                       <ChevronDown
                         className={cn("h-3 w-3 transition-transform", isOpen && "rotate-180")}
                       />
                     </button>
                     <IconButton
                       icon={Trash2}
-                      label="Delete snapshot"
+                      label={t("snapshots.deleteLabel")}
                       variant="danger"
                       iconClassName="h-3.5 w-3.5"
                       onClick={() => setPendingDelete(snap)}
@@ -167,15 +168,13 @@ export function SnapshotsTab() {
           if (!o) setPendingDelete(null);
         }}
         destructive
-        title="Delete snapshot?"
+        title={t("snapshots.confirmTitle")}
         description={
-          <>
-            This permanently removes the snapshot
-            {pendingDelete?.label ? <> &ldquo;{pendingDelete.label}&rdquo;</> : null}. Your files
-            are not affected. This cannot be undone.
-          </>
+          pendingDelete?.label
+            ? t("snapshots.confirmDescNamed", { name: pendingDelete.label })
+            : t("snapshots.confirmDesc")
         }
-        confirmLabel="Delete"
+        confirmLabel={t("common.delete")}
         loading={deleting}
         onConfirm={handleDelete}
       />
