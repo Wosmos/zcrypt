@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { PageHeader } from "@/components/ui/page-header";
-import { SharedVaultsContent } from "@/components/share/shared-vaults-content";
+import { SpacesList } from "@/components/spaces/spaces-list";
 
 export const metadata: Metadata = {
   title: "Spaces",
@@ -9,15 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SpacesPage() {
-  return (
-    <div className="animate-fade-in space-y-8">
-      <PageHeader
-        eyebrow="Collaboration"
-        title="Spaces"
-        description="Share encrypted files with people you invite. The space key is sealed to each member's key: the server never sees it."
-      />
-
-      <SharedVaultsContent />
-    </div>
-  );
+  return <SpacesList />;
 }

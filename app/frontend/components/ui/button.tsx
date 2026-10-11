@@ -25,18 +25,23 @@ const sizeStyles = {
   icon: "h-9 w-9 p-0 rounded-lg",
 };
 
+/** Button styling for non-button elements (e.g. a next/link anchor). */
+export function buttonClass(
+  variant: keyof typeof variantStyles = "primary",
+  size: keyof typeof sizeStyles = "md",
+  className?: string,
+) {
+  return cn(
+    "squircle inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
+    variantStyles[variant],
+    sizeStyles[size],
+    className,
+  );
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = "primary", size = "md", className, ...props }, ref) => (
-    <button
-      ref={ref}
-      className={cn(
-        "squircle inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
-        variantStyles[variant],
-        sizeStyles[size],
-        className,
-      )}
-      {...props}
-    />
+    <button ref={ref} className={buttonClass(variant, size, className)} {...props} />
   ),
 );
 
