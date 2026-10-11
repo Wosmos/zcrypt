@@ -41,7 +41,9 @@
     "logOut": "تسجيل الخروج",
     "appVersion": "إصدار zcrypt {version}",
     "recents": "الأخيرة",
-    "starred": "المميّزة"
+    "starred": "المميّزة",
+    "openLink": "فتح",
+    "openInNewTab": "فتح في علامة تبويب جديدة"
   },
   "vaultLock": {
     "locked": "مقفلة",

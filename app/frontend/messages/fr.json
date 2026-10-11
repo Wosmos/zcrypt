@@ -41,7 +41,9 @@
     "logOut": "Se déconnecter",
     "appVersion": "Version de zcrypt {version}",
     "recents": "Récents",
-    "starred": "Favoris"
+    "starred": "Favoris",
+    "openLink": "Ouvrir",
+    "openInNewTab": "Ouvrir dans un nouvel onglet"
   },
   "vaultLock": {
     "locked": "Verrouillé",

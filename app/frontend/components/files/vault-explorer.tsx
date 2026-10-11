@@ -126,6 +126,7 @@ import {
 import { ExplorerToolbar } from "./explorer/explorer-toolbar";
 import { ExplorerBreadcrumb } from "./explorer/breadcrumb";
 import { CollectionBar } from "./explorer/collection-bar";
+import { ExplorerBackgroundMenu } from "./explorer/background-menu";
 import { ExplorerRow } from "./explorer/explorer-row";
 import { ExplorerCard } from "./explorer/explorer-card";
 import type { RowDragProps } from "./explorer/types";
@@ -552,6 +553,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const selectAll = () => {
       if (allSelected) setSelectedIds(new Set());
       else setSelectedIds(new Set(sortedFiles.map((f) => f.id)));
+    };
+
+    const selectEverything = () => {
+      setSelectMode(true);
+      setSelectedIds(new Set(sortedFiles.map((f) => f.id)));
     };
 
     const exitSelectMode = () => {
@@ -1371,138 +1377,149 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         )}
 
         {/* Listing */}
-        {error ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        ) : isLoading ? (
-          <ExplorerSkeleton view={view} gridCols={gridCols} isMobile={isMobile} />
-        ) : isEmptyFolder && collection ? (
-          <EmptyState
-            icon={<CollectionIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={t(`collection.${collection}.emptyTitle`)}
-            description={t(`collection.${collection}.emptyDescription`)}
-            action={
-              onExitCollection && (
-                <Button variant="secondary" size="sm" onClick={onExitCollection}>
-                  {t("collection.backToVault")}
-                </Button>
-              )
-            }
-          />
-        ) : isEmptyFolder ? (
-          <EmptyState
-            icon={<FolderIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={t("emptyTitle")}
-            description={t("emptyDescription")}
-            action={
-              <div className="flex items-center justify-center gap-2">
-                {onUploadClick && (
-                  <Button size="sm" onClick={onUploadClick}>
-                    {t("uploadFiles")}
-                  </Button>
-                )}
-                <Button variant="secondary" size="sm" onClick={startCreate}>
-                  {t("newFolder")}
-                </Button>
+        <ExplorerBackgroundMenu
+          disabled={isMobile}
+          view={view}
+          onViewChange={changeView}
+          onNewFolder={collection ? undefined : startCreate}
+          onUpload={collection ? undefined : onUploadClick}
+          onSelectAll={sortedFiles.length > 0 ? selectEverything : undefined}
+        >
+          <div className="sm:min-h-[32vh]">
+            {error ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+                {error}
               </div>
-            }
-          />
-        ) : isNoResults ? (
-          <EmptyState
-            icon={<Search className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={t("noMatches")}
-            description={
-              hasActiveFilters(filters)
-                ? search
-                  ? t("noMatchesFilteredFor", { search })
-                  : t("noMatchesFiltered")
-                : t("noMatchesSearch", { search })
-            }
-            action={
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setSearch("");
-                  setFilters(EMPTY_ENTRY_FILTERS);
-                }}
-              >
-                {t("clearFilters")}
-              </Button>
-            }
-          />
-        ) : view === "list" ? (
-          <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
-            {/* Sortable column headers (hidden on mobile) */}
-            <div className="hidden items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5 sm:flex">
-              <span className="w-9 flex-shrink-0" />
-              <ColHeader
-                label={t("colName")}
-                field="name"
-                sortField={sortField}
-                sortDir={sortDir}
-                onSort={handleSort}
-                className="flex-1"
+            ) : isLoading ? (
+              <ExplorerSkeleton view={view} gridCols={gridCols} isMobile={isMobile} />
+            ) : isEmptyFolder && collection ? (
+              <EmptyState
+                icon={<CollectionIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
+                title={t(`collection.${collection}.emptyTitle`)}
+                description={t(`collection.${collection}.emptyDescription`)}
+                action={
+                  onExitCollection && (
+                    <Button variant="secondary" size="sm" onClick={onExitCollection}>
+                      {t("collection.backToVault")}
+                    </Button>
+                  )
+                }
               />
-              <ColHeader
-                label={t("colType")}
-                field="type"
-                sortField={sortField}
-                sortDir={sortDir}
-                onSort={handleSort}
-                className="w-[110px] flex-shrink-0"
+            ) : isEmptyFolder ? (
+              <EmptyState
+                icon={<FolderIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
+                title={t("emptyTitle")}
+                description={t("emptyDescription")}
+                action={
+                  <div className="flex items-center justify-center gap-2">
+                    {onUploadClick && (
+                      <Button size="sm" onClick={onUploadClick}>
+                        {t("uploadFiles")}
+                      </Button>
+                    )}
+                    <Button variant="secondary" size="sm" onClick={startCreate}>
+                      {t("newFolder")}
+                    </Button>
+                  </div>
+                }
               />
-              <ColHeader
-                label={t("colSize")}
-                field="size"
-                sortField={sortField}
-                sortDir={sortDir}
-                onSort={handleSort}
-                className="w-[80px] flex-shrink-0 justify-end"
+            ) : isNoResults ? (
+              <EmptyState
+                icon={<Search className="h-7 w-7 text-[var(--color-text-muted)]" />}
+                title={t("noMatches")}
+                description={
+                  hasActiveFilters(filters)
+                    ? search
+                      ? t("noMatchesFilteredFor", { search })
+                      : t("noMatchesFiltered")
+                    : t("noMatchesSearch", { search })
+                }
+                action={
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSearch("");
+                      setFilters(EMPTY_ENTRY_FILTERS);
+                    }}
+                  >
+                    {t("clearFilters")}
+                  </Button>
+                }
               />
-              <ColHeader
-                label={t("colSaved")}
-                field="saved"
-                sortField={sortField}
-                sortDir={sortDir}
-                onSort={handleSort}
-                className="hidden w-[64px] flex-shrink-0 justify-end md:flex"
-              />
-              <ColHeader
-                label={t("colModified")}
-                field="date"
-                sortField={sortField}
-                sortDir={sortDir}
-                onSort={handleSort}
-                className="w-[110px] flex-shrink-0 justify-end"
-              />
-              <span className="w-4 flex-shrink-0" />
-            </div>
-            <div
-              ref={listContainerRef}
-              role="list"
-              onKeyDown={handleContainerKeyDown}
-              onClick={handleListingBackgroundClick}
-              className="sm:max-h-[62vh] sm:overflow-y-auto"
-            >
-              {explorerItems}
-            </div>
+            ) : view === "list" ? (
+              <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
+                {/* Sortable column headers (hidden on mobile) */}
+                <div className="hidden items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5 sm:flex">
+                  <span className="w-9 flex-shrink-0" />
+                  <ColHeader
+                    label={t("colName")}
+                    field="name"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                    className="flex-1"
+                  />
+                  <ColHeader
+                    label={t("colType")}
+                    field="type"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                    className="w-[110px] flex-shrink-0"
+                  />
+                  <ColHeader
+                    label={t("colSize")}
+                    field="size"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                    className="w-[80px] flex-shrink-0 justify-end"
+                  />
+                  <ColHeader
+                    label={t("colSaved")}
+                    field="saved"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                    className="hidden w-[64px] flex-shrink-0 justify-end md:flex"
+                  />
+                  <ColHeader
+                    label={t("colModified")}
+                    field="date"
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                    className="w-[110px] flex-shrink-0 justify-end"
+                  />
+                  <span className="w-4 flex-shrink-0" />
+                </div>
+                <div
+                  ref={listContainerRef}
+                  role="list"
+                  onKeyDown={handleContainerKeyDown}
+                  onClick={handleListingBackgroundClick}
+                  className="sm:max-h-[62vh] sm:overflow-y-auto"
+                >
+                  {explorerItems}
+                </div>
+              </div>
+            ) : (
+              <div className="sm:max-h-[62vh] sm:overflow-y-auto">
+                <div
+                  ref={listContainerRef}
+                  role="list"
+                  onKeyDown={handleContainerKeyDown}
+                  onClick={handleListingBackgroundClick}
+                  className="grid gap-1.5 sm:gap-2.5"
+                  style={{ gridTemplateColumns: gridTemplateColumns(gridCols, isMobile) }}
+                >
+                  {explorerItems}
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="sm:max-h-[62vh] sm:overflow-y-auto">
-            <div
-              ref={listContainerRef}
-              role="list"
-              onKeyDown={handleContainerKeyDown}
-              onClick={handleListingBackgroundClick}
-              className="grid gap-1.5 sm:gap-2.5"
-              style={{ gridTemplateColumns: gridTemplateColumns(gridCols, isMobile) }}
-            >
-              {explorerItems}
-            </div>
-          </div>
-        )}
+        </ExplorerBackgroundMenu>
 
         {/* Count footer: uniform "N folders · M files", or "N items" when one
           group is empty (H3-footer). */}

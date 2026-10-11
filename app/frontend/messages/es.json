@@ -41,7 +41,9 @@
     "logOut": "Cerrar sesión",
     "appVersion": "Versión de zcrypt {version}",
     "recents": "Recientes",
-    "starred": "Destacados"
+    "starred": "Destacados",
+    "openLink": "Abrir",
+    "openInNewTab": "Abrir en una pestaña nueva"
   },
   "vaultLock": {
     "locked": "Bloqueada",

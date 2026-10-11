@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { cn, formatBytes } from "@/lib/utils";
@@ -21,8 +21,17 @@ import {
   Layers,
   Clock,
   Star,
+  ExternalLink,
+  ArrowRight,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "@/components/ui/context-menu";
+import { isTauri } from "@/lib/tauri";
 import { VaultLock } from "@/components/ui/vault-lock";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { MobileNav } from "@/components/ui/mobile-nav";
@@ -77,6 +86,7 @@ const trashLink = { href: "/trash", labelKey: "trash", icon: Trash2 } as const;
 export function Sidebar() {
   const t = useTranslations("shell");
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuthStore();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const [collapsed, setCollapsed] = useState(false);
@@ -127,31 +137,48 @@ export function Sidebar() {
   }) => {
     const active = isActive(href);
     return (
-      <Link
-        href={href}
-        title={collapsed ? label : undefined}
-        aria-current={active ? "page" : undefined}
-        data-tour={TOUR_NAV[href]}
-        onMouseEnter={() => prefetchRoute(href)}
-        onFocus={() => prefetchRoute(href)}
-        className={cn(
-          "group flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-150",
-          collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
-          active
-            ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
-            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
-        )}
-      >
-        <Icon
-          className={cn(
-            "h-[18px] w-[18px] flex-shrink-0 transition-colors",
-            active
-              ? "text-[var(--color-accent)]"
-              : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]",
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <Link
+            href={href}
+            title={collapsed ? label : undefined}
+            aria-current={active ? "page" : undefined}
+            data-tour={TOUR_NAV[href]}
+            onMouseEnter={() => prefetchRoute(href)}
+            onFocus={() => prefetchRoute(href)}
+            className={cn(
+              "group flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-150",
+              collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
+              active
+                ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
+            )}
+          >
+            <Icon
+              className={cn(
+                "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+                active
+                  ? "text-[var(--color-accent)]"
+                  : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]",
+              )}
+            />
+            {!collapsed && <span className="truncate">{label}</span>}
+          </Link>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem className="gap-2" onSelect={() => router.push(href)}>
+            <ArrowRight className="h-4 w-4 rtl:-scale-x-100" /> {t("openLink")}
+          </ContextMenuItem>
+          {!isTauri && (
+            <ContextMenuItem
+              className="gap-2"
+              onSelect={() => window.open(href, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="h-4 w-4" /> {t("openInNewTab")}
+            </ContextMenuItem>
           )}
-        />
-        {!collapsed && <span className="truncate">{label}</span>}
-      </Link>
+        </ContextMenuContent>
+      </ContextMenu>
     );
   };
 

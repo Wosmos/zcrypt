@@ -41,7 +41,9 @@
     "logOut": "لاگ آؤٹ",
     "appVersion": "zcrypt ورژن {version}",
     "recents": "حالیہ",
-    "starred": "ستارہ شدہ"
+    "starred": "ستارہ شدہ",
+    "openLink": "کھولیں",
+    "openInNewTab": "نئے ٹیب میں کھولیں"
   },
   "vaultLock": {
     "locked": "مقفل",
