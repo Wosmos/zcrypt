@@ -6,29 +6,31 @@ import { MoreDotsIcon } from "@/components/icons/nav-icons";
 import { LogoIcon } from "@/components/ui/logo";
 import { BarChart3, Bell, Layers, Plus, Shield } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { useDriveText } from "./drive-i18n";
 import { COMMIT, filterKeyOf, REPO, type FilterKey } from "./drive-data";
 import { TransfersDock } from "./transfers-dock";
 import { ExplorerCards, ExplorerOverlays, useRefocus } from "./explorer-shared";
 import { useExplorer } from "./use-explorer";
 
-const CHIP_ORDER: { key: FilterKey; label: string }[] = [
-  { key: "image", label: "Image" },
-  { key: "document", label: "Document" },
-  { key: "video", label: "Video" },
-  { key: "audio", label: "Audio" },
-  { key: "archive", label: "Archive" },
+const CHIP_ORDER: { key: FilterKey }[] = [
+  { key: "image" },
+  { key: "document" },
+  { key: "video" },
+  { key: "audio" },
+  { key: "archive" },
 ];
 
 const TABS = [
-  { icon: Shield, label: "Vault", on: true },
-  { icon: BarChart3, label: "Insights" },
-  { icon: Layers, label: "Spaces" },
-  { icon: MoreDotsIcon, label: "More" },
+  { icon: Shield, label: "vault", on: true },
+  { icon: BarChart3, label: "insights" },
+  { icon: Layers, label: "spaces" },
+  { icon: MoreDotsIcon, label: "more" },
 ] as const;
 
 /** The phone layout of the app, as it renders at 428x926 inside the iPhone frame. */
 export function DrivePhone({ onPick }: { onPick: () => void }) {
   const x = useExplorer();
+  const { t } = useDriveText();
   const { state, dispatch, gh, entries } = x;
   const hint = () => dispatch({ type: "hint" });
   const counts = new Map<FilterKey, number>();
@@ -45,13 +47,27 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
       <div className="zh-ph-top zh-dim">
         <LogoIcon size={28} />
         <span className="zh-ph-tr">
-          <span className="zh-vlock zh-vlock-round" aria-label="Locked to this device" role="img">
+          <span
+            className="zh-vlock zh-vlock-round"
+            aria-label={t("drive.phone.lockedDevice")}
+            role="img"
+          >
             <LockKeyOpen className="h-5 w-5" aria-hidden="true" />
           </span>
-          <button type="button" className="zh-bell" aria-label="Notifications" onClick={hint}>
+          <button
+            type="button"
+            className="zh-bell"
+            aria-label={t("drive.desktop.notifications")}
+            onClick={hint}
+          >
             <Bell className="h-5 w-5" />
           </button>
-          <button type="button" className="zh-avatar" aria-label="Account" onClick={hint}>
+          <button
+            type="button"
+            className="zh-avatar"
+            aria-label={t("drive.desktop.account")}
+            onClick={hint}
+          >
             A
           </button>
         </span>
@@ -66,7 +82,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
                 className="zh-chip"
                 onClick={() => dispatch({ type: "folder", id: null })}
               >
-                My Vault
+                {t("drive.desktop.myVault")}
               </button>
             ) : null}
             {chips.length > 1 || state.filter ? (
@@ -77,7 +93,8 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
                   aria-pressed={!state.filter}
                   onClick={() => dispatch({ type: "filter", filter: null })}
                 >
-                  All<span className="zh-chip-n">{total}</span>
+                  {t("drive.filters.all")}
+                  <span className="zh-chip-n">{total}</span>
                 </button>
                 {chips.map((c) => (
                   <button
@@ -89,7 +106,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
                       dispatch({ type: "filter", filter: state.filter === c.key ? null : c.key })
                     }
                   >
-                    {c.label}
+                    {t(`drive.chips.${c.key}`)}
                     <span className="zh-chip-n">{counts.get(c.key)}</span>
                   </button>
                 ))}
@@ -107,7 +124,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
           ref={x.gridRef}
           className={cn("zh-grid zh-grid-ph", state.extra && "zh-grid-extra")}
           role="group"
-          aria-label="Sample files"
+          aria-label={t("drive.desktop.sampleFiles")}
         >
           <ExplorerCards x={x} />
         </div>
@@ -117,13 +134,13 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
       <button
         type="button"
         className="zh-fab"
-        aria-label="Add a file"
+        aria-label={t("drive.phone.addFile")}
         onClick={onPick}
         data-pick=""
       >
         <Plus className="h-7 w-7" strokeWidth={2} />
       </button>
-      <nav className="zh-ph-nav zh-dim" aria-label="Sample app sections">
+      <nav className="zh-ph-nav zh-dim" aria-label={t("drive.desktop.sectionsAria")}>
         <div className="zh-ph-pill">
           {TABS.map(({ icon: I, label, ...r }) => (
             <button
@@ -135,7 +152,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
               onClick={() => ("on" in r ? dispatch({ type: "folder", id: null }) : hint())}
             >
               <I className="h-[22px] w-[22px]" />
-              <span>{label}</span>
+              <span>{t(`drive.nav.${label}`)}</span>
             </button>
           ))}
         </div>

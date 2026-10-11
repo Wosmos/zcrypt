@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type ReactElement } from "react";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Cloud, FileText, Folder } from "@/lib/icons";
 
 type Scene = (props: { play: boolean }) => ReactElement;
@@ -36,6 +37,7 @@ const ROOM_GB = ["0.4", "9.3", "14.1", "15.0", "15.0", "15.0", "15.0"];
 const ROOM_FILL = [0.03, 0.62, 0.94, 1, 1, 1, 1];
 
 function OutOfRoom({ play }: { play: boolean }) {
+  const t = useTranslations("site");
   const s = useTimeline(play, ROOM_HOLDS);
   const accounts = s >= 6 ? 3 : s >= 5 ? 2 : 1;
   return (
@@ -43,7 +45,7 @@ function OutOfRoom({ play }: { play: boolean }) {
       <div className="zs-panel">
         <div className="zs-prow">
           <Cloud className="size-4 zs-pico" />
-          <span className="zs-pname">My storage</span>
+          <span className="zs-pname">{t("home.story.scene.myStorage")}</span>
           <span className="zs-mono" data-bad={on(s >= 3)}>
             {ROOM_GB[s]} / 15 GB
           </span>
@@ -58,14 +60,16 @@ function OutOfRoom({ play }: { play: boolean }) {
             </span>
           ))}
           <span className="zs-accts-note">
-            {accounts === 1 ? "1 login" : `${accounts} logins, 1 folder`}
+            {accounts === 1
+              ? t("home.story.scene.login1")
+              : t("home.story.scene.logins", { n: accounts })}
           </span>
         </div>
       </div>
       <div className="zs-toast" data-on={on(s === 4)}>
         <AlertCircle className="size-4 zs-toast-ico" />
-        <span className="zs-toast-t">Storage full. Add a card?</span>
-        <span className="zs-toast-b">Add card</span>
+        <span className="zs-toast-t">{t("home.story.scene.full")}</span>
+        <span className="zs-toast-b">{t("home.story.scene.addCard")}</span>
       </div>
     </div>
   );
@@ -75,26 +79,27 @@ const PRINT_HOLDS = [1300, 1900, 3800] as const;
 const PRINT_LINES = [92, 84, 96, 70, 88, 94, 62, 90, 78, 86, 58] as const;
 
 function FinePrint({ play }: { play: boolean }) {
+  const t = useTranslations("site");
   const s = useTimeline(play, PRINT_HOLDS);
   return (
     <div className="zs-v zs-v2" aria-hidden="true">
       <div className="zs-doc">
         <div className="zs-doc-bar">
           <FileText className="size-3.5" />
-          <span>Terms of Service</span>
-          <span className="zs-doc-tag">illustrative</span>
+          <span>{t("home.story.scene.tos")}</span>
+          <span className="zs-doc-tag">{t("home.story.scene.illustrative")}</span>
         </div>
         <div className="zs-doc-view">
           <div className="zs-doc-scroll" data-down={on(s >= 1)}>
             <p className="zs-doc-hero">
-              1 TB <span>free</span>
+              1 TB <span>{t("home.story.scene.free")}</span>
             </p>
             {PRINT_LINES.map((w, i) => (
               <span key={`${w}-${i}`} className="zs-doc-line" style={{ width: `${w}%` }} />
             ))}
             <p className="zs-clause">
               <span className="zs-clause-n">14.3</span>{" "}
-              <mark data-on={on(s >= 2)}>We may scan your content to improve our services.</mark>
+              <mark data-on={on(s >= 2)}>{t("home.story.scene.clause")}</mark>
             </p>
             <span className="zs-doc-line" style={{ width: "74%" }} />
           </div>
@@ -106,17 +111,10 @@ function FinePrint({ play }: { play: boolean }) {
 
 const FAIL_HOLDS = [450, 500, 600, 700, 800, 900, 800, 1300, 1300, 3200] as const;
 const FAIL_PCT = [0, 34, 58, 70, 76, 79, 80, 80, 80, 80];
-const FAIL_ETA = [
-  "Starting",
-  "6 min left",
-  "14 min left",
-  "31 min left",
-  "About an hour left",
-  "Any minute now",
-  "Any minute now",
-];
+const FAIL_ETA = ["eta0", "eta1", "eta2", "eta3", "eta4", "eta5", "eta5"] as const;
 
 function EightyFail({ play }: { play: boolean }) {
+  const t = useTranslations("site");
   const s = useTimeline(play, FAIL_HOLDS);
   const dead = s >= 7;
   return (
@@ -128,7 +126,8 @@ function EightyFail({ play }: { play: boolean }) {
             <small>%</small>
           </span>
           <span className="zs-up-file">
-            <Folder className="size-3.5 zs-pico" />4 GB of photos
+            <Folder className="size-3.5 zs-pico" />
+            {t("home.story.scene.photos")}
           </span>
         </div>
         <div className="zs-bar zs-bar-up" data-bad={on(dead)}>
@@ -136,10 +135,10 @@ function EightyFail({ play }: { play: boolean }) {
         </div>
         <div className="zs-prow zs-prow-sub">
           <span className="zs-eta" data-bad={on(dead)}>
-            {dead ? "Upload failed. Start again?" : FAIL_ETA[s]}
+            {dead ? t("home.story.scene.failed") : t(`home.story.scene.${FAIL_ETA[s]}`)}
           </span>
           <span className="zs-retry" data-on={on(dead)} data-hover={on(s === 8)}>
-            Retry
+            {t("home.story.scene.retry")}
           </span>
         </div>
       </div>
@@ -165,6 +164,7 @@ function EightyFail({ play }: { play: boolean }) {
 const TAG_HOLDS = [2400, 3600] as const;
 
 function PriceTag({ play }: { play: boolean }) {
+  const t = useTranslations("site");
   const s = useTimeline(play, TAG_HOLDS);
   return (
     <div className="zs-v zs-v4" aria-hidden="true" data-play={on(play)}>
@@ -173,14 +173,14 @@ function PriceTag({ play }: { play: boolean }) {
         <span className="zs-string" />
         <div className="zs-tag" data-flip={on(s === 1)}>
           <div className="zs-face zs-front">
-            <small>Price</small>
-            <b>FREE</b>
-            <small>1 TB, no card</small>
+            <small>{t("home.story.scene.price")}</small>
+            <b>{t("home.story.scene.freeCaps")}</b>
+            <small>{t("home.story.scene.noCard")}</small>
           </div>
           <div className="zs-face zs-back">
-            <small>Actual price</small>
-            <b>you</b>
-            <small>and your files</small>
+            <small>{t("home.story.scene.actual")}</small>
+            <b>{t("home.story.scene.you")}</b>
+            <small>{t("home.story.scene.andFiles")}</small>
           </div>
         </div>
       </div>

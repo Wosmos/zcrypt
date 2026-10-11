@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { Pause, Play, Quote, Star } from "@/lib/icons";
 import type { PublicReview } from "@/lib/public-reviews";
 import { SectionHead } from "../section-head";
@@ -8,12 +9,17 @@ import { SectionHead } from "../section-head";
 const MIN_CARDS_PER_LIST = 5;
 
 function QuoteCard({ q, filler }: { q: PublicReview; filler?: boolean }) {
+  const t = useTranslations("site");
   return (
     <li className="zs-q" aria-hidden={filler ? "true" : undefined}>
       <figure className="zs-qc pv2-ring corner-squircle">
         <div className="zs-qc-top">
           <Quote className="zs-qc-mark" aria-hidden="true" />
-          <span className="zs-qc-stars" role="img" aria-label={`${q.rating} out of 5 stars`}>
+          <span
+            className="zs-qc-stars"
+            role="img"
+            aria-label={t("home.quotes.stars", { n: q.rating })}
+          >
             {[1, 2, 3, 4, 5].map((n) => (
               <Star key={n} data-off={n > q.rating ? "" : undefined} />
             ))}
@@ -81,6 +87,7 @@ export function QuoteMarqueeView({
   rowA: readonly PublicReview[];
   rowB: readonly PublicReview[];
 }) {
+  const t = useTranslations("site");
   const ref = useRef<HTMLElement>(null);
   const [paused, setPaused] = useState(false);
 
@@ -109,16 +116,16 @@ export function QuoteMarqueeView({
       <div className="pv2-wrap">
         <SectionHead
           id="h-quotes"
-          eyebrow="What people say"
-          title="Kind words"
-          lede="Reviews from people who use zcrypt, read by us before they appear here."
+          eyebrow={t("home.quotes.eyebrow")}
+          title={t("home.quotes.title")}
+          lede={t("home.quotes.lede")}
         />
         <div className="zs-q-bar">
           <button
             type="button"
             className="zs-round zs-q-pause"
             aria-pressed={paused}
-            aria-label={paused ? "Play the quotes" : "Pause the quotes"}
+            aria-label={paused ? t("home.quotes.play") : t("home.quotes.pause")}
             onClick={() => setPaused((p) => !p)}
           >
             {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
@@ -126,8 +133,8 @@ export function QuoteMarqueeView({
         </div>
       </div>
       <div className="zs-rows">
-        <Row items={rowA} label="Reviews, first row" seconds={64} />
-        <Row items={rowB} label="Reviews, second row" seconds={80} reverse />
+        <Row items={rowA} label={t("home.quotes.rowA")} seconds={64} />
+        <Row items={rowB} label={t("home.quotes.rowB")} seconds={80} reverse />
       </div>
     </section>
   );

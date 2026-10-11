@@ -10,6 +10,7 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { sharing } from "../_data/sharing";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -34,6 +35,8 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+const LEAD = "[&_strong]:font-normal [&_strong]:text-cyan-600/80 dark:[&_strong]:text-cyan-400/80";
 
 export default function SharingPage() {
   const {
@@ -69,10 +72,10 @@ export default function SharingPage() {
         <MockWindowFrame
           maxWidth="max-w-3xl"
           contentClassName="p-4 sm:p-5"
-          label="Share link"
+          label={<T k="site.features.sharing.mock.label" />}
           labelIcon={Link2}
           badgeIcon={Lock}
-          badgeLabel="End-to-end"
+          badgeLabel={<T k="site.features.sharing.mock.badge" />}
         >
           {/* the url, with the fragment highlighted */}
           <div className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] p-3 font-mono text-[11px] leading-relaxed break-all dark:bg-white/[0.02]">
@@ -84,32 +87,38 @@ export default function SharingPage() {
             <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
               <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-text-muted)]" />
               <span className="font-mono">/s/3kQ9pX2v</span>
-              <span>sent to the server</span>
+              <span>
+                <T k="site.features.sharing.mock.sentToServer" />
+              </span>
             </div>
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
               <span className="font-mono">#key=…</span>
-              <span>stays in the browser</span>
+              <span>
+                <T k="site.features.sharing.mock.staysInBrowser" />
+              </span>
             </div>
           </div>
 
           {/* link controls */}
           <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {[
-              { Icon: Lock, label: "Password", value: "On" },
-              { Icon: Clock, label: "Expires", value: "7 days" },
-              { Icon: Download, label: "Downloads", value: "5 left" },
-              { Icon: XCircle, label: "Revoke", value: "Anytime" },
+              { Icon: Lock, id: "password" },
+              { Icon: Clock, id: "expires" },
+              { Icon: Download, id: "downloads" },
+              { Icon: XCircle, id: "revoke" },
             ].map((c) => (
               <div
-                key={c.label}
+                key={c.id}
                 className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]"
               >
                 <c.Icon className="h-4 w-4 text-[var(--pv2-accent-ink)]" />
                 <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                  {c.label}
+                  <T k={`site.features.sharing.mock.${c.id}`} />
                 </div>
-                <div className="text-xs font-medium">{c.value}</div>
+                <div className="text-xs font-medium">
+                  <T k={`site.features.sharing.mock.${c.id}Value`} />
+                </div>
               </div>
             ))}
           </div>
@@ -118,6 +127,7 @@ export default function SharingPage() {
 
       {/* ═══ CAPABILITIES ═══ */}
       <CapabilityGrid
+        id="h-capabilities"
         heading={capabilitiesSection.heading}
         subheading={capabilitiesSection.subheading}
         items={capabilities}
@@ -134,22 +144,26 @@ export default function SharingPage() {
         linkHref={tieIn.linkHref}
         panel={
           <CodePanel
-            comment="// what the server sees on open"
-            success="✓ no key on the wire. no plaintext on the server."
+            comment={<T k="site.features.sharing.panel.comment" />}
+            success={<T k="site.features.sharing.panel.success" />}
           >
             <div className="break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">GET</span> /s/3kQ9pX2v
             </div>
-            <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">returns</span> ciphertext
-              blob, sealed
+            <div className={"mt-1.5 " + LEAD}>
+              <T k="site.features.sharing.panel.returns" />
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">#key=…</span>{" "}
-              <span className="text-amber-500">not in request</span>
+              <span className="text-amber-500">
+                <T k="site.features.sharing.panel.notInRequest" />
+              </span>
             </div>
             <div className="mt-1.5">
-              decrypt happens in: <span className="text-emerald-500">the browser</span>
+              <T k="site.features.sharing.panel.decryptHappens" />{" "}
+              <span className="text-emerald-500">
+                <T k="site.features.sharing.panel.browser" />
+              </span>
             </div>
           </CodePanel>
         }
@@ -157,6 +171,7 @@ export default function SharingPage() {
 
       {/* ═══ MORE WAYS TO SEND ═══ */}
       <CapabilityGrid
+        id="h-more-ways"
         join
         columns={2}
         heading={moreWaysSection.heading}

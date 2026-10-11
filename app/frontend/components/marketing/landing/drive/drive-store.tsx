@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   createContext,
   useCallback,
@@ -13,7 +14,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  HINT,
   MB,
   PIECE,
   randHex,
@@ -38,12 +38,12 @@ type DriveState = {
   extra: boolean;
   preview: PreviewRef | null;
   dialog: { folderId: string } | null;
-  hint: { msg: string; n: number } | null;
+  hint: { msg: string | null; n: number } | null;
   upload: "idle" | "running" | "done";
   uploadItem: UploadItem;
   uploadAt: number;
   uploadMs: number;
-  live: { msg: string; n: number } | null;
+  live: { msg?: string; key?: string; n: number } | null;
   introDone: boolean;
 };
 
@@ -108,9 +108,7 @@ function reducer(s: DriveState, a: DriveAction): DriveState {
         preview: null,
         dialog: null,
         live: {
-          msg: toGh
-            ? "Showing what we see: locked pieces with random names."
-            : "Showing your view.",
+          key: toGh ? "drive.live.gh" : "drive.live.you",
           n: (s.live?.n ?? 0) + 1,
         },
       };
@@ -140,7 +138,7 @@ function reducer(s: DriveState, a: DriveAction): DriveState {
     case "dialog":
       return { ...s, dialog: a.folderId ? { folderId: a.folderId } : null };
     case "hint":
-      return { ...s, hint: { msg: a.msg ?? HINT, n: (s.hint?.n ?? 0) + 1 } };
+      return { ...s, hint: { msg: a.msg ?? null, n: (s.hint?.n ?? 0) + 1 } };
     case "hintClear":
       return { ...s, hint: null };
     case "drop":
@@ -194,6 +192,7 @@ function prefersReduce() {
 
 /** Shared state for whichever product frame is mounted (desktop window or phone). */
 export function DriveProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations("site");
   const [state, dispatch] = useReducer(reducer, false, initial);
   const reduceRef = useRef(false);
   const timer = useRef(0);
@@ -266,9 +265,9 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       };
       dispatch({ type: "drop", file: dropped });
       run({ name, size: file.size }, false);
-      dispatch({ type: "announce", msg: `Added ${name}. Saved to Telegram.` });
+      dispatch({ type: "announce", msg: t("drive.live.added", { name }) });
     },
-    [run],
+    [run, t],
   );
 
   const value = useMemo(

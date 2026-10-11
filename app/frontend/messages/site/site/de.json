@@ -1,3 +1,2127 @@
 {
-  "site": {}
+  "site": {
+    "chrome": {
+      "skipToContent": "Zum Inhalt springen",
+      "seeAlso": "Siehe auch:",
+      "social": {
+        "portfolio": "Portfolio",
+        "email": "E-Mail"
+      },
+      "featuresNav": {
+        "encrypted-drive": {
+          "title": "Verschlüsseltes Laufwerk",
+          "desc": "Ein echter Dateimanager: Ordner, Raster- und Listenansicht, Suche, Sortierung, alles auf deinem Gerät verschlüsselt."
+        },
+        "folders": {
+          "title": "Verschlüsselte Ordner",
+          "desc": "Verschachtelbare Ordner mit verschlüsselten Namen, dazu ein eigenes Passwort für jeden Ordner."
+        },
+        "file-viewers": {
+          "title": "Dateivorschau",
+          "desc": "Bilder, Videos, Audio, PDFs, Dokumente und Code ansehen, lokal entschlüsselt."
+        },
+        "sharing": {
+          "title": "Teilen",
+          "desc": "Links teilen, optional mit Passwort, Ablaufdatum und Limits. Der Schlüssel bleibt in der URL."
+        },
+        "encryption": {
+          "title": "Zero-Knowledge-Verschlüsselung",
+          "desc": "AES-256-GCM auf deinem Gerät. Der Server sieht immer nur Chiffretext."
+        },
+        "bring-your-own-storage": {
+          "title": "Eigener Speicher",
+          "desc": "Nutze GitHub, GitLab, Hugging Face oder Telegram. Deine Daten, ohne Lock-in."
+        },
+        "transfers": {
+          "title": "Transfer-Manager",
+          "desc": "Jeden Upload und Download an einem Ort pausieren, fortsetzen, wiederholen und verfolgen."
+        },
+        "privacy": {
+          "title": "Privatsphäre-Werkzeuge",
+          "desc": "Köderprofil und Totmannschalter, mit offen benannten Grenzen."
+        },
+        "apps": {
+          "title": "Web, Desktop & Android",
+          "desc": "Derselbe Zero-Knowledge-Kern auf jeder Oberfläche, auch in einer Android-App auf Rust-Basis."
+        }
+      }
+    },
+    "about": {
+      "hero": {
+        "eyebrow": "Wer wirklich dahintersteckt",
+        "title": "Hi, ich bin Wasif. Ich wollte nur kostenlosen Speicher",
+        "subtext": "Wasif Malik, im Internet auch <b>Wosmo</b> genannt. Ein Full-Stack-Entwickler aus Karachi, Pakistan, der irgendwo viele Dateien ablegen wollte, keinen Speicher fand, der sie nicht auch lesen will, und statt es wie ein vernünftiger Mensch gut sein zu lassen, ein paar Monate lang seinen eigenen gebaut hat. Das ist zcrypt. Hier hinten bin nur ich: kein Team, keine Investoren, keine „zcrypt-Familie“. Was meistens heißt: Wenn etwas kaputtgeht, weiß ich schon, wer schuld ist.",
+        "primary": "Mein Portfolio ansehen"
+      },
+      "chips": {
+        "location": "Karachi, Pakistan",
+        "role": "Full-Stack-Entwickler",
+        "openBuilding": "Offen entwickelt"
+      },
+      "trust": {
+        "eyebrow": "Warum mein Name darauf steht",
+        "body": "Ein Werkzeug, das deine Schlüssel verwahrt, sollte dir wenigstens sagen, wem du die Schuld geben kannst. Also: mir. Genau hier. Es gibt kein geheimnisvolles „Wir“, hinter dem ich verschwinden könnte, wenn etwas schiefgeht, kein „das Team kümmert sich darum“. Es gibt ein Team. Das bin ich. Die Verschlüsselung läuft auf deinem Gerät, bevor irgendetwas hochgeladen wird, deshalb kann ich deine Dateien nicht lesen. Ich habe es an meinen eigenen Testdaten probiert. Geht nicht. Genau das ist der Punkt."
+      },
+      "origin": {
+        "eyebrow": "Die Entstehungsgeschichte",
+        "heading": "Wie zcrypt wirklich entstanden ist",
+        "p1": "Vor ein paar Monaten zog ich mein ganzes Leben zwischen Rechnern um: gut 50 Gigabyte an Projekten, RAW-Fotos und halbfertigen Bearbeitungen, die ich angeblich irgendwann noch fertigmache. Die Sorte Dateien, die man nicht einfach neu herunterladen kann.",
+        "p2": "Google Drive tippte mir bei 15 GB auf die Schulter und wollte meine Karte sehen. Also tat ich das einzig Vernünftige: Ich legte ein zweites Konto an. Dann ein drittes. Eine Woche lang verteilte ich einen Ordner auf drei Logins wie ein digitaler Schmuggler mit Budget und war still stolz auf ein System, das nur von Klebeband zusammengehalten wurde.",
+        "p3": "Dann probierte ich TeraBox. „Ein Terabyte, kostenlos“, hieß es. Was sie nicht sagten: Der Download-Button ist versteckt wie ein Staatsgeheimnis, deine Dateien liegen still und leise auf <em>ihren</em> Servern, und im Kleingedruckten gelten deine Daten als ihre, zum Scannen und zum Lernen. Der Groschen fiel, als ich einen 4-GB-Ordner hochlud, zusah, wie er bis 80 % kroch, und dann scheiterte. Mein erster Gedanke war nicht „ich versuch's nochmal“. Sondern: „Warum gebe ich mein ganzes Leben an eine Firma, deren ganzes Geschäft darin besteht, zu wissen, was drinsteckt?“",
+        "p4": "Und jetzt kommt der Teil, für den ich keinen Applaus verdiene, weil er einfach stimmt: Kostenloser Speicher war nie kostenlos. Ich hatte nur das Preisschild nicht gelesen, weil das Preisschild ich bin. Das sind Milliardenkonzerne. Privatsphäre ist für sie kein Feature, das sie vergessen haben, sondern das, wogegen sie stillschweigend verkaufen.",
+        "p5": "Also hörte ich auf, online zu jammern, und fing an zu bauen, was im Grunde Jammern mit Zusatzschritten ist. Die Idee war einfach, auch wenn der Code es ganz und gar nicht war: Verschlüssele deine Dateien auf deinem Gerät, bevor sie es verlassen, sodass nicht einmal ich sie lesen kann, und lege sie dann in der Infrastruktur ab, die dir schon gehört und der du vertraust. Kein neues Datenimperium. Kein Banner „Deine Privatsphäre ist uns wichtig“, das genau das Gegenteil meint. Nur deine Dateien, verschlossen, deine.",
+        "pullQuote": "Kostenloser Speicher war nie kostenlos. Ich hatte nur das Preisschild nicht gelesen, weil das Preisschild ich war.",
+        "after1": "Ich baue es öffentlich: die Erfolge, die Bugs und die Commits um 2 Uhr nachts, „warum initialisiert sich dieses WASM-Modul schon wieder neu“. Das hier sind ich und eine besorgniserregende Menge Kaffee, also ja, es wird Ecken und Kanten geben. Die Verschlüsselung gehört nicht dazu: Sie ist Open Source, und ich kann deine Dateien nicht lesen, selbst wenn ich wollte. (Ich will nicht. Aber ich könnte auch nicht.)",
+        "philosophyLink": "Die längere, meckernde Version steht auf der Philosophie-Seite"
+      },
+      "projects": {
+        "eyebrow": "Nebenschauplätze",
+        "heading": "Was ich sonst noch gebaut habe",
+        "intro": "Ich habe die schlechte Angewohnheit, alles selbst zu bauen: Frontend, Backend und die unbequemen Stellen dazwischen. Ein paar andere Projekte, die (meistens) funktionieren:",
+        "learnity": "KI-gestützte Lernplattform mit spielerischen Kursen und Fortschrittsverfolgung.",
+        "docxo": "Gemeinsame Dokumente in Echtzeit: mehrere Cursor, Live-Bearbeitung, null Verzögerung.",
+        "tellow": "Plattformübergreifende Videoanruf-App mit Räumen, Chat und Bildschirmfreigabe.",
+        "netlink": "Ein Chat-Backend in Go, gebaut für Tausende gleichzeitige WebSocket-Verbindungen.",
+        "devtoolshq": "Ein Dashboard mit alltäglichen Entwickler-Tools: Formatierer, Konverter, Generatoren.",
+        "resumeright": "Ein KI-Lebenslauf-Optimierer, der ATS-Prüfungen bewertet und schwache Zeilen umschreibt.",
+        "portfolioLink": "Alles auf meinem Portfolio ansehen"
+      },
+      "stack": {
+        "eyebrow": "Werkzeugkasten",
+        "heading": "Die üblichen Verdächtigen",
+        "intro": "Die Werkzeuge, nach denen ich greife, vom Browser bis hinunter zu den Bytes auf der Platte:"
+      },
+      "cta": {
+        "eyebrow": "Sag Hallo",
+        "heading": "Lass uns etwas bauen",
+        "body": "Ich bin offen für neue Projekte und Freelance-Arbeit und beantworte meine Nachrichten selbst, vor allem weil es niemanden gibt, an den ich sie weiterreichen könnte. Such dir eine Tür aus:"
+      }
+    },
+    "philosophy": {
+      "hero": {
+        "eyebrow": "Warum zcrypt",
+        "title": "Warum wir zcrypt gebaut haben",
+        "lede": "Ein längst überfälliges Gespräch darüber, wem deine Daten gehören, wer daran verdient und warum sich das ändern muss."
+      },
+      "short": {
+        "eyebrow": "Die Kurzfassung",
+        "body": "Bei den meisten Cloud-Speichern mietest du Platz auf fremden Servern, auf denen <em>sie</em> die Schlüssel zu deinen Dateien halten. zcrypt ist anders. Deine Dateien werden auf deinem Gerät verschlüsselt und dann im freien Speicherplatz abgelegt, den du ohnehin auf Konten hast, die <em>dir</em> gehören: GitHub, GitLab, Hugging Face oder Telegram. Nur du kannst sie lesen, begrenzt bist du nur durch deinen eigenen Speicher, und es ist kostenlos und Open Source."
+      },
+      "rent": {
+        "eyebrow": "Die Miete",
+        "title": "Die Cloud ist nur der Computer von jemand anderem",
+        "p1": "Und die verlangen Miete dafür, dass du darin wohnst.",
+        "p2": "Irgendwann im letzten Jahrzehnt gelang der Tech-Branche einer der großen Marketingtricks der Geschichte: Sie überzeugte Milliarden von Menschen, Dateien nicht mehr auf eigener Hardware zu speichern und stattdessen monatlich dafür zu zahlen, sie auf fremder Hardware speichern zu dürfen.",
+        "p3": "Das ist das digitale Gegenstück dazu, ein Lagerabteil für Dinge zu mieten, für die du zu Hause längst Platz hast. Nur dass das Lagerabteil auch deine Post liest, deine Fotoalben indiziert und jedes Jahr die Miete erhöht.",
+        "quote": "Cloud-Speicher ist ein Vermieter-Geschäftsmodell mit besserer PR.",
+        "p4": "AWS S3 verlangt 23 $ pro Terabyte und Monat. Das sind 276 $ im Jahr für ein Terabyte Speicher. Eine 4-TB-Festplatte kostet bei Amazon 80 $, demselben Amazon. Für das, was sie dir in einem einzigen Jahr dafür berechnen, deine Daten auf ihren Servern zu lagern, könntest du die Hardware für deine Daten vierfach kaufen.",
+        "p5": "Der Aufschlag liegt nicht bei 100 %. Nicht bei 500 %. Der Aufschlag auf Cloud-Speicher wird in Tausenden Prozent gemessen, und die ganze Branche hat sich stillschweigend geeinigt, so zu tun, als wäre das normal."
+      },
+      "loophole": {
+        "eyebrow": "Das Schlupfloch",
+        "title": "Git-Speicher, das Schlupfloch, über das keiner spricht",
+        "p1": "GitLab gibt dir 10 GB pro Repository. Kostenlos. Hugging Face gibt dir 100 GB pro Konto. GitHub veröffentlicht nicht einmal eine harte Obergrenze: Bleib einfach unter ein paar Gigabyte, und niemand zuckt. Das sind keine versteckten Klauseln im Juristendeutsch, sondern veröffentlichte Limits (und ungeschriebene Normen), die die Plattform-Teams aktiv pflegen und unterstützen.",
+        "p2": "Das ist kein Fehler. Das ist ein Feature. Diese Plattformen brauchen großzügigen Speicher für große Repositories, ML-Modelle und Binärdateien. Sie haben die Infrastruktur gebaut. Sie haben die Limits gesetzt. Wir nutzen sie nur wie vorgesehen: zum Speichern von Daten.",
+        "quote": "Jedes Terabyte, das wir kostenlos speichern, ist ein Terabyte, das AWS nicht abrechnen kann.",
+        "p3": "zcrypt nimmt deine Dateien, komprimiert sie mit Zstd, verschlüsselt sie mit AES-256-GCM, teilt sie in handliche Chunks und legt sie als unauffällig aussehende Daten in Repositories auf der verbundenen Plattform ab. Für die Plattform sehen sie aus wie Build-Artefakte. Für dich sind es deine verschlüsselten Dateien, von überall erreichbar und kostenlos.",
+        "p4": "<b>Ist das sicher und langlebig?</b> Ja. Deine Daten liegen als ganz normale private Repository-Inhalte vor, genau die Art großer Binärdaten, für deren Hosting diese Plattformen gebaut sind. zcrypt verteilt die Daten automatisch auf mehrere Repositories und wechselt zu neuen, wenn die alten voll werden, sodass du weit innerhalb der üblichen Grenzen jeder Plattform bleibst. Und deine Dateien sind immer abrufbar: Verschlüsselte Chunks werden beim Download auf Integrität geprüft und wieder zusammengesetzt."
+      },
+      "zk": {
+        "eyebrow": "Die Mathematik",
+        "title": "Zero-Knowledge ist kein Marketing-Schlagwort",
+        "p1": "Wenn Dropbox sagt „Wir nehmen Sicherheit ernst“, heißt das: Sie verschlüsseln deine Dateien mit Schlüsseln, die sie selbst kontrollieren. Sie können deine Dateien lesen. Ihre Mitarbeiter können deine Dateien lesen. Sie durchsuchen deine Dateien, um Suchindizes aufzubauen. Behördliche Vorladungen? Sie geben deine Daten heraus, weil sie es können.",
+        "p2": "Wenn wir „Zero-Knowledge“ sagen, meinen wir die mathematische Variante. Deine Passphrase verlässt nie dein Gerät. Wir leiten Verschlüsselungsschlüssel lokal mit PBKDF2 und 600.000 Iterationen ab. Die verschlüsselten Daten, die hochgeladen werden, sind von zufälligem Rauschen nicht zu unterscheiden.",
+        "quote": "Wir können deine Dateien nicht lesen. Nicht aus Höflichkeit. Sondern weil wir die Schlüssel schlicht nicht haben.",
+        "p3": "AES-256-GCM bietet authentifizierte Verschlüsselung, das heißt: Manipulationen am Chiffretext sind erkennbar. Der GCM-Modus liefert Vertraulichkeit und Integrität in einem Durchgang. Kein separater HMAC-Schritt. Kein Raum für Implementierungsfehler.",
+        "p4": "Das ist kein Sicherheitstheater. Das ist derselbe Verschlüsselungsstandard, den Geheimdienste nutzen. Der Unterschied: Wir geben ihn dir kostenlos, nicht für 23 $/TB/Monat."
+      },
+      "open": {
+        "eyebrow": "Die Belege",
+        "title": "Open Source, weil Reden billig ist",
+        "p1": "Jeder Cloud-Anbieter verlangt, dass du ihm vertraust. Vertraue ihrer Verschlüsselung. Vertraue ihrer Zugriffskontrolle. Vertraue darauf, dass der Techniker mit Admin-Zugriff nicht in deine Urlaubsfotos schaut.",
+        "p2": "Wir verlangen kein Vertrauen. Wir bitten dich, den Code zu lesen.",
+        "p3": "Jede Zeile von zcrypt ist Open Source. Die Verschlüsselung. Der Chunking-Algorithmus. Die Upload-Pipeline. Die Schlüsselableitung. Wenn es eine Schwachstelle gibt, findest du sie vor uns, denn du hast denselben Zugriff auf den Quellcode wie wir.",
+        "quote": "Das beste Sicherheits-Audit sind 10.000 Fremde, die deinen Code lesen."
+      },
+      "endgame": {
+        "eyebrow": "Das Endspiel",
+        "title": "Speicher, der nichts kostet",
+        "p1": "Eine Welt, in der persönlicher Dateispeicher 0 $ kostet und deine Daten dir gehören.",
+        "p2": "Revolutionär? Nein. Offensichtlich? Ja. Erledigt? Endlich.",
+        "p3": "Die Technik für kostenlosen, verschlüsselten, verteilten Speicher gibt es seit Jahren. Git-Hosting ist seit über einem Jahrzehnt kostenlos. AES-256 ist seit 2001 ein offener Standard. Zstd-Kompression ist seit 2016 Open Source. zcrypt verbindet nur die Punkte, die die Branche aus guten Gründen unverbunden lassen wollte.",
+        "p4": "Denn jeder verbundene Punkt ist eine gekappte Einnahmequelle.",
+        "quote": "Sie hatten jeden Grund, das nie zu bauen. Also haben wir es getan."
+      },
+      "who": {
+        "eyebrow": "Der Autor",
+        "title": "Das „Wir“ ist meistens ein einzelner Typ",
+        "p1": "Ehrlich? Meistens ein einzelner Typ. Ich bin Wasif Malik, ein Full-Stack-Entwickler, der viel kostenlosen Speicher wollte, keinen fand, der seine Dateien nicht liest, und genug genervt war, um die Alternative zu bauen, statt nur darüber zu posten. zcrypt gehört mir von vorne bis hinten: die Verschlüsselung, die Upload-Pipeline, das Laufwerk und genau diese Seite, die du gerade liest.",
+        "p2": "Ich sage „wir“ aus Gewohnheit, nicht um mich hinter einem Logo zu verstecken, und gerade hier ist das wichtig. Ein Werkzeug, dem du deine Schlüssel anvertraust, sollte dir genau sagen, wer den Code geschrieben hat, der sie verwahrt. Kein anonymer Gründer. Keine Briefkastenfirma. Nur mein Name, öffentlich, genau hier.",
+        "cardCaption": "Wasif Malik, die Ein-Personen-Firma hinter zcrypt.",
+        "readStory": "Die Geschichte lesen"
+      }
+    },
+    "download": {
+      "hero": {
+        "badge": "Apps für jedes Gerät",
+        "title": "Dein Laufwerk, auf jedem Gerät",
+        "subtext": "Native Desktop-Apps, eine Android-App und eine Web-App, die keine Installation braucht. Überall dasselbe private Laufwerk, auf deinem Gerät verschlüsselt, bevor irgendetwas es verlässt.",
+        "trust": {
+          "free": "Kostenlos und Open Source",
+          "onlyYou": "Nur du kannst deine Dateien öffnen",
+          "noTelemetry": "Keine Telemetrie"
+        }
+      },
+      "desktop": {
+        "eyebrow": "Desktop",
+        "heading": "Desktop-Apps",
+        "subheading": "Eine native App auf Basis von Tauri mit {engine}, der integrierten {language}-Engine, damit deine Dateien auf deinem Gerät verschlüsselt werden, bevor sie es je verlassen.",
+        "blurb": {
+          "macos": "Apple Silicon, macOS 11 Big Sur oder neuer.",
+          "windows": "Windows 10 und 11, 64 Bit.",
+          "linux": "64 Bit. Wähle das Paket deiner Distribution oder die portable Version für alles andere."
+        },
+        "security": {
+          "macos": {
+            "title": "macOS blockiert die App einmal, das ist normal",
+            "body": "zcrypt ist noch nicht notarisiert, deshalb meldet macOS beim ersten Öffnen, dass die App nicht überprüft werden kann. Klicke auf Fertig, öffne dann Systemeinstellungen → Datenschutz & Sicherheit, scrolle nach unten und klicke auf Trotzdem öffnen. Das ist nur einmal nötig. Oder überspringe es komplett mit der Ein-Zeilen-Installation unten."
+          },
+          "windows": {
+            "title": "Windows SmartScreen warnt davor, das ist normal",
+            "body": "Wir haben noch kein Codesignatur-Zertifikat gekauft, deshalb behandelt Windows das Installationsprogramm als unbekannt. Klicke auf \"Weitere Informationen\", dann auf \"Trotzdem ausführen\". Das ist bei einer unabhängig veröffentlichten App ohne bezahltes Zertifikat normal und kein Zeichen dafür, dass mit der Datei etwas nicht stimmt. Oder überspringe es mit der PowerShell-Ein-Zeilen-Installation unten."
+          }
+        },
+        "tapHow": ": tippen, um zu sehen, wie es weitergeht",
+        "downloadFor": "Für {name} herunterladen",
+        "also": "auch",
+        "loadFail": "Die neuesten Builds konnten gerade nicht geladen werden.",
+        "viewAll": "Alle Downloads auf GitHub ansehen",
+        "fallback": "GitHub war für das neueste Release nicht erreichbar, angezeigt wird <b>v{version}</b>. <releases>Nach Neuerem suchen</releases>",
+        "options": {
+          "installer": "Installationsprogramm",
+          "msiPackage": "MSI-Paket",
+          "portable": "Portabel"
+        },
+        "appImageNote": "Einmalige Einrichtung: Führe chmod +x auf der Datei aus und starte sie dann. Unter Fedora installierst du zuerst auch FUSE: sudo dnf install fuse.",
+        "allReleases": "Du suchst einen bestimmten Build oder eine ältere Version? Stöbere in <releases>allen Releases auf GitHub</releases>."
+      },
+      "android": {
+        "heading": "Auf deinem Handy, per Sideload",
+        "subheading": "Nicht im Play Store, also lade die APK direkt herunter und installiere sie selbst. Dauert etwa eine Minute.",
+        "title": "zcrypt für Android",
+        "beta": "Beta",
+        "sideload": "APK per Sideload installieren: dasselbe Laufwerk, ohne Play-Store-Wartezeit.",
+        "downloadApk": "APK herunterladen",
+        "copyLink": "Link kopieren",
+        "copied": "Kopiert",
+        "steps": "Öffne die Datei, erlaube einmal Installationen aus dieser Quelle und installiere. Android warnt vor \"unbekanntem Entwickler\" bei allem außerhalb von Play, das ist dieselbe <ci>öffentliche CI</ci> wie bei allem anderen hier.",
+        "scan": "Scannen, um auf dem Handy zu installieren"
+      },
+      "openSource": {
+        "heading": "Jeder Build ist Open Source",
+        "body": "Desktop, Android und Web, alles offen aus demselben Repository gebaut. Lies den Code, prüfe die Prüfsummen oder baue es selbst.",
+        "githubCta": "Quellcode auf GitHub",
+        "selfHostCta": "zcrypt selbst hosten",
+        "count": "<b>{n}</b> Downloads und es werden mehr"
+      },
+      "web": {
+        "eyebrow": "Keine Installation",
+        "heading": "Lieber ohne Installation?",
+        "body": "Das komplette verschlüsselte Laufwerk läuft in jedem modernen Browser: Ordner, Vorschauen, Teilen und Übertragungen. Alles wird weiterhin auf deinem Gerät verschlüsselt. Nichts herunterzuladen.",
+        "cta": "Kostenlos starten"
+      },
+      "cta": {
+        "webApp": "Kostenlos im Browser starten",
+        "useWebApp": "Web-App nutzen",
+        "noIos": "Es gibt noch keine iOS-App. Die Web-App funktioniert vollständig in Safari, ohne Installation.",
+        "apkAndroid": "APK für Android herunterladen",
+        "sideloaded": "Per Sideload, nicht über den Play Store",
+        "installSteps": "Installationsschritte und QR-Code",
+        "downloadFor": "Für {os} herunterladen",
+        "linuxNote": "Fedora, Debian/Ubuntu oder ein portabler Build. Wähle unten deinen aus oder <install>installiere mit einem Befehl</install>.",
+        "otherOptions": "Weitere Optionen",
+        "installOneCommand": "Mit einem Befehl installieren",
+        "downloadZcrypt": "zcrypt herunterladen",
+        "pickPlatform": "Wähle unten deine Plattform: macOS, Windows, Linux und Android."
+      },
+      "install": {
+        "title": "Mit einem Befehl installieren",
+        "skipsTerminal": "Überspringt die Meldung \"nicht verifizierte App\". Füge ihn in ein Terminal ein.",
+        "skipsPowerShell": "Überspringt die Meldung \"nicht verifizierte App\". Füge ihn in PowerShell ein.",
+        "osLabel": "Betriebssystem",
+        "hint": {
+          "macos": "Installiert zcrypt im Programme-Ordner und öffnet es. Keine Sicherheitsabfrage, kein Homebrew nötig.",
+          "windows": "Installiert zcrypt für dein Konto und startet es. Keine Administratorrechte, keine SmartScreen-Abfrage.",
+          "linux": "Nutzt apt oder dnf, wenn möglich, sonst wird das AppImage nach ~/.local/bin installiert."
+        },
+        "copy": "Kopieren",
+        "copied": "Kopiert",
+        "copyCommand": "{shell}-Befehl kopieren",
+        "homebrew": "Du nutzt schon Homebrew?"
+      }
+    },
+    "tools": {
+      "seeFeatures": "Funktionen ansehen",
+      "send": {
+        "hero": {
+          "badge": "Ende-zu-Ende-verschlüsselt",
+          "titleLead": "Dateien sicher senden.",
+          "titleAccent": "Kein Konto nötig.",
+          "subtitle": "Datei ablegen, verschlüsselten Link erhalten. Deine Datei wird vor dem Hochladen in deinem Browser mit AES-256 verschlüsselt. Der Entschlüsselungsschlüssel berührt nie unsere Server."
+        },
+        "how": {
+          "title": "So funktioniert verschlüsseltes Teilen von Dateien",
+          "lede": "Drei Schritte. Keine Konten. Kein Tracking. Deine Privatsphäre steckt im Protokoll.",
+          "s1": {
+            "title": "Datei ablegen",
+            "desc": "Wähle eine beliebige Datei bis 50 MB. Sie verlässt deinen Browser nie unverschlüsselt."
+          },
+          "s2": {
+            "title": "Automatische Verschlüsselung",
+            "desc": "Deine Datei wird mit einem einmaligen AES-256-GCM-Schlüssel verschlüsselt, der in deinem Browser erzeugt wird."
+          },
+          "s3": {
+            "title": "Link teilen",
+            "desc": "Der Entschlüsselungsschlüssel steckt im URL-Fragment. Nur der Empfänger kann entschlüsseln."
+          }
+        },
+        "features": {
+          "heading": "Für Privatsphäre gebaut, auf Einfachheit ausgelegt",
+          "f1": {
+            "title": "Verschlüsselung im Browser",
+            "desc": "Dateien werden mit AES-256-GCM verschlüsselt, bevor sie dein Gerät verlassen. Der Server sieht deine Daten nie."
+          },
+          "f2": {
+            "title": "Zero-Knowledge",
+            "desc": "Der Schlüssel liegt nur im Fragment des Freigabelinks. Wir können deine Dateien nicht entschlüsseln, auch nicht unter Zwang."
+          },
+          "f3": {
+            "title": "Automatischer Ablauf",
+            "desc": "Lege fest, dass Dateien nach 1 Stunde, 24 Stunden oder 7 Tagen ablaufen. Abgelaufene Dateien werden endgültig gelöscht."
+          },
+          "f4": {
+            "title": "Nach dem Lesen löschen",
+            "desc": "Aktiviere den einmaligen Zugriff, damit die Datei nach einem einzigen Download zerstört wird."
+          },
+          "f5": {
+            "title": "Kein Konto erforderlich",
+            "desc": "Verschlüsselte Dateien sofort senden. Keine Anmeldung, kein Tracking, keine Haken."
+          },
+          "f6": {
+            "title": "Bis zu 50 MB",
+            "desc": "Sende Dateien bis 50 MB kostenlos. Mehr nötig? Erstelle ein kostenloses Konto für größere Uploads."
+          }
+        },
+        "cta": {
+          "heading": "Mehr als 50 MB nötig?",
+          "description": "Erstelle ein kostenloses zcrypt-Konto mit 10 GB Zero-Knowledge-verschlüsseltem Cloud-Speicher, größeren Dateiübertragungen und dauerhaften verschlüsselten Notizen."
+        }
+      },
+      "pad": {
+        "hero": {
+          "badge": "Zero-Knowledge-Textfreigabe",
+          "titleLead": "Verschlüsseltes Textpad.",
+          "titleAccent": "Privat teilen.",
+          "subtitle": "Text einfügen, verschlüsselten Link erhalten. Ideal zum Teilen von Passwörtern, API-Schlüsseln, Code-Schnipseln oder allem Sensiblen. Alles wird in deinem Browser verschlüsselt."
+        },
+        "how": {
+          "title": "So funktioniert verschlüsseltes Teilen von Text",
+          "lede": "Tippen. Verschlüsseln. Teilen. Der Server sieht deinen Klartext nie.",
+          "s1": {
+            "title": "Tippen oder einfügen",
+            "desc": "Gib deinen Text ein. Er bleibt in deinem Browser, bis du verschlüsselst."
+          },
+          "s2": {
+            "title": "Verschlüsseln mit einem Klick",
+            "desc": "Ein einmaliger AES-256-GCM-Schlüssel wird erzeugt. Dein Text wird lokal verschlüsselt und hochgeladen."
+          },
+          "s3": {
+            "title": "Link teilen",
+            "desc": "Der Schlüssel steckt im URL-Fragment. Nur wer den Link hat, kann es lesen."
+          }
+        },
+        "features": {
+          "heading": "Privat von Grund auf",
+          "f1": {
+            "title": "Verschlüsselung auf dem Client",
+            "desc": "Text wird in deinem Browser mit AES-256-GCM verschlüsselt. Der Server speichert nur verschlüsselte Bytes."
+          },
+          "f2": {
+            "title": "Schlüssel im Link",
+            "desc": "Der Entschlüsselungsschlüssel liegt im URL-Fragment. Er erreicht den Server nie, nicht einmal in den Zugriffsprotokollen."
+          },
+          "f3": {
+            "title": "Zeitlicher Ablauf",
+            "desc": "Pads werden nach 1 Stunde, 24 Stunden oder 7 Tagen automatisch gelöscht. Keine Datenreste, nie."
+          },
+          "f4": {
+            "title": "Einmal ansehen",
+            "desc": "Aktiviere Löschen nach dem Lesen, damit das Pad nach einmaligem Ansehen zerstört wird."
+          },
+          "f5": {
+            "title": "Sofort und anonym",
+            "desc": "Keine Anmeldung. Keine IP-Protokollierung. Keine Cookies. Nur verschlüsselter Text."
+          },
+          "f6": {
+            "title": "Bis zu 1 MB",
+            "desc": "Teile Code-Schnipsel, Zugangsdaten, Notizen oder beliebigen Text bis 1 MB."
+          }
+        },
+        "useCases": {
+          "title": "Häufige Einsatzzwecke",
+          "c1": {
+            "title": "Passwörter",
+            "desc": "Teile Zugangsdaten sicher, mit aktiviertem Löschen nach dem Lesen."
+          },
+          "c2": {
+            "title": "API-Schlüssel",
+            "desc": "Sende API-Schlüssel und Tokens, ohne sie in E-Mail oder Chat offenzulegen."
+          },
+          "c3": {
+            "title": "Code-Schnipsel",
+            "desc": "Teile Code mit Kollegen, der automatisch abläuft, wenn er nicht mehr gebraucht wird."
+          },
+          "c4": {
+            "title": "Private Notizen",
+            "desc": "Sende vertrauliche Informationen, die nach dem Lesen verschwinden."
+          }
+        },
+        "cta": {
+          "heading": "Dauerhafte verschlüsselte Notizen nötig?",
+          "description": "Erstelle ein kostenloses zcrypt-Konto für verschlüsselte persönliche Notizen, 10 GB Cloud-Speicher und mehr."
+        }
+      },
+      "transfer": {
+        "hero": {
+          "badge": "Peer-to-Peer-verschlüsselt",
+          "titleLead": "Dateien zwischen Geräten übertragen.",
+          "titleAccent": "In Echtzeit verschlüsselt.",
+          "subtitle": "Sende verschlüsselte Dateien von einem Gerät zum anderen über ein Relay, das nichts speichert. Keine Konten. Gefunden per 6-stelligem Code, verschlüsselt mit einem Schlüssel, den der Server nie sieht."
+        },
+        "how": {
+          "title": "So funktioniert die verschlüsselte Übertragung",
+          "lede": "Zwei Geräte. Ein Code. Ein Schlüssel, der nicht auf den Server gelangt."
+        },
+        "sender": {
+          "label": "Sender",
+          "s1": "Datei zum Senden auswählen",
+          "s2": "Ein zufälliger Kopplungsschlüssel und ein 6-stelliger Raumcode werden erzeugt",
+          "s3": "Zeige dem Empfänger den QR-Code oder Link, oder nenne ihm Code und Kopplungsschlüssel",
+          "s4": "Prüfe, ob beide Bildschirme denselben Bestätigungscode zeigen",
+          "s5": "Die Datei und ihr Name werden auf deinem Gerät verschlüsselt und als Chiffretext weitergeleitet"
+        },
+        "receiver": {
+          "label": "Empfänger",
+          "s1": "Scanne den QR-Code oder gib den 6-stelligen Code und den Kopplungsschlüssel ein",
+          "s2": "Verbinde dich über das Relay und vergleiche den Bestätigungscode",
+          "s3": "Jeder Block wird in deinem Browser entschlüsselt, sobald er ankommt",
+          "s4": "Die Datei wird nach Abschluss automatisch heruntergeladen"
+        },
+        "features": {
+          "heading": "Warum verschlüsselte Übertragung?",
+          "f1": {
+            "title": "Von Gerät zu Gerät",
+            "desc": "Sende Dateien zwischen zwei beliebigen Geräten mit Browser. Handy zu Laptop, Laptop zu Desktop, jede Kombination."
+          },
+          "f2": {
+            "title": "Ende-zu-Ende-verschlüsselt",
+            "desc": "Dateien und Dateinamen werden auf deinem Gerät mit AES-256-GCM verschlüsselt. Der Schlüssel wird per QR-Code, Link oder Kopplungsschlüssel geteilt und erreicht das Relay nie, das nur Chiffretext sieht."
+          },
+          "f3": {
+            "title": "Streaming in Echtzeit",
+            "desc": "Dateien werden live per WebSocket weitergeleitet, während sie verschlüsselt werden. Kein Warten, bis ein Upload fertig ist."
+          },
+          "f4": {
+            "title": "In kleinen Blöcken gesendet",
+            "desc": "Der Sender verschlüsselt und sendet Blöcke von 64 KB, damit das Senden schlank bleibt. Der empfangende Browser hält die ganze Datei bis zum Speichern im Arbeitsspeicher, daher brauchen sehr große Dateien ein Gerät mit genug Platz."
+          },
+          "f5": {
+            "title": "Nichts wird gespeichert",
+            "desc": "Das Relay speichert nichts auf der Festplatte und vergisst den Raum, wenn die Übertragung endet. Es sieht lediglich, dass eine Übertragung stattfand, wann und ungefähr wie groß."
+          },
+          "f6": {
+            "title": "Code, Schlüssel und Bestätigung",
+            "desc": "Ein 6-stelliger Code findet den Raum, und ein separater Kopplungsschlüssel (im QR-Code oder Link) verschlüsselt die Datei. Beide Bildschirme zeigen denselben Bestätigungscode. Keine Konten, keine Apps."
+          }
+        },
+        "cta": {
+          "heading": "Dauerhaften Cloud-Speicher nötig?",
+          "description": "Erstelle ein kostenloses zcrypt-Konto mit 10 GB verschlüsseltem Cloud-Speicher, Dateiversionierung, verschlüsselten Notizen und mehr."
+        }
+      }
+    },
+    "drive": {
+      "hint": "Das öffnet sich nach der Registrierung. Alles hier sind Beispieldaten.",
+      "skip": "App-Vorschau überspringen",
+      "samplePill": "Beispieldateien",
+      "live": {
+        "gh": "So sehen wir es: verschlüsselte Teile mit zufälligen Namen.",
+        "you": "Das ist deine Ansicht.",
+        "opened": "{name} geöffnet.",
+        "added": "{name} hinzugefügt. In Telegram gespeichert."
+      },
+      "view": {
+        "aria": "Ansicht wählen",
+        "you": "Deine Ansicht",
+        "gh": "Unsere Sicht"
+      },
+      "folders": {
+        "photos": "Fotos",
+        "documents": "Dokumente",
+        "music": "Musik",
+        "downloads": "Downloads",
+        "taxes": "Steuern"
+      },
+      "filters": {
+        "all": "Alle",
+        "image": "Bilder",
+        "document": "Dokumente",
+        "video": "Videos",
+        "audio": "Audio",
+        "archive": "Archive"
+      },
+      "chips": {
+        "image": "Bild",
+        "document": "Dokument",
+        "video": "Video",
+        "audio": "Audio",
+        "archive": "Archiv"
+      },
+      "types": {
+        "document": "Dokument",
+        "spreadsheet": "Tabelle",
+        "image": "Bild",
+        "video": "Video",
+        "audio": "Audio",
+        "archive": "Archiv",
+        "code": "Code",
+        "data": "Daten",
+        "executable": "Programm",
+        "file": "Datei",
+        "font": "Schrift",
+        "folder": "Ordner"
+      },
+      "ago": {
+        "justNow": "Gerade eben",
+        "days": "vor {n} Tg.",
+        "hours": "vor {n} Std.",
+        "weeks": "vor {n} Wo."
+      },
+      "dialog": {
+        "title": "Geschützten Ordner entsperren",
+        "sub": "Gib das Passwort für „{name}“ ein",
+        "close": "Schließen",
+        "password": "Ordnerpasswort",
+        "help": "In dieser Demo funktioniert jedes Passwort.",
+        "cancel": "Abbrechen",
+        "verifying": "Wird geprüft...",
+        "unlock": "Entsperren"
+      },
+      "drop": "Dateien zum Hochladen hier ablegen",
+      "filter": {
+        "button": "Filter",
+        "menu": "Nach Typ filtern"
+      },
+      "card": {
+        "folderLabel": "{name}, Ordner",
+        "folderLocked": "{name}, Ordner, passwortgeschützt",
+        "fileLabel": "{name}, {size}",
+        "openLabel": "{name} öffnen, {size}",
+        "mine": "deine Datei, {n, plural, one {1 Teil} other {{n} Teile}}",
+        "more": "+ {n} weitere",
+        "sameFile": "dieselbe Datei",
+        "morePieces": "{more} Teile derselben Datei"
+      },
+      "count": {
+        "gh": "{n} Dateien, keine echten Namen",
+        "items": "{n, plural, one {1 Element} other {{n} Elemente}}",
+        "folders": "{n, plural, one {1 Ordner} other {{n} Ordner}}",
+        "files": "{n, plural, one {1 Datei} other {{n} Dateien}}",
+        "both": "{folders} · {files}"
+      },
+      "nav": {
+        "vault": "Tresor",
+        "insights": "Einblicke",
+        "spaces": "Spaces",
+        "more": "Mehr",
+        "settings": "Einstellungen",
+        "deleted": "Gelöschte Dateien"
+      },
+      "desktop": {
+        "sidebarAria": "Seitenleiste der Beispiel-App",
+        "sectionsAria": "Bereiche der Beispiel-App",
+        "logoSubtitle": "Verschlüsselter Cloud-Speicher",
+        "account": "Konto",
+        "storage": "Speicher",
+        "used": "{size} belegt",
+        "notifications": "Benachrichtigungen",
+        "searchPlaceholder": "Tresor durchsuchen",
+        "searchAria": "Beispieldateien durchsuchen",
+        "thisDevice": "dieses Gerät",
+        "newFolder": "Neuer Ordner",
+        "upload": "Hochladen",
+        "refresh": "Aktualisieren",
+        "recent": "Zuletzt angesehen",
+        "folderPath": "Ordnerpfad",
+        "myVault": "Mein Tresor",
+        "auto": "Auto",
+        "listView": "Listenansicht",
+        "gridView": "Rasteransicht",
+        "select": "Auswählen",
+        "commitWhen": "vor 3 Std.",
+        "sampleFiles": "Beispieldateien",
+        "empty": "Nichts gefunden. Versuch ein anderes Wort."
+      },
+      "row": {
+        "name": "Name",
+        "type": "Typ",
+        "size": "Größe",
+        "saved": "Ersparnis",
+        "modified": "Geändert"
+      },
+      "phone": {
+        "lockedDevice": "An dieses Gerät gebunden",
+        "addFile": "Datei hinzufügen"
+      },
+      "transfers": {
+        "title": "Übertragungen",
+        "uploading": "1 Upload läuft",
+        "allDone": "Alles erledigt",
+        "progress": "Wird hochgeladen...",
+        "saved": "Gespeichert"
+      },
+      "preview": {
+        "droppedLine": "Das ist deine Datei, und sie ist auf deinem Gerät geblieben. Registriere dich, um sie gleich hier zu öffnen.",
+        "binary": "Binär",
+        "fullscreen": "Vollbild",
+        "exitFullscreen": "Vollbild beenden",
+        "download": "Herunterladen",
+        "dl": "Downloads funktionieren nach der Registrierung.",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "opening": "Wird geöffnet..."
+      },
+      "body": {
+        "zoomOut": "Verkleinern",
+        "zoomIn": "Vergrößern",
+        "rotate": "Drehen",
+        "fit": "An Bildschirm anpassen",
+        "openTab": "In neuem Tab öffnen",
+        "play": "Abspielen",
+        "pause": "Pause",
+        "thesis": "Abschlussarbeit, Endfassung (v9)",
+        "notes": {
+          "0": "Besprechungsnotizen, Dienstag",
+          "1": "- Wir waren uns einig, dass das Budget nur ein Vorschlag ist.",
+          "2": "- Außer mir hat niemand mitgeschrieben.",
+          "3": "- Nächstes Treffen: gleiche Zeit, weniger Folien."
+        },
+        "noPreview": "Für diesen Dateityp ist keine Vorschau verfügbar.",
+        "hexBinary": "binär",
+        "hexAria": "Zufällige Bytes",
+        "hexCaption": "Zufällige Bytes. Ohne dein Passwort bekommt jeder nur das hier."
+      }
+    },
+    "features": {
+      "common": {
+        "startFree": "Kostenlos starten",
+        "keepExploring": "Weiter entdecken",
+        "related": "Verwandt",
+        "readDocs": "Dokumentation lesen",
+        "beta": "Beta"
+      },
+      "index": {
+        "eyebrow": "Funktionen",
+        "title": "Alles, was das Laufwerk kann",
+        "lede": "Ein echter Dateimanager, dessen Inhalt nur du öffnen kannst. Hier findest du jeden Teil davon, such dir einfach heraus, was dich interessiert.",
+        "searchPlaceholder": "Funktionen und Doku durchsuchen...",
+        "allFeatures": "Alle Funktionen",
+        "ctaTitle": "Starte mit einem Laufwerk, das wirklich dir gehört",
+        "ctaSubtext": "Kostenlos und Open Source. Bring einen Speicher-Account mit, den du schon hast."
+      },
+      "encryptedDrive": {
+        "hero": {
+          "eyebrow": "Das verschlüsselte Laufwerk",
+          "title": "Ein echtes Laufwerk, Ende-zu-Ende verschlüsselt",
+          "subtext": "Die meisten „verschlüsselten Speicher“ geben dir eine flache Dateiliste. zcrypt gibt dir einen echten Datei-Explorer (Ordner, Suche, Vorschauen, Drag-and-drop), in dem alles auf deinem Gerät verschlüsselt wird, bevor es es verlässt."
+        },
+        "mock": {
+          "vault": "Mein Tresor",
+          "projects": "Projekte",
+          "photos": "Fotos 2026",
+          "tax": "Steuern und Recht",
+          "items": "{n} Elemente",
+          "unlocked": "Entsperrt"
+        },
+        "capSection": {
+          "heading": "Alles, was ein Laufwerk können sollte",
+          "subheading": "Die Ordnung, die du von Finder oder Google Drive kennst, mit einer Zero-Knowledge-Verschlüsselung darunter."
+        },
+        "caps": {
+          "folders": {
+            "title": "Echte, verschachtelbare Ordner",
+            "desc": "Lege Ordner in Ordnern an, so tief du willst. Organisiere so, wie du ohnehin denkst, nicht als flache Liste von Blobs."
+          },
+          "breadcrumbs": {
+            "title": "Brotkrumen-Navigation",
+            "desc": "Du weißt immer, wo du bist. Klicke auf eine Krume, um nach oben zu springen, oder ziehe eine Datei darauf, um sie dorthin zu verschieben."
+          },
+          "views": {
+            "title": "Raster- und Listenansicht",
+            "desc": "Wechsle zwischen Miniaturraster und sortierbarer Liste. Sortiere nach Name, Größe, Typ, Datum oder danach, wie viel Platz die Komprimierung gespart hat."
+          },
+          "search": {
+            "title": "Suchen und filtern",
+            "desc": "Finde Dateien schnell im aktuellen Ordner und filtere nach Typ. Die Suche vergleicht entschlüsselte Namen lokal, nie auf dem Server."
+          },
+          "preview": {
+            "title": "Vorschau ohne Download",
+            "desc": "Öffne Bilder, Videos, Audio, PDFs, Dokumente und Code direkt im Browser: spontan entschlüsselt und danach wieder weg."
+          },
+          "names": {
+            "title": "Verschlüsselte Ordnernamen",
+            "desc": "Auch Ordnernamen werden auf deinem Gerät verschlüsselt. Selbst deine Struktur bleibt privat: Der Server sieht nur Chiffretext."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Organisiert, nie offengelegt",
+          "heading": "Die Struktur gehört nur dir",
+          "body": "Ein schönerer Dateimanager bedeutet meist, dem Anbieter mehr Metadaten zu überlassen. Hier nicht. Ordnernamen werden auf deinem Gerät mit deiner Passphrase verschlüsselt, der Server speichert also undurchsichtigen Chiffretext. Er kann weder deine Dateien noch deine Ordnernamen noch deine Anordnung lesen.",
+          "check1": "Ordnernamen clientseitig verschlüsselt",
+          "check2": "Vorschauen werden in deinem Browser entschlüsselt, nie auf unseren Servern",
+          "check3": "Verlierst du deine Passphrase, können selbst wir sie nicht wiederherstellen",
+          "linkLabel": "So funktioniert die Verschlüsselung"
+        },
+        "panel": {
+          "comment": "// was der Server speichert",
+          "success": "✓ Ordnernamen versiegelt · Schlüssel nie gesendet · Inhalte verschlüsselt"
+        },
+        "related": {
+          "folders": {
+            "title": "Passwortgeschützte Ordner",
+            "desc": "Gib einem Ordner ein eigenes Passwort, getrennt von deinem Tresor."
+          },
+          "viewers": {
+            "title": "Dateibetrachter im Browser",
+            "desc": "Vorschau von Bildern, Videos, PDFs, Dokumenten und Code, lokal entschlüsselt."
+          },
+          "transfers": {
+            "title": "Transfer-Manager",
+            "desc": "Pausiere, setze fort und verfolge jeden Upload und Download."
+          }
+        },
+        "cta": {
+          "heading": "Deine Dateien, geordnet und verschlossen",
+          "subtext": "Kostenlos und Open Source. Bring einen Speicher-Account mit, den du schon hast, und starte in unter einer Minute."
+        }
+      },
+      "folders": {
+        "hero": {
+          "eyebrow": "Verschlüsselte Ordner",
+          "title": "Ordner, die sich selbst verschließen",
+          "subtext": "Organisiere mit echten, verschachtelbaren Ordnern, deren Namen auf deinem Gerät verschlüsselt sind. Gib dann jedem Ordner ein eigenes Passwort: ein zweites Schloss, getrennt von deinem Tresor, das ihn versiegelt hält, auch wenn alles andere offen ist."
+        },
+        "mock": {
+          "label": "Ordnerbaum",
+          "badge": "Tresor entsperrt",
+          "root": "Mein Tresor",
+          "rootMeta": "Wurzel",
+          "projects": "Projekte",
+          "photos": "Fotos 2026",
+          "tax": "Steuern und Recht",
+          "items": "{n} Elemente",
+          "sealed": "versiegelt",
+          "passwordRequired": "Passwort erforderlich",
+          "password": "Passwort",
+          "note": "Der Tresor ist offen, aber <em>Steuern und Recht</em> bleibt versiegelt, bis du das eigene Passwort eingibst."
+        },
+        "capSection": {
+          "heading": "Struktur, die Geheimnisse bewahrt",
+          "subheading": "Die Ordner, die du erwartest, plus eine zweite Verschlüsselungsebene, die du auf jeden beliebigen davon legen kannst, bis ganz nach unten."
+        },
+        "caps": {
+          "nestable": {
+            "title": "Echte, verschachtelbare Ordner",
+            "desc": "Baue die Hierarchie, in der du wirklich denkst: Ordner in Ordnern, so tief du brauchst. Keine Tags, die Struktur vortäuschen."
+          },
+          "names": {
+            "title": "Verschlüsselte Ordnernamen",
+            "desc": "Jeder Ordnername wird auf deinem Gerät verschlüsselt. Der Server speichert undurchsichtigen Chiffretext. Er erfährt nie, wie du etwas genannt hast."
+          },
+          "password": {
+            "title": "Ein Passwort pro Ordner",
+            "desc": "Gib jedem Ordner ein eigenes Passwort, getrennt von deiner Tresor-Passphrase. Es schützt die sensibelsten Ecken nach eigenen Regeln."
+          },
+          "sealed": {
+            "title": "Unabhängig versiegelt",
+            "desc": "Ein geschützter Ordner bleibt gesperrt, selbst wenn der Rest deines Tresors offen ist. Den Tresor zu entsperren heißt nicht, ihn zu entsperren."
+          },
+          "rekey": {
+            "title": "Automatische Neuverschlüsselung",
+            "desc": "Verschiebe eine Datei in oder aus einem geschützten Ordner, und sie wird automatisch mit dem richtigen Schlüssel neu verschlüsselt. Keine manuellen Schritte, keine Lecks."
+          },
+          "verified": {
+            "title": "Lokal geprüft",
+            "desc": "Das Ordnerpasswort wird auf deinem Gerät gegen das eigene Schlüsselmaterial des Ordners geprüft, nie an den Server gesendet, nie hin und zurück übertragen."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Ein Schloss im Schloss",
+          "heading": "Ein Schlüssel, den der Server nie sieht",
+          "body": "Wenn du einen Ordner schützt, werden seine Dateien mit einem Schlüssel neu verschlüsselt, der aus einem Passwort abgeleitet wird, das nur du kennst. Dieses Passwort wird lokal gegen das eigene Schlüsselmaterial des Ordners geprüft. Es wandert nie zum Server, und der Schlüssel, den es freischaltet, auch nicht. Verschiebst du eine Datei hinein oder heraus, verschlüsselt zcrypt sie für dich neu, sodass nichts unter dem falschen Schloss zurückbleibt.",
+          "check1": "Ordnerpasswort wird auf deinem Gerät zu einem Schlüssel abgeleitet",
+          "check2": "Lokal geprüft, keine Server-Rundreise, kein Rate-Orakel",
+          "check3": "Bleibt versiegelt, selbst wenn dein Tresor entsperrt ist",
+          "check4": "Dateien werden beim Verschieben automatisch neu verschlüsselt",
+          "linkLabel": "So funktioniert die Ordnerverschlüsselung"
+        },
+        "panel": {
+          "comment": "// einen geschützten Ordner entsperren",
+          "success": "✓ Passwort nie gesendet. Schlüssel nie gesendet.",
+          "line1": "<b>auf dem Gerät</b> Passwort → Ordnerschlüssel ableiten",
+          "line2": "<b>prüfen</b> Schlüssel lokal gegen versiegelte Markierung",
+          "line3": "Der Server erhält:",
+          "nothing": "nichts"
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Ordner, Suche, Vorschauen, Drag-and-drop, Ende-zu-Ende verschlüsselt."
+          },
+          "docsFolders": {
+            "title": "Doku: Ordner",
+            "desc": "Ordner in deinem Tresor anlegen, verschachteln, verschieben und umbenennen."
+          },
+          "docsEncryption": {
+            "title": "Doku: Ordnerverschlüsselung",
+            "desc": "Wie Ordnerpasswörter und Neuverschlüsselung im Detail funktionieren."
+          }
+        },
+        "cta": {
+          "heading": "Verschließe die Ordner, auf die es ankommt",
+          "subtext": "Kostenlos und Open Source. Organisiere dein Laufwerk und schütze jeden Ordner mit einem eigenen Passwort."
+        }
+      },
+      "fileViewers": {
+        "hero": {
+          "eyebrow": "Dateibetrachter im Browser",
+          "title": "Sieh deine Dateien, ohne sie aus der Hand zu geben",
+          "subtext": "Bei den meisten verschlüsselten Speichern musst du eine Datei herunterladen und einem Server vertrauen, der sie anzeigt. zcrypt zeigt Bilder, Videos, PDFs, Dokumente und Code direkt in deinem Browser, spontan entschlüsselt und danach wieder weg.",
+          "secondaryLabel": "So funktioniert die Entschlüsselung"
+        },
+        "mock": {
+          "pdfDocument": "PDF-Dokument",
+          "decryptedLocally": "Lokal entschlüsselt",
+          "page": "Seite {current} / {total}"
+        },
+        "viewersSection": {
+          "heading": "Ein Betrachter für fast alles",
+          "subheading": "Wähle eine Datei, und sie öffnet sich in einem Betrachter für ihren Typ: jeder gespeist von Klartext, der nur in deinem Browser existiert."
+        },
+        "viewers": {
+          "images": {
+            "title": "Bilder",
+            "desc": "Zoomen, verschieben und drehen: JPG, PNG, GIF, WebP, SVG und mehr. Eine zwischengespeicherte Miniatur erscheint sofort, während das volle Bild entschlüsselt wird."
+          },
+          "media": {
+            "title": "Video und Audio",
+            "desc": "Ein eigener Player für MP4, MOV, WebM, MP3, FLAC und mehr: mit einer Playlist der übrigen Medien im selben Ordner."
+          },
+          "pdf": {
+            "title": "PDF",
+            "desc": "Nativ gerendert, Seite für Seite, mit Lazy Loading, ohne Browser-Plugin und ohne PDF-Dienst eines Dritten."
+          },
+          "docx": {
+            "title": "DOCX-Dokumente",
+            "desc": "Word-Dokumente werden zu sauberem HTML gerendert und vor der Anzeige bereinigt, sodass du den Inhalt liest, ohne einen Editor zu öffnen."
+          },
+          "html": {
+            "title": "HTML",
+            "desc": "Bereinigt und in einem abgeschotteten Frame ohne Skripte angezeigt: Sieh dir eine Seite sicher an, ohne dass sie nach Hause telefoniert."
+          },
+          "markdown": {
+            "title": "Markdown",
+            "desc": "Zu formatiertem, bereinigtem HTML gerendert: Überschriften, Listen, Links und Codeblöcke, so wie du sie geschrieben hast."
+          },
+          "csv": {
+            "title": "CSV und TSV",
+            "desc": "Durch Komma oder Tab getrennte Daten als lesbare Tabelle statt als Wand aus Rohtext."
+          },
+          "code": {
+            "title": "Text und Quellcode",
+            "desc": "Rund 40 Sprachen (JS, TS, Python, Go, Rust, SQL, YAML und mehr) mit Syntaxhervorhebung und Zeilenumbruch-Schalter."
+          }
+        },
+        "zk": {
+          "eyebrow": "Auf deinem Gerät entschlüsselt, nie auf unserem",
+          "heading": "Vorschau, ohne einem Server zu vertrauen",
+          "subheading": "Jede Vorschau läuft durch dieselbe clientseitige Pipeline wie ein vollständiger Download. Der Server liefert versiegelte Bytes und sonst nichts."
+        },
+        "pipeline": {
+          "fetch": {
+            "title": "Verschlüsselte Chunks abrufen",
+            "desc": "Der Browser holt die Chiffretext-Chunks der Datei direkt aus deinem eigenen Speicher-Backend. Der Server verarbeitet nur versiegelte Bytes."
+          },
+          "decrypt": {
+            "title": "Mit AES-256-GCM entschlüsseln",
+            "desc": "Dein aus der Passphrase abgeleiteter Schlüssel entschlüsselt jeden Chunk lokal. Der Schlüssel wird nirgendwohin gesendet. Auf dem Server gibt es nichts, womit man entschlüsseln könnte."
+          },
+          "verify": {
+            "title": "Dekomprimieren und prüfen",
+            "desc": "Chunks werden mit zstd dekomprimiert und gegen einen SHA-256-Hash geprüft, sodass eine beschädigte oder manipulierte Datei auffällt, bevor du sie siehst."
+          },
+          "render": {
+            "title": "Aus lokaler Blob-URL rendern",
+            "desc": "Der Klartext wird zu einer Blob-URL im Arbeitsspeicher, die den Betrachter speist: Sie wird widerrufen, sobald du schließt oder zur nächsten Datei wechselst."
+          }
+        },
+        "memoryNote": "Der entschlüsselte Blob lebt nur im Arbeitsspeicher und wird <b>widerrufen, sobald du schließt oder wegnavigierst</b>. Er wird nie auf die Festplatte geschrieben und nie hochgeladen, eine Vorschau hinterlässt also nichts auf deinem Rechner oder unseren Servern.",
+        "overlay": {
+          "heading": "Ein Overlay, der ganze Ordner",
+          "subheading": "Der Betrachter ist ein Vollbild-Overlay, das du per Tastatur steuerst: gebaut, um durch einen Ordner zu wandern, nicht nur eine Datei anzustarren."
+        },
+        "overlayFeatures": {
+          "walk": {
+            "title": "Den ganzen Ordner durchgehen",
+            "desc": "Zurück und Weiter bewegen sich durch jede Datei im Ordner, mit einem klaren Zähler wie 3 / 18, ohne zu schließen und neu zu öffnen."
+          },
+          "fullscreen": {
+            "title": "Vollbild, Tastatur zuerst",
+            "desc": "Esc zum Schließen, Pfeiltasten zum Navigieren, f für Vollbild. Der Fokus bleibt im Dialog und kehrt beim Schließen dorthin zurück, wo er war."
+          },
+          "playlist": {
+            "title": "Medien-Playlist",
+            "desc": "Öffne einen Titel, und der Player listet die übrigen Audio- und Videodateien im Ordner auf, sodass ein Ordner zur Playlist wird."
+          },
+          "errors": {
+            "title": "Ehrliche Fehler und Wiederholen",
+            "desc": "Falsches Passwort, fehlgeschlagene Integritätsprüfung oder nicht unterstützter Typ erhalten jeweils eine klare Meldung: mit Wiederholen und Download als Ausweg."
+          },
+          "instant": {
+            "title": "Sofortige Navigation",
+            "desc": "Ein Sitzungs-Blob-Cache und Vorabladen der Nachbarn sorgen dafür, dass die nächste und vorherige Datei meist entschlüsselt sind, bevor du sie anfragst."
+          },
+          "download": {
+            "title": "Download, wenn du willst",
+            "desc": "Eine Vorschau erzwingt nie einen Download. Willst du die Datei auf der Festplatte, nutzt ein Klick den bereits entschlüsselten Blob wieder."
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Echte, verschachtelbare Ordner und ein Datei-Explorer: jeder Name auf deinem Gerät verschlüsselt."
+          },
+          "how": {
+            "title": "So funktioniert es",
+            "desc": "Die vollständige clientseitige Pipeline: komprimieren, verschlüsseln, in Chunks teilen und prüfen."
+          },
+          "folders": {
+            "title": "Passwortgeschützte Ordner",
+            "desc": "Gib einem Ordner ein eigenes Passwort: Vorschauen werden erst nach der Eingabe freigeschaltet."
+          }
+        },
+        "cta": {
+          "heading": "Sieh deine Dateien, ohne sie herunterzuladen",
+          "subtext": "Kostenlos und Open Source. Bring einen Speicher-Account mit, den du schon hast, und sieh dir deine erste Datei in unter einer Minute an."
+        }
+      },
+      "sharing": {
+        "hero": {
+          "eyebrow": "Verschlüsseltes Teilen",
+          "title": "Teile eine Datei, nicht die Schlüssel zu allem",
+          "subtext": "Jeder Freigabelink trägt seinen eigenen Entschlüsselungsschlüssel im URL-Fragment: dem einen Teil eines Links, den ein Browser nie überträgt. Der Empfänger öffnet ihn, sein Browser entschlüsselt die Datei, und der Server hat immer nur Chiffretext gehalten."
+        },
+        "mock": {
+          "label": "Freigabelink",
+          "badge": "Ende-zu-Ende",
+          "sentToServer": "an den Server gesendet",
+          "staysInBrowser": "bleibt im Browser",
+          "password": "Passwort",
+          "passwordValue": "An",
+          "expires": "Läuft ab",
+          "expiresValue": "7 Tage",
+          "downloads": "Downloads",
+          "downloadsValue": "5 übrig",
+          "revoke": "Widerrufen",
+          "revokeValue": "Jederzeit"
+        },
+        "capSection": {
+          "heading": "Du entscheidest, wer, wie lange, wie oft",
+          "subheading": "Teilen, ohne die Kontrolle abzugeben. Lege für jeden Link die Bedingungen fest und zieh ihn zurück, sobald du willst."
+        },
+        "caps": {
+          "fragment": {
+            "title": "Der Schlüssel reist im Fragment",
+            "desc": "Der Entschlüsselungsschlüssel steht im Teil der URL nach dem #: den Browser nie an einen Server senden. Wir können ihn buchstäblich nicht empfangen."
+          },
+          "password": {
+            "title": "Optionales Passwort",
+            "desc": "Füge dem Link ein Passwort hinzu. Selbst wer die URL besitzt, braucht das Geheimnis, das du separat teilst, um ihn zu öffnen."
+          },
+          "expiry": {
+            "title": "Ablaufdaten",
+            "desc": "Lass einen Link nach einem Datum oder einer Dauer ungültig werden. Läuft er ab, schließt sich die Tür von selbst, ohne Aufräumen."
+          },
+          "limits": {
+            "title": "Download-Limits",
+            "desc": "Begrenze, wie oft ein Link genutzt werden kann. Ist die Zahl aufgebraucht, ist der Link tot, selbst wenn ihn noch jemand hat."
+          },
+          "revoke": {
+            "title": "Jederzeit widerrufen",
+            "desc": "Anders überlegt? Beende einen Link sofort aus deinem Tresor. Der Chiffretext bleibt, aber niemand kann ihn mehr öffnen."
+          },
+          "noAccount": {
+            "title": "Kein Konto für Empfänger",
+            "desc": "Wer den Link bekommt, öffnet ihn einfach. Die Datei wird in dessen Browser entschlüsselt, nie auf unseren Servern, nie im Klartext über die Leitung."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Das Geheimnis im #",
+          "heading": "Warum wir deine Freigaben nicht lesen können",
+          "body": "Ein URL-Fragment (alles nach dem <code>#</code>) wird nur vom Browser verarbeitet und nie in die Anfrage an einen Server aufgenommen. Wir legen den Entschlüsselungsschlüssel absichtlich dorthin. Der Server liefert verschlüsselte Bytes; der Browser des Empfängers nutzt den Schlüssel aus dem Fragment, um sie lokal zu entschlüsseln. Der Klartext existiert auf unserer Seite nie.",
+          "check1": "Der Entschlüsselungsschlüssel steht nur im URL-Fragment",
+          "check2": "Fragmente werden nie an den Server übertragen",
+          "check3": "Empfänger entschlüsseln im Browser, ohne Konto",
+          "check4": "Ein optionales Passwort fügt ein zweites, separates Geheimnis hinzu",
+          "linkLabel": "So funktioniert das Teilen"
+        },
+        "panel": {
+          "comment": "// was der Server beim Öffnen sieht",
+          "success": "✓ kein Schlüssel auf der Leitung. kein Klartext auf dem Server.",
+          "returns": "<b>liefert</b> Chiffretext-Blob, versiegelt",
+          "notInRequest": "nicht in der Anfrage",
+          "decryptHappens": "Entschlüsselung findet statt in:",
+          "browser": "dem Browser"
+        },
+        "moreWays": {
+          "heading": "Weitere Wege zum Senden",
+          "subheading": "Eine Tresordatei zu teilen ist ein Weg. Für das Flüchtige und Einmalige gibt es zwei weitere.",
+          "send": {
+            "title": "Anonymes Senden",
+            "desc": "Lade eine Datei ohne Konto hoch und erhalte einen einzigen Link zum Weitergeben. Er ist darauf ausgelegt, nach dem Lesen zu verbrennen: einmal abgeholt, ist sie weg. Gut für das, was du übergeben und vergessen willst."
+          },
+          "pad": {
+            "title": "Verschlüsseltes Pad",
+            "desc": "Schreibe eine einmalige Notiz, verschlüssele sie und teile den Link. Der Empfänger liest sie einmal, dann ist sie verbrannt. Für ein Passwort, eine Adresse, eine kurze Nachricht, die nicht in einem Posteingang verweilen soll."
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Wo geteilte Dateien leben: Ordner, Suche und Vorschauen, versiegelt."
+          },
+          "docs": {
+            "title": "Doku: Teilen",
+            "desc": "Lege Passwörter, Ablauf und Limits fest und erfahre, wie Links entschlüsseln."
+          },
+          "register": {
+            "title": "Sende deine erste Datei",
+            "desc": "Erstelle einen Tresor und teile einen Link in unter einer Minute."
+          }
+        },
+        "cta": {
+          "heading": "Teile, als würde der Server nicht zusehen",
+          "subtext": "Kostenlos und Open Source. Gib jemandem eine Datei, ohne sie uns zu geben."
+        }
+      },
+      "encryption": {
+        "hero": {
+          "eyebrow": "Zero-Knowledge-Verschlüsselung",
+          "title": "Wir können deine Dateien nicht lesen",
+          "subtext": "Deine Dateien werden auf deinem eigenen Gerät mit AES-256-GCM verschlüsselt, bevor sie es je verlassen. Der Schlüssel wird aus deiner Passphrase abgeleitet und nie übertragen. Wir speichern Chiffretext und sonst nichts: keine Schlüssel, keinen Klartext, nicht einmal deine Ordnernamen."
+        },
+        "boundary": {
+          "trustedZone": "Vertrauenswürdige Zone",
+          "ciphertextOnly": "Nur Chiffretext",
+          "label": "Verschlüsselungsgrenze",
+          "device": {
+            "title": "Dein Gerät",
+            "item1": "Hier eingegebene Passphrase bleibt hier",
+            "item2": "Dein Schlüssel wird lokal abgeleitet",
+            "item3": "Dateien und ihre Namen werden verschlüsselt",
+            "item4": "Klartext verlässt das Gerät nie"
+          },
+          "server": {
+            "title": "Unsere Server",
+            "item1": "Verschlüsselte Blobs, das war's",
+            "item2": "Keine Passphrase, kein abgeleiteter Schlüssel",
+            "item3": "Kein Klartext von Dateiinhalten",
+            "item4": "Keine lesbaren Datei- oder Ordnernamen"
+          }
+        },
+        "guarantees": {
+          "eyebrow": "Die Garantien",
+          "heading": "Was wir sehen können und was nicht",
+          "subheading": "Kein Datenschutzversprechen auf dem Papier. Ein kryptografisches: durchgesetzt dadurch, wo die Schlüssel liegen und welcher Code wo läuft.",
+          "device": {
+            "title": "Auf deinem Gerät verschlüsselt",
+            "desc": "Komprimierung und AES-256-GCM-Verschlüsselung geschehen in deinem Browser, auf deinem Rechner, bevor ein einziges Byte über die Leitung geht."
+          },
+          "key": {
+            "title": "Dein Schlüssel reist nie",
+            "desc": "Dein Verschlüsselungsschlüssel wird auf deinem eigenen Gerät aus deiner Passphrase abgeleitet und bleibt dort. Er wird nie an uns gesendet."
+          },
+          "unique": {
+            "title": "Ein eigener Schlüssel pro Datei",
+            "desc": "Jede Datei erhält einen eigenen zufälligen Inhaltsschlüssel, umhüllt von deinem Passphrase-Schlüssel. Der Schlüssel einer Datei kann nie eine andere öffnen."
+          },
+          "names": {
+            "title": "Selbst Ordnernamen sind versiegelt",
+            "desc": "Datei- und Ordnernamen werden ebenfalls clientseitig verschlüsselt. Der Server kann weder deine Dateien noch ihre Namen noch deine Organisation lesen."
+          },
+          "server": {
+            "title": "Der Server sieht nur Chiffretext",
+            "desc": "Auf unserer Seite gibt es keine Schlüssel und keinen Klartext: nur undurchsichtige verschlüsselte Blobs, die wir selbst unter Zwang nicht öffnen könnten."
+          },
+          "tamper": {
+            "title": "Manipulationssicher by Design",
+            "desc": "AES-256-GCM authentifiziert jeden Chunk. Wird Chiffretext unterwegs oder im Ruhezustand verändert, schlägt die Entschlüsselung laut fehl, statt Müll zurückzugeben."
+          }
+        },
+        "pipeline": {
+          "eyebrow": "Umschlagverschlüsselung",
+          "heading": "Wie eine Datei versiegelt wird",
+          "subheading": "Jeder Upload durchläuft dieselben vier Schritte, vollständig auf deinem Gerät.",
+          "derive": {
+            "title": "Deinen Schlüssel ableiten",
+            "desc": "Deine Passphrase und ein zufälliges Salt werden zu einem starken Schlüsselverschlüsselungsschlüssel gestreckt. Das geschieht lokal, und der Schlüssel verlässt dein Gerät nie."
+          },
+          "seal": {
+            "title": "Jede Datei mit eigenem Schlüssel versiegeln",
+            "desc": "Pro Datei wird ein frischer zufälliger Inhaltsschlüssel erzeugt und zum Verschlüsseln genutzt. Dieser Inhaltsschlüssel wird dann mit deinem aus der Passphrase abgeleiteten Schlüssel umhüllt (verschlüsselt)."
+          },
+          "chunk": {
+            "title": "Ordnernamen verschlüsseln, dann in Chunks teilen",
+            "desc": "Auch Ordnernamen werden clientseitig verschlüsselt. Die verschlüsselte Datei wird dann in Chunks geteilt, jeder einzeln authentifiziert."
+          },
+          "upload": {
+            "title": "Nur Chiffretext hochladen",
+            "desc": "Nur der umhüllte Schlüssel und die verschlüsselten Chunks verlassen dein Gerät. Der Server speichert Blobs, die er nicht lesen kann."
+          }
+        },
+        "panel": {
+          "comment": "// was tatsächlich auf dem Server landet",
+          "success": "✓ keine Passphrase. kein abgeleiteter Schlüssel. kein Klartext. keine lesbaren Namen.",
+          "wrappedTail": "versiegelt unter deiner Passphrase"
+        },
+        "tieIn": {
+          "eyebrow": "Der ehrliche Kompromiss",
+          "heading": "Verlierst du deine Passphrase, können selbst wir sie nicht wiederherstellen",
+          "body": "Echtes Zero-Knowledge hat seinen Preis, und wir tun nicht so, als wäre es anders. Weil dein Schlüssel aus deiner Passphrase abgeleitet wird und nie zu uns gelangt, haben wir keinen Knopf „Passwort zurücksetzen und Dateien zurückbekommen“. Verlierst du deine Passphrase, bleiben deine Daten für immer verschlüsselt: für dich und für alle anderen.",
+          "note": "Genau diese Eigenschaft macht die übrigen Versprechen real. Ein Anbieter, der deine Dateien für dich wiederherstellen kann, kann auch gezwungen werden, sie herauszugeben. Wir können keins von beiden.",
+          "linkLabel": "Das Sicherheitsmodell lesen",
+          "panel1": "Wähle eine starke Passphrase, die du nicht vergisst. Sie ist der eine Schlüssel zu allem.",
+          "panel2": "Vorschauen und Downloads werden in deinem Browser entschlüsselt und dann verworfen.",
+          "panel3": "Beim Teilen wird der Schlüssel einer Datei für den Empfänger umhüllt, ohne deine Passphrase je preiszugeben.",
+          "panel4": "Passwortgeschützte Ordner fügen einen zweiten Schlüssel hinzu, getrennt von deinem Tresor."
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Echte Ordner, Suche und Vorschauen auf dieser Verschlüsselungsebene."
+          },
+          "zk": {
+            "title": "Zero-Knowledge erklärt",
+            "desc": "Was der Begriff bedeutet und wie wir uns daran messen lassen."
+          },
+          "security": {
+            "title": "Sicherheitsmodell",
+            "desc": "Das vollständige technische Bild: AES-256-GCM, PBKDF2-SHA256-Schlüsselableitung mit 600.000 Iterationen, Schlüsselverwaltung und das Bedrohungsmodell."
+          }
+        },
+        "cta": {
+          "heading": "Verschlüsselung, bei der du uns nicht vertrauen musst",
+          "subtext": "Kostenlos und Open Source. Bring einen Speicher-Account mit, den du schon hast, und verschlüssele deine erste Datei in unter einer Minute."
+        }
+      },
+      "transfers": {
+        "hero": {
+          "eyebrow": "Der Transfer-Manager",
+          "title": "Starten, weggehen, er macht weiter",
+          "subtext": "Ein angedocktes Panel verfolgt jeden Upload und Download. Live-Fortschritt und Restzeit, Pausieren und Fortsetzen ohne Neuverschlüsselung, Wiederholen bei Fehlern und ZIP-Sammeldownloads, und es läuft weiter, während du dich in der App bewegst."
+        },
+        "mock": {
+          "title": "Übertragungen",
+          "summary": "2 aktiv · 1 pausiert",
+          "encrypting": "Verschlüsselung · Chunk 18/24",
+          "paused": "Pausiert · 41 % abgeschlossen",
+          "downloading": "Download · Entschlüsselung",
+          "done": "Fertig"
+        },
+        "capSection": {
+          "heading": "Gebaut für große Dateien und wacklige Netze",
+          "subheading": "Weil alles zuerst auf deinem Gerät verschlüsselt wird, müssen Übertragungen robust sein. Sind sie."
+        },
+        "caps": {
+          "progress": {
+            "title": "Live-Fortschritt und Restzeit",
+            "desc": "Sieh jede Übertragung in Echtzeit: Prozentwert pro Datei, aktuelle Phase und eine laufende Schätzung der verbleibenden Zeit."
+          },
+          "pause": {
+            "title": "Pausieren, ohne Arbeit zu verlieren",
+            "desc": "Pausiere einen Upload an einer Chunk-Grenze und geh weg. Die Sitzung bleibt intakt, nichts bereits Verschlüsseltes wird verworfen."
+          },
+          "resume": {
+            "title": "Dort weitermachen, wo es aufhörte",
+            "desc": "Beim Fortsetzen wird derselbe Schlüssel wiederverwendet und Chunks übersprungen, die der Server schon hat. Kein Neuverschlüsseln, kein Neubeginn."
+          },
+          "retry": {
+            "title": "Wiederholen bei Fehlern",
+            "desc": "Eine abgebrochene Verbindung heißt nicht Neustart. Wiederholen nimmt die Übertragung ab dem zuletzt bestätigten Chunk wieder auf."
+          },
+          "zip": {
+            "title": "ZIP-Sammeldownloads",
+            "desc": "Wähle viele Dateien und lade sie als einzelnes ZIP herunter: jede in deinem Browser entschlüsselt und lokal gepackt."
+          },
+          "navigation": {
+            "title": "Übersteht die Navigation",
+            "desc": "Der Manager wird einmal angedockt und bleibt bestehen, während du dich in der App bewegst. Stöbere, öffne Dateien und starte weitere Arbeit, während Übertragungen laufen."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Fortsetzen, das wirklich fortsetzt",
+          "heading": "Kein Neuverschlüsseln. Kein erneutes Hochladen.",
+          "body": "Wenn du pausierst oder das Netz hakt, hält der Upload an einer sauberen Chunk-Grenze und behält seine Sitzung. Beim Fortsetzen wird derselbe Inhaltsschlüssel genutzt, sodass die bereits auf dem Server liegenden Chunks weiter passen: Es macht einfach mit den fehlenden Chunks weiter.",
+          "check1": "Pausiert an einer Chunk-Grenze, hält die Sitzung am Leben",
+          "check2": "Setzt mit demselben Schlüssel fort, bereits verschlüsselte Chunks bleiben gültig",
+          "check3": "Überspringt Chunks, die der Server schon bestätigt hat",
+          "check4": "Wiederholen nach einem Fehler macht beim letzten bestätigten Chunk weiter",
+          "linkLabel": "So funktioniert das Hochladen"
+        },
+        "panel": {
+          "comment": "// einen pausierten Upload mit 24 Chunks fortsetzen",
+          "success": "✓ fertig, 18 Chunks nie erneut gesendet",
+          "line1": "<b>Sitzung</b> wiederverwendet, gleicher Inhaltsschlüssel",
+          "line2": "chunk[0..17] bereits auf dem Server → übersprungen"
+        },
+        "d2d": {
+          "eyebrow": "Außerdem: Gerät zu Gerät",
+          "heading": "Sende eine Datei direkt an ein anderes Gerät",
+          "body": "Unabhängig vom Tresor kann zcrypt eine Datei von einem Gerät zu einem anderen über ein Relay streamen, das nichts speichert. Der Sender erhält einen sechsstelligen Code und einen Kopplungsschlüssel; der Empfänger braucht beides. Die Daten sind mit diesem Schlüssel Ende-zu-Ende verschlüsselt, das Relay reicht also nur Chiffretext weiter, den es nicht lesen kann.",
+          "check1": "Koppeln mit einem 6-stelligen Code",
+          "check2": "Ende-zu-Ende verschlüsselt, das Relay sieht nur Chiffretext",
+          "check3": "Nichts muss zuerst in deinem Tresor landen",
+          "pairingCode": "Kopplungscode",
+          "waiting": "Warte auf Gegenstelle…"
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Wo deine Übertragungen landen: echte Ordner, Suche und Vorschauen."
+          },
+          "docs": {
+            "title": "Doku zum Transfer-Manager",
+            "desc": "Jedes Bedienelement im angedockten Panel, erklärt."
+          },
+          "uploading": {
+            "title": "Upload-Anleitung",
+            "desc": "Wie Dateien komprimiert, verschlüsselt, in Chunks geteilt und gesendet werden."
+          }
+        },
+        "cta": {
+          "heading": "Bewege große Dateien, ohne sie zu bewachen",
+          "subtext": "Kostenlos und Open Source. Bring einen Speicher-Account mit, den du schon hast, und starte deinen ersten Upload in unter einer Minute."
+        }
+      },
+      "privacy": {
+        "hero": {
+          "eyebrow": "Datenschutz-Werkzeuge",
+          "title": "Privatsphäre für die Momente, auf die es ankommt",
+          "subtext": "Verschlüsselung hält deine Dateien unlesbar. Diese Werkzeuge gehen einen Schritt weiter: für den Fall, dass du zum Entsperren gedrängt wirst, unerwartet verstummst, und für die Randfälle, die echte Privatsphäre einplanen muss. Auf demselben Zero-Knowledge-Kern gebaut und ehrlich darüber, was jedes davon wirklich tut.",
+          "trustLine": "Zero-Knowledge by Design. Wir halten nie deine Schlüssel oder deinen Klartext."
+        },
+        "decoy": {
+          "eyebrow": "Glaubhafte Abstreitbarkeit",
+          "heading": "Ein Köderprofil für den Fall, dass du zur Öffnung gezwungen wirst",
+          "body": "Lege ein zweites „Köder“-Passwort fest. Meldest du dich damit an, öffnet zcrypt einen harmlos wirkenden Tresor voller unbedenklicher Dateien, nicht deinen echten. Unter Zwang, an einer Grenzkontrolle oder überall, wo du nicht nein sagen kannst, kannst du etwas echt Aussehendes entsperren, ohne preiszugeben, worauf es ankommt.",
+          "point1": "Ein zweites Köderpasswort, das du selbst festlegst, getrennt von deinem echten.",
+          "point2": "Die Anmeldung damit öffnet einen harmlos wirkenden Tresor mit glaubwürdigen Füllerdateien.",
+          "point3": "Nichts im Köder deutet darauf hin, dass hinter einem anderen Passwort ein echter Tresor existiert.",
+          "linkLabel": "So funktionieren Köderprofile",
+          "decoyPassword": "Köderpasswort",
+          "looksOrdinary": "Wirkt gewöhnlich",
+          "realPassword": "Echtes Passwort",
+          "neverRevealed": "Nie offenbart",
+          "fileBudget": "budget-2024.xlsx",
+          "fileCats": "katzenfotos",
+          "fileRecipes": "rezepte.txt"
+        },
+        "dms": {
+          "eyebrow": "Falls du verstummst",
+          "heading": "Ein Totmannschalter, der einen Menschen erreicht",
+          "body": "Wähle einen Vertrauenskontakt und ein Check-in-Fenster. Meldest du dich so lange nicht an, schickt zcrypt ihm eine Benachrichtigung per E-Mail. Ein Sicherheitsnetz für Journalisten, Aktivisten und alle, die jemanden alarmieren müssen, wenn sie plötzlich nicht mehr einchecken können.",
+          "window": "Check-in-Fenster",
+          "windowRange": "7 bis 365 Tage",
+          "resets": "letzte Anmeldung setzt es zurück",
+          "notified": "Kontakt benachrichtigt",
+          "doesTitle": "Was er tut",
+          "does1": "Schickt eine E-Mail an einen von dir gewählten Vertrauenskontakt, wenn du dich in einem festgelegten Fenster nicht anmeldest.",
+          "does2": "Das Zeitlimit ist von 7 bis 365 Tagen einstellbar: Du bestimmst den Check-in-Rhythmus.",
+          "does3": "Jede Anmeldung setzt den Countdown automatisch zurück, bei normaler Nutzung bleibt er also still.",
+          "doesNotTitle": "Was er nicht tut",
+          "doesNot1": "Er gibt deine Dateien nicht heraus.",
+          "doesNot2": "Er gibt weder deine Passphrase noch irgendwelche Schlüssel frei.",
+          "doesNot3": "Er ist ein Hinweis an einen Menschen, keine automatische Übergabe des Zugriffs.",
+          "footnote": "Weil zcrypt Zero-Knowledge ist, haben wir keine Schlüssel, die wir übergeben könnten. Der Schalter alarmiert daher einen Menschen, statt deine Daten freizugeben."
+        },
+        "beta": {
+          "eyebrow": "In der Beta",
+          "heading": "Reifend und ehrlich gekennzeichnet",
+          "subheading": "Diese beiden sind real und nutzbar, aber noch in Entwicklung. Wir sagen dir lieber genau, wo sie stehen, als sie zu übertreiben.",
+          "snapshots": {
+            "title": "Snapshots und Integrität",
+            "desc": "Erfasse ein Manifest deines Tresors zu einem Zeitpunkt und erkenne, ob eine gespeicherte Datei seitdem verändert oder manipuliert wurde.",
+            "caveat": "Snapshots sind Manifeste zur Manipulationserkennung, kein Wiederherstellungs- oder Versionsverlaufssystem. Sie setzen deine Dateien noch nicht auf einen früheren Stand zurück."
+          },
+          "shared": {
+            "title": "Geteilte Tresore",
+            "desc": "Arbeite mit anderen Menschen in einem Tresor zusammen, mit den Rollen Betrachter, Editor und Admin.",
+            "caveat": "Das kryptografische Schlüsselteilen hinter den Rollen reift noch. Betrachte geteilte Tresore als experimentell und verlasse dich noch nicht für hochsensible Geheimnisse darauf."
+          }
+        },
+        "core": {
+          "heading": "Alles ruht auf demselben privaten Kern",
+          "body": "Jedes dieser Werkzeuge ist an dasselbe Versprechen gebunden: Deine Dateien werden auf deinem Gerät mit AES-256-GCM verschlüsselt, bevor sie es verlassen, und wir sehen nie deine Passphrase oder deinen Klartext. Der Köder verbirgt einen Tresor, den wir ohnehin nicht lesen können; der Totmannschalter benachrichtigt einen Menschen, weil es keine Schlüssel gibt, die wir freigeben könnten. Datenschutzfunktionen, die dich nicht verraten können, weil die Architektur es nicht zulässt.",
+          "linkLabel": "So funktioniert die Verschlüsselung"
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Echte Ordner und ein Datei-Explorer: jeder Name auf deinem Gerät verschlüsselt."
+          },
+          "dms": {
+            "title": "Totmannschalter",
+            "desc": "Lege Kontakt, Zeitlimit und Nachricht für deinen Inaktivitätsalarm fest."
+          },
+          "security": {
+            "title": "Sicherheitsmodell",
+            "desc": "Wie Zero-Knowledge-Verschlüsselung und unser Bedrohungsmodell zusammenpassen."
+          }
+        },
+        "cta": {
+          "heading": "Privatsphäre, die du wirklich nachvollziehen kannst",
+          "subtext": "Kostenlos und Open Source. Bring einen Speicher-Account mit, den du schon hast, lege ein Köderpasswort fest und scharfe dein Sicherheitsnetz in Minuten."
+        }
+      },
+      "byos": {
+        "hero": {
+          "eyebrow": "Bring deinen eigenen Speicher mit",
+          "title": "Nutze den Speicher, den du schon hast",
+          "subtext": "Verbinde Accounts, die dir gehören (GitHub, GitLab, Hugging Face, Telegram), und deine verschlüsselten Dateien werden als getarnte Chunks in Repos gespeichert, die dir gehören. Repos rotieren automatisch, wenn sie sich füllen, dein Platz wächst also von selbst. Deine Daten, deine Infrastruktur, kein Lock-in."
+        },
+        "mock": {
+          "label": "Verbundener Speicher",
+          "badge": "Vor dem Upload verschlüsselt",
+          "storedAs": "→ als Build-Cache in einem Repo gespeichert, das dir gehört"
+        },
+        "platforms": {
+          "telegram": {
+            "capacity": "50 MB / Datei",
+            "note": "Viele kleine Chunks, breit gestreut."
+          },
+          "github": {
+            "capacity": "850 MB / Repo",
+            "note": "Der Standard. Lege so viele Repos an, wie du willst."
+          },
+          "gitlab": {
+            "capacity": "9 GB / Repo",
+            "note": "Geräumigere Repos für schwerere Tresore."
+          },
+          "huggingface": {
+            "capacity": "90 GB / Account",
+            "note": "Gebaut für große Dateien, mit ernsthaftem Spielraum."
+          }
+        },
+        "adapters": {
+          "eyebrow": "Wo deine Dateien leben",
+          "heading": "Verbinde, wofür du schon zahlst",
+          "subheading": "Vier Plattformen, jede mit eigenen großzügigen Limits. Kombiniere frei: Je mehr du verbindest, desto mehr Platz hast du.",
+          "footnote": "Kapazitäten sind ungefähre Plattformlimits pro Repo oder pro Datei und können sich nach Ermessen der Anbieter ändern. zcrypt arbeitet innerhalb dessen, was jede Plattform aktuell erlaubt."
+        },
+        "caps": {
+          "split": {
+            "title": "Geteilt, verschlüsselt, getarnt",
+            "desc": "Jede Datei wird auf deinem Gerät verschlüsselt und dann in ~10-MB-Chunks geteilt, die als gewöhnliche Build-Cache-Objekte in einem Repo gespeichert werden, das dir gehört. Über deine ganze Bibliothek verteilen sich Dateien auf die verbundenen Accounts."
+          },
+          "rotation": {
+            "title": "Automatische Repo-Rotation",
+            "desc": "Nähert sich ein Repo dem Limit seiner Plattform, wechselt zcrypt von selbst zu einem frischen. Dein nutzbarer Platz wächst, ohne dass du einen Finger rührst."
+          },
+          "grows": {
+            "title": "Platz, der mitwächst",
+            "desc": "Verbinde mehr Accounts, bekomme mehr Platz. Es gibt kein von zcrypt verkauftes Kontingent, an das du stößt: Deine Kapazität ist, was du schon hast."
+          },
+          "disguised": {
+            "title": "Bei der Ankunft getarnt",
+            "desc": "Chunks werden so gespeichert, dass sie wie gewöhnliche Build-Cache-Dateien aussehen: unauffällige Artefakte in einem Code-Repo, keine offensichtlich verschlüsselten Blobs."
+          },
+          "infra": {
+            "title": "Deine Infrastruktur",
+            "desc": "Die Bytes liegen in Accounts, die du kontrollierst und mitnehmen kannst. zcrypt orchestriert; es hält deinen Speicher nicht als Geisel."
+          },
+          "noLockin": {
+            "title": "Kein Lock-in",
+            "desc": "Trenne eine Plattform oder geh ganz, deine Accounts gehören dir. Open Source, die Mechanik ist also nie eine Blackbox."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Deine Daten, deine Infrastruktur",
+          "heading": "Nichts, woran du gebunden bist",
+          "body": "Die meisten Cloud-Speicher vermieten dir Platz auf den Servern des Anbieters, zu dessen Bedingungen. zcrypt dreht das um: Es ist eine Verschlüsselungs- und Orchestrierungsschicht über Speicher, der dir ohnehin gehört. Alles wird zuerst auf deinem Gerät verschlüsselt, dann werden Chunks als gewöhnliche Build-Cache-Dateien in Repos getarnt, die dir gehören: deine Bibliothek verteilt auf die Accounts, die du verbindest. Geh, wann du willst: Die Accounts und die Bytes darin waren immer deine.",
+          "check1": "Vor jedem Upload auf deinem Gerät verschlüsselt",
+          "check2": "Chunks als routinemäßige Build-Cache-Artefakte getarnt",
+          "check3": "Gespeichert in Repos über Accounts, die du kontrollierst",
+          "check4": "Jederzeit trennen oder gehen, keine gefangenen Daten",
+          "linkLabel": "Wie der Repo-Pool rotiert"
+        },
+        "panel": {
+          "comment": "// wie eine Datei in deinem Speicher landet",
+          "success": "✓ deine Accounts. deine Bytes. kein von zcrypt verkauftes Kontingent.",
+          "step1": "auf dem Gerät verschlüsseln. AES-256-GCM",
+          "step2": "in Chunks teilen",
+          "step3": "tarnen als",
+          "step4": "in ein Repo hochladen, das dir gehört",
+          "step5": "Repo fast voll?",
+          "rotate": "rotieren →",
+          "fresh": "frisches Repo"
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Was auf deinem Speicher aufsetzt: ein echter, versiegelter Datei-Explorer."
+          },
+          "adapters": {
+            "title": "Doku: Plattform-Adapter",
+            "desc": "Verbinde GitHub-, GitLab-, Hugging-Face- und Telegram-Accounts."
+          },
+          "pool": {
+            "title": "Doku: Repo-Pool",
+            "desc": "Wie sich Chunks verteilen und Repos automatisch rotieren, wenn sie sich füllen."
+          }
+        },
+        "cta": {
+          "heading": "Speicher, der dir gehört, Verschlüsselung, der du vertraust",
+          "subtext": "Kostenlos und Open Source. Verbinde einen Account, den du schon hast, und starte in unter einer Minute."
+        }
+      },
+      "apps": {
+        "hero": {
+          "eyebrow": "Web, Desktop und Android",
+          "title": "Ein Laufwerk, drei Zugänge",
+          "subtext": "Derselbe Zero-Knowledge-Kern, wo immer du arbeitest: eine Web-App in jedem Browser, eine native Desktop-App für macOS, Windows und Linux und eine Android-App, die du in einer Minute per Sideload installierst. Die Verschlüsselung ändert sich nie, nur die Oberfläche.",
+          "secondaryLabel": "Apps herunterladen"
+        },
+        "mock": {
+          "web": "Web",
+          "anyBrowser": "jeder Browser",
+          "desktop": "Desktop",
+          "desktopOs": "macOS · Win · Linux",
+          "android": "Android",
+          "sideload": "APK per Sideload"
+        },
+        "sharedCore": "<b>Überall dieselbe Verschlüsselung.</b> Die Web-App führt die Pipeline in Web Workern aus; Desktop und Android betreiben {name}, die In-Process-Engine in {language}. Jede Oberfläche komprimiert, verschlüsselt mit AES-256-GCM, teilt in Chunks und lädt vollständig auf deinem Gerät hoch. Wähle eine Oberfläche nach dem Workflow, nicht nach der Sicherheit: Es ist derselbe Tresor mit denselben Garantien auf allen dreien.",
+        "surfaces": {
+          "eyebrow": "Wähle deine Oberfläche",
+          "heading": "Wähle, wo du arbeitest",
+          "subheading": "Drei Frontends über einem verschlüsselten Backend. Nutze, was gerade passt, oder alle drei.",
+          "web": {
+            "name": "Web-App",
+            "tagline": "Jeder Browser, nichts zu installieren",
+            "desc": "Der vollständige Tresor in jedem modernen Browser. Die Verschlüsselung läuft in der Seite selbst, deine Dateien sind also versiegelt, bevor sie den Tab verlassen, ohne Erweiterung, ohne Download.",
+            "point1": "Funktioniert auf jedem Betriebssystem",
+            "point2": "Drag-and-drop-Uploads",
+            "point3": "Vorschauen im Browser",
+            "point4": "Immer der neueste Build",
+            "cta": "Doku zur Web-App"
+          },
+          "desktop": {
+            "name": "Desktop-App",
+            "tagline": "Nativ auf macOS, Windows und Linux",
+            "desc": "Ein nativer Desktop-Build mit {name}, der In-Process-Engine in {language}. Sitzt in deinem Dock oder Tray, lädt direkt in deinen eigenen Speicher hoch und bewältigt große Übertragungen mühelos.",
+            "point1": "macOS, Windows, Linux",
+            "point2": "In-Process-Rust-Engine",
+            "point3": "Uploads direkt in deinen Speicher",
+            "point4": "Derselbe verschlüsselte Tresor",
+            "cta": "Doku zur Desktop-App"
+          },
+          "android": {
+            "name": "Android-App",
+            "tagline": "APK in einer Minute per Sideload",
+            "desc": "Dein Tresor auf deinem Handy, mit derselben {name}-{language}-Engine wie auf dem Desktop. Noch nicht im Play Store: Hol dir die APK, aktiviere die Installation, und du bist drin. Kein Warten, kein Türsteher.",
+            "point1": "Dieselbe Rust-Engine wie auf dem Desktop",
+            "point2": "Installiert in etwa einer Minute",
+            "point3": "Kein Warten auf den Play Store",
+            "point4": "Uploads direkt in deinen Speicher",
+            "cta": "Doku zur Android-App"
+          }
+        },
+        "compare": {
+          "eyebrow": "Im Vergleich",
+          "heading": "Welche wann?",
+          "subheading": "Eine schnelle Entscheidungshilfe. Es gibt keine falsche Antwort: Alle öffnen dasselbe Laufwerk.",
+          "footnote": "Ein Konto, ein verschlüsselter Tresor: Wechsle die Oberfläche jederzeit, ohne etwas neu hochzuladen.",
+          "surface": "Oberfläche",
+          "bestFor": "Am besten für",
+          "install": "Installation",
+          "runsOn": "Läuft auf",
+          "web": {
+            "bestFor": "Schneller Zugriff von jedem Rechner",
+            "install": "Nichts. Browser öffnen",
+            "runsOn": "Jedes Betriebssystem mit modernem Browser"
+          },
+          "desktop": {
+            "bestFor": "Täglicher Gebrauch und große Übertragungen",
+            "install": "Nativer Installer",
+            "runsOn": "macOS, Windows, Linux"
+          },
+          "android": {
+            "bestFor": "Dein Tresor unterwegs",
+            "install": "APK per Sideload (Beta)",
+            "runsOn": "Android-Handys und -Tablets"
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "Das verschlüsselte Laufwerk",
+            "desc": "Der Datei-Explorer im Herzen jeder Oberfläche."
+          },
+          "android": {
+            "title": "Anleitung zur Android-App",
+            "desc": "Die Beta-APK in etwa einer Minute per Sideload installieren."
+          },
+          "desktop": {
+            "title": "Anleitung zur Desktop-App",
+            "desc": "Installiere den nativen Build für deine Plattform."
+          }
+        },
+        "cta": {
+          "heading": "Dasselbe Laufwerk, wo immer du bist",
+          "subtext": "Kostenlos und Open Source. Erstelle einmal ein Konto und erreiche es per Web, Desktop oder Handy."
+        }
+      }
+    },
+    "home": {
+      "sticky": {
+        "region": "Loslegen",
+        "text": "Kostenlos. Nichts einzurichten.",
+        "cta": "Kostenlos starten",
+        "hide": "Anmeldeleiste ausblenden"
+      },
+      "closing": {
+        "eyebrow": "Heute loslegen",
+        "titleA": "Der Speicher, der ",
+        "titleB": "wirklich dir gehört.",
+        "subtext": "Verbinde dein eigenes Konto. Auf deinem Gerät verschlüsselt. Keine künstlichen Grenzen, kein Anbieter-Lock-in.",
+        "button": "Kostenlos starten"
+      },
+      "hoverReveal": "ehrlich, es ist kostenlos. wir scherzen nicht.",
+      "how": {
+        "eyebrow": "Wie geht das unbegrenzt?",
+        "title": "Deine Datei reist nie am Stück",
+        "hint": "Scrolle, um es abzuspielen. Scrolle zurück, um es rückgängig zu machen.",
+        "foot": "Die Erwachsenenversion mit der echten Mathematik gewünscht?",
+        "footLink": "So funktioniert es im Detail",
+        "cta": "Kostenlos starten",
+        "more": "+ hunderte weitere",
+        "connected": "Verbunden",
+        "pieces": "+ Teile",
+        "newSpot": "Neuer Platz",
+        "steps": {
+          "connect": {
+            "title": "Konto verbinden",
+            "body": "Verknüpfe ein Konto, das du schon hast: Telegram, GitHub, GitLab oder Hugging Face. Dort werden deine Dateien liegen. Nicht bei uns."
+          },
+          "drop": {
+            "title": "Datei ablegen",
+            "body": "Dein Gerät zerlegt sie in Teile und verschließt jedes mit einem Schlüssel, der aus deinem Passwort entsteht. Der Schlüssel verlässt dein Gerät nie."
+          },
+          "store": {
+            "title": "In deiner eigenen Cloud gespeichert",
+            "body": "Die verschlossenen Teile landen unter langweiligen Namen in deinem Konto. Ist ein Platz voll, öffnet zcrypt einen frischen. Telegram hat keine Obergrenze, du also auch nicht."
+          }
+        },
+        "caps": {
+          "accounts": "Deine Konten",
+          "cut": "In Teile zerlegt",
+          "locked": "Jedes Teil auf diesem Gerät verschlossen",
+          "saved": "Unter langweiligen Namen in deinen Konten gespeichert",
+          "spotFilled": "Ein Platz war voll. zcrypt hat einen neuen geöffnet."
+        },
+        "limits": {
+          "telegram": "Keine Obergrenze",
+          "github": "850 MB pro Projekt",
+          "gitlab": "9 GB pro Projekt",
+          "huggingface": "90 GB pro Konto"
+        }
+      },
+      "trust": {
+        "eyebrow": "Warum vertrauen",
+        "title": "So gebaut, dass du uns nicht vertrauen musst",
+        "lede": "Jede Schicht ist auf Privatsphäre ausgelegt, und jede Zeile davon ist Open Source.",
+        "cards": {
+          "encryption": {
+            "label": "VERSCHLÜSSELUNG",
+            "title": "Verschlossen, bevor es dein Gerät verlässt",
+            "body": "Dein Passwort erzeugt den Schlüssel, direkt auf deinem Gerät. Wir bekommen nie eine Kopie, also können wir nichts verlieren, leaken oder herausgeben.",
+            "caption": "auf diesem Gerät versiegelt",
+            "chips": {
+              "0": "<m>AES-256-GCM</m>",
+              "1": "Schlüssel bleibt auf deinem Gerät",
+              "2": "Auch Dateinamen verschlüsselt",
+              "3": "Ein geändertes Byte fällt auf"
+            }
+          },
+          "scale": {
+            "label": "SKALIERUNG",
+            "title": "Platz, der immer weiter wächst",
+            "body": "Große Dateien werden in Teile zerlegt und über deine Konten verteilt. Deine einzige Grenze ist der freie Platz, den du ohnehin schon hast.",
+            "caption": "jedes Konto bringt mehr Platz",
+            "chips": {
+              "0": "Teile von 4 bis 32 MB",
+              "1": "Neuer Platz, bevor einer voll ist",
+              "2": "Telegram: keine Obergrenze"
+            }
+          },
+          "stealth": {
+            "label": "TARNUNG",
+            "title": "Nichts daran wirkt interessant",
+            "body": "Teile bekommen langweilige Namen und gewöhnliche Commit-Nachrichten. Für Außenstehende ist es nur ein weiteres ruhiges Nebenprojekt.",
+            "caption": "chore: refresh build cache",
+            "chips": {
+              "0": "Zufällige Dateinamen",
+              "1": "Langweilige Commit-Nachrichten",
+              "2": "Namen wie <m>quick-loader-v2</m>"
+            }
+          },
+          "open": {
+            "label": "OFFEN",
+            "title": "Jede Zeile ist öffentlich",
+            "body": "Lies den Code, prüfe die Mathematik oder führe ihn auf deinem eigenen Rechner aus. Du musst uns nicht aufs Wort glauben.",
+            "caption": "lesen, forken, ausführen",
+            "chips": {
+              "0": "MIT-lizenziert",
+              "1": "Selbst mit Docker betreiben",
+              "2": "Kompletter Quellcode auf GitHub"
+            }
+          }
+        },
+        "scene": {
+          "new": "neu",
+          "hoursAgo": "vor 3 Stunden"
+        }
+      },
+      "bento": {
+        "eyebrow": "Was drinsteckt",
+        "title": "Funktioniert wie der Speicher, den du kennst",
+        "lede": "Er kann nur deine Sachen nicht lesen.",
+        "tiles": {
+          "drive": {
+            "kicker": "Sieht aus wie ein normales Laufwerk",
+            "title": "Ordner, Suche, Drag and Drop.",
+            "sentence": "Mit / suchen, nach allem sortieren, Dinge herumschieben. Fotos, Videos, PDFs und Dokumente öffnen sich direkt im Browser, im Web, auf Mac, Windows, Linux und Android (Beta).",
+            "short": "Suchen, sortieren, ziehen und ablegen. Dateien öffnen sich direkt im Browser."
+          },
+          "lock": {
+            "kicker": "Ein zweites Schloss",
+            "title": "Ein Passwort für jeden Ordner.",
+            "sentence": "Für das besonders Private. Ja, noch privater als privat.",
+            "short": "Für das besonders Private."
+          },
+          "share": {
+            "kicker": "Teilen",
+            "title": "Links mit Regeln teilen.",
+            "sentence": "Passwort, Ablaufdatum und Download-Limit festlegen. Dann vergessen.",
+            "short": "Passwort, Ablaufdatum, Download-Limit."
+          },
+          "send": {
+            "kicker": "Kein Konto nötig",
+            "title": "An jeden senden.",
+            "sentence": "Sie brauchen zcrypt nicht. Die Datei kann nach einmaligem Lesen verschwinden, wie im Agentenfilm, nur mit einem PDF.",
+            "short": "Sie brauchen zcrypt nicht."
+          },
+          "spaces": {
+            "kicker": "Spaces",
+            "title": "Spaces für deine Leute.",
+            "sentence": "Familienfotos, Unterlagen fürs Haus, das Gruppenprojekt, das sonst niemand macht.",
+            "short": "Familienfotos, Haus-Unterlagen."
+          },
+          "resume": {
+            "kicker": "Auch bei schlechtem WLAN",
+            "title": "Uploads, die weitermachen.",
+            "sentence": "Laptop zuklappen, Signal verlieren, später wiederkommen. Es macht dort weiter, wo es aufgehört hat. Versehentlich etwas gelöscht? Es gibt eine Wiederherstellen-Taste.",
+            "short": "Signal weg, es macht dort weiter, wo es aufgehört hat."
+          }
+        },
+        "v": {
+          "search": "Tresor durchsuchen",
+          "colName": "Name",
+          "colSize": "Größe",
+          "colSaved": "Gespart",
+          "colModified": "Geändert",
+          "folderTaxes": "Steuern",
+          "ago3d": "vor 3 T.",
+          "ago5h": "vor 5 Std.",
+          "ago1d": "vor 1 T.",
+          "ago2d": "vor 2 T.",
+          "sep14": "14. Sep.",
+          "unlockTitle": "Geschützten Ordner entsperren",
+          "unlockHint": "Passwort für „Steuern“ eingeben",
+          "cancel": "Abbrechen",
+          "unlock": "Entsperren",
+          "shareTitle": "Datei teilen",
+          "passwordProtect": "Passwortschutz",
+          "linkExpiry": "Link läuft ab",
+          "days7": "7 Tage",
+          "downloadLimit": "Download-Limit",
+          "burnTitle": "Nach dem Lesen löschen",
+          "burnHint": "Datei wird nach dem ersten Download gelöscht",
+          "expiresAfter": "Läuft ab nach",
+          "hour1": "1 Stunde",
+          "hours24": "24 Stunden",
+          "spaces": {
+            "family": {
+              "name": "Familienfotos",
+              "meta": "128 Dateien · 14. Aug."
+            },
+            "house": {
+              "name": "Haus-Unterlagen",
+              "meta": "23 Dateien · 2. Juni"
+            }
+          },
+          "editor": "Bearbeiter",
+          "unfinished": "1 unfertiger Upload",
+          "resumeOrDiscard": "fortsetzen oder verwerfen",
+          "expiresIn": "läuft in 6 Tagen ab",
+          "resume": "Fortsetzen"
+        }
+      },
+      "faq": {
+        "eyebrow": "Fragen",
+        "title": "Klare Antworten",
+        "lede": "Fehlt etwas, steht die lange Version in <docs>der Doku</docs>.",
+        "items": {
+          "0": {
+            "q": "Ist es wirklich kostenlos?",
+            "a": "Ja. Es gibt keine Bezahlpläne und keine Karte. Deine Dateien liegen in Konten, die dir schon gehören, also gibt es nichts, wofür wir etwas berechnen könnten."
+          },
+          "1": {
+            "q": "Wie kann es kein Limit geben?",
+            "a": "zcrypt bewahrt deine Dateien nicht auf. Deine verbundenen Konten tun das. Jedes Konto, das du hinzufügst, bringt mehr Platz, und Telegram hat gar keine Obergrenze. Neue Konten starten mit 1 GB gemeinsamem Speicher, während du alles einrichtest."
+          },
+          "2": {
+            "q": "Könnt ihr meine Dateien sehen?",
+            "a": "Nein. Dateien werden auf deinem eigenen Gerät verschlossen, bevor sie hochgeladen werden, ebenso ihre Namen. Wir wissen nur, wohin die Teile gegangen sind, nie, was in ihnen steckt."
+          },
+          "3": {
+            "q": "Was, wenn ich mein Passwort vergesse?",
+            "a": "Dann kann niemand deine Dateien öffnen, auch wir nicht. So viel kostet echte Privatsphäre, also bewahre es in einem Passwortmanager auf."
+          },
+          "4": {
+            "q": "Brauche ich ein GitHub- oder Telegram-Konto?",
+            "a": "Nicht zum Start. Du kannst sofort hochladen. Verbinde ein Konto, wann immer du mehr Platz willst. Telegram ist am einfachsten, wenn du es ohnehin nutzt."
+          },
+          "5": {
+            "q": "Kann ich mit jemandem teilen, der zcrypt nicht nutzt?",
+            "a": "Ja. Schick einen Link. Du kannst ein Passwort, ein Ablaufdatum und ein Download-Limit setzen oder mit Send eine Datei erstellen, die nach einmaligem Lesen verschwindet."
+          },
+          "6": {
+            "q": "Läuft es auf dem iPhone?",
+            "a": "Die Website ja, in Safari. Eine iPhone-App gibt es noch nicht. Es gibt Apps für Mac, Windows, Linux und Android (Beta)."
+          },
+          "7": {
+            "q": "Was, wenn eine Plattform meine Dateien entfernt?",
+            "a": "Dann sind die dort gespeicherten Teile von dort verschwunden. Für alles, was du nicht verlieren darfst, bewahre eine zweite Kopie woanders auf. Das ist ein guter Rat für jede Cloud, auch diese."
+          },
+          "8": {
+            "q": "Was passiert, wenn zcrypt eingestellt wird?",
+            "a": "Jede Zeile von zcrypt ist öffentlich, also kann es jeder betreiben, auch du. Sobald du deine eigenen Konten verbindest, liegen deine Teile dort und nicht bei uns. Dateien im 1-GB-Startspeicher liegen auf einem gemeinsamen Konto. Sollte ich es also je abschalten, sage ich es rechtzeitig, und du kannst alles herunterladen."
+          },
+          "9": {
+            "q": "Ist es Open Source?",
+            "a": "Jede Zeile, unter der MIT-Lizenz. Lies sie, stöbere darin oder betreibe das Ganze selbst mit docker build und docker run."
+          }
+        }
+      },
+      "price": {
+        "eyebrow": "Preis",
+        "srOnly": "Es kostet 0 $",
+        "per": "Pro Monat. Pro Jahr. Für immer.",
+        "body": "Es gibt keinen Pro-Plan. Es gibt keinen Plus-Plan. Es gibt ganz sicher keinen Premium-Ultra-Plan. Deine Dateien liegen in Konten, die du schon hast, also gibt es kein Lager zu mieten und nichts, was wir dir berechnen könnten.",
+        "cta": "Kostenlos starten",
+        "thanks": "Trotzdem Danke sagen? <star>Gib uns einen Stern auf GitHub</star>. Das kostet genau dasselbe."
+      },
+      "quotes": {
+        "eyebrow": "Was Leute sagen",
+        "title": "Nette Worte",
+        "lede": "Bewertungen von Menschen, die zcrypt nutzen, von uns gelesen, bevor sie hier erscheinen.",
+        "stars": "{n} von 5 Sternen",
+        "play": "Zitate abspielen",
+        "pause": "Zitate pausieren",
+        "rowA": "Bewertungen, erste Reihe",
+        "rowB": "Bewertungen, zweite Reihe"
+      },
+      "story": {
+        "eyebrow": "Warum es das gibt",
+        "title": "Kostenloser Speicher war nie kostenlos",
+        "goTo": "Zu Teil {n}",
+        "prev": "Vorheriger Teil",
+        "next": "Nächster Teil",
+        "rail": "Die Geschichte in vier Teilen",
+        "part": "Teil {n}:",
+        "sign": "Es gibt ein Team. Das bin ich.",
+        "longer": "Die längere Version lesen",
+        "beats": {
+          "0": {
+            "title": "Mir ging der Platz aus",
+            "body": "Google Drive tippte mir bei 15 GB auf die Schulter und wollte meine Karte. Also legte ich ein zweites Konto an. Dann ein drittes. Eine Woche lang verteilte ich einen Ordner auf drei Logins wie ein digitaler Schmuggler mit Low-Budget."
+          },
+          "1": {
+            "title": "Das kostenlose Terabyte hatte Kleingedrucktes",
+            "body": "TeraBox sagte: ein Terabyte, gratis. Was sie nicht sagten: Der Download-Button ist versteckt wie ein Staatsgeheimnis, und das Kleingedruckte behandelt deine Dateien, als gehörten sie ihnen, zum Scannen und Daraus-Lernen."
+          },
+          "2": {
+            "title": "Dann scheiterte es bei 80 Prozent",
+            "body": "Ich lud einen 4-GB-Ordner hoch, sah ihn auf 80 Prozent kriechen und sah ihn scheitern. Mein erster Gedanke war nicht „probier’s nochmal“. Sondern „warum gebe ich mein Leben einer Firma, deren Geschäft es ist, zu wissen, was darin steckt“."
+          },
+          "3": {
+            "title": "Das Preisschild war ich",
+            "body": "Kostenloser Speicher war nie kostenlos. Ich hatte nur das Preisschild nicht gelesen. Also baute ich den ohne Limit und ohne Mitleser."
+          }
+        },
+        "scene": {
+          "myStorage": "Mein Speicher",
+          "login1": "1 Login",
+          "logins": "{n} Logins, 1 Ordner",
+          "full": "Speicher voll. Karte hinzufügen?",
+          "addCard": "Karte hinzufügen",
+          "tos": "Nutzungsbedingungen",
+          "illustrative": "Beispiel",
+          "free": "gratis",
+          "clause": "Wir dürfen deine Inhalte scannen, um unsere Dienste zu verbessern.",
+          "eta0": "Startet",
+          "eta1": "Noch 6 Min.",
+          "eta2": "Noch 14 Min.",
+          "eta3": "Noch 31 Min.",
+          "eta4": "Noch etwa eine Stunde",
+          "eta5": "Gleich fertig",
+          "failed": "Upload fehlgeschlagen. Neu starten?",
+          "photos": "4 GB Fotos",
+          "retry": "Wiederholen",
+          "price": "Preis",
+          "freeCaps": "GRATIS",
+          "noCard": "1 TB, keine Karte",
+          "actual": "Tatsächlicher Preis",
+          "you": "du",
+          "andFiles": "und deine Dateien"
+        }
+      },
+      "compared": {
+        "eyebrow": "Im Vergleich",
+        "title": "Gleicher Job, anderer Deal",
+        "lede": "Wir haben die genommen, von denen du gehört hast.",
+        "pick": "zcrypt vergleichen mit",
+        "caption": "zcrypt im Vergleich mit Google Drive, Dropbox, Proton Drive und TeraBox",
+        "here": "Du bist hier",
+        "foot": "Ihre Zahlen stammen von ihren eigenen Preisseiten, Stand September 2026. Sie ändern ab und zu etwas, also prüfe nach, bevor du uns zitierst. „Technisch“ heißt, dass sie die Schlüssel halten, nicht dass jemand schnüffelt.",
+        "rows": {
+          "free": "Kostenloser Speicher",
+          "open": "Könnte die Firma deine Dateien öffnen?",
+          "where": "Wo deine Dateien liegen",
+          "paid": "Bezahlpläne",
+          "oss": "Open Source",
+          "self": "Auf dem eigenen Rechner betreiben",
+          "iphone": "iPhone-App"
+        },
+        "big": {
+          "zcrypt": "Kein Limit",
+          "zcryptNote": "auf Konten, die du verbindest",
+          "gdrive": "Bis zu 15 GB",
+          "gdriveNote": "geteilt mit Gmail und Photos",
+          "proton": "Bis zu 5 GB",
+          "terabox": "1 TB",
+          "teraboxNote": "mit Werbung"
+        },
+        "cell": {
+          "no": "Nein",
+          "technically": "Ja, technisch",
+          "theirServers": "Ihre Server",
+          "yes": "Ja",
+          "ownAccounts": "Deine eigenen Konten",
+          "noneExist": "Gibt es nicht",
+          "allOfIt": "Alles",
+          "theApps": "Die Apps",
+          "notYet": "Noch nicht (Website geht)"
+        }
+      }
+    },
+    "vs": {
+      "common": {
+        "yes": "Ja",
+        "no": "Nein",
+        "caption": "zcrypt im Vergleich mit {name}",
+        "heroEyebrow": "zcrypt vs {name}",
+        "startFree": "Kostenlos starten",
+        "heroNote": "Keine Karte. Keine Testphase. Es gibt kein Upgrade, auf das man umsteigen müsste.",
+        "sideBySide": "Im direkten Vergleich",
+        "tableTitle": "zcrypt und {name}, Zeile für Zeile",
+        "footnote": "Der Vergleich gibt das jeweilige Standardangebot im Stand von 2026 wieder. {name} ist eine Marke von {owner}; wir stehen in keiner Verbindung zu dieser Firma und werden nicht von ihr unterstützt.",
+        "honestPart": "Der ehrliche Teil",
+        "whenBetter": "Wann {name} die bessere Wahl ist",
+        "goDeeper": "Mehr erfahren",
+        "readDetails": "Die Details lesen",
+        "related": {
+          "drive": {
+            "title": "Das Laufwerk selbst",
+            "desc": "Echte Ordner, Suche und Vorschauen, darunter eine Zero-Knowledge-Verschlüsselung."
+          },
+          "encryption": {
+            "title": "Wie die Verschlüsselung funktioniert",
+            "desc": "AES-256-GCM, Schlüssel, die auf deinem Gerät entstehen, und was der Server sehen kann und was nicht."
+          }
+        },
+        "rows": {
+          "encryption": "Verschlüsselungsmodell & wer die Schlüssel hält",
+          "zeroKnowledge": "Zero-Knowledge",
+          "storage": "Speichermodell",
+          "free": "Gratis-Stufe & Preise",
+          "openSource": "Open Source",
+          "selfHost": "Selbst hostbar",
+          "folders": "Dateiorganisation & Ordner",
+          "previews": "Vorschauen im Browser",
+          "sharing": "Dateifreigabe",
+          "lockIn": "Anbieterbindung"
+        },
+        "z": {
+          "encryption": "AES-256-GCM, Schlüssel werden auf deinem Gerät abgeleitet (PBKDF2, 600k Iterationen). Nur du besitzt sie.",
+          "zeroKnowledge": "Ja, standardmäßig. Dateiinhalte sind Zero-Knowledge, und Ordner- und Dateinamen werden clientseitig verschlüsselt (eine alte Klartext-Namensspalte wird gerade abgeschafft).",
+          "storage": "Eigener Speicher: GitHub-, GitLab-, Hugging-Face- oder Telegram-Konten, die du bereits selbst kontrollierst.",
+          "free": "Kostenlos. Du stellst den Speicher, daher fällt bei uns keine Gebühr pro Gigabyte an.",
+          "openSource": "Vollständig Open Source: Prüfe Client und Server selbst.",
+          "selfHost": "Betreibe den gesamten Stack selbst.",
+          "folders": "Echte verschachtelbare Ordner mit verschlüsselten Ordnernamen und Passwörtern pro Ordner.",
+          "previews": "Bilder, Video, Audio, PDFs, Dokumente und Code: im Browser entschlüsselt, nie auf dem Server.",
+          "sharing": "Verschlüsselte Freigabelinks mit Ablaufdatum. Geteilte Tresore sind in der Beta.",
+          "lockIn": "Minimal. Deine Daten liegen in deinen eigenen Konten und das Format ist offen."
+        }
+      },
+      "googleDrive": {
+        "hero": {
+          "title": "Google Drive kann deine Dateien lesen. zcrypt nicht",
+          "lede": "Google Drive ist tief integriert und unglaublich bequem, verarbeitet aber deine Inhalte für Suche, Vorschauen und smarte Funktionen und ist nicht Ende-zu-Ende-verschlüsselt. zcrypt verschlüsselt zuerst alles auf deinem Gerät, speichert es in Konten, die dir bereits gehören, und ist von oben bis unten Open Source.",
+          "secondary": "So funktioniert es"
+        },
+        "pillarsHead": {
+          "eyebrow": "Warum wechseln",
+          "title": "Was sich ändert, wenn niemand sonst hineinsehen kann"
+        },
+        "pillars": {
+          "onlyYou": {
+            "title": "Nur du kannst es lesen",
+            "desc": "Deine Passphrase leitet die Schlüssel auf deinem Gerät mit PBKDF2 (600k Iterationen) ab. Nichts (weder Suche noch smarte Funktionen noch wir) kann deine Dateien lesen, weil niemand sonst die Schlüssel hat."
+          },
+          "noScanning": {
+            "title": "Kein Scannen, niemals",
+            "desc": "Da Inhalte mit AES-256-GCM verschlüsselt werden, bevor sie dein Gerät verlassen, gibt es nichts zu scannen, zu indizieren oder auszuwerten. Der Server speichert undurchsichtigen Geheimtext, auch bei Ordnernamen."
+          },
+          "byos": {
+            "title": "Eigener Speicher",
+            "desc": "Verbinde ein GitHub-, GitLab-, Hugging-Face- oder Telegram-Konto, das dir bereits gehört. Kein gemeinsamer 15-GB-Pool, keine Gebühren pro Gigabyte von uns, keine künstlichen Grenzen."
+          },
+          "openSource": {
+            "title": "Open Source, selbst betreibbar",
+            "desc": "Lies den Code, prüfe die Kryptografie oder betreibe alles selbst. Wie mit deinen Dateien umgegangen wird, ist keine Blackbox."
+          }
+        },
+        "table": {
+          "lede": "Ein ehrlicher Blick darauf, wo jeder passt. Google Drive punktet bei Integration und Zusammenarbeit; zcrypt bei Privatsphäre, Eigentum und Offenheit."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Bei der Übertragung und im Ruhezustand verschlüsselt, mit von Google verwalteten Schlüsseln. Google kann deine Dateien entschlüsseln."
+          },
+          "zeroKnowledge": {
+            "other": "Nein. Inhalte werden für Suche, Vorschauen, smarte Funktionen und Richtlinienprüfungen verarbeitet."
+          },
+          "storage": {
+            "other": "Bei Google gehostet, geteilt über Drive, Gmail und Fotos. Bequem, aber es gehört dir nicht."
+          },
+          "free": {
+            "other": "15 GB kostenlos (geteilt über Google-Dienste); mehr gibt es nur mit einem kostenpflichtigen Google-One-Tarif."
+          },
+          "openSource": {
+            "other": "Proprietär, Closed Source."
+          },
+          "selfHost": {
+            "other": "Nur als gehosteter Google-Dienst."
+          },
+          "folders": {
+            "other": "Hervorragende Ordner, Suche und geteilte Ablagen, aber Namen und Inhalte sind für Google sichtbar."
+          },
+          "previews": {
+            "other": "Erstklassige Vorschauen und Bearbeitung in Docs/Sheets, möglich, weil Google die Dateien lesen kann."
+          },
+          "sharing": {
+            "other": "Sehr ausgereifte Freigabe und Zusammenarbeit in Echtzeit: auf Kosten des Zugriffs durch den Anbieter."
+          },
+          "lockIn": {
+            "other": "Hoch. Dateien, Formate und Arbeitsabläufe sind ans Google-Ökosystem gebunden."
+          }
+        },
+        "whenBetter": {
+          "p1": "Google Drive ist eines der leistungsfähigsten Produkte seiner Art, und es gibt viele Situationen, in denen es schlicht die richtige Antwort ist.",
+          "p2": "Wenn sich deine Arbeit um <b>Zusammenarbeit in Echtzeit in Docs, Sheets und Slides</b> dreht oder du in Gmail, Kalender und dem restlichen Google-Ökosystem lebst, ist die Integration von Drive unerreicht. Dass mehrere Personen live am selben Dokument arbeiten, kann ein im Ruhezustand verschlüsseltes Laufwerk grundsätzlich nicht leisten, denn dafür muss der Server den Inhalt lesen können.",
+          "p3": "Wenn du <b>leistungsstarke Suche in den Inhalten deiner Dateien</b>, KI-gestützte Funktionen oder automatische Fotoorganisation willst, setzt das voraus, dass Google deine Daten lesen kann. zcrypt kann das nicht anbieten, gerade weil es deine Dateien nicht sieht. Das ist der bewusste Kompromiss von Zero-Knowledge.",
+          "p4": "Und wenn ausgereifte native Mobile-Apps heute unverzichtbar sind: <b>Die Mobile-Apps von zcrypt stehen noch auf der Roadmap</b>. Wir liefern jetzt Web, Desktop und eine Android-Beta; die Mobile-Apps von Google Drive sind ausgereift und vollständig.",
+          "p5": "zcrypt passt besser, wenn du Speicher willst, der deine Dateien nachweislich nicht lesen kann, in Konten liegt, die dir bereits gehören, und hinter keinem proprietären Client etwas verbirgt."
+        }
+      },
+      "dropbox": {
+        "hero": {
+          "title": "Dropbox ist bequem. zcrypt ist privat",
+          "lede": "Dropbox ist ein ausgefeilter, reibungsloser Ort für Dateien, hält aber die Schlüssel und kann lesen, was du speicherst. zcrypt ist ein echtes verschlüsseltes Laufwerk: Alles wird auf deinem Gerät verschlüsselt, in Konten gespeichert, die dir bereits gehören, und der Code ist für jeden offen einsehbar.",
+          "secondary": "Das Laufwerk ansehen"
+        },
+        "pillarsHead": {
+          "eyebrow": "Warum wechseln",
+          "title": "Was du bekommst, das Dropbox dir nicht gibt"
+        },
+        "pillars": {
+          "keys": {
+            "title": "Du hältst die Schlüssel",
+            "desc": "Deine Passphrase leitet die Schlüssel auf deinem Gerät mit PBKDF2 (600k Iterationen) ab. Wir sehen sie nie. Verlierst du die Passphrase, können selbst wir deine Dateien nicht wiederherstellen, genau darum geht es."
+          },
+          "locked": {
+            "title": "Verschlossen, bevor es geht",
+            "desc": "Dateien werden mit AES-256-GCM verschlüsselt, bevor sie dein Gerät verlassen. Sogar Ordnernamen sind versiegelt, sodass der Server nur undurchsichtigen Geheimtext speichert und sonst nichts."
+          },
+          "byos": {
+            "title": "Eigener Speicher",
+            "desc": "Richte zcrypt auf ein GitHub-, GitLab-, Hugging-Face- oder Telegram-Konto aus, das dir bereits gehört. Keine Gebühren pro Gigabyte von uns und keine künstlichen Grenzen."
+          },
+          "openSource": {
+            "title": "Open Source, selbst betreibbar",
+            "desc": "Lies den Code, prüfe die Kryptografie oder betreibe alles selbst. Nichts daran, wie mit deinen Dateien umgegangen wird, versteckt sich hinter einem proprietären Client."
+          }
+        },
+        "table": {
+          "lede": "Ein ehrlicher Blick darauf, wo jeder passt. Dropbox punktet bei Feinschliff und Ökosystem; zcrypt bei Privatsphäre, Eigentum und Offenheit."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Bei der Übertragung und im Ruhezustand verschlüsselt, aber Dropbox verwaltet die Schlüssel und kann deine Dateien entschlüsseln."
+          },
+          "zeroKnowledge": {
+            "other": "Nein. Dropbox kann technisch auf Dateiinhalte für Vorschauen, Suche und Scans zugreifen."
+          },
+          "storage": {
+            "other": "Speicher auf der Infrastruktur von Dropbox. Einfach, aber das Backend gehört dir nicht."
+          },
+          "free": {
+            "other": "Begrenzte Gratis-Stufe (einige GB); nennenswerte Kapazität erfordert einen kostenpflichtigen Plus-/Professional-Tarif."
+          },
+          "openSource": {
+            "other": "Proprietäre Clients und proprietäres Backend, alles Closed Source."
+          },
+          "selfHost": {
+            "other": "Nur als gehosteter Dienst."
+          },
+          "folders": {
+            "other": "Ausgereifte, polierte Ordner und Synchronisierung. Hervorragende Organisation, aber Namen sind für Dropbox sichtbar."
+          },
+          "previews": {
+            "other": "Umfangreiche Vorschauen und Bearbeitung, serverseitig erzeugt, weil Dropbox die Dateien lesen kann."
+          },
+          "sharing": {
+            "other": "Sehr ausgereifte Freigabe, Links und Zusammenarbeit: auf Kosten des Zugriffs durch den Anbieter."
+          },
+          "lockIn": {
+            "other": "Höher. Daten und Arbeitsabläufe leben im Ökosystem von Dropbox."
+          }
+        },
+        "whenBetter": {
+          "p1": "Wir tun nicht so, als wäre zcrypt für alle die beste Wahl. Dropbox ist in dem, was es tut, wirklich hervorragend, und es gibt echte Situationen, in denen es das richtige Werkzeug ist.",
+          "p2": "Wenn du <b>gemeinsames Bearbeiten in Echtzeit</b>, tiefe Integrationen mit Office oder Google Workspace oder einen jahrzehntelang gereiften Desktop-Sync-Client brauchst, der auf jedem Gerät deines Teams einfach funktioniert, ist Dropbox schwer zu schlagen. Vorschauen, Kommentare und Versionsverlauf sind heute ausgefeilter als bei uns.",
+          "p3": "Wenn du ausdrücklich <b>willst, dass der Anbieter den Speicher für dich hostet und verwaltet</b> (keine Konten zu verbinden, keine Schlüssel zu merken), nimmt Dropbox dir diese Verantwortung komplett ab. Bei zcrypt sind deine Daten unwiederbringlich verloren, wenn du deine Passphrase verlierst. Dieser Kompromiss ist der Preis von Zero-Knowledge und nichts für jeden.",
+          "p4": "Und wenn du heute ausgereifte Mobile-Apps brauchst: <b>Die nativen Mobile-Apps von zcrypt stehen noch auf der Roadmap</b>. Wir liefern derzeit Web, Desktop und eine Android-Beta. Die mobile Erfahrung von Dropbox ist ausgereift und vollständig.",
+          "p5": "zcrypt passt besser, wenn Privatsphäre nicht verhandelbar ist: wenn du als Einziger deine Dateien lesen können willst, sie in Speicher ablegen möchtest, der dir bereits gehört, und genau nachprüfen willst, wie die Verschlüsselung funktioniert."
+        }
+      },
+      "protonDrive": {
+        "hero": {
+          "title": "Beide sind privat. Nur eines kannst du selbst betreiben",
+          "lede": "Proton Drive ist ein wirklich hervorragendes, geprüftes Zero-Knowledge-Laufwerk, und wir respektieren es. Die Unterschiede sind hier kleiner und eher philosophisch: zcrypt ist Open Source <em>und</em> selbst hostbar, speichert Dateien in Konten, die dir bereits gehören, und hat keine künstlichen Grenzen.",
+          "secondary": "So funktioniert es"
+        },
+        "respectNote": "<b>Ehre, wem Ehre gebührt.</b> Proton Drive ist Ende-zu-Ende-verschlüsselt, unabhängig geprüft, wird von einem etablierten Datenschutzunternehmen getragen und hat ausgereifte Mobile-Apps. Wenn du es mit zcrypt vergleichst, triffst du schon eine datenschutzbewusste Wahl. Auf dieser Seite geht es darum, welche Kompromisse zu dir passen, nicht darum, Proton Fehler zu unterstellen.",
+        "pillarsHead": {
+          "eyebrow": "Die Unterschiede",
+          "title": "Wo zcrypt seinen eigenen Weg geht",
+          "lede": "Bei der Verschlüsselung ist die Geschichte ähnlich. In diesen vier Punkten geht zcrypt einen anderen Weg."
+        },
+        "pillars": {
+          "openSource": {
+            "title": "Open Source, von oben bis unten",
+            "desc": "Wie bei Proton sind unsere Apps Open Source, und der Server ebenso. Du kannst alles prüfen, forken oder selbst betreiben. Es gibt keine geschlossene Komponente, der du blind vertrauen müsstest."
+          },
+          "byos": {
+            "title": "Eigener Speicher",
+            "desc": "Das ist der große Punkt. Statt eines von Proton gehosteten Kontingents richtest du zcrypt auf ein GitHub-, GitLab-, Hugging-Face- oder Telegram-Konto aus, das dir bereits gehört. Keine Gigabyte-Grenzen von uns, keine separate Speicherrechnung."
+          },
+          "selfHost": {
+            "title": "Den ganzen Stack selbst hosten",
+            "desc": "Betreibe deinen eigenen zcrypt-Server und behalte sowohl die Schlüssel als auch die Infrastruktur unter Kontrolle. Proton Drive gibt es nur gehostet. Eine eigene Instanz kannst du nicht betreiben."
+          }
+        },
+        "table": {
+          "lede": "Beide erfüllen die Datenschutz-Kriterien. Die Unterschiede liegen bei Hosting, Speicherhoheit und Werkzeugen."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Ende-zu-Ende-verschlüsselt, mit Schlüsseln aus deinem Passwort. Auch Proton kann deine Dateien nicht lesen."
+          },
+          "zeroKnowledge": {
+            "zcrypt": "Ja, standardmäßig. Dateiinhalte sind Zero-Knowledge, und Ordner- und Dateinamen werden clientseitig verschlüsselt. Proton ist ein ausgereiftes Zero-Knowledge-Produkt, das auch Datei-Metadaten verschlüsselt.",
+            "other": "Ja. Proton Drive ist wirklich Zero-Knowledge und verschlüsselt auch Datei-Metadaten."
+          },
+          "storage": {
+            "other": "Von Proton in Rechenzentren in der Schweiz und der EU gehostet. Seriös und verwaltet, aber Proton betreibt den Speicher."
+          },
+          "free": {
+            "zcrypt": "Kostenlos. Du stellst den Speicher, daher wird Kapazität weder gemessen noch pro Gigabyte verkauft.",
+            "other": "Großzügige Gratis-Stufe; mehr Speicher und Pakete erfordern einen kostenpflichtigen Proton-Tarif."
+          },
+          "openSource": {
+            "zcrypt": "Client und Server sind vollständig Open Source.",
+            "other": "Proton stellt seine Apps als Open Source bereit und veröffentlicht unabhängige Sicherheitsprüfungen."
+          },
+          "selfHost": {
+            "zcrypt": "Betreibe den gesamten Stack selbst, Client, Server und Speicher.",
+            "other": "Nur als gehosteter Proton-Dienst; einen eigenen Proton-Drive-Server kannst du nicht betreiben."
+          },
+          "folders": {
+            "zcrypt": "Echte verschachtelbare Ordner mit verschlüsselten Namen und optionalen Passwörtern pro Ordner.",
+            "other": "Solide verschlüsselte Ordner und ein aufgeräumtes Laufwerk-Erlebnis."
+          },
+          "previews": {
+            "zcrypt": "Bilder, Video, Audio, PDFs, Dokumente und Code: lokal im Browser entschlüsselt.",
+            "other": "Vorschauen im Browser mit clientseitiger Entschlüsselung, ein ähnlicher Ansatz."
+          },
+          "sharing": {
+            "other": "Ausgereifte verschlüsselte Freigabe mit passwortgeschützten und ablaufenden Links."
+          },
+          "lockIn": {
+            "zcrypt": "Minimal. Die Daten liegen in Speicher, der dir bereits gehört, und das Format ist offen.",
+            "other": "Mittel. Deine verschlüsselten Daten leben im gehosteten Ökosystem von Proton."
+          }
+        },
+        "whenBetter": {
+          "p1": "Proton Drive ist ein ernstzunehmendes, gut gebautes Produkt und für viele Menschen die klügere Wahl. Uns ist lieber, du wählst das passende Werkzeug als das mit unserem Namen.",
+          "p2": "Wenn du <b>ausgereifte native Mobile-Apps schon heute</b> willst, hat Proton sie und zcrypt nicht: Unsere Mobile-Apps stehen noch auf der Roadmap. Für Menschen, die Dateien hauptsächlich vom Handy aus verwalten, kann allein dieser Unterschied entscheiden.",
+          "p3": "Wenn dir eine <b>einzige, vollständig verwaltete Datenschutz-Suite</b> wichtig ist (Drive, Mail, Kalender und VPN bei einem geprüften Anbieter unter Schweizer/EU-Recht), liefert Proton das als stimmiges Paket. zcrypt konzentriert sich darauf, ein verschlüsseltes Laufwerk zu sein, kein Ökosystem.",
+          "p4": "Wenn du <b>dich gar nicht um eigenen Speicher oder Infrastruktur kümmern</b> willst, erledigt Proton alles für dich. Das Bring-your-own-Storage-Modell von zcrypt ist mächtig, verlangt aber, dass du ein Konto verbindest und Verantwortung für deine Passphrase übernimmst. Und einige unserer fortgeschritteneren Funktionen für die Zusammenarbeit, etwa geteilte Tresore, sind noch in der Beta.",
+          "p5": "zcrypt passt besser, wenn du ein verschlüsseltes Laufwerk willst, das du vollständig selbst hosten, in Konten ablegen, die dir bereits gehören, und ohne künstliche Grenzen skalieren kannst, alles Open Source und kostenlos."
+        }
+      }
+    }
+  }
 }

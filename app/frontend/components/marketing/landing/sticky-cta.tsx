@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, X } from "@/lib/icons";
@@ -21,6 +22,7 @@ function readDismissed() {
 
 /** Phone-only sign-up bar: appears once How it works is reached, hides at the closing CTA and footer. */
 export function StickyCta() {
+  const t = useTranslations("site");
   const reduce = useReducedMotion();
   const [past, setPast] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -81,7 +83,7 @@ export function StickyCta() {
         <motion.div
           key="zk-bar"
           role="region"
-          aria-label="Get started"
+          aria-label={t("home.sticky.region")}
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
           animate={{
             opacity: 1,
@@ -96,7 +98,7 @@ export function StickyCta() {
           className="zk-bar lg-panel fixed right-3 left-3 z-40 flex h-[60px] items-center gap-1.5 rounded-[20px] corner-squircle py-2 pr-1 pl-4 md:hidden"
         >
           <p className="min-w-0 flex-1 text-[14px] leading-tight font-medium text-pretty text-[var(--color-text)]">
-            Free. Nothing to set up.
+            {t("home.sticky.text")}
           </p>
           <Link
             href="/register"
@@ -105,13 +107,13 @@ export function StickyCta() {
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]",
             )}
           >
-            Start free
+            {t("home.sticky.cta")}
             <ArrowRight aria-hidden="true" className="h-4 w-4" />
           </Link>
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Hide the sign-up bar"
+            aria-label={t("home.sticky.hide")}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)]/70 hover:text-[var(--color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
           >
             <X aria-hidden="true" className="h-4 w-4" />

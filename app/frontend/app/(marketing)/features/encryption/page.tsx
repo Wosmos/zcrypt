@@ -12,6 +12,7 @@ import { SectionHead } from "@/components/marketing/landing/section-head";
 import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
 import { encryption } from "../_data/encryption";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -69,7 +70,7 @@ export default function EncryptionPage() {
                 <div>
                   <div className="pv2-h3 text-base">{boundary.device.title}</div>
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--pv2-accent-ink)]">
-                    Trusted zone
+                    <T k="site.features.encryption.boundary.trustedZone" />
                   </div>
                 </div>
               </div>
@@ -85,7 +86,8 @@ export default function EncryptionPage() {
             <div className="flex flex-row items-center justify-center gap-2 md:flex-col">
               <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-[var(--color-border)] to-transparent md:block" />
               <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                <Lock className="h-3 w-3 text-[var(--pv2-accent-ink)]" /> Encryption boundary
+                <Lock className="h-3 w-3 text-[var(--pv2-accent-ink)]" />{" "}
+                <T k="site.features.encryption.boundary.label" />
               </span>
               <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-[var(--color-border)] to-transparent md:block" />
             </div>
@@ -97,7 +99,7 @@ export default function EncryptionPage() {
                 <div>
                   <div className="pv2-h3 text-base">{boundary.server.title}</div>
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Ciphertext only
+                    <T k="site.features.encryption.boundary.ciphertextOnly" />
                   </div>
                 </div>
               </div>
@@ -115,9 +117,9 @@ export default function EncryptionPage() {
 
       {/* ═══ GUARANTEES ═══ */}
       <CapabilityGrid
-        eyebrow="The guarantees"
-        heading="What we can and can't see"
-        subheading="Not a privacy policy promise. A cryptographic one: enforced by where the keys live and what code runs where."
+        eyebrow={<T k="site.features.encryption.guarantees.eyebrow" />}
+        heading={<T k="site.features.encryption.guarantees.heading" />}
+        subheading={<T k="site.features.encryption.guarantees.subheading" />}
         items={guarantees}
       />
 
@@ -134,12 +136,12 @@ export default function EncryptionPage() {
 
           <div className="mt-10">
             <CodePanel
-              comment="// what actually lands on the server"
-              success="✓ no passphrase. no derived key. no plaintext. no readable names."
+              comment={<T k="site.features.encryption.panel.comment" />}
+              success={<T k="site.features.encryption.panel.success" />}
             >
               <div className="break-all">
                 <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span>{" "}
-                8e30dd·91ac0c·77ae3f·b8d40e, sealed under your passphrase
+                8e30dd·91ac0c·77ae3f·b8d40e, <T k="site.features.encryption.panel.wrappedTail" />
               </div>
               <div className="mt-1.5 break-all">
                 <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span>{" "}
@@ -161,7 +163,7 @@ export default function EncryptionPage() {
       {/* ═══ THE TRADE-OFF (HONESTY) ═══ */}
       <TieInSection
         join
-        eyebrow="The honest trade-off"
+        eyebrow={<T k="site.features.encryption.tieIn.eyebrow" />}
         heading={tieIn.heading}
         body={tieIn.body}
         checklist={tieIn.checklist}

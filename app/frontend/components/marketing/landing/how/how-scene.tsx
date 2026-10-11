@@ -1,12 +1,21 @@
 import type { CSSProperties } from "react";
+import { T } from "@/components/i18n/t";
 import { Lock, Plus, UploadCloud, Video } from "@/lib/icons";
-import { CAPTIONS, FILE, PIECES, PLATFORMS, pieceHex, type HowPart } from "./how-data";
+import {
+  CAPTIONS,
+  FILE,
+  type Caption,
+  PIECES,
+  PLATFORMS,
+  pieceHex,
+  type HowPart,
+} from "./how-data";
 
 export type ScenePart = "all" | HowPart;
 
 const STORE_TILES = new Set(["telegram", "github"]);
 
-function captionsFor(part: ScenePart): readonly string[] {
+function captionsFor(part: ScenePart): readonly Caption[] {
   if (part === "all") return [...CAPTIONS.connect, ...CAPTIONS.drop, ...CAPTIONS.store];
   return CAPTIONS[part];
 }
@@ -23,8 +32,8 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
       <div className="zw-in">
         <div className="zw-caps">
           {caps.map((c, i) => (
-            <span key={c} className="zw-cap" data-cap={i}>
-              {c}
+            <span key={"k" in c ? c.k : c.raw} className="zw-cap" data-cap={i}>
+              {"k" in c ? <T k={c.k} /> : c.raw}
             </span>
           ))}
         </div>
@@ -65,13 +74,15 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                 </div>
               );
             })}
-            <span className="zw-more">+ hundreds more</span>
+            <span className="zw-more">
+              <T k="site.home.how.more" />
+            </span>
           </div>
         ) : null}
 
         {tiles.length ? (
           <ul className="zw-tiles" data-count={tiles.length}>
-            {tiles.map(({ key, name, limit, tint, Mark }) => (
+            {tiles.map(({ key, name, tint, Mark }) => (
               <li
                 key={key}
                 className="zw-tile corner-squircle"
@@ -83,7 +94,9 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                   <Mark className="h-[18px] w-[18px]" />
                 </span>
                 <span className="zw-tname">{name}</span>
-                <span className="zw-limit">{limit}</span>
+                <span className="zw-limit">
+                  <T k={`site.home.how.limits.${key}`} />
+                </span>
                 {key === "github" ? (
                   <span className="zw-meter">
                     <i className="zw-meter-fill" />
@@ -91,11 +104,13 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                 ) : null}
                 <span className="zw-status">
                   <i className="zw-live" />
-                  Connected
+                  <T k="site.home.how.connected" />
                 </span>
                 {key === "telegram" ? (
                   <>
-                    <span className="zw-count">+ pieces</span>
+                    <span className="zw-count">
+                      <T k="site.home.how.pieces" />
+                    </span>
                     <span className="zw-stack">
                       <i />
                       <i />
@@ -107,7 +122,7 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                 {key === "github" ? (
                   <span className="zw-ghost">
                     <Plus className="h-3 w-3" />
-                    New spot
+                    <T k="site.home.how.newSpot" />
                   </span>
                 ) : null}
               </li>

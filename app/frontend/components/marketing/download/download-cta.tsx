@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Download, ChevronDown, ArrowRight } from "@/lib/icons";
 import {
   RELEASES_FALLBACK_URL,
@@ -51,9 +52,10 @@ function Note({ children }: { children: React.ReactNode }) {
 }
 
 function WebApp() {
+  const t = useTranslations("site");
   return (
     <PillLink href="/register" variant="secondary">
-      Start free in the browser
+      {t("download.cta.webApp")}
     </PillLink>
   );
 }
@@ -64,6 +66,7 @@ function WebApp() {
  * platform grid / releases page while loading or when detection fails.
  */
 export function DownloadCta({ release }: { release: ReleaseData | null }) {
+  const t = useTranslations("site");
   const device = useSyncExternalStore(noopSubscribe, detectDevice, () => null);
   const [macIntel, setMacIntel] = useState(false);
 
@@ -93,12 +96,10 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
       <>
         <Link href="/register" className={PRIMARY_BTN}>
           <IosGlyph className="h-4 w-4" />
-          Use the web app
+          {t("download.cta.useWebApp")}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
-        <Note>
-          There&apos;s no iOS app yet. The web app works fully in Safari, no install needed.
-        </Note>
+        <Note>{t("download.cta.noIos")}</Note>
       </>
     );
   }
@@ -111,18 +112,18 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
       <>
         <a href={ANDROID_APK_URL} className={PRIMARY_BTN}>
           <AndroidGlyph className="h-4 w-4" />
-          Download APK for Android
+          {t("download.cta.apkAndroid")}
           <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
         <WebApp />
         <Note>
-          Sideloaded, not Play Store
+          {t("download.cta.sideloaded")}
           <span aria-hidden> · </span>
           <a
             href="#android"
             className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
           >
-            install steps &amp; QR code
+            {t("download.cta.installSteps")}
           </a>
         </Note>
       </>
@@ -139,19 +140,21 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
       <>
         <a href="#desktop" className={PRIMARY_BTN}>
           <LinuxGlyph className="h-4 w-4" />
-          Download for Linux
+          {t("download.cta.downloadFor", { os: OS_LABEL.linux })}
           <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
         <WebApp />
         <Note>
-          Fedora, Debian/Ubuntu, or a portable build. Pick yours below, or{" "}
-          <a
-            href="#install"
-            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
-          >
-            install with one command
-          </a>
-          .
+          {t.rich("download.cta.linuxNote", {
+            install: (chunks) => (
+              <a
+                href="#install"
+                className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
         </Note>
       </>
     );
@@ -176,7 +179,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
       <>
         <a href={primary.href} className={PRIMARY_BTN}>
           <Glyph className="h-4 w-4" />
-          Download for {OS_LABEL[platform.id]}
+          {t("download.cta.downloadFor", { os: OS_LABEL[platform.id] })}
           <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
         <WebApp />
@@ -187,14 +190,14 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
             href="#desktop"
             className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
           >
-            Other options
+            {t("download.cta.otherOptions")}
           </a>
           <span aria-hidden> · </span>
           <a
             href="#install"
             className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
           >
-            Install with one command
+            {t("download.cta.installOneCommand")}
           </a>
         </Note>
       </>
@@ -207,11 +210,11 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
     <>
       <a href={href} className={PRIMARY_BTN}>
         <Download className="h-4 w-4" />
-        Download zcrypt
+        {t("download.cta.downloadZcrypt")}
         <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
       </a>
       <WebApp />
-      <Note>Pick your platform below: macOS, Windows, Linux &amp; Android.</Note>
+      <Note>{t("download.cta.pickPlatform")}</Note>
     </>
   );
 }

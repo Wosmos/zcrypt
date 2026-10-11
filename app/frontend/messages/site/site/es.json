@@ -1,3 +1,2127 @@
 {
-  "site": {}
+  "site": {
+    "chrome": {
+      "skipToContent": "Saltar al contenido",
+      "seeAlso": "Véase también:",
+      "social": {
+        "portfolio": "Portafolio",
+        "email": "Correo"
+      },
+      "featuresNav": {
+        "encrypted-drive": {
+          "title": "Unidad cifrada",
+          "desc": "Un explorador de archivos de verdad: carpetas, vista de cuadrícula y lista, búsqueda y orden, todo cifrado en tu dispositivo."
+        },
+        "folders": {
+          "title": "Carpetas cifradas",
+          "desc": "Carpetas anidables con nombres cifrados, y una contraseña aparte para cada carpeta."
+        },
+        "file-viewers": {
+          "title": "Visores de archivos",
+          "desc": "Previsualiza imágenes, vídeo, audio, PDF, documentos y código, descifrados en local."
+        },
+        "sharing": {
+          "title": "Compartir",
+          "desc": "Comparte enlaces con contraseña, caducidad y límites opcionales. La clave se queda en la URL."
+        },
+        "encryption": {
+          "title": "Cifrado de conocimiento cero",
+          "desc": "AES-256-GCM en tu dispositivo. El servidor solo ve texto cifrado."
+        },
+        "bring-your-own-storage": {
+          "title": "Trae tu propio almacenamiento",
+          "desc": "Usa GitHub, GitLab, Hugging Face o Telegram. Tus datos, sin ataduras."
+        },
+        "transfers": {
+          "title": "Gestor de transferencias",
+          "desc": "Pausa, reanuda, reintenta y sigue cada subida y descarga en un solo lugar."
+        },
+        "privacy": {
+          "title": "Herramientas de privacidad",
+          "desc": "Perfil señuelo e interruptor de hombre muerto, con sus límites reales explicados."
+        },
+        "apps": {
+          "title": "Web, escritorio y Android",
+          "desc": "El mismo núcleo de conocimiento cero en todas las plataformas, incluida una app de Android basada en Rust."
+        }
+      }
+    },
+    "about": {
+      "hero": {
+        "eyebrow": "Quién está realmente detrás de esto",
+        "title": "Hola, soy Wasif. Solo quería almacenamiento gratis",
+        "subtext": "Wasif Malik, o <b>Wosmo</b> para internet. Un ingeniero full-stack de Karachi, Pakistán, que necesitaba un sitio donde guardar un montón de archivos, no encontró almacenamiento que no quisiera leerlos también y, en lugar de dejarlo pasar como una persona razonable, pasó unos meses construyéndose el suyo. Eso es zcrypt. Aquí detrás solo estoy yo: sin equipo, sin inversores, sin «familia zcrypt». Lo que casi siempre significa que cuando algo falla, ya sé de quién es la culpa.",
+        "primary": "Ver mi portafolio"
+      },
+      "chips": {
+        "location": "Karachi, Pakistán",
+        "role": "Ingeniero full-stack",
+        "openBuilding": "Construyendo en abierto"
+      },
+      "trust": {
+        "eyebrow": "Por qué mi nombre está en esto",
+        "body": "Una herramienta que guarda tus claves debería decirte, al menos, a quién echarle la culpa. Pues a mí. Aquí mismo. No hay un «nosotros» misterioso tras el que esconderme cuando algo falla, ni un «el equipo lo está investigando». Hay un equipo. Soy yo. El cifrado se ejecuta en tu dispositivo antes de subir nada, así que no puedo leer tus archivos. Lo he probado con mis propios datos de prueba. No puedo. Ese es todo el punto."
+      },
+      "origin": {
+        "eyebrow": "La historia de origen",
+        "heading": "Cómo nació zcrypt de verdad",
+        "p1": "Hace un par de meses estaba mudando toda mi vida entre equipos: más de 50 gigas de proyectos, fotos RAW y ediciones a medio terminar que juro que algún día retomaré. De esos archivos que no puedes volver a descargar sin más.",
+        "p2": "Google Drive me dio un toque en el hombro a los 15 GB y me pidió la tarjeta. Así que hice lo más razonable: me abrí una segunda cuenta. Luego una tercera. Durante una semana repartí una carpeta entre tres cuentas como un contrabandista digital de bajo presupuesto, orgulloso en secreto de un sistema sujeto con cinta adhesiva.",
+        "p3": "Entonces probé TeraBox. «Un terabyte, gratis», decían. Lo que no decían: el botón de descarga está escondido como un secreto de Estado, tus archivos viven discretamente en <em>sus</em> servidores y la letra pequeña trata tus datos como suyos para escanearlos y aprender de ellos. Me cayó el veinte cuando subí una carpeta de 4 GB, la vi arrastrarse hasta el 80 % y la vi fallar. Mi primer pensamiento no fue «voy a reintentarlo». Fue «¿por qué le estoy entregando toda mi vida a una empresa cuyo negocio entero es saber lo que hay dentro?».",
+        "p4": "Y aquí viene la parte de la que no puedo llevarme el mérito, porque es simplemente verdad: el almacenamiento gratis nunca fue gratis. Solo que no había leído la etiqueta del precio, porque la etiqueta del precio soy yo. Son empresas de miles de millones; la privacidad no es una función que se les olvidó añadir, es justo aquello contra lo que venden.",
+        "p5": "Así que dejé de quejarme en internet y me puse a construir, que en el fondo es quejarse con pasos extra. La idea era sencilla aunque el código no lo fuera para nada: cifra tus archivos en tu dispositivo antes de que salgan, para que ni yo pueda leerlos, y guárdalos en la infraestructura que ya es tuya y en la que confías. Sin nuevo imperio de datos. Sin un cartel de «valoramos tu privacidad» que significa justo lo contrario. Solo tus archivos, bajo llave, tuyos.",
+        "pullQuote": "El almacenamiento gratis nunca fue gratis. Solo que no había leído la etiqueta del precio, porque la etiqueta del precio era yo.",
+        "after1": "Lo estoy construyendo en público: los logros, los bugs y los commits de las 2 de la madrugada de «por qué se reinicializa este módulo WASM». Somos yo y una cantidad preocupante de café, así que sí, habrá asperezas. El cifrado no es una de ellas: es de código abierto y no puedo leer tus archivos aunque quisiera. (No quiero. Pero tampoco podría.)",
+        "philosophyLink": "La versión más larga y quejica está en la página de filosofía"
+      },
+      "projects": {
+        "eyebrow": "Misiones secundarias",
+        "heading": "Otras cosas que he construido",
+        "intro": "Tengo la mala costumbre de construirlo todo yo mismo: frontend, backend y los rincones incómodos de en medio. Algunos otros que (casi siempre) funcionan:",
+        "learnity": "Plataforma de aprendizaje con IA, con cursos gamificados y seguimiento del progreso.",
+        "docxo": "Documentos colaborativos en tiempo real: varios cursores, edición en vivo, cero retardo.",
+        "tellow": "App multiplataforma de videollamadas con salas, chat y pantalla compartida.",
+        "netlink": "Un backend de chat en Go creado para aguantar miles de conexiones WebSocket simultáneas.",
+        "devtoolshq": "Un panel de herramientas de desarrollo de uso diario: formateadores, conversores, generadores.",
+        "resumeright": "Un optimizador de currículums con IA que puntúa según los filtros ATS y reescribe las líneas flojas.",
+        "portfolioLink": "Ver todo en mi portafolio"
+      },
+      "stack": {
+        "eyebrow": "Caja de herramientas",
+        "heading": "Los sospechosos habituales",
+        "intro": "Las herramientas a las que recurro, desde el navegador hasta los bytes en disco:"
+      },
+      "cta": {
+        "eyebrow": "Saluda",
+        "heading": "Construyamos algo",
+        "body": "Estoy abierto a nuevos proyectos y trabajo freelance, y respondo yo mismo a mis mensajes, sobre todo porque no hay nadie más a quien pasárselos. Elige una puerta:"
+      }
+    },
+    "philosophy": {
+      "hero": {
+        "eyebrow": "Por qué zcrypt",
+        "title": "Por qué construimos zcrypt",
+        "lede": "Una conversación pendiente desde hace mucho sobre quién es dueño de tus datos, quién se lucra con ellos y por qué eso tiene que cambiar."
+      },
+      "short": {
+        "eyebrow": "La versión corta",
+        "body": "Casi todo el almacenamiento en la nube consiste en alquilar espacio en servidores ajenos, donde <em>ellos</em> tienen las claves de tus archivos. zcrypt es distinto. Tus archivos se cifran en tu dispositivo y luego se guardan en el espacio gratuito que ya tienes en cuentas que <em>tú</em> controlas: GitHub, GitLab, Hugging Face o Telegram. Solo tú puedes leerlos, solo te limita tu propio almacenamiento, y es gratis y de código abierto."
+      },
+      "rent": {
+        "eyebrow": "El alquiler",
+        "title": "La nube es solo el ordenador de otro",
+        "p1": "Y te cobran alquiler por vivir en él.",
+        "p2": "En algún momento de la última década, la industria tecnológica logró uno de los grandes trucos de marketing de la historia: convenció a miles de millones de personas de dejar de guardar archivos en hardware propio y de pagar cada mes por el privilegio de guardarlos en hardware ajeno.",
+        "p3": "Es el equivalente digital a alquilar un trastero para cosas que ya caben en tu casa. Solo que el trastero además lee tu correo, indexa tus álbumes de fotos y te sube el alquiler cada año.",
+        "quote": "El almacenamiento en la nube es un negocio de casero con mejores relaciones públicas.",
+        "p4": "AWS S3 cobra 23 $ por terabyte al mes. Son 276 $ al año por un terabyte de almacenamiento. Un disco duro de 4 TB cuesta 80 $ en Amazon, el mismo Amazon. Podrías comprar el hardware físico para guardar tus datos cuatro veces con lo que te cobran en un solo año por guardarlos en sus servidores.",
+        "p5": "El margen no es del 100 %. Ni del 500 %. El margen del almacenamiento en la nube se mide en miles por ciento, y toda la industria ha acordado colectivamente fingir que es normal."
+      },
+      "loophole": {
+        "eyebrow": "La rendija",
+        "title": "El almacenamiento Git, la rendija de la que nadie habla",
+        "p1": "GitLab te da 10 GB por repositorio. Gratis. Hugging Face te da 100 GB por cuenta. GitHub ni siquiera publica un límite estricto: basta con mantenerte por debajo de unos pocos gigas y nadie parpadea. No son condiciones ocultas en jerga legal, son límites publicados (y normas no escritas) que los equipos de estas plataformas mantienen y respaldan activamente.",
+        "p2": "Esto no es un fallo. Es una función. Estas plataformas necesitan almacenamiento generoso para alojar repositorios grandes, modelos de ML y archivos binarios. Construyeron la infraestructura. Pusieron los límites. Nosotros solo la usamos como está pensada: para guardar datos.",
+        "quote": "Cada terabyte que guardamos gratis es un terabyte que AWS no puede facturar.",
+        "p3": "zcrypt toma tus archivos, los comprime con Zstd, los cifra con AES-256-GCM, los divide en fragmentos manejables y los guarda como datos de aspecto corriente en repositorios de la plataforma que conectes. Para la plataforma parecen artefactos de compilación. Para ti son tus archivos cifrados, accesibles desde cualquier lugar y sin coste.",
+        "p4": "<b>¿Es seguro y duradero?</b> Sí. Tus datos se guardan como contenido normal de repositorio privado, justo el tipo de datos binarios grandes que estas plataformas están hechas para alojar. zcrypt reparte los datos automáticamente entre repositorios y pasa a otros nuevos cuando se llenan, así que te mantienes bien dentro de los límites normales de cada plataforma. Y tus archivos siempre se pueden recuperar: los fragmentos cifrados se verifican y se reensamblan al descargar."
+      },
+      "zk": {
+        "eyebrow": "Las matemáticas",
+        "title": "El conocimiento cero no es una palabra de moda del marketing",
+        "p1": "Cuando Dropbox dice «nos tomamos la seguridad en serio», lo que quiere decir es que cifra tus archivos con claves que controla ella. Pueden leer tus archivos. Sus empleados pueden leer tus archivos. Escanean tus archivos para crear índices de búsqueda. ¿Requerimientos judiciales? Entregan tus datos porque pueden.",
+        "p2": "Cuando decimos «conocimiento cero», nos referimos al tipo matemático. Tu frase de contraseña nunca sale de tu dispositivo. Derivamos las claves de cifrado en local con PBKDF2 y 600.000 iteraciones. Los datos cifrados que se suben son indistinguibles del ruido aleatorio.",
+        "quote": "No podemos leer tus archivos. No por educación. Sino porque literalmente no tenemos las claves.",
+        "p3": "AES-256-GCM ofrece cifrado autenticado, lo que significa que cualquier manipulación del texto cifrado se detecta. El modo GCM da confidencialidad e integridad en una sola pasada. Sin un paso HMAC aparte. Sin margen para errores de implementación.",
+        "p4": "Esto no es teatro de seguridad. Es el mismo estándar de cifrado que usan las agencias de inteligencia. La diferencia es que te lo damos gratis, no por 23 $/TB al mes."
+      },
+      "open": {
+        "eyebrow": "Las pruebas",
+        "title": "Código abierto, porque hablar es barato",
+        "p1": "Todo proveedor de nube te pide que confíes en él. Que confíes en su cifrado. Que confíes en sus controles de acceso. Que confíes en que el ingeniero con acceso de administrador no echará un vistazo a tus fotos de vacaciones.",
+        "p2": "Nosotros no te pedimos que confíes en nosotros. Te pedimos que leas el código.",
+        "p3": "Cada línea de zcrypt es de código abierto. La implementación del cifrado. El algoritmo de fragmentación. El flujo de subida. La derivación de claves. Si hay una vulnerabilidad, la encontrarás antes que nosotros, porque tienes el mismo acceso al código fuente que tenemos nosotros.",
+        "quote": "La mejor auditoría de seguridad son 10.000 desconocidos leyendo tu código."
+      },
+      "endgame": {
+        "eyebrow": "El desenlace",
+        "title": "Almacenamiento que no cuesta nada",
+        "p1": "Un mundo donde guardar tus archivos personales cuesta 0 $ y tus datos te pertenecen.",
+        "p2": "¿Revolucionario? No. ¿Obvio? Sí. ¿Hecho? Por fin.",
+        "p3": "La tecnología para un almacenamiento gratuito, cifrado y distribuido existe desde hace años. El alojamiento Git es gratis desde hace más de una década. AES-256 es un estándar abierto desde 2001. La compresión Zstd es de código abierto desde 2016. Lo único que hace zcrypt es unir los puntos que la industria tenía todos los motivos para dejar sin unir.",
+        "p4": "Porque cada punto unido es una fuente de ingresos cortada.",
+        "quote": "Tenían todos los motivos para no construir esto jamás. Así que lo hicimos nosotros."
+      },
+      "who": {
+        "eyebrow": "El autor",
+        "title": "El «nosotros» es casi todo un solo tipo",
+        "p1": "¿La verdad? Casi todo un solo tipo. Soy Wasif Malik, un ingeniero full-stack que quería mucho almacenamiento gratis, no encontró ninguno que no leyera sus archivos y se enfadó lo bastante como para construir la alternativa en vez de limitarse a publicar quejas. zcrypt es mío de principio a fin: el cifrado, el flujo de subida, la unidad y esta misma página que estás leyendo.",
+        "p2": "Digo «nosotros» por costumbre, no para esconderme tras un logotipo, y justo aquí eso importa. Una herramienta que te pide confiarle tus claves debería decirte exactamente quién escribió el código que las guarda. Sin fundador anónimo. Sin empresa pantalla. Solo mi nombre, a la vista, aquí mismo.",
+        "cardCaption": "Wasif Malik, la empresa de una sola persona detrás de zcrypt.",
+        "readStory": "Leer la historia"
+      }
+    },
+    "download": {
+      "hero": {
+        "badge": "Apps para cada dispositivo",
+        "title": "Tu unidad, en cada dispositivo",
+        "subtext": "Apps nativas de escritorio, una app para Android y una app web que no necesita instalación. La misma unidad privada en todas partes, cifrada en tu dispositivo antes de que nada salga de él.",
+        "trust": {
+          "free": "Gratis y de código abierto",
+          "onlyYou": "Solo tú puedes abrir tus archivos",
+          "noTelemetry": "Sin telemetría"
+        }
+      },
+      "desktop": {
+        "eyebrow": "Escritorio",
+        "heading": "Apps de escritorio",
+        "subheading": "Una app nativa creada con Tauri que ejecuta {engine}, el motor {language} integrado, para que tus archivos se cifren en tu dispositivo antes de salir de él.",
+        "blurb": {
+          "macos": "Apple Silicon, macOS 11 Big Sur o posterior.",
+          "windows": "Windows 10 y 11, 64 bits.",
+          "linux": "64 bits. Elige el paquete de tu distribución o la versión portátil para cualquier otra."
+        },
+        "security": {
+          "macos": {
+            "title": "macOS la bloqueará una vez, es lo esperado",
+            "body": "zcrypt aún no está notarizado, así que macOS dice que no puede verificar la app la primera vez que la abres. Haz clic en Hecho, abre Ajustes del Sistema → Privacidad y seguridad, desplázate hacia abajo y haz clic en Abrir de todos modos. Es un paso que se hace una sola vez. O sáltatelo por completo con la instalación de una línea de abajo."
+          },
+          "windows": {
+            "title": "Windows SmartScreen la marcará, es lo esperado",
+            "body": "Todavía no hemos comprado un certificado de firma de código, así que Windows trata el instalador como no reconocido. Haz clic en \"Más información\" y luego en \"Ejecutar de todas formas\". Es normal en una app publicada de forma independiente sin certificado de pago y no significa que el archivo tenga algún problema. O sáltatelo con la instalación de PowerShell de una línea de abajo."
+          }
+        },
+        "tapHow": ": toca para ver cómo continuar",
+        "downloadFor": "Descargar para {name}",
+        "also": "también",
+        "loadFail": "No se pudieron cargar las últimas versiones ahora mismo.",
+        "viewAll": "Ver todas las descargas en GitHub",
+        "fallback": "No se pudo conectar con GitHub para la última versión, se muestra <b>v{version}</b>. <releases>Buscar una más reciente</releases>",
+        "options": {
+          "installer": "Instalador",
+          "msiPackage": "Paquete MSI",
+          "portable": "Portátil"
+        },
+        "appImageNote": "Configuración única: ejecuta chmod +x sobre el archivo y luego ábrelo. En Fedora, instala también FUSE antes: sudo dnf install fuse.",
+        "allReleases": "¿Buscas una compilación concreta o una versión anterior? Consulta <releases>todas las versiones en GitHub</releases>."
+      },
+      "android": {
+        "heading": "En tu móvil, con instalación manual",
+        "subheading": "No está en Play Store, así que descarga el APK directamente e instálalo tú mismo. Lleva alrededor de un minuto.",
+        "title": "zcrypt para Android",
+        "beta": "Beta",
+        "sideload": "Instala el APK manualmente: la misma unidad, sin esperar a Play Store.",
+        "downloadApk": "Descargar APK",
+        "copyLink": "Copiar enlace",
+        "copied": "Copiado",
+        "steps": "Abre el archivo, permite instalar desde esta fuente una vez e instala. Android avisa de \"desarrollador desconocido\" para todo lo que no viene de Play; es la <ci>misma CI pública</ci> que todo lo demás de aquí.",
+        "scan": "Escanea para instalar en tu móvil"
+      },
+      "openSource": {
+        "heading": "Cada compilación es de código abierto",
+        "body": "Escritorio, Android y web, todo compilado a la vista de todos desde el mismo repositorio. Lee el código, comprueba las sumas de verificación o compílalo tú mismo.",
+        "githubCta": "Código en GitHub",
+        "selfHostCta": "Aloja zcrypt tú mismo",
+        "count": "<b>{n}</b> descargas y sumando"
+      },
+      "web": {
+        "eyebrow": "Sin instalar",
+        "heading": "¿Prefieres no instalar nada?",
+        "body": "La unidad cifrada completa funciona en cualquier navegador moderno: carpetas, vistas previas, uso compartido y transferencias. Todo sigue cifrándose en tu dispositivo. Nada que descargar.",
+        "cta": "Empieza gratis"
+      },
+      "cta": {
+        "webApp": "Empieza gratis en el navegador",
+        "useWebApp": "Usar la app web",
+        "noIos": "Todavía no hay app para iOS. La app web funciona por completo en Safari, sin instalar nada.",
+        "apkAndroid": "Descargar APK para Android",
+        "sideloaded": "Instalación manual, no desde Play Store",
+        "installSteps": "pasos de instalación y código QR",
+        "downloadFor": "Descargar para {os}",
+        "linuxNote": "Fedora, Debian/Ubuntu o una versión portátil. Elige la tuya abajo o <install>instala con un solo comando</install>.",
+        "otherOptions": "Otras opciones",
+        "installOneCommand": "Instalar con un solo comando",
+        "downloadZcrypt": "Descargar zcrypt",
+        "pickPlatform": "Elige tu plataforma abajo: macOS, Windows, Linux y Android."
+      },
+      "install": {
+        "title": "Instala con un solo comando",
+        "skipsTerminal": "Evita el aviso de \"app no verificada\". Pégalo en una terminal.",
+        "skipsPowerShell": "Evita el aviso de \"app no verificada\". Pégalo en PowerShell.",
+        "osLabel": "Sistema operativo",
+        "hint": {
+          "macos": "Instala zcrypt en Aplicaciones y lo abre. Sin aviso de seguridad y sin necesitar Homebrew.",
+          "windows": "Instala zcrypt para tu cuenta y lo inicia. Sin permisos de administrador y sin aviso de SmartScreen.",
+          "linux": "Usa apt o dnf cuando puede; si no, instala el AppImage en ~/.local/bin."
+        },
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "copyCommand": "Copiar el comando de {shell}",
+        "homebrew": "¿Ya usas Homebrew?"
+      }
+    },
+    "tools": {
+      "seeFeatures": "Ver funciones",
+      "send": {
+        "hero": {
+          "badge": "Cifrado de extremo a extremo",
+          "titleLead": "Envía archivos de forma segura.",
+          "titleAccent": "Sin necesidad de cuenta.",
+          "subtitle": "Suelta un archivo y obtén un enlace cifrado. Tu archivo se cifra en el navegador con AES-256 antes de subirse. La clave de descifrado nunca toca nuestros servidores."
+        },
+        "how": {
+          "title": "Cómo funciona compartir archivos cifrados",
+          "lede": "Tres pasos. Sin cuentas. Sin rastreo. Tu privacidad está integrada en el protocolo.",
+          "s1": {
+            "title": "Suelta tu archivo",
+            "desc": "Elige cualquier archivo de hasta 50 MB. Nunca sale de tu navegador sin cifrar."
+          },
+          "s2": {
+            "title": "Cifrado automático",
+            "desc": "Tu archivo se cifra con una clave AES-256-GCM única generada en tu navegador."
+          },
+          "s3": {
+            "title": "Comparte el enlace",
+            "desc": "La clave de descifrado va incrustada en el fragmento de la URL. Solo el destinatario puede descifrar."
+          }
+        },
+        "features": {
+          "heading": "Hecho para la privacidad, diseñado para la sencillez",
+          "f1": {
+            "title": "Cifrado en el navegador",
+            "desc": "Los archivos se cifran con AES-256-GCM antes de salir de tu dispositivo. El servidor nunca ve tus datos."
+          },
+          "f2": {
+            "title": "Conocimiento cero",
+            "desc": "La clave de cifrado vive solo en el fragmento del enlace. No podemos descifrar tus archivos, ni siquiera si nos obligan."
+          },
+          "f3": {
+            "title": "Caducidad automática",
+            "desc": "Haz que los archivos caduquen a la hora, a las 24 horas o a los 7 días. Los archivos caducados se eliminan de forma permanente."
+          },
+          "f4": {
+            "title": "Se destruye al leerlo",
+            "desc": "Activa el acceso único para que el archivo se destruya tras una sola descarga."
+          },
+          "f5": {
+            "title": "Sin cuenta",
+            "desc": "Envía archivos cifrados al instante. Sin registro, sin rastreo, sin letra pequeña."
+          },
+          "f6": {
+            "title": "Hasta 50 MB",
+            "desc": "Envía archivos de hasta 50 MB gratis. ¿Necesitas más? Crea una cuenta gratuita para subidas mayores."
+          }
+        },
+        "cta": {
+          "heading": "¿Necesitas más de 50 MB?",
+          "description": "Crea una cuenta gratuita de zcrypt con 10 GB de almacenamiento en la nube cifrado con conocimiento cero, transferencias de archivos más grandes y notas cifradas persistentes."
+        }
+      },
+      "pad": {
+        "hero": {
+          "badge": "Texto compartido con conocimiento cero",
+          "titleLead": "Bloc de texto cifrado.",
+          "titleAccent": "Comparte en privado.",
+          "subtitle": "Pega tu texto y obtén un enlace cifrado. Ideal para compartir contraseñas, claves de API, fragmentos de código o cualquier cosa sensible. Todo se cifra en tu navegador."
+        },
+        "how": {
+          "title": "Cómo funciona compartir texto cifrado",
+          "lede": "Escribe. Cifra. Comparte. El servidor nunca ve tu texto en claro.",
+          "s1": {
+            "title": "Escribe o pega",
+            "desc": "Introduce tu texto. Se queda en tu navegador hasta que lo cifres."
+          },
+          "s2": {
+            "title": "Cifrado con un clic",
+            "desc": "Se genera una clave AES-256-GCM única. Tu texto se cifra localmente y se sube."
+          },
+          "s3": {
+            "title": "Comparte el enlace",
+            "desc": "La clave va incrustada en el fragmento de la URL. Solo quien tenga el enlace puede leerlo."
+          }
+        },
+        "features": {
+          "heading": "Privado por diseño",
+          "f1": {
+            "title": "Cifrado en el cliente",
+            "desc": "El texto se cifra con AES-256-GCM en tu navegador. El servidor solo guarda bytes cifrados."
+          },
+          "f2": {
+            "title": "La clave va en el enlace",
+            "desc": "La clave de descifrado vive en el fragmento de la URL. Nunca llega al servidor, ni siquiera a los registros de acceso."
+          },
+          "f3": {
+            "title": "Caducidad programada",
+            "desc": "Los blocs se eliminan solos a la hora, a las 24 horas o a los 7 días. Sin datos sobrantes, nunca."
+          },
+          "f4": {
+            "title": "Ver una vez",
+            "desc": "Activa destruir tras leer para eliminar el bloc después de una sola vista."
+          },
+          "f5": {
+            "title": "Instantáneo y anónimo",
+            "desc": "Sin registro. Sin registrar IP. Sin cookies. Solo texto cifrado."
+          },
+          "f6": {
+            "title": "Hasta 1 MB",
+            "desc": "Comparte fragmentos de código, credenciales, notas o cualquier texto de hasta 1 MB."
+          }
+        },
+        "useCases": {
+          "title": "Usos habituales",
+          "c1": {
+            "title": "Contraseñas",
+            "desc": "Comparte credenciales de acceso de forma segura con la destrucción tras leer activada."
+          },
+          "c2": {
+            "title": "Claves de API",
+            "desc": "Envía claves de API y tokens sin exponerlos en el correo ni en el chat."
+          },
+          "c3": {
+            "title": "Fragmentos de código",
+            "desc": "Comparte código con tus compañeros que caduca solo cuando ya no hace falta."
+          },
+          "c4": {
+            "title": "Notas privadas",
+            "desc": "Envía información confidencial que desaparece después de leerla."
+          }
+        },
+        "cta": {
+          "heading": "¿Necesitas notas cifradas persistentes?",
+          "description": "Crea una cuenta gratuita de zcrypt para tener notas personales cifradas, 10 GB de almacenamiento en la nube y mucho más."
+        }
+      },
+      "transfer": {
+        "hero": {
+          "badge": "Cifrado de igual a igual",
+          "titleLead": "Transfiere archivos entre dispositivos.",
+          "titleAccent": "Cifrados en tiempo real.",
+          "subtitle": "Envía archivos cifrados de un dispositivo a otro a través de un relé que no guarda nada. Sin cuentas. Se encuentra con un código de 6 dígitos y se cifra con una clave que el servidor nunca ve."
+        },
+        "how": {
+          "title": "Cómo funciona la transferencia cifrada",
+          "lede": "Dos dispositivos. Un código. Una clave que no pasa por el servidor."
+        },
+        "sender": {
+          "label": "Emisor",
+          "s1": "Elige un archivo para enviar",
+          "s2": "Se generan una clave de emparejamiento aleatoria y un código de sala de 6 dígitos",
+          "s3": "Muestra el código QR o el enlace al receptor, o dicta el código y la clave de emparejamiento",
+          "s4": "Comprueba que ambas pantallas muestran el mismo código de confirmación",
+          "s5": "El archivo y su nombre se cifran en tu dispositivo y se retransmiten como texto cifrado"
+        },
+        "receiver": {
+          "label": "Receptor",
+          "s1": "Escanea el código QR, o introduce el código de 6 dígitos y la clave de emparejamiento",
+          "s2": "Conéctate a través del relé y compara el código de confirmación",
+          "s3": "Cada fragmento se descifra en tu navegador según llega",
+          "s4": "El archivo se descarga automáticamente al terminar"
+        },
+        "features": {
+          "heading": "¿Por qué usar la transferencia cifrada?",
+          "f1": {
+            "title": "De dispositivo a dispositivo",
+            "desc": "Envía archivos entre dos dispositivos cualesquiera con navegador. Del móvil al portátil, del portátil al ordenador de sobremesa, cualquier combinación."
+          },
+          "f2": {
+            "title": "Cifrado de extremo a extremo",
+            "desc": "Los archivos y sus nombres se cifran con AES-256-GCM en tu dispositivo. La clave se comparte por código QR, enlace o clave de emparejamiento y nunca llega al relé, que solo ve texto cifrado."
+          },
+          "f3": {
+            "title": "Transmisión en tiempo real",
+            "desc": "Los archivos se retransmiten en directo por WebSocket mientras se cifran. Sin esperar a que termine una subida."
+          },
+          "f4": {
+            "title": "Enviado en fragmentos pequeños",
+            "desc": "El emisor cifra y envía fragmentos de 64 KB, así que el envío es ligero. El navegador receptor guarda el archivo entero en memoria hasta que lo guardas, por lo que los archivos muy grandes necesitan un dispositivo con espacio suficiente."
+          },
+          "f5": {
+            "title": "No se guarda nada",
+            "desc": "El relé no guarda nada en disco y olvida la sala cuando termina la transferencia. Sí ve que hubo una transferencia, cuándo ocurrió y su tamaño aproximado."
+          },
+          "f6": {
+            "title": "Código, clave y confirmación",
+            "desc": "Un código de 6 dígitos encuentra la sala y una clave de emparejamiento aparte (en el código QR o el enlace) cifra el archivo. Ambas pantallas muestran el mismo código de confirmación. Sin cuentas, sin apps."
+          }
+        },
+        "cta": {
+          "heading": "¿Necesitas almacenamiento en la nube persistente?",
+          "description": "Crea una cuenta gratuita de zcrypt con 10 GB de almacenamiento en la nube cifrado, control de versiones de archivos, notas cifradas y mucho más."
+        }
+      }
+    },
+    "drive": {
+      "hint": "Eso se abre después de registrarte. Todo lo de aquí son datos de ejemplo.",
+      "skip": "Saltar la vista previa de la app",
+      "samplePill": "Archivos de ejemplo",
+      "live": {
+        "gh": "Esto es lo que vemos nosotros: piezas cifradas con nombres aleatorios.",
+        "you": "Esta es tu vista.",
+        "opened": "Abierto {name}.",
+        "added": "Añadido {name}. Guardado en Telegram."
+      },
+      "view": {
+        "aria": "Elige una vista",
+        "you": "Tu vista",
+        "gh": "Lo que vemos"
+      },
+      "folders": {
+        "photos": "Fotos",
+        "documents": "Documentos",
+        "music": "Música",
+        "downloads": "Descargas",
+        "taxes": "Impuestos"
+      },
+      "filters": {
+        "all": "Todos",
+        "image": "Imágenes",
+        "document": "Documentos",
+        "video": "Vídeos",
+        "audio": "Audio",
+        "archive": "Archivos comprimidos"
+      },
+      "chips": {
+        "image": "Imagen",
+        "document": "Documento",
+        "video": "Vídeo",
+        "audio": "Audio",
+        "archive": "Archivo comprimido"
+      },
+      "types": {
+        "document": "Documento",
+        "spreadsheet": "Hoja de cálculo",
+        "image": "Imagen",
+        "video": "Vídeo",
+        "audio": "Audio",
+        "archive": "Archivo comprimido",
+        "code": "Código",
+        "data": "Datos",
+        "executable": "Ejecutable",
+        "file": "Archivo",
+        "font": "Fuente",
+        "folder": "Carpeta"
+      },
+      "ago": {
+        "justNow": "Ahora mismo",
+        "days": "hace {n} d",
+        "hours": "hace {n} h",
+        "weeks": "hace {n} sem"
+      },
+      "dialog": {
+        "title": "Desbloquear carpeta protegida",
+        "sub": "Introduce la contraseña de «{name}»",
+        "close": "Cerrar",
+        "password": "Contraseña de la carpeta",
+        "help": "En esta demo sirve cualquier contraseña.",
+        "cancel": "Cancelar",
+        "verifying": "Verificando...",
+        "unlock": "Desbloquear"
+      },
+      "drop": "Suelta archivos para subirlos",
+      "filter": {
+        "button": "Filtrar",
+        "menu": "Filtrar por tipo"
+      },
+      "card": {
+        "folderLabel": "{name}, carpeta",
+        "folderLocked": "{name}, carpeta, protegida con contraseña",
+        "fileLabel": "{name}, {size}",
+        "openLabel": "Abrir {name}, {size}",
+        "mine": "tu archivo, {n, plural, one {1 pieza} other {{n} piezas}}",
+        "more": "+ {n} más",
+        "sameFile": "el mismo archivo",
+        "morePieces": "{more} piezas del mismo archivo"
+      },
+      "count": {
+        "gh": "{n} archivos, sin nombres reales",
+        "items": "{n, plural, one {1 elemento} other {{n} elementos}}",
+        "folders": "{n, plural, one {1 carpeta} other {{n} carpetas}}",
+        "files": "{n, plural, one {1 archivo} other {{n} archivos}}",
+        "both": "{folders} · {files}"
+      },
+      "nav": {
+        "vault": "Bóveda",
+        "insights": "Estadísticas",
+        "spaces": "Espacios",
+        "more": "Más",
+        "settings": "Ajustes",
+        "deleted": "Archivos eliminados"
+      },
+      "desktop": {
+        "sidebarAria": "Barra lateral de la app de ejemplo",
+        "sectionsAria": "Secciones de la app de ejemplo",
+        "logoSubtitle": "Almacenamiento en la nube cifrado",
+        "account": "Cuenta",
+        "storage": "Almacenamiento",
+        "used": "{size} usados",
+        "notifications": "Notificaciones",
+        "searchPlaceholder": "Busca en tu bóveda",
+        "searchAria": "Buscar archivos de ejemplo",
+        "thisDevice": "este dispositivo",
+        "newFolder": "Nueva carpeta",
+        "upload": "Subir",
+        "refresh": "Actualizar",
+        "recent": "Vistos recientemente",
+        "folderPath": "Ruta de la carpeta",
+        "myVault": "Mi bóveda",
+        "auto": "Auto",
+        "listView": "Vista de lista",
+        "gridView": "Vista de cuadrícula",
+        "select": "Seleccionar",
+        "commitWhen": "hace 3 h",
+        "sampleFiles": "Archivos de ejemplo",
+        "empty": "No hay coincidencias. Prueba con otra palabra."
+      },
+      "row": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "size": "Tamaño",
+        "saved": "Ahorro",
+        "modified": "Modificado"
+      },
+      "phone": {
+        "lockedDevice": "Bloqueado a este dispositivo",
+        "addFile": "Añadir un archivo"
+      },
+      "transfers": {
+        "title": "Transferencias",
+        "uploading": "1 subiendo",
+        "allDone": "Todo listo",
+        "progress": "Subiendo...",
+        "saved": "Guardado"
+      },
+      "preview": {
+        "droppedLine": "Este es tu archivo y se quedó en tu dispositivo. Regístrate para abrirlo aquí mismo.",
+        "binary": "Binario",
+        "fullscreen": "Pantalla completa",
+        "exitFullscreen": "Salir de pantalla completa",
+        "download": "Descargar",
+        "dl": "Las descargas funcionan después de registrarte.",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "opening": "Abriendo..."
+      },
+      "body": {
+        "zoomOut": "Alejar",
+        "zoomIn": "Acercar",
+        "rotate": "Girar",
+        "fit": "Ajustar a la pantalla",
+        "openTab": "Abrir en una pestaña nueva",
+        "play": "Reproducir",
+        "pause": "Pausa",
+        "thesis": "Tesis, versión final (v9)",
+        "notes": {
+          "0": "Notas de la reunión, martes",
+          "1": "- Acordamos que el presupuesto es una sugerencia.",
+          "2": "- Nadie tomó notas salvo yo.",
+          "3": "- Próxima reunión: misma hora, menos diapositivas."
+        },
+        "noPreview": "No hay vista previa disponible para este tipo de archivo.",
+        "hexBinary": "binario",
+        "hexAria": "Bytes aleatorios",
+        "hexCaption": "Bytes aleatorios. Sin tu contraseña, esto es todo lo que cualquiera obtiene."
+      }
+    },
+    "features": {
+      "common": {
+        "startFree": "Empieza gratis",
+        "keepExploring": "Sigue explorando",
+        "related": "Relacionado",
+        "readDocs": "Leer la documentación",
+        "beta": "Beta"
+      },
+      "index": {
+        "eyebrow": "Funciones",
+        "title": "Todo lo que hace la unidad",
+        "lede": "Un gestor de archivos de verdad donde solo tú puedes abrir lo que hay dentro. Aquí tienes cada parte, así que entra en la que más te importe.",
+        "searchPlaceholder": "Buscar funciones y documentación...",
+        "allFeatures": "Todas las funciones",
+        "ctaTitle": "Empieza con una unidad que de verdad es tuya",
+        "ctaSubtext": "Gratis y de código abierto. Trae una cuenta de almacenamiento que ya tengas."
+      },
+      "encryptedDrive": {
+        "hero": {
+          "eyebrow": "La unidad cifrada",
+          "title": "Una unidad de verdad, cifrada de extremo a extremo",
+          "subtext": "La mayoría del «almacenamiento cifrado» te da una lista plana de archivos. zcrypt te da un explorador de archivos real (carpetas, búsqueda, vistas previas, arrastrar y soltar) donde todo se cifra en tu dispositivo antes de salir."
+        },
+        "mock": {
+          "vault": "Mi bóveda",
+          "projects": "Proyectos",
+          "photos": "Fotos 2026",
+          "tax": "Impuestos y legal",
+          "items": "{n} elementos",
+          "unlocked": "Desbloqueada"
+        },
+        "capSection": {
+          "heading": "Todo lo que una unidad debería hacer",
+          "subheading": "La organización que esperas de Finder o Google Drive, con una capa de cifrado de conocimiento cero debajo de todo."
+        },
+        "caps": {
+          "folders": {
+            "title": "Carpetas reales y anidables",
+            "desc": "Crea carpetas dentro de carpetas, tan profundo como quieras. Organiza como ya piensas, no con una lista plana de blobs."
+          },
+          "breadcrumbs": {
+            "title": "Navegación por migas de pan",
+            "desc": "Sabes siempre dónde estás. Haz clic en cualquier miga para subir, o arrastra un archivo sobre una para moverlo allí."
+          },
+          "views": {
+            "title": "Vistas de cuadrícula y lista",
+            "desc": "Alterna entre una cuadrícula de miniaturas y una lista ordenable. Ordena por nombre, tamaño, tipo, fecha o por cuánto espacio ahorró la compresión."
+          },
+          "search": {
+            "title": "Búsqueda y filtros",
+            "desc": "Encuentra archivos rápido en la carpeta actual y filtra por tipo. La búsqueda compara nombres descifrados en local, nunca en el servidor."
+          },
+          "preview": {
+            "title": "Vista previa sin descargar",
+            "desc": "Abre imágenes, vídeo, audio, PDF, documentos y código en el navegador: descifrados al vuelo y luego desaparecen."
+          },
+          "names": {
+            "title": "Nombres de carpeta cifrados",
+            "desc": "Los nombres de carpeta también se cifran en tu dispositivo. Incluso tu estructura sigue siendo privada: el servidor solo ve texto cifrado."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Organizado, nunca expuesto",
+          "heading": "La estructura es solo tuya",
+          "body": "Un gestor de archivos más cómodo suele significar darle más metadatos al proveedor. Aquí no. Los nombres de carpeta se cifran en tu dispositivo con tu frase de contraseña, así que el servidor guarda texto cifrado opaco. No puede leer tus archivos, tus nombres de carpeta ni cómo los has organizado.",
+          "check1": "Nombres de carpeta cifrados en el cliente",
+          "check2": "Vistas previas descifradas en tu navegador, nunca en nuestros servidores",
+          "check3": "Si pierdes tu frase de contraseña, ni nosotros podemos recuperarla",
+          "linkLabel": "Cómo funciona el cifrado"
+        },
+        "panel": {
+          "comment": "// lo que guarda el servidor",
+          "success": "✓ nombres de carpeta sellados · claves nunca enviadas · contenido cifrado"
+        },
+        "related": {
+          "folders": {
+            "title": "Carpetas protegidas con contraseña",
+            "desc": "Dale a una carpeta su propia contraseña, separada de tu bóveda."
+          },
+          "viewers": {
+            "title": "Visores de archivos en el navegador",
+            "desc": "Previsualiza imágenes, vídeo, PDF, documentos y código, descifrados en local."
+          },
+          "transfers": {
+            "title": "Gestor de transferencias",
+            "desc": "Pausa, reanuda y sigue cada subida y descarga."
+          }
+        },
+        "cta": {
+          "heading": "Tus archivos, organizados y bajo llave",
+          "subtext": "Gratis y de código abierto. Trae una cuenta de almacenamiento que ya tengas y empieza en menos de un minuto."
+        }
+      },
+      "folders": {
+        "hero": {
+          "eyebrow": "Carpetas cifradas",
+          "title": "Carpetas que se cierran solas",
+          "subtext": "Organiza con carpetas reales y anidables cuyos nombres se cifran en tu dispositivo. Después dale a cualquier carpeta su propia contraseña: una segunda cerradura, separada de tu bóveda, que la mantiene sellada aunque todo lo demás esté abierto."
+        },
+        "mock": {
+          "label": "Árbol de carpetas",
+          "badge": "Bóveda desbloqueada",
+          "root": "Mi bóveda",
+          "rootMeta": "raíz",
+          "projects": "Proyectos",
+          "photos": "Fotos 2026",
+          "tax": "Impuestos y legal",
+          "items": "{n} elementos",
+          "sealed": "sellada",
+          "passwordRequired": "contraseña necesaria",
+          "password": "Contraseña",
+          "note": "La bóveda está abierta, pero <em>Impuestos y legal</em> sigue sellada hasta que introduzcas su propia contraseña."
+        },
+        "capSection": {
+          "heading": "Una estructura que guarda secretos",
+          "subheading": "Las carpetas que esperas, más una segunda capa de cifrado que puedes colocar en cualquiera de ellas, hasta el fondo."
+        },
+        "caps": {
+          "nestable": {
+            "title": "Carpetas reales y anidables",
+            "desc": "Construye la jerarquía en la que realmente piensas: carpetas dentro de carpetas, tan profundo como necesites. No etiquetas que fingen ser estructura."
+          },
+          "names": {
+            "title": "Nombres de carpeta cifrados",
+            "desc": "Cada nombre de carpeta se cifra en tu dispositivo. El servidor guarda texto cifrado opaco. Nunca sabe cómo llamaste a nada."
+          },
+          "password": {
+            "title": "Una contraseña por carpeta",
+            "desc": "Dale a cualquier carpeta su propia contraseña, separada de la frase de contraseña de tu bóveda. Protege los rincones más sensibles en sus propios términos."
+          },
+          "sealed": {
+            "title": "Selladas de forma independiente",
+            "desc": "Una carpeta protegida sigue bloqueada aunque el resto de tu bóveda esté abierto. Desbloquear la bóveda no es lo mismo que desbloquearla a ella."
+          },
+          "rekey": {
+            "title": "Recifrado automático",
+            "desc": "Mueve un archivo dentro o fuera de una carpeta protegida y se recifra automáticamente con la clave correcta. Sin pasos manuales, sin fugas."
+          },
+          "verified": {
+            "title": "Verificada en local",
+            "desc": "La contraseña de la carpeta se comprueba en tu dispositivo contra el material de clave propio de la carpeta, nunca se envía al servidor, nunca viaja de ida y vuelta."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Una cerradura dentro de la cerradura",
+          "heading": "Una clave que el servidor nunca ve",
+          "body": "Cuando proteges una carpeta, sus archivos se recifran con una clave derivada de una contraseña que solo tú conoces. Esa contraseña se verifica en local contra el material de clave propio de la carpeta. Nunca viaja al servidor, ni tampoco la clave que desbloquea. Mueve un archivo dentro o fuera y zcrypt lo recifra por ti, para que nada quede bajo la cerradura equivocada.",
+          "check1": "Contraseña de carpeta convertida en clave en tu dispositivo",
+          "check2": "Verificada en local, sin ida y vuelta al servidor, sin oráculo de intentos",
+          "check3": "Sigue sellada incluso con tu bóveda desbloqueada",
+          "check4": "Archivos recifrados automáticamente al moverlos dentro o fuera",
+          "linkLabel": "Cómo funciona el cifrado de carpetas"
+        },
+        "panel": {
+          "comment": "// desbloquear una carpeta protegida",
+          "success": "✓ contraseña nunca enviada. clave nunca enviada.",
+          "line1": "<b>en el dispositivo</b> contraseña → derivar clave de carpeta",
+          "line2": "<b>verificar</b> clave contra marcador sellado, en local",
+          "line3": "el servidor recibe:",
+          "nothing": "nada"
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Carpetas, búsqueda, vistas previas, arrastrar y soltar, cifrado de extremo a extremo."
+          },
+          "docsFolders": {
+            "title": "Docs: Carpetas",
+            "desc": "Crea, anida, mueve y renombra carpetas en tu bóveda."
+          },
+          "docsEncryption": {
+            "title": "Docs: Cifrado de carpetas",
+            "desc": "Cómo funcionan por dentro las contraseñas por carpeta y el recifrado."
+          }
+        },
+        "cta": {
+          "heading": "Cierra las carpetas que más importan",
+          "subtext": "Gratis y de código abierto. Organiza tu unidad y protege cualquier carpeta con una contraseña propia."
+        }
+      },
+      "fileViewers": {
+        "hero": {
+          "eyebrow": "Visores de archivos en el navegador",
+          "title": "Mira tus archivos sin entregarlos",
+          "subtext": "La mayoría del almacenamiento cifrado te obliga a descargar un archivo y fiarte de un servidor para mostrarlo. zcrypt previsualiza imágenes, vídeo, PDF, documentos y código directamente en tu navegador, descifrados al vuelo y luego desaparecen.",
+          "secondaryLabel": "Cómo funciona el descifrado"
+        },
+        "mock": {
+          "pdfDocument": "Documento PDF",
+          "decryptedLocally": "Descifrado en local",
+          "page": "página {current} / {total}"
+        },
+        "viewersSection": {
+          "heading": "Un visor para casi todo",
+          "subheading": "Elige un archivo y se abre en un visor hecho para su tipo: todos alimentados por texto plano que solo existe en tu navegador."
+        },
+        "viewers": {
+          "images": {
+            "title": "Imágenes",
+            "desc": "Haz zoom, desplázate y gira JPG, PNG, GIF, WebP, SVG y más. Una miniatura en caché de baja resolución aparece al instante mientras se descifra la imagen completa."
+          },
+          "media": {
+            "title": "Vídeo y audio",
+            "desc": "Un reproductor propio para MP4, MOV, WebM, MP3, FLAC y más: con una lista de reproducción del resto de medios de la misma carpeta."
+          },
+          "pdf": {
+            "title": "PDF",
+            "desc": "Renderizado de forma nativa, página a página, con carga diferida, sin plugin de navegador y sin servicio de PDF de terceros."
+          },
+          "docx": {
+            "title": "Documentos DOCX",
+            "desc": "Los documentos de Word se convierten a HTML limpio y se sanean antes de mostrarse, así lees el contenido sin abrir un editor."
+          },
+          "html": {
+            "title": "HTML",
+            "desc": "Saneado y mostrado en un marco aislado con los scripts desactivados: previsualiza una página con seguridad sin que llame a casa."
+          },
+          "markdown": {
+            "title": "Markdown",
+            "desc": "Renderizado a HTML con formato y saneado: títulos, listas, enlaces y bloques de código, tal como los escribiste."
+          },
+          "csv": {
+            "title": "CSV y TSV",
+            "desc": "Datos separados por comas o tabuladores presentados como una tabla legible en lugar de un muro de texto sin formato."
+          },
+          "code": {
+            "title": "Texto y código fuente",
+            "desc": "Unos 40 lenguajes (JS, TS, Python, Go, Rust, SQL, YAML y más) con resaltado de sintaxis y un interruptor de ajuste de línea."
+          }
+        },
+        "zk": {
+          "eyebrow": "Descifrado en tu dispositivo, nunca en el nuestro",
+          "heading": "Previsualiza sin confiar en un servidor",
+          "subheading": "Cada vista previa pasa por la misma canalización del lado del cliente que una descarga completa. El servidor entrega bytes sellados y nada más."
+        },
+        "pipeline": {
+          "fetch": {
+            "title": "Obtener los fragmentos cifrados",
+            "desc": "El navegador descarga los fragmentos de texto cifrado del archivo directamente de tu propio almacenamiento. El servidor solo maneja bytes sellados."
+          },
+          "decrypt": {
+            "title": "Descifrar con AES-256-GCM",
+            "desc": "Tu clave derivada de la frase de contraseña descifra cada fragmento en local. La clave nunca se envía a ningún sitio. En el servidor no hay nada con lo que descifrar."
+          },
+          "verify": {
+            "title": "Descomprimir y verificar",
+            "desc": "Los fragmentos se descomprimen con zstd y se comprueban contra un hash SHA-256, así un archivo dañado o manipulado se detecta antes de que lo veas."
+          },
+          "render": {
+            "title": "Renderizar desde una URL blob local",
+            "desc": "El texto plano se convierte en una URL blob en memoria que alimenta el visor: luego se revoca en cuanto cierras o pasas al siguiente archivo."
+          }
+        },
+        "memoryNote": "El blob descifrado vive solo en memoria y se <b>revoca en cuanto cierras o sales de la página</b>. Nunca se escribe en disco ni se sube, así que una vista previa no deja nada en tu equipo ni en nuestros servidores.",
+        "overlay": {
+          "heading": "Una superposición, toda la carpeta",
+          "subheading": "El visor es una superposición a pantalla completa que manejas con el teclado: hecho para recorrer una carpeta, no solo para mirar un archivo."
+        },
+        "overlayFeatures": {
+          "walk": {
+            "title": "Recorre toda la carpeta",
+            "desc": "Anterior y siguiente recorren cada archivo de la carpeta, con un contador claro como 3 / 18, sin cerrar y volver a abrir."
+          },
+          "fullscreen": {
+            "title": "Pantalla completa, teclado primero",
+            "desc": "Esc para cerrar, flechas para moverte, f para pantalla completa. El foco queda atrapado en el diálogo y vuelve a donde estaba al cerrar."
+          },
+          "playlist": {
+            "title": "Lista de reproducción",
+            "desc": "Abre una pista y el reproductor lista el resto de audio y vídeo de la carpeta, así una carpeta se convierte en lista de reproducción."
+          },
+          "errors": {
+            "title": "Errores honestos y reintento",
+            "desc": "Contraseña incorrecta, fallo de comprobación de integridad o tipo no compatible reciben cada uno un mensaje claro: con Reintentar y Descargar como alternativa."
+          },
+          "instant": {
+            "title": "Navegación instantánea",
+            "desc": "Una caché de blobs de sesión y la precarga de vecinos hacen que el archivo siguiente y el anterior suelan estar descifrados antes de que los pidas."
+          },
+          "download": {
+            "title": "Descarga cuando quieras",
+            "desc": "Previsualizar nunca fuerza una descarga. Cuando sí quieras el archivo en disco, un clic reutiliza el blob ya descifrado."
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Carpetas reales y anidables y un explorador de archivos: cada nombre cifrado en tu dispositivo."
+          },
+          "how": {
+            "title": "Cómo funciona",
+            "desc": "La canalización completa del lado del cliente: comprimir, cifrar, fragmentar y verificar."
+          },
+          "folders": {
+            "title": "Carpetas protegidas con contraseña",
+            "desc": "Dale a una carpeta su propia contraseña: las vistas previas solo se desbloquean al introducirla."
+          }
+        },
+        "cta": {
+          "heading": "Mira tus archivos sin descargar",
+          "subtext": "Gratis y de código abierto. Trae una cuenta de almacenamiento que ya tengas y previsualiza tu primer archivo en menos de un minuto."
+        }
+      },
+      "sharing": {
+        "hero": {
+          "eyebrow": "Compartir cifrado",
+          "title": "Comparte un archivo, no las llaves de todo",
+          "subtext": "Cada enlace para compartir lleva su propia clave de descifrado dentro del fragmento de la URL: la única parte de un enlace que un navegador nunca transmite. El destinatario lo abre, su navegador descifra el archivo y el servidor solo tuvo texto cifrado."
+        },
+        "mock": {
+          "label": "Enlace para compartir",
+          "badge": "De extremo a extremo",
+          "sentToServer": "enviado al servidor",
+          "staysInBrowser": "se queda en el navegador",
+          "password": "Contraseña",
+          "passwordValue": "Activada",
+          "expires": "Caduca",
+          "expiresValue": "7 días",
+          "downloads": "Descargas",
+          "downloadsValue": "quedan 5",
+          "revoke": "Revocar",
+          "revokeValue": "Cuando quieras"
+        },
+        "capSection": {
+          "heading": "Tú decides quién, cuánto tiempo y cuántas veces",
+          "subheading": "Compartir sin ceder el control. Fija las condiciones de cada enlace y retíralo en cuanto quieras."
+        },
+        "caps": {
+          "fragment": {
+            "title": "La clave viaja en el fragmento",
+            "desc": "La clave de descifrado vive en la parte de la URL después del #: que los navegadores nunca envían a un servidor. Literalmente no podemos recibirla."
+          },
+          "password": {
+            "title": "Contraseña opcional",
+            "desc": "Añade una contraseña además del enlace. Incluso quien tenga la URL necesita el secreto que compartas por separado para abrirlo."
+          },
+          "expiry": {
+            "title": "Fechas de caducidad",
+            "desc": "Haz que un enlace deje de funcionar tras una fecha o una duración. Al caducar, la puerta se cierra sola, sin tener que limpiar nada."
+          },
+          "limits": {
+            "title": "Límites de descarga",
+            "desc": "Limita cuántas veces se puede usar un enlace. Agotado el número, el enlace está muerto aunque alguien aún lo tenga."
+          },
+          "revoke": {
+            "title": "Revoca cuando quieras",
+            "desc": "¿Has cambiado de opinión? Mata un enlace al instante desde tu bóveda. El texto cifrado permanece, pero nadie puede volver a abrirlo."
+          },
+          "noAccount": {
+            "title": "Sin cuenta para los destinatarios",
+            "desc": "Quien reciba el enlace simplemente lo abre. El archivo se descifra en su navegador, nunca en nuestros servidores, nunca en claro por la red."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "El secreto en el #",
+          "heading": "Por qué no podemos leer lo que compartes",
+          "body": "Un fragmento de URL (todo lo que sigue al <code>#</code>) lo procesa solo el navegador y nunca se incluye en la petición enviada a un servidor. Ponemos ahí la clave de descifrado a propósito. El servidor entrega bytes cifrados; el navegador del destinatario usa la clave del fragmento para descifrarlos en local. El texto plano nunca existe de nuestro lado.",
+          "check1": "La clave de descifrado vive solo en el fragmento de la URL",
+          "check2": "Los fragmentos nunca se transmiten al servidor",
+          "check3": "Los destinatarios descifran en el navegador, sin cuenta",
+          "check4": "Una contraseña opcional añade un segundo secreto, separado",
+          "linkLabel": "Cómo funciona compartir"
+        },
+        "panel": {
+          "comment": "// lo que ve el servidor al abrir",
+          "success": "✓ ninguna clave en la red. ningún texto plano en el servidor.",
+          "returns": "<b>devuelve</b> blob de texto cifrado, sellado",
+          "notInRequest": "no está en la petición",
+          "decryptHappens": "el descifrado ocurre en:",
+          "browser": "el navegador"
+        },
+        "moreWays": {
+          "heading": "Más formas de enviar",
+          "subheading": "Compartir un archivo de la bóveda es un camino. Para lo desechable y lo de una sola vez, hay dos más.",
+          "send": {
+            "title": "Envío anónimo",
+            "desc": "Suelta un archivo sin cuenta y obtén un único enlace para pasar. Está hecho para quemarse tras leerse: una vez recogido, desaparece. Ideal para lo que quieres entregar y olvidar."
+          },
+          "pad": {
+            "title": "Bloc cifrado",
+            "desc": "Escribe una nota de un solo uso, cífrala y comparte el enlace. El destinatario la lee una vez y se quema. Para una contraseña, una dirección, un mensaje corto que no debe quedarse en ninguna bandeja de entrada."
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Dónde viven los archivos compartidos: carpetas, búsqueda y vistas previas, selladas."
+          },
+          "docs": {
+            "title": "Docs: Compartir",
+            "desc": "Configura contraseñas, caducidad y límites, y aprende cómo se descifran los enlaces."
+          },
+          "register": {
+            "title": "Envía tu primer archivo",
+            "desc": "Crea una bóveda y comparte un enlace en menos de un minuto."
+          }
+        },
+        "cta": {
+          "heading": "Comparte como si el servidor no mirara",
+          "subtext": "Gratis y de código abierto. Entrega un archivo a alguien sin entregárnoslo a nosotros."
+        }
+      },
+      "encryption": {
+        "hero": {
+          "eyebrow": "Cifrado de conocimiento cero",
+          "title": "No podemos leer tus archivos",
+          "subtext": "Tus archivos se cifran en tu propio dispositivo con AES-256-GCM antes de salir. La clave se deriva de tu frase de contraseña y nunca se transmite. Guardamos texto cifrado y nada más: sin claves, sin texto plano, ni siquiera tus nombres de carpeta."
+        },
+        "boundary": {
+          "trustedZone": "Zona de confianza",
+          "ciphertextOnly": "Solo texto cifrado",
+          "label": "Frontera del cifrado",
+          "device": {
+            "title": "Tu dispositivo",
+            "item1": "La frase de contraseña se introduce aquí y se queda aquí",
+            "item2": "Tu clave se deriva en local",
+            "item3": "Los archivos y sus nombres se cifran",
+            "item4": "El texto plano nunca sale"
+          },
+          "server": {
+            "title": "Nuestros servidores",
+            "item1": "Blobs cifrados, nada más",
+            "item2": "Sin frase de contraseña, sin clave derivada",
+            "item3": "Sin contenido de archivos en texto plano",
+            "item4": "Sin nombres legibles de archivos ni carpetas"
+          }
+        },
+        "guarantees": {
+          "eyebrow": "Las garantías",
+          "heading": "Lo que podemos ver y lo que no",
+          "subheading": "No una promesa de política de privacidad. Una criptográfica: garantizada por dónde viven las claves y qué código se ejecuta dónde.",
+          "device": {
+            "title": "Cifrado en tu dispositivo",
+            "desc": "La compresión y el cifrado AES-256-GCM ocurren en tu navegador, en tu equipo, antes de que un solo byte salga por la red."
+          },
+          "key": {
+            "title": "Tu clave nunca viaja",
+            "desc": "Tu clave de cifrado se deriva de tu frase de contraseña en tu propio dispositivo y se queda allí. Nunca se nos envía."
+          },
+          "unique": {
+            "title": "Una clave única por archivo",
+            "desc": "Cada archivo recibe su propia clave de contenido aleatoria, envuelta por la clave de tu frase de contraseña. La clave de un archivo nunca puede abrir otro."
+          },
+          "names": {
+            "title": "Hasta los nombres de carpeta están sellados",
+            "desc": "Los nombres de archivos y carpetas también se cifran en el cliente. El servidor no puede leer tus archivos, sus nombres ni cómo los organizaste."
+          },
+          "server": {
+            "title": "El servidor solo ve texto cifrado",
+            "desc": "De nuestro lado no hay claves ni texto plano: solo blobs cifrados opacos que no podríamos abrir ni aunque nos obligaran."
+          },
+          "tamper": {
+            "title": "A prueba de manipulaciones por diseño",
+            "desc": "AES-256-GCM autentica cada fragmento. Si el texto cifrado se altera en tránsito o en reposo, el descifrado falla ruidosamente en lugar de devolver basura."
+          }
+        },
+        "pipeline": {
+          "eyebrow": "Cifrado de sobre",
+          "heading": "Cómo se sella un archivo",
+          "subheading": "Cada subida ejecuta los mismos cuatro pasos, íntegramente en tu dispositivo.",
+          "derive": {
+            "title": "Derivar tu clave",
+            "desc": "Tu frase de contraseña y una sal aleatoria se estiran hasta formar una sólida clave de cifrado de claves. Ocurre en local y la clave nunca sale de tu dispositivo."
+          },
+          "seal": {
+            "title": "Sellar cada archivo con su propia clave",
+            "desc": "Se genera una clave de contenido aleatoria nueva por archivo y se usa para cifrarlo. Esa clave de contenido se envuelve (se cifra) con la clave derivada de tu frase de contraseña."
+          },
+          "chunk": {
+            "title": "Cifrar nombres de carpeta y luego fragmentar",
+            "desc": "Los nombres de carpeta también se cifran en el cliente. El archivo cifrado se divide después en fragmentos, cada uno autenticado individualmente."
+          },
+          "upload": {
+            "title": "Subir solo texto cifrado",
+            "desc": "Solo la clave envuelta y los fragmentos cifrados salen de tu dispositivo. El servidor guarda blobs que no tiene forma de leer."
+          }
+        },
+        "panel": {
+          "comment": "// lo que realmente llega al servidor",
+          "success": "✓ sin frase de contraseña. sin clave derivada. sin texto plano. sin nombres legibles.",
+          "wrappedTail": "sellada con tu frase de contraseña"
+        },
+        "tieIn": {
+          "eyebrow": "El compromiso honesto",
+          "heading": "Si pierdes tu frase de contraseña, ni nosotros podemos recuperarla",
+          "body": "El verdadero conocimiento cero tiene un precio y no vamos a fingir lo contrario. Como tu clave se deriva de tu frase de contraseña y nunca nos llega, no tenemos un botón de «restablecer contraseña y recuperar tus archivos». Si pierdes tu frase de contraseña, tus datos quedan cifrados para siempre: para ti y para todos los demás.",
+          "note": "Esa es exactamente la propiedad que hace reales el resto de estas promesas. Un proveedor que puede recuperar tus archivos por ti también puede ser obligado a entregarlos. Nosotros no podemos hacer ninguna de las dos cosas.",
+          "linkLabel": "Lee el modelo de seguridad",
+          "panel1": "Elige una frase de contraseña fuerte que no olvides. Es la única clave de todo.",
+          "panel2": "Las vistas previas y descargas se descifran en tu navegador y luego se descartan.",
+          "panel3": "Compartir envuelve la clave de un archivo para el destinatario, sin exponer nunca tu frase de contraseña.",
+          "panel4": "Las carpetas protegidas con contraseña añaden una segunda clave, separada de tu bóveda."
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Carpetas reales, búsqueda y vistas previas sobre esta capa de cifrado."
+          },
+          "zk": {
+            "title": "Conocimiento cero, explicado",
+            "desc": "Qué significa el término y cómo nos exigimos cumplirlo."
+          },
+          "security": {
+            "title": "Modelo de seguridad",
+            "desc": "El panorama técnico completo: AES-256-GCM, derivación de claves PBKDF2-SHA256 con 600 000 iteraciones, manejo de claves y el modelo de amenazas."
+          }
+        },
+        "cta": {
+          "heading": "Cifrado en el que no tienes que confiar en nosotros",
+          "subtext": "Gratis y de código abierto. Trae una cuenta de almacenamiento que ya tengas y cifra tu primer archivo en menos de un minuto."
+        }
+      },
+      "transfers": {
+        "hero": {
+          "eyebrow": "El gestor de transferencias",
+          "title": "Lánzalo, vete, y retoma solo",
+          "subtext": "Un único panel acoplado sigue cada subida y descarga. Progreso y tiempo restante en vivo, pausa y reanudación sin recifrar, reintento ante fallos y descargas masivas en ZIP, y sigue funcionando mientras te mueves por la app."
+        },
+        "mock": {
+          "title": "Transferencias",
+          "summary": "2 activas · 1 en pausa",
+          "encrypting": "Cifrando · fragmento 18/24",
+          "paused": "En pausa · 41 % completado",
+          "downloading": "Descargando · descifrando",
+          "done": "Hecho"
+        },
+        "capSection": {
+          "heading": "Hecho para archivos grandes y redes inestables",
+          "subheading": "Como todo se cifra primero en tu dispositivo, las transferencias tienen que ser resistentes. Y lo son."
+        },
+        "caps": {
+          "progress": {
+            "title": "Progreso y tiempo restante en vivo",
+            "desc": "Mira cada transferencia avanzar en tiempo real: porcentaje por archivo, fase actual y una estimación continua del tiempo restante."
+          },
+          "pause": {
+            "title": "Pausa sin perder trabajo",
+            "desc": "Pausa una subida en el límite de un fragmento y vete. La sesión se mantiene intacta, así que nada de lo ya cifrado se descarta."
+          },
+          "resume": {
+            "title": "Reanuda donde lo dejaste",
+            "desc": "Reanudar reutiliza la misma clave de cifrado y omite los fragmentos que el servidor ya tiene. Sin recifrar, sin empezar de cero."
+          },
+          "retry": {
+            "title": "Reintento ante fallos",
+            "desc": "Una conexión caída no significa empezar de nuevo. Reintentar retoma la transferencia desde el último fragmento confirmado."
+          },
+          "zip": {
+            "title": "Descargas masivas en ZIP",
+            "desc": "Selecciona muchos archivos y descárgalos como un único ZIP: cada uno descifrado en tu navegador y empaquetado en local."
+          },
+          "navigation": {
+            "title": "Sobrevive a la navegación",
+            "desc": "El gestor se acopla una vez y persiste mientras te mueves por la app. Navega, abre archivos y empieza más trabajo mientras las transferencias siguen."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Una reanudación que de verdad reanuda",
+          "heading": "Sin recifrar. Sin resubir.",
+          "body": "Cuando pausas o hay un tropiezo de red, la subida se detiene en un límite limpio de fragmento y conserva su sesión. Reanudar reutiliza exactamente la misma clave de contenido, así que los fragmentos que ya están en el servidor siguen encajando: simplemente continúa con los que faltan.",
+          "check1": "Se pausa en un límite de fragmento y mantiene viva la sesión",
+          "check2": "Reanuda con la misma clave, los fragmentos ya cifrados siguen siendo válidos",
+          "check3": "Omite los fragmentos que el servidor ya confirmó",
+          "check4": "Reintentar tras un fallo continúa desde el último fragmento confirmado",
+          "linkLabel": "Cómo funciona la subida"
+        },
+        "panel": {
+          "comment": "// reanudando una subida pausada de 24 fragmentos",
+          "success": "✓ completa, 18 fragmentos nunca reenviados",
+          "line1": "<b>sesión</b> reutilizada, misma clave de contenido",
+          "line2": "chunk[0..17] ya en el servidor → omitidos"
+        },
+        "d2d": {
+          "eyebrow": "Además: de dispositivo a dispositivo",
+          "heading": "Envía un archivo directo a otro dispositivo",
+          "body": "Aparte de la bóveda, zcrypt puede transmitir un archivo de un dispositivo a otro a través de un relé que no almacena nada. El remitente recibe un código de seis dígitos y una clave de emparejamiento; el receptor necesita ambos. Los datos se cifran de extremo a extremo con esa clave, así que el relé solo pasa texto cifrado que no puede leer.",
+          "check1": "Empareja con un código de 6 dígitos",
+          "check2": "Cifrado de extremo a extremo, el relé solo ve texto cifrado",
+          "check3": "Nada tiene que pasar antes por tu bóveda",
+          "pairingCode": "Código de emparejamiento",
+          "waiting": "Esperando al otro dispositivo…"
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Donde acaban tus transferencias: carpetas reales, búsqueda y vistas previas."
+          },
+          "docs": {
+            "title": "Docs del gestor de transferencias",
+            "desc": "Cada control del panel acoplado, explicado."
+          },
+          "uploading": {
+            "title": "Guía de subida",
+            "desc": "Cómo se comprimen, cifran, fragmentan y envían los archivos."
+          }
+        },
+        "cta": {
+          "heading": "Mueve archivos grandes sin vigilarlos",
+          "subtext": "Gratis y de código abierto. Trae una cuenta de almacenamiento que ya tengas y empieza tu primera subida en menos de un minuto."
+        }
+      },
+      "privacy": {
+        "hero": {
+          "eyebrow": "Herramientas de privacidad",
+          "title": "Privacidad para los momentos que importan",
+          "subtext": "El cifrado mantiene tus archivos ilegibles. Estas herramientas van un paso más allá: para cuando te presionan para desbloquear, para cuando te quedas en silencio de forma inesperada y para los casos límite que la privacidad real debe prever. Construidas sobre el mismo núcleo de conocimiento cero y honestas sobre lo que hace cada una.",
+          "trustLine": "Conocimiento cero por diseño. Nunca tenemos tus claves ni tu texto plano."
+        },
+        "decoy": {
+          "eyebrow": "Negación plausible",
+          "heading": "Un perfil señuelo para cuando te obligan a abrir",
+          "body": "Define una segunda contraseña «señuelo». Cuando inicias sesión con ella, zcrypt abre una bóveda de apariencia inocente llena de archivos inofensivos, no la real. Bajo coacción, en un cruce de frontera o donde no puedas decir que no, puedes desbloquear algo de apariencia real sin exponer lo que de verdad importa.",
+          "point1": "Una segunda contraseña señuelo que defines tú, separada de la real.",
+          "point2": "Iniciar sesión con ella abre una bóveda de apariencia inocente con archivos de relleno creíbles.",
+          "point3": "Nada en el señuelo sugiere que exista una bóveda real tras otra contraseña.",
+          "linkLabel": "Cómo funcionan los perfiles señuelo",
+          "decoyPassword": "Contraseña señuelo",
+          "looksOrdinary": "Parece normal",
+          "realPassword": "Contraseña real",
+          "neverRevealed": "Nunca revelada",
+          "fileBudget": "presupuesto-2024.xlsx",
+          "fileCats": "fotos-de-gatos",
+          "fileRecipes": "recetas.txt"
+        },
+        "dms": {
+          "eyebrow": "Si te quedas en silencio",
+          "heading": "Un interruptor de hombre muerto que llega a una persona",
+          "body": "Elige un contacto de confianza y una ventana de comprobación. Si no inicias sesión durante ese tiempo, zcrypt le envía un aviso por correo. Es una red de seguridad para periodistas, activistas y cualquiera que necesite que alguien sea avisado si de pronto no puede registrarse.",
+          "window": "Ventana de comprobación",
+          "windowRange": "de 7 a 365 días",
+          "resets": "el último inicio de sesión la reinicia",
+          "notified": "contacto avisado",
+          "doesTitle": "Qué hace",
+          "does1": "Envía un correo a un contacto de confianza que eliges si no inicias sesión durante una ventana fijada.",
+          "does2": "El tiempo límite se configura de 7 a 365 días: tú decides el ritmo de comprobación.",
+          "does3": "Cada inicio de sesión reinicia la cuenta atrás automáticamente, así que el uso normal la mantiene en silencio.",
+          "doesNotTitle": "Qué no hace",
+          "doesNot1": "No entrega tus archivos.",
+          "doesNot2": "No libera tu frase de contraseña ni ninguna clave.",
+          "doesNot3": "Es un aviso a una persona, no una entrega automática de acceso.",
+          "footnote": "Como zcrypt es de conocimiento cero, no hay claves que podamos entregar, así que el interruptor avisa a una persona en lugar de liberar tus datos."
+        },
+        "beta": {
+          "eyebrow": "En beta",
+          "heading": "Madurando, y etiquetado con honestidad",
+          "subheading": "Estas dos son reales y utilizables, pero siguen evolucionando. Preferimos decirte exactamente en qué punto están que venderlas de más.",
+          "snapshots": {
+            "title": "Instantáneas e integridad",
+            "desc": "Captura un manifiesto de tu bóveda en un momento dado y detecta si un archivo almacenado ha sido alterado o manipulado desde entonces.",
+            "caveat": "Las instantáneas son manifiestos para detectar manipulaciones, no un sistema de restauración ni de historial de versiones. Aún no devuelven tus archivos a un estado anterior."
+          },
+          "shared": {
+            "title": "Bóvedas compartidas",
+            "desc": "Colabora en una bóveda con otras personas usando los roles de lector, editor y administrador.",
+            "caveat": "El reparto criptográfico de claves detrás de los roles aún está madurando. Trata las bóvedas compartidas como experimentales y no confíes todavía en ellas para secretos de alto riesgo."
+          }
+        },
+        "core": {
+          "heading": "Todo descansa sobre el mismo núcleo privado",
+          "body": "Cada una de estas herramientas está limitada por la misma promesa: tus archivos se cifran en tu dispositivo con AES-256-GCM antes de salir, y nunca vemos tu frase de contraseña ni tu texto plano. El señuelo oculta una bóveda que de todos modos no podemos leer; el interruptor de hombre muerto avisa a una persona porque no hay claves que liberar. Funciones de privacidad que no pueden traicionarte, porque la arquitectura no lo permite.",
+          "linkLabel": "Cómo funciona el cifrado"
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Carpetas reales y un explorador de archivos: cada nombre cifrado en tu dispositivo."
+          },
+          "dms": {
+            "title": "Interruptor de hombre muerto",
+            "desc": "Define el contacto, el tiempo límite y el mensaje de tu alerta de inactividad."
+          },
+          "security": {
+            "title": "Modelo de seguridad",
+            "desc": "Cómo encajan el cifrado de conocimiento cero y nuestro modelo de amenazas."
+          }
+        },
+        "cta": {
+          "heading": "Privacidad sobre la que de verdad puedes razonar",
+          "subtext": "Gratis y de código abierto. Trae una cuenta de almacenamiento que ya tengas, define una contraseña señuelo y activa tu red de seguridad en minutos."
+        }
+      },
+      "byos": {
+        "hero": {
+          "eyebrow": "Trae tu propio almacenamiento",
+          "title": "Usa el almacenamiento que ya tienes",
+          "subtext": "Conecta cuentas que son tuyas (GitHub, GitLab, Hugging Face, Telegram) y tus archivos cifrados se guardan como fragmentos disfrazados en repositorios tuyos. Los repositorios rotan automáticamente al llenarse, así que tu espacio crece solo. Tus datos, tu infraestructura, sin ataduras."
+        },
+        "mock": {
+          "label": "Almacenamiento conectado",
+          "badge": "Cifrado antes de subir",
+          "storedAs": "→ guardado como caché de compilación en un repositorio tuyo"
+        },
+        "platforms": {
+          "telegram": {
+            "capacity": "50 MB / archivo",
+            "note": "Muchos fragmentos pequeños, muy repartidos."
+          },
+          "github": {
+            "capacity": "850 MB / repo",
+            "note": "La opción por defecto. Crea tantos repos como quieras."
+          },
+          "gitlab": {
+            "capacity": "9 GB / repo",
+            "note": "Repos más holgados para bóvedas más pesadas."
+          },
+          "huggingface": {
+            "capacity": "90 GB / cuenta",
+            "note": "Pensado para archivos grandes, con mucho margen."
+          }
+        },
+        "adapters": {
+          "eyebrow": "Dónde viven tus archivos",
+          "heading": "Conecta lo que ya pagas",
+          "subheading": "Cuatro plataformas, cada una con sus propios límites generosos. Combínalas: cuantas más conectes, más espacio tendrás.",
+          "footnote": "Las capacidades son aproximadas, límites de plataforma por repo o por archivo, y pueden cambiar a criterio de los proveedores. zcrypt trabaja dentro de lo que cada plataforma permita en cada momento."
+        },
+        "caps": {
+          "split": {
+            "title": "Dividido, cifrado, disfrazado",
+            "desc": "Cada archivo se cifra en tu dispositivo y luego se divide en fragmentos de ~10 MB guardados como objetos corrientes de caché de compilación en un repo tuyo. En toda tu biblioteca, los archivos se reparten entre las cuentas que has conectado."
+          },
+          "rotation": {
+            "title": "Rotación automática de repos",
+            "desc": "Cuando un repo se acerca al límite de su plataforma, zcrypt rota a uno nuevo por su cuenta. Tu espacio útil crece sin que muevas un dedo."
+          },
+          "grows": {
+            "title": "Espacio que crece",
+            "desc": "Conecta más cuentas, obtén más espacio. No hay cuota vendida por zcrypt contra la que chocar: tu capacidad es la que ya tienes."
+          },
+          "disguised": {
+            "title": "Disfrazado a la llegada",
+            "desc": "Los fragmentos se guardan con aspecto de archivos corrientes de caché de compilación: artefactos anodinos en un repo de código, no blobs cifrados evidentes."
+          },
+          "infra": {
+            "title": "Tu infraestructura",
+            "desc": "Los bytes están en cuentas que controlas y de las que puedes irte con ellos. zcrypt orquesta; no secuestra tu almacenamiento."
+          },
+          "noLockin": {
+            "title": "Sin ataduras",
+            "desc": "Desconecta una plataforma o vete del todo, tus cuentas son tuyas. Código abierto, así que la mecánica nunca es una caja negra."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Tus datos, tu infraestructura",
+          "heading": "Nada a lo que quedar atado",
+          "body": "La mayoría del almacenamiento en la nube te alquila espacio en los servidores del proveedor, en los términos del proveedor. zcrypt le da la vuelta: es una capa de cifrado y orquestación sobre almacenamiento que ya es tuyo. Todo se cifra primero en tu dispositivo y luego los fragmentos se disfrazan de archivos corrientes de caché de compilación en repos tuyos: tu biblioteca repartida entre las cuentas que conectes. Vete cuando quieras: las cuentas y los bytes que contienen siempre fueron tuyos.",
+          "check1": "Cifrado en tu dispositivo antes de cualquier subida",
+          "check2": "Fragmentos disfrazados de artefactos rutinarios de caché de compilación",
+          "check3": "Guardados en repos de cuentas que controlas",
+          "check4": "Desconecta o vete cuando quieras, sin datos cautivos",
+          "linkLabel": "Cómo rota el pool de repos"
+        },
+        "panel": {
+          "comment": "// cómo llega un archivo a tu almacenamiento",
+          "success": "✓ tus cuentas. tus bytes. sin cuota vendida por zcrypt.",
+          "step1": "cifrar en el dispositivo. AES-256-GCM",
+          "step2": "dividir en fragmentos",
+          "step3": "disfrazar como",
+          "step4": "subir a un repo tuyo",
+          "step5": "¿repo cerca del límite?",
+          "rotate": "rotar →",
+          "fresh": "repo nuevo"
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "Lo que se asienta sobre tu almacenamiento: un explorador de archivos real y sellado."
+          },
+          "adapters": {
+            "title": "Docs: Adaptadores de plataforma",
+            "desc": "Conecta cuentas de GitHub, GitLab, Hugging Face y Telegram."
+          },
+          "pool": {
+            "title": "Docs: Pool de repos",
+            "desc": "Cómo se distribuyen los fragmentos y cómo rotan solos los repos al llenarse."
+          }
+        },
+        "cta": {
+          "heading": "Almacenamiento que es tuyo, cifrado en el que confías",
+          "subtext": "Gratis y de código abierto. Conecta una cuenta que ya tengas y empieza en menos de un minuto."
+        }
+      },
+      "apps": {
+        "hero": {
+          "eyebrow": "Web, escritorio y Android",
+          "title": "Una unidad, tres formas de entrar",
+          "subtext": "El mismo núcleo de conocimiento cero, trabajes donde trabajes: una app web en cualquier navegador, una app de escritorio nativa para macOS, Windows y Linux y una app de Android que instalas por sideload en un minuto. El cifrado nunca cambia, solo la interfaz.",
+          "secondaryLabel": "Descargar las apps"
+        },
+        "mock": {
+          "web": "Web",
+          "anyBrowser": "cualquier navegador",
+          "desktop": "Escritorio",
+          "desktopOs": "macOS · Win · Linux",
+          "android": "Android",
+          "sideload": "APK por sideload"
+        },
+        "sharedCore": "<b>El mismo cifrado en todas partes.</b> La app web ejecuta la canalización en Web Workers; escritorio y Android ejecutan {name}, el motor en proceso en {language}. Cada superficie comprime, cifra con AES-256-GCM, fragmenta y sube todo en tu dispositivo. Elige una superficie por el flujo de trabajo, no por la seguridad: es la misma bóveda y las mismas garantías en las tres.",
+        "surfaces": {
+          "eyebrow": "Elige tu superficie",
+          "heading": "Elige dónde trabajas",
+          "subheading": "Tres interfaces sobre un único backend cifrado. Usa la que encaje en cada momento, o las tres.",
+          "web": {
+            "name": "App web",
+            "tagline": "Cualquier navegador, nada que instalar",
+            "desc": "La bóveda completa en cualquier navegador moderno. El cifrado se ejecuta en la propia página, así que tus archivos se sellan antes de salir de la pestaña, sin extensión ni descarga.",
+            "point1": "Funciona en cualquier sistema operativo",
+            "point2": "Subidas con arrastrar y soltar",
+            "point3": "Vistas previas en el navegador",
+            "point4": "Siempre la última versión",
+            "cta": "Docs de la app web"
+          },
+          "desktop": {
+            "name": "App de escritorio",
+            "tagline": "Nativa en macOS, Windows y Linux",
+            "desc": "Una versión de escritorio nativa con {name}, el motor en proceso en {language}. Vive en tu dock o bandeja, sube directo a tu propio almacenamiento y maneja con soltura transferencias grandes.",
+            "point1": "macOS, Windows, Linux",
+            "point2": "Motor Rust en proceso",
+            "point3": "Subidas directas a tu almacenamiento",
+            "point4": "La misma bóveda cifrada",
+            "cta": "Docs de la app de escritorio"
+          },
+          "android": {
+            "name": "App de Android",
+            "tagline": "Instala el APK por sideload en un minuto",
+            "desc": "Tu bóveda en tu móvil, con el mismo motor {name} en {language} que el escritorio. Aún no está en Play Store: coge el APK, activa la instalación y listo. Sin esperas, sin porteros.",
+            "point1": "El mismo motor Rust que el escritorio",
+            "point2": "Se instala en cerca de un minuto",
+            "point3": "Sin esperar a Play Store",
+            "point4": "Subidas directas a tu almacenamiento",
+            "cta": "Docs de la app de Android"
+          }
+        },
+        "compare": {
+          "eyebrow": "Lado a lado",
+          "heading": "¿Cuál y cuándo?",
+          "subheading": "Una forma rápida de elegir. No hay respuesta equivocada: todas abren la misma unidad.",
+          "footnote": "Una cuenta, una bóveda cifrada: cambia de superficie cuando quieras sin volver a subir nada.",
+          "surface": "Superficie",
+          "bestFor": "Ideal para",
+          "install": "Instalación",
+          "runsOn": "Funciona en",
+          "web": {
+            "bestFor": "Acceso rápido desde cualquier equipo",
+            "install": "Nada. Abre un navegador",
+            "runsOn": "Cualquier sistema con un navegador moderno"
+          },
+          "desktop": {
+            "bestFor": "Uso diario y transferencias grandes",
+            "install": "Instalador nativo",
+            "runsOn": "macOS, Windows, Linux"
+          },
+          "android": {
+            "bestFor": "Tu bóveda en cualquier lugar",
+            "install": "APK por sideload (beta)",
+            "runsOn": "Móviles y tabletas Android"
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "La unidad cifrada",
+            "desc": "El explorador de archivos en el corazón de cada superficie."
+          },
+          "android": {
+            "title": "Guía de la app de Android",
+            "desc": "Instala el APK beta por sideload en cerca de un minuto."
+          },
+          "desktop": {
+            "title": "Guía de la app de escritorio",
+            "desc": "Instala la versión nativa para tu plataforma."
+          }
+        },
+        "cta": {
+          "heading": "La misma unidad, estés donde estés",
+          "subtext": "Gratis y de código abierto. Crea una cuenta una vez y accede desde la web, tu escritorio o tu móvil."
+        }
+      }
+    },
+    "home": {
+      "sticky": {
+        "region": "Empieza ya",
+        "text": "Gratis. Sin nada que configurar.",
+        "cta": "Empieza gratis",
+        "hide": "Ocultar la barra de registro"
+      },
+      "closing": {
+        "eyebrow": "Empieza hoy",
+        "titleA": "El almacenamiento que ",
+        "titleB": "de verdad es tuyo.",
+        "subtext": "Conecta tu propia cuenta. Cifrado en tu dispositivo. Sin límites artificiales ni dependencia de un proveedor.",
+        "button": "Empieza gratis"
+      },
+      "hoverReveal": "en serio, es gratis. no es broma.",
+      "how": {
+        "eyebrow": "¿Cómo es ilimitado?",
+        "title": "Tu archivo nunca viaja entero",
+        "hint": "Desplázate para verlo en acción. Desplázate hacia atrás para deshacerlo.",
+        "foot": "¿Quieres la versión seria con las matemáticas de verdad?",
+        "footLink": "Lee cómo funciona en detalle",
+        "cta": "Empieza gratis",
+        "more": "+ cientos más",
+        "connected": "Conectado",
+        "pieces": "+ piezas",
+        "newSpot": "Nuevo espacio",
+        "steps": {
+          "connect": {
+            "title": "Conecta tu cuenta",
+            "body": "Vincula una cuenta que ya tengas: Telegram, GitHub, GitLab o Hugging Face. Ahí vivirán tus archivos. No con nosotros."
+          },
+          "drop": {
+            "title": "Suelta un archivo",
+            "body": "Tu dispositivo lo corta en piezas y cierra cada una con una llave creada a partir de tu contraseña. La llave nunca sale de tu dispositivo."
+          },
+          "store": {
+            "title": "Guardado en tu propia nube",
+            "body": "Las piezas cerradas van a tu cuenta con nombres aburridos. Cuando un espacio se llena, zcrypt abre uno nuevo. Telegram no tiene techo, así que tú tampoco."
+          }
+        },
+        "caps": {
+          "accounts": "Tus cuentas",
+          "cut": "Cortado en piezas",
+          "locked": "Cada pieza cerrada en este dispositivo",
+          "saved": "Guardado en tus cuentas con nombres aburridos",
+          "spotFilled": "Un espacio se llenó. zcrypt abrió uno nuevo."
+        },
+        "limits": {
+          "telegram": "Sin techo",
+          "github": "850 MB por proyecto",
+          "gitlab": "9 GB por proyecto",
+          "huggingface": "90 GB por cuenta"
+        }
+      },
+      "trust": {
+        "eyebrow": "Por qué confiar",
+        "title": "Hecho para que no tengas que confiar en nosotros",
+        "lede": "Cada capa está pensada para la privacidad, y cada línea es de código abierto.",
+        "cards": {
+          "encryption": {
+            "label": "CIFRADO",
+            "title": "Cerrado antes de salir de tu dispositivo",
+            "body": "Tu contraseña crea la llave, en tu propio dispositivo. Nunca recibimos una copia, así que no hay nada que podamos perder, filtrar o entregar.",
+            "caption": "sellado en este dispositivo",
+            "chips": {
+              "0": "<m>AES-256-GCM</m>",
+              "1": "La llave se queda en tu dispositivo",
+              "2": "Los nombres de archivo también se cifran",
+              "3": "Un byte cambiado se detecta"
+            }
+          },
+          "scale": {
+            "label": "ESCALA",
+            "title": "Espacio que no deja de crecer",
+            "body": "Los archivos grandes se cortan en piezas y se reparten entre tus cuentas. Tu único límite es el espacio libre que ya tienes.",
+            "caption": "cada cuenta es más espacio",
+            "chips": {
+              "0": "Piezas de 4 a 32 MB",
+              "1": "Espacio nuevo antes de que se llene uno",
+              "2": "Telegram: sin techo"
+            }
+          },
+          "stealth": {
+            "label": "SIGILO",
+            "title": "Nada en él parece interesante",
+            "body": "Las piezas reciben nombres aburridos y mensajes de commit normales. Para cualquiera que mire, es un proyecto personal más y tranquilo.",
+            "caption": "chore: refresh build cache",
+            "chips": {
+              "0": "Nombres de archivo aleatorios",
+              "1": "Mensajes de commit aburridos",
+              "2": "Nombres como <m>quick-loader-v2</m>"
+            }
+          },
+          "open": {
+            "label": "ABIERTO",
+            "title": "Cada línea es pública",
+            "body": "Lee el código, comprueba las matemáticas o ejecútalo en tu propio ordenador. No tienes que creernos por las buenas.",
+            "caption": "léelo, haz un fork, ejecútalo",
+            "chips": {
+              "0": "Licencia MIT",
+              "1": "Ejecútalo tú mismo con Docker",
+              "2": "Código fuente completo en GitHub"
+            }
+          }
+        },
+        "scene": {
+          "new": "nuevo",
+          "hoursAgo": "hace 3 horas"
+        }
+      },
+      "bento": {
+        "eyebrow": "Qué hay dentro",
+        "title": "Funciona como el almacenamiento que ya conoces",
+        "lede": "Solo que no puede leer tus cosas.",
+        "tiles": {
+          "drive": {
+            "kicker": "Parece un almacenamiento normal",
+            "title": "Carpetas, búsqueda, arrastrar y soltar.",
+            "sentence": "Pulsa / para buscar, ordena por lo que quieras, mueve cosas. Fotos, vídeos, PDF y documentos se abren directamente en tu navegador, en la web, Mac, Windows, Linux y Android (beta).",
+            "short": "Busca, ordena, arrastra y suelta. Los archivos se abren en tu navegador."
+          },
+          "lock": {
+            "kicker": "Un segundo candado",
+            "title": "Una contraseña en cualquier carpeta.",
+            "sentence": "Para lo extra privado. Sí, más privado que privado.",
+            "short": "Para lo extra privado."
+          },
+          "share": {
+            "kicker": "Compártelo",
+            "title": "Enlaces con reglas.",
+            "sentence": "Añade una contraseña, una fecha de fin y un límite de descargas. Y olvídate.",
+            "short": "Contraseña, fecha de fin, límite de descargas."
+          },
+          "send": {
+            "kicker": "Sin cuenta",
+            "title": "Envía a cualquiera.",
+            "sentence": "No necesitan zcrypt. Puede desaparecer tras una lectura, como en una peli de espías pero con un PDF.",
+            "short": "No necesitan zcrypt."
+          },
+          "spaces": {
+            "kicker": "Espacios",
+            "title": "Espacios para los tuyos.",
+            "sentence": "Fotos familiares, papeleo de la casa, el trabajo en grupo que nadie más está haciendo.",
+            "short": "Fotos familiares, papeleo de la casa."
+          },
+          "resume": {
+            "kicker": "Apto para mal Wi-Fi",
+            "title": "Subidas que continúan.",
+            "sentence": "Cierra el portátil, pierde la señal, vuelve más tarde. Sigue donde se quedó. ¿Borraste algo por error? Hay un botón de restaurar.",
+            "short": "Pierdes la señal, sigue donde se quedó."
+          }
+        },
+        "v": {
+          "search": "Buscar en tu bóveda",
+          "colName": "Nombre",
+          "colSize": "Tamaño",
+          "colSaved": "Ahorro",
+          "colModified": "Modificado",
+          "folderTaxes": "Impuestos",
+          "ago3d": "hace 3 d",
+          "ago5h": "hace 5 h",
+          "ago1d": "hace 1 d",
+          "ago2d": "hace 2 d",
+          "sep14": "14 sep",
+          "unlockTitle": "Desbloquear carpeta protegida",
+          "unlockHint": "Introduce la contraseña de «Impuestos»",
+          "cancel": "Cancelar",
+          "unlock": "Desbloquear",
+          "shareTitle": "Compartir archivo",
+          "passwordProtect": "Proteger con contraseña",
+          "linkExpiry": "Caducidad del enlace",
+          "days7": "7 días",
+          "downloadLimit": "Límite de descargas",
+          "burnTitle": "Autodestruir tras leer",
+          "burnHint": "El archivo se borra tras la primera descarga",
+          "expiresAfter": "Caduca tras",
+          "hour1": "1 hora",
+          "hours24": "24 horas",
+          "spaces": {
+            "family": {
+              "name": "Fotos familiares",
+              "meta": "128 archivos · 14 ago"
+            },
+            "house": {
+              "name": "Papeleo de la casa",
+              "meta": "23 archivos · 2 jun"
+            }
+          },
+          "editor": "editor",
+          "unfinished": "1 subida sin terminar",
+          "resumeOrDiscard": "reanudar o descartar",
+          "expiresIn": "caduca en 6 días",
+          "resume": "Reanudar"
+        }
+      },
+      "faq": {
+        "eyebrow": "Preguntas",
+        "title": "Respuestas directas",
+        "lede": "Si falta algo, <docs>la documentación</docs> tiene la versión larga.",
+        "items": {
+          "0": {
+            "q": "¿De verdad es gratis?",
+            "a": "Sí. No hay planes de pago ni tarjeta. Tus archivos viven en cuentas que ya son tuyas, así que no hay nada por lo que cobrar."
+          },
+          "1": {
+            "q": "¿Cómo puede no haber límite?",
+            "a": "zcrypt no guarda tus archivos. Lo hacen tus cuentas conectadas. Cada cuenta que añades es más espacio, y Telegram no tiene techo en absoluto. Las cuentas nuevas empiezan con 1 GB de espacio compartido mientras lo configuras."
+          },
+          "2": {
+            "q": "¿Podéis ver mis archivos?",
+            "a": "No. Los archivos se cierran en tu propio dispositivo antes de subirse, y sus nombres también. Solo sabemos adónde fueron las piezas, nunca qué contienen."
+          },
+          "3": {
+            "q": "¿Y si olvido mi contraseña?",
+            "a": "Entonces nadie puede abrir tus archivos, nosotros tampoco. Eso es lo que cuesta la privacidad real, así que guárdala en un gestor de contraseñas."
+          },
+          "4": {
+            "q": "¿Necesito una cuenta de GitHub o Telegram?",
+            "a": "Para empezar, no. Puedes subir archivos enseguida. Conecta una cuenta cuando quieras más espacio. Telegram es lo más fácil si ya lo usas."
+          },
+          "5": {
+            "q": "¿Puedo compartir con alguien que no usa zcrypt?",
+            "a": "Sí. Envíale un enlace. Puedes añadir una contraseña, una fecha de fin y un límite de descargas, o usar Send para crear un archivo que desaparece tras una lectura."
+          },
+          "6": {
+            "q": "¿Funciona en iPhone?",
+            "a": "El sitio web sí, en Safari. Todavía no hay app para iPhone. Hay apps para Mac, Windows, Linux y Android (beta)."
+          },
+          "7": {
+            "q": "¿Y si una plataforma elimina mis archivos?",
+            "a": "Entonces las piezas guardadas allí desaparecen de allí. Para lo que no puedas perder, guarda una segunda copia en otro sitio. Es un buen consejo para cualquier nube, esta incluida."
+          },
+          "8": {
+            "q": "¿Qué pasa si zcrypt cierra?",
+            "a": "Cada línea de zcrypt es pública, así que cualquiera puede ejecutarlo, tú incluido. Una vez que conectas tus propias cuentas, tus piezas están allí, no con nosotros. Los archivos del espacio inicial de 1 GB viven en una cuenta compartida, así que si algún día lo cierro, lo diré con mucha antelación y podrás descargarlo todo."
+          },
+          "9": {
+            "q": "¿Es de código abierto?",
+            "a": "Cada línea, bajo la licencia MIT. Léelo, trastea con él o ejecútalo todo tú mismo con docker build y docker run."
+          }
+        }
+      },
+      "price": {
+        "eyebrow": "Precio",
+        "srOnly": "Cuesta 0 $",
+        "per": "Al mes. Al año. Para siempre.",
+        "body": "No hay plan Pro. No hay plan Plus. Desde luego no hay plan Premium Ultra. Tus archivos viven en cuentas que ya tienes, así que no hay almacén que alquilar ni nada que cobrarte.",
+        "cta": "Empieza gratis",
+        "thanks": "¿Quieres darnos las gracias igualmente? <star>Dale una estrella en GitHub</star>. Cuesta exactamente lo mismo."
+      },
+      "quotes": {
+        "eyebrow": "Lo que dice la gente",
+        "title": "Palabras amables",
+        "lede": "Reseñas de personas que usan zcrypt, leídas por nosotros antes de aparecer aquí.",
+        "stars": "{n} de 5 estrellas",
+        "play": "Reproducir las citas",
+        "pause": "Pausar las citas",
+        "rowA": "Reseñas, primera fila",
+        "rowB": "Reseñas, segunda fila"
+      },
+      "story": {
+        "eyebrow": "Por qué existe",
+        "title": "El almacenamiento gratis nunca fue gratis",
+        "goTo": "Ir a la parte {n}",
+        "prev": "Parte anterior",
+        "next": "Parte siguiente",
+        "rail": "La historia, en cuatro partes",
+        "part": "Parte {n}:",
+        "sign": "Hay un equipo. Soy yo.",
+        "longer": "Leer la versión larga",
+        "beats": {
+          "0": {
+            "title": "Me quedé sin espacio",
+            "body": "Google Drive me dio un toque en el hombro a los 15 GB y me pidió la tarjeta. Así que creé una segunda cuenta. Luego una tercera. Durante una semana repartí una carpeta entre tres cuentas como un contrabandista digital de bajo presupuesto."
+          },
+          "1": {
+            "title": "El terabyte gratis traía letra pequeña",
+            "body": "TeraBox dijo un terabyte, gratis. Lo que no dijeron: el botón de descarga está escondido como un secreto de Estado, y la letra pequeña trata tus archivos como suyos para escanearlos y aprender de ellos."
+          },
+          "2": {
+            "title": "Y falló al 80 por ciento",
+            "body": "Subí una carpeta de 4 GB, la vi arrastrarse hasta el 80 por ciento y la vi fallar. Mi primer pensamiento no fue «voy a reintentarlo». Fue «por qué le estoy entregando mi vida a una empresa cuyo negocio es saber lo que hay dentro»."
+          },
+          "3": {
+            "title": "La etiqueta del precio era yo",
+            "body": "El almacenamiento gratis nunca fue gratis. Solo que yo no había leído la etiqueta. Así que construí uno sin límite y sin nadie leyendo."
+          }
+        },
+        "scene": {
+          "myStorage": "Mi almacenamiento",
+          "login1": "1 inicio de sesión",
+          "logins": "{n} inicios de sesión, 1 carpeta",
+          "full": "Almacenamiento lleno. ¿Añadir una tarjeta?",
+          "addCard": "Añadir tarjeta",
+          "tos": "Términos del servicio",
+          "illustrative": "ilustrativo",
+          "free": "gratis",
+          "clause": "Podemos escanear tu contenido para mejorar nuestros servicios.",
+          "eta0": "Iniciando",
+          "eta1": "Quedan 6 min",
+          "eta2": "Quedan 14 min",
+          "eta3": "Quedan 31 min",
+          "eta4": "Queda aproximadamente una hora",
+          "eta5": "Un momento más",
+          "failed": "La subida falló. ¿Empezar de nuevo?",
+          "photos": "4 GB de fotos",
+          "retry": "Reintentar",
+          "price": "Precio",
+          "freeCaps": "GRATIS",
+          "noCard": "1 TB, sin tarjeta",
+          "actual": "Precio real",
+          "you": "tú",
+          "andFiles": "y tus archivos"
+        }
+      },
+      "compared": {
+        "eyebrow": "Comparación",
+        "title": "Mismo trabajo, distinto trato",
+        "lede": "Elegimos los que seguro conoces.",
+        "pick": "Comparar zcrypt con",
+        "caption": "zcrypt comparado con Google Drive, Dropbox, Proton Drive y TeraBox",
+        "here": "Estás aquí",
+        "foot": "Sus cifras vienen de sus propias páginas de precios a septiembre de 2026. Cambian cosas de vez en cuando, así que compruébalo antes de citarnos. «Técnicamente» significa que ellos tienen las llaves, no que alguien esté espiando.",
+        "rows": {
+          "free": "Almacenamiento gratis",
+          "open": "¿Podría la empresa abrir tus archivos?",
+          "where": "Dónde viven tus archivos",
+          "paid": "Planes de pago",
+          "oss": "Código abierto",
+          "self": "Ejecutarlo en tu propio ordenador",
+          "iphone": "App para iPhone"
+        },
+        "big": {
+          "zcrypt": "Sin límite",
+          "zcryptNote": "en las cuentas que conectes",
+          "gdrive": "Hasta 15 GB",
+          "gdriveNote": "compartido con Gmail y Photos",
+          "proton": "Hasta 5 GB",
+          "terabox": "1 TB",
+          "teraboxNote": "con anuncios"
+        },
+        "cell": {
+          "no": "No",
+          "technically": "Sí, técnicamente",
+          "theirServers": "Sus servidores",
+          "yes": "Sí",
+          "ownAccounts": "Tus propias cuentas",
+          "noneExist": "No existen",
+          "allOfIt": "Todo",
+          "theApps": "Las apps",
+          "notYet": "Aún no (la web funciona)"
+        }
+      }
+    },
+    "vs": {
+      "common": {
+        "yes": "Sí",
+        "no": "No",
+        "caption": "zcrypt comparado con {name}",
+        "heroEyebrow": "zcrypt vs {name}",
+        "startFree": "Empieza gratis",
+        "heroNote": "Sin tarjeta. Sin prueba. No hay nada a lo que actualizar.",
+        "sideBySide": "Cara a cara",
+        "tableTitle": "zcrypt y {name}, fila por fila",
+        "footnote": "La comparación refleja la oferta estándar de cada producto en 2026. {name} es una marca de {owner}; no estamos afiliados ni respaldados por ellos.",
+        "honestPart": "La parte sincera",
+        "whenBetter": "Cuándo {name} es la mejor opción",
+        "goDeeper": "Profundiza",
+        "readDetails": "Lee los detalles",
+        "related": {
+          "drive": {
+            "title": "La unidad en sí",
+            "desc": "Carpetas reales, búsqueda y vistas previas, con cifrado de conocimiento cero por debajo."
+          },
+          "encryption": {
+            "title": "Cómo funciona el cifrado",
+            "desc": "AES-256-GCM, claves creadas en tu dispositivo y lo que el servidor puede y no puede ver."
+          }
+        },
+        "rows": {
+          "encryption": "Modelo de cifrado y quién tiene las claves",
+          "zeroKnowledge": "Conocimiento cero",
+          "storage": "Modelo de almacenamiento",
+          "free": "Plan gratuito y precios",
+          "openSource": "Código abierto",
+          "selfHost": "Autoalojable",
+          "folders": "Organización de archivos y carpetas",
+          "previews": "Vistas previas en el navegador",
+          "sharing": "Compartir archivos",
+          "lockIn": "Dependencia del proveedor"
+        },
+        "z": {
+          "encryption": "AES-256-GCM, claves derivadas en tu dispositivo (PBKDF2, 600k iteraciones). Solo tú las tienes.",
+          "zeroKnowledge": "Sí, por defecto. El contenido de los archivos es de conocimiento cero, y los nombres de carpetas y archivos se cifran en el cliente (una antigua columna de nombres en texto plano se está retirando).",
+          "storage": "Trae el tuyo: cuentas de GitHub, GitLab, Hugging Face o Telegram que ya controlas.",
+          "free": "Gratis. Tú pones el almacenamiento, así que no hay tarifa por gigabyte de nuestra parte.",
+          "openSource": "Totalmente de código abierto: audita tú mismo el cliente y el servidor.",
+          "selfHost": "Ejecuta toda la pila tú mismo.",
+          "folders": "Carpetas anidables reales con nombres de carpeta cifrados y contraseñas por carpeta.",
+          "previews": "Imágenes, vídeo, audio, PDF, documentos y código: descifrados en tu navegador, nunca en el servidor.",
+          "sharing": "Enlaces para compartir cifrados con caducidad. Las bóvedas compartidas están en beta.",
+          "lockIn": "Mínima. Tus datos viven en tus propias cuentas y el formato es abierto."
+        }
+      },
+      "googleDrive": {
+        "hero": {
+          "title": "Google Drive puede leer tus archivos. zcrypt no",
+          "lede": "Google Drive está profundamente integrado y es increíblemente cómodo, pero procesa tu contenido para la búsqueda, las vistas previas y las funciones inteligentes, y no tiene cifrado de extremo a extremo. zcrypt lo cifra todo primero en tu dispositivo, lo guarda en cuentas que ya son tuyas y es de código abierto de arriba abajo.",
+          "secondary": "Mira cómo funciona"
+        },
+        "pillarsHead": {
+          "eyebrow": "Por qué cambiar",
+          "title": "Lo que cambia cuando nadie más puede mirar"
+        },
+        "pillars": {
+          "onlyYou": {
+            "title": "Solo tú puedes leerlo",
+            "desc": "Tu frase de contraseña deriva las claves de cifrado en tu dispositivo con PBKDF2 (600k iteraciones). Nada (ni la búsqueda, ni las funciones inteligentes, ni nosotros) puede leer tus archivos, porque nadie más tiene las claves."
+          },
+          "noScanning": {
+            "title": "Sin escaneo, nunca",
+            "desc": "Como el contenido se cifra con AES-256-GCM antes de salir de tu dispositivo, no hay nada que escanear, indexar o analizar. El servidor guarda texto cifrado opaco, incluidos los nombres de carpeta."
+          },
+          "byos": {
+            "title": "Trae tu propio almacenamiento",
+            "desc": "Conecta una cuenta de GitHub, GitLab, Hugging Face o Telegram que ya es tuya. Sin un fondo compartido de 15 GB, sin tarifas por gigabyte de nuestra parte, sin límites artificiales."
+          },
+          "openSource": {
+            "title": "Código abierto, ejecútalo tú mismo",
+            "desc": "Lee el código, audita la criptografía o ejecútalo todo tú mismo. La forma en que se tratan tus archivos no es una caja negra."
+          }
+        },
+        "table": {
+          "lede": "Una mirada sincera a dónde encaja cada uno. Google Drive gana en integración y colaboración; zcrypt gana en privacidad, propiedad y apertura."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Cifrado en tránsito y en reposo con claves administradas por Google. Google puede descifrar tus archivos."
+          },
+          "zeroKnowledge": {
+            "other": "No. El contenido se procesa para la búsqueda, las vistas previas, las funciones inteligentes y el análisis de políticas."
+          },
+          "storage": {
+            "other": "Alojado por Google, compartido entre Drive, Gmail y Fotos. Cómodo, pero no es tuyo."
+          },
+          "free": {
+            "other": "15 GB gratis (compartidos entre los servicios de Google); para más hace falta un plan de pago de Google One."
+          },
+          "openSource": {
+            "other": "Propietario, de código cerrado."
+          },
+          "selfHost": {
+            "other": "Solo como servicio alojado de Google."
+          },
+          "folders": {
+            "other": "Excelentes carpetas, búsqueda y unidades compartidas, pero los nombres y los contenidos son visibles para Google."
+          },
+          "previews": {
+            "other": "Vistas previas inmejorables y edición en Docs/Sheets, posibles porque Google puede leer los archivos."
+          },
+          "sharing": {
+            "other": "Compartir muy maduro y colaboración en tiempo real: a costa del acceso del proveedor."
+          },
+          "lockIn": {
+            "other": "Alta. Archivos, formatos y flujos de trabajo están atados al ecosistema de Google."
+          }
+        },
+        "whenBetter": {
+          "p1": "Google Drive es uno de los productos más capaces de su tipo, y hay muchas situaciones en las que simplemente es la respuesta correcta.",
+          "p2": "Si tu trabajo gira en torno a la <b>colaboración en tiempo real en Docs, Sheets y Slides</b>, o vives dentro de Gmail, Calendar y el resto del ecosistema de Google, la integración de Drive no tiene rival. Que varias personas editen el mismo documento en directo es algo que una unidad cifrada en reposo no puede replicar por su propia naturaleza, porque eso exige que el servidor lea el contenido.",
+          "p3": "Si quieres <b>búsqueda potente dentro del contenido de tus archivos</b>, funciones asistidas por IA u organización automática de fotos, eso depende de que Google pueda leer tus datos. zcrypt no puede ofrecerlas justamente porque no puede ver tus archivos. Es el compromiso deliberado del conocimiento cero.",
+          "p4": "Y si hoy necesitas aplicaciones móviles nativas pulidas, <b>las aplicaciones móviles de zcrypt siguen en la hoja de ruta</b>. Ahora lanzamos web, escritorio y una beta de Android; las aplicaciones móviles de Google Drive son maduras y completas.",
+          "p5": "zcrypt encaja mejor cuando quieres un almacenamiento que de verdad no pueda leer tus archivos, que viva en cuentas que ya son tuyas y que no esconda nada tras un cliente propietario."
+        }
+      },
+      "dropbox": {
+        "hero": {
+          "title": "Dropbox es cómodo. zcrypt es privado",
+          "lede": "Dropbox es un lugar pulido y sin fricciones para guardar archivos, pero tiene las claves y puede leer lo que almacenas. zcrypt es una unidad cifrada de verdad donde todo se cifra en tu dispositivo, se guarda en cuentas que ya son tuyas y el código está abierto para que cualquiera lo audite.",
+          "secondary": "Ver la unidad"
+        },
+        "pillarsHead": {
+          "eyebrow": "Por qué cambiar",
+          "title": "Lo que obtienes y Dropbox no te da"
+        },
+        "pillars": {
+          "keys": {
+            "title": "Tú tienes las claves",
+            "desc": "Tu frase de contraseña deriva las claves de cifrado en tu dispositivo con PBKDF2 (600k iteraciones). Nosotros nunca las vemos. Si pierdes la frase, ni siquiera nosotros podemos recuperar tus archivos, ese es el objetivo."
+          },
+          "locked": {
+            "title": "Bloqueado antes de salir",
+            "desc": "Los archivos se cifran con AES-256-GCM antes de salir de tu dispositivo. Incluso los nombres de carpeta están sellados, así que el servidor guarda texto cifrado opaco y nada más."
+          },
+          "byos": {
+            "title": "Trae tu propio almacenamiento",
+            "desc": "Apunta zcrypt a una cuenta de GitHub, GitLab, Hugging Face o Telegram que ya es tuya. Sin tarifas por gigabyte de nuestra parte y sin límites artificiales."
+          },
+          "openSource": {
+            "title": "Código abierto, ejecútalo tú mismo",
+            "desc": "Lee el código, audita la criptografía o ejecútalo todo tú mismo. Nada de cómo se tratan tus archivos queda oculto tras un cliente propietario."
+          }
+        },
+        "table": {
+          "lede": "Una mirada sincera a dónde encaja cada uno. Dropbox gana en pulido y ecosistema; zcrypt gana en privacidad, propiedad y apertura."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Cifrado en tránsito y en reposo, pero Dropbox administra las claves y puede descifrar tus archivos."
+          },
+          "zeroKnowledge": {
+            "other": "No. Dropbox puede acceder técnicamente al contenido de los archivos para las vistas previas, la búsqueda y el escaneo."
+          },
+          "storage": {
+            "other": "Almacenamiento alojado en la infraestructura de Dropbox. Sencillo, pero el backend no es tuyo."
+          },
+          "free": {
+            "other": "Plan gratuito limitado (unos pocos GB); una capacidad razonable exige un plan de pago Plus/Professional."
+          },
+          "openSource": {
+            "other": "Clientes y backend propietarios, de código cerrado."
+          },
+          "selfHost": {
+            "other": "Solo como servicio alojado."
+          },
+          "folders": {
+            "other": "Carpetas y sincronización maduras y pulidas. Excelente organización, pero los nombres son visibles para Dropbox."
+          },
+          "previews": {
+            "other": "Vistas previas y edición completas, generadas en el servidor porque Dropbox puede leer los archivos."
+          },
+          "sharing": {
+            "other": "Compartir, enlaces y colaboración muy maduros: a costa del acceso del proveedor."
+          },
+          "lockIn": {
+            "other": "Mayor. Los datos y los flujos de trabajo viven dentro del ecosistema de Dropbox."
+          }
+        },
+        "whenBetter": {
+          "p1": "No vamos a fingir que zcrypt gana para todo el mundo. Dropbox es realmente excelente en lo que hace, y hay situaciones reales en las que es la herramienta adecuada.",
+          "p2": "Si necesitas <b>edición colaborativa en tiempo real</b>, integraciones profundas con Office o Google Workspace, o un cliente de sincronización de escritorio con una década de madurez que simplemente funcione en todos los dispositivos de tu equipo, Dropbox es difícil de superar. Sus vistas previas, comentarios e historial de versiones están hoy más pulidos que los nuestros.",
+          "p3": "Si específicamente <b>quieres que el proveedor aloje y administre el almacenamiento por ti</b> (sin cuentas que conectar, sin claves que recordar), Dropbox te quita esa responsabilidad por completo. Con zcrypt, si pierdes tu frase de contraseña, tus datos son irrecuperables. Ese compromiso es el precio del conocimiento cero y no es para todos.",
+          "p4": "Y si hoy necesitas aplicaciones móviles pulidas, <b>las aplicaciones móviles nativas de zcrypt siguen en la hoja de ruta</b>. Ahora mismo lanzamos web, escritorio y una beta de Android. La experiencia móvil de Dropbox es madura y completa.",
+          "p5": "zcrypt encaja mejor cuando la privacidad no es negociable: cuando quieres ser la única persona que puede leer tus archivos, mantenerlos en un almacenamiento que ya es tuyo y verificar exactamente cómo funciona el cifrado."
+        }
+      },
+      "protonDrive": {
+        "hero": {
+          "title": "Los dos son privados. Solo uno es tuyo para ejecutarlo",
+          "lede": "Proton Drive es una unidad de conocimiento cero realmente excelente y auditada, y la respetamos. Aquí las diferencias son más estrechas y tienen más que ver con la filosofía: zcrypt es de código abierto <em>y</em> autoalojable, guarda los archivos en cuentas que ya son tuyas y no tiene límites artificiales.",
+          "secondary": "Mira cómo funciona"
+        },
+        "respectNote": "<b>Hay que reconocer los méritos.</b> Proton Drive tiene cifrado de extremo a extremo, está auditado de forma independiente, cuenta con el respaldo de una empresa de privacidad consolidada y tiene aplicaciones móviles maduras. Si lo estás comparando con zcrypt, ya estás haciendo una elección que respeta la privacidad. Esta página trata de qué compromisos te convienen, no de afirmar que Proton haga algo mal.",
+        "pillarsHead": {
+          "eyebrow": "Las diferencias",
+          "title": "Donde zcrypt va por su propio camino",
+          "lede": "La historia del cifrado es parecida. En estas cuatro cosas zcrypt toma otro camino."
+        },
+        "pillars": {
+          "openSource": {
+            "title": "Código abierto, de arriba abajo",
+            "desc": "Como Proton, nuestras aplicaciones son de código abierto, y el servidor también. Puedes auditarlo, bifurcarlo o ejecutarlo entero. No hay ningún componente cerrado en el que debas confiar a ciegas."
+          },
+          "byos": {
+            "title": "Trae tu propio almacenamiento",
+            "desc": "Esta es la gran diferencia. En lugar de una cuota alojada por Proton, apunta zcrypt a una cuenta de GitHub, GitLab, Hugging Face o Telegram que ya es tuya. Sin límites de gigabytes de nuestra parte, sin una factura de almacenamiento aparte."
+          },
+          "selfHost": {
+            "title": "Autoaloja toda la pila",
+            "desc": "Ejecuta tu propio servidor de zcrypt y mantén tanto las claves como la infraestructura bajo tu control. Proton Drive solo existe alojado. No puedes operar tu propia instancia."
+          }
+        },
+        "table": {
+          "lede": "Los dos cumplen los requisitos de privacidad. Las diferencias se concentran en el alojamiento, la propiedad del almacenamiento y las herramientas."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Cifrado de extremo a extremo con claves derivadas de tu contraseña. Proton tampoco puede leer tus archivos."
+          },
+          "zeroKnowledge": {
+            "zcrypt": "Sí, por defecto. El contenido de los archivos es de conocimiento cero, y los nombres de carpetas y archivos se cifran en el cliente. Proton es un producto maduro de conocimiento cero que también cifra los metadatos de los archivos.",
+            "other": "Sí. Proton Drive es realmente de conocimiento cero y también cifra los metadatos de los archivos."
+          },
+          "storage": {
+            "other": "Alojado por Proton en centros de datos de Suiza y la UE. Respetable y administrado, pero es Proton quien gestiona el almacenamiento."
+          },
+          "free": {
+            "zcrypt": "Gratis. Tú pones el almacenamiento, así que la capacidad no se mide ni se vende por gigabyte.",
+            "other": "Plan gratuito generoso; más almacenamiento y paquetes requieren un plan de pago de Proton."
+          },
+          "openSource": {
+            "zcrypt": "Cliente y servidor son totalmente de código abierto.",
+            "other": "Proton publica el código de sus aplicaciones y difunde auditorías de seguridad independientes."
+          },
+          "selfHost": {
+            "zcrypt": "Ejecuta toda la pila tú mismo: cliente, servidor y almacenamiento.",
+            "other": "Solo como servicio alojado de Proton; no puedes ejecutar tu propio servidor de Proton Drive."
+          },
+          "folders": {
+            "zcrypt": "Carpetas anidables reales con nombres cifrados y contraseñas opcionales por carpeta.",
+            "other": "Carpetas cifradas sólidas y una experiencia de unidad limpia."
+          },
+          "previews": {
+            "zcrypt": "Imágenes, vídeo, audio, PDF, documentos y código: descifrados localmente en el navegador.",
+            "other": "Vistas previas en el navegador con descifrado en el cliente, un enfoque similar."
+          },
+          "sharing": {
+            "other": "Compartir cifrado maduro con enlaces protegidos por contraseña y con caducidad."
+          },
+          "lockIn": {
+            "zcrypt": "Mínima. Los datos viven en un almacenamiento que ya es tuyo y el formato es abierto.",
+            "other": "Moderada. Tus datos cifrados viven dentro del ecosistema alojado de Proton."
+          }
+        },
+        "whenBetter": {
+          "p1": "Proton Drive es un producto serio y bien construido, y para mucha gente es la opción más inteligente. Preferimos que elijas la herramienta adecuada y no la que lleva nuestro nombre.",
+          "p2": "Si quieres <b>aplicaciones móviles nativas pulidas hoy</b>, Proton las tiene y zcrypt no: nuestras aplicaciones móviles siguen en la hoja de ruta. Para quien gestiona sus archivos sobre todo desde el teléfono, esa diferencia por sí sola puede decidirlo.",
+          "p3": "Si valoras una <b>única suite de privacidad totalmente administrada</b> (Drive, Mail, Calendar y VPN bajo un mismo proveedor auditado en jurisdicción suiza y de la UE), Proton lo ofrece como un paquete coherente. zcrypt se centra en ser una unidad cifrada, no un ecosistema.",
+          "p4": "Si prefieres <b>no gestionar tú nada de almacenamiento ni de infraestructura</b>, Proton se encarga de todo. El modelo de traer tu propio almacenamiento de zcrypt es potente, pero te pide conectar una cuenta y asumir la responsabilidad de tu frase de contraseña. Y algunas de nuestras funciones de colaboración más avanzadas, como las bóvedas compartidas, siguen en beta.",
+          "p5": "zcrypt encaja mejor cuando quieres una unidad cifrada que puedas autoalojar por completo, guardar en cuentas que ya son tuyas y escalar sin límites artificiales, todo de código abierto y gratis."
+        }
+      }
+    }
+  }
 }

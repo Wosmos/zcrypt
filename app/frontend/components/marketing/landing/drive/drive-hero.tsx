@@ -68,14 +68,18 @@ function Head() {
 }
 
 function Live() {
+  const t = useTranslations("site");
   const { state } = useDrive();
   const [msg, setMsg] = useState("");
   useEffect(() => {
     if (!state.live) return;
     setMsg("");
-    const t = window.setTimeout(() => setMsg(state.live?.msg ?? ""), 30);
-    return () => window.clearTimeout(t);
-  }, [state.live]);
+    const timer = window.setTimeout(
+      () => setMsg(state.live?.key ? t(state.live.key) : (state.live?.msg ?? "")),
+      30,
+    );
+    return () => window.clearTimeout(timer);
+  }, [state.live, t]);
   return (
     <p className="sr-only" aria-live="polite">
       {msg}

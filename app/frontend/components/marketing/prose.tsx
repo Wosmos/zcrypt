@@ -25,8 +25,8 @@ export function ReadingPage({
   after,
   children,
 }: {
-  eyebrow: string;
-  title: string;
+  eyebrow: ReactNode;
+  title: ReactNode;
   lede: ReactNode;
   after?: ReactNode;
   children: ReactNode;
@@ -49,8 +49,8 @@ export function ProseSection({
   children,
 }: {
   id: string;
-  eyebrow: string;
-  title: string;
+  eyebrow: ReactNode;
+  title: ReactNode;
   className?: string;
   children: ReactNode;
 }) {

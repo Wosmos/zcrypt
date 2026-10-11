@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { T } from "@/components/i18n/t";
 import { FileText, GitCommit, File, Check } from "@/lib/icons";
 import { GitHubIcon } from "@/components/icons/github";
 import { GitlabIcon as GitLabIcon } from "@/components/icons/gitlab";
@@ -114,7 +115,11 @@ export function ScaleScene() {
                   <Check strokeWidth={2.4} />
                 </span>
               ) : null}
-              {key === "new" ? <span className="zc-tube-tag">new</span> : null}
+              {key === "new" ? (
+                <span className="zc-tube-tag">
+                  <T k="site.home.trust.scene.new" />
+                </span>
+              ) : null}
               {key === "tg" ? <span className="zc-tube-inf">∞</span> : null}
             </span>
             <span className="zc-tube-body">
@@ -149,7 +154,9 @@ export function StealthScene() {
         <div className="zc-gh-commit">
           <GitCommit strokeWidth={1.8} />
           <span className="zc-gh-hash">7c1e2f9</span>
-          <span className="zc-gh-when">3 hours ago</span>
+          <span className="zc-gh-when">
+            <T k="site.home.trust.scene.hoursAgo" />
+          </span>
           <i className="zc-gh-live" />
         </div>
         <ul className="zc-gh-rows">

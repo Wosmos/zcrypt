@@ -1,4 +1,5 @@
 import { formatBytes, getFileTypeInfo } from "@/lib/utils";
+import type { Tr } from "./drive-i18n";
 import { viewerKindFor, type ViewerKind } from "@/components/viewers/viewer-kind";
 
 const KB = 1024;
@@ -35,9 +36,8 @@ export type DroppedFile = DriveFile & {
 export type Piece = { name: string; size: string; cap?: string };
 
 export const REPO = "quick-loader-v2";
-export const COMMIT = { msg: "chore: refresh build cache", when: "3 hours ago" };
+export const COMMIT = { msg: "chore: refresh build cache" };
 export const README_LINE = "Internal build artifacts and cache storage.";
-export const HINT = "That opens after you sign up. Everything here is sample data.";
 
 const HEX = "0123456789abcdef";
 
@@ -134,13 +134,13 @@ export const RECENT: DriveFile[] = [
   f("r4", "savings.xlsx", 44 * KB, 61, "1d ago"),
 ];
 
-export const FILTERS: { key: FilterKey | null; label: string }[] = [
-  { key: null, label: "All" },
-  { key: "image", label: "Images" },
-  { key: "document", label: "Documents" },
-  { key: "video", label: "Videos" },
-  { key: "audio", label: "Audio" },
-  { key: "archive", label: "Archives" },
+export const FILTERS: { key: FilterKey | null; id: string }[] = [
+  { key: null, id: "all" },
+  { key: "image", id: "image" },
+  { key: "document", id: "document" },
+  { key: "video", id: "video" },
+  { key: "audio", id: "audio" },
+  { key: "archive", id: "archive" },
 ];
 
 const LABEL_TO_FILTER: Record<string, FilterKey> = {
@@ -186,16 +186,19 @@ export function isDropped(f: DriveFile | DroppedFile): f is DroppedFile {
 }
 
 export function countLabel(
+  t: Tr,
   view: View,
   e: Entries,
   dropped: DroppedFile | null,
   folder: string | null,
 ) {
   const extra = dropped && !folder ? dropped.pieces.length - 1 : 0;
-  if (view === "gh") return `${e.folders.length + e.files.length + extra} files, no real names`;
-  const p = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
-  if (!e.folders.length) return p(e.files.length, "item");
-  return `${p(e.folders.length, "folder")} · ${p(e.files.length, "file")}`;
+  if (view === "gh") return t("drive.count.gh", { n: e.folders.length + e.files.length + extra });
+  if (!e.folders.length) return t("drive.count.items", { n: e.files.length });
+  return t("drive.count.both", {
+    folders: t("drive.count.folders", { n: e.folders.length }),
+    files: t("drive.count.files", { n: e.files.length }),
+  });
 }
 
 export function randHex(): string {

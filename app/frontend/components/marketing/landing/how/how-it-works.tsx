@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef } from "react";
+import { T } from "@/components/i18n/t";
 import { MOTION_REDUCE, ScrollTrigger, gsap, useGSAP } from "@/components/marketing/landing/gsap";
 import { ArrowRight } from "@/lib/icons";
 import { SectionHead } from "../section-head";
@@ -430,16 +431,18 @@ export function HowItWorks() {
             <div className="zw-left">
               <SectionHead
                 id="h-how"
-                eyebrow="How is it unlimited?"
-                title="Your file never travels whole"
+                eyebrow={<T k="site.home.how.eyebrow" />}
+                title={<T k="site.home.how.title" />}
                 align="left"
               />
               <HowTimeline />
-              <p className="zw-hint">Scroll to drive it. Scroll back to undo it.</p>
+              <p className="zw-hint">
+                <T k="site.home.how.hint" />
+              </p>
               <p className="zw-foot">
-                Want the grown-up version with the actual maths?{" "}
+                <T k="site.home.how.foot" />{" "}
                 <Link href="/docs/how-it-works" className="zw-link">
-                  Read how it works in detail
+                  <T k="site.home.how.footLink" />
                   <ArrowRight />
                 </Link>
               </p>
@@ -447,7 +450,7 @@ export function HowItWorks() {
                 href="/register"
                 className="zw-cta inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-6 text-[15px] font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
               >
-                Start free
+                <T k="site.home.how.cta" />
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

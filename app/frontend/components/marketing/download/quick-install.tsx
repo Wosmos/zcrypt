@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy } from "@/lib/icons";
 import { type PlatformId } from "@/lib/releases";
 import { cn } from "@/lib/utils";
@@ -10,11 +11,10 @@ import { OS_GLYPHS } from "./os-glyphs";
 
 type Method = { shell: string; command: string };
 
-const METHODS: Record<PlatformId, { name: string; primary: Method; hint: string; alt?: Method }> = {
+const METHODS: Record<PlatformId, { name: string; primary: Method; alt?: Method }> = {
   macos: {
     name: "macOS",
     primary: { shell: "Terminal", command: "curl -fsSL https://zcrypt.cloud/install.sh | sh" },
-    hint: "Installs zcrypt into Applications and opens it. No security prompt, no Homebrew needed.",
     alt: {
       shell: "Homebrew",
       command: "brew tap wosmos/zcrypt\nbrew trust wosmos/zcrypt\nbrew install --cask zcrypt",
@@ -23,12 +23,10 @@ const METHODS: Record<PlatformId, { name: string; primary: Method; hint: string;
   windows: {
     name: "Windows",
     primary: { shell: "PowerShell", command: "irm https://zcrypt.cloud/install.ps1 | iex" },
-    hint: "Installs zcrypt for your account and starts it. No admin rights, no SmartScreen prompt.",
   },
   linux: {
     name: "Linux",
     primary: { shell: "Terminal", command: "curl -fsSL https://zcrypt.cloud/install.sh | sh" },
-    hint: "Uses apt or dnf when it can, otherwise installs the AppImage into ~/.local/bin.",
   },
 };
 
@@ -42,6 +40,7 @@ function detectPlatform(): PlatformId | null {
 }
 
 function CommandLine({ method }: { method: Method }) {
+  const t = useTranslations("site");
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -65,7 +64,11 @@ function CommandLine({ method }: { method: Method }) {
       <button
         type="button"
         onClick={copy}
-        aria-label={copied ? "Copied" : `Copy the ${method.shell} command`}
+        aria-label={
+          copied
+            ? t("download.install.copied")
+            : t("download.install.copyCommand", { shell: method.shell })
+        }
         className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 sm:px-2.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
       >
         {copied ? (
@@ -73,7 +76,9 @@ function CommandLine({ method }: { method: Method }) {
         ) : (
           <Copy className="h-3.5 w-3.5" />
         )}
-        <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+        <span className="hidden sm:inline">
+          {copied ? t("download.install.copied") : t("download.install.copy")}
+        </span>
       </button>
     </div>
   );
@@ -85,6 +90,7 @@ function CommandLine({ method }: { method: Method }) {
  * Gatekeeper and SmartScreen stop an unsigned app.
  */
 export function QuickInstall() {
+  const t = useTranslations("site");
   const detected = useSyncExternalStore(noopSubscribe, detectPlatform, () => null);
   const [picked, setPicked] = useState<PlatformId | null>(null);
   const active = picked ?? detected ?? "macos";
@@ -94,15 +100,16 @@ export function QuickInstall() {
     <div className={cn("mx-auto max-w-3xl p-6 sm:p-7", cardSurface)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="pv2-h3 text-lg">Install with one command</h3>
+          <h3 className="pv2-h3 text-lg">{t("download.install.title")}</h3>
           <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">
-            Skips the &ldquo;unverified app&rdquo; prompt. Paste it into{" "}
-            {method.primary.shell === "PowerShell" ? "PowerShell" : "a terminal"}.
+            {method.primary.shell === "PowerShell"
+              ? t("download.install.skipsPowerShell")
+              : t("download.install.skipsTerminal")}
           </p>
         </div>
         <div
           role="tablist"
-          aria-label="Operating system"
+          aria-label={t("download.install.osLabel")}
           className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1"
         >
           {ORDER.map((id) => {
@@ -133,12 +140,12 @@ export function QuickInstall() {
       <div className="mt-5 space-y-2.5" role="tabpanel" aria-label={method.name}>
         <CommandLine method={method.primary} />
         <p className="px-1 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
-          {method.hint}
+          {t(`download.install.hint.${active}`)}
         </p>
         {method.alt ? (
           <>
             <p className="px-1 pt-2 text-[12px] font-medium text-[var(--color-text-secondary)]">
-              Already use Homebrew?
+              {t("download.install.homebrew")}
             </p>
             <CommandLine method={method.alt} />
           </>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { T } from "@/components/i18n/t";
 import { ReadingPage, proseLink } from "@/components/marketing/prose";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 
@@ -10,8 +11,8 @@ export function LegalPage({
   seeAlso,
   children,
 }: {
-  eyebrow: string;
-  title: string;
+  eyebrow: ReactNode;
+  title: ReactNode;
   lead: ReactNode;
   seeAlso: { href: string; label: string };
   children: ReactNode;
@@ -20,7 +21,7 @@ export function LegalPage({
     <ReadingPage eyebrow={eyebrow} title={title} lede={lead} after={<ClosingCta />}>
       {children}
       <p className="mt-20 border-t border-[var(--color-border)] pt-8 text-sm text-[var(--color-text-secondary)]">
-        See also:{" "}
+        <T k="site.chrome.seeAlso" />{" "}
         <Link href={seeAlso.href} className={proseLink}>
           {seeAlso.label}
         </Link>

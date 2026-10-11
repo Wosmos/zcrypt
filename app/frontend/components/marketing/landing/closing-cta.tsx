@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { landingSections } from "@/lib/data";
+import { T } from "@/components/i18n/t";
 import { Section } from "@/components/marketing/section-reveal";
 import { Underlined } from "@/components/marketing/landing/pencil-underline";
 import { HoverReveal } from "@/components/marketing/landing/hover-reveal";
@@ -18,11 +18,11 @@ export function ClosingCta({
   className,
 }: {
   id?: string;
-  label?: string;
-  eyebrow?: string;
-  title?: string;
+  label?: ReactNode;
+  eyebrow?: ReactNode;
+  title?: ReactNode;
   subtext?: ReactNode;
-  secondary?: { href: string; label: string };
+  secondary?: { href: string; label: ReactNode };
   className?: string;
 }) {
   const headingId = id ? `${id}-title` : "closing-cta-title";
@@ -40,7 +40,7 @@ export function ClosingCta({
       <div className="relative mx-auto max-w-2xl text-center">
         <Section as="div">
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-400">
-            {eyebrow ?? landingSections.cta.eyebrow}
+            {eyebrow ?? <T k="site.home.closing.eyebrow" />}
           </p>
           <h2 id={headingId} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
             {title ? (
@@ -50,22 +50,24 @@ export function ClosingCta({
               </>
             ) : (
               <>
-                The drive you{" "}
+                <T k="site.home.closing.titleA" />
                 <Underlined variant="highlight">
-                  <em className="italic">actually own.</em>
+                  <em className="italic">
+                    <T k="site.home.closing.titleB" />
+                  </em>
                 </Underlined>
               </>
             )}
           </h2>
           <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
-            {subtext ?? landingSections.cta.subtext}
+            {subtext ?? <T k="site.home.closing.subtext" />}
           </p>
         </Section>
 
         <Section as="div" delay={0.2}>
           <div className="mt-10 relative inline-flex flex-wrap items-center justify-center gap-4">
             <PillLink href="/register" size="lg">
-              {label ?? landingSections.cta.button}
+              {label ?? <T k="site.home.closing.button" />}
             </PillLink>
             {secondary ? (
               <PillLink href={secondary.href} variant="secondary" size="lg">

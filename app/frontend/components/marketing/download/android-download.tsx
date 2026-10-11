@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { QRCodeSVG } from "qrcode.react";
 import { Download, Smartphone, Copy, Check } from "@/lib/icons";
 import { ANDROID_APK_URL, ANDROID_RELEASE_PAGE } from "@/lib/releases";
@@ -13,6 +14,7 @@ import { pillClass } from "@/components/marketing/ui/pill-link";
  * inline SVG, no network) plus a Download + Copy-link action pair.
  */
 export function AndroidDownload() {
+  const t = useTranslations("site");
   const [copied, setCopied] = useState(false);
 
   const copyLink = async () => {
@@ -37,19 +39,19 @@ export function AndroidDownload() {
           <IconWell icon={Smartphone} className="mb-4" />
 
           <h3 className="pv2-h3 flex items-center gap-2 text-2xl">
-            zcrypt for Android
+            {t("download.android.title")}
             <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-              Beta
+              {t("download.android.beta")}
             </span>
           </h3>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Sideload the APK: the same drive, no Play Store wait.
+            {t("download.android.sideload")}
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <a href={ANDROID_APK_URL} className={cn("group", pillClass("primary"))}>
               <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
-              Download APK
+              {t("download.android.downloadApk")}
             </a>
             <button type="button" onClick={copyLink} className={pillClass("secondary")}>
               {copied ? (
@@ -57,22 +59,23 @@ export function AndroidDownload() {
               ) : (
                 <Copy className="h-4 w-4" />
               )}
-              {copied ? "Copied" : "Copy link"}
+              {copied ? t("download.android.copied") : t("download.android.copyLink")}
             </button>
           </div>
 
           <p className="mt-4 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
-            Open the file, allow installs from this source once, install. Android flags
-            &quot;unknown developer&quot; for anything outside Play, it&apos;s the{" "}
-            <a
-              href={ANDROID_RELEASE_PAGE}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
-            >
-              same public CI
-            </a>{" "}
-            as everything else here.
+            {t.rich("download.android.steps", {
+              ci: (chunks) => (
+                <a
+                  href={ANDROID_RELEASE_PAGE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </div>
 
@@ -82,7 +85,7 @@ export function AndroidDownload() {
             <QRCodeSVG value={ANDROID_APK_URL} size={264} level="M" marginSize={2} />
           </div>
           <p className="text-xs font-semibold text-[var(--color-text-secondary)]">
-            Scan to install on your phone
+            {t("download.android.scan")}
           </p>
         </div>
       </div>

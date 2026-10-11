@@ -69,6 +69,7 @@ export function CapabilityGrid({
   columns = 3,
   join = false,
   footnote,
+  id: idProp,
 }: {
   items: CapabilityItem[];
   eyebrow?: ReactNode;
@@ -77,8 +78,9 @@ export function CapabilityGrid({
   columns?: keyof typeof COLS;
   join?: boolean;
   footnote?: ReactNode;
+  id?: string;
 }) {
-  const id = heading ? headId(heading) : undefined;
+  const id = heading ? (idProp ?? headId(heading, "capabilities")) : undefined;
   return (
     <section className={cn("pv2-sec", join && "pv2-sec-join")} aria-labelledby={id}>
       <div className="pv2-wrap">

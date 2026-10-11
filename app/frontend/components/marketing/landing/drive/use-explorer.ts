@@ -17,6 +17,7 @@ import {
   type Piece,
 } from "./drive-data";
 import type { CardItem, CardKind } from "./drive-card";
+import { useDriveText } from "./drive-i18n";
 import { useDrive } from "./drive-store";
 import type { PreviewFile } from "./preview-bodies";
 
@@ -53,6 +54,7 @@ function reduced() {
 
 /** Everything both frames share: the visible cards, click handling, preview lists, FLIP on drop. */
 export function useExplorer() {
+  const { t, folder: folderName } = useDriveText();
   const { state, dispatch } = useDrive();
   const { view, folder, dropped, filter, query, selectMode } = state;
   const gh = view === "gh";
@@ -70,7 +72,7 @@ export function useExplorer() {
     let i = 0;
     const out: Card[] = [];
     for (const fo of entries.folders) {
-      const hidden = !gh && (!!filter || (!!q && !fo.name.toLowerCase().includes(q)));
+      const hidden = !gh && (!!filter || (!!q && !folderName(fo.id).toLowerCase().includes(q)));
       out.push({
         item: fo,
         kind: "folder",
@@ -92,7 +94,7 @@ export function useExplorer() {
           piece: {
             name: fi.pieces[0],
             size: fmtPiece(Math.min(fi.size, PIECE)),
-            cap: `your file, ${n} piece${n === 1 ? "" : "s"}`,
+            cap: t("drive.card.mine", { n }),
           },
           mine: true,
           hidden,
@@ -108,7 +110,7 @@ export function useExplorer() {
       }
     }
     return out;
-  }, [entries, filter, query, folder, gh]);
+  }, [entries, filter, query, folder, gh, t, folderName]);
 
   const extras = useMemo<Extra[]>(() => {
     if (!dropped || folder) return [];
@@ -122,11 +124,11 @@ export function useExplorer() {
       out.push({
         id: "xmore",
         piece: { name: "", size: formatBytes(dropped.size - PIECE * 6) },
-        more: `+ ${n - 6} more`,
+        more: t("drive.card.more", { n: n - 6 }),
       });
     }
     return out;
-  }, [dropped, folder]);
+  }, [dropped, folder, t]);
 
   const recent = useMemo<(DriveFile | DroppedFile)[]>(
     () => (dropped ? [dropped, ...RECENT.slice(0, 3)] : RECENT),
@@ -185,9 +187,9 @@ export function useExplorer() {
       }
       dispatch({ type: "clearSelection" });
       dispatch({ type: "preview", preview: { id: item.id, from: "grid" } });
-      dispatch({ type: "announce", msg: `Opened ${item.name}.` });
+      dispatch({ type: "announce", msg: t("drive.live.opened", { name: item.name }) });
     },
-    [gh, selectMode, dispatch],
+    [gh, selectMode, dispatch, t],
   );
 
   const onOpenPiece = useCallback(
@@ -203,9 +205,9 @@ export function useExplorer() {
     (f: DriveFile | DroppedFile, el: HTMLElement) => {
       opener.current = el;
       dispatch({ type: "preview", preview: { id: f.id, from: "recent" } });
-      dispatch({ type: "announce", msg: `Opened ${f.name}.` });
+      dispatch({ type: "announce", msg: t("drive.live.opened", { name: f.name }) });
     },
-    [dispatch],
+    [dispatch, t],
   );
 
   const closePreview = useCallback(() => {

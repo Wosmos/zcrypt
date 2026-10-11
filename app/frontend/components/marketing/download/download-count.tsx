@@ -1,4 +1,5 @@
 import { Download } from "@/lib/icons";
+import { T } from "@/components/i18n/t";
 
 /**
  * Total installs across every platform, shown on the download page.
@@ -29,9 +30,8 @@ export async function DownloadCount() {
   return (
     <p className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
       <Download className="h-3.5 w-3.5" />
-      <span>
-        <strong className="font-semibold text-[var(--color-text)]">{total.toLocaleString()}</strong>{" "}
-        downloads and counting
+      <span className="[&_strong]:font-semibold [&_strong]:text-[var(--color-text)]">
+        <T k="site.download.openSource.count" values={{ n: total.toLocaleString("en-US") }} />
       </span>
     </p>
   );

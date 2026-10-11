@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowRight } from "@/lib/icons";
 
@@ -24,6 +25,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 
 /** The price, said once, very large. */
 export function PriceZero() {
+  const t = useTranslations("site");
   const numRef = useRef<HTMLSpanElement>(null);
   const [step, setStep] = useState(STEPS.length - 1);
 
@@ -60,34 +62,32 @@ export function PriceZero() {
   return (
     <section id="price" className="pv2-sec zs-price" aria-labelledby="h-price">
       <div className="pv2-wrap zs-price-c">
-        <p className="pv2-eyebrow">Price</p>
+        <p className="pv2-eyebrow">{t("home.price.eyebrow")}</p>
         <h2 id="h-price" className="zs-bignum">
-          <span className="sr-only">It costs $0</span>
+          <span className="sr-only">{t("home.price.srOnly")}</span>
           <span ref={numRef} aria-hidden="true" className="zs-bignum-v" data-done={done}>
             <span className="zs-wash" />
             <span className="zs-cur">$</span>
             <span className="zs-zero">{value}</span>
           </span>
         </h2>
-        <p className="zs-per">Per month. Per year. Per forever.</p>
-        <p className="zs-pbody">
-          There is no Pro plan. There is no Plus plan. There is definitely no Premium Ultra plan.
-          Your files live in accounts you already have, so there&apos;s no warehouse to rent and
-          nothing to bill you for.
-        </p>
+        <p className="zs-per">{t("home.price.per")}</p>
+        <p className="zs-pbody">{t("home.price.body")}</p>
         <Link
           href="/register"
           className="mt-8 inline-flex h-[52px] items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow duration-200 hover:shadow-xl hover:shadow-cyan-500/50"
         >
-          Start free
+          {t("home.price.cta")}
           <ArrowRight className="size-4" />
         </Link>
         <p className="zs-thanks">
-          Want to say thanks anyway?{" "}
-          <a href="https://github.com/Wosmos/zcrypt" className="zs-link" rel="noopener">
-            Star it on GitHub
-          </a>
-          . It costs exactly the same.
+          {t.rich("home.price.thanks", {
+            star: (chunks) => (
+              <a href="https://github.com/Wosmos/zcrypt" className="zs-link" rel="noopener">
+                {chunks}
+              </a>
+            ),
+          })}
         </p>
       </div>
     </section>

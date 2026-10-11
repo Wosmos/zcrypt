@@ -1,3 +1,2127 @@
 {
-  "site": {}
+  "site": {
+    "chrome": {
+      "skipToContent": "Skip to content",
+      "seeAlso": "See also:",
+      "social": {
+        "portfolio": "Portfolio",
+        "email": "Email"
+      },
+      "featuresNav": {
+        "encrypted-drive": {
+          "title": "Encrypted drive",
+          "desc": "A real file explorer: folders, grid/list, search, sort, all encrypted on your device."
+        },
+        "folders": {
+          "title": "Encrypted folders",
+          "desc": "Nestable folders with encrypted names, plus a separate password for any folder."
+        },
+        "file-viewers": {
+          "title": "File viewers",
+          "desc": "Preview images, video, audio, PDFs, documents, and code, decrypted locally."
+        },
+        "sharing": {
+          "title": "Sharing",
+          "desc": "Share links with an optional password, expiry, and limits. The key stays in the URL."
+        },
+        "encryption": {
+          "title": "Zero-knowledge encryption",
+          "desc": "AES-256-GCM on your device. The server only ever sees ciphertext."
+        },
+        "bring-your-own-storage": {
+          "title": "Bring your own storage",
+          "desc": "Use GitHub, GitLab, Hugging Face, or Telegram. Your data, no lock-in."
+        },
+        "transfers": {
+          "title": "Transfer manager",
+          "desc": "Pause, resume, retry, and track every upload and download in one place."
+        },
+        "privacy": {
+          "title": "Privacy tools",
+          "desc": "Decoy profile and dead man's switch, with their real limits spelled out."
+        },
+        "apps": {
+          "title": "Web, desktop & Android",
+          "desc": "The same zero-knowledge core across every surface, including a Rust-powered Android app."
+        }
+      }
+    },
+    "about": {
+      "hero": {
+        "eyebrow": "Who's actually behind this",
+        "title": "Hi, I'm Wasif. I just wanted free storage",
+        "subtext": "Wasif Malik, or <b>Wosmo</b> to the internet. A full-stack engineer in Karachi, Pakistan who needed somewhere to put a lot of files, couldn't find storage that didn't also want to read them, and instead of letting it go like a reasonable person, spent a few months building his own. That's zcrypt. It's just me back here: no team, no investors, no “zcrypt family.” Which mostly means when something breaks, I already know whose fault it is.",
+        "primary": "View my portfolio"
+      },
+      "chips": {
+        "location": "Karachi, Pakistan",
+        "role": "Full-stack engineer",
+        "openBuilding": "Building in the open"
+      },
+      "trust": {
+        "eyebrow": "Why my name is on this",
+        "body": "A tool that holds your keys should at least tell you who to blame. So, that's me. Right here. There's no mysterious “we” to vanish behind when something breaks, no “the team is looking into it.” There is a team. It's me. The encryption runs on your device before anything uploads, so I can't read your files. I've tried it on my own test data. Can't. That's the entire point."
+      },
+      "origin": {
+        "eyebrow": "The origin story",
+        "heading": "How zcrypt actually happened",
+        "p1": "A couple of months ago I was moving my whole life between machines: 50-something gigabytes of projects, RAW photos, and half-finished edits I keep swearing I'll get back to. The kind of files you can't just re-download.",
+        "p2": "Google Drive tapped me on the shoulder at 15GB and asked for my card. So I did the very reasonable thing: I made a second account. Then a third. For about a week I was splitting one folder across three logins like a low-budget digital smuggler, quietly proud of a system held together with tape.",
+        "p3": "Then I tried TeraBox. “One terabyte, free,” they said. What they didn't say: the download button is hidden like a state secret, your files quietly live on <em>their</em> servers, and the fine print treats your data as theirs to scan and learn from. It really clicked when I uploaded a 4GB folder, watched it crawl to 80%, and watched it fail. My first thought wasn't “let me retry.” It was “why am I handing my entire life to a company whose whole business is knowing what's inside it?”",
+        "p4": "And here's the part I genuinely can't take credit for, because it's just true: free storage was never free. I just hadn't read the price tag, because the price tag is me. These are billion-dollar companies; privacy isn't a feature they forgot to add, it's the thing they quietly sell against.",
+        "p5": "So I stopped complaining online and started building, which is really just complaining with extra steps. The idea was simple even though the code very much wasn't: encrypt your files on your device before they leave, so not even I can read them, then store them across the infrastructure you already own and trust. No new data empire. No “we value your privacy” banner that means the exact opposite. Just your files, locked, yours.",
+        "pullQuote": "Free storage was never free. I just hadn't read the price tag, because the price tag was me.",
+        "after1": "I'm building it in public: the wins, the bugs, and the 2AM “why is this WASM module re-initialising” commits. It's me and a concerning amount of coffee, so yes, there will be rough edges. The encryption isn't one of them: it's open source, and I can't read your files even if I wanted to. (I don't. But I couldn't.)",
+        "philosophyLink": "The longer, ranty version lives on the philosophy page"
+      },
+      "projects": {
+        "eyebrow": "Side quests",
+        "heading": "Other things I've built",
+        "intro": "I have a bad habit of building the whole thing myself: frontend, backend, and the awkward bits in between. A few others that (mostly) work:",
+        "learnity": "AI-powered learning platform with gamified courses and progress tracking.",
+        "docxo": "Real-time collaborative documents: multiple cursors, live editing, zero lag.",
+        "tellow": "Cross-platform video calling app with rooms, chat, and screen share.",
+        "netlink": "A Go chat backend built to hold thousands of concurrent WebSocket connections.",
+        "devtoolshq": "A dashboard of everyday developer tools, formatters, converters, generators.",
+        "resumeright": "An AI resume optimizer that scores against ATS checks and rewrites weak lines.",
+        "portfolioLink": "See everything on my portfolio"
+      },
+      "stack": {
+        "eyebrow": "Toolbox",
+        "heading": "The usual suspects",
+        "intro": "The tools I reach for, from the browser all the way down to the bytes on disk:"
+      },
+      "cta": {
+        "eyebrow": "Say hello",
+        "heading": "Let's build something",
+        "body": "I'm open to new projects and freelance work, and I answer my own messages, mostly because there's no one else to pass them to. Pick a door:"
+      }
+    },
+    "philosophy": {
+      "hero": {
+        "eyebrow": "Why zcrypt",
+        "title": "Why we built zcrypt",
+        "lede": "A long-overdue conversation about who owns your data, who's profiting from it, and why that needs to change."
+      },
+      "short": {
+        "eyebrow": "The short version",
+        "body": "Most cloud storage means renting space on someone else's servers, where <em>they</em> hold the keys to your files. zcrypt is different. Your files are encrypted on your device, then stored inside free space you already have on accounts <em>you</em> own: GitHub, GitLab, Hugging Face, or Telegram. Only you can read them, you're limited only by your own storage, and it's free and open source."
+      },
+      "rent": {
+        "eyebrow": "The rent",
+        "title": "The cloud is just someone else's computer",
+        "p1": "And they're charging you rent to live in it.",
+        "p2": "Somewhere in the last decade, the tech industry pulled off one of history's great marketing tricks: they convinced billions of people to stop storing files on hardware they own and start paying monthly for the privilege of storing them on hardware that someone else owns.",
+        "p3": "This is the digital equivalent of renting a storage unit for things you already have room for at home. Except the storage unit also reads your mail, indexes your photo albums, and raises the rent every year.",
+        "quote": "Cloud storage is a landlord scheme with better PR.",
+        "p4": "AWS S3 charges $23 per terabyte per month. That's $276 per year for a terabyte of storage. A 4TB hard drive costs $80 on Amazon, the same Amazon. You could buy the physical hardware to store your data four times over for what they charge you in a single year to store it on their servers.",
+        "p5": "The markup isn't 100%. It isn't 500%. The markup on cloud storage is measured in thousands of percent, and the entire industry has collectively agreed to pretend this is normal."
+      },
+      "loophole": {
+        "eyebrow": "The loophole",
+        "title": "Git storage, the loophole nobody talks about",
+        "p1": "GitLab gives you 10GB per repo. For free. Hugging Face gives you 100GB per account. GitHub doesn't even publish a hard cap: just stay under a few gigabytes and nobody blinks. These aren't hidden terms buried in legalese, they're published limits (and unwritten norms) that platform teams actively maintain and support.",
+        "p2": "This isn't a bug. This is a feature. These platforms need generous storage to host large repositories, ML models, and binary assets. They built the infrastructure. They set the limits. We just use them as intended, for storing data.",
+        "quote": "Every terabyte we store for free is a terabyte AWS can't bill for.",
+        "p3": "zcrypt takes your files, compresses them with Zstd, encrypts them with AES-256-GCM, splits them into manageable chunks, and stores them as ordinary-looking data in repositories on the platform you connect. To the platform, they look like build artifacts. To you, they're your encrypted files, accessible from anywhere, costing nothing.",
+        "p4": "<b>Is this safe and durable?</b> Yes. Your data is stored as standard private repository content, exactly the kind of large binary data these platforms are built to host. zcrypt automatically spreads data across repositories and rotates to fresh ones as they fill up, so you stay well within each platform's normal limits. And your files are always retrievable: encrypted chunks are integrity-checked and reassembled when you download."
+      },
+      "zk": {
+        "eyebrow": "The maths",
+        "title": "Zero-knowledge is not a marketing buzzword",
+        "p1": "When Dropbox says “we take security seriously,” what they mean is they encrypt your files with keys they control. They can read your files. Their employees can read your files. They scan your files to build search indices. Government subpoenas? They hand over your data because they can.",
+        "p2": "When we say “zero-knowledge,” we mean the mathematical kind. Your passphrase never leaves your device. We derive encryption keys locally using PBKDF2 with 600,000 iterations. The encrypted data that gets uploaded is indistinguishable from random noise.",
+        "quote": "We can't read your files. Not because we're polite. Because we literally don't have the keys.",
+        "p3": "AES-256-GCM provides authenticated encryption, meaning tampering with the ciphertext is detectable. The GCM mode gives you both confidentiality and integrity in a single pass. No separate HMAC step. No room for implementation mistakes.",
+        "p4": "This isn't security theater. This is the same encryption standard used by intelligence agencies. The difference is we give it to you for free, not for $23/TB/month."
+      },
+      "open": {
+        "eyebrow": "The receipts",
+        "title": "Open source, because talk is cheap",
+        "p1": "Every cloud provider asks you to trust them. Trust their encryption. Trust their access controls. Trust that the engineer with admin access won't peek at your vacation photos.",
+        "p2": "We don't ask you to trust us. We ask you to read the code.",
+        "p3": "Every line of zcrypt is open source. The encryption implementation. The chunking algorithm. The upload pipeline. The key derivation. If there's a vulnerability, you'll find it before we do, because you have the same access to the source that we do.",
+        "quote": "The best security audit is 10,000 strangers reading your code."
+      },
+      "endgame": {
+        "eyebrow": "The endgame",
+        "title": "Storage that costs nothing",
+        "p1": "A world where personal file storage costs $0 and your data belongs to you.",
+        "p2": "Revolutionary? No. Obvious? Yes. Done? Finally.",
+        "p3": "The technology for free, encrypted, distributed storage has existed for years. Git hosting has been free for over a decade. AES-256 has been an open standard since 2001. Zstd compression has been open source since 2016. All zcrypt does is connect the dots that the industry had every incentive to leave disconnected.",
+        "p4": "Because every dot connected is a revenue stream severed.",
+        "quote": "They had every incentive to never build this. So we did."
+      },
+      "who": {
+        "eyebrow": "The author",
+        "title": "The “we” is mostly one guy",
+        "p1": "Honestly? Mostly one guy. I'm Wasif Malik, a full-stack engineer who wanted a lot of free storage, couldn't find any that wouldn't read his files, and got annoyed enough to build the alternative instead of just posting about it. zcrypt is mine end to end: the encryption, the upload pipeline, the drive, and this exact page you're reading.",
+        "p2": "I say “we” out of habit, not to hide behind a logo, and here of all places, that matters. A tool that asks you to trust it with your keys should tell you exactly who wrote the code that holds them. No anonymous founder. No shell company. Just my name, on the record, right here.",
+        "cardCaption": "Wasif Malik, the one-person company behind zcrypt.",
+        "readStory": "Read the story"
+      }
+    },
+    "download": {
+      "hero": {
+        "badge": "Apps for every device",
+        "title": "Your drive, on every device",
+        "subtext": "Native desktop apps, an Android app, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
+        "trust": {
+          "free": "Free & open source",
+          "onlyYou": "Only you can open your files",
+          "noTelemetry": "No telemetry"
+        }
+      },
+      "desktop": {
+        "eyebrow": "Desktop",
+        "heading": "Desktop apps",
+        "subheading": "A native app built with Tauri, running {engine}, the in-process {language} engine, so your files are encrypted on your device before they ever leave it.",
+        "blurb": {
+          "macos": "Apple Silicon, macOS 11 Big Sur or later.",
+          "windows": "Windows 10 and 11, 64-bit.",
+          "linux": "64-bit. Pick your distro's package, or the portable build for anything else."
+        },
+        "security": {
+          "macos": {
+            "title": "macOS will block it once, that's expected",
+            "body": "zcrypt isn't notarized yet, so macOS says it can't verify the app the first time you open it. Click Done, then open System Settings → Privacy & Security, scroll down and click Open Anyway. A one-time step. Or skip it entirely with the one-line install below."
+          },
+          "windows": {
+            "title": "Windows SmartScreen will flag it, that's expected",
+            "body": "We haven't bought a code-signing certificate yet, so Windows treats the installer as unrecognized. Click \"More info\", then \"Run anyway\". Normal for an independently-published app without a paid certificate, not a sign anything's wrong with the file. Or skip it with the one-line PowerShell install below."
+          }
+        },
+        "tapHow": ": tap for how to proceed",
+        "downloadFor": "Download for {name}",
+        "also": "also",
+        "loadFail": "Couldn't load the latest builds right now.",
+        "viewAll": "View all downloads on GitHub",
+        "fallback": "Couldn't reach GitHub for the latest release, showing <b>v{version}</b>. <releases>Check for newer</releases>",
+        "options": {
+          "installer": "Installer",
+          "msiPackage": "MSI package",
+          "portable": "Portable"
+        },
+        "appImageNote": "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first, sudo dnf install fuse.",
+        "allReleases": "Looking for a specific build or an older version? Browse <releases>all releases on GitHub</releases>."
+      },
+      "android": {
+        "heading": "On your phone, sideloaded",
+        "subheading": "Not on the Play Store, so grab the APK directly and install it yourself. Takes about a minute.",
+        "title": "zcrypt for Android",
+        "beta": "Beta",
+        "sideload": "Sideload the APK: the same drive, no Play Store wait.",
+        "downloadApk": "Download APK",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "steps": "Open the file, allow installs from this source once, install. Android flags \"unknown developer\" for anything outside Play, it's the <ci>same public CI</ci> as everything else here.",
+        "scan": "Scan to install on your phone"
+      },
+      "openSource": {
+        "heading": "Every build is open source",
+        "body": "Desktop, Android, and web, all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
+        "githubCta": "Source on GitHub",
+        "selfHostCta": "Self-host zcrypt",
+        "count": "<b>{n}</b> downloads and counting"
+      },
+      "web": {
+        "eyebrow": "No install",
+        "heading": "Prefer no install",
+        "body": "The full encrypted drive runs in any modern browser: folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
+        "cta": "Start free"
+      },
+      "cta": {
+        "webApp": "Start free in the browser",
+        "useWebApp": "Use the web app",
+        "noIos": "There's no iOS app yet. The web app works fully in Safari, no install needed.",
+        "apkAndroid": "Download APK for Android",
+        "sideloaded": "Sideloaded, not Play Store",
+        "installSteps": "install steps & QR code",
+        "downloadFor": "Download for {os}",
+        "linuxNote": "Fedora, Debian/Ubuntu, or a portable build. Pick yours below, or <install>install with one command</install>.",
+        "otherOptions": "Other options",
+        "installOneCommand": "Install with one command",
+        "downloadZcrypt": "Download zcrypt",
+        "pickPlatform": "Pick your platform below: macOS, Windows, Linux & Android."
+      },
+      "install": {
+        "title": "Install with one command",
+        "skipsTerminal": "Skips the “unverified app” prompt. Paste it into a terminal.",
+        "skipsPowerShell": "Skips the “unverified app” prompt. Paste it into PowerShell.",
+        "osLabel": "Operating system",
+        "hint": {
+          "macos": "Installs zcrypt into Applications and opens it. No security prompt, no Homebrew needed.",
+          "windows": "Installs zcrypt for your account and starts it. No admin rights, no SmartScreen prompt.",
+          "linux": "Uses apt or dnf when it can, otherwise installs the AppImage into ~/.local/bin."
+        },
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyCommand": "Copy the {shell} command",
+        "homebrew": "Already use Homebrew?"
+      }
+    },
+    "tools": {
+      "seeFeatures": "See features",
+      "send": {
+        "hero": {
+          "badge": "End-to-end encrypted",
+          "titleLead": "Send files securely.",
+          "titleAccent": "No account needed.",
+          "subtitle": "Drop a file, get an encrypted link. Your file is encrypted in your browser with AES-256 before upload. The decryption key never touches our servers."
+        },
+        "how": {
+          "title": "How encrypted file sharing works",
+          "lede": "Three steps. No accounts. No tracking. Your privacy is built into the protocol.",
+          "s1": {
+            "title": "Drop your file",
+            "desc": "Select any file up to 50 MB. It never leaves your browser unencrypted."
+          },
+          "s2": {
+            "title": "Automatic encryption",
+            "desc": "Your file is encrypted with a unique AES-256-GCM key generated in your browser."
+          },
+          "s3": {
+            "title": "Share the link",
+            "desc": "The decryption key is embedded in the URL fragment. Only the recipient can decrypt."
+          }
+        },
+        "features": {
+          "heading": "Built for privacy, designed for simplicity",
+          "f1": {
+            "title": "Browser encryption",
+            "desc": "Files are encrypted with AES-256-GCM before they leave your device. The server never sees your data."
+          },
+          "f2": {
+            "title": "Zero-knowledge",
+            "desc": "The encryption key lives only in the share link fragment. We cannot decrypt your files, even if compelled."
+          },
+          "f3": {
+            "title": "Auto-expiry",
+            "desc": "Set files to expire after 1 hour, 24 hours, or 7 days. Expired files are permanently deleted."
+          },
+          "f4": {
+            "title": "Burn after read",
+            "desc": "Enable one-time access so the file is destroyed after a single download."
+          },
+          "f5": {
+            "title": "No account required",
+            "desc": "Send encrypted files instantly. No sign-up, no tracking, no strings attached."
+          },
+          "f6": {
+            "title": "Up to 50 MB",
+            "desc": "Send files up to 50 MB for free. Need more? Create a free account for larger uploads."
+          }
+        },
+        "cta": {
+          "heading": "Need more than 50 MB?",
+          "description": "Create a free zcrypt account for 10 GB of zero-knowledge encrypted cloud storage, larger file transfers, and persistent encrypted notes."
+        }
+      },
+      "pad": {
+        "hero": {
+          "badge": "Zero-knowledge text sharing",
+          "titleLead": "Encrypted text pad.",
+          "titleAccent": "Share privately.",
+          "subtitle": "Paste your text, get an encrypted link. Perfect for sharing passwords, API keys, code snippets, or anything sensitive. Everything is encrypted in your browser."
+        },
+        "how": {
+          "title": "How encrypted text sharing works",
+          "lede": "Type. Encrypt. Share. The server never sees your plaintext.",
+          "s1": {
+            "title": "Type or paste",
+            "desc": "Enter your text. It stays in your browser until you encrypt."
+          },
+          "s2": {
+            "title": "One-click encrypt",
+            "desc": "A unique AES-256-GCM key is generated. Your text is encrypted locally and uploaded."
+          },
+          "s3": {
+            "title": "Share the link",
+            "desc": "The key is embedded in the URL fragment. Only people with the link can read it."
+          }
+        },
+        "features": {
+          "heading": "Private by design",
+          "f1": {
+            "title": "Client-side encryption",
+            "desc": "Text is encrypted with AES-256-GCM in your browser. The server stores only encrypted bytes."
+          },
+          "f2": {
+            "title": "Key in the link",
+            "desc": "The decryption key lives in the URL fragment. It never reaches the server, not even in access logs."
+          },
+          "f3": {
+            "title": "Timed expiry",
+            "desc": "Pads auto-delete after 1 hour, 24 hours, or 7 days. No leftover data, ever."
+          },
+          "f4": {
+            "title": "View once",
+            "desc": "Enable burn-after-read to destroy the pad after a single view."
+          },
+          "f5": {
+            "title": "Instant & anonymous",
+            "desc": "No sign-up required. No IP logging. No cookies. Just encrypted text."
+          },
+          "f6": {
+            "title": "Up to 1 MB",
+            "desc": "Share code snippets, credentials, notes, or any text up to 1 MB."
+          }
+        },
+        "useCases": {
+          "title": "Common use cases",
+          "c1": {
+            "title": "Passwords",
+            "desc": "Share login credentials securely with burn-after-read enabled."
+          },
+          "c2": {
+            "title": "API keys",
+            "desc": "Send API keys and tokens without exposing them in email or chat."
+          },
+          "c3": {
+            "title": "Code snippets",
+            "desc": "Share code with colleagues that auto-expires when no longer needed."
+          },
+          "c4": {
+            "title": "Private notes",
+            "desc": "Send confidential information that disappears after reading."
+          }
+        },
+        "cta": {
+          "heading": "Need persistent encrypted notes?",
+          "description": "Create a free zcrypt account for encrypted personal notes, 10 GB of cloud storage, and more."
+        }
+      },
+      "transfer": {
+        "hero": {
+          "badge": "Peer-to-peer encrypted",
+          "titleLead": "Transfer files between devices.",
+          "titleAccent": "Encrypted in real time.",
+          "subtitle": "Send encrypted files from one device to another through a relay that stores nothing. No accounts. Found by a 6-digit code, encrypted with a key the server never sees."
+        },
+        "how": {
+          "title": "How encrypted transfer works",
+          "lede": "Two devices. One code. One key that stays off the server."
+        },
+        "sender": {
+          "label": "Sender",
+          "s1": "Select a file to send",
+          "s2": "A random pairing key and a 6-digit room code are generated",
+          "s3": "Show the QR code or link to the receiver, or read out the code and pairing key",
+          "s4": "Check that both screens show the same confirmation code",
+          "s5": "The file and its name are encrypted on your device and relayed as ciphertext"
+        },
+        "receiver": {
+          "label": "Receiver",
+          "s1": "Scan the QR code, or enter the 6-digit code and pairing key",
+          "s2": "Connect through the relay and compare the confirmation code",
+          "s3": "Each chunk is decrypted in your browser as it arrives",
+          "s4": "File automatically downloads when complete"
+        },
+        "features": {
+          "heading": "Why use encrypted transfer?",
+          "f1": {
+            "title": "Device to device",
+            "desc": "Send files between any two devices with a browser. Phone to laptop, laptop to desktop, any combination."
+          },
+          "f2": {
+            "title": "End-to-end encrypted",
+            "desc": "Files and filenames are encrypted with AES-256-GCM on your device. The key is shared by QR code, link or pairing key and never reaches the relay, which only sees ciphertext."
+          },
+          "f3": {
+            "title": "Real-time streaming",
+            "desc": "Files are relayed live over WebSocket as they are encrypted. No waiting for an upload to finish first."
+          },
+          "f4": {
+            "title": "Sent in small chunks",
+            "desc": "The sender encrypts and sends 64 KB chunks, so sending stays light. The receiving browser holds the whole file in memory until it saves, so very large files need a device with room for them."
+          },
+          "f5": {
+            "title": "Nothing stored",
+            "desc": "The relay keeps nothing on disk and forgets the room when the transfer ends. It does see that a transfer happened, its timing and its approximate size."
+          },
+          "f6": {
+            "title": "Code, key and confirmation",
+            "desc": "A 6-digit code finds the room and a separate pairing key (in the QR code or link) encrypts the file. Both screens show the same confirmation code. No accounts, no apps."
+          }
+        },
+        "cta": {
+          "heading": "Need persistent cloud storage?",
+          "description": "Create a free zcrypt account for 10 GB of encrypted cloud storage with file versioning, encrypted notes, and more."
+        }
+      }
+    },
+    "drive": {
+      "hint": "That opens after you sign up. Everything here is sample data.",
+      "skip": "Skip the app preview",
+      "samplePill": "Sample files",
+      "live": {
+        "gh": "Showing what we see: locked pieces with random names.",
+        "you": "Showing your view.",
+        "opened": "Opened {name}.",
+        "added": "Added {name}. Saved to Telegram."
+      },
+      "view": {
+        "aria": "Choose a view",
+        "you": "Your view",
+        "gh": "What we see"
+      },
+      "folders": {
+        "photos": "Photos",
+        "documents": "Documents",
+        "music": "Music",
+        "downloads": "Downloads",
+        "taxes": "Taxes"
+      },
+      "filters": {
+        "all": "All",
+        "image": "Images",
+        "document": "Documents",
+        "video": "Videos",
+        "audio": "Audio",
+        "archive": "Archives"
+      },
+      "chips": {
+        "image": "Image",
+        "document": "Document",
+        "video": "Video",
+        "audio": "Audio",
+        "archive": "Archive"
+      },
+      "types": {
+        "document": "Document",
+        "spreadsheet": "Spreadsheet",
+        "image": "Image",
+        "video": "Video",
+        "audio": "Audio",
+        "archive": "Archive",
+        "code": "Code",
+        "data": "Data",
+        "executable": "Executable",
+        "file": "File",
+        "font": "Font",
+        "folder": "Folder"
+      },
+      "ago": {
+        "justNow": "Just now",
+        "days": "{n}d ago",
+        "hours": "{n}h ago",
+        "weeks": "{n}w ago"
+      },
+      "dialog": {
+        "title": "Unlock protected folder",
+        "sub": "Enter the password for “{name}”",
+        "close": "Close",
+        "password": "Folder password",
+        "help": "Any password works in this demo.",
+        "cancel": "Cancel",
+        "verifying": "Verifying...",
+        "unlock": "Unlock"
+      },
+      "drop": "Drop files to upload",
+      "filter": {
+        "button": "Filter",
+        "menu": "Filter by type"
+      },
+      "card": {
+        "folderLabel": "{name}, folder",
+        "folderLocked": "{name}, folder, password protected",
+        "fileLabel": "{name}, {size}",
+        "openLabel": "Open {name}, {size}",
+        "mine": "your file, {n, plural, one {1 piece} other {{n} pieces}}",
+        "more": "+ {n} more",
+        "sameFile": "same file",
+        "morePieces": "{more} pieces of the same file"
+      },
+      "count": {
+        "gh": "{n} files, no real names",
+        "items": "{n, plural, one {1 item} other {{n} items}}",
+        "folders": "{n, plural, one {1 folder} other {{n} folders}}",
+        "files": "{n, plural, one {1 file} other {{n} files}}",
+        "both": "{folders} · {files}"
+      },
+      "nav": {
+        "vault": "Vault",
+        "insights": "Insights",
+        "spaces": "Spaces",
+        "more": "More",
+        "settings": "Settings",
+        "deleted": "Deleted Files"
+      },
+      "desktop": {
+        "sidebarAria": "Sample app sidebar",
+        "sectionsAria": "Sample app sections",
+        "logoSubtitle": "Cloud Encrypted Drive",
+        "account": "Account",
+        "storage": "Storage",
+        "used": "{size} used",
+        "notifications": "Notifications",
+        "searchPlaceholder": "Search your vault",
+        "searchAria": "Search sample files",
+        "thisDevice": "this device",
+        "newFolder": "New folder",
+        "upload": "Upload",
+        "refresh": "Refresh",
+        "recent": "Recently viewed",
+        "folderPath": "Folder path",
+        "myVault": "My Vault",
+        "auto": "Auto",
+        "listView": "List view",
+        "gridView": "Grid view",
+        "select": "Select",
+        "commitWhen": "3 hours ago",
+        "sampleFiles": "Sample files",
+        "empty": "Nothing here matches. Try another word."
+      },
+      "row": {
+        "name": "Name",
+        "type": "Type",
+        "size": "Size",
+        "saved": "Saved",
+        "modified": "Modified"
+      },
+      "phone": {
+        "lockedDevice": "Locked to this device",
+        "addFile": "Add a file"
+      },
+      "transfers": {
+        "title": "Transfers",
+        "uploading": "1 uploading",
+        "allDone": "All done",
+        "progress": "Uploading...",
+        "saved": "Saved"
+      },
+      "preview": {
+        "droppedLine": "This is your file, and it stayed on your device. Sign up to open it right here.",
+        "binary": "Binary",
+        "fullscreen": "Fullscreen",
+        "exitFullscreen": "Exit fullscreen",
+        "download": "Download",
+        "dl": "Downloads work after you sign up.",
+        "previous": "Previous",
+        "next": "Next",
+        "opening": "Opening..."
+      },
+      "body": {
+        "zoomOut": "Zoom out",
+        "zoomIn": "Zoom in",
+        "rotate": "Rotate",
+        "fit": "Fit to screen",
+        "openTab": "Open in new tab",
+        "play": "Play",
+        "pause": "Pause",
+        "thesis": "Thesis, final (v9)",
+        "notes": {
+          "0": "Meeting notes, Tuesday",
+          "1": "- Agreed the budget is a suggestion.",
+          "2": "- Nobody took notes except me.",
+          "3": "- Next meeting: same time, fewer slides."
+        },
+        "noPreview": "No preview available for this file type.",
+        "hexBinary": "binary",
+        "hexAria": "Random bytes",
+        "hexCaption": "Random bytes. Without your password, this is all anyone gets."
+      }
+    },
+    "features": {
+      "common": {
+        "startFree": "Start free",
+        "keepExploring": "Keep exploring",
+        "related": "Related",
+        "readDocs": "Read the docs",
+        "beta": "Beta"
+      },
+      "index": {
+        "eyebrow": "Features",
+        "title": "Everything the drive does",
+        "lede": "A real file manager where only you can open what's inside. Here's every part of it, so dig into whichever matters to you.",
+        "searchPlaceholder": "Search features & docs...",
+        "allFeatures": "All features",
+        "ctaTitle": "Start with a drive you actually own",
+        "ctaSubtext": "Free and open source. Bring a storage account you already have."
+      },
+      "encryptedDrive": {
+        "hero": {
+          "eyebrow": "The encrypted drive",
+          "title": "A real drive, locked end to end",
+          "subtext": "Most “encrypted storage” gives you a flat list of files. zcrypt gives you a real file explorer (folders, search, previews, drag-and-drop) where everything is encrypted on your device before it leaves."
+        },
+        "mock": {
+          "vault": "My Vault",
+          "projects": "Projects",
+          "photos": "Photos 2026",
+          "tax": "Tax & legal",
+          "items": "{n} items",
+          "unlocked": "Unlocked"
+        },
+        "capSection": {
+          "heading": "Everything a drive should do",
+          "subheading": "The organization you expect from Finder or Google Drive: with a zero-knowledge encryption layer underneath all of it."
+        },
+        "caps": {
+          "folders": {
+            "title": "Real, nestable folders",
+            "desc": "Create folders inside folders, as deep as you like. Organize the way you already think, not a flat list of blobs."
+          },
+          "breadcrumbs": {
+            "title": "Breadcrumb navigation",
+            "desc": "Always know where you are. Click any crumb to jump back up, or drag a file onto one to move it there."
+          },
+          "views": {
+            "title": "Grid & list views",
+            "desc": "Switch between a thumbnail grid and a sortable list. Sort by name, size, type, date, or by how much space compression saved."
+          },
+          "search": {
+            "title": "Search & filter",
+            "desc": "Find files fast within the current folder, and filter by type. Search matches decrypted names locally, never on the server."
+          },
+          "preview": {
+            "title": "Preview without downloading",
+            "desc": "Open images, video, audio, PDFs, documents, and code right in the browser: decrypted on the fly, then gone."
+          },
+          "names": {
+            "title": "Encrypted folder names",
+            "desc": "Folder names are encrypted on your device too. Even your structure stays private: the server only ever sees ciphertext."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Organized, never exposed",
+          "heading": "The structure is yours alone",
+          "body": "A nicer file manager usually means handing the provider more metadata. Not here. Folder names are encrypted on your device with your passphrase, so the server stores opaque ciphertext. It can't read your files, your folder names, or how you've arranged them.",
+          "check1": "Folder names encrypted client-side",
+          "check2": "Previews decrypted in your browser, never on our servers",
+          "check3": "Lose your passphrase and even we can't recover it",
+          "linkLabel": "How the encryption works"
+        },
+        "panel": {
+          "comment": "// what the server stores",
+          "success": "✓ folder names sealed · keys never sent · contents encrypted"
+        },
+        "related": {
+          "folders": {
+            "title": "Password-protected folders",
+            "desc": "Give a folder its own password, separate from your vault."
+          },
+          "viewers": {
+            "title": "In-browser file viewers",
+            "desc": "Preview images, video, PDFs, docs, and code, decrypted locally."
+          },
+          "transfers": {
+            "title": "Transfer manager",
+            "desc": "Pause, resume, and track every upload and download."
+          }
+        },
+        "cta": {
+          "heading": "Your files, organized and locked",
+          "subtext": "Free and open source. Bring a storage account you already own and start in under a minute."
+        }
+      },
+      "folders": {
+        "hero": {
+          "eyebrow": "Encrypted folders",
+          "title": "Folders that lock themselves",
+          "subtext": "Organize with real, nestable folders whose names are encrypted on your device. Then give any folder its own password: a second lock, separate from your vault, that keeps it sealed even when everything else is open."
+        },
+        "mock": {
+          "label": "Folder tree",
+          "badge": "Vault unlocked",
+          "root": "My Vault",
+          "rootMeta": "root",
+          "projects": "Projects",
+          "photos": "Photos 2026",
+          "tax": "Tax & legal",
+          "items": "{n} items",
+          "sealed": "sealed",
+          "passwordRequired": "password required",
+          "password": "Password",
+          "note": "The vault is open, but <em>Tax & legal</em> stays sealed until you enter its own password."
+        },
+        "capSection": {
+          "heading": "Structure that keeps secrets",
+          "subheading": "The folders you expect, plus a second layer of encryption you can drop onto any one of them, all the way down."
+        },
+        "caps": {
+          "nestable": {
+            "title": "Real, nestable folders",
+            "desc": "Build the hierarchy you actually think in: folders inside folders, as deep as you need. Not tags pretending to be structure."
+          },
+          "names": {
+            "title": "Encrypted folder names",
+            "desc": "Every folder name is encrypted on your device. The server stores opaque ciphertext. It never learns what you called anything."
+          },
+          "password": {
+            "title": "A password per folder",
+            "desc": "Give any folder its own password, separate from your vault passphrase. It guards the most sensitive corners on its own terms."
+          },
+          "sealed": {
+            "title": "Sealed independently",
+            "desc": "A protected folder stays locked even while the rest of your vault is open. Unlocking your vault is not the same as unlocking it."
+          },
+          "rekey": {
+            "title": "Automatic re-keying",
+            "desc": "Move a file into or out of a protected folder and it is re-encrypted under the right key automatically. No manual steps, no leaks."
+          },
+          "verified": {
+            "title": "Verified locally",
+            "desc": "The folder password is checked on your device against the folder's own key material, never sent to the server, never round-tripped."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "A lock within the lock",
+          "heading": "A key the server never sees",
+          "body": "When you protect a folder, its files are re-encrypted under a key derived from a password only you know. That password is verified locally against the folder's own key material. It never travels to the server, and neither does the key it unlocks. Move a file in or out and zcrypt re-keys it for you, so nothing is ever left under the wrong lock.",
+          "check1": "Folder password derived to a key on your device",
+          "check2": "Verified locally, no server round-trip, no guess oracle",
+          "check3": "Stays sealed even while your vault is unlocked",
+          "check4": "Files re-encrypted automatically when moved in or out",
+          "linkLabel": "How folder encryption works"
+        },
+        "panel": {
+          "comment": "// unlocking a protected folder",
+          "success": "✓ password never sent. key never sent.",
+          "line1": "<b>on device</b> password → derive folder key",
+          "line2": "<b>verify</b> key against sealed marker, locally",
+          "line3": "server receives:",
+          "nothing": "nothing"
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "Folders, search, previews, drag-and-drop, encrypted end to end."
+          },
+          "docsFolders": {
+            "title": "Docs: Folders",
+            "desc": "Create, nest, move, and rename folders in your vault."
+          },
+          "docsEncryption": {
+            "title": "Docs: Folder encryption",
+            "desc": "How per-folder passwords and re-keying work under the hood."
+          }
+        },
+        "cta": {
+          "heading": "Lock the folders that matter most",
+          "subtext": "Free and open source. Organize your drive and lock any folder with a password of its own."
+        }
+      },
+      "fileViewers": {
+        "hero": {
+          "eyebrow": "In-browser file viewers",
+          "title": "See your files without handing them over",
+          "subtext": "Most encrypted storage makes you download a file and trust a server to show it. zcrypt previews images, video, PDFs, documents, and code right in your browser, decrypted on the fly, then gone.",
+          "secondaryLabel": "How decryption works"
+        },
+        "mock": {
+          "pdfDocument": "PDF document",
+          "decryptedLocally": "Decrypted locally",
+          "page": "page {current} / {total}"
+        },
+        "viewersSection": {
+          "heading": "A viewer for almost everything",
+          "subheading": "Pick a file and it opens in a viewer built for its type: every one of them fed by plaintext that only ever exists in your browser."
+        },
+        "viewers": {
+          "images": {
+            "title": "Images",
+            "desc": "Zoom, pan, and rotate JPG, PNG, GIF, WebP, SVG, and more. A cached low-res thumbnail shows instantly while the full image decrypts."
+          },
+          "media": {
+            "title": "Video & audio",
+            "desc": "A custom player for MP4, MOV, WebM, MP3, FLAC, and more: with a playlist of the other media in the same folder."
+          },
+          "pdf": {
+            "title": "PDF",
+            "desc": "Rendered natively, page by page, with lazy loading, no browser plugin and no third-party PDF service."
+          },
+          "docx": {
+            "title": "DOCX documents",
+            "desc": "Word documents are rendered to clean HTML and sanitized before display, so you read the content without opening an editor."
+          },
+          "html": {
+            "title": "HTML",
+            "desc": "Sanitized and shown in a sandboxed frame with scripts disabled: preview a page safely without it phoning home."
+          },
+          "markdown": {
+            "title": "Markdown",
+            "desc": "Rendered to formatted, sanitized HTML: headings, lists, links, and code blocks, the way you wrote them."
+          },
+          "csv": {
+            "title": "CSV & TSV",
+            "desc": "Comma- and tab-separated data laid out as a readable table instead of a wall of raw text."
+          },
+          "code": {
+            "title": "Text & source code",
+            "desc": "Around 40 languages (JS, TS, Python, Go, Rust, SQL, YAML, and more) with syntax highlighting and a line-wrap toggle."
+          }
+        },
+        "zk": {
+          "eyebrow": "Decrypted on your device, never on ours",
+          "heading": "Preview without trusting a server",
+          "subheading": "Every preview runs through the same client-side pipeline as a full download. The server hands over sealed bytes and nothing else."
+        },
+        "pipeline": {
+          "fetch": {
+            "title": "Fetch the encrypted chunks",
+            "desc": "The browser pulls the file's ciphertext chunks straight from your own storage backend. The server only ever handles sealed bytes."
+          },
+          "decrypt": {
+            "title": "Decrypt with AES-256-GCM",
+            "desc": "Your passphrase-derived key decrypts each chunk locally. The key is never sent anywhere. There is nothing on the server to decrypt with."
+          },
+          "verify": {
+            "title": "Decompress & verify",
+            "desc": "Chunks are zstd-decompressed and checked against a SHA-256 hash, so a corrupted or tampered file is caught before you ever see it."
+          },
+          "render": {
+            "title": "Render from a local blob URL",
+            "desc": "The plaintext becomes an in-memory blob URL that feeds the viewer: then it's revoked the moment you close or move to the next file."
+          }
+        },
+        "memoryNote": "The decrypted blob lives only in memory and is <b>revoked the moment you close or navigate away</b>. It is never written to disk and never uploaded, so a preview leaves nothing behind on your machine or our servers.",
+        "overlay": {
+          "heading": "One overlay, the whole folder",
+          "subheading": "The viewer is a full-screen overlay you drive from the keyboard: built to move through a folder, not just stare at one file."
+        },
+        "overlayFeatures": {
+          "walk": {
+            "title": "Walk the whole folder",
+            "desc": "Prev/next moves through every file in the folder, with a clear 3 / 18 counter, no closing and reopening."
+          },
+          "fullscreen": {
+            "title": "Fullscreen, keyboard-first",
+            "desc": "Esc to close, arrow keys to move, f for fullscreen. Focus stays trapped in the dialog and returns where it was on close."
+          },
+          "playlist": {
+            "title": "Media playlist",
+            "desc": "Open one track and the player lists the other audio and video in the folder, so a folder becomes a playlist."
+          },
+          "errors": {
+            "title": "Honest errors & retry",
+            "desc": "Wrong password, failed integrity check, or an unsupported type each get a clear message: with Retry and Download to fall back to."
+          },
+          "instant": {
+            "title": "Instant navigation",
+            "desc": "A session blob cache and neighbour prefetch mean the next and previous files are usually decrypted before you ask for them."
+          },
+          "download": {
+            "title": "Download when you want",
+            "desc": "Previewing never forces a download. When you do want the file on disk, one click reuses the blob already decrypted."
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "Real, nestable folders and a file explorer: every name encrypted on your device."
+          },
+          "how": {
+            "title": "How it works",
+            "desc": "The full client-side pipeline: compress, encrypt, chunk, and verify."
+          },
+          "folders": {
+            "title": "Password-protected folders",
+            "desc": "Give a folder its own password: previews unlock only after you enter it."
+          }
+        },
+        "cta": {
+          "heading": "See your files without downloading",
+          "subtext": "Free and open source. Bring a storage account you already own and preview your first file in under a minute."
+        }
+      },
+      "sharing": {
+        "hero": {
+          "eyebrow": "Encrypted sharing",
+          "title": "Share a file, not the keys to everything",
+          "subtext": "Every share link carries its own decryption key inside the URL fragment: the one piece of a link a browser never transmits. The recipient opens it, their browser decrypts the file, and the server only ever held ciphertext."
+        },
+        "mock": {
+          "label": "Share link",
+          "badge": "End-to-end",
+          "sentToServer": "sent to the server",
+          "staysInBrowser": "stays in the browser",
+          "password": "Password",
+          "passwordValue": "On",
+          "expires": "Expires",
+          "expiresValue": "7 days",
+          "downloads": "Downloads",
+          "downloadsValue": "5 left",
+          "revoke": "Revoke",
+          "revokeValue": "Anytime"
+        },
+        "capSection": {
+          "heading": "You decide who, how long, how many",
+          "subheading": "Sharing without surrendering control. Set the terms on every link, and pull it back the moment you want to."
+        },
+        "caps": {
+          "fragment": {
+            "title": "The key rides in the fragment",
+            "desc": "The decryption key lives in the part of the URL after the #: which browsers never send to a server. We literally can't receive it."
+          },
+          "password": {
+            "title": "Optional password",
+            "desc": "Add a password on top of the link. Even someone holding the URL needs the secret you share separately to open it."
+          },
+          "expiry": {
+            "title": "Expiry dates",
+            "desc": "Set a link to stop working after a date or duration. When it lapses, the door closes on its own, no cleanup required."
+          },
+          "limits": {
+            "title": "Download limits",
+            "desc": "Cap how many times a link can be used. Once the count is spent, the link is dead even if someone still has it."
+          },
+          "revoke": {
+            "title": "Revoke anytime",
+            "desc": "Change your mind? Kill a link instantly from your vault. The ciphertext stays, but no one can open it again."
+          },
+          "noAccount": {
+            "title": "No account for recipients",
+            "desc": "Whoever you send it to just opens the link. The file is decrypted in their browser, never on our servers, never in the clear on the wire."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "The secret in the #",
+          "heading": "Why we can't read your shares",
+          "body": "A URL fragment (everything after the <code>#</code>) is processed only by the browser and is never included in the request sent to a server. We put the decryption key there on purpose. The server hands over encrypted bytes; the recipient's browser uses the key from the fragment to decrypt them locally. The plaintext never exists on our side.",
+          "check1": "Decryption key lives only in the URL fragment",
+          "check2": "Fragments are never transmitted to the server",
+          "check3": "Recipients decrypt in-browser, with no account",
+          "check4": "Optional password adds a second, separate secret",
+          "linkLabel": "How sharing works"
+        },
+        "panel": {
+          "comment": "// what the server sees on open",
+          "success": "✓ no key on the wire. no plaintext on the server.",
+          "returns": "<b>returns</b> ciphertext blob, sealed",
+          "notInRequest": "not in request",
+          "decryptHappens": "decrypt happens in:",
+          "browser": "the browser"
+        },
+        "moreWays": {
+          "heading": "More ways to send",
+          "subheading": "Sharing a vault file is one path. For the throwaway and the one-time, there are two more.",
+          "send": {
+            "title": "Anonymous Send",
+            "desc": "Drop a file without an account and get a single link to pass along. It's built to burn after reading, once it's been picked up, it's gone. Good for the thing you want to hand off and forget."
+          },
+          "pad": {
+            "title": "Encrypted Pad",
+            "desc": "Write a one-time note, encrypt it, and share the link. The recipient reads it once, then it's burned. For a password, an address, a short message that shouldn't linger in anyone's inbox."
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "Where shared files live: folders, search, and previews, sealed."
+          },
+          "docs": {
+            "title": "Docs: Sharing",
+            "desc": "Set passwords, expiry, and limits, and learn how links decrypt."
+          },
+          "register": {
+            "title": "Send your first file",
+            "desc": "Create a vault and share a link in under a minute."
+          }
+        },
+        "cta": {
+          "heading": "Share like the server isn't watching",
+          "subtext": "Free and open source. Hand someone a file without handing it to us."
+        }
+      },
+      "encryption": {
+        "hero": {
+          "eyebrow": "Zero-knowledge encryption",
+          "title": "We can't read your files",
+          "subtext": "Your files are encrypted on your own device with AES-256-GCM before they ever leave it. The key is derived from your passphrase and never transmitted. We store ciphertext and nothing else, no keys, no plaintext, not even your folder names."
+        },
+        "boundary": {
+          "trustedZone": "Trusted zone",
+          "ciphertextOnly": "Ciphertext only",
+          "label": "Encryption boundary",
+          "device": {
+            "title": "Your device",
+            "item1": "Passphrase entered here, stays here",
+            "item2": "Your key is derived locally",
+            "item3": "Files and their names are encrypted",
+            "item4": "Plaintext never leaves"
+          },
+          "server": {
+            "title": "Our servers",
+            "item1": "Encrypted blobs, that's it",
+            "item2": "No passphrase, no derived key",
+            "item3": "No plaintext file contents",
+            "item4": "No readable file or folder names"
+          }
+        },
+        "guarantees": {
+          "eyebrow": "The guarantees",
+          "heading": "What we can and can't see",
+          "subheading": "Not a privacy policy promise. A cryptographic one: enforced by where the keys live and what code runs where.",
+          "device": {
+            "title": "Encrypted on your device",
+            "desc": "Compression and AES-256-GCM encryption happen in your browser, on your machine, before a single byte goes over the wire."
+          },
+          "key": {
+            "title": "Your key never travels",
+            "desc": "Your encryption key is derived from your passphrase on your own device and stays there. It is never sent to us."
+          },
+          "unique": {
+            "title": "A unique key per file",
+            "desc": "Each file gets its own random content key, wrapped by your passphrase key. One file's key can never unlock another."
+          },
+          "names": {
+            "title": "Even folder names are sealed",
+            "desc": "File names and folder names are encrypted client-side too. The server can't read your files, their names, or how you organized them."
+          },
+          "server": {
+            "title": "The server only sees ciphertext",
+            "desc": "On our side there are no keys and no plaintext: only opaque encrypted blobs we couldn't open even if compelled to."
+          },
+          "tamper": {
+            "title": "Tamper-evident by design",
+            "desc": "AES-256-GCM authenticates every chunk. If ciphertext is altered in transit or at rest, decryption fails loudly instead of returning garbage."
+          }
+        },
+        "pipeline": {
+          "eyebrow": "Envelope encryption",
+          "heading": "How a file gets sealed",
+          "subheading": "Every upload runs the same four steps, entirely on your device.",
+          "derive": {
+            "title": "Derive your key",
+            "desc": "Your passphrase and a random salt are stretched into a strong key encryption key. This happens locally and the key never leaves your device."
+          },
+          "seal": {
+            "title": "Seal each file with its own key",
+            "desc": "A fresh random content key is generated per file and used to encrypt it. That content key is then wrapped (encrypted) with your passphrase-derived key."
+          },
+          "chunk": {
+            "title": "Encrypt folder names, then chunk",
+            "desc": "Folder names are encrypted client-side too. The encrypted file is then split into chunks, each individually authenticated."
+          },
+          "upload": {
+            "title": "Upload ciphertext only",
+            "desc": "Only the wrapped key and the encrypted chunks ever leave your device. The server stores blobs it has no way to read."
+          }
+        },
+        "panel": {
+          "comment": "// what actually lands on the server",
+          "success": "✓ no passphrase. no derived key. no plaintext. no readable names.",
+          "wrappedTail": "sealed under your passphrase"
+        },
+        "tieIn": {
+          "eyebrow": "The honest trade-off",
+          "heading": "Lose your passphrase and even we can't recover it",
+          "body": "True zero-knowledge has a price, and we won't pretend otherwise. Because your key is derived from your passphrase and never reaches us, we have no “reset password and get your files back” button. If you lose your passphrase, your data stays encrypted forever: to you and to everyone else.",
+          "note": "That is exactly the property that makes the rest of these promises real. A provider who can recover your files for you can also be compelled to hand them over. We can't do either.",
+          "linkLabel": "Read the security model",
+          "panel1": "Choose a strong passphrase you won't forget. It is the one key to everything.",
+          "panel2": "Previews and downloads are decrypted in your browser, then discarded.",
+          "panel3": "Sharing wraps a file's key for the recipient, without ever exposing your passphrase.",
+          "panel4": "Password-protected folders add a second key, separate from your vault."
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "Real folders, search, and previews on top of this encryption layer."
+          },
+          "zk": {
+            "title": "Zero-knowledge, explained",
+            "desc": "What the term means and how we hold ourselves to it."
+          },
+          "security": {
+            "title": "Security model",
+            "desc": "The full technical picture: AES-256-GCM, PBKDF2-SHA256 key derivation at 600,000 iterations, key handling, and the threat model."
+          }
+        },
+        "cta": {
+          "heading": "Encryption you don't have to trust us about",
+          "subtext": "Free and open source. Bring a storage account you already own and encrypt your first file in under a minute."
+        }
+      },
+      "transfers": {
+        "hero": {
+          "eyebrow": "The transfer manager",
+          "title": "Start it, walk away, it picks up again",
+          "subtext": "One docked panel tracks every upload and download. Live progress and ETA, pause and resume without re-encrypting, retry on failure, and bulk ZIP downloads, and it keeps running as you move around the app."
+        },
+        "mock": {
+          "title": "Transfers",
+          "summary": "2 active · 1 paused",
+          "encrypting": "Encrypting · chunk 18/24",
+          "paused": "Paused · 41% complete",
+          "downloading": "Downloading · decrypting",
+          "done": "Done"
+        },
+        "capSection": {
+          "heading": "Built for big files and flaky networks",
+          "subheading": "Because everything is encrypted on your device first, transfers have to be resilient. So they are."
+        },
+        "caps": {
+          "progress": {
+            "title": "Live progress & ETA",
+            "desc": "Watch every transfer move in real time: per-file percentage, current stage, and a running estimate of time remaining."
+          },
+          "pause": {
+            "title": "Pause without losing work",
+            "desc": "Pause an upload at a chunk boundary and walk away. The session stays intact, so nothing already encrypted is thrown out."
+          },
+          "resume": {
+            "title": "Resume where it left off",
+            "desc": "Resuming reuses the same encryption key and skips chunks the server already has. No re-encrypting, no starting over."
+          },
+          "retry": {
+            "title": "Retry on failure",
+            "desc": "A dropped connection doesn't mean a restart. Retry picks the transfer back up from the last confirmed chunk."
+          },
+          "zip": {
+            "title": "Bulk ZIP downloads",
+            "desc": "Select many files and download them as a single ZIP: each one decrypted in your browser and packed locally."
+          },
+          "navigation": {
+            "title": "Survives navigation",
+            "desc": "The manager is docked once and persists as you move around the app. Browse, open files, and start more work while transfers run."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Resume that actually resumes",
+          "heading": "No re-encrypting. No re-uploading.",
+          "body": "When you pause or hit a network hiccup, the upload stops at a clean chunk boundary and holds onto its session. Resuming reuses the very same content key, so the chunks already on the server still line up: it simply continues with the chunks that are missing.",
+          "check1": "Pauses at a chunk boundary, keeps the session alive",
+          "check2": "Resumes with the same key, already-encrypted chunks stay valid",
+          "check3": "Skips chunks the server already confirmed",
+          "check4": "Retry after a failure continues from the last confirmed chunk",
+          "linkLabel": "How uploading works"
+        },
+        "panel": {
+          "comment": "// resuming a paused 24-chunk upload",
+          "success": "✓ complete, 18 chunks never re-sent",
+          "line1": "<b>session</b> reused, same content key",
+          "line2": "chunk[0..17] already on server → skipped"
+        },
+        "d2d": {
+          "eyebrow": "Also: device-to-device",
+          "heading": "Send a file straight to another device",
+          "body": "Separate from the vault, zcrypt can stream a file from one device to another through a relay that stores nothing. The sender gets a six-digit code and a pairing key; the receiver needs both. The data is end-to-end encrypted with that key, so the relay only passes along ciphertext it can't read.",
+          "check1": "Pair with a 6-digit code",
+          "check2": "End-to-end encrypted, the relay only sees ciphertext",
+          "check3": "Nothing has to land in your vault first",
+          "pairingCode": "Pairing code",
+          "waiting": "Waiting for peer…"
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "Where your transfers land: real folders, search, and previews."
+          },
+          "docs": {
+            "title": "Transfer manager docs",
+            "desc": "Every control in the docked panel, explained."
+          },
+          "uploading": {
+            "title": "Uploading guide",
+            "desc": "How files are compressed, encrypted, chunked, and sent."
+          }
+        },
+        "cta": {
+          "heading": "Move big files without babysitting them",
+          "subtext": "Free and open source. Bring a storage account you already own and start your first upload in under a minute."
+        }
+      },
+      "privacy": {
+        "hero": {
+          "eyebrow": "Privacy tools",
+          "title": "Privacy for the moments that matter",
+          "subtext": "Encryption keeps your files unreadable. These tools go a step further, for being pressured to unlock, for going quiet unexpectedly, and for the edge cases real privacy has to plan for. Built on the same zero-knowledge core, and honest about what each one actually does.",
+          "trustLine": "Zero-knowledge by design. We never hold your keys or your plaintext."
+        },
+        "decoy": {
+          "eyebrow": "Plausible deniability",
+          "heading": "A decoy profile for when you're forced to open up",
+          "body": "Set a second “decoy” password. When you log in with it, zcrypt opens an innocent-looking vault full of harmless files, not your real one. Under coercion, at a border crossing, or anywhere you can't say no, you can unlock something real-looking without exposing what actually matters.",
+          "point1": "A second decoy password you set yourself, separate from your real one.",
+          "point2": "Logging in with it opens an innocent-looking vault with believable filler files.",
+          "point3": "Nothing in the decoy hints that a real vault exists behind a different password.",
+          "linkLabel": "How decoy profiles work",
+          "decoyPassword": "Decoy password",
+          "looksOrdinary": "Looks ordinary",
+          "realPassword": "Real password",
+          "neverRevealed": "Never revealed",
+          "fileBudget": "budget-2024.xlsx",
+          "fileCats": "cat-photos",
+          "fileRecipes": "recipes.txt"
+        },
+        "dms": {
+          "eyebrow": "If you go quiet",
+          "heading": "A dead man's switch that reaches a person",
+          "body": "Choose a trusted contact and a check-in window. If you don't log in for that long, zcrypt emails them a notification. It's a safety net for journalists, activists, and anyone who needs someone alerted if they suddenly can't check in.",
+          "window": "Check-in window",
+          "windowRange": "7 to 365 days",
+          "resets": "last login resets it",
+          "notified": "contact notified",
+          "doesTitle": "What it does",
+          "does1": "Emails a trusted contact you choose if you don't log in for a set window.",
+          "does2": "Timeout is configurable from 7 to 365 days: you decide the check-in cadence.",
+          "does3": "Every login automatically resets the countdown, so normal use keeps it quiet.",
+          "doesNotTitle": "What it doesn't do",
+          "doesNot1": "It does not hand over your files.",
+          "doesNot2": "It does not release your passphrase or any keys.",
+          "doesNot3": "It is a heads-up to a person, not an automated handover of access.",
+          "footnote": "Because zcrypt is zero-knowledge, there are no keys for us to hand over, so the switch alerts a person rather than releasing your data."
+        },
+        "beta": {
+          "eyebrow": "In beta",
+          "heading": "Maturing, and honestly labelled",
+          "subheading": "These two are real and usable, but still evolving. We'd rather tell you exactly where they stand than oversell them.",
+          "snapshots": {
+            "title": "Snapshots & integrity",
+            "desc": "Capture a point-in-time manifest of your vault and detect if a stored file has been altered or tampered with since.",
+            "caveat": "Snapshots are manifests for tamper detection, not a restore or version-history system. They don't roll your files back to an earlier state yet."
+          },
+          "shared": {
+            "title": "Shared vaults",
+            "desc": "Collaborate in a vault with other people using viewer, editor, and admin roles.",
+            "caveat": "The cryptographic key-sharing behind roles is still maturing. Treat shared vaults as experimental and don't rely on them for high-stakes secrets yet."
+          }
+        },
+        "core": {
+          "heading": "It all sits on the same private core",
+          "body": "Every one of these tools is bounded by the same promise: your files are encrypted on your device with AES-256-GCM before they leave, and we never see your passphrase or your plaintext. The decoy hides a vault we can't read either way; the dead man's switch notifies a person because there are no keys for us to release. Privacy features that can't betray you, because the architecture won't let them.",
+          "linkLabel": "How the encryption works"
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "Real folders and a file explorer: every name encrypted on your device."
+          },
+          "dms": {
+            "title": "Dead man's switch",
+            "desc": "Set the contact, timeout, and message for your inactivity alert."
+          },
+          "security": {
+            "title": "Security model",
+            "desc": "How zero-knowledge encryption and our threat model fit together."
+          }
+        },
+        "cta": {
+          "heading": "Privacy you can actually reason about",
+          "subtext": "Free and open source. Bring a storage account you already own, set a decoy password, and arm your safety net in minutes."
+        }
+      },
+      "byos": {
+        "hero": {
+          "eyebrow": "Bring your own storage",
+          "title": "Use the storage you already have",
+          "subtext": "Connect accounts you own (GitHub, GitLab, Hugging Face, Telegram) and your encrypted files are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so your space grows on its own. Your data, your infrastructure, no lock-in."
+        },
+        "mock": {
+          "label": "Connected storage",
+          "badge": "Encrypted before upload",
+          "storedAs": "→ stored as build-cache in a repo you own"
+        },
+        "platforms": {
+          "telegram": {
+            "capacity": "50 MB / file",
+            "note": "Many small chunks, spread wide."
+          },
+          "github": {
+            "capacity": "850 MB / repo",
+            "note": "The default. Spin up as many repos as you like."
+          },
+          "gitlab": {
+            "capacity": "9 GB / repo",
+            "note": "Roomier repos for heavier vaults."
+          },
+          "huggingface": {
+            "capacity": "90 GB / account",
+            "note": "Built for large files, serious headroom."
+          }
+        },
+        "adapters": {
+          "eyebrow": "Where your files live",
+          "heading": "Connect what you already pay for",
+          "subheading": "Four platforms, each with its own generous limits. Mix and match: the more you connect, the more room you have.",
+          "footnote": "Capacities are approximate, per-repo or per-file platform limits and can change at the providers' discretion. zcrypt works within whatever each platform currently allows."
+        },
+        "caps": {
+          "split": {
+            "title": "Split, encrypted, disguised",
+            "desc": "Each file is encrypted on your device, then split into ~10 MB chunks stored as ordinary build-cache objects in a repo you own. Across your whole library, files spread over the accounts you've connected."
+          },
+          "rotation": {
+            "title": "Automatic repo rotation",
+            "desc": "When a repo nears its platform's ceiling, zcrypt rotates to a fresh one on its own. Your usable space grows without you lifting a finger."
+          },
+          "grows": {
+            "title": "Space that grows",
+            "desc": "Connect more accounts, get more room. There's no zcrypt-sold quota to bump against: your capacity is whatever you already have."
+          },
+          "disguised": {
+            "title": "Disguised on arrival",
+            "desc": "Chunks are stored looking like ordinary build-cache files: unremarkable artifacts in a code repo, not obvious encrypted blobs."
+          },
+          "infra": {
+            "title": "Your infrastructure",
+            "desc": "The bytes sit in accounts you control and can walk away with. zcrypt orchestrates; it doesn't hold your storage hostage."
+          },
+          "noLockin": {
+            "title": "No lock-in",
+            "desc": "Disconnect a platform or leave entirely, your accounts are yours. Open source, so the mechanics are never a black box."
+          }
+        },
+        "tieIn": {
+          "eyebrow": "Your data, your infrastructure",
+          "heading": "Nothing to be locked into",
+          "body": "Most cloud storage rents you space on the provider's servers, on the provider's terms. zcrypt flips that: it's an encryption and orchestration layer over storage you already own. Everything is encrypted on your device first, then chunks are disguised as ordinary build-cache files in repos you own: your library spread across the accounts you connect. Walk away whenever you like: the accounts, and the bytes in them, were always yours.",
+          "check1": "Encrypted on your device before any upload",
+          "check2": "Chunks disguised as routine build-cache artifacts",
+          "check3": "Stored in repos across accounts you control",
+          "check4": "Disconnect or leave anytime, no captive data",
+          "linkLabel": "How the repo pool rotates"
+        },
+        "panel": {
+          "comment": "// how a file lands in your storage",
+          "success": "✓ your accounts. your bytes. no zcrypt-sold quota.",
+          "step1": "encrypt on device. AES-256-GCM",
+          "step2": "split into chunks",
+          "step3": "disguise as",
+          "step4": "upload to a repo you own",
+          "step5": "repo near limit?",
+          "rotate": "rotate →",
+          "fresh": "fresh repo"
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "What sits on top of your storage: a real, sealed file explorer."
+          },
+          "adapters": {
+            "title": "Docs: Platform adapters",
+            "desc": "Connect GitHub, GitLab, Hugging Face, and Telegram accounts."
+          },
+          "pool": {
+            "title": "Docs: Repo pool",
+            "desc": "How chunks distribute and repos auto-rotate as they fill."
+          }
+        },
+        "cta": {
+          "heading": "Storage you own, encryption you trust",
+          "subtext": "Free and open source. Connect an account you already have and start in under a minute."
+        }
+      },
+      "apps": {
+        "hero": {
+          "eyebrow": "Web, desktop & Android",
+          "title": "One drive, three ways in",
+          "subtext": "The same zero-knowledge core, wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, and an Android app you sideload in a minute. The encryption never changes, only the interface does.",
+          "secondaryLabel": "Download the apps"
+        },
+        "mock": {
+          "web": "Web",
+          "anyBrowser": "any browser",
+          "desktop": "Desktop",
+          "desktopOs": "macOS · Win · Linux",
+          "android": "Android",
+          "sideload": "sideload APK"
+        },
+        "sharedCore": "<b>The same encryption everywhere.</b> The web app runs the pipeline in Web Workers; desktop and Android run {name}, the in-process {language} engine. Every surface compresses, encrypts with AES-256-GCM, chunks, and uploads entirely on your device. Pick a surface for the workflow, not for the security: it's the same vault and the same guarantees on all three.",
+        "surfaces": {
+          "eyebrow": "Pick your surface",
+          "heading": "Pick where you work",
+          "subheading": "Three front ends over one encrypted backend. Use whichever fits the moment, or all three.",
+          "web": {
+            "name": "Web app",
+            "tagline": "Any browser, nothing to install",
+            "desc": "The full vault in any modern browser. Encryption runs in the page itself, so your files are sealed before they leave the tab, no extension, no download.",
+            "point1": "Works on any OS",
+            "point2": "Drag-and-drop uploads",
+            "point3": "In-browser previews",
+            "point4": "Always the latest build",
+            "cta": "Web app docs"
+          },
+          "desktop": {
+            "name": "Desktop app",
+            "tagline": "Native on macOS, Windows & Linux",
+            "desc": "A native desktop build running {name}, the in-process {language} engine. Sits in your dock or tray, uploads straight to your own storage, and handles large transfers comfortably.",
+            "point1": "macOS, Windows, Linux",
+            "point2": "In-process Rust engine",
+            "point3": "Uploads direct to your storage",
+            "point4": "Same encrypted vault",
+            "cta": "Desktop app docs"
+          },
+          "android": {
+            "name": "Android app",
+            "tagline": "Sideload the APK in a minute",
+            "desc": "Your vault on your phone, running the same {name} {language} engine as desktop. Not on the Play Store yet: grab the APK, enable install, and you're in. No wait, no gatekeeper.",
+            "point1": "Same Rust engine as desktop",
+            "point2": "Installs in about a minute",
+            "point3": "No Play Store wait",
+            "point4": "Uploads direct to your storage",
+            "cta": "Android app docs"
+          }
+        },
+        "compare": {
+          "eyebrow": "Side by side",
+          "heading": "Which one when?",
+          "subheading": "A quick way to choose. There's no wrong answer: they all open the same drive.",
+          "footnote": "One account, one encrypted vault: switch surfaces any time without re-uploading a thing.",
+          "surface": "Surface",
+          "bestFor": "Best for",
+          "install": "Install",
+          "runsOn": "Runs on",
+          "web": {
+            "bestFor": "Quick access from any machine",
+            "install": "Nothing. Open a browser",
+            "runsOn": "Any OS with a modern browser"
+          },
+          "desktop": {
+            "bestFor": "Daily use and big transfers",
+            "install": "Native installer",
+            "runsOn": "macOS, Windows, Linux"
+          },
+          "android": {
+            "bestFor": "Your vault on the go",
+            "install": "Sideload the APK (beta)",
+            "runsOn": "Android phones & tablets"
+          }
+        },
+        "related": {
+          "drive": {
+            "title": "The encrypted drive",
+            "desc": "The file explorer at the heart of every surface."
+          },
+          "android": {
+            "title": "Android app guide",
+            "desc": "Sideload the beta APK in about a minute."
+          },
+          "desktop": {
+            "title": "Desktop app guide",
+            "desc": "Install the native build for your platform."
+          }
+        },
+        "cta": {
+          "heading": "The same drive, wherever you are",
+          "subtext": "Free and open source. Create an account once and reach it from the web, your desktop, or your phone."
+        }
+      }
+    },
+    "home": {
+      "sticky": {
+        "region": "Get started",
+        "text": "Free. Nothing to set up.",
+        "cta": "Start free",
+        "hide": "Hide the sign-up bar"
+      },
+      "closing": {
+        "eyebrow": "Get started today",
+        "titleA": "The drive you ",
+        "titleB": "actually own.",
+        "subtext": "Connect your own account. Encrypted on your device. No artificial limits, no vendor lock-in.",
+        "button": "Start free"
+      },
+      "hoverReveal": "seriously, it's free. we're not kidding.",
+      "how": {
+        "eyebrow": "How is it unlimited?",
+        "title": "Your file never travels whole",
+        "hint": "Scroll to drive it. Scroll back to undo it.",
+        "foot": "Want the grown-up version with the actual maths?",
+        "footLink": "Read how it works in detail",
+        "cta": "Start free",
+        "more": "+ hundreds more",
+        "connected": "Connected",
+        "pieces": "+ pieces",
+        "newSpot": "New spot",
+        "steps": {
+          "connect": {
+            "title": "Connect your account",
+            "body": "Link an account you already have: Telegram, GitHub, GitLab or Hugging Face. That's where your files will live. Not with us."
+          },
+          "drop": {
+            "title": "Drop a file",
+            "body": "Your device cuts it into pieces and locks each one with a key made from your password. The key never leaves your device."
+          },
+          "store": {
+            "title": "Stored in your own cloud",
+            "body": "The locked pieces go to your account under dull names. When a spot fills up, zcrypt opens a fresh one. Telegram has no ceiling, so neither do you."
+          }
+        },
+        "caps": {
+          "accounts": "Your accounts",
+          "cut": "Cut into pieces",
+          "locked": "Each piece locked on this device",
+          "saved": "Saved to your accounts under dull names",
+          "spotFilled": "A spot filled up. zcrypt opened a new one."
+        },
+        "limits": {
+          "telegram": "No ceiling",
+          "github": "850 MB per project",
+          "gitlab": "9 GB per project",
+          "huggingface": "90 GB per account"
+        }
+      },
+      "trust": {
+        "eyebrow": "Why trust it",
+        "title": "Built so you never have to trust us",
+        "lede": "Every layer is built for privacy, and every line of it is open source.",
+        "cards": {
+          "encryption": {
+            "label": "ENCRYPTION",
+            "title": "Locked before it leaves your device",
+            "body": "Your password makes the key, right on your device. We never get a copy, so there is nothing for us to lose, leak or hand over.",
+            "caption": "sealed on this device",
+            "chips": {
+              "0": "<m>AES-256-GCM</m>",
+              "1": "Key stays on your device",
+              "2": "File names locked too",
+              "3": "A changed byte gets caught"
+            }
+          },
+          "scale": {
+            "label": "SCALE",
+            "title": "Room that keeps growing",
+            "body": "Big files are cut into pieces and spread across your accounts. Your only limit is the free space you already have.",
+            "caption": "every account is more room",
+            "chips": {
+              "0": "Pieces of 4 to 32 MB",
+              "1": "New spot before one fills",
+              "2": "Telegram: no ceiling"
+            }
+          },
+          "stealth": {
+            "label": "STEALTH",
+            "title": "Nothing about it looks interesting",
+            "body": "Pieces get dull names and ordinary commit messages. To anyone looking, it's one more quiet side project.",
+            "caption": "chore: refresh build cache",
+            "chips": {
+              "0": "Random file names",
+              "1": "Boring commit messages",
+              "2": "Names like <m>quick-loader-v2</m>"
+            }
+          },
+          "open": {
+            "label": "OPEN",
+            "title": "Every line is public",
+            "body": "Read the code, check the maths, or run it on your own computer. You don't have to take our word for it.",
+            "caption": "read it, fork it, run it",
+            "chips": {
+              "0": "MIT licensed",
+              "1": "Run it yourself with Docker",
+              "2": "Full source on GitHub"
+            }
+          }
+        },
+        "scene": {
+          "new": "new",
+          "hoursAgo": "3 hours ago"
+        }
+      },
+      "bento": {
+        "eyebrow": "What's inside",
+        "title": "It works like the drive you already know",
+        "lede": "It just can't read your stuff.",
+        "tiles": {
+          "drive": {
+            "kicker": "Looks like a normal drive",
+            "title": "Folders, search, drag and drop.",
+            "sentence": "Press / to search, sort by anything, move things around. Photos, videos, PDFs and documents open right in your browser, on the web, Mac, Windows, Linux and Android (beta).",
+            "short": "Search, sort, drag and drop. Files open right in your browser."
+          },
+          "lock": {
+            "kicker": "A second lock",
+            "title": "A password on any folder.",
+            "sentence": "For the extra private stuff. Yes, even more private than private.",
+            "short": "For the extra private stuff."
+          },
+          "share": {
+            "kicker": "Share it",
+            "title": "Share links with rules.",
+            "sentence": "Add a password, an end date and a download limit. Then forget about it.",
+            "short": "Password, end date, download limit."
+          },
+          "send": {
+            "kicker": "No account needed",
+            "title": "Send to anyone.",
+            "sentence": "They don't need zcrypt. It can vanish after one read, like a spy film but with a PDF.",
+            "short": "They don't need zcrypt."
+          },
+          "spaces": {
+            "kicker": "Spaces",
+            "title": "Spaces for your people.",
+            "sentence": "Family photos, house paperwork, the group project nobody else is doing.",
+            "short": "Family photos, house paperwork."
+          },
+          "resume": {
+            "kicker": "Bad Wi-Fi friendly",
+            "title": "Uploads that carry on.",
+            "sentence": "Close the laptop, lose the signal, come back later. It picks up where it stopped. Deleted something by mistake? There's a restore button.",
+            "short": "Lose the signal, it picks up where it stopped."
+          }
+        },
+        "v": {
+          "search": "Search your vault",
+          "colName": "Name",
+          "colSize": "Size",
+          "colSaved": "Saved",
+          "colModified": "Modified",
+          "folderTaxes": "Taxes",
+          "ago3d": "3d ago",
+          "ago5h": "5h ago",
+          "ago1d": "1d ago",
+          "ago2d": "2d ago",
+          "sep14": "Sep 14",
+          "unlockTitle": "Unlock protected folder",
+          "unlockHint": "Enter the password for “Taxes”",
+          "cancel": "Cancel",
+          "unlock": "Unlock",
+          "shareTitle": "Share File",
+          "passwordProtect": "Password protect",
+          "linkExpiry": "Link expiry",
+          "days7": "7 days",
+          "downloadLimit": "Download limit",
+          "burnTitle": "Burn after read",
+          "burnHint": "File is deleted after first download",
+          "expiresAfter": "Expires after",
+          "hour1": "1 hour",
+          "hours24": "24 hours",
+          "spaces": {
+            "family": {
+              "name": "Family photos",
+              "meta": "128 files · Aug 14"
+            },
+            "house": {
+              "name": "House paperwork",
+              "meta": "23 files · Jun 02"
+            }
+          },
+          "editor": "editor",
+          "unfinished": "1 unfinished upload",
+          "resumeOrDiscard": "resume or discard",
+          "expiresIn": "expires in 6 days",
+          "resume": "Resume"
+        }
+      },
+      "faq": {
+        "eyebrow": "Questions",
+        "title": "Straight answers",
+        "lede": "If something's missing, <docs>the docs</docs> have the long version.",
+        "items": {
+          "0": {
+            "q": "Is it really free?",
+            "a": "Yes. There are no paid plans and no card. Your files live in accounts you already own, so there's nothing for us to charge for."
+          },
+          "1": {
+            "q": "How can there be no limit?",
+            "a": "zcrypt doesn't keep your files. Your connected accounts do. Every account you add is more room, and Telegram has no ceiling at all. New accounts start with 1 GB of shared space while you set things up."
+          },
+          "2": {
+            "q": "Can you see my files?",
+            "a": "No. Files are locked on your own device before they're uploaded, and so are their names. We only know where the pieces went, never what's in them."
+          },
+          "3": {
+            "q": "What if I forget my password?",
+            "a": "Then nobody can open your files, including us. That's what real privacy costs, so keep it in a password manager."
+          },
+          "4": {
+            "q": "Do I need a GitHub or Telegram account?",
+            "a": "Not to start. You can upload right away. Connect an account whenever you want more room. Telegram is the easiest if you already use it."
+          },
+          "5": {
+            "q": "Can I share with someone who doesn't use zcrypt?",
+            "a": "Yes. Send them a link. You can add a password, an end date and a download limit, or use Send to make a file that disappears after one read."
+          },
+          "6": {
+            "q": "Does it work on iPhone?",
+            "a": "The website does, in Safari. There's no iPhone app yet. There are apps for Mac, Windows, Linux, and Android (beta)."
+          },
+          "7": {
+            "q": "What if a platform removes my files?",
+            "a": "Then the pieces stored there are gone from there. For anything you can't lose, keep a second copy somewhere else too. That's good advice for every cloud, this one included."
+          },
+          "8": {
+            "q": "What happens if zcrypt shuts down?",
+            "a": "Every line of zcrypt is public, so anyone can run it, including you. Once you connect your own accounts, your pieces sit there, not with us. Files in the 1 GB starter space live on a shared account, so if I ever wind it down, I'll say so well ahead of time and you can download everything."
+          },
+          "9": {
+            "q": "Is it open source?",
+            "a": "Every line, under the MIT license. Read it, poke at it, or run the whole thing yourself with docker build and docker run."
+          }
+        }
+      },
+      "price": {
+        "eyebrow": "Price",
+        "srOnly": "It costs $0",
+        "per": "Per month. Per year. Per forever.",
+        "body": "There is no Pro plan. There is no Plus plan. There is definitely no Premium Ultra plan. Your files live in accounts you already have, so there's no warehouse to rent and nothing to bill you for.",
+        "cta": "Start free",
+        "thanks": "Want to say thanks anyway? <star>Star it on GitHub</star>. It costs exactly the same."
+      },
+      "quotes": {
+        "eyebrow": "What people say",
+        "title": "Kind words",
+        "lede": "Reviews from people who use zcrypt, read by us before they appear here.",
+        "stars": "{n} out of 5 stars",
+        "play": "Play the quotes",
+        "pause": "Pause the quotes",
+        "rowA": "Reviews, first row",
+        "rowB": "Reviews, second row"
+      },
+      "story": {
+        "eyebrow": "Why this exists",
+        "title": "Free storage was never free",
+        "goTo": "Go to part {n}",
+        "prev": "Previous part",
+        "next": "Next part",
+        "rail": "The story, in four parts",
+        "part": "Part {n}:",
+        "sign": "There is a team. It's me.",
+        "longer": "Read the longer version",
+        "beats": {
+          "0": {
+            "title": "I ran out of room",
+            "body": "Google Drive tapped me on the shoulder at 15 GB and asked for my card. So I made a second account. Then a third. For a week I was splitting one folder across three logins like a low-budget digital smuggler."
+          },
+          "1": {
+            "title": "The free terabyte came with fine print",
+            "body": "TeraBox said one terabyte, free. What they did not say: the download button is hidden like a state secret, and the fine print treats your files as theirs to scan and learn from."
+          },
+          "2": {
+            "title": "Then it failed at 80 percent",
+            "body": "I uploaded a 4 GB folder, watched it crawl to 80 percent, and watched it fail. My first thought was not “let me retry”. It was “why am I handing my life to a company whose business is knowing what’s inside it”."
+          },
+          "3": {
+            "title": "The price tag was me",
+            "body": "Free storage was never free. I just hadn't read the price tag. So I built the one with no limit and nobody reading it."
+          }
+        },
+        "scene": {
+          "myStorage": "My storage",
+          "login1": "1 login",
+          "logins": "{n} logins, 1 folder",
+          "full": "Storage full. Add a card?",
+          "addCard": "Add card",
+          "tos": "Terms of Service",
+          "illustrative": "illustrative",
+          "free": "free",
+          "clause": "We may scan your content to improve our services.",
+          "eta0": "Starting",
+          "eta1": "6 min left",
+          "eta2": "14 min left",
+          "eta3": "31 min left",
+          "eta4": "About an hour left",
+          "eta5": "Any minute now",
+          "failed": "Upload failed. Start again?",
+          "photos": "4 GB of photos",
+          "retry": "Retry",
+          "price": "Price",
+          "freeCaps": "FREE",
+          "noCard": "1 TB, no card",
+          "actual": "Actual price",
+          "you": "you",
+          "andFiles": "and your files"
+        }
+      },
+      "compared": {
+        "eyebrow": "Compared",
+        "title": "Same job, different deal",
+        "lede": "We picked the ones you've heard of.",
+        "pick": "Compare zcrypt with",
+        "caption": "zcrypt compared with Google Drive, Dropbox, Proton Drive and TeraBox",
+        "here": "You are here",
+        "foot": "Their numbers come from their own pricing pages as of September 2026. They change things now and then, so check before you quote us. “Technically” means they hold the keys, not that anyone is snooping.",
+        "rows": {
+          "free": "Free storage",
+          "open": "Could the company open your files?",
+          "where": "Where your files live",
+          "paid": "Paid plans",
+          "oss": "Open source",
+          "self": "Run it on your own computer",
+          "iphone": "iPhone app"
+        },
+        "big": {
+          "zcrypt": "No limit",
+          "zcryptNote": "on accounts you connect",
+          "gdrive": "Up to 15 GB",
+          "gdriveNote": "shared with Gmail and Photos",
+          "proton": "Up to 5 GB",
+          "terabox": "1 TB",
+          "teraboxNote": "with ads"
+        },
+        "cell": {
+          "no": "No",
+          "technically": "Yes, technically",
+          "theirServers": "Their servers",
+          "yes": "Yes",
+          "ownAccounts": "Your own accounts",
+          "noneExist": "None exist",
+          "allOfIt": "All of it",
+          "theApps": "The apps",
+          "notYet": "Not yet (website works)"
+        }
+      }
+    },
+    "vs": {
+      "common": {
+        "yes": "Yes",
+        "no": "No",
+        "caption": "zcrypt compared with {name}",
+        "heroEyebrow": "zcrypt vs {name}",
+        "startFree": "Start free",
+        "heroNote": "No card. No trial. There's nothing to upgrade to.",
+        "sideBySide": "Side by side",
+        "tableTitle": "zcrypt and {name}, row by row",
+        "footnote": "Comparison reflects each product's standard offering as of 2026. {name} is a trademark of {owner}; we're not affiliated with or endorsed by them.",
+        "honestPart": "The honest part",
+        "whenBetter": "When {name} is the better choice",
+        "goDeeper": "Go deeper",
+        "readDetails": "Read the details",
+        "related": {
+          "drive": {
+            "title": "The drive itself",
+            "desc": "Real folders, search, and previews, with zero-knowledge encryption underneath."
+          },
+          "encryption": {
+            "title": "How the locking works",
+            "desc": "AES-256-GCM, keys made on your device, and what the server can and can't see."
+          }
+        },
+        "rows": {
+          "encryption": "Encryption model & who holds the keys",
+          "zeroKnowledge": "Zero-knowledge",
+          "storage": "Storage model",
+          "free": "Free tier & pricing",
+          "openSource": "Open source",
+          "selfHost": "Self-hostable",
+          "folders": "File organization & folders",
+          "previews": "In-browser previews",
+          "sharing": "File sharing",
+          "lockIn": "Vendor lock-in"
+        },
+        "z": {
+          "encryption": "AES-256-GCM, keys derived on your device (PBKDF2, 600k iterations). Only you hold them.",
+          "zeroKnowledge": "Yes, by default. File contents are zero-knowledge, and folder and file names are encrypted client-side (a legacy plaintext name column is being retired).",
+          "storage": "Bring your own: GitHub, GitLab, Hugging Face, or Telegram accounts you already control.",
+          "free": "Free. You supply the storage, so there's no per-gigabyte fee from us.",
+          "openSource": "Fully open source: audit the client and server yourself.",
+          "selfHost": "Run the entire stack yourself.",
+          "folders": "Real nestable folders with encrypted folder names and per-folder passwords.",
+          "previews": "Images, video, audio, PDFs, docs, and code: decrypted in your browser, never on the server.",
+          "sharing": "Encrypted share links with expiry. Shared vaults are in beta.",
+          "lockIn": "Minimal. Your data lives in your own accounts and the format is open."
+        }
+      },
+      "googleDrive": {
+        "hero": {
+          "title": "Google Drive can read your files. zcrypt can't",
+          "lede": "Google Drive is deeply integrated and incredibly convenient, but it processes your content for search, previews, and smart features, and it isn't end-to-end encrypted. zcrypt encrypts everything on your device first, stores it in accounts you already own, and is open source from top to bottom.",
+          "secondary": "See how it works"
+        },
+        "pillarsHead": {
+          "eyebrow": "Why switch",
+          "title": "What changes when nobody else can look"
+        },
+        "pillars": {
+          "onlyYou": {
+            "title": "Only you can read it",
+            "desc": "Your passphrase derives the encryption keys on your device with PBKDF2 (600k iterations). Nothing (not search, not smart features, not us) can read your files, because nobody else has the keys."
+          },
+          "noScanning": {
+            "title": "No scanning, ever",
+            "desc": "Because content is encrypted with AES-256-GCM before it leaves your device, there's nothing to scan, index, or analyze. The server stores opaque ciphertext, including folder names."
+          },
+          "byos": {
+            "title": "Bring your own storage",
+            "desc": "Connect a GitHub, GitLab, Hugging Face, or Telegram account you already own. No shared 15 GB pool, no per-gigabyte fees from us, no artificial caps."
+          },
+          "openSource": {
+            "title": "Open source, run it yourself",
+            "desc": "Read the code, audit the crypto, or run the whole thing yourself. How your files are handled isn't a black box."
+          }
+        },
+        "table": {
+          "lede": "An honest look at where each one fits. Google Drive wins on integration and collaboration; zcrypt wins on privacy, ownership, and openness."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Encrypted in transit and at rest with Google-managed keys. Google can decrypt your files."
+          },
+          "zeroKnowledge": {
+            "other": "No. Content is processed for search, previews, smart features, and policy scanning."
+          },
+          "storage": {
+            "other": "Google-hosted, pooled across Drive, Gmail, and Photos. Convenient, but you don't own it."
+          },
+          "free": {
+            "other": "15 GB free (shared across Google services); more requires a paid Google One plan."
+          },
+          "openSource": {
+            "other": "Proprietary, closed-source."
+          },
+          "selfHost": {
+            "other": "Hosted Google service only."
+          },
+          "folders": {
+            "other": "Excellent folders, search, and shared drives, but names and contents are visible to Google."
+          },
+          "previews": {
+            "other": "Best-in-class previews and Docs/Sheets editing, generated because Google can read the files."
+          },
+          "sharing": {
+            "other": "Very mature sharing and real-time collaboration: at the cost of provider access."
+          },
+          "lockIn": {
+            "other": "High. Files, formats, and workflows are tied into the Google ecosystem."
+          }
+        },
+        "whenBetter": {
+          "p1": "Google Drive is one of the most capable products of its kind, and there are plenty of situations where it's simply the right answer.",
+          "p2": "If your work revolves around <b>real-time collaboration in Docs, Sheets, and Slides</b>, or you live inside Gmail, Calendar, and the broader Google ecosystem, Drive's integration is unmatched. Multiple people editing the same document live is something an encrypted-at-rest drive fundamentally can't replicate, because that requires the server to read the content.",
+          "p3": "If you want <b>powerful search across the contents of your files</b>, AI-assisted features, or automatic photo organization, those rely on Google being able to read your data. zcrypt can't offer them precisely because it can't see your files. That's the deliberate trade-off of zero-knowledge.",
+          "p4": "And if polished native mobile apps are essential today, <b>zcrypt's mobile apps are still on the roadmap</b>. We ship web, desktop, and an Android beta now; Google Drive's mobile apps are mature and complete.",
+          "p5": "zcrypt is the better fit when you want storage that genuinely can't read your files, lives in accounts you already own, and has nothing hidden behind a proprietary client."
+        }
+      },
+      "dropbox": {
+        "hero": {
+          "title": "Dropbox is convenient. zcrypt is private",
+          "lede": "Dropbox is a polished, friction-free place to keep files, but it holds the keys and can read what you store. zcrypt is a real encrypted drive where everything is encrypted on your device, stored in accounts you already own, and the code is open for anyone to audit.",
+          "secondary": "See the drive"
+        },
+        "pillarsHead": {
+          "eyebrow": "Why switch",
+          "title": "What you get that Dropbox won't give you"
+        },
+        "pillars": {
+          "keys": {
+            "title": "You hold the keys",
+            "desc": "Your passphrase derives the encryption keys on your device with PBKDF2 (600k iterations). We never see them. Lose the passphrase and even we can't recover your files, that's the point."
+          },
+          "locked": {
+            "title": "Locked before it leaves",
+            "desc": "Files are encrypted with AES-256-GCM before they leave your device. Even folder names are sealed, so the server stores opaque ciphertext and nothing else."
+          },
+          "byos": {
+            "title": "Bring your own storage",
+            "desc": "Point zcrypt at a GitHub, GitLab, Hugging Face, or Telegram account you already own. No per-gigabyte fees from us, and no artificial caps."
+          },
+          "openSource": {
+            "title": "Open source, run it yourself",
+            "desc": "Read the code, audit the crypto, or run the whole thing yourself. Nothing about how your files are handled is hidden behind a proprietary client."
+          }
+        },
+        "table": {
+          "lede": "An honest look at where each one fits. Dropbox wins on polish and ecosystem; zcrypt wins on privacy, ownership, and openness."
+        },
+        "rows": {
+          "encryption": {
+            "other": "Encrypted in transit and at rest, but Dropbox manages the keys and can decrypt your files."
+          },
+          "zeroKnowledge": {
+            "other": "No. Dropbox can technically access file contents for previews, search, and scanning."
+          },
+          "storage": {
+            "other": "Dropbox-hosted storage on their infrastructure. Simple, but you don't own the backend."
+          },
+          "free": {
+            "other": "Limited free tier (a few GB); meaningful capacity requires a paid Plus/Professional plan."
+          },
+          "openSource": {
+            "other": "Proprietary, closed-source clients and backend."
+          },
+          "selfHost": {
+            "other": "Hosted service only."
+          },
+          "folders": {
+            "other": "Mature, polished folders and sync. Excellent organization, but names are visible to Dropbox."
+          },
+          "previews": {
+            "other": "Rich previews and editing, generated server-side because Dropbox can read the files."
+          },
+          "sharing": {
+            "other": "Very mature sharing, links, and collaboration: at the cost of provider access."
+          },
+          "lockIn": {
+            "other": "Higher. Data and workflows live inside Dropbox's ecosystem."
+          }
+        },
+        "whenBetter": {
+          "p1": "We're not going to pretend zcrypt wins for everyone. Dropbox is genuinely excellent at what it does, and there are real situations where it's the right tool.",
+          "p2": "If you need <b>real-time collaborative editing</b>, deep integrations with Office or Google Workspace, or a decade-mature desktop sync client that just works across every device your team owns, Dropbox is hard to beat. Its previews, commenting, and version history are more polished than ours today.",
+          "p3": "If you specifically <b>want the provider to host and manage storage for you</b> (no accounts to connect, no keys to remember) Dropbox removes that responsibility entirely. With zcrypt, if you lose your passphrase, your data is unrecoverable. That trade-off is the price of zero-knowledge, and it isn't for everyone.",
+          "p4": "And if you need polished mobile apps today, <b>zcrypt's native mobile apps are still on the roadmap</b>. We ship web, desktop, and an Android beta right now. Dropbox's mobile experience is mature and complete.",
+          "p5": "zcrypt is the better fit when privacy is non-negotiable: when you want to be the only party who can read your files, keep them in storage you already own, and verify exactly how the encryption works."
+        }
+      },
+      "protonDrive": {
+        "hero": {
+          "title": "Both are private. Only one is yours to run",
+          "lede": "Proton Drive is a genuinely excellent, audited, zero-knowledge drive, and we respect it. The differences are narrower here and more about philosophy: zcrypt is open source <em>and</em> self-hostable, stores files in accounts you already own, and has no artificial caps.",
+          "secondary": "See how it works"
+        },
+        "respectNote": "<b>Credit where it's due.</b> Proton Drive is end-to-end encrypted, independently audited, backed by an established privacy company, and has mature mobile apps. If you're weighing it against zcrypt, you're already making a privacy-respecting choice. This page is about which trade-offs suit you, not about claiming Proton gets anything wrong.",
+        "pillarsHead": {
+          "eyebrow": "The differences",
+          "title": "Where zcrypt goes its own way",
+          "lede": "The encryption story is similar. These four things are where zcrypt takes a different path."
+        },
+        "pillars": {
+          "openSource": {
+            "title": "Open source, top to bottom",
+            "desc": "Like Proton, our apps are open source, and so is the server. You can audit, fork, or run the whole thing. There's no closed component you have to trust on faith."
+          },
+          "byos": {
+            "title": "Bring your own storage",
+            "desc": "This is the big one. Instead of a Proton-hosted quota, point zcrypt at a GitHub, GitLab, Hugging Face, or Telegram account you already own. No gigabyte caps from us, no separate storage bill."
+          },
+          "selfHost": {
+            "title": "Self-host the entire stack",
+            "desc": "Run your own zcrypt server and keep both the keys and the infrastructure under your control. Proton Drive is hosted only. You can't operate your own instance."
+          }
+        },
+        "table": {
+          "lede": "Both check the privacy boxes. The differences cluster around hosting, storage ownership, and tooling."
+        },
+        "rows": {
+          "encryption": {
+            "other": "End-to-end encrypted with keys derived from your password. Proton can't read your files either."
+          },
+          "zeroKnowledge": {
+            "zcrypt": "Yes, by default. File contents are zero-knowledge, and folder and file names are encrypted client-side. Proton is a mature zero-knowledge product that also encrypts file metadata.",
+            "other": "Yes. Proton Drive is genuinely zero-knowledge and encrypts file metadata as well."
+          },
+          "storage": {
+            "other": "Proton-hosted in Swiss/EU data centers. Reputable and managed, but Proton runs the storage."
+          },
+          "free": {
+            "zcrypt": "Free. You supply the storage, so capacity isn't metered or sold by the gigabyte.",
+            "other": "Generous free tier; larger storage and bundles require a paid Proton plan."
+          },
+          "openSource": {
+            "zcrypt": "Client and server are fully open source.",
+            "other": "Proton open-sources its apps and publishes independent security audits."
+          },
+          "selfHost": {
+            "zcrypt": "Run the entire stack yourself, client, server, and storage.",
+            "other": "Hosted Proton service only; you can't run your own Proton Drive server."
+          },
+          "folders": {
+            "zcrypt": "Real nestable folders with encrypted names, plus optional per-folder passwords.",
+            "other": "Solid encrypted folders and a clean drive experience."
+          },
+          "previews": {
+            "zcrypt": "Images, video, audio, PDFs, docs, and code: decrypted locally in the browser.",
+            "other": "In-browser previews with client-side decryption, similar approach."
+          },
+          "sharing": {
+            "other": "Mature encrypted sharing with password-protected and expiring links."
+          },
+          "lockIn": {
+            "zcrypt": "Minimal. Data lives in storage you already own and the format is open.",
+            "other": "Moderate. Your encrypted data lives within Proton's hosted ecosystem."
+          }
+        },
+        "whenBetter": {
+          "p1": "Proton Drive is a serious, well-built product, and for many people it's the smarter pick. We'd rather you choose the right tool than the one with our name on it.",
+          "p2": "If you want <b>polished native mobile apps today</b>, Proton has them and zcrypt does not: our mobile apps are still on the roadmap. For people who manage files primarily from a phone, that difference alone may settle it.",
+          "p3": "If you value a <b>single, fully managed privacy suite</b> (Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU jurisdiction), Proton delivers that as a cohesive package. zcrypt is focused on being an encrypted drive, not an ecosystem.",
+          "p4": "If you'd rather <b>not manage your own storage or infrastructure at all</b>, Proton handles everything for you. zcrypt's bring-your-own-storage model is powerful, but it does ask you to connect an account and take responsibility for your passphrase. And some of our more advanced collaboration features, like shared vaults, are still in beta.",
+          "p5": "zcrypt is the better fit when you want an encrypted drive you can fully self-host, store in accounts you already own, and scale without artificial caps, all open source and free."
+        }
+      }
+    }
+  }
 }

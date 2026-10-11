@@ -1,3 +1,4 @@
+import { T } from "@/components/i18n/t";
 import { HowScene } from "./how-scene";
 import { STEPS } from "./how-data";
 
@@ -34,8 +35,12 @@ export function HowTimeline({
               {s.n}
             </span>
             <div className="zw-copy">
-              <h3 className="zw-h3">{s.title}</h3>
-              <p className="zw-p">{s.body}</p>
+              <h3 className="zw-h3">
+                <T k={`site.home.how.steps.${s.part}.title`} />
+              </h3>
+              <p className="zw-p">
+                <T k={`site.home.how.steps.${s.part}.body`} />
+              </p>
               {clips ? (
                 <div className="zw-clip">
                   <HowScene part={s.part} />

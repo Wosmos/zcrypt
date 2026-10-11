@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Check, Github, ShieldCheck } from "@/lib/icons";
-import { GITHUB_REPO, downloadPageContent } from "@/lib/data";
+import { GITHUB_REPO, desktopEngine } from "@/lib/data";
 import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { DownloadCta } from "@/components/marketing/download/download-cta";
 import { DownloadCount } from "@/components/marketing/download/download-count";
@@ -11,7 +11,8 @@ import { PageHero } from "@/components/marketing/ui/page-hero";
 import { PillLink } from "@/components/marketing/ui/pill-link";
 import { IconWell, cardSurface } from "@/components/marketing/ui/card";
 import { SectionHead } from "@/components/marketing/landing/section-head";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
+import { DownloadClosing } from "@/components/marketing/download/download-closing";
+import { T } from "@/components/i18n/t";
 import { getLatestRelease } from "@/lib/releases";
 import { SITE_URL } from "@/lib/site";
 
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
 
 export default async function DownloadPage() {
   const release = await getLatestRelease();
-  const { hero, desktop, android, web, openSource } = downloadPageContent;
+  const trustKeys = ["free", "onlyYou", "noTelemetry"] as const;
 
   return (
     <>
@@ -63,18 +64,22 @@ export default async function DownloadPage() {
       />
 
       <PageHero
-        eyebrow={hero.badge}
-        title="Your drive, on every device"
-        lede={hero.subtext}
+        eyebrow={<T k="site.download.hero.badge" />}
+        title={<T k="site.download.hero.title" />}
+        lede={<T k="site.download.hero.subtext" />}
         actions={<DownloadCta release={release} />}
       >
         <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[var(--color-text-secondary)]">
-          {hero.trustItems.map((t) => (
-            <li key={t} className="flex items-center gap-1.5">
+          {trustKeys.map((k) => (
+            <li key={k} className="flex items-center gap-1.5">
               <Check className="h-3.5 w-3.5 text-[var(--pv2-accent-ink)]" strokeWidth={3} />
-              {t}
+              <T k={`site.download.hero.trust.${k}`} />
             </li>
           ))}
+          <li className="flex items-center gap-1.5">
+            <Check className="h-3.5 w-3.5 text-[var(--pv2-accent-ink)]" strokeWidth={3} />
+            macOS · Windows · Linux
+          </li>
         </ul>
       </PageHero>
 
@@ -82,9 +87,14 @@ export default async function DownloadPage() {
         <div className="pv2-wrap">
           <SectionHead
             id="h-desktop"
-            eyebrow="Desktop"
-            title={desktop.heading}
-            lede={desktop.subheading}
+            eyebrow={<T k="site.download.desktop.eyebrow" />}
+            title={<T k="site.download.desktop.heading" />}
+            lede={
+              <T
+                k="site.download.desktop.subheading"
+                values={{ engine: desktopEngine.name, language: desktopEngine.language }}
+              />
+            }
           />
 
           <DesktopGrid release={release} />
@@ -94,16 +104,11 @@ export default async function DownloadPage() {
           </div>
 
           <p className="mx-auto mt-8 max-w-xl text-center text-[13px] text-[var(--color-text-muted)]">
-            Looking for a specific build or an older version? Browse{" "}
-            <a
-              href={`${GITHUB_REPO}/releases`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
-            >
-              all releases on GitHub
-            </a>
-            .
+            <T
+              k="site.download.desktop.allReleases"
+              links={{ releases: `${GITHUB_REPO}/releases` }}
+              linkClassName="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
+            />
           </p>
         </div>
       </section>
@@ -112,9 +117,9 @@ export default async function DownloadPage() {
         <div className="pv2-wrap pv2-wrap-narrow">
           <SectionHead
             id="h-android"
-            eyebrow={android.badge}
-            title={android.heading}
-            lede={android.subheading}
+            eyebrow="Android"
+            title={<T k="site.download.android.heading" />}
+            lede={<T k="site.download.android.subheading" />}
           />
           <AndroidDownload />
         </div>
@@ -126,8 +131,8 @@ export default async function DownloadPage() {
             <IconWell icon={ShieldCheck} className="mx-auto mb-5" />
             <SectionHead
               id="h-open"
-              title={openSource.heading}
-              lede={openSource.body}
+              title={<T k="site.download.openSource.heading" />}
+              lede={<T k="site.download.openSource.body" />}
               className="pv2-head-flush"
             />
             <div className="mt-5 flex justify-center">
@@ -135,17 +140,17 @@ export default async function DownloadPage() {
             </div>
             <div className="pv2-ctas">
               <PillLink href={GITHUB_REPO} variant="secondary" icon={Github} external>
-                {openSource.githubCta}
+                <T k="site.download.openSource.githubCta" />
               </PillLink>
               <PillLink href="/docs/self-hosting" variant="secondary" arrow>
-                {openSource.selfHostCta}
+                <T k="site.download.openSource.selfHostCta" />
               </PillLink>
             </div>
           </div>
         </div>
       </section>
 
-      <ClosingCta eyebrow="No install" title={web.heading} subtext={web.body} label="Start free" />
+      <DownloadClosing />
     </>
   );
 }
