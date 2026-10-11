@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { MarketingCard } from "@/components/marketing/ui/card";
 
 export function RoleSteps({ base, count }: { base: string; count: number }) {
-  const t = useTranslations("site");
+  const t = useTranslations();
   const label = t(`${base}.label` as never) as string;
   return (
     <MarketingCard as="div" size="sm" className="p-6 sm:p-7">
