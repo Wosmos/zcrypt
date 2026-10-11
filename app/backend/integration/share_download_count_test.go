@@ -191,11 +191,11 @@ func TestFolderShareMaxDownloadsCountsOnCompletion(t *testing.T) {
 func (ts *testServer) uploadReadyFileChunks(token, filename string, chunks int) string {
 	ts.t.Helper()
 	initResp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      filename,
-		"original_size": 40 * chunks,
-		"sha256":        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-		"salt":          validSalt,
-		"chunk_count":   chunks,
+		"encrypted_name": filename,
+		"original_size":  40 * chunks,
+		"sha256":         "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		"salt":           validSalt,
+		"chunk_count":    chunks,
 	}, token)
 	body := requireStatus(ts.t, initResp, http.StatusOK)
 	var init struct {

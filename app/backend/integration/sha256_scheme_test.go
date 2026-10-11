@@ -41,12 +41,12 @@ func TestUploadSHA256SchemeStored(t *testing.T) {
 
 	t.Run("hmac_v1 upload is stored verbatim", func(t *testing.T) {
 		out := initUpload(ts, t, token, map[string]interface{}{
-			"filename":      "keyed.bin",
-			"original_size": 1234,
-			"sha256":        "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2", // opaque MAC shape
-			"sha256_scheme": "hmac_v1",
-			"salt":          validSalt,
-			"chunk_count":   1,
+			"encrypted_name": "keyed.bin",
+			"original_size":  1234,
+			"sha256":         "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2", // opaque MAC shape
+			"sha256_scheme":  "hmac_v1",
+			"salt":           validSalt,
+			"chunk_count":    1,
 		})
 		fileID := out["file_id"].(string)
 		assert.Equal(t, "hmac_v1", dbFileScheme(ts, t, fileID), "MAC scheme persisted")
@@ -66,11 +66,11 @@ func TestUploadSHA256SchemeStored(t *testing.T) {
 
 	t.Run("legacy upload without scheme defaults to plain", func(t *testing.T) {
 		out := initUpload(ts, t, token, map[string]interface{}{
-			"filename":      "legacy.bin",
-			"original_size": 555,
-			"sha256":        "0000000000000000000000000000000000000000000000000000000000000001",
-			"salt":          validSalt,
-			"chunk_count":   1,
+			"encrypted_name": "legacy.bin",
+			"original_size":  555,
+			"sha256":         "0000000000000000000000000000000000000000000000000000000000000001",
+			"salt":           validSalt,
+			"chunk_count":    1,
 		})
 		assert.Equal(t, "plain", dbFileScheme(ts, t, out["file_id"].(string)),
 			"an old client's upload is labeled legacy plaintext-SHA with no backfill")
@@ -87,7 +87,7 @@ func TestUploadResumeSurvivesHMACScheme(t *testing.T) {
 
 	const mac = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	first := initUpload(ts, t, token, map[string]interface{}{
-		"filename": "resume.bin", "original_size": 4096, "sha256": mac,
+		"encrypted_name": "resume.bin", "original_size": 4096, "sha256": mac,
 		"sha256_scheme": "hmac_v1", "salt": validSalt, "chunk_count": 1,
 	})
 	require.NotEqual(t, true, first["resumed"], "first init creates a fresh session")
@@ -96,7 +96,7 @@ func TestUploadResumeSurvivesHMACScheme(t *testing.T) {
 	// Re-init with the SAME (mac, size) (as a second device would) must resume
 	// onto the SAME session, not restart from zero.
 	again := initUpload(ts, t, token, map[string]interface{}{
-		"filename": "resume.bin", "original_size": 4096, "sha256": mac,
+		"encrypted_name": "resume.bin", "original_size": 4096, "sha256": mac,
 		"sha256_scheme": "hmac_v1", "salt": validSalt, "chunk_count": 1,
 	})
 	assert.Equal(t, true, again["resumed"], "same keyed MAC + size resumes")
@@ -105,7 +105,7 @@ func TestUploadResumeSurvivesHMACScheme(t *testing.T) {
 	// A DIFFERENT MAC (different content) must create a fresh session, never
 	// false-match the first.
 	other := initUpload(ts, t, token, map[string]interface{}{
-		"filename": "other.bin", "original_size": 4096,
+		"encrypted_name": "other.bin", "original_size": 4096,
 		"sha256":        "1111111111111111111111111111111111111111111111111111111111111111",
 		"sha256_scheme": "hmac_v1", "salt": validSalt, "chunk_count": 1,
 	})

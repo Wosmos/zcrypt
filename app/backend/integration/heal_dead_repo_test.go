@@ -30,11 +30,11 @@ func TestPresignHealDeadRepoRotatesSession(t *testing.T) {
 	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", direct, 10<<30)
 
 	initBody := requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "healed.bin",
-		"original_size": 80,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   2,
+		"encrypted_name": "healed.bin",
+		"original_size":  80,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    2,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID    string `json:"session_id"`
@@ -106,11 +106,11 @@ func TestRelayModeHasNoSelfHealForDeadRepo(t *testing.T) {
 	mock.setFailUploadsPermanent("repository not found")
 
 	initBody := requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "stuck.bin",
-		"original_size": 40,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   1,
+		"encrypted_name": "stuck.bin",
+		"original_size":  40,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    1,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`
@@ -161,11 +161,11 @@ func TestReconcileNoFalsePositiveAcrossMultiRepoSession(t *testing.T) {
 	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", direct, 10<<30)
 
 	initBody := requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "spans-two-repos.bin",
-		"original_size": 80,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   2,
+		"encrypted_name": "spans-two-repos.bin",
+		"original_size":  80,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    2,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`

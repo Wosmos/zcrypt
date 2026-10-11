@@ -148,10 +148,13 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A zero-knowledge client sends encrypted_name (opaque base64) and an empty
-	// filename; a legacy client sends the plaintext filename. Require at least one.
-	if (req.Filename == "" && req.EncryptedName == "") || req.OriginalSize <= 0 || req.SHA256 == "" || req.Salt == "" || req.ChunkCount <= 0 {
-		http.Error(w, `{"error":"a name (filename or encrypted_name), original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
+	if req.EncryptedName == "" {
+		http.Error(w, `{"error":"Please update zcrypt to the latest version to keep uploading.","code":"client_update_required"}`, http.StatusUpgradeRequired)
+		return
+	}
+	req.Filename = ""
+	if req.OriginalSize <= 0 || req.SHA256 == "" || req.Salt == "" || req.ChunkCount <= 0 {
+		http.Error(w, `{"error":"encrypted_name, original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
 		return
 	}
 	if req.OriginalSize > maxUploadBytes {
@@ -166,15 +169,6 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	}
 	if !chunkLayoutValid(req.OriginalSize, req.ChunkCount, req.ChunkSize) {
 		http.Error(w, `{"error":"chunk_count does not match original_size and chunk_size"}`, http.StatusBadRequest)
-		return
-	}
-
-	// Path-safety validation applies ONLY to a legacy plaintext filename. It must
-	// NOT run on encrypted_name: standard base64 contains '/' and '+' and is long,
-	// so it would falsely reject every encrypted name.
-	if req.Filename != "" && (strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
-		strings.Contains(req.Filename, "\\") || len(req.Filename) > 255) {
-		http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
 		return
 	}
 

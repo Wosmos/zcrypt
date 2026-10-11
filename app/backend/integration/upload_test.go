@@ -25,11 +25,11 @@ func TestUploadPipeline(t *testing.T) {
 	t.Run("full upload cycle: init → chunk → complete → list → delete", func(t *testing.T) {
 		// 1. Init upload session
 		initResp := ts.POST("/api/upload/init", map[string]interface{}{
-			"filename":      "hello.txt",
-			"original_size": 11,
-			"sha256":        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-			"salt":          validSalt,
-			"chunk_count":   1,
+			"encrypted_name": "hello.txt",
+			"original_size":  11,
+			"sha256":         "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+			"salt":           validSalt,
+			"chunk_count":    1,
 		}, token)
 
 		initBody := requireStatus(t, initResp, http.StatusOK)
@@ -67,7 +67,7 @@ func TestUploadPipeline(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal(listBody, &listResult))
 		require.Len(t, listResult, 1)
-		assert.Equal(t, "hello.txt", listResult[0].OriginalName)
+		assert.Equal(t, "", listResult[0].OriginalName)
 
 		// 5. Delete file
 		deleteResp := ts.DELETE("/api/files/"+listResult[0].ID, token)
@@ -83,11 +83,11 @@ func TestUploadPipeline(t *testing.T) {
 
 	t.Run("upload init with zero chunk_count rejected", func(t *testing.T) {
 		resp := ts.POST("/api/upload/init", map[string]interface{}{
-			"filename":      "bad.txt",
-			"original_size": 100,
-			"sha256":        "aaaa",
-			"salt":          validSalt,
-			"chunk_count":   0,
+			"encrypted_name": "bad.txt",
+			"original_size":  100,
+			"sha256":         "aaaa",
+			"salt":           validSalt,
+			"chunk_count":    0,
 		}, token)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		resp.Body.Close()
@@ -95,11 +95,11 @@ func TestUploadPipeline(t *testing.T) {
 
 	t.Run("upload init with negative size rejected", func(t *testing.T) {
 		resp := ts.POST("/api/upload/init", map[string]interface{}{
-			"filename":      "bad.txt",
-			"original_size": -1,
-			"sha256":        "aaaa",
-			"salt":          validSalt,
-			"chunk_count":   1,
+			"encrypted_name": "bad.txt",
+			"original_size":  -1,
+			"sha256":         "aaaa",
+			"salt":           validSalt,
+			"chunk_count":    1,
 		}, token)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		resp.Body.Close()
@@ -140,11 +140,11 @@ func TestFileOwnership(t *testing.T) {
 
 	// User A uploads a file
 	initResp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "private.txt",
-		"original_size": 10,
-		"sha256":        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"salt":          validSalt,
-		"chunk_count":   1,
+		"encrypted_name": "private.txt",
+		"original_size":  10,
+		"sha256":         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"salt":           validSalt,
+		"chunk_count":    1,
 	}, tokenA)
 	initBody := requireStatus(t, initResp, http.StatusOK)
 	var initResult struct {

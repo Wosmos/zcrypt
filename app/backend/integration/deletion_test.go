@@ -27,11 +27,11 @@ func (ts *testServer) countScalar(query string, args ...interface{}) int {
 func (ts *testServer) uploadAndSync(ctx context.Context, token, filename string, chunks int) string {
 	ts.t.Helper()
 	initBody := requireStatus(ts.t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      filename,
-		"original_size": 40 * chunks,
-		"sha256":        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-		"salt":          validSalt,
-		"chunk_count":   chunks,
+		"encrypted_name": filename,
+		"original_size":  40 * chunks,
+		"sha256":         "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		"salt":           validSalt,
+		"chunk_count":    chunks,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`

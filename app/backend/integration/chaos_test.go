@@ -25,11 +25,11 @@ func TestSyncRecoversFromTransientAdapterFailures(t *testing.T) {
 
 	const chunkCount = 4
 	initBody := requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "flaky-run.bin",
-		"original_size": 40 * chunkCount,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   chunkCount,
+		"encrypted_name": "flaky-run.bin",
+		"original_size":  40 * chunkCount,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    chunkCount,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`
@@ -72,11 +72,11 @@ func TestSyncSurfacesPermanentAdapterFailureAsStuck(t *testing.T) {
 
 	const chunkCount = 3
 	initBody := requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "dead-platform.bin",
-		"original_size": 40 * chunkCount,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   chunkCount,
+		"encrypted_name": "dead-platform.bin",
+		"original_size":  40 * chunkCount,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    chunkCount,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`
@@ -124,11 +124,11 @@ func TestCreateRepoFailureLeavesNoOrphanedSession(t *testing.T) {
 	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", mock, 10<<30)
 
 	resp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "neverstarts.bin",
-		"original_size": 40,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   1,
+		"encrypted_name": "neverstarts.bin",
+		"original_size":  40,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    1,
 	}, token)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	resp.Body.Close()
@@ -159,11 +159,11 @@ func TestCancelDuringInFlightUploadQueuesOrphanBlob(t *testing.T) {
 	t.Cleanup(func() { ts.clearUserDeletions(ctx, user.ID) })
 
 	initBody := requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "racer.bin",
-		"original_size": 40,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   1,
+		"encrypted_name": "racer.bin",
+		"original_size":  40,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    1,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`

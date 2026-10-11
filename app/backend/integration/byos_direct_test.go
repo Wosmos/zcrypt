@@ -42,13 +42,13 @@ func TestByosDirectFlow(t *testing.T) {
 
 	// 1. init byos-direct → metadata-only session, no server repo.
 	initResp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "byos.bin",
-		"original_size": 40,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   1,
-		"platform":      "github",
-		"mode":          "byos-direct",
+		"encrypted_name": "byos.bin",
+		"original_size":  40,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    1,
+		"platform":       "github",
+		"mode":           "byos-direct",
 	}, token)
 	var init struct {
 		SessionID    string `json:"session_id"`
@@ -155,7 +155,7 @@ func TestByosDirectRequiresPersonalToken(t *testing.T) {
 	token := ts.registerAndLogin("nopersonal@example.com", "SecurePass@123!")
 
 	resp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "x.bin", "original_size": 10, "sha256": hex64,
+		"encrypted_name": "x.bin", "original_size": 10, "sha256": hex64,
 		"salt": validSalt, "chunk_count": 1,
 		"platform": "github", "mode": "byos-direct",
 	}, token)
@@ -171,7 +171,7 @@ func TestByosDirectRejectsUnsupportedPlatform(t *testing.T) {
 	token := ts.registerAndLogin("badplatform@example.com", "SecurePass@123!")
 
 	resp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "x.bin", "original_size": 10, "sha256": hex64,
+		"encrypted_name": "x.bin", "original_size": 10, "sha256": hex64,
 		"salt": validSalt, "chunk_count": 1,
 		"platform": "dropbox", "mode": "byos-direct",
 	}, token)
@@ -191,7 +191,7 @@ func TestByosConfirmRejectsUnownedRepo(t *testing.T) {
 		SessionID string `json:"session_id"`
 	}
 	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "x.bin", "original_size": 10, "sha256": hex64,
+		"encrypted_name": "x.bin", "original_size": 10, "sha256": hex64,
 		"salt": validSalt, "chunk_count": 1,
 		"platform": "telegram", "mode": "byos-direct",
 	}, token), http.StatusOK), &init))
@@ -219,7 +219,7 @@ func TestSoftDeleteAppearsInChangeFeed(t *testing.T) {
 		FileID    string `json:"file_id"`
 	}
 	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "trash-me.txt", "original_size": 40, "sha256": hex64,
+		"encrypted_name": "trash-me.txt", "original_size": 40, "sha256": hex64,
 		"salt": validSalt, "chunk_count": 1,
 	}, token), http.StatusOK), &init))
 	requireStatus(t, ts.PUT("/api/upload/"+init.SessionID+"/chunk/0",

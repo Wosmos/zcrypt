@@ -29,7 +29,7 @@ func (ts *testServer) getShared(path, password string) *http.Response {
 func createFolderShareBody(name string, fileIDs []string) map[string]interface{} {
 	files := make([]map[string]string, 0, len(fileIDs))
 	for _, id := range fileIDs {
-		files = append(files, map[string]string{"file_id": id, "wrapped_cek": b64("cek-under-folder-key-" + id)})
+		files = append(files, map[string]string{"file_id": id, "wrapped_cek": b64("cek-under-folder-key-" + id), "name": "enc1:sealed-" + id})
 	}
 	return map[string]interface{}{"name": name, "files": files}
 }
