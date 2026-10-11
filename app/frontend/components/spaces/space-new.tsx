@@ -23,7 +23,7 @@ import {
   inviteRoles,
   InviteForm,
 } from "@/components/spaces/invites";
-import { MemberAvatar } from "@/components/spaces/space-ui";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Notice, PageShell, SpaceBreadcrumb } from "@/components/spaces/shared";
 import type { SpaceRole } from "@/lib/spaces";
 import type { FileMetadata, SharedVault } from "@/types";
@@ -184,7 +184,7 @@ export function SpaceNew() {
             <ul className="divide-y divide-[var(--color-border)] rounded-xl border border-[var(--color-border)]">
               {invites.map((inv) => (
                 <li key={inv.email} className="flex items-center gap-3 px-3 py-2">
-                  <MemberAvatar id={inv.email} label={inv.email} className="h-7 w-7 text-[11px]" />
+                  <UserAvatar userId={inv.email} name={inv.email} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
                     {inv.email}
                   </span>

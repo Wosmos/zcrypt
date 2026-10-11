@@ -35,7 +35,8 @@ import {
   InviteForm,
   RoleSelect,
 } from "@/components/spaces/invites";
-import { MemberAvatar, RoleBadge } from "@/components/spaces/space-ui";
+import { RoleBadge } from "@/components/spaces/space-ui";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Notice, PageShell, SpaceBreadcrumb } from "@/components/spaces/shared";
 import {
   patchSpace,
@@ -508,7 +509,13 @@ export function SpaceSettings() {
               return (
                 <li key={m.id} className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-start">
                   <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <MemberAvatar id={m.user_id} label={label} className="h-9 w-9 text-xs" />
+                    <UserAvatar
+                      userId={m.user_id}
+                      name={label}
+                      hasAvatar={m.has_avatar}
+                      avatarVersion={m.avatar_version}
+                      size="md"
+                    />
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <p className="flex items-center gap-1.5 truncate text-sm font-medium text-[var(--color-text)]">
                         <span className="truncate">{label}</span>

@@ -5,70 +5,12 @@ import { useTranslations } from "next-intl";
 import type { HTMLAttributes } from "react";
 import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
+import { AvatarStack } from "@/components/ui/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatBytes } from "@/lib/utils";
 import { spacePerms } from "@/lib/spaces";
 import type { SharedVault } from "@/types";
 import { AlertTriangle, File as FileIcon, Users } from "@/lib/icons";
-
-function hueOf(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
-  return h;
-}
-
-export function MemberAvatar({
-  id,
-  label,
-  className = "h-7 w-7 text-[11px]",
-}: {
-  id: string;
-  label: string;
-  className?: string;
-}) {
-  const hue = hueOf(id);
-  return (
-    <span
-      aria-hidden
-      className={`inline-flex flex-shrink-0 items-center justify-center rounded-full font-semibold uppercase text-white ${className}`}
-      style={{
-        background: `linear-gradient(135deg, hsl(${hue} 60% 52%), hsl(${(hue + 40) % 360} 60% 40%))`,
-      }}
-    >
-      {(label.trim()[0] ?? "?").toUpperCase()}
-    </span>
-  );
-}
-
-export function AvatarStack({
-  members,
-  total,
-}: {
-  members: { user_id: string; username: string }[];
-  total: number;
-}) {
-  const t = useTranslations("spaces");
-  const extra = Math.max(0, total - members.length);
-  return (
-    <div className="flex items-center" aria-label={t("shared.memberCount", { count: total })}>
-      <div className="flex -space-x-2">
-        {members.map((m) => (
-          <MemberAvatar
-            key={m.user_id}
-            id={m.user_id}
-            label={m.username}
-            className="h-7 w-7 text-[11px] ring-2 ring-[var(--color-surface)]"
-          />
-        ))}
-        {extra > 0 && (
-          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--color-surface-2)] px-1.5 text-[11px] font-medium tabular-nums text-[var(--color-text-secondary)] ring-2 ring-[var(--color-surface)]">
-            +{extra}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const ROLE_VARIANT = {
   Owner: "accent",

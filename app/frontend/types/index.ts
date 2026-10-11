@@ -118,6 +118,8 @@ export interface AuthUser {
   username: string;
   display_name?: string;
   avatar_url?: string;
+  has_avatar?: boolean;
+  avatar_version?: string;
   role: Role;
   email_verified: boolean;
   totp_enabled: boolean;
@@ -462,7 +464,12 @@ export interface SharedVault {
   member_count?: number;
   file_count?: number;
   used_bytes?: number;
-  member_preview?: { user_id: string; username: string }[];
+  member_preview?: {
+    user_id: string;
+    username: string;
+    has_avatar?: boolean;
+    avatar_version?: string;
+  }[];
 }
 
 export interface SharedVaultMember {
@@ -471,6 +478,8 @@ export interface SharedVaultMember {
   user_id: string;
   username?: string;
   email?: string;
+  has_avatar?: boolean;
+  avatar_version?: string;
   role: "viewer" | "editor" | "admin";
   joined_at: string;
   /** Space key sealed to THIS member's public key (opaque to the server). */

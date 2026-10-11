@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SettingGroup } from "@/components/settings/settings-primitives";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { invalidateAvatar } from "@/lib/avatar-cache";
 import { Check } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { updateProfile, changePassword } from "@/lib/auth-api";
@@ -83,8 +85,6 @@ export function ProfileSettings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const initial = (user?.display_name || user?.username || "?").charAt(0).toUpperCase();
-
   const unmetRules = PASSWORD_RULES.filter((r) => !r.ok(newPassword));
   const mismatch = confirmPassword !== "" && newPassword !== confirmPassword;
   const sameAsCurrent = newPassword !== "" && newPassword === currentPassword;
@@ -131,6 +131,7 @@ export function ProfileSettings() {
         avatar_url: avatar,
       });
       setUser(updated);
+      invalidateAvatar(updated.id);
       toast.success(t("profileUpdated"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("profileFailed"));
@@ -174,20 +175,13 @@ export function ProfileSettings() {
       <SettingGroup label={t("label")} footnote={t("footnote")}>
         <div className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <div className="flex items-center gap-4">
-            {avatar ? (
-              // A local data: URI capped at 128KB. There is nothing for
-              // next/image to optimize, and its loader cannot fetch data URIs.
-              // oxlint-disable-next-line no-img-element
-              <img
-                src={avatar}
-                alt={t("avatarAlt")}
-                className="h-16 w-16 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-accent)] text-xl font-semibold text-white">
-                {initial}
-              </div>
-            )}
+            <UserAvatar
+              userId={user?.id ?? ""}
+              name={user?.display_name || user?.username || "?"}
+              previewSrc={avatar}
+              size="xl"
+              decorative={false}
+            />
             <div className="flex flex-wrap gap-2">
               <input
                 ref={fileRef}

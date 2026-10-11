@@ -21,7 +21,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonRow } from "@/components/ui/skeletons";
-import { AvatarStack, RoleBadge, StorageMeter } from "@/components/spaces/space-ui";
+import { RoleBadge, StorageMeter } from "@/components/spaces/space-ui";
+import { AvatarStack } from "@/components/ui/user-avatar";
 import {
   FOCUS_RING,
   FileTypeIcon,
@@ -270,6 +271,8 @@ export function SpaceHome() {
   const members = (detail.members ?? []).map((m) => ({
     user_id: m.user_id,
     username: m.username || m.email || t("shared.member"),
+    has_avatar: m.has_avatar,
+    avatar_version: m.avatar_version,
   }));
   const allSelected = ids.length > 0 && ids.every((x) => selected.has(x));
   const selectMode = selected.size > 0;

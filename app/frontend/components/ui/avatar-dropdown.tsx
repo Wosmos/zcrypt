@@ -14,6 +14,7 @@ import { Sun, Moon, LogOut, Settings, Cog, AlertTriangle, Star, Compass } from "
 import { useTour } from "@/components/onboarding/tour-provider";
 import { BugReportDialog } from "@/components/feedback/bug-report-dialog";
 import { ReviewDialog } from "@/components/feedback/review-dialog";
+import { UserAvatar, useCurrentUserAvatar } from "@/components/ui/user-avatar";
 import { Role } from "@/types";
 import Link from "next/link";
 
@@ -48,6 +49,7 @@ export function AvatarDropdown() {
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
 
+  const me = useCurrentUserAvatar();
   const isAdmin = user?.role === Role.Admin;
   const isDark = resolvedTheme === "dark";
 
@@ -68,8 +70,6 @@ export function AvatarDropdown() {
 
   if (!user) return null;
 
-  const initial = (user.username?.[0] || user.email[0]).toUpperCase();
-
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Compact round avatar button */}
@@ -83,8 +83,7 @@ export function AvatarDropdown() {
           boxShadow: open ? "var(--avatar-shadow-open)" : "var(--avatar-shadow)",
         }}
         className={cn(
-          "group relative flex items-center justify-center h-10 w-10 overflow-hidden rounded-full transition-all duration-200",
-          "text-white text-sm font-bold tracking-wide",
+          "group relative flex items-center justify-center h-10 w-10 overflow-hidden rounded-full p-0.5 transition-all duration-200",
           "hover:scale-105 active:scale-95",
         )}
       >
@@ -92,9 +91,15 @@ export function AvatarDropdown() {
             Gated to hover-capable pointers: on touch, :hover latches after a
             tap and would leave the band parked over the avatar until reload. */}
         <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-full" />
-        <span style={{ textShadow: "0 1px 3px rgba(0,0,0,0.35)" }} className="relative select-none">
-          {initial}
-        </span>
+        {me && (
+          <UserAvatar
+            userId={me.userId}
+            name={user.username || user.email}
+            hasAvatar={me.hasAvatar}
+            avatarVersion={me.avatarVersion}
+            className="h-full w-full"
+          />
+        )}
       </button>
 
       <AnimatePresence>
