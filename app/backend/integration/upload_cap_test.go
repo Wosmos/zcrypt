@@ -26,12 +26,12 @@ func TestUploadInitPerFileCap(t *testing.T) {
 
 	initReq := func(size int64) map[string]interface{} {
 		return map[string]interface{}{
-			"filename":      "big.bin",
-			"original_size": size,
-			"sha256":        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			"salt":          base64.StdEncoding.EncodeToString(salt),
-			"chunk_count":   1,
-			"chunk_size":    10 * 1024 * 1024,
+			"encrypted_name": "big.bin",
+			"original_size":  size,
+			"sha256":         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"salt":           base64.StdEncoding.EncodeToString(salt),
+			"chunk_count":    1,
+			"chunk_size":     10 * 1024 * 1024,
 		}
 	}
 

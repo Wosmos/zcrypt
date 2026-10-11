@@ -43,11 +43,11 @@ func (ts *testServer) createSpace(token, name string, sizeLimit int64) string {
 func (ts *testServer) uploadReadyFile(token, filename string, size int64) string {
 	ts.t.Helper()
 	initResp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      filename,
-		"original_size": size,
-		"sha256":        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-		"salt":          validSalt,
-		"chunk_count":   1,
+		"encrypted_name": filename,
+		"original_size":  size,
+		"sha256":         "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		"salt":           validSalt,
+		"chunk_count":    1,
 	}, token)
 	body := requireStatus(ts.t, initResp, http.StatusOK)
 	var init struct {
@@ -302,8 +302,9 @@ func TestSharedVaultFiles(t *testing.T) {
 		fileID := ts.uploadReadyFile(owner, "report.pdf", 40)
 
 		resp := ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{
-			"file_id":     fileID,
-			"wrapped_cek": b64("cek-wrapped-under-space-key"),
+			"file_id":      fileID,
+			"wrapped_cek":  b64("cek-wrapped-under-space-key"),
+			"wrapped_name": b64("name-wrapped-under-space-key"),
 		}, owner)
 		requireStatus(t, resp, http.StatusCreated)
 
@@ -312,17 +313,19 @@ func TestSharedVaultFiles(t *testing.T) {
 		dbody := requireStatus(t, detailResp, http.StatusOK)
 		var d struct {
 			Files []struct {
-				FileID     string `json:"file_id"`
-				WrappedCEK string `json:"wrapped_cek"`
-				Name       string `json:"name"`
-				Size       int64  `json:"size"`
+				FileID      string `json:"file_id"`
+				WrappedCEK  string `json:"wrapped_cek"`
+				Name        string `json:"name"`
+				WrappedName string `json:"wrapped_name"`
+				Size        int64  `json:"size"`
 			} `json:"files"`
 		}
 		require.NoError(t, json.Unmarshal(dbody, &d))
 		require.Len(t, d.Files, 1)
 		assert.Equal(t, fileID, d.Files[0].FileID)
 		assert.Equal(t, b64("cek-wrapped-under-space-key"), d.Files[0].WrappedCEK)
-		assert.Equal(t, "report.pdf", d.Files[0].Name)
+		assert.Equal(t, "", d.Files[0].Name, "server holds no plaintext name")
+		assert.Equal(t, b64("name-wrapped-under-space-key"), d.Files[0].WrappedName)
 		assert.Equal(t, int64(40), d.Files[0].Size)
 	})
 

@@ -29,11 +29,11 @@ func (ts *testServer) initRelayUpload(token, filename string, chunks int) (sessi
 		FileID    string `json:"file_id"`
 	}
 	require.NoError(ts.t, json.Unmarshal(requireStatus(ts.t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      filename,
-		"original_size": 40 * chunks,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   chunks,
+		"encrypted_name": filename,
+		"original_size":  40 * chunks,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    chunks,
 	}, token), http.StatusOK), &init))
 	for i := 0; i < chunks; i++ {
 		requireStatus(ts.t, ts.PUT("/api/upload/"+init.SessionID+"/chunk/"+strconv.Itoa(i),
@@ -304,7 +304,7 @@ func TestConfirmMustMatchPresign(t *testing.T) {
 		FileID    string `json:"file_id"`
 	}
 	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "pinned.bin", "original_size": 80, "sha256": hex64, "salt": validSalt, "chunk_count": 2,
+		"encrypted_name": "pinned.bin", "original_size": 80, "sha256": hex64, "salt": validSalt, "chunk_count": 2,
 	}, token), http.StatusOK), &init))
 
 	requireStatus(t, ts.POST("/api/upload/"+init.SessionID+"/confirm/1", map[string]interface{}{
@@ -350,7 +350,7 @@ func TestByosDirectChunkTrustedOnlyOnceListed(t *testing.T) {
 		FileID    string `json:"file_id"`
 	}
 	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "byos-claim.bin", "original_size": 40, "sha256": hex64, "salt": validSalt,
+		"encrypted_name": "byos-claim.bin", "original_size": 40, "sha256": hex64, "salt": validSalt,
 		"chunk_count": 1, "platform": "github", "mode": "byos-direct",
 	}, token), http.StatusOK), &init))
 	repoID := "github_octocat_claim_" + uuid.NewString()[:8]
@@ -395,7 +395,7 @@ func TestByosDirectTelegramChunkTrustedOnlyOnceVerified(t *testing.T) {
 		FileID    string `json:"file_id"`
 	}
 	require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename": "tg-claim.bin", "original_size": 40, "sha256": hex64, "salt": validSalt,
+		"encrypted_name": "tg-claim.bin", "original_size": 40, "sha256": hex64, "salt": validSalt,
 		"chunk_count": 1, "platform": "telegram", "mode": "byos-direct",
 	}, token), http.StatusOK), &init))
 	repoID := "telegram_tgbot_claim_" + uuid.NewString()[:8]
@@ -445,7 +445,7 @@ func TestByosConfirmRejectsTakenRemotePath(t *testing.T) {
 			SessionID string `json:"session_id"`
 		}
 		require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
-			"filename": filename, "original_size": 40, "sha256": hex64[:63] + filename[:1], "salt": validSalt,
+			"encrypted_name": filename, "original_size": 40, "sha256": hex64[:63] + filename[:1], "salt": validSalt,
 			"chunk_count": 1, "platform": "github", "mode": "byos-direct",
 		}, token), http.StatusOK), &init))
 		resp := ts.POST("/api/upload/"+init.SessionID+"/confirm/0", map[string]interface{}{

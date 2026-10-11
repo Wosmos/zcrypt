@@ -65,19 +65,42 @@ func TestUploadEncryptedNameStored(t *testing.T) {
 			"upload audit events must not persist any filename")
 	})
 
-	t.Run("legacy plaintext filename still works", func(t *testing.T) {
-		out := initUpload(ts, t, token, map[string]interface{}{
+	t.Run("plaintext-only init is refused with 426", func(t *testing.T) {
+		resp := ts.POST("/api/upload/init", map[string]interface{}{
 			"filename":      "legacy-name.txt",
 			"original_size": 50,
 			"sha256":        "def456",
 			"salt":          validSalt,
 			"chunk_count":   1,
+		}, token)
+		body := requireStatus(t, resp, http.StatusUpgradeRequired)
+		var e struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		require.NoError(t, jsonUnmarshal(body, &e))
+		assert.Equal(t, "client_update_required", e.Code)
+		assert.Equal(t, "Please update zcrypt to the latest version to keep uploading.", e.Error)
+	})
+
+	t.Run("both fields: plaintext name is never stored", func(t *testing.T) {
+		out := initUpload(ts, t, token, map[string]interface{}{
+			"filename":       "leaky-name.txt",
+			"encrypted_name": encName,
+			"original_size":  50,
+			"sha256":         "def457",
+			"salt":           validSalt,
+			"chunk_count":    1,
 		})
-		var origName, storedEnc string
+		fileID := out["file_id"].(string)
+		var origName, storedEnc, sessName string
 		require.NoError(t, ts.db.Pool().QueryRow(ctx,
-			`SELECT original_name, encrypted_name FROM files WHERE id=$1`, out["file_id"].(string)).Scan(&origName, &storedEnc))
-		assert.Equal(t, "legacy-name.txt", origName, "a legacy client's plaintext name is stored as before")
-		assert.Equal(t, "", storedEnc)
+			`SELECT original_name, encrypted_name FROM files WHERE id=$1`, fileID).Scan(&origName, &storedEnc))
+		assert.Equal(t, "", origName)
+		assert.Equal(t, encName, storedEnc)
+		require.NoError(t, ts.db.Pool().QueryRow(ctx,
+			`SELECT filename FROM upload_sessions WHERE file_id=$1`, fileID).Scan(&sessName))
+		assert.Equal(t, "", sessName)
 	})
 
 	t.Run("a name with base64 slashes is not rejected as a bad path", func(t *testing.T) {

@@ -16,12 +16,12 @@ import (
 
 func uploadInitBody(size int64, count int, chunkSize int64, sha string) map[string]interface{} {
 	return map[string]interface{}{
-		"filename":      "q.bin",
-		"original_size": size,
-		"sha256":        sha,
-		"salt":          validSalt,
-		"chunk_count":   count,
-		"chunk_size":    chunkSize,
+		"encrypted_name": "q.bin",
+		"original_size":  size,
+		"sha256":         sha,
+		"salt":           validSalt,
+		"chunk_count":    count,
+		"chunk_size":     chunkSize,
 	}
 }
 

@@ -19,11 +19,11 @@ import (
 func (ts *testServer) uploadRelayChunkAwaitingCommit(ctx context.Context, token, filename string) (fileID, chunkID string) {
 	ts.t.Helper()
 	initBody := requireStatus(ts.t, ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      filename,
-		"original_size": 40,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   1,
+		"encrypted_name": filename,
+		"original_size":  40,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    1,
 	}, token), http.StatusOK)
 	var init struct {
 		SessionID string `json:"session_id"`

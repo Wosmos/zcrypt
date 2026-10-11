@@ -30,13 +30,13 @@ func TestDirectConfirmCannotClaimAnotherAccount(t *testing.T) {
 	ts.givePersonalToken(userEmail, "telegram", "my_own_bot")
 
 	initResp := ts.POST("/api/upload/init", map[string]interface{}{
-		"filename":      "x.bin",
-		"original_size": 40,
-		"sha256":        hex64,
-		"salt":          validSalt,
-		"chunk_count":   1,
-		"platform":      "telegram",
-		"mode":          "byos-direct",
+		"encrypted_name": "x.bin",
+		"original_size":  40,
+		"sha256":         hex64,
+		"salt":           validSalt,
+		"chunk_count":    1,
+		"platform":       "telegram",
+		"mode":           "byos-direct",
 	}, token)
 	var init struct {
 		SessionID string `json:"session_id"`
