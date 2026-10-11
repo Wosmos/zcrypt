@@ -181,6 +181,21 @@ export async function resolveFileKey(
   salt: Uint8Array,
   wrappedCek?: string | null,
 ): Promise<ArrayBuffer> {
+  if (wrappedCek && wrappedCek.startsWith("mk1:")) {
+    // Account master key envelope (docs/CRYPTO_FORMAT.md 2.1): the per-file
+    // salt is unused. The in-memory MK is used when loaded; otherwise it is
+    // loaded from the vault passphrase (dynamic import: master-key imports
+    // this module).
+    const { ensureMasterKey, unwrapCekWithMasterKey } = await import("@/lib/master-key");
+    const mk = await ensureMasterKey(passphrase);
+    let mkCek: Uint8Array;
+    try {
+      mkCek = await unwrapCekWithMasterKey(mk, wrappedCek);
+    } catch {
+      throw new Error("Could not unlock this file: its key does not match your account key.");
+    }
+    return toArrayBuffer(mkCek);
+  }
   // Memoized: repeated opens of the same (passphrase, salt) pair, thumbnail,
   // then preview, then download: pay the 600k-iteration PBKDF2 only once.
   const kek = await deriveKeyBytesCached(passphrase, salt);

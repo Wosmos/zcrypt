@@ -27,12 +27,18 @@ const { getFileMeta, setFolderPassword, removeFolderPassword } = vi.hoisted(() =
 }));
 vi.mock("@/lib/api", () => ({ getFileMeta, setFolderPassword, removeFolderPassword }));
 
-const { resolveFileKey, generateSalt, fromBase64 } = vi.hoisted(() => ({
+const { resolveFileKey, generateSalt, fromBase64, toBase64 } = vi.hoisted(() => ({
   resolveFileKey: vi.fn(),
   generateSalt: vi.fn(),
   fromBase64: vi.fn(),
+  toBase64: vi.fn((b: Uint8Array) => `b64(${Array.from(b).join(",")})`),
 }));
-vi.mock("@/lib/crypto", () => ({ resolveFileKey, generateSalt, fromBase64 }));
+vi.mock("@/lib/crypto", () => ({ resolveFileKey, generateSalt, fromBase64, toBase64 }));
+
+const { wrapCekForVault } = vi.hoisted(() => ({
+  wrapCekForVault: vi.fn(async (): Promise<string | null> => null),
+}));
+vi.mock("@/lib/master-key", () => ({ wrapCekForVault }));
 
 const { deriveFolderPwSalt, makeFolderVerifier, verifyFolderPassword, rewrapFileKey } = vi.hoisted(() => ({
   deriveFolderPwSalt: vi.fn(),
@@ -196,6 +202,7 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(async (password: string, _salt: string, verifier: string) => verifier === `verifier(${password})`);
   rewrapFileKey.mockReset().mockImplementation(defaultRewrapFileKey);
+  wrapCekForVault.mockReset().mockResolvedValue(null);
 
   folderRegistryState.get.mockReset().mockReturnValue(null);
   folderRegistryState.isProtected.mockReset().mockReturnValue(false);
@@ -572,6 +579,46 @@ describe("protectFolder", () => {
     expect(state.get("file-2")).toEqual({ password: "vault-pw", cekTag: "CEK-2", salt: "s2" });
     expect(folderRegistryState.record).not.toHaveBeenCalled();
     expect(folderPasswordState.set).not.toHaveBeenCalled();
+  });
+});
+
+describe("mk1 re-key destinations", () => {
+  it("removing protection sends the mk1 envelope the vault gate returns, with a fresh salt", async () => {
+    makeFileServer({ "file-1": { password: "folder-pw", cekTag: "CEK-1", salt: "s1" } });
+    wrapCekForVault.mockResolvedValue("mk1:ENV");
+    const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
+
+    await result.current.unprotectFolder("folder-1", "folder-pw", [makeFile({ id: "file-1" })], "vault-pw");
+
+    expect(wrapCekForVault).toHaveBeenCalledWith(expect.any(Uint8Array), "vault-pw", null);
+    expect(removeFolderPassword).toHaveBeenCalledWith("folder-1", [
+      { file_id: "file-1", salt: "b64(9,9,9)", wrapped_cek: "mk1:ENV" },
+    ]);
+    expect(rewrapFileKey).not.toHaveBeenCalled();
+  });
+
+  it("protecting a folder never asks for an mk1 envelope", async () => {
+    makeFileServer({ "file-1": { password: "vault-pw", cekTag: "CEK-1", salt: "s1" } });
+    wrapCekForVault.mockResolvedValue("mk1:ENV");
+    const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
+
+    await result.current.protectFolder("folder-1", "new-pw", [makeFile({ id: "file-1" })], "vault-pw");
+
+    expect(wrapCekForVault).not.toHaveBeenCalled();
+    expect(setFolderPassword.mock.calls[0][3][0].wrapped_cek.startsWith("mk1:")).toBe(false);
+  });
+
+  it("a move into a protected folder never asks; a move to the vault does", async () => {
+    makeFileServer({ "file-1": { password: "src", cekTag: "CEK-1", salt: "s1" } });
+    wrapCekForVault.mockResolvedValue("mk1:ENV");
+    const { result } = renderHook(() => useFolderProtection(makeVault(vi.fn())));
+
+    await result.current.rekeyFileForMove("file-1", "src", "folder-pw");
+    expect(wrapCekForVault).not.toHaveBeenCalled();
+
+    const out = await result.current.rekeyFileForMove("file-1", "src", "vault-pw", { folderId: "f9" });
+    expect(wrapCekForVault).toHaveBeenCalledWith(expect.any(Uint8Array), "vault-pw", "f9");
+    expect(out.wrapped_cek).toBe("mk1:ENV");
   });
 });
 

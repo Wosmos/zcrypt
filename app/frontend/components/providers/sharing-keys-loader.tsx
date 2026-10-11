@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { ensureUserKeypair, OwnKeyMismatchError } from "@/lib/keys";
+import { scheduleMk1Migration } from "@/lib/mk1-migrate";
+import { useKeysStore } from "@/store/keys";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 
@@ -19,5 +21,10 @@ export function SharingKeysLoader() {
       }
     });
   }, [passphrase]);
+  const migrationReady = useKeysStore((s) => s.masterKeyWrites && s.masterKey != null);
+  useEffect(() => {
+    if (!passphrase || !migrationReady) return;
+    return scheduleMk1Migration();
+  }, [passphrase, migrationReady]);
   return null;
 }

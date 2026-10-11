@@ -2,6 +2,7 @@ import { getFileMeta } from "@/lib/api";
 import { ensureFiles } from "@/store/files";
 import { resolveFileKey, fromBase64, IncorrectPassphraseError } from "@/lib/crypto";
 import { useFolderRegistry } from "@/store/folder-registry";
+import { isMk1, verifyPassphraseAgainstMasterKey } from "@/lib/master-key";
 
 /**
  * Verify a typed vault passphrase WITHOUT a stored verifier, by reusing an
@@ -23,6 +24,12 @@ import { useFolderRegistry } from "@/store/folder-registry";
  * metadata the client already fetches in order to decrypt.
  */
 export async function verifyVaultPassphrase(passphrase: string): Promise<boolean> {
+  // The wrapped account master key is a verifier that does not depend on any
+  // file: unwrapping it proves (or disproves) the passphrase even for an empty
+  // vault. Inconclusive (null) falls through to the per-file check below.
+  const viaMasterKey = await verifyPassphraseAgainstMasterKey(passphrase);
+  if (viaMasterKey !== null) return viaMasterKey;
+
   let files;
   try {
     files = await ensureFiles();
@@ -48,6 +55,7 @@ export async function verifyVaultPassphrase(passphrase: string): Promise<boolean
   let rejected = false;
   for (const [i, meta] of metas.entries()) {
     if (!meta?.wrapped_cek) continue;
+    if (isMk1(meta.wrapped_cek)) continue; // checked through the master key above
     try {
       await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
       return true; // unwrap succeeded → passphrase is correct
