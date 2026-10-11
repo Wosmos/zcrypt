@@ -122,6 +122,11 @@ async function requestResponse(
   return res;
 }
 
+export async function getUserAvatarBlob(userId: string): Promise<Blob> {
+  const res = await requestResponse(`/api/users/${encodeURIComponent(userId)}/avatar`);
+  return res.blob();
+}
+
 // ─── Per-device UI preferences (color theme + light/dark mode) ───
 
 export interface DevicePreference {

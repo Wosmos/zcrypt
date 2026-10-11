@@ -4,6 +4,7 @@ import { clearDecryptCache } from "@/lib/decrypt-cache";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
+import { clearAvatarCache } from "@/lib/avatar-cache";
 import { isTauri } from "@/lib/tauri";
 import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
 import { broadcastTokens, onTokensFromOtherTabs } from "@/lib/auth-sync";
@@ -138,6 +139,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     usePassphraseStore.getState().clear();
     useKeysStore.getState().reset(); // drop the in-memory private key
     useSpacesStore.getState().reset(); // drop cached space keys
+    clearAvatarCache();
     writeCachedUser(null);
     setPersistUser(null);
     void wipeQueryCache(); // every cached list, in memory and the IndexedDB snapshot
