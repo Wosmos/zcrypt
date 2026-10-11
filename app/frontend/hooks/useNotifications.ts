@@ -30,8 +30,8 @@ export function useNotifications() {
 
       const { always: _, ...notifOptions } = options || {};
       const n = new Notification(title, {
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
+        icon: "/brand/icon-192.png",
+        badge: "/brand/icon-192.png",
         ...notifOptions,
       });
 

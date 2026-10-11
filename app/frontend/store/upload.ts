@@ -97,7 +97,7 @@ function startBackgroundNotifications(
       const body = failed > 0 ? `${done} uploaded, ${failed} failed` : `All ${done} files uploaded`;
       new Notification("Upload complete", {
         body,
-        icon: "/favicon.ico",
+        icon: "/brand/icon-192.png",
         tag: "zcrypt-upload-progress",
         silent: true,
       });
@@ -112,7 +112,7 @@ function startBackgroundNotifications(
 
     new Notification(`Uploading ${done}/${total} files`, {
       body: `${bar} ${percent}%`,
-      icon: "/favicon.ico",
+      icon: "/brand/icon-192.png",
       tag: "zcrypt-upload-progress",
       silent: true,
       requireInteraction: false,

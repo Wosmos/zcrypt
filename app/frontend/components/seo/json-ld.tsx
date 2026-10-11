@@ -6,7 +6,7 @@ export function OrganizationJsonLd() {
     "@type": "Organization",
     name: "zcrypt",
     url: SITE_URL,
-    logo: `${SITE_URL}/favicon.svg`,
+    logo: `${SITE_URL}/brand/icon-512.png`,
     description:
       "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords: all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
     foundingDate: "2026",
@@ -204,7 +204,7 @@ export function TechArticleJsonLd({
       url: SITE_URL,
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/favicon.svg`,
+        url: `${SITE_URL}/brand/icon-512.png`,
       },
     },
   };

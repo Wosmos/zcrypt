@@ -290,7 +290,7 @@ function runSingleDownload(id: string): Promise<void> {
       ) {
         const n = new Notification(tr("notifications.downloadComplete"), {
           body: session.filename,
-          icon: "/favicon.ico",
+          icon: "/brand/icon-192.png",
           tag: "download-done",
         });
         setTimeout(() => n.close(), 5000);

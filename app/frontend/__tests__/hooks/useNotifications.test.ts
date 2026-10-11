@@ -142,8 +142,8 @@ describe("useNotifications", () => {
       expect(ctor.instances.length).toBe(1);
       expect(ctor.instances[0].title).toBe("New file");
       expect(ctor.instances[0].options).toEqual({
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
+        icon: "/brand/icon-192.png",
+        badge: "/brand/icon-192.png",
         body: "uploaded.txt",
       });
     });
@@ -157,8 +157,8 @@ describe("useNotifications", () => {
       result.current.notify("Ping", { always: true, body: "hey" });
       expect(ctor.instances.length).toBe(1);
       expect(ctor.instances[0].options).toEqual({
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
+        icon: "/brand/icon-192.png",
+        badge: "/brand/icon-192.png",
         body: "hey",
       });
     });
@@ -171,7 +171,7 @@ describe("useNotifications", () => {
 
       result.current.notify("t", { icon: "/custom.png" });
       expect(ctor.instances[0].options?.icon).toBe("/custom.png");
-      expect(ctor.instances[0].options?.badge).toBe("/favicon.ico");
+      expect(ctor.instances[0].options?.badge).toBe("/brand/icon-192.png");
     });
 
     it("auto-closes the notification after 5 seconds", () => {

@@ -1244,7 +1244,7 @@ describe("useUploadStore", () => {
       const finalCall = ctorSpy.mock.calls.find(([title]) => title === "Upload complete");
       expect(finalCall).toBeDefined();
       expect(finalCall![1].body).toBe("All 2 files uploaded");
-      expect(finalCall![1]).toMatchObject({ icon: "/favicon.ico", tag: "zcrypt-upload-progress", silent: true });
+      expect(finalCall![1]).toMatchObject({ icon: "/brand/icon-192.png", tag: "zcrypt-upload-progress", silent: true });
     });
 
     it("sends a partial-failure 'Upload complete' notification once its poller tick observes a mixed-result batch", async () => {

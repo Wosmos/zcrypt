@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Shield, Sun, Moon, Database } from "@/lib/icons";
+import { Logo } from "@/components/ui/logo";
 import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 
 // Only the Vault screen exists in the demo. Analytics and Settings were
@@ -26,13 +27,8 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
         <aside className="hidden md:flex h-screen w-[232px] flex-col border-r bg-[var(--color-sidebar)] border-[var(--color-sidebar-border)]">
           {/* Logo */}
           <div className="flex items-center gap-3 px-5 h-16 border-b border-[var(--color-sidebar-border)]">
-            <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-cyan-500/15 ring-1 ring-cyan-500/25">
-              <Shield className="h-[16px] w-[16px] text-cyan-400" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[var(--color-sidebar-text)] tracking-tight">
-                zcrypt
-              </p>
+            <div className="flex flex-col gap-1">
+              <Logo size="sm" />
               <p className="text-[10px] text-[var(--color-sidebar-muted)] -mt-0.5">
                 {t("demo.nav.tagline")}
               </p>

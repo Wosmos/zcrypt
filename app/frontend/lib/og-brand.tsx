@@ -1,5 +1,11 @@
 import { ImageResponse } from "next/og";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { SITE_DOMAIN } from "@/lib/site";
+
+const MARK_DATA_URI = `data:image/svg+xml;base64,${readFileSync(
+  join(process.cwd(), "public/brand/zcrypt-mark-dark-bg.svg"),
+).toString("base64")}`;
 
 export const OG_SIZE = { width: 1200, height: 630 };
 export const OG_ALT = "zcrypt. Private Encrypted Cloud Storage";
@@ -56,62 +62,8 @@ export function renderBrandOgCard(opts: { variant?: "opengraph" | "twitter" } = 
         }}
       />
 
-      {/* Logo icon, two overlapping planes */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          width: 120,
-          height: 120,
-          marginBottom: 32,
-        }}
-      >
-        {/* Back plane */}
-        <div
-          style={{
-            position: "absolute",
-            width: 72,
-            height: 72,
-            borderRadius: 16,
-            background: "linear-gradient(145deg, #008a97, #006d77)",
-            top: 6,
-            left: 0,
-            transform: "rotate(-6deg)",
-            boxShadow: "-3px 4px 16px rgba(0,0,0,0.6)",
-            display: "flex",
-          }}
-        />
-        {/* Front plane */}
-        <div
-          style={{
-            position: "absolute",
-            width: 72,
-            height: 72,
-            borderRadius: 16,
-            background: "linear-gradient(145deg, #00e8f8, #00c5d4)",
-            top: 26,
-            left: 40,
-            transform: "rotate(-2deg)",
-            boxShadow: "-6px 6px 24px rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 36,
-              fontWeight: 700,
-              color: "#09090b",
-              lineHeight: 1,
-            }}
-          >
-            z
-          </span>
-        </div>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={MARK_DATA_URI} width={132} height={132} alt="" style={{ marginBottom: 28 }} />
 
       {/* Brand name */}
       <div
