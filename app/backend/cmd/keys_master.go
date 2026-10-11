@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -109,11 +109,11 @@ func (s *Server) HandleGetUserAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Set("Content-Length", strconv.Itoa(len(data)))
-	w.Write(data)
+	_, _ = w.Write(data) //nolint:gosec // allowlisted image MIME, nosniff and default-src none
 }
 
 func avatarETag(uri string) string {
-	sum := md5.Sum([]byte(uri))
+	sum := sha256.Sum256([]byte(uri))
 	return `"` + hex.EncodeToString(sum[:])[:16] + `"`
 }
 

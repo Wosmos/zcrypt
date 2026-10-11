@@ -58,6 +58,7 @@ var publicRouteAllowlist = []string{
 	"GET /api/folder-share/{token}",
 	"GET /api/folder-share/{token}/files/{fid}/chunks/{idx}",
 	"GET /api/folder-share/{token}/files/{fid}/meta",
+	"GET /api/geo/country",
 	"GET /api/health",
 	"GET /api/internal/metrics",
 	"GET /api/pad/{token}",

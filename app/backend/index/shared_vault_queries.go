@@ -620,7 +620,7 @@ func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, 
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, wrapped_name, added_by)

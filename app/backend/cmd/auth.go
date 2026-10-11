@@ -274,7 +274,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
 		s.loginFailLimiter.record(failKey)
-		log.Printf("auth: login failed who=%s ip=%s reason=not_found", emailTag(req.Email), anonIP(clientIP))
+		log.Printf("auth: login failed who=%s ip=%q reason=not_found", emailTag(req.Email), anonIP(clientIP)) //nolint:gosec // hashed tag and a quoted, coarsened IP
 		s.audit(r, nil, "login_failed", map[string]interface{}{"who": emailTag(req.Email), "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
@@ -305,7 +305,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.loginFailLimiter.record(failKey)
-		log.Printf("auth: login failed user=%s ip=%s reason=wrong_password", user.ID, anonIP(clientIP))
+		log.Printf("auth: login failed user=%s ip=%q reason=wrong_password", user.ID, anonIP(clientIP)) //nolint:gosec // database id and a quoted, coarsened IP
 		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
@@ -366,7 +366,7 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Log IP mismatch (potential stolen token usage) but don't block. IPs change legitimately
 	currentIP := anonIP(s.clientIP(r))
 	if rt.IP != "" && anonIP(rt.IP) != currentIP {
-		log.Printf("security: refresh token IP mismatch for user %s: issued=%s current=%s", rt.UserID, anonIP(rt.IP), currentIP)
+		log.Printf("security: refresh token IP mismatch for user %s: issued=%q current=%q", rt.UserID, anonIP(rt.IP), currentIP) //nolint:gosec // database id and quoted, coarsened IPs
 	}
 
 	user, err := s.db.GetUserByID(ctx, rt.UserID)

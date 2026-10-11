@@ -1,3 +1,4 @@
+// Package types holds the request, response and storage types shared across the backend.
 package types
 
 import (

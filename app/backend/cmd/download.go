@@ -124,7 +124,7 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 	// (unwrapped with the space key, not the owner's vault passphrase); for the
 	// owner it's identical to file.WrappedCEK.
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(fileMetaView(file, wrappedCEK))
+	_ = json.NewEncoder(w).Encode(fileMetaView(file, wrappedCEK))
 }
 
 func fileMetaView(file *types.FileMetadata, wrappedCEK string) map[string]interface{} {
