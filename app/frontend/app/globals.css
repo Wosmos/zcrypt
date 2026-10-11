@@ -267,8 +267,11 @@
     @apply bg-[var(--color-bg)];
   }
 
+  /* No background here: with html colored, a colored body becomes its own
+     painted layer and covers fixed decorations at negative z-index (the
+     CircuitBackground). html already paints the page color. */
   body {
-    @apply bg-[var(--color-bg)] text-[var(--color-text)] antialiased;
+    @apply text-[var(--color-text)] antialiased;
     font-family: var(--font-body), "Poppins", -apple-system, BlinkMacSystemFont,
       "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     /* Android WebView silently inflates font sizes in landscape without this. */
