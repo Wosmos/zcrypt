@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "Vault unlocked on this device, click to lock",
     "ariaUnlockedTimer": "Vault unlocked, locks in {time}, click to lock",
     "ariaUnlocking": "Unlocking vault",
-    "ariaLocked": "Vault locked, click to unlock"
+    "ariaLocked": "Vault locked, click to unlock",
+    "cardUnlocked": "Vault unlocked",
+    "cardLocked": "Vault locked",
+    "hintDevice": "Stays unlocked on this device",
+    "hintTimer": "Auto-locks in {time}",
+    "hintLocked": "Unlock to see your files",
+    "actionLock": "Lock now",
+    "actionUnlock": "Unlock vault"
   },
   "passphrase": {
     "defaultTitle": "Enter Passphrase",

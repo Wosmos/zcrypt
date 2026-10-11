@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "Bóveda desbloqueada en este dispositivo, haz clic para bloquear",
     "ariaUnlockedTimer": "Bóveda desbloqueada, se bloquea en {time}, haz clic para bloquear",
     "ariaUnlocking": "Desbloqueando la bóveda",
-    "ariaLocked": "Bóveda bloqueada, haz clic para desbloquear"
+    "ariaLocked": "Bóveda bloqueada, haz clic para desbloquear",
+    "cardUnlocked": "Bóveda desbloqueada",
+    "cardLocked": "Bóveda bloqueada",
+    "hintDevice": "Sigue desbloqueada en este dispositivo",
+    "hintTimer": "Se bloquea sola en {time}",
+    "hintLocked": "Desbloquéala para ver tus archivos",
+    "actionLock": "Bloquear ahora",
+    "actionUnlock": "Desbloquear bóveda"
   },
   "passphrase": {
     "defaultTitle": "Introduce la frase de contraseña",

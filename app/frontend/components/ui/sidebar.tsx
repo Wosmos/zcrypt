@@ -35,7 +35,7 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { isTauri } from "@/lib/tauri";
-import { VaultLock } from "@/components/ui/vault-lock";
+import { VaultLockCard } from "@/components/ui/vault-lock";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { MobileNav } from "@/components/ui/mobile-nav";
 import { useAuthStore } from "@/store/auth";
@@ -225,7 +225,7 @@ export function Sidebar() {
 
         {/* Vault lock: app-wide, so it lives with the shell rather than one page. */}
         <div className={cn("pt-3", collapsed && "flex justify-center")}>
-          <VaultLock
+          <VaultLockCard
             unlocked={vault.unlocked}
             remainingSeconds={vault.remainingSeconds}
             persistent={vault.persistent}
@@ -234,10 +234,7 @@ export function Sidebar() {
             onLock={vault.lock}
             iconOnly={collapsed}
             tour="vault-lock"
-            className={cn(
-              "h-10 rounded-xl border border-[var(--color-border)] text-sm data-[state=on]:border-[var(--color-accent)]/25",
-              collapsed ? "w-10 justify-center px-0" : "w-full justify-start gap-2.5 px-3",
-            )}
+            className={collapsed ? undefined : "w-full"}
           />
         </div>
 

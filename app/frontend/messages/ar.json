@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "الخزنة مفتوحة على هذا الجهاز، انقر لقفلها",
     "ariaUnlockedTimer": "الخزنة مفتوحة وستُقفل بعد {time}، انقر لقفلها",
     "ariaUnlocking": "جارٍ فتح الخزنة",
-    "ariaLocked": "الخزنة مقفلة، انقر لفتحها"
+    "ariaLocked": "الخزنة مقفلة، انقر لفتحها",
+    "cardUnlocked": "الخزنة مفتوحة",
+    "cardLocked": "الخزنة مقفلة",
+    "hintDevice": "تبقى مفتوحة على هذا الجهاز",
+    "hintTimer": "تُقفل تلقائيًا بعد {time}",
+    "hintLocked": "افتحها لترى ملفاتك",
+    "actionLock": "اقفل الآن",
+    "actionUnlock": "افتح الخزنة"
   },
   "passphrase": {
     "defaultTitle": "أدخل عبارة المرور",

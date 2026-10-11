@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "Coffre déverrouillé sur cet appareil, cliquez pour le verrouiller",
     "ariaUnlockedTimer": "Coffre déverrouillé, verrouillage dans {time}, cliquez pour le verrouiller",
     "ariaUnlocking": "Déverrouillage du coffre",
-    "ariaLocked": "Coffre verrouillé, cliquez pour le déverrouiller"
+    "ariaLocked": "Coffre verrouillé, cliquez pour le déverrouiller",
+    "cardUnlocked": "Coffre déverrouillé",
+    "cardLocked": "Coffre verrouillé",
+    "hintDevice": "Reste déverrouillé sur cet appareil",
+    "hintTimer": "Se verrouille dans {time}",
+    "hintLocked": "Déverrouillez pour voir vos fichiers",
+    "actionLock": "Verrouiller",
+    "actionUnlock": "Déverrouiller le coffre"
   },
   "passphrase": {
     "defaultTitle": "Saisissez la phrase secrète",

@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "Tresor auf diesem Gerät entsperrt, zum Sperren klicken",
     "ariaUnlockedTimer": "Tresor entsperrt, sperrt in {time}, zum Sperren klicken",
     "ariaUnlocking": "Tresor wird entsperrt",
-    "ariaLocked": "Tresor gesperrt, zum Entsperren klicken"
+    "ariaLocked": "Tresor gesperrt, zum Entsperren klicken",
+    "cardUnlocked": "Tresor entsperrt",
+    "cardLocked": "Tresor gesperrt",
+    "hintDevice": "Bleibt auf diesem Gerät entsperrt",
+    "hintTimer": "Sperrt sich in {time}",
+    "hintLocked": "Entsperren, um deine Dateien zu sehen",
+    "actionLock": "Jetzt sperren",
+    "actionUnlock": "Tresor entsperren"
   },
   "passphrase": {
     "defaultTitle": "Passphrase eingeben",

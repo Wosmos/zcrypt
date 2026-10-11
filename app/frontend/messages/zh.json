@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "保险库已在本设备上解锁，点击锁定",
     "ariaUnlockedTimer": "保险库已解锁，将在 {time} 后锁定，点击锁定",
     "ariaUnlocking": "正在解锁保险库",
-    "ariaLocked": "保险库已锁定，点击解锁"
+    "ariaLocked": "保险库已锁定，点击解锁",
+    "cardUnlocked": "保险库已解锁",
+    "cardLocked": "保险库已锁定",
+    "hintDevice": "在此设备上保持解锁",
+    "hintTimer": "{time} 后自动锁定",
+    "hintLocked": "解锁后查看你的文件",
+    "actionLock": "立即锁定",
+    "actionUnlock": "解锁保险库"
   },
   "passphrase": {
     "defaultTitle": "输入口令",

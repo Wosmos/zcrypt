@@ -52,7 +52,14 @@
     "ariaUnlockedDevice": "والٹ اس ڈیوائس پر کھلا ہے، مقفل کرنے کے لیے کلک کریں",
     "ariaUnlockedTimer": "والٹ کھلا ہے، {time} میں مقفل ہو جائے گا، مقفل کرنے کے لیے کلک کریں",
     "ariaUnlocking": "والٹ کھولا جا رہا ہے",
-    "ariaLocked": "والٹ مقفل ہے، کھولنے کے لیے کلک کریں"
+    "ariaLocked": "والٹ مقفل ہے، کھولنے کے لیے کلک کریں",
+    "cardUnlocked": "والٹ کھلا ہے",
+    "cardLocked": "والٹ لاک ہے",
+    "hintDevice": "اس ڈیوائس پر کھلا رہتا ہے",
+    "hintTimer": "{time} میں خود لاک ہو جائے گا",
+    "hintLocked": "فائلیں دیکھنے کے لیے کھولیں",
+    "actionLock": "ابھی لاک کریں",
+    "actionUnlock": "والٹ کھولیں"
   },
   "passphrase": {
     "defaultTitle": "پاس فریز درج کریں",

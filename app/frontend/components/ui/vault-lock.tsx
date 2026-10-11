@@ -46,19 +46,17 @@ export interface VaultLockProps {
 const formatCountdown = (totalSeconds: number) =>
   formatDuration(totalSeconds, { padMinutes: true, showHours: false });
 
-export function VaultLock({
+/** Shared state for every vault-lock control: the optimistic "unlocking" flag,
+ *  the toggle action and an accessible label. */
+function useVaultLockState({
   unlocked,
   remainingSeconds,
   persistent = false,
   modalOpen = false,
   onUnlock,
   onLock,
-  className,
-  tour,
-  iconOnly = false,
 }: VaultLockProps) {
   const t = useTranslations("vaultLock");
-  const tc = useTranslations("common");
   // Optimistic "on" while the unlock modal is up. The button's resting position
   // is `unlocked`; `pending` carries the in-between (modal open, not yet unlocked).
   const [pending, setPending] = useState(false);
@@ -91,21 +89,36 @@ export function VaultLock({
     }
   };
 
+  const ariaLabel = unlocked
+    ? persistent
+      ? t("ariaUnlockedDevice")
+      : t("ariaUnlockedTimer", { time: formatCountdown(remainingSeconds) })
+    : pending
+      ? t("ariaUnlocking")
+      : t("ariaLocked");
+  return { on, pending, ariaLabel, toggle: () => handlePressedChange(!on), handlePressedChange };
+}
+
+export function VaultLock(props: VaultLockProps) {
+  const {
+    unlocked,
+    remainingSeconds,
+    persistent = false,
+    className,
+    tour,
+    iconOnly = false,
+  } = props;
+  const t = useTranslations("vaultLock");
+  const tc = useTranslations("common");
+  const { on, pending, ariaLabel, handlePressedChange } = useVaultLockState(props);
+
   return (
     <Toggle
       pressed={on}
       onPressedChange={handlePressedChange}
       variant="default"
       data-tour={tour}
-      aria-label={
-        unlocked
-          ? persistent
-            ? t("ariaUnlockedDevice")
-            : t("ariaUnlockedTimer", { time: formatCountdown(remainingSeconds) })
-          : pending
-            ? t("ariaUnlocking")
-            : t("ariaLocked")
-      }
+      aria-label={ariaLabel}
       className={cn(
         "h-9 gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
         on
@@ -135,5 +148,86 @@ export function VaultLock({
         )}
       </span>
     </Toggle>
+  );
+}
+
+/**
+ * The sidebar's vault status card: says plainly whether the vault is locked,
+ * what that means right now, and offers the one action that changes it.
+ */
+export function VaultLockCard(props: VaultLockProps) {
+  const {
+    unlocked,
+    remainingSeconds,
+    persistent = false,
+    className,
+    tour,
+    iconOnly = false,
+  } = props;
+  const t = useTranslations("vaultLock");
+  const tc = useTranslations("common");
+  const { on, pending, ariaLabel, toggle } = useVaultLockState(props);
+  const Icon = on ? LockKeyOpen : LockKey;
+  const tone = unlocked
+    ? "border-emerald-500/30 bg-emerald-500/[0.07] text-emerald-600 dark:text-emerald-400"
+    : "border-amber-500/35 bg-amber-500/[0.08] text-amber-600 dark:text-amber-400";
+
+  if (iconOnly) {
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={ariaLabel}
+        title={ariaLabel}
+        data-tour={tour}
+        className={cn(
+          "flex h-10 w-10 items-center justify-center rounded-xl border transition-colors hover:brightness-110",
+          tone,
+          className,
+        )}
+      >
+        <Icon weight="bold" className="h-5 w-5" aria-hidden />
+      </button>
+    );
+  }
+
+  return (
+    <div data-tour={tour} className={cn("rounded-xl border p-3", tone, className)}>
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-current/10">
+          <Icon weight="bold" className="h-[18px] w-[18px]" aria-hidden />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold leading-tight text-[var(--color-text)]">
+            {unlocked ? t("cardUnlocked") : pending ? tc("unlocking") : t("cardLocked")}
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">
+            {unlocked
+              ? persistent
+                ? t("hintDevice")
+                : t("hintTimer", { time: formatCountdown(remainingSeconds) })
+              : t("hintLocked")}
+          </span>
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={ariaLabel}
+        className={cn(
+          "mt-2.5 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
+          unlocked
+            ? "bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-surface-3)]"
+            : "bg-amber-500 text-black hover:bg-amber-400",
+        )}
+      >
+        {unlocked ? (
+          <LockKey weight="bold" className="h-3.5 w-3.5" aria-hidden />
+        ) : (
+          <LockKeyOpen weight="bold" className="h-3.5 w-3.5" aria-hidden />
+        )}
+        {unlocked ? t("actionLock") : t("actionUnlock")}
+      </button>
+    </div>
   );
 }
