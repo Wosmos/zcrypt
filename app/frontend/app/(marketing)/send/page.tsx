@@ -13,7 +13,7 @@ import {
 } from "@/components/tools/tool-page-shell";
 
 export const metadata: Metadata = toolMetadata({
-  title: "Send Encrypted Files Free, No Account, No Limits | zcrypt",
+  title: "Send Encrypted Files Free, No Account | zcrypt",
   description:
     "Send files securely with end-to-end AES-256 encryption. No sign-up required. Files are encrypted in your browser before upload. The decryption key never touches our servers. Free encrypted file sharing up to 50 MB.",
   keywords: [

@@ -23,7 +23,7 @@ import { faqs } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "zcrypt. Free cloud storage with no limit",
+  title: { absolute: "zcrypt: Free Encrypted Cloud Storage on Accounts You Own" },
   description:
     "Free cloud storage with no limit. Your files get locked on your own phone or laptop, then saved in accounts you already have, like Telegram or GitHub. Nobody else can open them. Not even us. Open source, AES-256-GCM, no card.",
   alternates: {

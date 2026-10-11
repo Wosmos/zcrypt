@@ -16,9 +16,9 @@ describe("toolMetadata", () => {
     expect(meta.openGraph?.url).toBe(`${SITE_URL}/pad`);
   });
 
-  it("passes title, description, and keywords straight through", () => {
+  it("passes title (absolute, so the layout template does not append | zcrypt twice), description, and keywords through", () => {
     const meta = toolMetadata(base);
-    expect(meta.title).toBe("zcrypt Pad");
+    expect(meta.title).toEqual({ absolute: "zcrypt Pad" });
     expect(meta.description).toBe("Encrypted scratchpad");
     expect(meta.keywords).toEqual(["encrypted", "pad"]);
   });

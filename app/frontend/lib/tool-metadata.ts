@@ -20,7 +20,7 @@ export function toolMetadata(opts: {
   const ogTitle = opts.ogTitle ?? opts.title;
   const ogDescription = opts.ogDescription ?? opts.description;
   return {
-    title: opts.title,
+    title: { absolute: opts.title },
     description: opts.description,
     keywords: opts.keywords,
     alternates: { canonical: url },
