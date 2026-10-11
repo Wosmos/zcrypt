@@ -18,6 +18,7 @@ import {
   contentMacBytes,
   contentMacFile,
   createContentHasher,
+  DERIVED_KEY_CACHE_MAX,
 } from "@/lib/crypto";
 
 describe("generateSalt", () => {
@@ -350,7 +351,7 @@ describe("deriveKeyBytesCached (derived-key memo)", () => {
   });
 
   it("evicts the oldest entry once the cache is full (insertion-order LRU)", async () => {
-    const MAX = 256; // mirrors DERIVED_KEY_CACHE_MAX
+    const MAX = DERIVED_KEY_CACHE_MAX;
     for (let i = 0; i < MAX; i++) await deriveKeyBytesCached("pw", saltOf(i));
     expect(deriveSpy).toHaveBeenCalledTimes(MAX); // all misses
 
@@ -358,7 +359,7 @@ describe("deriveKeyBytesCached (derived-key memo)", () => {
     await deriveKeyBytesCached("pw", saltOf(0));
     expect(deriveSpy).toHaveBeenCalledTimes(MAX);
 
-    // Adding a fresh 257th entry trips the cap and evicts the oldest (index 0).
+    // Adding one more entry trips the cap and evicts the oldest (index 0).
     await deriveKeyBytesCached("pw", saltOf(9999));
     expect(deriveSpy).toHaveBeenCalledTimes(MAX + 1);
 

@@ -48,7 +48,7 @@ export async function deriveKeyBytes(passphrase: string, salt: Uint8Array): Prom
  * passphrase appears in the cache key, but it is already held in memory by the
  * passphrase store, so the composite string adds no new exposure.
  */
-const DERIVED_KEY_CACHE_MAX = 2048;
+export const DERIVED_KEY_CACHE_MAX = 2048;
 const derivedKeyCache = new Map<string, Uint8Array>();
 
 /** Drop every memoized derived key (vault lock / TTL / logout / folder lock). */
