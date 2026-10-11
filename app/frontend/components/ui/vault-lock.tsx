@@ -89,28 +89,23 @@ function useVaultLockState({
     }
   };
 
+  const tc = useTranslations("common");
+  const countdown = formatCountdown(remainingSeconds);
   const ariaLabel = unlocked
     ? persistent
       ? t("ariaUnlockedDevice")
-      : t("ariaUnlockedTimer", { time: formatCountdown(remainingSeconds) })
+      : t("ariaUnlockedTimer", { time: countdown })
     : pending
       ? t("ariaUnlocking")
       : t("ariaLocked");
-  return { on, pending, ariaLabel, toggle: () => handlePressedChange(!on), handlePressedChange };
+  const toggle = () => handlePressedChange(!on);
+  return { t, tc, countdown, on, pending, ariaLabel, toggle, handlePressedChange };
 }
 
 export function VaultLock(props: VaultLockProps) {
-  const {
-    unlocked,
-    remainingSeconds,
-    persistent = false,
-    className,
-    tour,
-    iconOnly = false,
-  } = props;
-  const t = useTranslations("vaultLock");
-  const tc = useTranslations("common");
-  const { on, pending, ariaLabel, handlePressedChange } = useVaultLockState(props);
+  const { unlocked, persistent, className, tour, iconOnly } = props;
+  const { t, tc, countdown, on, pending, ariaLabel, handlePressedChange } =
+    useVaultLockState(props);
 
   return (
     <Toggle
@@ -139,7 +134,7 @@ export function VaultLock(props: VaultLockProps) {
           persistent ? (
             <span>{t("thisDevice")}</span>
           ) : (
-            <span className="tabular-nums">{formatCountdown(remainingSeconds)}</span>
+            <span className="tabular-nums">{countdown}</span>
           )
         ) : pending ? (
           <span>{tc("unlocking")}</span>
@@ -156,17 +151,8 @@ export function VaultLock(props: VaultLockProps) {
  * what that means right now, and offers the one action that changes it.
  */
 export function VaultLockCard(props: VaultLockProps) {
-  const {
-    unlocked,
-    remainingSeconds,
-    persistent = false,
-    className,
-    tour,
-    iconOnly = false,
-  } = props;
-  const t = useTranslations("vaultLock");
-  const tc = useTranslations("common");
-  const { on, pending, ariaLabel, toggle } = useVaultLockState(props);
+  const { unlocked, persistent, className, tour, iconOnly } = props;
+  const { t, tc, countdown, on, pending, ariaLabel, toggle } = useVaultLockState(props);
   const Icon = on ? LockKeyOpen : LockKey;
   const tone = unlocked
     ? "border-emerald-500/30 bg-emerald-500/[0.07] text-emerald-600 dark:text-emerald-400"
@@ -205,7 +191,7 @@ export function VaultLockCard(props: VaultLockProps) {
             {unlocked
               ? persistent
                 ? t("hintDevice")
-                : t("hintTimer", { time: formatCountdown(remainingSeconds) })
+                : t("hintTimer", { time: countdown })
               : t("hintLocked")}
           </span>
         </span>
