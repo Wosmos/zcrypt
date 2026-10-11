@@ -158,7 +158,8 @@
     "uploadDialogTitle": "فائلیں اپ لوڈ کریں",
     "uploadDialogDescription": "فائلیں آپ کی ڈیوائس سے نکلنے سے پہلے کمپریس، اینڈ ٹو اینڈ خفیہ اور حصوں میں تقسیم کی جاتی ہیں۔",
     "toastFolderProtected": "فولڈر محفوظ کر دیا گیا",
-    "toastFolderPasswordRemoved": "فولڈر کا پاس ورڈ ہٹا دیا گیا"
+    "toastFolderPasswordRemoved": "فولڈر کا پاس ورڈ ہٹا دیا گیا",
+    "newFolderEmptyVault": "پہلے کوئی فائل اپ لوڈ کریں، پھر آپ کے فولڈرز کے پاس رکھنے کو کچھ ہوگا۔"
   },
   "settings": {
     "title": "ترتیبات",

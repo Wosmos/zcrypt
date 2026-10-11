@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { create } from "zustand";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
@@ -88,6 +89,10 @@ function LaptopMock() {
   );
 }
 
+export const useGetAppsDialog = create<{ open: boolean; setOpen: (open: boolean) => void }>(
+  (set) => ({ open: false, setOpen: (open) => set({ open }) }),
+);
+
 export function GetAppsButton({ className }: { className?: string }) {
   const t = useTranslations("ui.getApps");
   const device = useSyncExternalStore(noopSubscribe, detectDevice, () => null);
@@ -95,9 +100,11 @@ export function GetAppsButton({ className }: { className?: string }) {
     device === "macos" || device === "windows" || device === "linux" ? device : "macos";
   const OsGlyph = OS_GLYPHS[os];
   const AndroidGlyph = MOBILE_GLYPHS.android;
+  const open = useGetAppsDialog((s) => s.open);
+  const setOpen = useGetAppsDialog((s) => s.setOpen);
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger
         aria-label={t("open")}
         title={t("open")}

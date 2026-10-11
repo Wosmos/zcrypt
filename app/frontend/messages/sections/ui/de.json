@@ -166,7 +166,20 @@
       "placeholder": "Dateien suchen oder springen zu…",
       "empty": "Keine Ergebnisse gefunden.",
       "goTo": "Gehe zu",
-      "files": "Dateien"
+      "files": "Dateien",
+      "actionsHeading": "Aktionen",
+      "action": {
+        "upload": "Dateien hochladen",
+        "newFolder": "Neuer Ordner",
+        "lock": "Tresor sperren",
+        "unlock": "Tresor entsperren",
+        "advancedOn": "Erweiterten Modus einschalten",
+        "advancedOff": "Erweiterten Modus ausschalten",
+        "openSpaces": "Spaces öffnen",
+        "newSpace": "Neuer Space",
+        "getApps": "Apps herunterladen",
+        "shortcuts": "Tastenkürzel"
+      }
     },
     "notifications": {
       "justNow": "gerade eben",

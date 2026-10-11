@@ -158,7 +158,8 @@
     "uploadDialogTitle": "Subir archivos",
     "uploadDialogDescription": "Los archivos se comprimen, se cifran de extremo a extremo y se dividen en fragmentos antes de salir de tu dispositivo.",
     "toastFolderProtected": "Carpeta protegida",
-    "toastFolderPasswordRemoved": "Contraseña de la carpeta eliminada"
+    "toastFolderPasswordRemoved": "Contraseña de la carpeta eliminada",
+    "newFolderEmptyVault": "Sube primero un archivo y tus carpetas tendrán algo que guardar."
   },
   "settings": {
     "title": "Ajustes",

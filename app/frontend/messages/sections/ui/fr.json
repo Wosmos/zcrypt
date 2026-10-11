@@ -166,7 +166,20 @@
       "placeholder": "Rechercher des fichiers ou aller à…",
       "empty": "Aucun résultat.",
       "goTo": "Aller à",
-      "files": "Fichiers"
+      "files": "Fichiers",
+      "actionsHeading": "Actions",
+      "action": {
+        "upload": "Importer des fichiers",
+        "newFolder": "Nouveau dossier",
+        "lock": "Verrouiller le coffre",
+        "unlock": "Déverrouiller le coffre",
+        "advancedOn": "Activer le mode avancé",
+        "advancedOff": "Désactiver le mode avancé",
+        "openSpaces": "Ouvrir les Espaces",
+        "newSpace": "Nouvel espace",
+        "getApps": "Télécharger les applications",
+        "shortcuts": "Raccourcis clavier"
+      }
     },
     "notifications": {
       "justNow": "à l'instant",

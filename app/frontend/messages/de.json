@@ -158,7 +158,8 @@
     "uploadDialogTitle": "Dateien hochladen",
     "uploadDialogDescription": "Dateien werden komprimiert, Ende-zu-Ende verschlüsselt und in Blöcke aufgeteilt, bevor sie dein Gerät verlassen.",
     "toastFolderProtected": "Ordner geschützt",
-    "toastFolderPasswordRemoved": "Ordnerpasswort entfernt"
+    "toastFolderPasswordRemoved": "Ordnerpasswort entfernt",
+    "newFolderEmptyVault": "Lade zuerst eine Datei hoch, dann haben deine Ordner auch etwas zu halten."
   },
   "settings": {
     "title": "Einstellungen",

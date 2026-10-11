@@ -158,7 +158,8 @@
     "uploadDialogTitle": "Загрузка файлов",
     "uploadDialogDescription": "Файлы сжимаются, шифруются сквозным шифрованием и делятся на части до того, как покинут ваше устройство.",
     "toastFolderProtected": "Папка защищена",
-    "toastFolderPasswordRemoved": "Пароль папки удалён"
+    "toastFolderPasswordRemoved": "Пароль папки удалён",
+    "newFolderEmptyVault": "Сначала загрузите файл, чтобы в папках было что хранить."
   },
   "settings": {
     "title": "Настройки",

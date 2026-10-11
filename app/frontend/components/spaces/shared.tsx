@@ -115,20 +115,32 @@ export function LiveRegion({ message }: { message: string }) {
   );
 }
 
-export function ShortcutsHelp({ items, title }: { items: [string, string][]; title: string }) {
+export function ShortcutsHelp({
+  items,
+  title,
+  open: openProp,
+  onOpenChange,
+}: {
+  items: [string, string][];
+  title: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const t = useTranslations("spaces");
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "?" || defaultIsTypingTarget(e.target)) return;
       if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       e.preventDefault();
-      setOpen((v) => !v);
+      setOpen(!open);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [open, setOpen]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

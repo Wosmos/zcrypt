@@ -166,7 +166,20 @@
       "placeholder": "Busca archivos o ve a…",
       "empty": "No se encontraron resultados.",
       "goTo": "Ir a",
-      "files": "Archivos"
+      "files": "Archivos",
+      "actionsHeading": "Acciones",
+      "action": {
+        "upload": "Subir archivos",
+        "newFolder": "Nueva carpeta",
+        "lock": "Bloquear bóveda",
+        "unlock": "Desbloquear bóveda",
+        "advancedOn": "Activar el modo avanzado",
+        "advancedOff": "Desactivar el modo avanzado",
+        "openSpaces": "Abrir Espacios",
+        "newSpace": "Nuevo espacio",
+        "getApps": "Obtener las apps",
+        "shortcuts": "Atajos de teclado"
+      }
     },
     "notifications": {
       "justNow": "ahora mismo",

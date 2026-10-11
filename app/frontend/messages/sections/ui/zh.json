@@ -166,7 +166,20 @@
       "placeholder": "搜索文件或跳转到…",
       "empty": "未找到结果。",
       "goTo": "前往",
-      "files": "文件"
+      "files": "文件",
+      "actionsHeading": "操作",
+      "action": {
+        "upload": "上传文件",
+        "newFolder": "新建文件夹",
+        "lock": "锁定保险库",
+        "unlock": "解锁保险库",
+        "advancedOn": "开启高级模式",
+        "advancedOff": "关闭高级模式",
+        "openSpaces": "打开共享空间",
+        "newSpace": "新建共享空间",
+        "getApps": "获取应用",
+        "shortcuts": "键盘快捷键"
+      }
     },
     "notifications": {
       "justNow": "刚刚",

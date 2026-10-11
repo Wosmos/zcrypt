@@ -68,6 +68,7 @@ import {
   Link2 as Link2Data,
   LoaderCircle as LoaderCircleData,
   Location01Icon as Location01IconData,
+  KeyboardIcon as KeyboardIconData,
   Lock as LockData,
   LogIn as LogInData,
   LogOut as LogOutData,
@@ -160,6 +161,7 @@ function makeIcon(iconData: IconSvgElement, displayName: string) {
 
 export const Shield = makeIcon(ShieldData, "Shield");
 export const Lock = makeIcon(LockData, "Lock");
+export const Keyboard = makeIcon(KeyboardIconData, "KeyboardIcon");
 export const Unlock = makeIcon(UnlockData, "Unlock");
 export const Upload = makeIcon(UploadData, "Upload");
 export const FileUpload = makeIcon(FileUploadIconData, "FileUploadIcon");

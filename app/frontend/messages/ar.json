@@ -158,7 +158,8 @@
     "uploadDialogTitle": "رفع الملفات",
     "uploadDialogDescription": "تُضغط الملفات وتُشفَّر من طرف إلى طرف وتُقسَّم إلى أجزاء قبل أن تغادر جهازك.",
     "toastFolderProtected": "تمت حماية المجلد",
-    "toastFolderPasswordRemoved": "تمت إزالة كلمة مرور المجلد"
+    "toastFolderPasswordRemoved": "تمت إزالة كلمة مرور المجلد",
+    "newFolderEmptyVault": "ارفع ملفًا أولًا، وبعدها سيكون لمجلداتك ما تحتويه."
   },
   "settings": {
     "title": "الإعدادات",

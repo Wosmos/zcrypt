@@ -54,6 +54,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 import { useRecentlyViewedStore } from "@/store/recently-viewed";
 import { parseVaultCollection, useVaultView } from "@/store/vault-view";
+import { usePendingAction } from "@/store/pending-action";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { VaultShortcuts } from "@/components/files/vault-shortcuts";
 import type { DecryptedFolder } from "@/hooks/useFolders";
@@ -340,6 +341,20 @@ export default function VaultPage() {
       files.filter((f) => (f.folder_id ?? null) === fid),
     );
   }, [pendingOpen, vault.ready, files, handleOpenFile]);
+
+  const dashboardReady = vault.ready && !loading;
+  useEffect(() => {
+    if (!dashboardReady) return;
+    const consume = (action: string | null) => {
+      if (action !== "upload" && action !== "newFolder") return;
+      usePendingAction.getState().clear();
+      if (action === "upload") setUploadOpen(true);
+      else if (explorerRef.current) explorerRef.current.startNewFolder();
+      else toast.info(t("newFolderEmptyVault"));
+    };
+    consume(usePendingAction.getState().pending);
+    return usePendingAction.subscribe((s) => consume(s.pending));
+  }, [dashboardReady, t]);
 
   const closeViewer = useCallback(() => setViewerOpen(false), []);
 

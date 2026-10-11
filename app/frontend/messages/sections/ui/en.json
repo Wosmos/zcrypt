@@ -166,7 +166,20 @@
       "placeholder": "Search files or jump to…",
       "empty": "No results found.",
       "goTo": "Go to",
-      "files": "Files"
+      "files": "Files",
+      "actionsHeading": "Actions",
+      "action": {
+        "upload": "Upload files",
+        "newFolder": "New folder",
+        "lock": "Lock vault",
+        "unlock": "Unlock vault",
+        "advancedOn": "Turn on advanced mode",
+        "advancedOff": "Turn off advanced mode",
+        "openSpaces": "Open Spaces",
+        "newSpace": "New Space",
+        "getApps": "Get the apps",
+        "shortcuts": "Keyboard shortcuts"
+      }
     },
     "notifications": {
       "justNow": "just now",

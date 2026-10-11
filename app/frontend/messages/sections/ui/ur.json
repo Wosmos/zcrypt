@@ -166,7 +166,20 @@
       "placeholder": "فائلیں تلاش کریں یا یہاں جائیں…",
       "empty": "کوئی نتیجہ نہیں ملا۔",
       "goTo": "یہاں جائیں",
-      "files": "فائلیں"
+      "files": "فائلیں",
+      "actionsHeading": "ایکشنز",
+      "action": {
+        "upload": "فائلیں اپ لوڈ کریں",
+        "newFolder": "نیا فولڈر",
+        "lock": "والٹ لاک کریں",
+        "unlock": "والٹ ان لاک کریں",
+        "advancedOn": "ایڈوانسڈ موڈ آن کریں",
+        "advancedOff": "ایڈوانسڈ موڈ بند کریں",
+        "openSpaces": "اسپیسز کھولیں",
+        "newSpace": "نیا اسپیس",
+        "getApps": "ایپس حاصل کریں",
+        "shortcuts": "کی بورڈ شارٹ کٹس"
+      }
     },
     "notifications": {
       "justNow": "ابھی ابھی",

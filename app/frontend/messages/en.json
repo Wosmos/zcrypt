@@ -158,7 +158,8 @@
     "uploadDialogTitle": "Upload files",
     "uploadDialogDescription": "Files are compressed, end-to-end encrypted, and chunked before they leave your device.",
     "toastFolderProtected": "Folder protected",
-    "toastFolderPasswordRemoved": "Folder password removed"
+    "toastFolderPasswordRemoved": "Folder password removed",
+    "newFolderEmptyVault": "Upload a file first, then your folders will have something to hold."
   },
   "settings": {
     "title": "Settings",
