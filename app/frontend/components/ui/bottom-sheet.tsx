@@ -1,6 +1,7 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useRef } from "react";
 import { motion, AnimatePresence, useDragControls } from "motion/react";
 
 interface BottomSheetProps {
@@ -13,6 +14,7 @@ interface BottomSheetProps {
 
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
   const dragControls = useDragControls();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && onClose()}>
@@ -29,8 +31,18 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
               />
             </DialogPrimitive.Overlay>
 
-            <DialogPrimitive.Content asChild forceMount aria-describedby={undefined}>
+            <DialogPrimitive.Content
+              asChild
+              forceMount
+              aria-describedby={undefined}
+              onOpenAutoFocus={(e) => {
+                e.preventDefault();
+                contentRef.current?.focus({ preventScroll: true });
+              }}
+            >
               <motion.div
+                ref={contentRef}
+                tabIndex={-1}
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}

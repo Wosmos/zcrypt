@@ -66,14 +66,20 @@ export function MobileNav() {
   const drawerLinks = useMemo<DrawerLink[]>(() => {
     const items: DrawerLink[] = [
       { href: "/settings", labelKey: "settings", icon: GearIcon },
-      // Parity with the desktop sidebar's "Deleted Files", without this, a
+      // Parity with the desktop sidebar's "Trash", without this, a
       // mobile user has no way to reach /trash at all.
-      { href: "/trash", labelKey: "deletedFiles", icon: Trash2 },
+      { href: "/trash", labelKey: "trash", icon: Trash2 },
     ];
     if (advancedMode) items.push({ href: "/tools", labelKey: "tools", icon: Cog });
     if (isAdmin) items.push({ href: "/admin", labelKey: "admin", icon: Users });
     return items;
   }, [advancedMode, isAdmin]);
+
+  const drawerActions = [
+    { key: "tour", icon: Compass, label: t("takeTour"), onSelect: () => setTimeout(replay, 250) },
+    { key: "rate", icon: Star, label: t("rate"), onSelect: () => setReviewOpen(true) },
+    { key: "bug", icon: AlertTriangle, label: t("reportBug"), onSelect: () => setBugOpen(true) },
+  ];
 
   const handleLogout = async () => {
     try {
@@ -163,7 +169,7 @@ export function MobileNav() {
       </nav>
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={t("more")}>
-        <div className="space-y-1 pb-1">
+        <div className="space-y-1 px-1 pb-1">
           {/* Navigation. Share + Settings always; Tools/Admin when relevant. */}
           <div className="px-3 pb-1">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -179,78 +185,43 @@ export function MobileNav() {
                 setSheetOpen(false);
               }}
               className={cn(
-                "mx-1 flex min-h-12 touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 transition-[background-color,transform] duration-150 active:scale-[0.98]",
+                DRAWER_ROW,
                 isActive(href)
                   ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
                   : "text-[var(--color-text)] hover:bg-[var(--color-surface-1)]",
               )}
             >
-              <div
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lg",
-                  isActive(href) ? "bg-[var(--color-accent)]/15" : "bg-[var(--color-surface-1)]",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </div>
-              <span className="flex-1 text-sm font-medium">{t(labelKey)}</span>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
+              <DrawerRowBody icon={Icon} label={t(labelKey)} active={isActive(href)} />
             </Link>
           ))}
 
-          <button
-            onClick={() => {
-              haptic(6);
-              setSheetOpen(false);
-              setTimeout(replay, 250);
-            }}
-            className="mx-1 flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text)] transition-[background-color,transform] duration-150 hover:bg-[var(--color-surface-1)] active:scale-[0.98]"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-surface-1)]">
-              <Compass className="h-4 w-4" />
-            </div>
-            <span className="flex-1 text-left text-sm font-medium">{t("takeTour")}</span>
-            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
-          </button>
-
-          <button
-            onClick={() => {
-              haptic(6);
-              setSheetOpen(false);
-              setReviewOpen(true);
-            }}
-            className="mx-1 flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text)] transition-[background-color,transform] duration-150 hover:bg-[var(--color-surface-1)] active:scale-[0.98]"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-surface-1)]">
-              <Star className="h-4 w-4" />
-            </div>
-            <span className="flex-1 text-left text-sm font-medium">{t("rate")}</span>
-            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
-          </button>
-
-          <button
-            onClick={() => {
-              haptic(6);
-              setSheetOpen(false);
-              setBugOpen(true);
-            }}
-            className="mx-1 flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text)] transition-[background-color,transform] duration-150 hover:bg-[var(--color-surface-1)] active:scale-[0.98]"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-surface-1)]">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-            <span className="flex-1 text-left text-sm font-medium">{t("reportBug")}</span>
-            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
-          </button>
+          {drawerActions.map(({ key, icon, label, onSelect }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                haptic(6);
+                setSheetOpen(false);
+                onSelect();
+              }}
+              className={cn(
+                DRAWER_ROW,
+                "text-[var(--color-text)] hover:bg-[var(--color-surface-1)]",
+              )}
+            >
+              <DrawerRowBody icon={icon} label={label} />
+            </button>
+          ))}
 
           {/* Log out (theme toggle lives in the avatar dropdown, not here). */}
           <div className="mx-3 my-2 border-t border-[var(--color-border)]" />
           <button
+            type="button"
             onClick={() => {
               void handleLogout();
               setSheetOpen(false);
             }}
-            className="mx-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-red-400 transition-colors hover:bg-red-500/10 active:scale-[0.98]"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-red-400 transition-colors hover:bg-red-500/10 active:scale-[0.98]"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
               <LogOut className="h-4 w-4" />
@@ -261,6 +232,34 @@ export function MobileNav() {
       </BottomSheet>
       <BugReportDialog open={bugOpen} onOpenChange={setBugOpen} />
       <ReviewDialog open={reviewOpen} onOpenChange={setReviewOpen} />
+    </>
+  );
+}
+
+const DRAWER_ROW =
+  "flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-[background-color,transform] duration-150 active:scale-[0.98]";
+
+function DrawerRowBody({
+  icon: Icon,
+  label,
+  active = false,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <>
+      <div
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-lg",
+          active ? "bg-[var(--color-accent)]/15" : "bg-[var(--color-surface-1)]",
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+      <span className="flex-1 text-sm font-medium">{label}</span>
+      <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
     </>
   );
 }
