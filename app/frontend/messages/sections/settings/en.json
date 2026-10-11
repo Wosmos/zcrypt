@@ -316,7 +316,11 @@
         "rings": "Rings",
         "aurora": "Aurora",
         "mesh": "Mesh"
-      }
+      },
+      "adapt": "Match light and dark mode",
+      "adaptDesc": "In {mode} mode we use a matching version of your colors: same hue, readable contrast.",
+      "adaptLight": "light",
+      "adaptDark": "dark"
     },
     "telegram": {
       "invalidToken": "Invalid bot token. Double-check it and try again.",

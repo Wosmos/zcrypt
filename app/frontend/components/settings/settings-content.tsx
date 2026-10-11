@@ -14,7 +14,6 @@ import { StoragePool } from "@/components/settings/storage-pool";
 import { VerifyFiles } from "@/components/settings/verify-files";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
-import { useTheme } from "@/components/providers/theme-provider";
 import { usePreferencesStore } from "@/store/preferences";
 import { useKeysStore } from "@/store/keys";
 import { localFingerprint } from "@/lib/keys";
@@ -22,6 +21,7 @@ import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api
 import { isTauri, keychainSet, keychainDelete } from "@/lib/tauri";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
+import { ThemeModeControl } from "@/components/settings/theme-mode-control";
 import { ThemePicker } from "@/components/settings/theme-picker";
 import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
@@ -51,9 +51,6 @@ import {
   ArrowLeft,
   XCircle,
   Sun,
-  Moon,
-  Monitor,
-  ChevronDown,
   Globe,
   Languages,
   User,
@@ -200,7 +197,6 @@ export function SettingsContent() {
   } | null>(null);
   const { statuses, repos, refresh } = usePlatformHealth();
   const { files } = useFileList();
-  const { theme, setTheme } = useTheme();
   const user = useAuthStore((s) => s.user);
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
@@ -312,14 +308,7 @@ export function SettingsContent() {
   const renderSection = (id: SectionId) => {
     switch (id) {
       case "appearance":
-        return (
-          <AppearanceContent
-            theme={theme}
-            setTheme={setTheme}
-            advancedMode={advancedMode}
-            setAdvancedMode={setAdvancedMode}
-          />
-        );
+        return <AppearanceContent advancedMode={advancedMode} setAdvancedMode={setAdvancedMode} />;
       case "updates":
         return <AppUpdates />;
       case "account":
@@ -546,22 +535,13 @@ export function SettingsContent() {
 }
 
 function AppearanceContent({
-  theme,
-  setTheme,
   advancedMode,
   setAdvancedMode,
 }: {
-  theme: string;
-  setTheme: (t: "light" | "dark" | "system") => void;
   advancedMode: boolean;
   setAdvancedMode: (v: boolean) => void;
 }) {
   const t = useTranslations("settings");
-  const themeOptions = [
-    { value: "light" as const, icon: Sun, label: t("themeLight") },
-    { value: "dark" as const, icon: Moon, label: t("themeDark") },
-    { value: "system" as const, icon: Monitor, label: t("themeSystem") },
-  ];
   return (
     <div className="space-y-6">
       <SettingGroup label={t("themeGroup")}>
@@ -569,26 +549,7 @@ function AppearanceContent({
           icon={<Sun className="h-4 w-4" />}
           title={t("mode")}
           subtitle={t("modeDesc")}
-          trailing={
-            <div className="relative">
-              <label htmlFor="theme-select" className="sr-only">
-                {t("themeGroup")}
-              </label>
-              <select
-                id="theme-select"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system")}
-                className="appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 ps-3 pe-8 text-sm font-medium text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-              >
-                {themeOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute inset-y-0 end-2 my-auto h-4 w-4 text-[var(--color-text-muted)]" />
-            </div>
-          }
+          trailing={<ThemeModeControl className="w-[min(100%,18rem)]" />}
         />
       </SettingGroup>
 

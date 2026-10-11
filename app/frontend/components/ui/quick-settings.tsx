@@ -9,15 +9,11 @@ import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { Switch } from "@/components/ui/switch";
 import { usePreferencesStore } from "@/store/preferences";
 import { COLOR_THEMES } from "@/lib/themes";
-import { ArrowRight, Check, Monitor, Moon, Settings, Sun, X } from "@/lib/icons";
+import { ArrowRight, Settings, X } from "@/lib/icons";
+import { ThemeModeControl } from "@/components/settings/theme-mode-control";
+import { ThemePicker } from "@/components/settings/theme-picker";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
-
-const MODES = [
-  { id: "light", icon: Sun, key: "themeLight" },
-  { id: "dark", icon: Moon, key: "themeDark" },
-  { id: "system", icon: Monitor, key: "themeSystem" },
-] as const;
 
 const ICON_BUTTON =
   "flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] data-[state=open]:bg-[var(--color-surface-1)] data-[state=open]:text-[var(--color-text)]";
@@ -40,10 +36,9 @@ export function QuickSettings() {
   const ts = useTranslations("settings");
   const tp = useTranslations("settings.themePicker");
   const [open, setOpen] = useState(false);
-  const { theme, setTheme, resolvedTheme, colorTheme, setColorTheme } = useTheme();
+  const { colorTheme } = useTheme();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
-  const isDark = resolvedTheme === "dark";
   const current = COLOR_THEMES.find((c) => c.id === colorTheme);
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
 
@@ -87,92 +82,13 @@ export function QuickSettings() {
               <p className="text-sm text-[var(--color-text)]">
                 <span className="font-semibold">{ts("themeGroup")}:</span>{" "}
                 <span className="text-[var(--color-text-secondary)]">
-                  {current ? tp(`themes.${current.id}.label` as never) : tp("custom")}
+                  {current ? tp(`themes.${current.id}.label`) : tp("custom")}
                 </span>
               </p>
 
-              <div
-                role="radiogroup"
-                aria-label={ts("mode")}
-                className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-[var(--color-surface)] p-1 ring-1 ring-[var(--color-border)]"
-              >
-                {MODES.map((m) => {
-                  const active = theme === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setTheme(m.id)}
-                      className={cn(
-                        "flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
-                        active
-                          ? "bg-[var(--color-surface-2)] text-[var(--color-text)] shadow-sm"
-                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
-                      )}
-                    >
-                      <m.icon className="h-3.5 w-3.5" />
-                      {ts(m.key)}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div
-                role="radiogroup"
-                aria-label={tp("colorTheme")}
-                className="mt-3 grid grid-cols-3 gap-2"
-              >
-                {COLOR_THEMES.map((c) => {
-                  const sw = isDark ? c.dark : c.light;
-                  const active = colorTheme === c.id;
-                  const label = tp(`themes.${c.id}.label` as never);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      aria-label={label}
-                      title={label}
-                      onClick={() => setColorTheme(c.id)}
-                      className={cn(
-                        "group relative h-14 overflow-hidden rounded-xl ring-1 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
-                        active
-                          ? "ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-[var(--color-surface-1)]"
-                          : "ring-[var(--color-border)] hover:ring-[var(--color-border-hover)]",
-                      )}
-                      style={{ background: sw.bg }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-y-0 start-0 flex w-[34%] flex-col gap-1 p-1.5"
-                        style={{ background: sw.sidebar }}
-                      >
-                        <span className="h-1 w-3 rounded-full" style={{ background: sw.accent }} />
-                        <span
-                          className="h-0.5 w-full rounded-full opacity-30"
-                          style={{ background: sw.accent }}
-                        />
-                        <span
-                          className="h-0.5 w-3/4 rounded-full opacity-20"
-                          style={{ background: sw.accent }}
-                        />
-                      </span>
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-y-1.5 end-1.5 start-[40%] rounded-md"
-                        style={{ background: sw.surface }}
-                      />
-                      {active ? (
-                        <span className="absolute bottom-1 end-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]">
-                          <Check className="h-2.5 w-2.5" />
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+              <ThemeModeControl className="mt-3" />
+              <div className="mt-3">
+                <ThemePicker compact />
               </div>
             </Section>
 

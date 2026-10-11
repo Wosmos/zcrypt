@@ -316,7 +316,11 @@
         "rings": "Anneaux",
         "aurora": "Aurore",
         "mesh": "Maillage"
-      }
+      },
+      "adapt": "S'adapter aux modes clair et sombre",
+      "adaptDesc": "En mode {mode}, nous utilisons une version assortie de vos couleurs : même teinte, contraste lisible.",
+      "adaptLight": "clair",
+      "adaptDark": "sombre"
     },
     "telegram": {
       "invalidToken": "Jeton de bot invalide. Vérifiez-le et réessayez.",

@@ -7,158 +7,179 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { COLOR_THEMES, CUSTOM_COLOR_THEME } from "@/lib/themes";
 import { APP_BACKGROUNDS, getAppBackgroundByKey } from "@/lib/app-backgrounds";
 import { CheckCircle2, Check } from "@/lib/icons";
+import { Switch } from "@/components/ui/switch";
+import { designedMode, paletteFor, type CustomThemeValues } from "@/lib/custom-theme";
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
+interface CardPalette {
+  accent: string;
+  bg: string;
+  surface: string;
+  sidebar: string;
+  /** Full CSS background for the canvas (a decorative design), else `bg`. */
+  canvas?: string;
+}
+
+/** One theme card: a mini app mockup (sidebar with an accent dot, header pill,
+ *  surface card) in the theme's real colors. Shared by presets and Custom. */
+function ThemeCard({
+  palette,
+  label,
+  description,
+  active,
+  compact,
+  onSelect,
+}: {
+  palette: CardPalette;
+  label: string;
+  description: string;
+  active: boolean;
+  compact: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      aria-label={label}
+      title={compact ? label : description}
+      onClick={onSelect}
+      className={cn(
+        "squircle group relative overflow-hidden rounded-xl border text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
+        compact ? "p-1" : "p-2",
+        active
+          ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
+          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
+      )}
+    >
+      <div
+        className={cn(
+          "squircle relative w-full overflow-hidden rounded-lg ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-[1.02] dark:ring-white/10",
+          compact ? "h-12" : "h-20",
+        )}
+        style={{ background: palette.canvas ?? palette.bg }}
+      >
+        <div
+          className={cn(
+            "absolute inset-y-0 start-0 flex w-[30%] flex-col",
+            compact ? "gap-1 p-1.5" : "gap-1.5 p-2",
+          )}
+          style={{ background: palette.sidebar }}
+        >
+          <div className="h-2 w-2 rounded-full" style={{ background: palette.accent }} />
+          <div
+            className="h-1 w-full rounded-full opacity-25"
+            style={{ background: palette.accent }}
+          />
+          <div
+            className="h-1 w-4/5 rounded-full opacity-20"
+            style={{ background: palette.accent }}
+          />
+        </div>
+        <div
+          className={cn(
+            "absolute inset-y-0 end-0 start-[30%] flex flex-col",
+            compact ? "gap-1 p-1.5" : "gap-1.5 p-2",
+          )}
+        >
+          <div
+            className={cn("rounded-full", compact ? "h-1.5 w-6" : "h-2.5 w-10")}
+            style={{ background: palette.accent }}
+          />
+          <div
+            className={cn("flex-1 rounded-md shadow-sm", compact ? "p-1" : "p-1.5")}
+            style={{ background: palette.surface }}
+          >
+            <div
+              className="h-1 w-3/4 rounded-full opacity-30"
+              style={{ background: palette.accent }}
+            />
+          </div>
+        </div>
+        {compact && active ? (
+          <span className="absolute bottom-1 end-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]">
+            <Check className="h-2.5 w-2.5" />
+          </span>
+        ) : null}
+      </div>
+      {compact ? null : (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="truncate text-xs font-medium text-[var(--color-text)]">{label}</span>
+          {active && <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />}
+        </div>
+      )}
+    </button>
+  );
+}
+
 /**
- * Color-theme picker (internal app only). Renders a live mini-preview of each
- * palette in the *current* light/dark mode, so the swatch matches what will
- * actually apply. Selection is per device (localStorage via ThemeProvider).
- * A trailing "Custom" card lets the user pick their own accent + canvas color
- * (plus an optional decorative background design) instead of a curated preset.
+ * Color-theme picker (internal app only), used by Settings and, `compact`, by
+ * Quick settings. Each card previews its palette in the *current* light/dark
+ * mode, so the swatch matches what will actually apply. Selection is per
+ * device (localStorage via ThemeProvider). The trailing "Custom" card takes the
+ * user's own accent + canvas (plus an optional background design); its other
+ * light/dark version is derived in lib/custom-theme.ts.
  */
-export function ThemePicker() {
+export function ThemePicker({ compact = false }: { compact?: boolean }) {
   const t = useTranslations("settings.themePicker");
   const { colorTheme, setColorTheme, resolvedTheme, customTheme, setCustomTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const isCustomActive = colorTheme === CUSTOM_COLOR_THEME;
-  const customBgImage = customTheme.background
-    ? getAppBackgroundByKey(customTheme.background)
-    : null;
+  const custom = paletteFor(customTheme, resolvedTheme);
+  const customPalette: CardPalette = {
+    ...custom,
+    surface: `color-mix(in oklab, ${custom.bg} 90%, white)`,
+    sidebar: `color-mix(in oklab, ${custom.bg} 85%, black)`,
+    canvas: customTheme.background
+      ? (getAppBackgroundByKey(customTheme.background) ?? undefined)
+      : undefined,
+  };
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-        {t("colorTheme")}
-      </p>
+    <div className={compact ? "space-y-3" : "space-y-2"}>
+      {compact ? null : (
+        <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+          {t("colorTheme")}
+        </p>
+      )}
       <div
         role="radiogroup"
         aria-label={t("colorTheme")}
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        className={cn("grid", compact ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3 sm:grid-cols-3")}
       >
-        {COLOR_THEMES.map((theme) => {
-          const sw = isDark ? theme.dark : theme.light;
-          const active = colorTheme === theme.id;
-          return (
-            <button
-              key={theme.id}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              aria-label={t(`themes.${theme.id}.label`)}
-              title={t(`themes.${theme.id}.description`)}
-              onClick={() => setColorTheme(theme.id)}
-              className={cn(
-                "squircle group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-                active
-                  ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-                  : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
-              )}
-            >
-              {/* Mini app mockup: canvas + sidebar (with an accent logo dot) +
-                  an accent header pill + a surface card, so each theme's
-                  personality (accent, sidebar, surface) reads at a glance. */}
-              <div
-                className="squircle relative h-20 w-full overflow-hidden rounded-lg ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-[1.02] dark:ring-white/10"
-                style={{ background: sw.bg }}
-              >
-                <div
-                  className="absolute inset-y-0 left-0 flex w-[30%] flex-col gap-1.5 p-2"
-                  style={{ background: sw.sidebar }}
-                >
-                  <div className="h-2 w-2 rounded-full" style={{ background: sw.accent }} />
-                  <div
-                    className="h-1 w-full rounded-full opacity-25"
-                    style={{ background: sw.accent }}
-                  />
-                  <div
-                    className="h-1 w-4/5 rounded-full opacity-20"
-                    style={{ background: sw.accent }}
-                  />
-                </div>
-                <div className="absolute inset-y-0 left-[30%] right-0 flex flex-col gap-1.5 p-2">
-                  <div className="h-2.5 w-10 rounded-full" style={{ background: sw.accent }} />
-                  <div
-                    className="flex-1 rounded-md p-1.5 shadow-sm"
-                    style={{ background: sw.surface }}
-                  >
-                    <div
-                      className="h-1 w-3/4 rounded-full opacity-30"
-                      style={{ background: sw.accent }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-[var(--color-text)]">
-                  {t(`themes.${theme.id}.label`)}
-                </span>
-                {active && (
-                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-                )}
-              </div>
-            </button>
-          );
-        })}
-
-        {/* Custom: same mockup shape as the presets, driven by the user's own
-            picks instead of a fixed palette. */}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={isCustomActive}
-          aria-label={t("custom")}
-          title={t("customDesc")}
-          onClick={() => setColorTheme(CUSTOM_COLOR_THEME)}
-          className={cn(
-            "squircle group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-            isCustomActive
-              ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-              : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
-          )}
-        >
-          <div
-            className="squircle relative h-20 w-full overflow-hidden rounded-lg ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-[1.02] dark:ring-white/10"
-            style={{ background: customBgImage ?? customTheme.bg }}
-          >
-            <div className="absolute inset-y-0 left-0 flex w-[30%] flex-col gap-1.5 bg-black/15 p-2">
-              <div className="h-2 w-2 rounded-full" style={{ background: customTheme.accent }} />
-              <div
-                className="h-1 w-full rounded-full opacity-25"
-                style={{ background: customTheme.accent }}
-              />
-              <div
-                className="h-1 w-4/5 rounded-full opacity-20"
-                style={{ background: customTheme.accent }}
-              />
-            </div>
-            <div className="absolute inset-y-0 left-[30%] right-0 flex flex-col gap-1.5 p-2">
-              <div className="h-2.5 w-10 rounded-full" style={{ background: customTheme.accent }} />
-              <div className="flex-1 rounded-md bg-white/90 p-1.5 shadow-sm">
-                <div
-                  className="h-1 w-3/4 rounded-full opacity-30"
-                  style={{ background: customTheme.accent }}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="truncate text-xs font-medium text-[var(--color-text)]">
-              {t("custom")}
-            </span>
-            {isCustomActive && (
-              <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-            )}
-          </div>
-        </button>
+        {COLOR_THEMES.map((theme) => (
+          <ThemeCard
+            key={theme.id}
+            palette={isDark ? theme.dark : theme.light}
+            label={t(`themes.${theme.id}.label`)}
+            description={t(`themes.${theme.id}.description`)}
+            active={colorTheme === theme.id}
+            compact={compact}
+            onSelect={() => setColorTheme(theme.id)}
+          />
+        ))}
+        <ThemeCard
+          palette={customPalette}
+          label={t("custom")}
+          description={t("customDesc")}
+          active={isCustomActive}
+          compact={compact}
+          onSelect={() => setColorTheme(CUSTOM_COLOR_THEME)}
+        />
       </div>
 
-      {isCustomActive && <CustomThemeEditor values={customTheme} onChange={setCustomTheme} />}
+      {isCustomActive && (
+        <CustomThemeEditor values={customTheme} onChange={setCustomTheme} compact={compact} />
+      )}
 
-      <p className="text-xs text-[var(--color-text-muted)]">
-        {t("footnote")}
-        {isCustomActive && ` ${t("footnoteCustom")}`}
-      </p>
+      {compact ? null : (
+        <p className="text-xs text-[var(--color-text-muted)]">
+          {t("footnote")}
+          {isCustomActive && ` ${t("footnoteCustom")}`}
+        </p>
+      )}
     </div>
   );
 }
@@ -166,9 +187,11 @@ export function ThemePicker() {
 function CustomThemeEditor({
   values,
   onChange,
+  compact,
 }: {
-  values: { accent: string; bg: string; background?: string };
-  onChange: (next: { accent: string; bg: string; background?: string }) => void;
+  values: CustomThemeValues;
+  onChange: (next: CustomThemeValues) => void;
+  compact: boolean;
 }) {
   const t = useTranslations("settings.themePicker");
   const [accentHex, setAccentHex] = useState(values.accent);
@@ -193,6 +216,21 @@ function CustomThemeEditor({
         <ColorField label={t("canvas")} hex={bgHex} onChange={commitBg} />
       </div>
 
+      <label className="flex cursor-pointer items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-xs font-medium text-[var(--color-text)]">{t("adapt")}</span>
+          <span className="block text-[11px] leading-snug text-[var(--color-text-muted)]">
+            {t("adaptDesc", {
+              mode: designedMode(values) === "dark" ? t("adaptLight") : t("adaptDark"),
+            })}
+          </span>
+        </span>
+        <Switch
+          checked={values.adapt !== false}
+          onCheckedChange={(on) => onChange({ ...values, adapt: on })}
+        />
+      </label>
+
       <div className="space-y-1.5">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
           {t("backgroundDesign")}
@@ -200,7 +238,7 @@ function CustomThemeEditor({
         <div
           role="radiogroup"
           aria-label={t("backgroundDesignLabel")}
-          className="grid grid-cols-5 gap-2 sm:grid-cols-6"
+          className={cn("grid gap-2", compact ? "grid-cols-5" : "grid-cols-5 sm:grid-cols-6")}
         >
           <button
             type="button"

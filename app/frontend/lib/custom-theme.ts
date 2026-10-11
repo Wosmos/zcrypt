@@ -1,4 +1,5 @@
 import { getAppBackgroundByKey } from "@/lib/app-backgrounds";
+import { contrastRatio, hexToOklch, luminance, oklchToHex } from "@/lib/color";
 
 /**
  * A user-defined color theme: just two picked colors (accent + canvas), plus
@@ -15,7 +16,12 @@ export interface CustomThemeValues {
    *  flat canvas. These are the ambient full-canvas treatments: distinct from
    *  the folder-card backgrounds in lib/background-presets.ts. */
   background?: string;
+  /** Build the opposite light/dark version from these colors when the app is
+   *  in the other mode. Unset means on. */
+  adapt?: boolean;
 }
+
+export type ThemeMode = "light" | "dark";
 
 export const DEFAULT_CUSTOM_THEME: CustomThemeValues = {
   accent: "#3b82f6",
@@ -35,6 +41,7 @@ export function loadCustomTheme(): CustomThemeValues {
         accent: parsed.accent,
         bg: parsed.bg,
         background: typeof parsed.background === "string" ? parsed.background : undefined,
+        ...(parsed.adapt === false && { adapt: false }),
       };
     }
   } catch {
@@ -48,23 +55,65 @@ export function saveCustomTheme(values: CustomThemeValues) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
 }
 
-/** Relative luminance (WCAG formula): used to pick a readable near-black or
- *  near-white text color for whatever bg/accent the user lands on, so a
- *  two-color custom theme can never produce illegible text. */
-function hexLuminance(hex: string): number {
-  const n = hex.replace("#", "");
-  const full =
-    n.length === 3
-      ? n
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : n;
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+/** The mode a custom palette was designed in, read from its canvas: a canvas
+ *  above mid-grey (WCAG luminance 0.18, OKLCH lightness about 0.6) is light. */
+export function designedMode(values: CustomThemeValues): ThemeMode {
+  return luminance(values.bg) > 0.18 ? "light" : "dark";
+}
+
+const MIN_ACCENT_CONTRAST = 3;
+
+/** Mirror a canvas into the other mode. Hue stays the user's; lightness moves
+ *  into the band real light/dark UIs live in (light canvases near-white,
+ *  dark ones deep but not pure black), and chroma is capped, since a saturated
+ *  canvas reads as loud in light mode and muddy in dark. */
+function flipCanvas(bg: string, to: ThemeMode): string {
+  const { l, c, h } = hexToOklch(bg);
+  if (to === "light") {
+    return oklchToHex({
+      l: Math.min(0.99, Math.max(0.94, 0.985 - (l - 0.1) * 0.15)),
+      c: Math.min(c * 0.5, 0.03),
+      h,
+    });
+  }
+  return oklchToHex({
+    l: Math.min(0.24, Math.max(0.12, 0.13 + (1 - l) * 0.5)),
+    c: Math.min(c * 1.2 + 0.01, 0.05),
+    h,
+  });
+}
+
+/** Keep the accent's hue and chroma, and walk its lightness away from the
+ *  canvas until it reaches WCAG's 3:1 minimum for UI components. An accent
+ *  that already passes is left exactly as picked. */
+function fitAccent(accent: string, bg: string, to: ThemeMode): string {
+  if (contrastRatio(accent, bg) >= MIN_ACCENT_CONTRAST) return accent;
+  const start = hexToOklch(accent);
+  const step = to === "light" ? -0.02 : 0.02;
+  for (let l = start.l; l > 0 && l < 1; l += step) {
+    const candidate = oklchToHex({ ...start, l });
+    if (contrastRatio(candidate, bg) >= MIN_ACCENT_CONTRAST) return candidate;
+  }
+  return to === "light" ? "#1a1a1a" : "#f5f5f5";
+}
+
+/** The colors to use for `mode`: the user's own in the mode they designed
+ *  for (or always, with adapt off), the mirrored palette in the other one. */
+export function paletteFor(
+  values: CustomThemeValues,
+  mode: ThemeMode,
+): { accent: string; bg: string } {
+  if (values.adapt === false || designedMode(values) === mode) {
+    return { accent: values.accent, bg: values.bg };
+  }
+  const bg = flipCanvas(values.bg, mode);
+  return { accent: fitAccent(values.accent, bg, mode), bg };
+}
+
+/** The resolved light/dark mode currently on <html>. */
+export function currentMode(): ThemeMode {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.classList.contains("light") ? "light" : "dark";
 }
 
 const CUSTOM_VAR_KEYS = [
@@ -86,11 +135,12 @@ const CUSTOM_VAR_KEYS = [
  *  decorative `--app-bg` layer, directly on `<html>` as inline styles.
  *  Inline styles win over any CSS-block value, so `clearCustomThemeVars` MUST
  *  run before switching to a preset/default theme or these would stick. */
-export function applyCustomThemeVars(values: CustomThemeValues) {
+export function applyCustomThemeVars(stored: CustomThemeValues, mode: ThemeMode = currentMode()) {
   if (typeof document === "undefined") return;
   const root = document.documentElement.style;
-  const fg = hexLuminance(values.bg) > 0.5 ? "#161a2b" : "#f0f2f8";
-  const accentFg = hexLuminance(values.accent) > 0.5 ? "#161a2b" : "#ffffff";
+  const values = { ...stored, ...paletteFor(stored, mode) };
+  const fg = luminance(values.bg) > 0.5 ? "#161a2b" : "#f0f2f8";
+  const accentFg = luminance(values.accent) > 0.5 ? "#161a2b" : "#ffffff";
   root.setProperty("--t-bg", values.bg);
   root.setProperty("--t-card", `color-mix(in oklab, ${values.bg} 90%, white)`);
   root.setProperty("--t-primary", values.accent);

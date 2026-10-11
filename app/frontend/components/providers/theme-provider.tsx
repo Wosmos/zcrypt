@@ -85,6 +85,15 @@ function applyColorTheme(id: string) {
   }
 }
 
+/** Put a resolved light/dark mode on <html>. A custom palette has a light and
+ *  a dark version, so it is repainted for the new mode too. */
+function paintMode(resolved: ResolvedTheme) {
+  const root = document.documentElement;
+  root.classList.toggle("dark", resolved === "dark");
+  root.classList.toggle("light", resolved === "light");
+  if (root.dataset.theme === CUSTOM_COLOR_THEME) applyCustomThemeVars(loadCustomTheme(), resolved);
+}
+
 /** Fire-and-forget persist of the per-device preference to the server. No-op
  *  when unauthenticated (e.g. marketing visitors): localStorage still holds
  *  the choice locally. */
@@ -110,6 +119,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(MODE_KEY) as Theme | null;
     const initial = stored || "system";
+    // localStorage is only readable after hydration, so this sync belongs here.
+    // oxlint-disable-next-line react/set-state-in-effect
     setThemeState(initial);
     setResolvedTheme(resolveTheme(initial));
 
@@ -129,20 +140,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
     const resolved = resolveTheme(theme);
-    setResolvedTheme(resolved);
 
     // Apply the mode instantly. There is deliberately no whole-page
     // animation: a color crossfade looked broken (only color/bg faded while
     // borders, shadows and icons snapped), and a View Transition reveal made
     // every toggle hitch on the double page snapshot.
-    document.documentElement.classList.toggle("dark", resolved === "dark");
-    document.documentElement.classList.toggle("light", resolved === "light");
+    paintMode(resolved);
   }, [theme, mounted]);
 
   useEffect(() => {
     if (theme !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => setResolvedTheme(getSystemTheme());
+    const handler = () => {
+      const resolved = getSystemTheme();
+      setResolvedTheme(resolved);
+      paintMode(resolved);
+    };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, [theme]);
@@ -165,6 +178,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           }
           if (pref.mode === "light" || pref.mode === "dark" || pref.mode === "system") {
             setThemeState(pref.mode);
+            setResolvedTheme(resolveTheme(pref.mode));
             localStorage.setItem(MODE_KEY, pref.mode);
           }
         } else {
@@ -187,8 +201,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const resolved = resolveTheme(t);
     setThemeState(t);
     setResolvedTheme(resolved);
-    document.documentElement.classList.toggle("dark", resolved === "dark");
-    document.documentElement.classList.toggle("light", resolved === "light");
+    paintMode(resolved);
   }, []);
 
   /** localStorage + server PUT: kept off the click frame so the flip paints
@@ -226,9 +239,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     (values: CustomThemeValues) => {
       setCustomThemeState(values);
       saveCustomTheme(values);
-      if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values);
+      if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values, resolvedTheme);
     },
-    [colorTheme],
+    [colorTheme, resolvedTheme],
   );
 
   return (

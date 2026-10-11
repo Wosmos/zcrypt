@@ -316,7 +316,11 @@
         "rings": "圆环",
         "aurora": "极光",
         "mesh": "网格渐变"
-      }
+      },
+      "adapt": "匹配浅色和深色模式",
+      "adaptDesc": "在{mode}模式下，我们使用与你的颜色相匹配的版本：色相不变，对比度清晰可读。",
+      "adaptLight": "浅色",
+      "adaptDark": "深色"
     },
     "telegram": {
       "invalidToken": "机器人令牌无效。请检查后重试。",

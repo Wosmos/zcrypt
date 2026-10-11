@@ -28,7 +28,10 @@ import {
   saveCustomTheme,
   applyCustomThemeVars,
   clearCustomThemeVars,
+  designedMode,
+  paletteFor,
 } from "@/lib/custom-theme";
+import { contrastRatio, hexToOklch, oklchToHex } from "@/lib/color";
 import { APP_BACKGROUNDS } from "@/lib/app-backgrounds";
 
 const STORAGE_KEY = "zcrypt-custom-theme";
@@ -97,7 +100,7 @@ describe("applyCustomThemeVars / clearCustomThemeVars", () => {
   });
 
   it("derives dark text + white accent-text for a light background and dark accent", () => {
-    applyCustomThemeVars({ accent: "#000000", bg: "#ffffff" });
+    applyCustomThemeVars({ accent: "#000000", bg: "#ffffff" }, "light");
     const root = document.documentElement.style;
     expect(root.getPropertyValue("--t-fg")).toBe("#161a2b");
     expect(root.getPropertyValue("--t-primary-fg")).toBe("#ffffff");
@@ -141,5 +144,66 @@ describe("applyCustomThemeVars / clearCustomThemeVars", () => {
   it("clearCustomThemeVars is a no-op when document is unavailable", () => {
     vi.stubGlobal("document", undefined);
     expect(() => clearCustomThemeVars()).not.toThrow();
+  });
+});
+
+describe("light and dark versions of a custom theme", () => {
+  const dark = { accent: "#3b82f6", bg: "#12141f" };
+  const light = { accent: "#93c5fd", bg: "#f7f8fb" };
+
+  it("reads the mode a palette was designed in from its canvas", () => {
+    expect(designedMode(dark)).toBe("dark");
+    expect(designedMode(light)).toBe("light");
+  });
+
+  it("keeps the user's own colors in the mode they designed for", () => {
+    expect(paletteFor(dark, "dark")).toEqual(dark);
+    expect(paletteFor(light, "light")).toEqual(light);
+  });
+
+  it("keeps the user's colors in both modes when adapting is off", () => {
+    expect(paletteFor({ ...dark, adapt: false }, "light")).toEqual(dark);
+  });
+
+  it("mirrors a dark canvas into a near-white one with the same hue", () => {
+    const { bg } = paletteFor(dark, "light");
+    expect(hexToOklch(bg).l).toBeGreaterThan(0.93);
+    expect(designedMode({ ...dark, bg })).toBe("light");
+    expect(Math.abs(hexToOklch(bg).h - hexToOklch(dark.bg).h)).toBeLessThan(25);
+  });
+
+  it("mirrors a light canvas into a deep one", () => {
+    const { bg } = paletteFor(light, "dark");
+    expect(hexToOklch(bg).l).toBeLessThan(0.25);
+    expect(designedMode({ ...light, bg })).toBe("dark");
+  });
+
+  it("moves the accent until it reaches 3:1 contrast, keeping its hue", () => {
+    const { accent, bg } = paletteFor(light, "dark");
+    expect(contrastRatio(accent, bg)).toBeGreaterThanOrEqual(3);
+    const pale = paletteFor({ accent: "#fde68a", bg: "#14161f" }, "light");
+    expect(contrastRatio(pale.accent, pale.bg)).toBeGreaterThanOrEqual(3);
+    expect(Math.abs(hexToOklch(pale.accent).h - hexToOklch("#fde68a").h)).toBeLessThan(20);
+  });
+
+  it("applies the version for the requested mode", () => {
+    applyCustomThemeVars(dark, "light");
+    expect(document.documentElement.style.getPropertyValue("--t-bg")).toBe(
+      paletteFor(dark, "light").bg,
+    );
+    clearCustomThemeVars();
+  });
+});
+
+describe("color helpers", () => {
+  it("round-trips hex through OKLCH", () => {
+    for (const hex of ["#3b82f6", "#12141f", "#f7f8fb", "#e11d48"]) {
+      expect(oklchToHex(hexToOklch(hex))).toBe(hex);
+    }
+  });
+
+  it("computes WCAG contrast", () => {
+    expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 0);
+    expect(contrastRatio("#777777", "#777777")).toBeCloseTo(1, 5);
   });
 });

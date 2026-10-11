@@ -316,7 +316,11 @@
         "rings": "Anillos",
         "aurora": "Aurora",
         "mesh": "Malla"
-      }
+      },
+      "adapt": "Adaptar a modo claro y oscuro",
+      "adaptDesc": "En modo {mode} usamos una versión a juego de tus colores: el mismo tono y un contraste legible.",
+      "adaptLight": "claro",
+      "adaptDark": "oscuro"
     },
     "telegram": {
       "invalidToken": "Token de bot no válido. Compruébalo e inténtalo de nuevo.",
