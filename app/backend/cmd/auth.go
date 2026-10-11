@@ -233,7 +233,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	s.audit(r, &user.ID, "register", map[string]interface{}{"email": user.Email})
+	s.audit(r, &user.ID, "register", nil)
 
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"success": true,
@@ -325,7 +325,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email})
+	s.audit(r, &user.ID, "login", nil)
 
 	// Auto-checkin dead man's switch on successful login
 	_ = s.db.CheckinDeadManSwitch(ctx, user.ID)
@@ -470,7 +470,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	s.audit(r, &user.ID, "password_reset_requested", map[string]interface{}{"email": req.Email})
+	s.audit(r, &user.ID, "password_reset_requested", nil)
 
 	// Always return same response regardless of outcome
 	writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -958,7 +958,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !consumed {
-			s.audit(r, &user.ID, "2fa_failed", map[string]interface{}{"email": user.Email})
+			s.audit(r, &user.ID, "2fa_failed", nil)
 			http.Error(w, `{"error":"invalid 2FA code"}`, http.StatusUnauthorized)
 			return
 		}
@@ -968,7 +968,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 			s.issueDecoyTokens(w, r, user)
 			return
 		}
-		s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "backup_code", "backup_codes_remaining": remaining})
+		s.audit(r, &user.ID, "login", map[string]interface{}{"method": "backup_code", "backup_codes_remaining": remaining})
 		s.issueTokens(w, r, user)
 		return
 	}
@@ -981,7 +981,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 	if !claimed {
 		// Correct code, but its time step was already consumed, a replayed or
 		// intercepted code. Refuse it and leave a trace.
-		s.audit(r, &user.ID, "2fa_replay", map[string]interface{}{"email": user.Email})
+		s.audit(r, &user.ID, "2fa_replay", nil)
 		http.Error(w, `{"error":"this code was already used: wait for the next one"}`, http.StatusUnauthorized)
 		return
 	}
@@ -1003,7 +1003,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		s.issueDecoyTokens(w, r, user)
 		return
 	}
-	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "2fa"})
+	s.audit(r, &user.ID, "login", map[string]interface{}{"method": "2fa"})
 	s.issueTokens(w, r, user)
 }
 
@@ -1351,7 +1351,7 @@ func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 		}
 	}()
 
-	s.audit(r, &user.ID, "magic_link_sent", map[string]interface{}{"email": req.Email})
+	s.audit(r, &user.ID, "magic_link_sent", nil)
 
 	writeJSON(w, http.StatusOK, genericResp)
 }
@@ -1396,7 +1396,7 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	// Delete used token
 	s.db.DeleteEmailToken(ctx, et.ID)
 
-	s.audit(r, &user.ID, "magic_link_used", map[string]interface{}{"email": user.Email})
+	s.audit(r, &user.ID, "magic_link_used", nil)
 
 	if user.TOTPEnabled {
 		tempToken, err := auth.GenerateTempToken(s.cfg.JWTSecret, user.ID)

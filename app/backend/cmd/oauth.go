@@ -190,7 +190,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 			s.oauthError(w, r, "user not found", isDesktop, desktopSession)
 			return
 		}
-		s.audit(r, &user.ID, "oauth_login", map[string]interface{}{"provider": provider, "email": userInfo.Email})
+		s.audit(r, &user.ID, "oauth_login", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
 		s.oauthRedirect(w, r, user, isDesktop, desktopSession)
 		return
 	}
@@ -202,7 +202,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		// attacker controlling an OAuth account for an unverified local email could
 		// hijack it. Require logging in with the existing method, then link in Settings.
 		if !existingUser.EmailVerified {
-			s.audit(r, &existingUser.ID, "oauth_link_rejected", map[string]interface{}{"provider": provider, "email": userInfo.Email, "reason": "local_email_unverified"})
+			s.audit(r, &existingUser.ID, "oauth_link_rejected", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email), "reason": "local_email_unverified"})
 			s.oauthError(w, r, "an account with this email already exists: log in with your existing method, then link "+provider+" in Settings", isDesktop, desktopSession)
 			return
 		}
@@ -214,7 +214,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 			ProviderID:    userInfo.ProviderID,
 			ProviderEmail: userInfo.Email,
 		})
-		s.audit(r, &existingUser.ID, "oauth_link", map[string]interface{}{"provider": provider, "email": userInfo.Email})
+		s.audit(r, &existingUser.ID, "oauth_link", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
 		s.oauthRedirect(w, r, existingUser, isDesktop, desktopSession)
 		return
 	}
@@ -259,7 +259,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		ProviderEmail: userInfo.Email,
 	})
 
-	s.audit(r, &user.ID, "oauth_register", map[string]interface{}{"provider": provider, "email": userInfo.Email})
+	s.audit(r, &user.ID, "oauth_register", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
 	s.oauthRedirect(w, r, user, isDesktop, desktopSession)
 }
 

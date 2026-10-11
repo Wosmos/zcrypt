@@ -39,7 +39,7 @@
         "l6": "Spaces: who is a member and their role. Share links: view counts, expiry and an optional bcrypt-hashed password.",
         "l7": "Connections to storage platforms (see the next section).",
         "h3": "Security and abuse log",
-        "l8": "An audit log of account events (sign-ins, failed attempts, password and 2FA changes, exports, deletion requests) with the shortened IP and user agent. Several sign-in events also record your email address in their details.",
+        "l8": "An audit log of account events (sign-ins, failed attempts, password and 2FA changes, exports, deletion requests) with the shortened IP and user agent. It is linked to your account; it does not store your email address.",
         "l9": "The audit log is kept for up to 365 days, and it is kept even after you delete your account (it holds your user ID, not a name).",
         "h4": "Things you choose to send us",
         "l10": "Bug reports: your text, an optional screenshot, the app version, platform, the page you were on and your user agent.",

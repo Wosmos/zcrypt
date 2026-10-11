@@ -39,7 +39,7 @@
         "l6": "Spaces: wer Mitglied ist und welche Rolle er hat. Freigabelinks: Aufrufzahlen, Ablaufdatum und ein optionales, mit bcrypt gehashtes Passwort.",
         "l7": "Verbindungen zu Speicherplattformen (siehe nächster Abschnitt).",
         "h3": "Sicherheits- und Missbrauchsprotokoll",
-        "l8": "Ein Prüfprotokoll von Kontoereignissen (Anmeldungen, fehlgeschlagene Versuche, Änderungen von Passwort und 2FA, Exporte, Löschanfragen) mit der verkürzten IP und dem User-Agent. Bei mehreren Anmeldeereignissen wird in den Details auch deine E-Mail-Adresse erfasst.",
+        "l8": "Ein Audit-Protokoll der Kontoereignisse (Anmeldungen, fehlgeschlagene Versuche, Passwort- und 2FA-Änderungen, Exporte, Löschanfragen) mit gekürzter IP-Adresse und User-Agent. Es ist mit deinem Konto verknüpft und speichert deine E-Mail-Adresse nicht.",
         "l9": "Das Prüfprotokoll wird bis zu 365 Tage aufbewahrt und bleibt auch nach dem Löschen deines Kontos erhalten (es enthält deine Benutzer-ID, keinen Namen).",
         "h4": "Dinge, die du uns freiwillig sendest",
         "l10": "Fehlerberichte: dein Text, ein optionaler Screenshot, die App-Version, die Plattform, die Seite, auf der du warst, und dein User-Agent.",

@@ -39,7 +39,7 @@
         "l6": "Spaces: quién es miembro y su rol. Enlaces compartidos: número de vistas, vencimiento y una contraseña opcional con hash bcrypt.",
         "l7": "Conexiones a plataformas de almacenamiento (ver la siguiente sección).",
         "h3": "Registro de seguridad y abuso",
-        "l8": "Un registro de auditoría de eventos de la cuenta (inicios de sesión, intentos fallidos, cambios de contraseña y de 2FA, exportaciones, solicitudes de eliminación) con la IP acortada y el agente de usuario. Varios eventos de inicio de sesión también registran tu correo electrónico en sus detalles.",
+        "l8": "Un registro de auditoría de los eventos de la cuenta (inicios de sesión, intentos fallidos, cambios de contraseña y 2FA, exportaciones, solicitudes de eliminación) con la IP acortada y el agente de usuario. Está vinculado a tu cuenta y no guarda tu dirección de correo electrónico.",
         "l9": "El registro de auditoría se conserva hasta 365 días, y se conserva incluso después de eliminar tu cuenta (contiene tu ID de usuario, no un nombre).",
         "h4": "Lo que eliges enviarnos",
         "l10": "Informes de error: tu texto, una captura de pantalla opcional, la versión de la app, la plataforma, la página en la que estabas y tu agente de usuario.",

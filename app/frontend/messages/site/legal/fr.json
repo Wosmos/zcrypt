@@ -39,7 +39,7 @@
         "l6": "Spaces : qui en est membre et son rôle. Liens de partage : nombre de vues, expiration et mot de passe facultatif haché avec bcrypt.",
         "l7": "Connexions aux plateformes de stockage (voir la section suivante).",
         "h3": "Journal de sécurité et d'abus",
-        "l8": "Un journal d'audit des événements du compte (connexions, tentatives échouées, changements de mot de passe et de 2FA, exports, demandes de suppression) avec l'IP raccourcie et l'agent utilisateur. Plusieurs événements de connexion enregistrent aussi votre adresse e-mail dans leurs détails.",
+        "l8": "Un journal d'audit des événements du compte (connexions, tentatives échouées, changements de mot de passe et de 2FA, exports, demandes de suppression) avec l'adresse IP raccourcie et l'agent utilisateur. Il est lié à votre compte et ne conserve pas votre adresse e-mail.",
         "l9": "Le journal d'audit est conservé jusqu'à 365 jours, et il l'est même après la suppression de votre compte (il contient votre identifiant d'utilisateur, pas un nom).",
         "h4": "Ce que vous choisissez de nous envoyer",
         "l10": "Rapports de bogue : votre texte, une capture d'écran facultative, la version de l'application, la plateforme, la page où vous étiez et votre agent utilisateur.",
