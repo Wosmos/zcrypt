@@ -82,26 +82,28 @@ export function ExportImport({ files }: ExportImportProps) {
   );
 
   return (
-    <section className="card overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--color-border)]">
+    <section className="card flex h-full flex-col gap-3 p-4">
+      <div>
         <h2 className="text-sm font-semibold">{t("title")}</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{t("subtitle")}</p>
+        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t("subtitle")}</p>
       </div>
-      <div className="p-5 flex flex-col sm:flex-row gap-3">
+      <div className="mt-auto flex flex-wrap gap-2">
         <button
+          type="button"
           onClick={handleExport}
           disabled={files.length === 0}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm font-medium hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-3.5 w-3.5" />
           {t("exportButton", { count: files.length })}
         </button>
         <button
+          type="button"
           onClick={handleImportClick}
           disabled={importing}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40"
+          className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs font-medium text-cyan-600 transition-colors hover:bg-cyan-500/10 disabled:opacity-40 dark:text-cyan-400"
         >
-          <Upload className="h-4 w-4" />
+          <Upload className="h-3.5 w-3.5" />
           {importing ? t("importing") : t("importButton")}
         </button>
         <input

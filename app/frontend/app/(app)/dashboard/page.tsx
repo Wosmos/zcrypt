@@ -576,7 +576,7 @@ export default function VaultPage() {
                   {ta("dashboard.storageBackup")}
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-4">
+              <AccordionContent className="grid gap-3 pb-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
                 <PlatformHealth statuses={statuses} repos={repos} />
                 {files.length > 0 && <ExportImport files={files} />}
               </AccordionContent>
