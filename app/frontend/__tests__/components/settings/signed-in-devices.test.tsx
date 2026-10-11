@@ -12,7 +12,6 @@ const { api, auth, toast } = vi.hoisted(() => ({
 vi.mock("@/lib/auth-api", () => api);
 vi.mock("@/store/toast", () => ({ toast }));
 vi.mock("@/components/ui/logo-spinner", () => ({ LogoSpinner: () => <span>loading</span> }));
-vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/store/auth", () => ({
   useAuthStore: Object.assign((select: (s: typeof auth) => unknown) => select(auth), {
     getState: () => auth,

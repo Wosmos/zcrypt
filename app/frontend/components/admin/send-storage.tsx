@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   Select,
@@ -47,14 +48,15 @@ interface SendStorageTableProps {
 }
 
 function SendStorageTable({ data }: SendStorageTableProps) {
+  const t = useTranslations("admin.send");
   const locations = data.usage.by_location;
 
   if (locations.length === 0) {
     return (
       <EmptyState
         icon={<Database className="h-6 w-6 text-[var(--color-text-muted)]" />}
-        title="No Sends stored right now"
-        description="Sends will appear here once anonymous transfers are made."
+        title={t("emptyTitle")}
+        description={t("emptyDesc")}
       />
     );
   }
@@ -66,19 +68,19 @@ function SendStorageTable({ data }: SendStorageTableProps) {
           <thead>
             <tr className="border-b border-[var(--color-border)]">
               <th className="text-left py-2 px-3 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                Platform
+                {t("colPlatform")}
               </th>
               <th className="text-left py-2 px-3 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                Account
+                {t("colAccount")}
               </th>
               <th className="text-left py-2 px-3 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                Repository
+                {t("colRepo")}
               </th>
               <th className="text-right py-2 px-3 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                Transfers
+                {t("colTransfers")}
               </th>
               <th className="text-right py-2 px-3 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                Size
+                {t("colSize")}
               </th>
             </tr>
           </thead>
@@ -123,7 +125,7 @@ function SendStorageTable({ data }: SendStorageTableProps) {
               {loc.account} / {loc.repo}
             </div>
             <div className="text-xs text-[var(--color-text-secondary)]">
-              {loc.transfers} transfer{loc.transfers === 1 ? "" : "s"}
+              {t("transfers", { count: loc.transfers })}
             </div>
           </div>
         ))}
@@ -133,6 +135,7 @@ function SendStorageTable({ data }: SendStorageTableProps) {
 }
 
 export function AdminSendStorage() {
+  const t = useTranslations("admin.send");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -149,12 +152,12 @@ export function AdminSendStorage() {
     setUpdating(true);
     try {
       await adminSetSendPlatform(selectedPlatform);
-      toast.success(`Send platform set to ${platformName(selectedPlatform)}`);
+      toast.success(t("platformSet", { platform: platformName(selectedPlatform) }));
       setConfirmOpen(false);
       setSelectedPlatform("");
       refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to update platform";
+      const msg = err instanceof Error ? err.message : t("updateFailed");
       toast.error(msg);
     } finally {
       setUpdating(false);
@@ -168,11 +171,9 @@ export function AdminSendStorage() {
   if (error && !data) {
     return (
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-6 text-center">
-        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-          Couldn't load Send storage settings
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">{t("loadError")}</p>
         <Button onClick={refresh} variant="secondary" size="sm">
-          Try again
+          {t("retry")}
         </Button>
       </div>
     );
@@ -185,16 +186,12 @@ export function AdminSendStorage() {
   const usagePercent = (usage.bytes / limits.anon_daily_bytes) * 100;
 
   return (
-    <Section
-      title="Send Storage"
-      description="Where encrypted anonymous transfers are stored"
-      className="space-y-6"
-    >
+    <Section title={t("title")} description={t("description")} className="space-y-6">
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Usage
+              {t("usage")}
             </label>
             <span className="text-sm font-semibold text-[var(--color-text)]">
               {formatBytes(usage.bytes)} / {formatBytes(limits.anon_daily_bytes)}
@@ -208,7 +205,7 @@ export function AdminSendStorage() {
               aria-valuenow={Math.min(100, usagePercent)}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label="Send storage usage"
+              aria-label={t("usageAria")}
             />
           </div>
         </div>
@@ -216,17 +213,17 @@ export function AdminSendStorage() {
         <div className="flex flex-wrap gap-2">
           {usage.oldest_expires_at && (
             <Badge variant="muted">
-              Oldest: {formatRelativeTime(new Date(usage.oldest_expires_at))}
+              {t("oldest", { time: formatRelativeTime(new Date(usage.oldest_expires_at)) })}
             </Badge>
           )}
-          <Badge variant="muted">{usage.transfers} transfers</Badge>
-          <Badge variant="muted">{usage.chunks} chunks</Badge>
+          <Badge variant="muted">{t("transfers", { count: usage.transfers })}</Badge>
+          <Badge variant="muted">{t("chunks", { count: usage.chunks })}</Badge>
         </div>
       </div>
 
       <div className="space-y-3">
         <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider block">
-          Platform
+          {t("platform")}
         </label>
         <Select value={data.platform_setting} onValueChange={handlePlatformChange}>
           <SelectTrigger className="bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-text)]">
@@ -240,7 +237,7 @@ export function AdminSendStorage() {
             ))}
             {data.options.length === 0 && (
               <SelectItem value="" disabled>
-                No storage configured
+                {t("noStorage")}
               </SelectItem>
             )}
           </SelectContent>
@@ -249,29 +246,33 @@ export function AdminSendStorage() {
 
       <div className="space-y-3">
         <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider block">
-          Daily Limits
+          {t("dailyLimits")}
         </label>
         <div className="flex flex-wrap gap-2">
-          <Badge variant="accent">{formatBytes(limits.max_file_bytes)} per file</Badge>
-          <Badge variant="accent">{formatBytes(limits.anon_daily_bytes)} anon/day</Badge>
-          <Badge variant="accent">{formatBytes(limits.user_daily_bytes)} signed-in/day</Badge>
+          <Badge variant="accent">
+            {t("perFile", { size: formatBytes(limits.max_file_bytes) })}
+          </Badge>
+          <Badge variant="accent">
+            {t("anonDay", { size: formatBytes(limits.anon_daily_bytes) })}
+          </Badge>
+          <Badge variant="accent">
+            {t("signedInDay", { size: formatBytes(limits.user_daily_bytes) })}
+          </Badge>
         </div>
       </div>
 
       <SendStorageTable data={data} />
 
       <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-        <p className="text-xs text-cyan-700 dark:text-cyan-300">
-          Sends are encrypted before upload; this is where the ciphertext lives.
-        </p>
+        <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("note")}</p>
       </div>
 
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Change Send platform"
-        description={`Switch to ${platformName(selectedPlatform)} for new anonymous transfers?`}
-        confirmLabel="Switch platform"
+        title={t("confirmTitle")}
+        description={t("confirmDesc", { platform: platformName(selectedPlatform) })}
+        confirmLabel={t("confirmLabel")}
         onConfirm={handleConfirmPlatform}
         loading={updating}
       />

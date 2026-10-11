@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, User, Crown } from "@/lib/icons";
@@ -21,6 +22,8 @@ const planVariant = (plan: string) =>
  * to what they rendered before this extraction.
  */
 export function RoleBadge({ role, bordered = false }: { role: Role; bordered?: boolean }) {
+  const t = useTranslations("admin.roles");
+  const roleLabel = role === Role.Admin || role === Role.User ? t(role) : role;
   const icon =
     role === Role.Admin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />;
   if (bordered) {
@@ -34,14 +37,14 @@ export function RoleBadge({ role, bordered = false }: { role: Role; bordered?: b
         )}
       >
         {icon}
-        {role}
+        {roleLabel}
       </span>
     );
   }
   return (
     <Badge variant={role === Role.Admin ? "amber" : "muted"} className={pillClass}>
       {icon}
-      {role}
+      {roleLabel}
     </Badge>
   );
 }

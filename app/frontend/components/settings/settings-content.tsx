@@ -189,6 +189,7 @@ const GROUP_KEYS: Record<string, string> = {
 
 export function SettingsContent() {
   const t = useTranslations("settings");
+  const tc = useTranslations("settings.content");
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
@@ -235,12 +236,12 @@ export function SettingsContent() {
       const trimmed = token.trim();
       const res = await connectPlatform(platform, trimmed);
       await storeDesktopPlatformCreds(platform, trimmed, res.username);
-      toast.success(`${platformName(platform)} connected!`);
+      toast.success(tc("connected", { platform: platformName(platform) }));
       setTokens((prev) => ({ ...prev, [platform]: "" }));
       void refresh();
       return true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Connection failed");
+      toast.error(err instanceof Error ? err.message : tc("connectionFailed"));
       return false;
     } finally {
       busyRef.current.delete(`connect:${platform}`);
@@ -258,11 +259,11 @@ export function SettingsContent() {
     try {
       await disconnectPlatform(platform, username);
       await clearDesktopPlatformCreds(platform);
-      toast.success(`${platformName(platform)} @${username} disconnected`);
+      toast.success(tc("disconnected", { platform: platformName(platform), username }));
       setDisconnectTarget(null);
       void refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Disconnect failed");
+      toast.error(err instanceof Error ? err.message : tc("disconnectFailed"));
     } finally {
       busyRef.current.delete(key);
       setDisconnecting(null);
@@ -289,9 +290,7 @@ export function SettingsContent() {
     try {
       await toggleTokenScope(tokenId, toGlobal);
       void refresh();
-      toast.success(
-        toGlobal ? "Token is now shared with all users" : "Token is now local to your account",
-      );
+      toast.success(toGlobal ? tc("scopeShared") : tc("scopeLocal"));
       setScopeTarget(null);
     } catch (err) {
       setScopeOverrides((prev) => {
@@ -299,7 +298,7 @@ export function SettingsContent() {
         delete next[tokenId];
         return next;
       });
-      toast.error(err instanceof Error ? err.message : "Failed to update token scope");
+      toast.error(err instanceof Error ? err.message : tc("scopeFailed"));
     } finally {
       setScopeChanging(false);
     }
@@ -384,21 +383,18 @@ export function SettingsContent() {
         return (
           <div className="space-y-8">
             <ScreenPrivacy />
-            <SettingGroup
-              label="Advanced safeguards"
-              footnote="For high-risk threat models. Both are optional."
-            >
+            <SettingGroup label={tc("safeguards")} footnote={tc("safeguardsFootnote")}>
               <LinkRow
                 href="/settings/deadman"
                 icon={<ShieldAlert className="h-4 w-4" />}
-                title="Dead man's switch"
-                subtitle="Auto-notify a contact if you go silent"
+                title={tc("deadman")}
+                subtitle={tc("deadmanDesc")}
               />
               <LinkRow
                 href="/settings/decoy"
                 icon={<Eye className="h-4 w-4" />}
-                title="Decoy profile"
-                subtitle="Plausible deniability with a decoy vault"
+                title={tc("decoy")}
+                subtitle={tc("decoyDesc")}
               />
             </SettingGroup>
           </div>
@@ -661,6 +657,7 @@ function PlatformSection({
   isAdmin?: boolean;
   customConnect?: React.ReactNode;
 }) {
+  const t = useTranslations("settings.content");
   return (
     <div className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40">
       <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3.5">
@@ -675,7 +672,7 @@ function PlatformSection({
             variant="outline"
             className="flex-shrink-0 border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
           >
-            {connectedAccounts.length} connected
+            {t("connectedCount", { count: connectedAccounts.length })}
           </Badge>
         )}
       </div>
@@ -698,11 +695,7 @@ function PlatformSection({
                     <button
                       type="button"
                       onClick={() => onToggleScope(acc)}
-                      title={
-                        acc.is_global
-                          ? "Global, shared with all users. Click to review and make local."
-                          : "Local, only you. Click to review and share with all users."
-                      }
+                      title={acc.is_global ? t("scopeGlobalHint") : t("scopeLocalHint")}
                       className={cn(
                         "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                         acc.is_global
@@ -715,7 +708,7 @@ function PlatformSection({
                       ) : (
                         <User className="h-3.5 w-3.5" />
                       )}
-                      {acc.is_global ? "Global" : "Local"}
+                      {acc.is_global ? t("global") : t("local")}
                     </button>
                   )}
                   {isDisconnecting ? (
@@ -725,7 +718,7 @@ function PlatformSection({
                   ) : (
                     <IconButton
                       icon={XCircle}
-                      label={`Disconnect @${acc.username}`}
+                      label={t("disconnect", { username: acc.username ?? "" })}
                       variant="ghost"
                       iconClassName="h-3.5 w-3.5"
                       onClick={() => acc.username && onDisconnect(acc.username)}
@@ -748,7 +741,7 @@ function PlatformSection({
                   value={token}
                   onChange={(e) => onTokenChange(e.target.value)}
                   icon={<Key className="h-4 w-4" />}
-                  aria-label={`${name} token`}
+                  aria-label={t("tokenAria", { platform: name })}
                 />
               </div>
               <Button
@@ -758,11 +751,11 @@ function PlatformSection({
               >
                 {connecting ? (
                   <span className="flex items-center gap-2">
-                    <LogoSpinner size={14} speed="fast" /> Connecting...
+                    <LogoSpinner size={14} speed="fast" /> {t("connecting")}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5">
-                    {connectedAccounts.length > 0 ? "Add account" : "Connect"}
+                    {connectedAccounts.length > 0 ? t("addAccount") : t("connect")}
                     <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 )}
@@ -785,12 +778,13 @@ function PlatformSection({
 }
 
 function EncryptionKeyInfo() {
+  const t = useTranslations("settings.content");
   const ready = useKeysStore((s) => s.ready);
   const fingerprint = ready ? localFingerprint() : null;
   if (!ready || !fingerprint) {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-3.5 py-3 text-sm text-[var(--color-text-muted)]">
-        Unlock your vault to generate and view your key fingerprint.
+        {t("unlockForFingerprint")}
       </div>
     );
   }
@@ -800,7 +794,7 @@ function EncryptionKeyInfo() {
         <Key className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-[var(--color-text-muted)]">Your key fingerprint</p>
+        <p className="text-xs text-[var(--color-text-muted)]">{t("fingerprint")}</p>
         <p className="font-mono text-sm font-semibold tracking-wide text-[var(--color-text)]">
           {fingerprint}
         </p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import type { AdminReauth } from "@/lib/api";
@@ -37,15 +38,16 @@ export function ReauthFields({
   onChange: (next: AdminReauth) => void;
   className?: string;
 }) {
+  const t = useTranslations("admin.reauth");
   const needsCode = useAuthStore((s) => s.user?.totp_enabled === true);
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-xs text-[var(--color-text-muted)]">Confirm it&apos;s you to continue.</p>
+      <p className="text-xs text-[var(--color-text-muted)]">{t("confirm")}</p>
       <input
         type="password"
         autoComplete="current-password"
-        aria-label="Your password"
-        placeholder="Your password"
+        aria-label={t("password")}
+        placeholder={t("password")}
         value={value.password}
         onChange={(e) => onChange({ ...value, password: e.target.value })}
         className={inputClass}
@@ -54,8 +56,8 @@ export function ReauthFields({
         <input
           inputMode="numeric"
           autoComplete="one-time-code"
-          aria-label="2FA code"
-          placeholder="2FA code"
+          aria-label={t("code")}
+          placeholder={t("code")}
           value={value.code}
           onChange={(e) => onChange({ ...value, code: e.target.value.trim() })}
           className={inputClass}

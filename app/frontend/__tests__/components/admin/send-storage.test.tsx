@@ -24,9 +24,6 @@ vi.mock("@/lib/query-client", () => {
   const actual = vi.importActual("@/lib/query-client");
   return actual;
 });
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-}));
 
 import { AdminSendStorage } from "@/components/admin/send-storage";
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useRef, useEffect } from "react";
 import { Users, FileText, Database, GitBranch, AlertTriangle, ChevronDown } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
@@ -27,6 +28,7 @@ function DurabilityAlertDetails({
   onClose: () => void;
   onRefresh: () => void;
 }) {
+  const t = useTranslations("admin.stats");
   const [reconciling, setReconciling] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -35,12 +37,12 @@ function DurabilityAlertDetails({
     try {
       const result = await adminRunReconcile();
       toast.success(
-        `Reconciliation complete: ${result.total_missing} missing, ${result.total_orphans} orphans.`,
+        t("reconcileDone", { missing: result.total_missing, orphans: result.total_orphans }),
       );
       onRefresh();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Reconciliation failed");
+      toast.error(err instanceof Error ? err.message : t("reconcileFailed"));
     } finally {
       setReconciling(false);
     }
@@ -58,7 +60,7 @@ function DurabilityAlertDetails({
       tabIndex={-1}
       className="space-y-4"
       role="region"
-      aria-label="Health details"
+      aria-label={t("healthDetails")}
       aria-live="polite"
     >
       {loading ? (
@@ -71,24 +73,21 @@ function DurabilityAlertDetails({
         <>
           {data.totals && (
             <div className="text-xs text-[var(--color-text-muted)]">
-              <div className="font-medium text-[var(--color-text)]">System totals</div>
+              <div className="font-medium text-[var(--color-text)]">{t("systemTotals")}</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {data.totals.damaged_files > 0 && (
                   <Badge variant="amber">
-                    {data.totals.damaged_files} damaged file
-                    {data.totals.damaged_files === 1 ? "" : "s"}
+                    {t("damagedFiles", { count: data.totals.damaged_files })}
                   </Badge>
                 )}
                 {data.totals.degraded_files > 0 && (
                   <Badge variant="amber">
-                    {data.totals.degraded_files} degraded file
-                    {data.totals.degraded_files === 1 ? "" : "s"}
+                    {t("degradedFiles", { count: data.totals.degraded_files })}
                   </Badge>
                 )}
                 {data.totals.stuck_chunks > 0 && (
                   <Badge variant="amber">
-                    {data.totals.stuck_chunks} stuck chunk
-                    {data.totals.stuck_chunks === 1 ? "" : "s"}
+                    {t("stuckChunks", { count: data.totals.stuck_chunks })}
                   </Badge>
                 )}
               </div>
@@ -97,7 +96,7 @@ function DurabilityAlertDetails({
 
           {data.users && data.users.length > 0 && (
             <div className="text-xs text-[var(--color-text-muted)]">
-              <div className="font-medium text-[var(--color-text)]">Affected users (top 50)</div>
+              <div className="font-medium text-[var(--color-text)]">{t("affectedUsers")}</div>
               <div className="mt-2 max-h-40 overflow-y-auto space-y-2 rounded-lg bg-[var(--color-surface-1)] p-3">
                 {data.users.map((user) => (
                   <div
@@ -133,7 +132,7 @@ function DurabilityAlertDetails({
 
           {data.sample_files && data.sample_files.length > 0 && (
             <div className="text-xs text-[var(--color-text-muted)]">
-              <div className="font-medium text-[var(--color-text)]">Sample files</div>
+              <div className="font-medium text-[var(--color-text)]">{t("sampleFiles")}</div>
               <div className="mt-2 max-h-32 overflow-y-auto space-y-2 rounded-lg bg-[var(--color-surface-1)] p-3">
                 {data.sample_files.map((file) => (
                   <div key={file.id} className="flex items-start justify-between gap-2 text-xs">
@@ -163,7 +162,7 @@ function DurabilityAlertDetails({
             className="w-full"
           >
             {reconciling && <LogoSpinner size="sm" speed="fast" />}
-            {reconciling ? "Running reconcile..." : "Run reconcile"}
+            {reconciling ? t("runningReconcile") : t("runReconcile")}
           </Button>
         </>
       ) : null}
@@ -172,6 +171,7 @@ function DurabilityAlertDetails({
 }
 
 function DurabilityAlert({ stats }: { stats: SystemStats }) {
+  const t = useTranslations("admin.stats");
   const degraded = stats.degraded_files ?? 0;
   const damaged = stats.damaged_files ?? 0;
   const stuck = stats.stuck_chunks ?? 0;
@@ -198,9 +198,9 @@ function DurabilityAlert({ stats }: { stats: SystemStats }) {
   if (total === 0) return null;
 
   const summary = [
-    damaged > 0 && `${damaged} damaged file${damaged === 1 ? "" : "s"}`,
-    degraded > 0 && `${degraded} degraded file${degraded === 1 ? "" : "s"}`,
-    stuck > 0 && `${stuck} stuck chunk${stuck === 1 ? "" : "s"}`,
+    damaged > 0 && t("damagedFiles", { count: damaged }),
+    degraded > 0 && t("degradedFiles", { count: degraded }),
+    stuck > 0 && t("stuckChunks", { count: stuck }),
   ]
     .filter(Boolean)
     .join(", ");
@@ -228,7 +228,7 @@ function DurabilityAlert({ stats }: { stats: SystemStats }) {
           </div>
           <ChevronDown className="h-4 w-4 flex-shrink-0 text-amber-500" />
         </button>
-        <BottomSheet open={open} onClose={() => setOpen(false)} title="Health details">
+        <BottomSheet open={open} onClose={() => setOpen(false)} title={t("healthDetails")}>
           <div className="space-y-4 p-4">{Content}</div>
         </BottomSheet>
       </>
@@ -246,7 +246,9 @@ function DurabilityAlert({ stats }: { stats: SystemStats }) {
             <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
             <span className="font-medium">{summary}</span>
           </div>
-          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Details</span>
+          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+            {t("details")}
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 space-y-3" align="start">
@@ -257,19 +259,28 @@ function DurabilityAlert({ stats }: { stats: SystemStats }) {
 }
 
 export function SystemStatsCards({ stats }: { stats: SystemStats }) {
+  const t = useTranslations("admin.stats");
   return (
     <div className="space-y-4">
       <DurabilityAlert stats={stats} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Total users"
+          label={t("totalUsers")}
           value={stats.total_users.toLocaleString()}
           icon={Users}
           accent
         />
-        <StatCard label="Total files" value={stats.total_files.toLocaleString()} icon={FileText} />
-        <StatCard label="Total storage" value={formatBytes(stats.total_size)} icon={Database} />
-        <StatCard label="Total repos" value={stats.total_repos.toLocaleString()} icon={GitBranch} />
+        <StatCard
+          label={t("totalFiles")}
+          value={stats.total_files.toLocaleString()}
+          icon={FileText}
+        />
+        <StatCard label={t("totalStorage")} value={formatBytes(stats.total_size)} icon={Database} />
+        <StatCard
+          label={t("totalRepos")}
+          value={stats.total_repos.toLocaleString()}
+          icon={GitBranch}
+        />
       </div>
     </div>
   );

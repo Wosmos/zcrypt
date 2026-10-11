@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useCallback } from "react";
 import { adminGetAuditLog, type AdminAuditResponse } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
@@ -26,11 +27,11 @@ const PAGE_SIZE = 20;
 
 // Parse user agent into readable browser/OS/device info
 function parseUserAgent(ua: string): { browser: string; os: string; device: string } {
-  if (!ua) return { browser: "Unknown", os: "Unknown", device: "Unknown" };
+  if (!ua) return { browser: "", os: "", device: "unknown" };
 
-  let browser = "Unknown";
-  let os = "Unknown";
-  let device = "Desktop";
+  let browser = "";
+  let os = "";
+  let device = "desktop";
 
   // Browser detection
   if (ua.includes("Firefox/")) {
@@ -53,22 +54,23 @@ function parseUserAgent(ua: string): { browser: string; os: string; device: stri
   else if (ua.includes("Mac OS X")) os = "macOS";
   else if (ua.includes("Android")) {
     os = "Android";
-    device = "Mobile";
+    device = "mobile";
   } else if (ua.includes("iPhone") || ua.includes("iPad")) {
     os = "iOS";
-    device = ua.includes("iPad") ? "Tablet" : "Mobile";
+    device = ua.includes("iPad") ? "tablet" : "mobile";
   } else if (ua.includes("Linux")) os = "Linux";
   else if (ua.includes("zcrypt")) os = "CLI";
 
   // Device detection
-  if (ua.includes("Mobile") || ua.includes("Android")) device = "Mobile";
-  else if (ua.includes("Tablet") || ua.includes("iPad")) device = "Tablet";
+  if (ua.includes("Mobile") || ua.includes("Android")) device = "mobile";
+  else if (ua.includes("Tablet") || ua.includes("iPad")) device = "tablet";
 
   return { browser, os, device };
 }
 
 // Render human-readable metadata based on event type
 function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
+  const t = useTranslations("admin.audit");
   const meta = event.metadata;
   if (!meta || Object.keys(meta).length === 0) return null;
 
@@ -77,84 +79,93 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
   switch (event.event_type) {
     case "login":
     case "login_failed":
-      if (meta.email) details.push({ label: "Email", value: String(meta.email) });
-      if (meta.method) details.push({ label: "Method", value: String(meta.method) });
+      if (meta.email) details.push({ label: t("dEmail"), value: String(meta.email) });
+      if (meta.method) details.push({ label: t("dMethod"), value: String(meta.method) });
       if (meta.reason)
         details.push({
-          label: "Reason",
+          label: t("dReason"),
           value: String(meta.reason).replace(/_/g, " "),
           accent: true,
         });
       break;
 
     case "register":
-      if (meta.email) details.push({ label: "Email", value: String(meta.email) });
+      if (meta.email) details.push({ label: t("dEmail"), value: String(meta.email) });
       break;
 
     case "oauth_login":
     case "oauth_register":
     case "oauth_link":
     case "oauth_unlink":
-      if (meta.provider) details.push({ label: "Provider", value: String(meta.provider) });
-      if (meta.email) details.push({ label: "Email", value: String(meta.email) });
+      if (meta.provider) details.push({ label: t("dProvider"), value: String(meta.provider) });
+      if (meta.email) details.push({ label: t("dEmail"), value: String(meta.email) });
       break;
 
     case "magic_link_sent":
     case "magic_link_used":
-      if (meta.email) details.push({ label: "Email", value: String(meta.email) });
+      if (meta.email) details.push({ label: t("dEmail"), value: String(meta.email) });
       break;
 
     case "file_upload":
-      if (meta.filename) details.push({ label: "File", value: String(meta.filename) });
+      if (meta.filename) details.push({ label: t("dFile"), value: String(meta.filename) });
       if (meta.file_size_bytes)
-        details.push({ label: "Size", value: formatBytes(Number(meta.file_size_bytes)) });
+        details.push({ label: t("dSize"), value: formatBytes(Number(meta.file_size_bytes)) });
       if (meta.compressed_size)
-        details.push({ label: "Compressed", value: formatBytes(Number(meta.compressed_size)) });
+        details.push({ label: t("dCompressed"), value: formatBytes(Number(meta.compressed_size)) });
       if (meta.encrypted_size)
-        details.push({ label: "Encrypted", value: formatBytes(Number(meta.encrypted_size)) });
-      if (meta.chunk_count) details.push({ label: "Chunks", value: String(meta.chunk_count) });
+        details.push({ label: t("dEncrypted"), value: formatBytes(Number(meta.encrypted_size)) });
+      if (meta.chunk_count) details.push({ label: t("dChunks"), value: String(meta.chunk_count) });
       break;
 
     case "file_download":
-      if (meta.filename) details.push({ label: "File", value: String(meta.filename) });
+      if (meta.filename) details.push({ label: t("dFile"), value: String(meta.filename) });
       if (meta.file_id)
-        details.push({ label: "File ID", value: String(meta.file_id).slice(0, 8) + "..." });
+        details.push({ label: t("dFileId"), value: String(meta.file_id).slice(0, 8) + "..." });
       break;
 
     case "file_delete":
-      if (meta.filename) details.push({ label: "File", value: String(meta.filename) });
+      if (meta.filename) details.push({ label: t("dFile"), value: String(meta.filename) });
       if (meta.file_id)
-        details.push({ label: "File ID", value: String(meta.file_id).slice(0, 8) + "..." });
+        details.push({ label: t("dFileId"), value: String(meta.file_id).slice(0, 8) + "..." });
       break;
 
     case "platform_connect":
     case "platform_disconnect":
-      if (meta.platform) details.push({ label: "Platform", value: String(meta.platform) });
-      if (meta.username) details.push({ label: "Account", value: `@${meta.username}` });
+      if (meta.platform) details.push({ label: t("dPlatform"), value: String(meta.platform) });
+      if (meta.username) details.push({ label: t("dAccount"), value: `@${meta.username}` });
       if (meta.token_id)
-        details.push({ label: "Token", value: String(meta.token_id).slice(0, 8) + "..." });
+        details.push({ label: t("dToken"), value: String(meta.token_id).slice(0, 8) + "..." });
       if (meta.is_global !== undefined)
-        details.push({ label: "Scope", value: meta.is_global ? "Global" : "Local" });
+        details.push({
+          label: t("dScope"),
+          value: meta.is_global ? t("scopeGlobal") : t("scopeLocal"),
+        });
       break;
 
     case "admin_role_change":
       if (meta.target_user)
-        details.push({ label: "Target User", value: String(meta.target_user).slice(0, 8) + "..." });
-      if (meta.role) details.push({ label: "New Role", value: String(meta.role), accent: true });
+        details.push({
+          label: t("dTargetUser"),
+          value: String(meta.target_user).slice(0, 8) + "...",
+        });
+      if (meta.role) details.push({ label: t("dNewRole"), value: String(meta.role), accent: true });
       break;
 
     case "admin_user_delete":
       if (meta.target_user)
         details.push({
-          label: "Deleted User",
+          label: t("dDeletedUser"),
           value: String(meta.target_user).slice(0, 8) + "...",
         });
       break;
 
     case "admin_plan_change":
       if (meta.target_user)
-        details.push({ label: "Target User", value: String(meta.target_user).slice(0, 8) + "..." });
-      if (meta.plan) details.push({ label: "New Plan", value: String(meta.plan), accent: true });
+        details.push({
+          label: t("dTargetUser"),
+          value: String(meta.target_user).slice(0, 8) + "...",
+        });
+      if (meta.plan) details.push({ label: t("dNewPlan"), value: String(meta.plan), accent: true });
       break;
 
     default:
@@ -186,6 +197,7 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
 }
 
 export function AuditLog() {
+  const t = useTranslations("admin.audit");
   const [page, setPage] = useState(1);
   const [eventTypeFilter, setEventTypeFilter] = useState("");
   const [paused, setPaused] = useState(false);
@@ -226,6 +238,9 @@ export function AuditLog() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const eventLabel = (type: string) =>
+    t.has(`events.${type}`) ? t(`events.${type}`) : (EVENT_LABELS[type] ?? type.replace(/_/g, " "));
+
   const eventTypes = [
     "login",
     "login_failed",
@@ -260,16 +275,16 @@ export function AuditLog() {
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
           <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Audit log
+            {t("title")}
           </h2>
           <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
-            ({total} events)
+            {t("eventCount", { count: total })}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <IconButton
             icon={paused ? Play : Pause}
-            label={paused ? "Resume live updates" : "Pause live updates"}
+            label={paused ? t("resume") : t("pause")}
             variant="secondary"
             onClick={() => setPaused(!paused)}
             className={cn(
@@ -285,14 +300,14 @@ export function AuditLog() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-9 text-xs" aria-label="Filter by event type">
+              <SelectTrigger className="h-9 text-xs" aria-label={t("filterType")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All events</SelectItem>
-                {eventTypes.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {EVENT_LABELS[t] || t.replace(/_/g, " ")}
+                <SelectItem value="all">{t("allEvents")}</SelectItem>
+                {eventTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {eventLabel(type)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -305,21 +320,28 @@ export function AuditLog() {
         {events.length === 0 ? (
           <EmptyState
             icon={<FileText className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No events found"
-            description={
-              eventTypeFilter
-                ? "No events match this filter. Try a different event type."
-                : "No audited activity has been recorded yet."
-            }
+            title={t("emptyTitle")}
+            description={eventTypeFilter ? t("emptyFiltered") : t("emptyAll")}
           />
         ) : (
           events.map((event) => {
             const Icon = EVENT_ICONS[event.event_type] ?? Shield;
             const color = eventColorClass(event.event_type, { border: true });
-            const label = EVENT_LABELS[event.event_type] ?? event.event_type.replace(/_/g, " ");
+            const label = eventLabel(event.event_type);
             const isExpanded = expandedId === event.id;
             const ua = parseUserAgent(event.user_agent);
-            const DeviceIcon = ua.device === "Mobile" ? Smartphone : Monitor;
+            const DeviceIcon = ua.device === "mobile" ? Smartphone : Monitor;
+            const browserName = ua.browser || t("unknown");
+            const osName = ua.os || t("unknown");
+            const deviceName = t(
+              ua.device === "mobile"
+                ? "deviceMobile"
+                : ua.device === "tablet"
+                  ? "deviceTablet"
+                  : ua.device === "desktop"
+                    ? "deviceDesktop"
+                    : "unknown",
+            );
 
             return (
               <button
@@ -359,7 +381,7 @@ export function AuditLog() {
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
                         <DeviceIcon className="h-3 w-3" />
-                        {ua.browser} / {ua.os}
+                        {browserName} / {osName}
                       </span>
                       <span className="text-[10px] text-[var(--color-text-muted)] inline-flex items-center gap-1 sm:hidden">
                         <Globe className="h-3 w-3" />
@@ -381,32 +403,38 @@ export function AuditLog() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-lg bg-[var(--color-surface-1)]">
                           {event.user_id && (
                             <div className="text-xs">
-                              <span className="text-[var(--color-text-muted)]">User ID: </span>
+                              <span className="text-[var(--color-text-muted)]">
+                                {t("userId")}:{" "}
+                              </span>
                               <span className="font-mono text-[var(--color-text-secondary)]">
                                 {event.user_id.slice(0, 12)}...
                               </span>
                             </div>
                           )}
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">IP Address: </span>
+                            <span className="text-[var(--color-text-muted)]">
+                              {t("ipAddress")}:{" "}
+                            </span>
                             <span className="font-mono text-[var(--color-text-secondary)]">
                               {event.ip}
                             </span>
                           </div>
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">Browser: </span>
-                            <span className="text-[var(--color-text-secondary)]">{ua.browser}</span>
+                            <span className="text-[var(--color-text-muted)]">{t("browser")}: </span>
+                            <span className="text-[var(--color-text-secondary)]">
+                              {browserName}
+                            </span>
                           </div>
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">OS: </span>
-                            <span className="text-[var(--color-text-secondary)]">{ua.os}</span>
+                            <span className="text-[var(--color-text-muted)]">{t("os")}: </span>
+                            <span className="text-[var(--color-text-secondary)]">{osName}</span>
                           </div>
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">Device: </span>
-                            <span className="text-[var(--color-text-secondary)]">{ua.device}</span>
+                            <span className="text-[var(--color-text-muted)]">{t("device")}: </span>
+                            <span className="text-[var(--color-text-secondary)]">{deviceName}</span>
                           </div>
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">Time: </span>
+                            <span className="text-[var(--color-text-muted)]">{t("time")}: </span>
                             <span className="text-[var(--color-text-secondary)]">
                               {formatDateTime(event.created_at, { seconds: true })}
                             </span>
@@ -415,7 +443,7 @@ export function AuditLog() {
 
                         {/* Raw user agent */}
                         <div className="text-[10px] text-[var(--color-text-muted)] break-all leading-relaxed">
-                          <span className="font-medium">UA:</span> {event.user_agent}
+                          <span className="font-medium">{t("ua")}:</span> {event.user_agent}
                         </div>
                       </div>
                     )}

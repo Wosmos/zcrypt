@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { adminListFeedback } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
@@ -13,8 +14,9 @@ import { SkeletonRow } from "@/components/ui/skeletons";
 const PAGE_SIZE = 10;
 
 function Stars({ rating }: { rating: number }) {
+  const t = useTranslations("admin.feedback");
   return (
-    <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5`}>
+    <div className="flex items-center gap-0.5" aria-label={t("stars", { rating })}>
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
@@ -29,6 +31,7 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export function FeedbackList() {
+  const t = useTranslations("admin.feedback");
   const [page, setPage] = useState(0);
   const { data, loading } = useAdminQuery(qk.adminFeedback(page * PAGE_SIZE), () =>
     adminListFeedback(PAGE_SIZE, page * PAGE_SIZE),
@@ -50,18 +53,12 @@ export function FeedbackList() {
         </div>
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            User feedback
+            {t("title")}
           </h3>
           <p className="text-xs text-[var(--color-text-muted)]">
-            <span className="tabular-nums">{total}</span> response{total !== 1 ? "s" : ""}
+            {t("responses", { count: total })}
             {avgRating > 0 && (
-              <span className="ml-2">
-                Avg:{" "}
-                <span className="font-semibold text-amber-500 tabular-nums">
-                  {avgRating.toFixed(1)}
-                </span>
-                /5
-              </span>
+              <span className="ml-2">{t("avg", { value: avgRating.toFixed(1) })}</span>
             )}
           </p>
         </div>
@@ -77,8 +74,8 @@ export function FeedbackList() {
       ) : feedback.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title="No feedback yet"
-          description="When users submit feedback, their ratings and messages will appear here."
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
         />
       ) : (
         <>
@@ -88,16 +85,16 @@ export function FeedbackList() {
               <thead>
                 <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    User
+                    {t("colUser")}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Rating
+                    {t("colRating")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Message
+                    {t("colMessage")}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Date
+                    {t("colDate")}
                   </th>
                 </tr>
               </thead>
@@ -119,7 +116,9 @@ export function FeedbackList() {
                     <td className="max-w-xs px-4 py-3.5">
                       <p className="truncate text-sm text-[var(--color-text-secondary)]">
                         {f.message || (
-                          <span className="italic text-[var(--color-text-muted)]">No message</span>
+                          <span className="italic text-[var(--color-text-muted)]">
+                            {t("noMessage")}
+                          </span>
                         )}
                       </p>
                     </td>

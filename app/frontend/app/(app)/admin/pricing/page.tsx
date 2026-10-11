@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { adminGetPlans, adminSetPlans } from "@/lib/api";
@@ -84,6 +85,7 @@ function UnitInputField({
 }
 
 export default function AdminPricingPage() {
+  const t = useTranslations("admin.pricing");
   const { user } = useAuthStore();
   const [plans, setPlans] = useState<PlanConfig[]>([]);
   const [saving, setSaving] = useState(false);
@@ -124,8 +126,8 @@ export default function AdminPricingPage() {
   }, [loaded]);
   const loadError = plansQuery.error;
   useEffect(() => {
-    if (loadError) toast.error("Failed to load plans");
-  }, [loadError]);
+    if (loadError) toast.error(t("loadFailed"));
+  }, [loadError, t]);
   const loading = plansQuery.loading && !loadError;
 
   if (!user || user.role !== Role.Admin) return null;
@@ -222,7 +224,7 @@ export default function AdminPricingPage() {
 
   const deletePlan = (id: string) => {
     if (id === "free") {
-      toast.error("Cannot delete the free plan");
+      toast.error(t("cannotDeleteFree"));
       return;
     }
     setPlans((prev) => prev.filter((p) => p.id !== id));
@@ -232,12 +234,12 @@ export default function AdminPricingPage() {
 
   const handleSave = async () => {
     if (!plans.some((p) => p.id === "free")) {
-      toast.error("A 'free' plan is required");
+      toast.error(t("freeRequired"));
       return;
     }
     const ids = plans.map((p) => p.id);
     if (new Set(ids).size !== ids.length) {
-      toast.error("Duplicate plan IDs found");
+      toast.error(t("duplicateIds"));
       return;
     }
 
@@ -246,9 +248,9 @@ export default function AdminPricingPage() {
       await adminSetPlans({ plans });
       queryClient.setQueryData(qk.adminPlans, { plans });
       setConfirmSave(false);
-      toast.success("Plans saved successfully");
+      toast.success(t("saved"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save plans");
+      toast.error(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -259,20 +261,18 @@ export default function AdminPricingPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Plan configuration
+            {t("title")}
           </h2>
-          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            Changes reflect across the entire app including landing page pricing.
-          </p>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={addPlan}>
             <Plus className="h-4 w-4" />
-            Add plan
+            {t("addPlan")}
           </Button>
           <Button onClick={() => setConfirmSave(true)} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            Save changes
+            {t("saveChanges")}
           </Button>
         </div>
       </div>
@@ -330,8 +330,11 @@ export default function AdminPricingPage() {
                         )}
                       </div>
                       <p className="truncate text-xs text-[var(--color-text-muted)] tabular-nums">
-                        ${plan.monthly_price}/mo &middot; {plan.storage_display} storage &middot;{" "}
-                        {plan.max_file_display} max file
+                        {t("summary", {
+                          price: plan.monthly_price,
+                          storage: plan.storage_display,
+                          file: plan.max_file_display,
+                        })}
                       </p>
                     </div>
                   </div>
@@ -343,7 +346,7 @@ export default function AdminPricingPage() {
                       >
                         <IconButton
                           icon={Trash2}
-                          label="Delete plan"
+                          label={t("deletePlan")}
                           variant="ghost"
                           onClick={() => setDeleteTarget(plan)}
                           className="hover:bg-red-500/10 hover:text-red-500"
@@ -364,7 +367,7 @@ export default function AdminPricingPage() {
                   <div className="animate-fade-in space-y-5 border-t border-[var(--color-border)] px-5 pb-5 pt-5">
                     {/* Plan ID */}
                     <div>
-                      <label className={labelClass}>Plan ID</label>
+                      <label className={labelClass}>{t("planId")}</label>
                       <input
                         type="text"
                         value={plan.id}
@@ -402,17 +405,17 @@ export default function AdminPricingPage() {
                         }}
                         disabled={plan.id === "free"}
                         className={cn(fieldClass, "font-mono disabled:opacity-50")}
-                        placeholder="e.g. enterprise"
+                        placeholder={t("planIdPlaceholder")}
                       />
                       <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
-                        Lowercase, alphanumeric, hyphens only
+                        {t("planIdHint")}
                       </p>
                     </div>
 
                     {/* Basic info */}
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>
-                        <label className={labelClass}>Name</label>
+                        <label className={labelClass}>{t("name")}</label>
                         <input
                           type="text"
                           value={plan.name}
@@ -421,7 +424,7 @@ export default function AdminPricingPage() {
                         />
                       </div>
                       <div>
-                        <label className={labelClass}>Monthly ($)</label>
+                        <label className={labelClass}>{t("monthly")}</label>
                         <input
                           type="number"
                           min="0"
@@ -434,7 +437,7 @@ export default function AdminPricingPage() {
                         />
                       </div>
                       <div>
-                        <label className={labelClass}>Annual ($)</label>
+                        <label className={labelClass}>{t("annual")}</label>
                         <input
                           type="number"
                           min="0"
@@ -447,7 +450,7 @@ export default function AdminPricingPage() {
                         />
                       </div>
                       <div>
-                        <label className={labelClass}>Sort order</label>
+                        <label className={labelClass}>{t("sortOrder")}</label>
                         <input
                           type="number"
                           min="0"
@@ -461,7 +464,7 @@ export default function AdminPricingPage() {
                     </div>
 
                     <div>
-                      <label className={labelClass}>Description</label>
+                      <label className={labelClass}>{t("description")}</label>
                       <input
                         type="text"
                         value={plan.description}
@@ -472,10 +475,10 @@ export default function AdminPricingPage() {
 
                     {/* Limits */}
                     <div>
-                      <h4 className={cn(labelClass, "mb-3 block")}>Limits</h4>
+                      <h4 className={cn(labelClass, "mb-3 block")}>{t("limits")}</h4>
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                         <UnitInputField
-                          label="Storage"
+                          label={t("storage")}
                           value={storageInputs[plan.id] ?? ""}
                           unit={storageUnits[plan.id] || "GB"}
                           onValueChange={(v) =>
@@ -484,10 +487,10 @@ export default function AdminPricingPage() {
                           onUnitChange={(u) =>
                             updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", u)
                           }
-                          unitAriaLabel="Storage unit"
+                          unitAriaLabel={t("storageUnit")}
                         />
                         <UnitInputField
-                          label="Max file size"
+                          label={t("maxFileSize")}
                           value={fileSizeInputs[plan.id] ?? ""}
                           unit={fileSizeUnits[plan.id] || "GB"}
                           onValueChange={(v) =>
@@ -496,11 +499,11 @@ export default function AdminPricingPage() {
                           onUnitChange={(u) =>
                             updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", u)
                           }
-                          unitAriaLabel="File size unit"
+                          unitAriaLabel={t("fileSizeUnit")}
                         />
                         <div>
                           <label className="text-xs text-[var(--color-text-muted)]">
-                            Concurrent uploads
+                            {t("concurrent")}
                           </label>
                           <input
                             type="number"
@@ -525,22 +528,24 @@ export default function AdminPricingPage() {
                           }
                         />
                         <span className="text-xs text-[var(--color-text-secondary)]">
-                          Highlighted
+                          {t("highlighted")}
                         </span>
                       </label>
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-[var(--color-text-muted)]">Badge:</label>
+                        <label className="text-xs text-[var(--color-text-muted)]">
+                          {t("badge")}:
+                        </label>
                         <input
                           type="text"
                           value={plan.badge ?? ""}
                           onChange={(e) => updatePlan(plan.id, { badge: e.target.value || null })}
                           className="w-24 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                          placeholder="e.g. Popular"
+                          placeholder={t("badgePlaceholder")}
                         />
                       </div>
                       <div className="flex items-center gap-2">
                         <label className="text-xs text-[var(--color-text-muted)]">
-                          Social proof:
+                          {t("socialProof")}:
                         </label>
                         <input
                           type="text"
@@ -549,7 +554,7 @@ export default function AdminPricingPage() {
                             updatePlan(plan.id, { social_proof: e.target.value || null })
                           }
                           className="w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                          placeholder="e.g. Chosen by 1,000+ users"
+                          placeholder={t("socialProofPlaceholder")}
                         />
                       </div>
                     </div>
@@ -557,10 +562,10 @@ export default function AdminPricingPage() {
                     {/* Features */}
                     <div>
                       <div className="mb-3 flex items-center justify-between">
-                        <h4 className={labelClass}>Features</h4>
+                        <h4 className={labelClass}>{t("features")}</h4>
                         <Button variant="ghost" size="sm" onClick={() => addFeature(plan.id)}>
                           <Plus className="h-3 w-3" />
-                          Add feature
+                          {t("addFeature")}
                         </Button>
                       </div>
                       <div className="space-y-2">
@@ -572,9 +577,7 @@ export default function AdminPricingPage() {
                                 updateFeature(plan.id, i, { included: !feature.included })
                               }
                               aria-label={
-                                feature.included
-                                  ? "Mark feature as not included"
-                                  : "Mark feature as included"
+                                feature.included ? t("markNotIncluded") : t("markIncluded")
                               }
                               className={cn(
                                 "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
@@ -594,11 +597,11 @@ export default function AdminPricingPage() {
                               value={feature.text}
                               onChange={(e) => updateFeature(plan.id, i, { text: e.target.value })}
                               className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                              placeholder="Feature text"
+                              placeholder={t("featureText")}
                             />
                             <IconButton
                               icon={Trash2}
-                              label="Remove feature"
+                              label={t("removeFeature")}
                               variant="ghost"
                               onClick={() => removeFeature(plan.id, i)}
                               className="h-6 w-6 flex-shrink-0 hover:bg-red-500/10 hover:text-red-500"
@@ -608,7 +611,7 @@ export default function AdminPricingPage() {
                         ))}
                         {plan.features.length === 0 && (
                           <p className="text-xs text-[var(--color-text-muted)]">
-                            No features yet. Add one to highlight this plan.
+                            {t("noFeatures")}
                           </p>
                         )}
                       </div>
@@ -626,13 +629,9 @@ export default function AdminPricingPage() {
           if (!open) setDeleteTarget(null);
         }}
         destructive
-        title="Delete plan?"
-        description={
-          deleteTarget
-            ? `Remove the "${deleteTarget.name}" plan from the configuration. This takes effect after you save changes. Users on this plan should be reassigned first.`
-            : ""
-        }
-        confirmLabel="Delete plan"
+        title={t("deleteTitle")}
+        description={deleteTarget ? t("deleteDesc", { name: deleteTarget.name }) : ""}
+        confirmLabel={t("deletePlan")}
         onConfirm={() => deleteTarget && deletePlan(deleteTarget.id)}
       />
       <ConfirmDialog
@@ -641,21 +640,18 @@ export default function AdminPricingPage() {
           if (!open && !saving) setConfirmSave(false);
         }}
         destructive
-        title="Apply this plan configuration to everyone?"
+        title={t("applyTitle")}
         description={
           <div className="space-y-2">
-            <p>These limits take effect immediately for every user on each plan.</p>
+            <p>{t("applyIntro")}</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>
-                Lowering storage, max file size, or parallel uploads blocks new uploads for users
-                already above the new limit. Nothing they have stored is deleted.
-              </li>
-              <li>The public pricing page shows the new names, prices, and features right away.</li>
-              <li>Removed plans stop existing; users still assigned to one must be moved first.</li>
+              <li>{t("applyLower")}</li>
+              <li>{t("applyPublic")}</li>
+              <li>{t("applyRemoved")}</li>
             </ul>
           </div>
         }
-        confirmLabel="Apply to all users"
+        confirmLabel={t("applyConfirm")}
         loading={saving}
         onConfirm={() => void handleSave()}
       />

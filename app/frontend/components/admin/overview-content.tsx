@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { SystemStatsCards } from "@/components/admin/system-stats";
 import { TokenManagement } from "@/components/admin/token-management";
 import { AdminSendStorage } from "@/components/admin/send-storage";
@@ -12,6 +13,7 @@ import { qk } from "@/lib/query-keys";
 import { AlertTriangle } from "@/lib/icons";
 
 export function AdminOverviewContent() {
+  const t = useTranslations("admin.overview");
   const { user, data, loading, error, refresh } = useAdminQuery(
     qk.adminOverview,
     fetchAdminOverview,
@@ -27,8 +29,8 @@ export function AdminOverviewContent() {
     return (
       <LoadErrorPanel
         icon={<AlertTriangle className="h-7 w-7 text-[var(--color-text-muted)]" />}
-        title="Couldn't load overview"
-        description="We couldn't reach the server to load system stats and tokens. Check your connection and try again."
+        title={t("errorTitle")}
+        description={t("errorDesc")}
         onRetry={refresh}
       />
     );

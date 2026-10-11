@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { listSessions, revokeOtherSessions, revokeSession, type SessionInfo } from "@/lib/auth-api";
@@ -25,15 +26,18 @@ function DeviceIcon({ ua, className }: { ua: string; className?: string }) {
   return <Icon className={className} />;
 }
 
-function deviceTitle(ua: string): string {
+type Translate = ReturnType<typeof useTranslations>;
+
+function deviceTitle(ua: string, t: Translate): string {
   const { browser, os } = describeUserAgent(ua);
-  if (browser === "Unknown" && os === "Unknown") return "Unknown device";
+  if (browser === "Unknown" && os === "Unknown") return t("unknownDevice");
   if (os === "Unknown") return browser;
   if (browser === "Unknown") return os;
-  return `${browser} on ${os}`;
+  return t("browserOn", { browser, os });
 }
 
 export function SignedInDevices() {
+  const t = useTranslations("settings.signedInDevices");
   const hasToken = useAuthStore((s) => !!s.accessToken);
   const query = useQuery({
     queryKey: qk.sessions,
@@ -57,11 +61,11 @@ export function SignedInDevices() {
     setRevoking(target.id);
     try {
       await revokeSession(token, target.id);
-      toast.success(`${deviceTitle(target.user_agent)} signed out`);
+      toast.success(t("signedOut", { device: deviceTitle(target.user_agent, t) }));
       setConfirmTarget(null);
       refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not sign that device out");
+      toast.error(err instanceof Error ? err.message : t("signOutFailed"));
     } finally {
       setRevoking(null);
     }
@@ -73,13 +77,11 @@ export function SignedInDevices() {
     setRevokingAll(true);
     try {
       const { revoked } = await revokeOtherSessions(token);
-      toast.success(
-        revoked === 1 ? "Signed out 1 other device" : `Signed out ${revoked} other devices`,
-      );
+      toast.success(t("signedOutOthers", { count: revoked }));
       setConfirmAll(false);
       refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not sign the other devices out");
+      toast.error(err instanceof Error ? err.message : t("signOutOthersFailed"));
     } finally {
       setRevokingAll(false);
     }
@@ -87,7 +89,7 @@ export function SignedInDevices() {
 
   if (query.isPending) {
     return (
-      <SettingGroup label="Signed-in devices">
+      <SettingGroup label={t("label")}>
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">
             <Skeleton className="h-9 w-9 flex-shrink-0 rounded-xl" />
@@ -108,15 +110,13 @@ export function SignedInDevices() {
         className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center"
       >
         <MonitorSmartphone className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          Could not load your signed-in devices
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)]">{t("loadFailed")}</p>
         <button
           type="button"
           onClick={() => query.refetch()}
           className="mt-3 text-xs font-medium text-[var(--color-text)] underline underline-offset-2"
         >
-          Try again
+          {t("retry")}
         </button>
       </div>
     );
@@ -125,10 +125,7 @@ export function SignedInDevices() {
   return (
     <div className="space-y-6">
       <TooltipProvider delayDuration={300}>
-        <SettingGroup
-          label="Signed-in devices"
-          footnote="A device you sign out loses access right away and needs your password to get back in. Each sign-in also lasts at most 7 days without use."
-        >
+        <SettingGroup label={t("label")} footnote={t("footnote")}>
           {sessions.map((s) => {
             const busy = revoking === s.id;
             return (
@@ -145,24 +142,26 @@ export function SignedInDevices() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
-                    <span className="truncate">{deviceTitle(s.user_agent)}</span>
+                    <span className="truncate">{deviceTitle(s.user_agent, t)}</span>
                     {s.current && (
                       <span className="flex-shrink-0 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
-                        This device
+                        {t("thisDevice")}
                       </span>
                     )}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
-                    <span className="font-mono">{s.ip || "Unknown network"}</span>
+                    <span className="font-mono">{s.ip || t("unknownNetwork")}</span>
                     {" · "}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="cursor-default tabular-nums">
-                          {s.current ? "Active now" : `Active ${formatRelativeTime(s.last_active)}`}
+                          {s.current
+                            ? t("activeNow")
+                            : t("activeAgo", { time: formatRelativeTime(s.last_active) })}
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side="top">
-                        Signed in {formatDateTime(s.started_at)}
+                        {t("signedInAt", { time: formatDateTime(s.started_at) })}
                       </TooltipContent>
                     </Tooltip>
                   </p>
@@ -180,7 +179,7 @@ export function SignedInDevices() {
                       className="flex-shrink-0 hover:text-red-500"
                     >
                       <LogOut className="h-3.5 w-3.5" />
-                      Sign out
+                      {t("signOut")}
                     </Button>
                   ))}
               </div>
@@ -192,14 +191,14 @@ export function SignedInDevices() {
       {others.length > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 p-4 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-[var(--color-text)]">Sign out everywhere else</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">{t("signOutEverywhere")}</p>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              Ends every session except this one. Use it if a phone or laptop went missing.
+              {t("signOutEverywhereDesc")}
             </p>
           </div>
           <Button variant="danger" onClick={() => setConfirmAll(true)} className="sm:self-center">
             <LogOut className="h-4 w-4" />
-            Sign out {others.length === 1 ? "1 device" : `${others.length} devices`}
+            {t("signOutCount", { count: others.length })}
           </Button>
         </div>
       )}
@@ -210,13 +209,16 @@ export function SignedInDevices() {
           if (!open) setConfirmTarget(null);
         }}
         destructive
-        title="Sign this device out?"
+        title={t("confirmOneTitle")}
         description={
           confirmTarget
-            ? `${deviceTitle(confirmTarget.user_agent)} (${confirmTarget.ip || "unknown network"}) will be signed out immediately.`
+            ? t("confirmOneDesc", {
+                device: deviceTitle(confirmTarget.user_agent, t),
+                network: confirmTarget.ip || t("unknownNetworkLower"),
+              })
             : ""
         }
-        confirmLabel="Sign out"
+        confirmLabel={t("signOut")}
         loading={!!revoking}
         onConfirm={() => void signOutOne()}
       />
@@ -225,9 +227,9 @@ export function SignedInDevices() {
         open={confirmAll}
         onOpenChange={setConfirmAll}
         destructive
-        title="Sign out every other device?"
-        description="Every session except this one ends immediately. Those devices will need your password to sign back in."
-        confirmLabel="Sign out others"
+        title={t("confirmAllTitle")}
+        description={t("confirmAllDesc")}
+        confirmLabel={t("confirmAllLabel")}
         loading={revokingAll}
         onConfirm={() => void signOutOthers()}
       />

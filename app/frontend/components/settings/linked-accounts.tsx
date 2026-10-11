@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import {
@@ -20,6 +21,7 @@ import { GoogleIcon } from "@/components/icons/google";
 import { cn } from "@/lib/utils";
 
 export function LinkedAccounts() {
+  const t = useTranslations("settings.linkedAccounts");
   const { accessToken } = useAuthStore();
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const query = useQuery({
@@ -31,15 +33,15 @@ export function LinkedAccounts() {
   const loading = query.isPending;
   const refresh = () => void queryClient.invalidateQueries({ queryKey: qk.linkedAccounts });
 
-  const handleUnlink = async (provider: string) => {
+  const handleUnlink = async (provider: string, name: string) => {
     if (!accessToken) return;
     setUnlinking(provider);
     try {
       await unlinkAccount(accessToken, provider);
-      toast.success(`${provider} unlinked`);
+      toast.success(t("unlinked", { provider: name }));
       refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unlink failed");
+      toast.error(err instanceof Error ? err.message : t("unlinkFailed"));
     } finally {
       setUnlinking(null);
     }
@@ -95,7 +97,7 @@ export function LinkedAccounts() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-[var(--color-text)]">{name}</p>
               <p className="truncate text-xs text-[var(--color-text-muted)]">
-                {isLinked ? connection.provider_email : "Not connected"}
+                {isLinked ? connection.provider_email : t("notConnected")}
               </p>
             </div>
             {isLinked ? (
@@ -106,10 +108,10 @@ export function LinkedAccounts() {
               ) : (
                 <IconButton
                   icon={X}
-                  label={`Unlink ${name}`}
+                  label={t("unlink", { provider: name })}
                   variant="ghost"
                   iconClassName="h-3.5 w-3.5"
-                  onClick={() => handleUnlink(id)}
+                  onClick={() => handleUnlink(id, name)}
                   className="text-[var(--color-text-muted)] hover:text-red-500"
                 />
               )
@@ -121,7 +123,7 @@ export function LinkedAccounts() {
                 }}
                 className="rounded text-xs font-medium text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
               >
-                Link
+                {t("link")}
               </button>
             )}
           </div>
@@ -130,9 +132,7 @@ export function LinkedAccounts() {
       {data && !data.has_password && linked.length <= 1 && (
         <div className="col-span-full flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5">
           <Link2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            Add a password or link another provider to ensure you can always access your account.
-          </p>
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t("addAccess")}</p>
         </div>
       )}
     </>

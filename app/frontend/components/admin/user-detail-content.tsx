@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -51,6 +52,9 @@ const eventColors: Record<string, string> = {
 };
 
 export function AdminUserDetailContent() {
+  const t = useTranslations("admin.userDetail");
+  const tr = useTranslations("admin.userTable");
+  const ta = useTranslations("admin.audit");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -91,12 +95,12 @@ export function AdminUserDetailContent() {
           className="inline-flex items-center gap-1.5 rounded-md text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to users
+          {t("back")}
         </Link>
         <LoadErrorPanel
           icon={<User className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title="Couldn't load user"
-          description="We couldn't reach the server to load this user's details. Check your connection and try again."
+          title={t("errorTitle")}
+          description={t("errorDesc")}
           onRetry={fetchUser}
         />
       </div>
@@ -115,8 +119,8 @@ export function AdminUserDetailContent() {
       type: "role",
       detail:
         u.role === Role.Admin
-          ? `${u.username} will lose admin privileges.`
-          : `${u.username} will gain full admin access.`,
+          ? t("roleDemoteDetail", { username: u.username })
+          : t("rolePromoteDetail", { username: u.username }),
       newValue: newRole,
     });
   };
@@ -124,7 +128,7 @@ export function AdminUserDetailContent() {
   const handleDelete = () => {
     setConfirmAction({
       type: "delete",
-      detail: `All files, tokens, and data for "${u.username}" will be permanently deleted. This cannot be undone.`,
+      detail: tr("deleteDetail", { username: u.username }),
     });
   };
 
@@ -133,7 +137,15 @@ export function AdminUserDetailContent() {
     const label = targetConfig?.name || newPlan;
     setConfirmAction({
       type: "plan",
-      detail: `Change ${u.username} to ${label} plan${targetConfig ? ` (${targetConfig.storage_display} storage, ${targetConfig.max_file_display} max file, ${targetConfig.concurrent_display})` : ""}.`,
+      detail: targetConfig
+        ? t("planDetailLimits", {
+            username: u.username,
+            plan: label,
+            storage: targetConfig.storage_display,
+            fileSize: targetConfig.max_file_display,
+            concurrent: targetConfig.concurrent_display,
+          })
+        : t("planDetail", { username: u.username, plan: label }),
       newValue: newPlan,
     });
   };
@@ -144,20 +156,20 @@ export function AdminUserDetailContent() {
     try {
       if (confirmAction.type === "delete") {
         await adminDeleteUser(u.id, reauth);
-        toast.success("User deleted");
+        toast.success(tr("userDeleted"));
         router.push("/admin/users");
         return;
       } else if (confirmAction.type === "role") {
         await adminSetUserRole(u.id, confirmAction.newValue!, reauth);
-        toast.success(`Role updated to ${confirmAction.newValue}`);
+        toast.success(tr("roleUpdated", { role: confirmAction.newValue ?? "" }));
       } else if (confirmAction.type === "plan") {
         await adminSetUserPlan(u.id, confirmAction.newValue!);
-        toast.success(`Plan updated to ${confirmAction.newValue}`);
+        toast.success(tr("planUpdated", { plan: confirmAction.newValue ?? "" }));
       }
       closeConfirm();
       void fetchUser();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Action failed");
+      toast.error(err instanceof Error ? err.message : t("actionFailed"));
     } finally {
       setBusy(false);
     }
@@ -180,11 +192,11 @@ export function AdminUserDetailContent() {
         return;
       }
       await adminSetUserQuota(u.id, parsed.bytes);
-      toast.success("Quota updated");
+      toast.success(tr("quotaUpdated"));
       setEditingQuota(false);
       void fetchUser();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update quota");
+      toast.error(err instanceof Error ? err.message : tr("quotaFailed"));
     } finally {
       setBusy(false);
     }
@@ -194,18 +206,22 @@ export function AdminUserDetailContent() {
     if (!confirmAction) return null;
     switch (confirmAction.type) {
       case "delete":
-        return { title: "Delete user", confirmLabel: "Delete user", variant: "danger" as const };
+        return {
+          title: tr("deleteUser"),
+          confirmLabel: tr("deleteUser"),
+          variant: "danger" as const,
+        };
       case "role":
         return {
-          title: confirmAction.newValue === "admin" ? "Promote to admin" : "Demote to user",
-          confirmLabel: confirmAction.newValue === "admin" ? "Promote" : "Demote",
+          title: confirmAction.newValue === "admin" ? tr("promoteTitle") : tr("demoteTitle"),
+          confirmLabel: confirmAction.newValue === "admin" ? tr("promote") : tr("demote"),
           variant: "warning" as const,
         };
       case "plan": {
         const targetConfig = planConfigs.find((p) => p.id === confirmAction.newValue);
         return {
-          title: `Change to ${targetConfig?.name || confirmAction.newValue}`,
-          confirmLabel: "Change plan",
+          title: tr("changeTitle", { plan: targetConfig?.name || confirmAction.newValue || "" }),
+          confirmLabel: tr("changePlan"),
           variant: "warning" as const,
         };
       }
@@ -223,7 +239,7 @@ export function AdminUserDetailContent() {
           className="inline-flex items-center gap-1.5 rounded-md text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to users
+          {t("back")}
         </Link>
 
         {/* User header */}
@@ -244,7 +260,7 @@ export function AdminUserDetailContent() {
                   </span>
                   <span className="flex items-center gap-1 tabular-nums">
                     <Clock className="h-3.5 w-3.5" />
-                    Joined {new Date(u.created_at).toLocaleDateString()}
+                    {t("joined", { date: new Date(u.created_at).toLocaleDateString() })}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -253,11 +269,13 @@ export function AdminUserDetailContent() {
                   {u.totp_enabled && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
                       <Shield className="h-3 w-3" />
-                      2FA
+                      {t("twoFa")}
                     </span>
                   )}
                   {u.email_verified && (
-                    <span className="text-xs text-green-600 dark:text-green-400">Verified</span>
+                    <span className="text-xs text-green-600 dark:text-green-400">
+                      {t("verified")}
+                    </span>
                   )}
                 </div>
               </div>
@@ -266,7 +284,7 @@ export function AdminUserDetailContent() {
             {!isSelf && (
               <div className="flex flex-shrink-0 items-center gap-2">
                 <Select value={u.plan || "free"} onValueChange={handlePlanChange} disabled={busy}>
-                  <SelectTrigger className="h-9 w-28 text-xs" aria-label="Change plan">
+                  <SelectTrigger className="h-9 w-28 text-xs" aria-label={t("changePlan")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -284,11 +302,11 @@ export function AdminUserDetailContent() {
                   </SelectContent>
                 </Select>
                 <Button variant="ghost" size="sm" onClick={handleRoleToggle} disabled={busy}>
-                  {u.role === Role.Admin ? "Demote" : "Promote"}
+                  {u.role === Role.Admin ? tr("demote") : tr("promote")}
                 </Button>
                 <Button variant="danger" size="sm" onClick={handleDelete} disabled={busy}>
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete
+                  {t("delete")}
                 </Button>
               </div>
             )}
@@ -299,34 +317,34 @@ export function AdminUserDetailContent() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {userPlanConfig && (
             <section className="panel p-6">
-              <Section title={`${userPlanConfig.name} plan limits`}>
+              <Section title={t("planLimits", { plan: userPlanConfig.name })}>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] py-2">
-                    <span className="text-xs text-[var(--color-text-muted)]">Storage</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{t("storage")}</span>
                     <span className="text-sm font-semibold tabular-nums">
                       {userPlanConfig.storage_display}
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] py-2">
-                    <span className="text-xs text-[var(--color-text-muted)]">Max file size</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{t("maxFile")}</span>
                     <span className="text-sm font-semibold tabular-nums">
                       {userPlanConfig.max_file_display}
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] py-2">
                     <span className="text-xs text-[var(--color-text-muted)]">
-                      Concurrent uploads
+                      {t("concurrent")}
                     </span>
                     <span className="text-sm font-semibold tabular-nums">
                       {userPlanConfig.concurrent_display}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-[var(--color-text-muted)]">Price</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{t("price")}</span>
                     <span className="text-sm font-semibold tabular-nums">
                       {userPlanConfig.monthly_price > 0
-                        ? `$${userPlanConfig.monthly_price}/mo`
-                        : "Free"}
+                        ? t("perMonth", { price: userPlanConfig.monthly_price })
+                        : t("free")}
                     </span>
                   </div>
                 </div>
@@ -336,11 +354,11 @@ export function AdminUserDetailContent() {
 
           <section className="panel p-6">
             <Section
-              title="Storage usage"
+              title={t("storageUsage")}
               actions={
                 !editingQuota ? (
                   <Button variant="ghost" size="sm" onClick={startEditQuota}>
-                    Override quota
+                    {t("overrideQuota")}
                   </Button>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -348,13 +366,13 @@ export function AdminUserDetailContent() {
                       value={quotaMode}
                       onValueChange={(v) => setQuotaMode(v as typeof quotaMode)}
                     >
-                      <SelectTrigger className="h-8 w-28 text-xs" aria-label="Quota mode">
+                      <SelectTrigger className="h-8 w-28 text-xs" aria-label={tr("quotaMode")}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="default">Plan default</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
-                        <SelectItem value="unlimited">Unlimited</SelectItem>
+                        <SelectItem value="default">{tr("modePlanDefault")}</SelectItem>
+                        <SelectItem value="custom">{tr("modeCustom")}</SelectItem>
+                        <SelectItem value="unlimited">{tr("modeUnlimited")}</SelectItem>
                       </SelectContent>
                     </Select>
                     {quotaMode === "custom" && (
@@ -365,15 +383,15 @@ export function AdminUserDetailContent() {
                         value={quotaInput}
                         onChange={(e) => setQuotaInput(e.target.value)}
                         className="w-20 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                        placeholder="GB"
-                        aria-label="Quota in GB"
+                        placeholder={tr("gb")}
+                        aria-label={tr("quotaGb")}
                       />
                     )}
                     <Button variant="primary" size="sm" onClick={saveQuota} disabled={busy}>
-                      Save
+                      {t("save")}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setEditingQuota(false)}>
-                      Cancel
+                      {tr("cancel")}
                     </Button>
                   </div>
                 )
@@ -381,19 +399,19 @@ export function AdminUserDetailContent() {
             >
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Used</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{t("used")}</p>
                   <p className="text-lg font-semibold tabular-nums">
                     {formatBytes(data.used_bytes)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Quota</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{tr("quota")}</p>
                   <p className="text-lg font-semibold tabular-nums">
                     {formatQuotaDisplay(data.quota_bytes)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Files</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{tr("files")}</p>
                   <p className="text-lg font-semibold tabular-nums">{data.file_count}</p>
                 </div>
               </div>
@@ -422,18 +440,18 @@ export function AdminUserDetailContent() {
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
             <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
             <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-              Recent activity
+              {t("recentActivity")}
             </h3>
             <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
-              ({events.length} events)
+              {ta("eventCount", { count: events.length })}
             </span>
           </div>
 
           {events.length === 0 ? (
             <EmptyState
               icon={<Clock className="h-7 w-7 text-[var(--color-text-muted)]" />}
-              title="No recent activity"
-              description="This user hasn't generated any audited activity yet."
+              title={t("noActivityTitle")}
+              description={t("noActivityDesc")}
             />
           ) : (
             <div className="divide-y divide-[var(--color-border)]">

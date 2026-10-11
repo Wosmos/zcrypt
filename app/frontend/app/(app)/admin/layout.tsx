@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -17,13 +18,13 @@ import {
 import { LayoutGrid, Users, FileText, Crown, Download, AlertTriangle, Star } from "@/lib/icons";
 
 const tabs = [
-  { href: "/admin", label: "Overview", icon: LayoutGrid },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/audit-logs", label: "Audit logs", icon: FileText },
-  { href: "/admin/downloads", label: "Downloads", icon: Download },
-  { href: "/admin/reports", label: "Reports", icon: AlertTriangle },
-  { href: "/admin/reviews", label: "Reviews", icon: Star },
-  { href: "/admin/pricing", label: "Pricing", icon: Crown },
+  { href: "/admin", key: "overview", icon: LayoutGrid },
+  { href: "/admin/users", key: "users", icon: Users },
+  { href: "/admin/audit-logs", key: "auditLogs", icon: FileText },
+  { href: "/admin/downloads", key: "downloads", icon: Download },
+  { href: "/admin/reports", key: "reports", icon: AlertTriangle },
+  { href: "/admin/reviews", key: "reviews", icon: Star },
+  { href: "/admin/pricing", key: "pricing", icon: Crown },
 ];
 
 function isTabActive(href: string, pathname: string) {
@@ -31,6 +32,7 @@ function isTabActive(href: string, pathname: string) {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("admin.layout");
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuthStore();
@@ -49,24 +51,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="animate-fade-in space-y-6">
-      <PageHeader
-        eyebrow="Administration"
-        title="Admin"
-        description="Manage users, platform tokens, plans, and review system activity."
-      />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
 
       {/* Mobile: select-based nav */}
       <div className="sm:hidden">
         <Select value={activeTab.href} onValueChange={(href) => router.push(href)}>
-          <SelectTrigger aria-label="Select admin section">
+          <SelectTrigger aria-label={t("selectSection")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {tabs.map(({ href, label, icon: Icon }) => (
+            {tabs.map(({ href, key, icon: Icon }) => (
               <SelectItem key={href} value={href}>
                 <span className="flex items-center gap-2">
                   <Icon className="h-4 w-4 text-[var(--color-text-muted)]" />
-                  {label}
+                  {t(`tabs.${key}`)}
                 </span>
               </SelectItem>
             ))}
@@ -76,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Desktop: tab navigation */}
       <nav className="-mb-px hidden gap-1 border-b border-[var(--color-border)] sm:flex">
-        {tabs.map(({ href, label, icon: Icon }) => {
+        {tabs.map(({ href, key, icon: Icon }) => {
           const isActive = isTabActive(href, pathname);
           return (
             <Link
@@ -91,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               )}
             >
               <Icon className="h-4 w-4" />
-              {label}
+              {t(`tabs.${key}`)}
             </Link>
           );
         })}

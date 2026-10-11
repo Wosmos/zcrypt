@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { motion, AnimatePresence } from "motion/react";
@@ -31,6 +32,7 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { ArrowLeft, FileText, Plus, Trash2, Lock, AlertTriangle } from "@/lib/icons";
 
 export function DecoyContent() {
+  const t = useTranslations("settings.decoy");
   const [status, setStatus] = useState<DecoyStatus | null>(null);
   const [files, setFiles] = useState<DecoyFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,30 +71,29 @@ export function DecoyContent() {
       return { status: s, files: f };
     },
   });
-  const seeded = useRef(false);
+  const [seeded, setSeeded] = useState(false);
   const settled = !decoyQuery.isPending;
   const loaded = decoyQuery.data;
-  useEffect(() => {
-    if (seeded.current || !settled) return;
-    seeded.current = true;
+  if (!seeded && settled) {
+    setSeeded(true);
     if (loaded) {
       setStatus(loaded.status);
       setFiles(loaded.files);
     }
     setLoading(false);
-  }, [settled, loaded]);
+  }
   useEffect(() => {
-    if (seeded.current && status) queryClient.setQueryData(qk.decoy, { status, files });
-  }, [status, files]);
+    if (seeded && status) queryClient.setQueryData(qk.decoy, { status, files });
+  }, [seeded, status, files]);
 
   const handleSetup = async () => {
     setError("");
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t("passwordShort"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("mismatch"));
       return;
     }
     setSetting(true);
@@ -102,7 +103,7 @@ export function DecoyContent() {
       setPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to set up decoy vault");
+      setError(err instanceof Error ? err.message : t("setupFailed"));
     } finally {
       setSetting(false);
     }
@@ -122,11 +123,9 @@ export function DecoyContent() {
     }
   };
 
+  const keyReady = !!userId && decoyKeyPass.length >= 6;
   useEffect(() => {
-    if (!userId || decoyKeyPass.length < 6) {
-      setDecoyKey(null);
-      return;
-    }
+    if (!userId || !keyReady) return;
     let cancelled = false;
     (async () => {
       const key = await deriveNameKey(decoyKeyPass, userId);
@@ -152,23 +151,24 @@ export function DecoyContent() {
     return () => {
       cancelled = true;
     };
-  }, [decoyKeyPass, userId, files]);
+  }, [decoyKeyPass, userId, files, keyReady]);
 
+  const activeKey = keyReady ? decoyKey : null;
   const keyProven =
-    !!decoyKey &&
+    !!activeKey &&
     (!files.some((f) => isSealed(f.original_name)) ||
       files.some((f) => isSealed(f.original_name) && names[f.id] && names[f.id] !== LOCKED));
   const displayName = (f: DecoyFile) =>
     isSealed(f.original_name) ? (names[f.id] ?? LOCKED) : f.original_name;
 
   const handleAddFile = async () => {
-    if (!fileName.trim() || !decoyKey || !keyProven) return;
+    if (!fileName.trim() || !activeKey || !keyProven) return;
     setAdding(true);
     try {
       const sizeBytes = parseFloat(fileSize || "0") * 1024 * 1024; // MB to bytes
       const file = await addDecoyFile(
         { name: fileName.trim(), size: Math.round(sizeBytes) },
-        decoyKey,
+        activeKey,
       );
       setNames((prev) => ({ ...prev, [file.id]: file.original_name }));
       setFiles((prev) => [file, ...prev]);
@@ -212,19 +212,15 @@ export function DecoyContent() {
         href="/settings"
         className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
       >
-        <ArrowLeft className="h-3 w-3" /> Back to settings
+        <ArrowLeft className="h-3 w-3" /> {t("back")}
       </Link>
 
-      <PageHeader
-        eyebrow="Privacy"
-        title="Plausible deniability"
-        description="Set a decoy password that reveals a fake vault when used: for journalists, activists, and border crossings."
-      />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
 
       {/* Setup / Status */}
       <div className="panel p-6">
         <Section
-          title="Decoy vault"
+          title={t("vault")}
           actions={
             configured ? (
               <Badge
@@ -235,7 +231,7 @@ export function DecoyContent() {
                     : "border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
                 }
               >
-                {status?.enabled ? "Active" : "Disabled"}
+                {status?.enabled ? t("active") : t("disabled")}
               </Badge>
             ) : undefined
           }
@@ -243,23 +239,22 @@ export function DecoyContent() {
           {!configured ? (
             <div className="space-y-4">
               <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                Set a decoy password. When someone forces you to log in, use this password instead.
-                They will see fake files rather than your real vault.
+                {t("setupIntro")}
               </p>
               <Input
                 type="password"
-                label="Decoy password"
+                label={t("password")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder={t("passwordPlaceholder")}
                 icon={<Lock className="h-4 w-4" />}
               />
               <Input
                 type="password"
-                label="Confirm decoy password"
+                label={t("confirmPassword")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter decoy password"
+                placeholder={t("confirmPlaceholder")}
                 icon={<Lock className="h-4 w-4" />}
               />
               {error && (
@@ -278,21 +273,20 @@ export function DecoyContent() {
               >
                 {setting ? (
                   <span className="flex items-center gap-2">
-                    <LogoSpinner size={14} speed="fast" /> Setting up...
+                    <LogoSpinner size={14} speed="fast" /> {t("settingUp")}
                   </span>
                 ) : (
-                  "Enable decoy vault"
+                  t("enable")
                 )}
               </Button>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 px-4 py-3">
               <span className="text-sm text-[var(--color-text-secondary)] tabular-nums">
-                {status?.file_count ?? files.length} decoy{" "}
-                {(status?.file_count ?? files.length) === 1 ? "file" : "files"} configured
+                {t("configured", { count: status?.file_count ?? files.length })}
               </span>
               <Button variant="danger" size="sm" onClick={() => setConfirmRemoveVault(true)}>
-                Remove decoy vault
+                {t("removeVault")}
               </Button>
             </div>
           )}
@@ -303,8 +297,8 @@ export function DecoyContent() {
       {configured && (
         <div className="panel p-6">
           <Section
-            title={`Decoy files (${files.length})`}
-            description="Add innocent-looking fake files to make the decoy vault convincing."
+            title={t("filesTitle", { count: files.length })}
+            description={t("filesDesc")}
             actions={
               <Button
                 variant="secondary"
@@ -313,10 +307,10 @@ export function DecoyContent() {
                 aria-expanded={showAddFile}
               >
                 {showAddFile ? (
-                  "Cancel"
+                  t("cancel")
                 ) : (
                   <span className="flex items-center gap-1.5">
-                    <Plus className="h-3.5 w-3.5" /> Add file
+                    <Plus className="h-3.5 w-3.5" /> {t("addFile")}
                   </span>
                 )}
               </Button>
@@ -335,29 +329,28 @@ export function DecoyContent() {
                     <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 p-4">
                       <Input
                         type="password"
-                        label="Decoy password"
+                        label={t("password")}
                         value={decoyKeyPass}
                         onChange={(e) => setDecoyKeyPass(e.target.value)}
-                        placeholder="Needed to seal file names, never sent to the server"
+                        placeholder={t("sealPlaceholder")}
                         autoComplete="off"
                       />
-                      {decoyKey && !keyProven && (
+                      {activeKey && !keyProven && (
                         <p className="text-xs text-red-600 dark:text-red-400">
-                          That password doesn&apos;t open your existing decoy files. Check it before
-                          adding more.
+                          {t("wrongPassword")}
                         </p>
                       )}
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <Input
                           type="text"
-                          label="File name"
+                          label={t("fileName")}
                           value={fileName}
                           onChange={(e) => setFileName(e.target.value)}
                           placeholder="vacation-photos.zip"
                         />
                         <Input
                           type="number"
-                          label="Size (MB)"
+                          label={t("sizeMb")}
                           value={fileSize}
                           onChange={(e) => setFileSize(e.target.value)}
                           placeholder="25"
@@ -370,10 +363,10 @@ export function DecoyContent() {
                       >
                         {adding ? (
                           <span className="flex items-center gap-2">
-                            <LogoSpinner size={12} speed="fast" /> Adding...
+                            <LogoSpinner size={12} speed="fast" /> {t("adding")}
                           </span>
                         ) : (
-                          "Add decoy file"
+                          t("addDecoyFile")
                         )}
                       </Button>
                     </div>
@@ -384,9 +377,9 @@ export function DecoyContent() {
               {files.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">
                   <FileText className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
-                  <p className="text-sm text-[var(--color-text-secondary)]">No decoy files yet</p>
+                  <p className="text-sm text-[var(--color-text-secondary)]">{t("noFiles")}</p>
                   <p className="mx-auto mt-1 max-w-xs text-xs text-[var(--color-text-muted)]">
-                    Add some innocent-looking fake files to make the decoy vault convincing.
+                    {t("noFilesDesc")}
                   </p>
                 </div>
               ) : (
@@ -409,7 +402,7 @@ export function DecoyContent() {
                       </div>
                       <IconButton
                         icon={Trash2}
-                        label={`Remove ${displayName(file)}`}
+                        label={t("removeFile", { name: displayName(file) })}
                         variant="ghost"
                         iconClassName="h-3.5 w-3.5"
                         onClick={() => setFileToDelete(file)}
@@ -426,21 +419,15 @@ export function DecoyContent() {
 
       {/* How it works */}
       <div className="panel p-6">
-        <Section title="How it works">
+        <Section title={t("howTitle")}>
           <ol className="space-y-2.5">
-            {[
-              "Set a decoy password: different from your real password.",
-              "Add innocent-looking fake files to the decoy vault.",
-              "If forced to log in, use the decoy password instead.",
-              "The attacker sees the fake files; your real vault stays hidden.",
-              "There is no way for an attacker to tell the difference.",
-            ].map((step, i) => (
+            {["s1", "s2", "s3", "s4", "s5"].map((step, i) => (
               <li key={i} className="flex items-start gap-3">
                 <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-1)] text-[10px] font-bold tabular-nums text-[var(--color-text-secondary)] ring-1 ring-[var(--color-border)]">
                   {i + 1}
                 </span>
                 <span className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                  {step}
+                  {t(`steps.${step}`)}
                 </span>
               </li>
             ))}
@@ -455,9 +442,9 @@ export function DecoyContent() {
           if (!open) setConfirmRemoveVault(false);
         }}
         destructive
-        title="Remove decoy vault?"
-        description="This permanently deletes your decoy password and all decoy files. Your real vault is unaffected."
-        confirmLabel="Remove"
+        title={t("removeVaultTitle")}
+        description={t("removeVaultDesc")}
+        confirmLabel={t("remove")}
         loading={removingVault}
         onConfirm={handleRemoveVault}
       />
@@ -467,11 +454,9 @@ export function DecoyContent() {
           if (!open) setFileToDelete(null);
         }}
         destructive
-        title="Remove decoy file?"
-        description={
-          fileToDelete ? `Remove "${displayName(fileToDelete)}" from the decoy vault?` : ""
-        }
-        confirmLabel="Remove"
+        title={t("removeFileTitle")}
+        description={fileToDelete ? t("removeFileDesc", { name: displayName(fileToDelete) }) : ""}
+        confirmLabel={t("remove")}
         loading={deletingFile}
         onConfirm={handleDeleteFile}
       />
