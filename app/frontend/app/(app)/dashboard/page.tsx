@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { VaultExplorer, type VaultExplorerHandle } from "@/components/files/vault-explorer";
 import { DropOverlay } from "@/components/files/drop-overlay";
@@ -52,6 +53,7 @@ import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 import { useRecentlyViewedStore } from "@/store/recently-viewed";
+import { parseVaultCollection, useVaultView } from "@/store/vault-view";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { VaultShortcuts } from "@/components/files/vault-shortcuts";
 import type { DecryptedFolder } from "@/hooks/useFolders";
@@ -78,6 +80,12 @@ export default function VaultPage() {
   const search = useVaultSearch((s) => s.query);
   const setSearch = useVaultSearch((s) => s.setQuery);
   const explorerRef = useRef<VaultExplorerHandle>(null);
+  const router = useRouter();
+  const collection = parseVaultCollection(useSearchParams().get("view"));
+  useEffect(() => {
+    useVaultView.getState().setCollection(collection);
+    return () => useVaultView.getState().setCollection(null);
+  }, [collection]);
   useEffect(() => () => useVaultSearch.getState().setQuery(""), []);
 
   // OS file drop anywhere on the page. dragDepth counts nested enter/leave
@@ -467,6 +475,8 @@ export default function VaultPage() {
             ref={explorerRef}
             search={search}
             onSearchChange={setSearch}
+            collection={collection}
+            onExitCollection={() => router.push("/dashboard")}
             files={files}
             loading={loading || !vault.ready}
             error={error}

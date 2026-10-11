@@ -7,6 +7,8 @@ import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import { folderLook } from "./folder-look";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
+import { StarButton } from "./star-button";
+import { useIsStarred, useStarredStore } from "@/store/starred";
 import {
   formatBytes,
   getFileTypeInfo,
@@ -33,6 +35,7 @@ import {
   Key,
   Unlock,
   PaintBrush,
+  Star,
 } from "@/lib/icons";
 import {
   ContextMenu,
@@ -200,6 +203,7 @@ function FileCardInner({
   const isVideo = isVideoFile(displayName);
 
   const ext = extOf(displayName).toUpperCase().slice(0, 4);
+  const starred = useIsStarred(file.id);
 
   return (
     <ContextMenu>
@@ -249,6 +253,12 @@ function FileCardInner({
             />
           )}
 
+          <StarButton
+            fileId={file.id}
+            name={displayName}
+            className="absolute right-1.5 top-1.5 z-10"
+          />
+
           {/* Preview: free-standing, sized to the file's own aspect ratio
               (landscape stays landscape, portrait stays portrait), macOS-icon
               style: a photo for image/video, a small document tile otherwise. */}
@@ -295,6 +305,12 @@ function FileCardInner({
             <ContextMenuSeparator />
           </>
         )}
+        <ContextMenuItem
+          className="gap-2"
+          onSelect={() => useStarredStore.getState().toggle(file.id)}
+        >
+          <Star className="h-4 w-4" /> {t(starred ? "unstar" : "star")}
+        </ContextMenuItem>
         {actions.onPreview && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(displayName)}>
             <Eye className="h-4 w-4" /> {t("preview")}

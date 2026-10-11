@@ -39,7 +39,9 @@
     "rate": "Valorar zcrypt",
     "reportBug": "Informar de un error",
     "logOut": "Cerrar sesión",
-    "appVersion": "Versión de zcrypt {version}"
+    "appVersion": "Versión de zcrypt {version}",
+    "recents": "Recientes",
+    "starred": "Destacados"
   },
   "vaultLock": {
     "locked": "Bloqueada",
@@ -124,7 +126,21 @@
     "toastCustomizeFailed": "No se pudo actualizar la personalización",
     "toastDeleteFolderFailed": "No se pudo eliminar la carpeta",
     "toastUnlockToCreate": "Desbloquea tu bóveda para crear una carpeta.",
-    "toastCreateFolderFailedShort": "No se pudo crear la carpeta"
+    "toastCreateFolderFailedShort": "No se pudo crear la carpeta",
+    "collection": {
+      "path": "Vista de la bóveda",
+      "backToVault": "Bóveda",
+      "recents": {
+        "title": "Recientes",
+        "emptyTitle": "Nada abierto últimamente",
+        "emptyDescription": "Abre un archivo y aparecerá aquí, el más reciente primero. Esta lista vive solo en este dispositivo; no somos tan curiosos."
+      },
+      "starred": {
+        "title": "Destacados",
+        "emptyTitle": "Aún no hay destacados",
+        "emptyDescription": "Destaca los archivos a los que siempre vuelves y te esperarán aquí. Los destacados se quedan en este dispositivo, así que ni nosotros sabremos cuáles son tus favoritos."
+      }
+    }
   },
   "dashboard": {
     "dropTitle": "Suelta para cifrar en este dispositivo",

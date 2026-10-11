@@ -7,6 +7,8 @@ import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } 
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
+import { StarButton } from "./star-button";
+import { useIsStarred, useStarredStore } from "@/store/starred";
 import {
   formatBytes,
   formatDate,
@@ -37,6 +39,7 @@ import {
   Unlock,
   PaintBrush,
   AlertTriangle,
+  Star,
 } from "@/lib/icons";
 import {
   DropdownMenu,
@@ -249,6 +252,7 @@ function FileRow({
     file.original_size,
   );
   const savings = savingsPercent(file.original_size, file.encrypted_size);
+  const starred = useIsStarred(file.id);
 
   return (
     <div
@@ -347,6 +351,7 @@ function FileRow({
       <span className="hidden w-[110px] flex-shrink-0 text-right text-sm text-[var(--color-text-secondary)] sm:block">
         {formatDate(file.created_at)}
       </span>
+      <StarButton fileId={file.id} name={displayName} />
       <DropdownMenu>
         <MenuTrigger label={t("actionsFor", { name: displayName })} />
         <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
@@ -358,6 +363,9 @@ function FileRow({
               <DropdownMenuSeparator />
             </>
           )}
+          <DropdownMenuItem onClick={() => useStarredStore.getState().toggle(file.id)}>
+            <Star className="h-4 w-4" /> {t(starred ? "unstar" : "star")}
+          </DropdownMenuItem>
           {actions.onPreview && (
             <DropdownMenuItem onClick={() => actions.onPreview?.(displayName)}>
               <Eye className="h-4 w-4" /> {t("preview")}

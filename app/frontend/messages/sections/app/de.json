@@ -764,7 +764,11 @@
       "retrying": "Sicherung dieser Datei wird erneut versucht",
       "retryFailed": "Die Sicherung konnte nicht erneut versucht werden",
       "notBackedUpHint": "Diese Datei hat deinen Speicher noch nicht erreicht. Tippe, um es erneut zu versuchen.",
-      "notBackedUp": "Nicht gesichert"
+      "notBackedUp": "Nicht gesichert",
+      "star": "Markieren",
+      "unstar": "Markierung entfernen",
+      "starFile": "{name} markieren",
+      "unstarFile": "Markierung von {name} entfernen"
     },
     "vaultExplorer": {
       "duplicateFolder": "Ein Ordner mit dem Namen „{name}“ existiert hier bereits.",
@@ -787,7 +791,8 @@
         "trash": "In den Papierkorb verschieben",
         "rename": "Umbenennen",
         "clear": "Auswahl aufheben",
-        "show": "Diese Tastenkürzel anzeigen"
+        "show": "Diese Tastenkürzel anzeigen",
+        "star": "Datei markieren oder Markierung entfernen"
       }
     },
     "hooks": {

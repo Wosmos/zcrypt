@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { cn, formatBytes } from "@/lib/utils";
 import { Role } from "@/types";
 import { usePreferencesStore } from "@/store/preferences";
+import { useVaultView, type VaultCollection } from "@/store/vault-view";
 import {
   Settings,
   Shield,
@@ -18,6 +19,8 @@ import {
   Trash2,
   BarChart3,
   Layers,
+  Clock,
+  Star,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { VaultLock } from "@/components/ui/vault-lock";
@@ -48,14 +51,23 @@ const TOUR_NAV: Record<string, string> = {
 };
 
 function prefetchRoute(href: string): void {
-  void prefetchers[href]?.().catch(() => {});
+  void prefetchers[href.split("?")[0]]?.().catch(() => {});
 }
 
-const primaryLinks = [
+interface PrimaryLink {
+  href: string;
+  labelKey: string;
+  icon: typeof Shield;
+  view?: VaultCollection;
+}
+
+const primaryLinks: PrimaryLink[] = [
   { href: "/dashboard", labelKey: "vault", icon: Shield },
+  { href: "/dashboard?view=recents", labelKey: "recents", icon: Clock, view: "recents" },
+  { href: "/dashboard?view=starred", labelKey: "starred", icon: Star, view: "starred" },
   { href: "/analytics", labelKey: "insights", icon: BarChart3 },
   { href: "/spaces", labelKey: "spaces", icon: Layers },
-] as const;
+];
 
 const advancedLink = { href: "/tools", labelKey: "tools", icon: Wand2 } as const;
 const adminLink = { href: "/admin", labelKey: "admin", icon: Users } as const;
@@ -91,7 +103,12 @@ export function Sidebar() {
   const totalMax = quota && !quota.is_unlimited && quota.quota_bytes > 0 ? quota.quota_bytes : 0;
   const storagePercent = totalMax > 0 ? Math.min((totalUsed / totalMax) * 100, 100) : 0;
 
+  const vaultView = useVaultView((s) => s.collection);
   const isActive = (href: string) => {
+    if (href.startsWith("/dashboard")) {
+      const view = new URL(href, "http://x").searchParams.get("view");
+      return pathname === "/dashboard" && (view ?? null) === vaultView;
+    }
     if (href === "/admin") return pathname.startsWith("/admin");
     if (href === "/tools") return pathname.startsWith("/tools");
     if (href === "/spaces") return pathname.startsWith("/spaces");

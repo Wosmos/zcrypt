@@ -39,7 +39,9 @@
     "rate": "Rate zcrypt",
     "reportBug": "Report a bug",
     "logOut": "Log out",
-    "appVersion": "zcrypt version {version}"
+    "appVersion": "zcrypt version {version}",
+    "recents": "Recents",
+    "starred": "Starred"
   },
   "vaultLock": {
     "locked": "Locked",
@@ -124,7 +126,21 @@
     "toastCustomizeFailed": "Failed to update customization",
     "toastDeleteFolderFailed": "Failed to delete folder",
     "toastUnlockToCreate": "Unlock your vault to create a folder.",
-    "toastCreateFolderFailedShort": "Couldn't create the folder"
+    "toastCreateFolderFailedShort": "Couldn't create the folder",
+    "collection": {
+      "path": "Vault view",
+      "backToVault": "Vault",
+      "recents": {
+        "title": "Recents",
+        "emptyTitle": "Nothing opened lately",
+        "emptyDescription": "Open a file and it lands here, newest first. This list lives on this device only; we are not that nosy."
+      },
+      "starred": {
+        "title": "Starred",
+        "emptyTitle": "No stars yet",
+        "emptyDescription": "Star the files you keep coming back to and they will wait for you here. Stars stay on this device, so even we will never know your favorites."
+      }
+    }
   },
   "dashboard": {
     "dropTitle": "Drop to encrypt on this device",

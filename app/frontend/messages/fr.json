@@ -39,7 +39,9 @@
     "rate": "Noter zcrypt",
     "reportBug": "Signaler un bug",
     "logOut": "Se déconnecter",
-    "appVersion": "Version de zcrypt {version}"
+    "appVersion": "Version de zcrypt {version}",
+    "recents": "Récents",
+    "starred": "Favoris"
   },
   "vaultLock": {
     "locked": "Verrouillé",
@@ -124,7 +126,21 @@
     "toastCustomizeFailed": "Échec de la mise à jour de la personnalisation",
     "toastDeleteFolderFailed": "Échec de la suppression du dossier",
     "toastUnlockToCreate": "Déverrouillez votre coffre pour créer un dossier.",
-    "toastCreateFolderFailedShort": "Impossible de créer le dossier"
+    "toastCreateFolderFailedShort": "Impossible de créer le dossier",
+    "collection": {
+      "path": "Vue du coffre",
+      "backToVault": "Coffre",
+      "recents": {
+        "title": "Récents",
+        "emptyTitle": "Rien d'ouvert récemment",
+        "emptyDescription": "Ouvrez un fichier et il atterrit ici, le plus récent en premier. Cette liste reste sur cet appareil uniquement ; nous ne sommes pas si indiscrets."
+      },
+      "starred": {
+        "title": "Favoris",
+        "emptyTitle": "Aucun favori pour l'instant",
+        "emptyDescription": "Ajoutez en favori les fichiers auxquels vous revenez sans cesse, ils vous attendront ici. Les favoris restent sur cet appareil : même nous ne saurons pas lesquels vous préférez."
+      }
+    }
   },
   "dashboard": {
     "dropTitle": "Déposez pour chiffrer sur cet appareil",

@@ -39,7 +39,9 @@
     "rate": "zcrypt کو ریٹ کریں",
     "reportBug": "خرابی کی اطلاع دیں",
     "logOut": "لاگ آؤٹ",
-    "appVersion": "zcrypt ورژن {version}"
+    "appVersion": "zcrypt ورژن {version}",
+    "recents": "حالیہ",
+    "starred": "ستارہ شدہ"
   },
   "vaultLock": {
     "locked": "مقفل",
@@ -124,7 +126,21 @@
     "toastCustomizeFailed": "حسبِ ضرورت ترتیب اپ ڈیٹ کرنے میں ناکامی",
     "toastDeleteFolderFailed": "فولڈر حذف کرنے میں ناکامی",
     "toastUnlockToCreate": "فولڈر بنانے کے لیے اپنا والٹ کھولیں۔",
-    "toastCreateFolderFailedShort": "فولڈر نہیں بنایا جا سکا"
+    "toastCreateFolderFailedShort": "فولڈر نہیں بنایا جا سکا",
+    "collection": {
+      "path": "والٹ کا منظر",
+      "backToVault": "والٹ",
+      "recents": {
+        "title": "حالیہ",
+        "emptyTitle": "حال ہی میں کچھ نہیں کھولا",
+        "emptyDescription": "کوئی فائل کھولیں تو وہ یہاں آ جائے گی، سب سے نئی پہلے۔ یہ فہرست صرف اسی ڈیوائس پر رہتی ہے؛ ہم اتنے تانک جھانک والے نہیں۔"
+      },
+      "starred": {
+        "title": "ستارہ شدہ",
+        "emptyTitle": "ابھی کوئی ستارہ نہیں",
+        "emptyDescription": "جن فائلوں پر آپ بار بار لوٹتے ہیں ان پر ستارہ لگائیں، وہ یہاں آپ کا انتظار کریں گی۔ ستارے اسی ڈیوائس پر رہتے ہیں، اس لیے ہمیں بھی آپ کی پسند کا پتا نہیں چلے گا۔"
+      }
+    }
   },
   "dashboard": {
     "dropTitle": "اس ڈیوائس پر انکرپٹ کرنے کے لیے چھوڑیں",

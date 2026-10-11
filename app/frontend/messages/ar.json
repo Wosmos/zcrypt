@@ -39,7 +39,9 @@
     "rate": "قيّم zcrypt",
     "reportBug": "الإبلاغ عن خطأ",
     "logOut": "تسجيل الخروج",
-    "appVersion": "إصدار zcrypt {version}"
+    "appVersion": "إصدار zcrypt {version}",
+    "recents": "الأخيرة",
+    "starred": "المميّزة"
   },
   "vaultLock": {
     "locked": "مقفلة",
@@ -124,7 +126,21 @@
     "toastCustomizeFailed": "فشل تحديث التخصيص",
     "toastDeleteFolderFailed": "فشل حذف المجلد",
     "toastUnlockToCreate": "افتح خزنتك لإنشاء مجلد.",
-    "toastCreateFolderFailedShort": "تعذّر إنشاء المجلد"
+    "toastCreateFolderFailedShort": "تعذّر إنشاء المجلد",
+    "collection": {
+      "path": "عرض الخزنة",
+      "backToVault": "الخزنة",
+      "recents": {
+        "title": "الأخيرة",
+        "emptyTitle": "لم يُفتح شيء مؤخرًا",
+        "emptyDescription": "افتح ملفًا وسيظهر هنا، الأحدث أولًا. هذه القائمة تبقى على هذا الجهاز فقط، فنحن لسنا فضوليين إلى هذا الحد."
+      },
+      "starred": {
+        "title": "المميّزة",
+        "emptyTitle": "لا نجوم بعد",
+        "emptyDescription": "ضع نجمة على الملفات التي تعود إليها دائمًا وستنتظرك هنا. النجوم تبقى على هذا الجهاز، فلن نعرف حتى نحن ما تفضّله."
+      }
+    }
   },
   "dashboard": {
     "dropTitle": "أفلت لتشفير الملفات على هذا الجهاز",

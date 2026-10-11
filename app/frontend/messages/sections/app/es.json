@@ -764,7 +764,11 @@
       "retrying": "Reintentando la copia de seguridad de este archivo",
       "retryFailed": "No se pudo reintentar la copia de seguridad",
       "notBackedUpHint": "Este archivo aún no ha llegado a tu almacenamiento. Toca para reintentar.",
-      "notBackedUp": "Sin copia de seguridad"
+      "notBackedUp": "Sin copia de seguridad",
+      "star": "Destacar",
+      "unstar": "Quitar destacado",
+      "starFile": "Destacar {name}",
+      "unstarFile": "Quitar destacado de {name}"
     },
     "vaultExplorer": {
       "duplicateFolder": "Ya existe aquí una carpeta llamada «{name}».",
@@ -787,7 +791,8 @@
         "trash": "Mover a la papelera",
         "rename": "Renombrar",
         "clear": "Borrar la selección",
-        "show": "Mostrar estos atajos"
+        "show": "Mostrar estos atajos",
+        "star": "Destacar o quitar el destacado de un archivo"
       }
     },
     "hooks": {

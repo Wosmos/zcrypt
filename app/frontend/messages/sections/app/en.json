@@ -764,7 +764,11 @@
       "retrying": "Retrying the backup of this file",
       "retryFailed": "Could not retry the backup",
       "notBackedUpHint": "This file hasn't reached your storage yet. Tap to retry.",
-      "notBackedUp": "Not backed up"
+      "notBackedUp": "Not backed up",
+      "star": "Star",
+      "unstar": "Remove star",
+      "starFile": "Star {name}",
+      "unstarFile": "Remove star from {name}"
     },
     "vaultExplorer": {
       "duplicateFolder": "A folder named \"{name}\" already exists here.",
@@ -787,7 +791,8 @@
         "trash": "Move to Trash",
         "rename": "Rename",
         "clear": "Clear the selection",
-        "show": "Show these shortcuts"
+        "show": "Show these shortcuts",
+        "star": "Star or unstar a file"
       }
     },
     "hooks": {

@@ -764,7 +764,11 @@
       "retrying": "正在重试备份此文件",
       "retryFailed": "无法重试备份",
       "notBackedUpHint": "此文件尚未到达你的存储。点击重试。",
-      "notBackedUp": "未备份"
+      "notBackedUp": "未备份",
+      "star": "加星标",
+      "unstar": "取消星标",
+      "starFile": "为 {name} 加星标",
+      "unstarFile": "取消 {name} 的星标"
     },
     "vaultExplorer": {
       "duplicateFolder": "此处已存在名为“{name}”的文件夹。",
@@ -787,7 +791,8 @@
         "trash": "移到回收站",
         "rename": "重命名",
         "clear": "清除选择",
-        "show": "显示这些快捷键"
+        "show": "显示这些快捷键",
+        "star": "为文件加星标或取消"
       }
     },
     "hooks": {
