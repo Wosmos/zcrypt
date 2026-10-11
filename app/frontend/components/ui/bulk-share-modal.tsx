@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X, Share2, Copy, Check, Link2, AlertTriangle } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { createFileShareLink } from "@/lib/file-share";
+import { runPool, SHARE_CONCURRENCY } from "@/lib/pool";
 import { copyToClipboard } from "@/lib/clipboard";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
@@ -49,10 +50,20 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
     }
 
     setLoading(true);
-    void Promise.allSettled(
-      files.map((f) =>
-        createFileShareLink(f.id, { expiresHours: DEFAULT_EXPIRY_HOURS || undefined }),
-      ),
+    void runPool(
+      files,
+      (f) =>
+        createFileShareLink(f.id, { expiresHours: DEFAULT_EXPIRY_HOURS || undefined }).then(
+          (value): PromiseSettledResult<Awaited<ReturnType<typeof createFileShareLink>>> => ({
+            status: "fulfilled",
+            value,
+          }),
+          (reason): PromiseSettledResult<Awaited<ReturnType<typeof createFileShareLink>>> => ({
+            status: "rejected",
+            reason,
+          }),
+        ),
+      SHARE_CONCURRENCY,
     ).then((settled) => {
       setResults(
         settled.map((r, i) => {

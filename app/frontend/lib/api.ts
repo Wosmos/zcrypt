@@ -215,6 +215,29 @@ export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
   return request<FileMetaResponse>(`/api/files/${fileId}/meta`);
 }
 
+const META_BATCH = 200;
+
+/** Metadata for many files in 200-id requests (two at a time). Unknown ids are
+ *  omitted by the server. */
+export async function getFileMetas(ids: string[]): Promise<FileMetaResponse[]> {
+  const groups: string[][] = [];
+  for (let i = 0; i < ids.length; i += META_BATCH) groups.push(ids.slice(i, i + META_BATCH));
+  const out: FileMetaResponse[][] = new Array(groups.length);
+  let next = 0;
+  const lane = async () => {
+    for (let g = next++; g < groups.length; g = next++) {
+      const res = await request<{ files: FileMetaResponse[] }>("/api/files/meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: groups[g] }),
+      });
+      out[g] = res.files ?? [];
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, groups.length) }, lane));
+  return out.flat();
+}
+
 /** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
 // A chunk download is a bare fetch (not the `request()` wrapper), so it must
 // carry its own timeout. Without one, a stalled fetch, e.g. a chunk still
@@ -1869,6 +1892,31 @@ export function addFileToSpace(
   });
 }
 
+export interface SpaceBatchFile {
+  file_id: string;
+  wrapped_cek: string;
+  wrapped_name: string;
+}
+
+export interface SpaceBatchResult {
+  added: number;
+  skipped: string[];
+  rejected: { file_id: string; reason: string }[];
+}
+
+/** Share many files into a space in one request (same per-file fields as the
+ *  single add). A 403 rejects the whole batch. */
+export function addFilesToSpaceBatch(
+  vaultId: string,
+  files: SpaceBatchFile[],
+): Promise<SpaceBatchResult> {
+  return request<SpaceBatchResult>(`/api/shared-vaults/${vaultId}/files/batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ files }),
+  });
+}
+
 /** Unshare a file from a space (editor/admin only). */
 export function removeFileFromSpace(
   vaultId: string,
@@ -1885,11 +1933,12 @@ export function rotateSpace(
   vaultId: string,
   members: { user_id: string; wrapped_space_key: string }[],
   files: { file_id: string; wrapped_cek: string; wrapped_name: string }[],
+  meta?: { name: string; description: string },
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/rotate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ members, files }),
+    body: JSON.stringify(meta ? { members, files, ...meta } : { members, files }),
   });
 }
 

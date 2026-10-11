@@ -15,14 +15,14 @@ import { createFolderShare, getFileMeta, listFolderSubtree } from "@/lib/api";
 import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
 import { sealText, keyFromBytes } from "@/lib/sealed";
 import { sealFileNameForLink } from "@/lib/file-share";
+import { runPool } from "@/lib/pool";
 import { usePassphraseStore } from "@/store/passphrase";
-
-const SHARE_CONCURRENCY = 6;
 
 export interface FolderShareOptions {
   password?: string;
   expiresHours?: number;
   maxDownloads?: number;
+  onProgress?: (done: number, total: number) => void;
 }
 
 /** Neutralize a decrypted name so it's safe as a single zip path segment, no
@@ -85,20 +85,16 @@ async function buildFolderPaths(rootId: string, nameKey: CryptoKey): Promise<Map
 export async function warmFolderShareKeys(files: { id: string }[]): Promise<void> {
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) return;
-  let next = 0;
-  const worker = async () => {
-    for (let i = next++; i < files.length; i = next++) {
-      try {
-        const meta = await getFileMeta(files[i].id);
-        if (meta.wrapped_cek) {
-          await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
-        }
-      } catch {
-        /* handled when the link is created */
+  await runPool(files, async (f) => {
+    try {
+      const meta = await getFileMeta(f.id);
+      if (meta.wrapped_cek) {
+        await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
       }
+    } catch {
+      /* handled when the link is created */
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(SHARE_CONCURRENCY, files.length) }, worker));
+  });
 }
 
 /**
@@ -187,11 +183,11 @@ export async function createFolderShareLink(
   // Every file has its own salt, so each one costs a 600k-iteration PBKDF2 plus a
   // metadata round trip. WebCrypto runs the derivations off the main thread, so
   // overlapping them cuts the wait roughly by the pool size.
-  let next = 0;
-  const worker = async () => {
-    for (let i = next++; i < files.length; i = next++) await shareOne(files[i], i);
-  };
-  await Promise.all(Array.from({ length: Math.min(SHARE_CONCURRENCY, files.length) }, worker));
+  let finished = 0;
+  await runPool(files, async (f, i) => {
+    await shareOne(f, i);
+    opts.onProgress?.(++finished, files.length);
+  });
   const wraps = slots.filter((w): w is NonNullable<typeof w> => w !== undefined);
   if (wraps.length === 0) {
     throw new Error(

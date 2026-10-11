@@ -15,7 +15,16 @@ import {
   getFileMeta,
   getUserPublicKey,
   rotateSpace,
+  updateSharedVault,
+  getFileMetas,
+  addFilesToSpaceBatch,
+  type SpaceBatchFile,
 } from "@/lib/api";
+import { runPool } from "@/lib/pool";
+import { checkPeerKey, pinPeerKey, KeyChangedError, type PeerKeyStatus } from "@/lib/key-pins";
+import { decryptName } from "@/lib/name-crypto";
+import { userNameKey } from "@/lib/sealed";
+import { getQuotaData } from "@/store/quota";
 import {
   fromBase64,
   toBase64,
@@ -45,8 +54,8 @@ export async function createSpace(
   const spaceKey = generateSpaceKey();
   const wrapped = await sealTo(publicKey, spaceKey);
   const vault = await createSharedVault({
-    name,
-    description,
+    name: await sealSpaceText(spaceKey, name),
+    description: await sealSpaceText(spaceKey, description),
     file_ids: fileIds,
     wrapped_space_key: wrapped,
     size_limit_bytes: sizeLimitBytes,
@@ -80,6 +89,69 @@ async function spaceFileKey(vault: SharedVault, spaceWrappedCek: string): Promis
 async function sealName(spaceKey: Uint8Array, name: string): Promise<string> {
   if (!name) return "";
   return toBase64(await wrapKey(toArrayBuffer(spaceKey), new TextEncoder().encode(name)));
+}
+
+const SEALED_TEXT_PREFIX = "s1:";
+
+/** Seal a space's name/description under its key. The "s1:" prefix tells sealed
+ *  values apart from legacy plaintext ones. */
+export async function sealSpaceText(spaceKey: Uint8Array, text: string): Promise<string> {
+  if (!text) return "";
+  return SEALED_TEXT_PREFIX + (await sealName(spaceKey, text));
+}
+
+/** Open a value from sealSpaceText. Legacy plaintext values pass through. */
+export async function openSpaceText(spaceKey: Uint8Array, value: string): Promise<string> {
+  if (!value.startsWith(SEALED_TEXT_PREFIX)) return value;
+  const bytes = await unwrapKey(
+    toArrayBuffer(spaceKey),
+    fromBase64(value.slice(SEALED_TEXT_PREFIX.length)),
+  );
+  return new TextDecoder().decode(bytes);
+}
+
+/** Rename / re-describe a space, sealing the text when its key is available. */
+export async function updateSpaceDetails(
+  vault: SharedVault,
+  patch: { name?: string; description?: string; size_limit_bytes?: number },
+): Promise<void> {
+  const spaceKey = await loadSpaceKey(vault);
+  const next = { ...patch };
+  if (spaceKey) {
+    if (patch.name !== undefined) next.name = await sealSpaceText(spaceKey, patch.name);
+    if (patch.description !== undefined) {
+      next.description = await sealSpaceText(spaceKey, patch.description);
+    }
+  }
+  await updateSharedVault(vault.id, next);
+}
+
+export interface SealOptions {
+  /** Peer user ids whose changed key the user explicitly approved. */
+  acceptChangedKeys?: string[];
+}
+
+async function guardPeerKey(
+  peerUserId: string,
+  publicKeyB64: string,
+  opts?: SealOptions,
+): Promise<void> {
+  const res = await checkPeerKey(peerUserId, publicKeyB64);
+  if (res.status === "changed" && !opts?.acceptChangedKeys?.includes(peerUserId)) {
+    throw new KeyChangedError(peerUserId, res.fingerprint, res.previous ?? "");
+  }
+}
+
+/** Where a member's key stands against our pin. Never trusts the server's
+ *  fingerprint string: it is recomputed from the key bytes. */
+export async function memberKeyStatus(member: {
+  user_id: string;
+  public_key?: string;
+  fingerprint?: string;
+}): Promise<{ fingerprint: string; status: PeerKeyStatus | "unknown" }> {
+  if (!member.public_key) return { fingerprint: member.fingerprint ?? "", status: "unknown" };
+  const { fingerprint, status } = await checkPeerKey(member.user_id, member.public_key);
+  return { fingerprint, status };
 }
 
 /** Decrypt a shared file's name using the space key. Returns null when the name
@@ -121,6 +193,131 @@ export async function shareFileIntoSpace(
   const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
   const wrappedName = await sealName(spaceKey, name);
   await addFileToSpace(vault.id, fileId, toBase64(rewrapped), wrappedName);
+}
+
+async function plainFileName(
+  meta: { encrypted_name?: string; original_name?: string },
+  nameKey: CryptoKey | null,
+): Promise<string> {
+  if (meta.encrypted_name && nameKey) {
+    try {
+      const n = await decryptName(meta.encrypted_name, nameKey);
+      if (n) return n;
+    } catch {
+      /* fall back to the legacy plaintext name */
+    }
+  }
+  return meta.original_name || "";
+}
+
+/** Fire-and-forget: fetch metas in bulk and run every file's PBKDF2 ahead of
+ *  time (6 at once) so a later shareFilesIntoSpace only pays for the wrapping. */
+export function warmSpaceKeys(fileIds: string[]): void {
+  const passphrase = usePassphraseStore.getState().getPassphrase();
+  if (!passphrase || fileIds.length === 0) return;
+  void (async () => {
+    try {
+      const metas = await getFileMetas(fileIds);
+      await runPool(metas, async (m) => {
+        try {
+          await resolveFileKey(passphrase, fromBase64(m.salt), m.wrapped_cek);
+        } catch {
+          /* handled when the files are actually shared */
+        }
+      });
+    } catch {
+      /* best effort */
+    }
+  })();
+}
+
+const BATCH_CHUNK = 100;
+
+export interface ShareFilesResult {
+  added: string[];
+  skipped: string[];
+  failed: { fileId: string; error: string }[];
+}
+
+/** Share many files into a space: bulk metas, 6-wide key preparation, and
+ *  batched submission (chunks of min(100, plan limit)). Preparation and
+ *  submission overlap, so files appear in the space while later ones prepare. */
+export async function shareFilesIntoSpace(
+  vault: SharedVault,
+  fileIds: string[],
+  opts: {
+    onProgress?: (done: number, total: number) => void;
+    signal?: AbortSignal;
+    acceptChangedKeys?: string[];
+    onChunk?: () => void;
+  } = {},
+): Promise<ShareFilesResult> {
+  const spaceKey = await loadSpaceKey(vault);
+  if (!spaceKey) throw new Error("This space's key isn't available, unlock your vault first.");
+  const passphrase = usePassphraseStore.getState().getPassphrase();
+  if (!passphrase) throw new Error("Unlock your vault to share files.");
+
+  const ids = [...new Set(fileIds)];
+  const total = ids.length;
+  const limit = getQuotaData()?.max_space_batch_files ?? 0;
+  const chunkSize = limit > 0 ? Math.min(BATCH_CHUNK, limit) : BATCH_CHUNK;
+  const result: ShareFilesResult = { added: [], skipped: [], failed: [] };
+  let done = 0;
+  const report = () => opts.onProgress?.(done, total);
+
+  const metas = await getFileMetas(ids);
+  const metaById = new Map(metas.map((m) => [m.id, m]));
+  const nameKey = await userNameKey().catch(() => null);
+
+  let buffer: SpaceBatchFile[] = [];
+  let submitting: Promise<void> = Promise.resolve();
+  const submit = (chunk: SpaceBatchFile[]) => {
+    submitting = submitting.then(async () => {
+      try {
+        const res = await addFilesToSpaceBatch(vault.id, chunk);
+        const skipped = new Set(res.skipped ?? []);
+        const rejected = new Map((res.rejected ?? []).map((r) => [r.file_id, r.reason]));
+        for (const f of chunk) {
+          if (skipped.has(f.file_id)) result.skipped.push(f.file_id);
+          else if (rejected.has(f.file_id)) {
+            result.failed.push({ fileId: f.file_id, error: rejected.get(f.file_id) as string });
+          } else result.added.push(f.file_id);
+        }
+        opts.onChunk?.();
+      } catch (err) {
+        const error = err instanceof Error ? err.message : "Failed to add files";
+        for (const f of chunk) result.failed.push({ fileId: f.file_id, error });
+      }
+      report();
+    });
+  };
+
+  await runPool(ids, async (id) => {
+    if (opts.signal?.aborted) return;
+    const meta = metaById.get(id);
+    try {
+      if (!meta) throw new Error("File not found");
+      const fileKey = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
+      const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
+      const wrappedName = await sealName(spaceKey, await plainFileName(meta, nameKey));
+      buffer.push({ file_id: id, wrapped_cek: toBase64(rewrapped), wrapped_name: wrappedName });
+    } catch (err) {
+      result.failed.push({
+        fileId: id,
+        error: err instanceof Error ? err.message : "Failed to prepare file",
+      });
+    }
+    done++;
+    report();
+    if (buffer.length >= chunkSize) {
+      const chunk = buffer;
+      buffer = [];
+      submit(chunk);
+    }
+  });
+  if (buffer.length > 0 && !opts.signal?.aborted) submit(buffer);
+  await submitting;
+  return result;
 }
 
 /** Unshare a file from a space (editor/admin only). */
@@ -176,20 +373,25 @@ export async function rotateSpaceKey(
   vault: SharedVault,
   remainingMembers: SharedVaultMember[],
   files: SharedVaultFile[],
+  opts?: SealOptions,
 ): Promise<void> {
   const oldKey = await loadSpaceKey(vault);
   if (!oldKey) throw new Error("This space's key isn't available, unlock your vault first.");
   const newKey = generateSpaceKey();
 
   const memberGrants: { user_id: string; wrapped_space_key: string }[] = [];
+  const toPin: { userId: string; publicKey: string }[] = [];
   for (const m of remainingMembers) {
     try {
       const pk = await getUserPublicKey(m.user_id);
+      await guardPeerKey(m.user_id, pk.public_key, opts);
+      toPin.push({ userId: m.user_id, publicKey: pk.public_key });
       memberGrants.push({
         user_id: m.user_id,
         wrapped_space_key: await sealTo(fromBase64(pk.public_key), newKey),
       });
     } catch (err) {
+      if (err instanceof KeyChangedError) throw err;
       // Only a definite 404 means "no published key". Anything else (network,
       // 5xx) must abort: dropping the grant would lock that member out.
       if (!(err instanceof ApiError && err.status === 404)) throw err;
@@ -217,8 +419,12 @@ export async function rotateSpaceKey(
     });
   }
 
-  await rotateSpace(vault.id, memberGrants, fileWraps);
+  await rotateSpace(vault.id, memberGrants, fileWraps, {
+    name: await sealSpaceText(newKey, await openSpaceText(oldKey, vault.name ?? "")),
+    description: await sealSpaceText(newKey, await openSpaceText(oldKey, vault.description ?? "")),
+  });
   useSpacesStore.getState().setSpaceKey(vault.id, newKey);
+  for (const p of toPin) await pinPeerKey(p.userId, p.publicKey);
 }
 
 /** Share a space with another user by email: look up their public key, seal the
@@ -229,10 +435,14 @@ export async function shareSpace(
   spaceKey: Uint8Array,
   email: string,
   role: "viewer" | "editor" | "admin",
+  opts?: SealOptions,
 ): Promise<SharedVaultMember> {
   const recipient = await lookupUserKey(email);
+  await guardPeerKey(recipient.user_id, recipient.public_key, opts);
   const wrapped = await sealTo(fromBase64(recipient.public_key), spaceKey);
-  return addSharedVaultMember(vaultId, email, role, wrapped);
+  const member = await addSharedVaultMember(vaultId, email, role, wrapped);
+  await pinPeerKey(recipient.user_id, recipient.public_key);
+  return member;
 }
 
 export type SpaceRole = "viewer" | "editor" | "admin";

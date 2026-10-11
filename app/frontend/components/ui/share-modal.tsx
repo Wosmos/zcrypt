@@ -11,7 +11,7 @@ import { revokeShare } from "@/lib/api";
 import { useSharesQuery, invalidateShares } from "@/hooks/useShares";
 import { toast } from "@/store/toast";
 import { usePassphraseStore } from "@/store/passphrase";
-import { createFileShareLink } from "@/lib/file-share";
+import { createFileShareLink, warmFileShareKey } from "@/lib/file-share";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatBytes, formatDateTime, midTrunc, EXPIRY_OPTIONS } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   const [expiryHours, setExpiryHours] = useState(0);
   const [maxDownloads, setMaxDownloads] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [generatedToken, setGeneratedToken] = useState("");
   const [shareKeyB64, setShareKeyB64] = useState("");
   const [copied, setCopied] = useState(false);
@@ -58,9 +59,13 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   useAutoTour("share", open && step === "form", 450);
   useAutoTour("share-copy", open && step === "link", 350);
 
-  // Reset on close
+  useEffect(() => {
+    if (open && fileId) warmFileShareKey(fileId);
+  }, [open, fileId]);
+
   useEffect(() => {
     if (!open) {
+      setError("");
       setStep("form");
       setPassword("");
       setUsePassword(false);
@@ -77,12 +82,13 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     // re-wrapped under a share key. The recipient then needs only the link.
     const passphrase = usePassphraseStore.getState().getPassphrase();
     if (!passphrase) {
-      toast.error(
+      setError(
         "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
       );
       return;
     }
 
+    setError("");
     setLoading(true);
     try {
       // Recover the CEK, re-wrap it under a fresh share key, and create the
@@ -100,7 +106,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
       setStep("link");
       toast.success("Share link created");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create share");
+      setError(err instanceof Error ? err.message : "Failed to create share");
     } finally {
       setLoading(false);
     }
@@ -220,13 +226,22 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                 </select>
               </div>
 
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-red-600 dark:text-red-400"
+                >
+                  {error}
+                </p>
+              )}
+
               <Button
                 onClick={handleGenerate}
                 disabled={loading || (usePassword && !password)}
                 className="w-full"
                 data-tour="share-generate"
               >
-                {loading ? "Generating..." : "Generate Link"}
+                {loading ? "Preparing link…" : error ? "Retry" : "Generate Link"}
               </Button>
             </>
           ) : (

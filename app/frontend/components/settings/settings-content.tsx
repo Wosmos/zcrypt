@@ -17,6 +17,7 @@ import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
 import { usePreferencesStore } from "@/store/preferences";
 import { useKeysStore } from "@/store/keys";
+import { localFingerprint } from "@/lib/keys";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
 import { isTauri, keychainSet, keychainDelete } from "@/lib/tauri";
 import { toast } from "@/store/toast";
@@ -784,8 +785,8 @@ function PlatformSection({
 }
 
 function EncryptionKeyInfo() {
-  const fingerprint = useKeysStore((s) => s.fingerprint);
   const ready = useKeysStore((s) => s.ready);
+  const fingerprint = ready ? localFingerprint() : null;
   if (!ready || !fingerprint) {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-3.5 py-3 text-sm text-[var(--color-text-muted)]">

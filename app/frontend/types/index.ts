@@ -196,6 +196,8 @@ export interface QuotaInfo {
   is_unlimited: boolean;
   plan: string;
   max_concurrent_uploads: number;
+  /** Most files one "add to space" batch may carry. 0 = unlimited. */
+  max_space_batch_files?: number;
   max_file_size: number;
   can_upload: boolean;
   allows_byob: boolean;
@@ -225,6 +227,7 @@ export interface PlanConfig {
   storage_bytes: number;
   max_file_bytes: number;
   max_concurrent_uploads: number;
+  max_space_batch_files?: number;
   storage_display: string;
   max_file_display: string;
   concurrent_display: string;
@@ -474,6 +477,8 @@ export interface SharedVaultMember {
   wrapped_space_key?: string;
   /** Fingerprint of the member's public key, for out-of-band verification. */
   fingerprint?: string;
+  /** The member's X25519 public key (base64). Verify locally; never trust `fingerprint`. */
+  public_key?: string;
 }
 
 export interface SharedVaultFile {

@@ -31,6 +31,21 @@ export async function keyFingerprint(publicKey: Uint8Array): Promise<string> {
   return (hex.slice(0, 16).toUpperCase().match(/.{4}/g) ?? []).join("-");
 }
 
+/** The server returned a public key that does not belong to our private key:
+ *  it was swapped, so nothing may be sealed to it. */
+export class OwnKeyMismatchError extends Error {
+  constructor() {
+    super("The server returned a public key that doesn't match your private key.");
+    this.name = "OwnKeyMismatchError";
+  }
+}
+
+/** Own fingerprint, computed locally from our own private key at unlock. */
+export function localFingerprint(): string | null {
+  const { ready, fingerprint } = useKeysStore.getState();
+  return ready ? fingerprint : null;
+}
+
 function concatBytes(...arrays: Uint8Array[]): Uint8Array {
   const total = arrays.reduce((n, a) => n + a.length, 0);
   const out = new Uint8Array(total);
@@ -110,10 +125,15 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
       // Throws if the passphrase is wrong (GCM auth failure), we leave the
       // store not-ready and let a later unlock retry.
       const privateKey = await unwrapKey(kek, fromBase64(existing.wrapped_private_key));
+      const publicKey = x25519.getPublicKey(privateKey);
+      if (toBase64(publicKey) !== existing.public_key) {
+        useKeysStore.setState({ loading: false, mismatch: true });
+        throw new OwnKeyMismatchError();
+      }
       useKeysStore.setState({
         privateKey,
-        publicKey: fromBase64(existing.public_key),
-        fingerprint: existing.fingerprint,
+        publicKey,
+        fingerprint: await keyFingerprint(publicKey),
         ready: true,
         loading: false,
       });
@@ -139,7 +159,8 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
       ready: true,
       loading: false,
     });
-  } catch {
+  } catch (err) {
     useKeysStore.setState({ loading: false });
+    if (err instanceof OwnKeyMismatchError) throw err;
   }
 }
