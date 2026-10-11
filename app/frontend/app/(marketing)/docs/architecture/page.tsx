@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
-import { desktopEngine } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Architecture | zcrypt Docs",
   description:
@@ -18,17 +18,17 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "overview", title: "Overview" },
-  { id: "diagram", title: "The big picture" },
-  { id: "client", title: "Client pipeline" },
-  { id: "download", title: "Download & streaming to disk" },
-  { id: "api", title: "Chunked HTTP API" },
-  { id: "staging", title: "Staging & the sync worker" },
-  { id: "adapters", title: "Platform adapters & repo pool" },
-  { id: "index", title: "The index (PostgreSQL)" },
-  { id: "spaces", title: "Shared spaces & key grants" },
-  { id: "boundary", title: "The zero-knowledge boundary" },
-  { id: "next", title: "Where to go next" },
+  { id: "overview", k: "docs.architecture.toc.overview" },
+  { id: "diagram", k: "docs.architecture.toc.diagram" },
+  { id: "client", k: "docs.architecture.toc.client" },
+  { id: "download", k: "docs.architecture.toc.download" },
+  { id: "api", k: "docs.architecture.toc.api" },
+  { id: "staging", k: "docs.architecture.toc.staging" },
+  { id: "adapters", k: "docs.architecture.toc.adapters" },
+  { id: "index", k: "docs.architecture.toc.index" },
+  { id: "spaces", k: "docs.architecture.toc.spaces" },
+  { id: "boundary", k: "docs.architecture.toc.boundary" },
+  { id: "next", k: "docs.architecture.toc.next" },
 ];
 
 export default function ArchitectureDocPage() {
@@ -39,18 +39,16 @@ export default function ArchitectureDocPage() {
       description="zcrypt is a thin, stateless server wrapped around a client-side encryption pipeline and your own storage accounts. Here is how the pieces connect, and why the server can never read your files."
       toc={toc}
     >
-      <DocSection id="overview" title="Overview">
+      <DocSection id="overview" title={<T k="docs.architecture.a2" />}>
         <DocP>
-          A file's life in zcrypt is: your browser compresses, encrypts, and chunks it; the chunks
-          travel over a chunked HTTP API to the Go backend; the backend stages them on durable disk
-          and a background worker syncs them to a storage platform you own; a PostgreSQL index
-          records the ciphertext metadata that lets you find and reassemble the file later.
-          Plaintext and keys never leave your device.
+          <T k="docs.architecture.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="diagram" title="The big picture">
-        <DocCode label="data flow">{`Your device (browser / app)            zcrypt backend (Go, stateless)         Your storage
+      <DocSection id="diagram" title={<T k="docs.architecture.a5" />}>
+        <DocCode
+          label={<T k="docs.architecture.a4" />}
+        >{`Your device (browser / app)            zcrypt backend (Go, stateless)         Your storage
 ┌─────────────────────────┐            ┌──────────────────────────┐         ┌──────────────┐
 │  1. zstd compress        │            │  Chunked HTTP API        │         │  GitHub      │
 │  2. AES-256-GCM encrypt  │  chunks    │  (JSON + raw chunk bytes)│         │  GitLab      │
@@ -67,249 +65,148 @@ export default function ArchitectureDocPage() {
                                   Server sees only ciphertext + metadata`}</DocCode>
       </DocSection>
 
-      <DocSection id="client" title="Client pipeline">
+      <DocSection id="client" title={<T k="docs.architecture.a12" />}>
         <DocP>
-          Everything that makes a file private happens before it leaves your device, in this order:
+          <T k="docs.architecture.p6" />
         </DocP>
         <DocList
           ordered
           items={[
-            <>
-              <strong>Compress.</strong> The file is compressed with zstd, so less data is encrypted
-              and stored.
-            </>,
-            <>
-              <strong>Encrypt.</strong> It is sealed with AES-256-GCM under a key derived from your
-              passphrase (PBKDF2-SHA256, 600,000 iterations, with a unique per-file salt and IV).
-              Authenticated encryption means tampering is detectable on the way back.
-            </>,
-            <>
-              <strong>Chunk.</strong> The ciphertext is split into fixed-size chunks (10&nbsp;MB by
-              default), each hashed with SHA-256. Chunking is what makes large files fast, parallel,
-              and resumable.
-            </>,
+            <T key="docs.architecture.p7" k="docs.architecture.p7" />,
+            <T key="docs.architecture.p8" k="docs.architecture.p8" />,
+            <T key="docs.architecture.p9" k="docs.architecture.p9" />,
           ]}
         />
         <DocP>
-          In the web app this pipeline runs in a pool of Web Workers, so compression, encryption,
-          and hashing happen off the main thread and in parallel across CPU cores. Chunk buffers are
-          handed to and from the workers by transfer (zero-copy, no duplicate allocation), and the
-          pool size scales to the device&rsquo;s cores and memory. The same worker pool runs the
-          reverse pipeline on download.
+          <T k="docs.architecture.p10" />
         </DocP>
         <DocP>
-          The same pipeline runs everywhere zcrypt runs: in the web app&rsquo;s Web Worker pool, in{" "}
-          <strong>{desktopEngine.name}</strong> &mdash; the native {desktopEngine.language} engine
-          behind the desktop and Android apps &mdash; so a file uploaded from any one of them
-          decrypts cleanly in the others.
+          <T k="docs.architecture.p11" />
         </DocP>
       </DocSection>
 
-      <DocSection id="download" title="Download & streaming to disk">
+      <DocSection id="download" title={<T k="docs.architecture.a16" />}>
         <DocP>
-          Downloads run the client pipeline in reverse. The app fetches each encrypted chunk,
-          verifies its SHA-256, then decrypts and (where needed) decompresses it in the same Web
-          Worker pool &mdash; so a large download parallelizes across cores instead of freezing the
-          tab.
+          <T k="docs.architecture.p13" />
         </DocP>
         <DocP>
-          Small files are reassembled in memory and saved as a download. A file too large to hold in
-          a browser tab is instead <strong>streamed straight to disk</strong>: using the
-          browser&rsquo;s File System Access API, the app opens a writable to the file you pick,
-          writes chunks in order as they are decrypted, and hashes them in write-order &mdash; so
-          peak memory stays flat no matter how large the file. The whole-file hash is checked before
-          the file is committed; an integrity mismatch or a cancel discards the partial file rather
-          than leaving a corrupt one behind.
+          <T k="docs.architecture.p14" />
         </DocP>
         <DocP>
-          Downloads are resumable within a session: a pause or a transient network failure keeps
-          what has already been decrypted (or written to disk), so a later run continues from the
-          high-water mark instead of restarting at chunk zero.
+          <T k="docs.architecture.p15" />
         </DocP>
       </DocSection>
 
-      <DocSection id="api" title="Chunked HTTP API">
+      <DocSection id="api" title={<T k="docs.architecture.a19" />}>
         <DocP>
-          The backend is plain Go standard-library <code>net/http</code>, no web framework. The
-          client opens an upload session, then sends each encrypted chunk as raw bytes with a
-          SHA-256 header the server uses to verify integrity (never to decrypt). Where a platform
-          supports it, the client can request a presigned URL and upload a chunk straight to the
-          platform, skipping the server relay. Downloads run the same path in reverse: metadata
-          first, then chunks by index.
+          <T k="docs.architecture.p17" />
         </DocP>
         <DocP>
-          Because uploads are session-based and chunk-addressed, they are inherently resumable, the
-          client asks which chunks already landed and re-sends only the gaps.
+          <T k="docs.architecture.p18" />
         </DocP>
       </DocSection>
 
-      <DocSection id="staging" title="Staging & the sync worker">
+      <DocSection id="staging" title={<T k="docs.architecture.a26" />}>
         <DocP>
-          Uploaded chunks are not pushed to a storage platform inline. The server first writes each
-          chunk to a durable staging directory on disk, which survives restarts. A background sync
-          worker then drains that staging area, pushing chunks to the right platform repository and
-          recording the result. This decouples the user-facing upload from the slower, retry-prone
-          platform push.
+          <T k="docs.architecture.p20" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Resilience.</strong> If a platform push fails, the chunk stays staged and is
-              retried; a crash mid-upload doesn't lose already-received chunks.
-            </>,
-            <>
-              <strong>Read-through.</strong> If you download a file whose chunks haven't been synced
-              off staging yet, the server serves them straight from the staging directory.
-            </>,
-            <>
-              <strong>Progress.</strong> Upload and sync progress is pushed to the client over
-              Server-Sent Events.
-            </>,
+            <T key="docs.architecture.p21" k="docs.architecture.p21" />,
+            <T key="docs.architecture.p22" k="docs.architecture.p22" />,
+            <T key="docs.architecture.p23" k="docs.architecture.p23" />,
           ]}
         />
-        <DocNote type="info" title="Desktop and Android skip the relay">
-          This staging-and-relay path is how the web app moves chunks. The desktop and Android apps
-          upload <strong>directly</strong> to your connected platform using credentials from your OS
-          keychain &mdash; the backend only receives metadata (file ID, chunk index, platform,
-          ciphertext hash), never the chunk bytes or your platform token. See{" "}
-          <Link
-            href="/docs/desktop-app"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Desktop app
-          </Link>
-          .
+        <DocNote type="info" title={<T k="docs.architecture.a25" />}>
+          <T
+            k="docs.architecture.p24"
+            links={{ l1: "/docs/desktop-app" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="adapters" title="Platform adapters & repo pool">
+      <DocSection id="adapters" title={<T k="docs.architecture.a31" />}>
         <DocP>
-          Each storage backend implements a common adapter interface, upload, download, delete,
-          create repo, list chunks, and report repo size, so the pipeline treats GitHub, GitLab,
-          Hugging Face, and Telegram uniformly. Optional capabilities layer on top: some adapters
-          batch many chunk uploads into a single commit, and some support direct presigned uploads.
+          <T k="docs.architecture.p27" />
         </DocP>
         <DocP>
-          A <strong>repo pool</strong> sits in front of the adapters. Each file's chunks go to a
-          single platform, and as a repository approaches that platform's size threshold the pool
-          auto-rotates to a fresh repo. This is why your usable space is bounded by your platform
-          account, not by a fixed cap.
+          <T k="docs.architecture.p28" />
         </DocP>
-        <DocNote type="info" title="Disguise">
-          Repositories, commit messages, and stored chunk file names are generated to look like
-          ordinary developer activity, so the storage side reveals nothing about your real files.
-          See{" "}
-          <Link
-            href="/docs/obfuscation"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Storage obfuscation
-          </Link>
-          .
+        <DocNote type="info" title={<T k="docs.architecture.a30" />}>
+          <T
+            k="docs.architecture.p29"
+            links={{ l1: "/docs/obfuscation" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="index" title="The index (PostgreSQL)">
+      <DocSection id="index" title={<T k="docs.architecture.a33" />}>
         <DocP>
-          A PostgreSQL database, accessed through <code>pgx</code> with raw SQL (no ORM), is the
-          index that ties everything together: users, folders and files, per-file salts and chunk
-          references, encrypted platform tokens, shares, and more. Every record about a file is
-          metadata or ciphertext: the database holds no readable file contents and no passphrase.
-          The schema is applied automatically on startup.
+          <T k="docs.architecture.p32" />
         </DocP>
       </DocSection>
 
-      <DocSection id="spaces" title="Shared spaces & key grants">
+      <DocSection id="spaces" title={<T k="docs.architecture.a37" />}>
         <DocP>
-          Sharing keeps the zero-knowledge boundary intact by moving keys, never plaintext. Every
-          user has an X25519 keypair generated on their device; the private key is wrapped under
-          their passphrase-derived key, so the server stores only ciphertext, while the public key
-          and a short fingerprint are public so others can seal grants to them.
+          <T k="docs.architecture.p34" />
         </DocP>
         <DocP>
-          A shared space (&ldquo;shared vault&rdquo;) has its own random symmetric key. To grant a
-          member access, that space key is <strong>sealed</strong> to the member&rsquo;s public key
-          with an ECIES construction &mdash; an ephemeral X25519 key does ECDH with the recipient,
-          and the shared secret is hashed into an AES-256-GCM wrapping key &mdash; and each shared
-          file&rsquo;s content key is re-wrapped under the space key. The server holds only these
-          opaque grants: it can store, hand out, and delete them, but can never open one. Removing a
-          member and rotating the space key re-seals a fresh key to the people who remain and
-          re-wraps every file under it, so the old grant is dead.
+          <T k="docs.architecture.p35" />
         </DocP>
         <DocP>
-          Public folder links work the same way: the link key is generated on the client and lives
-          only in the URL fragment, and each file&rsquo;s content key is re-wrapped under it &mdash;
-          the server serving the link never sees the key.
+          <T k="docs.architecture.p36" />
         </DocP>
       </DocSection>
 
-      <DocSection id="boundary" title="The zero-knowledge boundary">
+      <DocSection id="boundary" title={<T k="docs.architecture.a44" />}>
         <DocP>
-          The line between your device and the server is the security boundary. Cross it, and only
-          ciphertext and metadata exist:
+          <T k="docs.architecture.p38" />
         </DocP>
         <DocList
           items={[
-            <>
-              Your passphrase, and the key derived from it, never leave the client. They are never
-              sent, stored, or logged.
-            </>,
-            <>
-              Chunks arrive already encrypted; the server verifies their hashes but cannot decrypt
-              them.
-            </>,
-            <>
-              Platform tokens are the one secret the server does hold, and they're encrypted at rest
-              with a per-user key derived from the instance <code>MASTER_KEY</code> via HKDF, so the
-              storage platform never sees plaintext, and the database never sees a usable token.
-            </>,
+            <T key="docs.architecture.p39" k="docs.architecture.p39" />,
+            <T key="docs.architecture.p40" k="docs.architecture.p40" />,
+            <T key="docs.architecture.p41" k="docs.architecture.p41" />,
           ]}
         />
-        <DocNote type="security" title="The trade-off">
-          Because the server has nothing to decrypt your files with, neither do we, and neither does
-          anyone who compromises the server. The flip side is that a forgotten passphrase is
-          unrecoverable. See{" "}
-          <Link
-            href="/docs/zero-knowledge"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Zero-knowledge architecture
-          </Link>
-          .
+        <DocNote type="security" title={<T k="docs.architecture.a43" />}>
+          <T
+            k="docs.architecture.p42"
+            links={{ l1: "/docs/zero-knowledge" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.architecture.a49" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/how-it-works"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              How it works: a file's journey, step by step
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/repo-pool"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Repo pool & rotation: how storage grows across repositories
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/api"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              API reference: the endpoints behind the pipeline
-            </Link>,
-            <Link
-              key="d"
-              href="/docs/self-hosting"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Self-hosting. Run the whole stack yourself
-            </Link>,
+            <T
+              key="docs.architecture.p45"
+              k="docs.architecture.p45"
+              links={{ l1: "/docs/how-it-works" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.architecture.p46"
+              k="docs.architecture.p46"
+              links={{ l1: "/docs/repo-pool" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.architecture.p47"
+              k="docs.architecture.p47"
+              links={{ l1: "/docs/api" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.architecture.p48"
+              k="docs.architecture.p48"
+              links={{ l1: "/docs/self-hosting" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

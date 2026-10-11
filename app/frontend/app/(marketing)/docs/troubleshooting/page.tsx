@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Troubleshooting | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "wrong-passphrase", title: "Wrong passphrase / stuck unlock" },
-  { id: "protected-folder", title: "A protected folder won't open" },
-  { id: "upload-stalled", title: "An upload stalled" },
-  { id: "too-large", title: "File too large for a platform" },
-  { id: "disconnected", title: "Platform disconnected or token expired" },
-  { id: "rate-limited", title: "Rate limited" },
+  { id: "wrong-passphrase", k: "docs.troubleshooting.toc.wrong-passphrase" },
+  { id: "protected-folder", k: "docs.troubleshooting.toc.protected-folder" },
+  { id: "upload-stalled", k: "docs.troubleshooting.toc.upload-stalled" },
+  { id: "too-large", k: "docs.troubleshooting.toc.too-large" },
+  { id: "disconnected", k: "docs.troubleshooting.toc.disconnected" },
+  { id: "rate-limited", k: "docs.troubleshooting.toc.rate-limited" },
 ];
 
 export default function TroubleshootingDocPage() {
@@ -33,146 +34,119 @@ export default function TroubleshootingDocPage() {
       description="The handful of issues people hit most, and how to clear them. Most have a simple cause: the wrong key, a transient network hiccup, or a platform limit doing its job."
       toc={toc}
     >
-      <DocSection id="wrong-passphrase" title="Wrong passphrase / stuck unlock">
+      <DocSection id="wrong-passphrase" title={<T k="docs.troubleshooting.a7" />}>
         <DocP>
-          If decryption keeps failing or you land in a unlock/Retry loop, the most likely cause is a
-          passphrase that doesn't match the one a file was encrypted with, a typo, a different
-          keyboard layout, or an old passphrase. zcrypt can't tell you the passphrase is wrong
-          before it tries to decrypt, because there's nothing readable on the server to check it
-          against.
+          <T k="docs.troubleshooting.p1" />
         </DocP>
         <DocList
           items={[
-            "Re-enter the passphrase carefully: watch for caps lock and trailing spaces.",
-            "Lock the vault and unlock again to clear any cached attempt, then retry.",
-            "If you have multiple accounts, confirm you're signed into the right one.",
+            <T key="docs.troubleshooting.p2" k="docs.troubleshooting.p2" />,
+            <T key="docs.troubleshooting.p3" k="docs.troubleshooting.p3" />,
+            <T key="docs.troubleshooting.p4" k="docs.troubleshooting.p4" />,
           ]}
         />
-        <DocNote type="warning" title="If it's genuinely lost">
-          A passphrase is never stored and cannot be reset. If it's truly gone, the affected files
-          cannot be recovered. See{" "}
-          <Link href="/docs/recovery" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Account recovery
-          </Link>
-          .
+        <DocNote type="warning" title={<T k="docs.troubleshooting.a6" />}>
+          <T
+            k="docs.troubleshooting.p5"
+            links={{ l1: "/docs/recovery" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="protected-folder" title="A protected folder won't open">
+      <DocSection id="protected-folder" title={<T k="docs.troubleshooting.a13" />}>
         <DocP>
-          A password-protected folder is sealed under its own key, separate from your account
-          passphrase. Having the vault unlocked is not enough: the folder stays locked until you
-          enter its specific password.
+          <T k="docs.troubleshooting.p8" />
         </DocP>
         <DocList
           items={[
-            "Open the folder and enter the folder password (not your account passphrase) when prompted.",
-            "Remember that each protected folder can have a different password. Use the one set for that folder.",
-            "If you removed the password earlier, the folder's files were re-keyed back to your account passphrase; unlock the vault normally.",
+            <T key="docs.troubleshooting.p9" k="docs.troubleshooting.p9" />,
+            <T key="docs.troubleshooting.p10" k="docs.troubleshooting.p10" />,
+            <T key="docs.troubleshooting.p11" k="docs.troubleshooting.p11" />,
           ]}
         />
         <DocP>
-          More detail in{" "}
-          <Link
-            href="/docs/folder-encryption"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Per-folder encryption
-          </Link>
-          .
+          <T
+            k="docs.troubleshooting.p12"
+            links={{ l1: "/docs/folder-encryption" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="upload-stalled" title="An upload stalled">
+      <DocSection id="upload-stalled" title={<T k="docs.troubleshooting.a19" />}>
         <DocP>
-          Uploads are chunked and resumable, so a stall is rarely fatal. If progress stops, a
-          dropped connection, a closed tab, a sleeping laptop: the chunks already received are kept
-          server-side, and the transfer can pick up where it left off.
+          <T k="docs.troubleshooting.p14" />
         </DocP>
         <DocList
           items={[
-            "Retry or resume the transfer from the transfer manager: only the missing chunks are re-sent.",
-            "Check your network connection; large files over flaky links may pause and resume several times.",
-            "Leave the tab open while a big upload finishes, or use the desktop app for long transfers.",
+            <T key="docs.troubleshooting.p15" k="docs.troubleshooting.p15" />,
+            <T key="docs.troubleshooting.p16" k="docs.troubleshooting.p16" />,
+            <T key="docs.troubleshooting.p17" k="docs.troubleshooting.p17" />,
           ]}
         />
         <DocP>
-          See{" "}
-          <Link
-            href="/docs/transfer-manager"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Transfer manager
-          </Link>{" "}
-          for pause, resume, and retry controls.
+          <T
+            k="docs.troubleshooting.p18"
+            links={{ l1: "/docs/transfer-manager" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="too-large" title="File too large for a platform">
+      <DocSection id="too-large" title={<T k="docs.troubleshooting.a25" />}>
         <DocP>
-          Each storage platform has its own size ceiling per repository, and zcrypt stores a given
-          file's chunks on a single platform. A very large file can exceed what a platform
-          comfortably holds. zcrypt rotates to a fresh repository automatically as repos fill, but
-          the per-platform headroom still varies a lot between backends.
+          <T k="docs.troubleshooting.p20" />
         </DocP>
         <DocList
           items={[
-            "For large files, connect Hugging Face: it offers by far the most room per repository.",
-            "Confirm the target platform actually has free space; rotation creates new repos but can't exceed your account's quota.",
-            "Splitting a huge archive into smaller files can also help spread it across the pool.",
+            <T key="docs.troubleshooting.p21" k="docs.troubleshooting.p21" />,
+            <T key="docs.troubleshooting.p22" k="docs.troubleshooting.p22" />,
+            <T key="docs.troubleshooting.p23" k="docs.troubleshooting.p23" />,
           ]}
         />
         <DocP>
-          How rotation works:{" "}
-          <Link href="/docs/repo-pool" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Repo pool &amp; rotation
-          </Link>
-          .
+          <T
+            k="docs.troubleshooting.p24"
+            links={{ l1: "/docs/repo-pool" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="disconnected" title="Platform disconnected or token expired">
+      <DocSection id="disconnected" title={<T k="docs.troubleshooting.a31" />}>
         <DocP>
-          If uploads or downloads start failing for a whole platform, its access token may have been
-          revoked, expired, or had its scopes changed on the provider's side. zcrypt can't push or
-          pull chunks without a valid token.
+          <T k="docs.troubleshooting.p26" />
         </DocP>
         <DocList
           items={[
-            "Open Settings and check the platform's connection status.",
-            "Reconnect the platform with a fresh token that has the required scopes.",
-            "If you rotated the token on the provider (GitHub, GitLab, and so on), update it in zcrypt to match.",
+            <T key="docs.troubleshooting.p27" k="docs.troubleshooting.p27" />,
+            <T key="docs.troubleshooting.p28" k="docs.troubleshooting.p28" />,
+            <T key="docs.troubleshooting.p29" k="docs.troubleshooting.p29" />,
           ]}
         />
         <DocP>
-          Token setup is covered in{" "}
-          <Link
-            href="/docs/platform-adapters"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Bring your own storage
-          </Link>
-          .
+          <T
+            k="docs.troubleshooting.p30"
+            links={{ l1: "/docs/platform-adapters" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="rate-limited" title="Rate limited">
+      <DocSection id="rate-limited" title={<T k="docs.troubleshooting.a38" />}>
         <DocP>
-          The API limits how many requests an IP can make in a short window to keep the service
-          healthy and to blunt brute-force attempts. Auth and public share/send links are limited
-          more tightly. A burst of activity (or retrying too aggressively after a failure) can trip
-          these limits.
+          <T k="docs.troubleshooting.p32" />
         </DocP>
         <DocList
           items={[
-            "Wait a short while, then retry: limits reset on a rolling window.",
-            "Avoid hammering retries in a tight loop; space them out.",
-            "On your own self-hosted instance behind a proxy, make sure the trusted-proxy setting is correct so legitimate traffic isn't grouped under one IP.",
+            <T key="docs.troubleshooting.p33" k="docs.troubleshooting.p33" />,
+            <T key="docs.troubleshooting.p34" k="docs.troubleshooting.p34" />,
+            <T key="docs.troubleshooting.p35" k="docs.troubleshooting.p35" />,
           ]}
         />
-        <DocNote type="info" title="Storage platforms rate-limit too">
-          Some failures originate with the storage provider, not zcrypt. If a single platform is
-          throttling you, give it time and the sync worker will retry the affected chunks.
+        <DocNote type="info" title={<T k="docs.troubleshooting.a37" />}>
+          <T k="docs.troubleshooting.p36" />
         </DocNote>
       </DocSection>
     </DocPage>

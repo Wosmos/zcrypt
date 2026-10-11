@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Threat model | zcrypt Docs",
   description:
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "protected", title: "What zcrypt protects against" },
-  { id: "not-protected", title: "What it does not protect against" },
-  { id: "matrix", title: "At a glance" },
-  { id: "guidance", title: "Reducing your exposure" },
-  { id: "next", title: "Where to go next" },
+  { id: "protected", k: "docs.threat-model.toc.protected" },
+  { id: "not-protected", k: "docs.threat-model.toc.not-protected" },
+  { id: "matrix", k: "docs.threat-model.toc.matrix" },
+  { id: "guidance", k: "docs.threat-model.toc.guidance" },
+  { id: "next", k: "docs.threat-model.toc.next" },
 ];
 
 export default function ThreatModelPage() {
@@ -32,190 +33,160 @@ export default function ThreatModelPage() {
       description="A security tool is only as honest as its threat model. Here is what zcrypt is designed to stop, what it cannot, and why, so you can decide whether it fits your situation rather than taking a slogan on faith."
       toc={toc}
     >
-      <DocSection id="protected" title="What zcrypt protects against">
+      <DocSection id="protected" title={<T k="docs.threat-model.a7" />}>
         <DocP>
-          The architecture is built so that the most likely and most damaging server-side
-          compromises yield nothing usable.
+          <T k="docs.threat-model.p1" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Server or database breach.</strong> An attacker with our full database gets
-              ciphertext, wrapped keys they cannot unwrap, and bcrypt hashes. File contents stay
-              sealed.
-            </>,
-            <>
-              <strong>Storage-provider access.</strong> Your chunks live on GitHub, GitLab, Hugging
-              Face, or Telegram: all of which see only encrypted{" "}
-              <span className="font-mono">.bin</span> blobs, never plaintext.
-            </>,
-            <>
-              <strong>Man-in-the-middle.</strong> Transport is TLS, and the payload is already
-              encrypted client-side, so intercepting traffic reveals ciphertext on top of
-              ciphertext.
-            </>,
-            <>
-              <strong>Insider access.</strong> No one operating zcrypt can read your files. There is
-              no internal tool, key escrow, or admin override that decrypts user data, the keys
-              simply are not on our side.
-            </>,
-            <>
-              <strong>Metadata leakage.</strong> Folder names are encrypted client-side, and stored
-              chunks are disguised with random filenames, plausible repository names, and generic
-              commit messages. See{" "}
-              <Link
-                href="/docs/obfuscation"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                storage obfuscation
-              </Link>
-              .
-            </>,
+            <T key="docs.threat-model.p2" k="docs.threat-model.p2" />,
+            <T key="docs.threat-model.p3" k="docs.threat-model.p3" />,
+            <T key="docs.threat-model.p4" k="docs.threat-model.p4" />,
+            <T key="docs.threat-model.p5" k="docs.threat-model.p5" />,
+            <T
+              key="docs.threat-model.p6"
+              k="docs.threat-model.p6"
+              links={{ l1: "/docs/obfuscation" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="not-protected" title="What it does not protect against">
+      <DocSection id="not-protected" title={<T k="docs.threat-model.a15" />}>
         <DocP>
-          No client-side encryption scheme can defend everything. These are the real gaps, stated
-          plainly.
+          <T k="docs.threat-model.p8" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>A compromised device.</strong> Encryption happens on your machine, so malware
-              or a keylogger that already has your device can capture your passphrase as you type it
-              or read decrypted data from memory. Endpoint security is on you.
-            </>,
-            <>
-              <strong>Metadata the server can see.</strong> Names are sealed, but the server still
-              knows file sizes, timestamps, and the sharing graph (who shared what with whom). IPs
-              in sessions and logs are coarsened to a /24 (IPv4) or /48 (IPv6) network, but a
-              network-level view remains.
-            </>,
-            <>
-              <strong>A weak passphrase.</strong> 600,000 PBKDF2 iterations slow guessing down
-              dramatically, but they cannot save a passphrase that is short or common. If it can be
-              guessed, the derived key can be reproduced.
-            </>,
-            <>
-              <strong>Frontend supply-chain risk.</strong> The web app is code we serve, so in
-              principle a compromised build could be made to exfil a passphrase. This is mitigated
-              by the project being open source (you can audit and self-host it) and by an enforced
-              Content-Security-Policy, but you still trust the JavaScript the site serves. The
-              desktop app does not load code from the site and is the stronger option.
-            </>,
+            <T key="docs.threat-model.p9" k="docs.threat-model.p9" />,
+            <T key="docs.threat-model.p10" k="docs.threat-model.p10" />,
+            <T key="docs.threat-model.p11" k="docs.threat-model.p11" />,
+            <T key="docs.threat-model.p12" k="docs.threat-model.p12" />,
           ]}
         />
-        <DocNote type="warning" title="The honest summary">
-          zcrypt removes <em>us</em> and the <em>storage providers</em> from your trust boundary. It
-          cannot remove <em>your device</em> or the strength of your <em>passphrase</em> from it:
-          those remain yours to protect.
+        <DocNote type="warning" title={<T k="docs.threat-model.a14" />}>
+          <T k="docs.threat-model.p13" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="matrix" title="At a glance">
+      <DocSection id="matrix" title={<T k="docs.threat-model.a53" />}>
         <DocTable
-          head={["Threat", "Covered?", "Why"]}
+          head={[
+            <T key="docs.threat-model.p16" k="docs.threat-model.p16" />,
+            <T key="docs.threat-model.p17" k="docs.threat-model.p17" />,
+            <T key="docs.threat-model.p18" k="docs.threat-model.p18" />,
+          ]}
           rows={[
             [
-              "Database / server breach",
-              "Yes",
-              "Only ciphertext and unusable wrapped keys are stored",
+              <T key="docs.threat-model.p19" k="docs.threat-model.p19" />,
+              <T key="docs.threat-model.p20" k="docs.threat-model.p20" />,
+              <T key="docs.threat-model.p21" k="docs.threat-model.p21" />,
             ],
-            ["Storage provider snooping", "Yes", "Providers hold encrypted .bin blobs only"],
-            ["Network interception (MITM)", "Yes", "TLS plus client-side encryption"],
-            ["Malicious or compelled insider", "Yes", "No keys exist on the server to misuse"],
-            ["Folder-name / storage-name leakage", "Yes", "Encrypted names + disguised storage"],
-            ["Sizes, timestamps, sharing graph", "No", "Visible to the server"],
-            ["File-name leakage", "Partial", "A legacy plaintext name column still exists"],
             [
-              "Storage-token theft from server",
-              "Partial",
-              "Tokens are encrypted at rest under a server master key",
+              <T key="docs.threat-model.p22" k="docs.threat-model.p22" />,
+              <T key="docs.threat-model.p23" k="docs.threat-model.p23" />,
+              <T key="docs.threat-model.p24" k="docs.threat-model.p24" />,
             ],
-            ["Compromised user device", "No", "Plaintext and passphrase are exposed on-device"],
-            ["Weak / reused passphrase", "No", "A guessable passphrase reproduces the key"],
             [
-              "Frontend supply-chain attack",
-              "Partial",
-              "Mitigated by open source and self-hosting",
+              <T key="docs.threat-model.p25" k="docs.threat-model.p25" />,
+              <T key="docs.threat-model.p26" k="docs.threat-model.p26" />,
+              <T key="docs.threat-model.p27" k="docs.threat-model.p27" />,
+            ],
+            [
+              <T key="docs.threat-model.p28" k="docs.threat-model.p28" />,
+              <T key="docs.threat-model.p29" k="docs.threat-model.p29" />,
+              <T key="docs.threat-model.p30" k="docs.threat-model.p30" />,
+            ],
+            [
+              <T key="docs.threat-model.p31" k="docs.threat-model.p31" />,
+              <T key="docs.threat-model.p32" k="docs.threat-model.p32" />,
+              <T key="docs.threat-model.p33" k="docs.threat-model.p33" />,
+            ],
+            [
+              <T key="docs.threat-model.p34" k="docs.threat-model.p34" />,
+              <T key="docs.threat-model.p35" k="docs.threat-model.p35" />,
+              <T key="docs.threat-model.p36" k="docs.threat-model.p36" />,
+            ],
+            [
+              <T key="docs.threat-model.p37" k="docs.threat-model.p37" />,
+              <T key="docs.threat-model.p38" k="docs.threat-model.p38" />,
+              <T key="docs.threat-model.p39" k="docs.threat-model.p39" />,
+            ],
+            [
+              <T key="docs.threat-model.p40" k="docs.threat-model.p40" />,
+              <T key="docs.threat-model.p41" k="docs.threat-model.p41" />,
+              <T key="docs.threat-model.p42" k="docs.threat-model.p42" />,
+            ],
+            [
+              <T key="docs.threat-model.p43" k="docs.threat-model.p43" />,
+              <T key="docs.threat-model.p44" k="docs.threat-model.p44" />,
+              <T key="docs.threat-model.p45" k="docs.threat-model.p45" />,
+            ],
+            [
+              <T key="docs.threat-model.p46" k="docs.threat-model.p46" />,
+              <T key="docs.threat-model.p47" k="docs.threat-model.p47" />,
+              <T key="docs.threat-model.p48" k="docs.threat-model.p48" />,
+            ],
+            [
+              <T key="docs.threat-model.p49" k="docs.threat-model.p49" />,
+              <T key="docs.threat-model.p50" k="docs.threat-model.p50" />,
+              <T key="docs.threat-model.p51" k="docs.threat-model.p51" />,
             ],
           ]}
         />
         <DocP>
-          The two &ldquo;partial&rdquo; rows on file names and storage tokens are explained in full
-          in{" "}
-          <Link
-            href="/docs/zero-knowledge"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            zero-knowledge architecture
-          </Link>{" "}
-          . We would rather flag them here than quietly mark everything green.
+          <T
+            k="docs.threat-model.p52"
+            links={{ l1: "/docs/zero-knowledge" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="guidance" title="Reducing your exposure">
+      <DocSection id="guidance" title={<T k="docs.threat-model.a59" />}>
         <DocList
           items={[
-            <>
-              Use a <strong>long, unique passphrase</strong> from a password manager. This is the
-              highest-leverage thing you can do.
-            </>,
-            <>
-              Enable <strong>TOTP two-factor authentication</strong> on your account, covered in{" "}
-              <Link
-                href="/docs/key-management"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                key management
-              </Link>
-              .
-            </>,
-            <>Keep the device you use with zcrypt patched and free of untrusted software.</>,
-            <>
-              For the strongest assurance, <strong>audit the open-source code</strong> or use the{" "}
-              <strong>desktop app</strong>, which avoids browser-delivered JavaScript.
-            </>,
-            <>
-              Put sensitivity-by-name files inside an{" "}
-              <Link
-                href="/docs/folder-encryption"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                encrypted folder
-              </Link>{" "}
-              rather than relying on the file name being hidden.
-            </>,
+            <T key="docs.threat-model.p54" k="docs.threat-model.p54" />,
+            <T
+              key="docs.threat-model.p55"
+              k="docs.threat-model.p55"
+              links={{ l1: "/docs/key-management" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T key="docs.threat-model.p56" k="docs.threat-model.p56" />,
+            <T key="docs.threat-model.p57" k="docs.threat-model.p57" />,
+            <T
+              key="docs.threat-model.p58"
+              k="docs.threat-model.p58"
+              links={{ l1: "/docs/folder-encryption" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.threat-model.a63" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/zero-knowledge"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge architecture: the precise list of what is stored
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/obfuscation"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Storage obfuscation: how the metadata-leakage defense works
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/security"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encryption model: the cryptography underneath it all
-            </Link>,
+            <T
+              key="docs.threat-model.p60"
+              k="docs.threat-model.p60"
+              links={{ l1: "/docs/zero-knowledge" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.threat-model.p61"
+              k="docs.threat-model.p61"
+              links={{ l1: "/docs/obfuscation" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.threat-model.p62"
+              k="docs.threat-model.p62"
+              links={{ l1: "/docs/security" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

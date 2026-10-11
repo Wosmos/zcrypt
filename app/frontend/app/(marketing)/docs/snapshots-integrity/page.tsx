@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Snapshots & integrity | zcrypt Docs",
   description:
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "snapshots", title: "Snapshots" },
-  { id: "snapshots-not", title: "What snapshots are not" },
-  { id: "integrity", title: "Integrity monitor" },
-  { id: "maturity", title: "Maturity" },
-  { id: "next", title: "Where to go next" },
+  { id: "snapshots", k: "docs.snapshots-integrity.toc.snapshots" },
+  { id: "snapshots-not", k: "docs.snapshots-integrity.toc.snapshots-not" },
+  { id: "integrity", k: "docs.snapshots-integrity.toc.integrity" },
+  { id: "maturity", k: "docs.snapshots-integrity.toc.maturity" },
+  { id: "next", k: "docs.snapshots-integrity.toc.next" },
 ];
 
 export default function SnapshotsIntegrityDocPage() {
@@ -33,85 +34,58 @@ export default function SnapshotsIntegrityDocPage() {
       badge="Beta"
       toc={toc}
     >
-      <DocSection id="snapshots" title="Snapshots">
+      <DocSection id="snapshots" title={<T k="docs.snapshots-integrity.a2" />}>
         <DocP>
-          Snapshots live under the <strong>Inventory</strong> tab in Tools. A snapshot captures a{" "}
-          <strong>point-in-time manifest of your current file list</strong>, a labelled record of
-          what files existed in your vault when you took it. You can create snapshots, label them,
-          list them, and delete them, giving you a timeline of how your vault&rsquo;s contents have
-          grown or changed.
+          <T k="docs.snapshots-integrity.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="snapshots-not" title="What snapshots are not">
-        <DocNote type="warning" title="Snapshots do not restore files">
-          A snapshot is a <strong>record of the list</strong>, not a backup of the files themselves.
-          There is <strong>no rollback or version history yet</strong>, you cannot restore a deleted
-          file or revert a file to a previous version from a snapshot. Use snapshots to <em>see</em>{" "}
-          what your vault looked like, not to <em>recover</em> it. If you need to undo a deletion,
-          check the Trash before it&rsquo;s purged.
+      <DocSection id="snapshots-not" title={<T k="docs.snapshots-integrity.a5" />}>
+        <DocNote type="warning" title={<T k="docs.snapshots-integrity.a4" />}>
+          <T k="docs.snapshots-integrity.p3" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="integrity" title="Integrity monitor">
+      <DocSection id="integrity" title={<T k="docs.snapshots-integrity.a10" />}>
         <DocP>
-          The integrity monitor (the <strong>Verify Files</strong> tab in Tools) records each
-          file&rsquo;s <strong>SHA-256 hash and size</strong> as a reference point, then compares
-          the current file against that reference to flag anything whose hash has{" "}
-          <strong>changed</strong>. Because the hash is computed over the file&rsquo;s exact bytes,
-          even a single altered byte changes it.
+          <T k="docs.snapshots-integrity.p6" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Take a reference:</strong> record a file&rsquo;s hash and size as its
-              known-good baseline.
-            </>,
-            <>
-              <strong>Check:</strong> compare a file against its latest reference to see if it still
-              matches.
-            </>,
-            <>
-              <strong>Review changes:</strong> list the files whose hash no longer matches their
-              reference.
-            </>,
+            <T key="docs.snapshots-integrity.p7" k="docs.snapshots-integrity.p7" />,
+            <T key="docs.snapshots-integrity.p8" k="docs.snapshots-integrity.p8" />,
+            <T key="docs.snapshots-integrity.p9" k="docs.snapshots-integrity.p9" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="maturity" title="Maturity">
-        <DocNote type="info" title="These features are in beta">
-          Snapshots and the integrity monitor are still maturing. They&rsquo;re useful for keeping
-          tabs on your vault, but expect the workflows and surfaces around them to keep evolving,
-          and don&rsquo;t treat them as a substitute for a proper backup or a finished
-          version-control system.
+      <DocSection id="maturity" title={<T k="docs.snapshots-integrity.a13" />}>
+        <DocNote type="info" title={<T k="docs.snapshots-integrity.a12" />}>
+          <T k="docs.snapshots-integrity.p11" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.snapshots-integrity.a17" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/timed-vaults"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Timed vaults: group files under a countdown label (Timed Vaults tab)
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/downloading"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Downloading: how files are fetched, verified, and decrypted
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/shared-vaults"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Shared vaults: collaborative vaults with role-based access
-            </Link>,
+            <T
+              key="docs.snapshots-integrity.p14"
+              k="docs.snapshots-integrity.p14"
+              links={{ l1: "/docs/timed-vaults" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.snapshots-integrity.p15"
+              k="docs.snapshots-integrity.p15"
+              links={{ l1: "/docs/downloading" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.snapshots-integrity.p16"
+              k="docs.snapshots-integrity.p16"
+              links={{ l1: "/docs/shared-vaults" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
@@ -11,6 +11,7 @@ import {
   DocTable,
 } from "@/components/docs/doc-page";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Share links | zcrypt Docs",
   description:
@@ -25,13 +26,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "create", title: "Creating a share link" },
-  { id: "key-in-fragment", title: "The key lives in the link" },
-  { id: "options", title: "Password, expiry, and limits" },
-  { id: "recipient", title: "What the recipient sees" },
-  { id: "revoke", title: "Revoking a link" },
-  { id: "counter", title: "About the download counter" },
-  { id: "next", title: "Where to go next" },
+  { id: "create", k: "docs.sharing.toc.create" },
+  { id: "key-in-fragment", k: "docs.sharing.toc.key-in-fragment" },
+  { id: "options", k: "docs.sharing.toc.options" },
+  { id: "recipient", k: "docs.sharing.toc.recipient" },
+  { id: "revoke", k: "docs.sharing.toc.revoke" },
+  { id: "counter", k: "docs.sharing.toc.counter" },
+  { id: "next", k: "docs.sharing.toc.next" },
 ];
 
 export default function SharingDocPage() {
@@ -42,152 +43,119 @@ export default function SharingDocPage() {
       description="Hand a single file to someone with a link. zcrypt puts the decryption key in the part of the URL that never reaches our servers, so the share stays zero-knowledge, and you stay in control with optional passwords, expiry, limits, and instant revocation."
       toc={toc}
     >
-      <DocSection id="create" title="Creating a share link">
+      <DocSection id="create" title={<T k="docs.sharing.a5" />}>
         <DocP>
-          From any file in your vault, choose <strong>Share</strong> to mint a public link. zcrypt
-          generates a random share token for the URL and wraps the file&rsquo;s content-encryption
-          key under a fresh share key so the recipient can decrypt without ever knowing your
-          passphrase.
+          <T k="docs.sharing.p1" />
         </DocP>
-        <DocP>The resulting link has two parts that do very different jobs:</DocP>
-        <DocCode label="Anatomy of a share link">{`${SITE_URL}/s/<token>#<decryption-key>
+        <DocP>
+          <T k="docs.sharing.p2" />
+        </DocP>
+        <DocCode label={<T k="docs.sharing.a3" />}>{`${SITE_URL}/s/<token>#<decryption-key>
                          └── sent to server   └── never sent`}</DocCode>
         <DocP>
-          Need to hand over more than one file? See{" "}
-          <Link
-            href="/docs/folder-sharing"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Share a folder
-          </Link>{" "}
-          for a single public link that covers a whole folder, the same zero-knowledge way.
+          <T
+            k="docs.sharing.p4"
+            links={{ l1: "/docs/folder-sharing" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="key-in-fragment" title="The key lives in the link, not on our servers">
+      <DocSection id="key-in-fragment" title={<T k="docs.sharing.a9" />}>
         <DocP>
-          Everything after the <code>#</code> is the URL <em>fragment</em>. Browsers never transmit
-          the fragment to the server: it stays in the address bar and is only readable by JavaScript
-          running on the page. zcrypt puts the share&rsquo;s decryption key there, so our servers
-          store only the token, the encrypted file, and a wrapped key they can never unwrap.
+          <T k="docs.sharing.p6" />
         </DocP>
-        <DocNote type="security" title="What this means for you">
-          Anyone with the full link can open the file, because the link itself carries the key.
-          Treat a share link like the file&rsquo;s password: send it over a channel you trust, and
-          add a separate password (below) when the link might travel over something you don&rsquo;t.
+        <DocNote type="security" title={<T k="docs.sharing.a8" />}>
+          <T k="docs.sharing.p7" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="options" title="Password, expiry, and download limits">
+      <DocSection id="options" title={<T k="docs.sharing.a19" />}>
         <DocP>
-          Each link can carry its own guardrails, all optional and all enforced on our side
-          independently of the key in the fragment:
+          <T k="docs.sharing.p10" />
         </DocP>
         <DocTable
-          head={["Option", "What it does"]}
+          head={[
+            <T key="docs.sharing.p11" k="docs.sharing.p11" />,
+            <T key="docs.sharing.p12" k="docs.sharing.p12" />,
+          ]}
           rows={[
             [
-              <strong key="a">Password</strong>,
-              <>
-                A second secret the recipient must enter. It is hashed with bcrypt on the server and
-                checked before any file metadata or chunks are released. Until the right password is
-                provided, the link won&rsquo;t even reveal the file name or size.
-              </>,
+              <T key="docs.sharing.p13" k="docs.sharing.p13" />,
+              <T key="docs.sharing.p14" k="docs.sharing.p14" />,
             ],
             [
-              <strong key="b">Expiry</strong>,
-              <>
-                Choose <strong>1 hour</strong>, <strong>24 hours</strong>, <strong>7 days</strong>,{" "}
-                <strong>30 days</strong>, or <strong>never</strong>. After it lapses the link
-                reports that it is no longer available.
-              </>,
+              <T key="docs.sharing.p15" k="docs.sharing.p15" />,
+              <T key="docs.sharing.p16" k="docs.sharing.p16" />,
             ],
             [
-              <strong key="c">Download limit</strong>,
-              <>
-                Cap the number of accesses. Once the count reaches the limit, the link stops
-                working.
-              </>,
+              <T key="docs.sharing.p17" k="docs.sharing.p17" />,
+              <T key="docs.sharing.p18" k="docs.sharing.p18" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="recipient" title="What the recipient sees">
+      <DocSection id="recipient" title={<T k="docs.sharing.a23" />}>
         <DocP>
-          Recipients need no zcrypt account. Opening the link loads a public page that fetches the
-          encrypted chunks, verifies them, and decrypts the file{" "}
-          <strong>entirely in their browser</strong> using the key from the fragment. The plaintext
-          is reassembled on their device and never on our servers.
+          <T k="docs.sharing.p20" />
         </DocP>
         <DocList
           items={[
-            <>If you set a password, the page prompts for it first.</>,
-            <>
-              If the link has expired or hit its download limit, the page explains that it is no
-              longer available.
-            </>,
+            <T key="docs.sharing.p21" k="docs.sharing.p21" />,
+            <T key="docs.sharing.p22" k="docs.sharing.p22" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="revoke" title="Revoking a link">
+      <DocSection id="revoke" title={<T k="docs.sharing.a25" />}>
         <DocP>
-          You can revoke any share link at any time from your list of shares. Revocation is
-          immediate: the server refuses all further requests for that token, so even someone holding
-          the full link (key and all) can no longer fetch the file.
+          <T k="docs.sharing.p24" />
         </DocP>
       </DocSection>
 
-      <DocSection id="counter" title="About the download counter">
-        <DocNote type="info" title="Honest note on counting">
-          The download counter increments when a recipient&rsquo;s browser fetches the link&rsquo;s
-          file metadata: the step that precedes the actual chunk downloads. It is a close proxy for
-          &ldquo;times opened,&rdquo; not a byte-exact count of completed downloads, so a page
-          reload or an interrupted download can move the number. Keep that in mind if you set a
-          tight download limit.
+      <DocSection id="counter" title={<T k="docs.sharing.a28" />}>
+        <DocNote type="info" title={<T k="docs.sharing.a27" />}>
+          <T k="docs.sharing.p26" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
-        <DocP>Other ways to get data to people and devices:</DocP>
+      <DocSection id="next" title={<T k="docs.sharing.a35" />}>
+        <DocP>
+          <T k="docs.sharing.p29" />
+        </DocP>
         <DocList
           items={[
-            <Link
-              key="d"
-              href="/docs/folder-sharing"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Share a folder: one public link for a whole folder
-            </Link>,
-            <Link
-              key="a"
-              href="/docs/send"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Anonymous Send: send a file with no account at all
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/pad"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encrypted Pad: share a one-time encrypted note
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/sync-transfer"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Sync &amp; device transfer: move data between your own devices
-            </Link>,
-            <Link
-              key="e"
-              href="/features/sharing"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encrypted sharing, the feature tour
-            </Link>,
+            <T
+              key="docs.sharing.p30"
+              k="docs.sharing.p30"
+              links={{ l1: "/docs/folder-sharing" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.sharing.p31"
+              k="docs.sharing.p31"
+              links={{ l1: "/docs/send" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.sharing.p32"
+              k="docs.sharing.p32"
+              links={{ l1: "/docs/pad" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.sharing.p33"
+              k="docs.sharing.p33"
+              links={{ l1: "/docs/sync-transfer" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.sharing.p34"
+              k="docs.sharing.p34"
+              links={{ l1: "/features/sharing" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Trash & restore | zcrypt Docs",
   description:
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "soft-delete", title: "Deleting is a soft delete" },
-  { id: "restore", title: "Restoring" },
-  { id: "purge", title: "Deleting forever" },
-  { id: "preview", title: "Previewing in Trash" },
-  { id: "bulk", title: "Bulk select" },
+  { id: "soft-delete", k: "docs.trash.toc.soft-delete" },
+  { id: "restore", k: "docs.trash.toc.restore" },
+  { id: "purge", k: "docs.trash.toc.purge" },
+  { id: "preview", k: "docs.trash.toc.preview" },
+  { id: "bulk", k: "docs.trash.toc.bulk" },
 ];
 
 export default function TrashDocPage() {
@@ -32,59 +33,45 @@ export default function TrashDocPage() {
       description="Deletes are reversible by default. Items go to Trash first, so a mis-click is a quick restore, until you decide to purge them for good."
       toc={toc}
     >
-      <DocSection id="soft-delete" title="Deleting is a soft delete">
+      <DocSection id="soft-delete" title={<T k="docs.trash.a2" />}>
         <DocP>
-          Deleting a file moves it to <strong>Trash</strong> rather than removing it outright, a{" "}
-          <strong>soft delete</strong>. The file leaves your folders but its encrypted chunks stay
-          on your storage platform, untouched, so it can be brought back.
+          <T k="docs.trash.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="restore" title="Restoring">
+      <DocSection id="restore" title={<T k="docs.trash.a4" />}>
         <DocP>
-          From Trash, <strong>restore</strong> an item to return it to your vault. Because nothing
-          was actually purged, a restore is instant and complete: the file comes back exactly as it
-          was.
+          <T k="docs.trash.p3" />
         </DocP>
       </DocSection>
 
-      <DocSection id="purge" title="Deleting forever">
+      <DocSection id="purge" title={<T k="docs.trash.a8" />}>
         <DocP>
-          To reclaim space, choose <strong>delete forever</strong>. This is the irreversible step:
-          zcrypt{" "}
-          <strong>purges the file&apos;s chunks from every connected storage platform</strong> they
-          live on. After a purge there is nothing left to restore.
+          <T k="docs.trash.p5" />
         </DocP>
-        <DocNote type="warning" title="Permanent and unrecoverable">
-          Delete-forever cannot be undone. Once the chunks are purged from your platforms, the file
-          is gone for good: restore anything you might still want before you purge.
+        <DocNote type="warning" title={<T k="docs.trash.a7" />}>
+          <T k="docs.trash.p6" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="preview" title="Previewing in Trash">
+      <DocSection id="preview" title={<T k="docs.trash.a10" />}>
         <DocP>
-          Not sure whether to keep something? You can <strong>preview items in Trash</strong> with
-          the same full-screen viewer used elsewhere, so you can confirm exactly what a file is
-          before restoring or purging it. See{" "}
-          <Link
-            href="/docs/viewing-files"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Viewing &amp; previewing files
-          </Link>
-          .
+          <T
+            k="docs.trash.p9"
+            links={{ l1: "/docs/viewing-files" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="bulk" title="Bulk select">
+      <DocSection id="bulk" title={<T k="docs.trash.a14" />}>
         <DocP>
-          Trash supports <strong>bulk selection</strong>, so you can clear out or recover many items
-          in one pass:
+          <T k="docs.trash.p11" />
         </DocP>
         <DocList
           items={[
-            "Select multiple items, then restore the whole group at once.",
-            "Or delete the selection forever to purge several files' chunks together.",
+            <T key="docs.trash.p12" k="docs.trash.p12" />,
+            <T key="docs.trash.p13" k="docs.trash.p13" />,
           ]}
         />
       </DocSection>

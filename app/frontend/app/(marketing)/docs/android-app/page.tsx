@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { desktopEngine } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Android app | zcrypt Docs",
   description:
@@ -18,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "what", title: "What it is" },
-  { id: "install", title: "Installing the APK" },
-  { id: "beta", title: "What beta means" },
-  { id: "same-core", title: "Same zero-knowledge core" },
-  { id: "next", title: "Where to go next" },
+  { id: "what", k: "docs.android-app.toc.what" },
+  { id: "install", k: "docs.android-app.toc.install" },
+  { id: "beta", k: "docs.android-app.toc.beta" },
+  { id: "same-core", k: "docs.android-app.toc.same-core" },
+  { id: "next", k: "docs.android-app.toc.next" },
 ];
 
 export default function AndroidAppDocPage() {
@@ -33,122 +33,92 @@ export default function AndroidAppDocPage() {
       description="zcrypt on your phone: a beta Android build on the same in-process encryption engine as the desktop app, installed by sideloading an APK rather than through the Play Store."
       toc={toc}
     >
-      <DocSection id="what" title="What it is">
+      <DocSection id="what" title={<T k="docs.android-app.a3" />}>
         <DocP>
-          The zcrypt Android app is a <strong>beta</strong> build that runs the same zcrypt
-          interface on your phone. Under the shell, encryption, compression, chunking, and storage
-          sync run in <strong>{desktopEngine.name}</strong>, the same in-process{" "}
-          {desktopEngine.language} engine that powers the desktop app, not a browser sandbox and not
-          a background subprocess. Because the engine is the same, a file encrypted on desktop opens
-          cleanly on Android, and vice versa.
+          <T k="docs.android-app.p1" />
         </DocP>
         <DocP>
-          It is <strong>not on the Play Store</strong>. You install it by sideloading an APK
-          directly, which takes about a minute.
+          <T k="docs.android-app.p2" />
         </DocP>
       </DocSection>
 
-      <DocSection id="install" title="Installing the APK">
+      <DocSection id="install" title={<T k="docs.android-app.a9" />}>
         <DocP>
-          The APK is published alongside the other zcrypt builds. Grab it from the download page and
-          install it yourself:
+          <T k="docs.android-app.p4" />
         </DocP>
         <DocList
           items={[
-            <>
-              Open{" "}
-              <Link
-                href="/download#android"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                the Android section of the download page
-              </Link>{" "}
-              on your phone and download the APK.
-            </>,
-            <>
-              When Android asks, allow installing from this source: sideloading an app from outside
-              the Play Store needs that one-time permission.
-            </>,
-            <>
-              Open the downloaded APK to install, then launch zcrypt and sign in as you would
-              anywhere else.
-            </>,
+            <T
+              key="docs.android-app.p5"
+              k="docs.android-app.p5"
+              links={{ l1: "/download#android" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T key="docs.android-app.p6" k="docs.android-app.p6" />,
+            <T key="docs.android-app.p7" k="docs.android-app.p7" />,
           ]}
         />
         <DocNote type="info">
-          Because it is sideloaded, the app does not auto-update through the Play Store. To move to
-          a newer build, download and install the latest APK again from the same place.
+          <T k="docs.android-app.p8" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="beta" title="What beta means">
+      <DocSection id="beta" title={<T k="docs.android-app.a12" />}>
         <DocP>
-          The Android app is genuinely early, and we would rather say so than oversell it. The
-          encrypted drive works (sign in, upload, browse, and download) but the app is younger than
-          the web and desktop builds, so expect rough edges and fewer conveniences for now. Offline
-          access and camera backup are on the roadmap, not shipped.
+          <T k="docs.android-app.p10" />
         </DocP>
         <DocNote type="info">
-          If a build for your phone gives you trouble, the{" "}
-          <Link href="/docs/web-app" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            web app
-          </Link>{" "}
-          runs the full product in your mobile browser in the meantime.
+          <T
+            k="docs.android-app.p11"
+            links={{ l1: "/docs/web-app" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="same-core" title="Same zero-knowledge core">
+      <DocSection id="same-core" title={<T k="docs.android-app.a16" />}>
         <DocP>
-          The Android app is the same zcrypt, not a stripped-down sibling. Encryption and decryption
-          happen entirely on your device, your vault passphrase is still never sent to the server,
-          and everything you learn about how zcrypt protects your data applies here unchanged.
+          <T k="docs.android-app.p13" />
         </DocP>
         <DocP>
-          Like the desktop app, Android uploads directly to your own storage:{" "}
-          {desktopEngine.dataPlane}
+          <T k="docs.android-app.p14" />
         </DocP>
         <DocNote type="security">
-          Because the cryptography is identical to every other platform, the recovery rules are too:
-          lose your vault passphrase and your files cannot be decrypted on any device. Keep it in a
-          password manager. See{" "}
-          <Link href="/docs/recovery" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Account recovery
-          </Link>
-          .
+          <T
+            k="docs.android-app.p15"
+            links={{ l1: "/docs/recovery" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.android-app.a21" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/desktop-app"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Desktop app: the same engine as a native build for your computer
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/web-app"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Web app: the full product in any modern browser
-            </Link>,
-            <Link
-              key="c"
-              href="/download#android"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Download: get the current Android APK
-            </Link>,
-            <Link
-              key="d"
-              href="/features/apps"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              zcrypt everywhere: one vault across web, desktop, and mobile
-            </Link>,
+            <T
+              key="docs.android-app.p17"
+              k="docs.android-app.p17"
+              links={{ l1: "/docs/desktop-app" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.android-app.p18"
+              k="docs.android-app.p18"
+              links={{ l1: "/docs/web-app" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.android-app.p19"
+              k="docs.android-app.p19"
+              links={{ l1: "/download#android" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.android-app.p20"
+              k="docs.android-app.p20"
+              links={{ l1: "/features/apps" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

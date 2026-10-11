@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Glossary | zcrypt Docs",
   description:
@@ -17,8 +18,8 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "terms", title: "Terms" },
-  { id: "next", title: "Where to go next" },
+  { id: "terms", k: "docs.glossary.toc.terms" },
+  { id: "next", k: "docs.glossary.toc.next" },
 ];
 
 export default function GlossaryDocPage() {
@@ -29,95 +30,83 @@ export default function GlossaryDocPage() {
       description="The vocabulary used throughout zcrypt and these docs, defined in one place."
       toc={toc}
     >
-      <DocSection id="terms" title="Terms">
+      <DocSection id="terms" title={<T k="docs.glossary.a32" />}>
         <DocP>
-          A few of these are general cryptography terms; the rest are specific to how zcrypt works.
-          They build on each other, so it can help to read them in order.
+          <T k="docs.glossary.p1" />
         </DocP>
         <DocTable
-          head={["Term", "Definition"]}
+          head={[
+            <T key="docs.glossary.p2" k="docs.glossary.p2" />,
+            <T key="docs.glossary.p3" k="docs.glossary.p3" />,
+          ]}
           rows={[
             [
-              <strong key="t">Vault</strong>,
-              "Your private, encrypted drive in zcrypt: the folders and files only you can decrypt. It is locked until you unlock it with your passphrase.",
+              <T key="docs.glossary.p4" k="docs.glossary.p4" />,
+              <T key="docs.glossary.p5" k="docs.glossary.p5" />,
             ],
             [
-              <strong key="t">Passphrase</strong>,
-              "The secret you choose to protect your vault. It is used on your device to derive your encryption keys and is never sent to or stored by the server, so it cannot be recovered if lost.",
+              <T key="docs.glossary.p6" k="docs.glossary.p6" />,
+              <T key="docs.glossary.p7" k="docs.glossary.p7" />,
             ],
             [
-              <strong key="t">CEK (content encryption key)</strong>,
-              "The key that actually encrypts a file's contents. In an envelope scheme the CEK is itself encrypted by a higher-level key rather than used directly from your passphrase.",
+              <T key="docs.glossary.p8" k="docs.glossary.p8" />,
+              <T key="docs.glossary.p9" k="docs.glossary.p9" />,
             ],
             [
-              <strong key="t">Envelope encryption</strong>,
-              'A two-layer scheme: data is sealed with a content key (the CEK), and that content key is in turn sealed ("wrapped") by another key. It lets zcrypt re-key or re-share data without re-encrypting every byte.',
+              <T key="docs.glossary.p10" k="docs.glossary.p10" />,
+              <T key="docs.glossary.p11" k="docs.glossary.p11" />,
             ],
             [
-              <strong key="t">Chunk</strong>,
-              "A piece of an encrypted file, sized to your device (~4–16 MB, ~10 MB typical). Splitting files into chunks makes uploads parallel, resumable, and easy to spread across storage repositories.",
+              <T key="docs.glossary.p12" k="docs.glossary.p12" />,
+              <T key="docs.glossary.p13" k="docs.glossary.p13" />,
             ],
             [
-              <strong key="t">Salt</strong>,
-              "Random bytes mixed into key derivation so the same passphrase produces a different key each time. zcrypt uses a unique salt per file, which defeats precomputed-hash attacks.",
+              <T key="docs.glossary.p14" k="docs.glossary.p14" />,
+              <T key="docs.glossary.p15" k="docs.glossary.p15" />,
             ],
             [
-              <strong key="t">KEK (key encryption key)</strong>,
-              "A key whose job is to encrypt other keys rather than data. zcrypt derives a per-user KEK from the instance master key (via HKDF) to wrap your stored platform tokens at rest.",
+              <T key="docs.glossary.p16" k="docs.glossary.p16" />,
+              <T key="docs.glossary.p17" k="docs.glossary.p17" />,
             ],
             [
-              <strong key="t">Zero-knowledge</strong>,
-              "An architecture where the service holds no ability to read your data, no plaintext and no keys ever cross to the server. The trade-off is that nobody, including us, can recover a lost passphrase.",
+              <T key="docs.glossary.p18" k="docs.glossary.p18" />,
+              <T key="docs.glossary.p19" k="docs.glossary.p19" />,
             ],
             [
-              <strong key="t">BYOB (bring your own backend)</strong>,
-              "zcrypt's storage model: you connect your own GitHub, GitLab, Hugging Face, or Telegram account as the backend, so your encrypted data lives on infrastructure you control and your capacity is your platform's free space.",
+              <T key="docs.glossary.p20" k="docs.glossary.p20" />,
+              <T key="docs.glossary.p21" k="docs.glossary.p21" />,
             ],
             [
-              <strong key="t">Repo pool</strong>,
-              "The set of repositories zcrypt uses on a storage platform. As a repo nears the platform's size limit, the pool auto-rotates to a new repo, so storage grows without manual intervention.",
+              <T key="docs.glossary.p22" k="docs.glossary.p22" />,
+              <T key="docs.glossary.p23" k="docs.glossary.p23" />,
             ],
             [
-              <strong key="t">Decoy vault</strong>,
-              "A second, innocent-looking vault opened by a separate decoy password, for plausible deniability. If compelled to log in, you can reveal the decoy instead of your real vault.",
+              <T key="docs.glossary.p24" k="docs.glossary.p24" />,
+              <T key="docs.glossary.p25" k="docs.glossary.p25" />,
             ],
             [
-              <strong key="t">Dead man's switch</strong>,
-              "An optional safeguard that notifies a trusted contact if you stop checking in within a configured window: useful for handing off access if something happens to you.",
+              <T key="docs.glossary.p26" k="docs.glossary.p26" />,
+              <T key="docs.glossary.p27" k="docs.glossary.p27" />,
             ],
             [
-              <strong key="t">TOTP</strong>,
-              "Time-based One-Time Password: the six-digit, 30-second codes from an authenticator app. zcrypt uses TOTP for two-factor authentication on sign-in.",
+              <T key="docs.glossary.p28" k="docs.glossary.p28" />,
+              <T key="docs.glossary.p29" k="docs.glossary.p29" />,
             ],
             [
-              <strong key="t">Zstd</strong>,
-              "Zstandard, a fast, high-ratio compression algorithm. zcrypt compresses files with zstd before encrypting them, so less data is encrypted and stored.",
+              <T key="docs.glossary.p30" k="docs.glossary.p30" />,
+              <T key="docs.glossary.p31" k="docs.glossary.p31" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.glossary.a34" />}>
         <DocP>
-          See these terms in context:{" "}
-          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Encryption model
-          </Link>
-          ,{" "}
-          <Link
-            href="/docs/zero-knowledge"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Zero-knowledge architecture
-          </Link>
-          , and{" "}
-          <Link
-            href="/docs/architecture"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Architecture
-          </Link>
-          .
+          <T
+            k="docs.glossary.p33"
+            links={{ l1: "/docs/security", l2: "/docs/zero-knowledge", l3: "/docs/architecture" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

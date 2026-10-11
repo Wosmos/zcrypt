@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { groupSlug, navSlug } from "@/components/docs/nav-keys";
 import { docsNav, type DocsNavGroup, type DocsNavLink } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { ChevronRight, ExternalLink, Github, Heart, Menu, Search, X } from "@/lib/icons";
@@ -30,6 +32,7 @@ function TreeLink({
   isLast: boolean;
   onNavigate: () => void;
 }) {
+  const t = useTranslations();
   const className = cn(
     "group/link relative flex w-full items-center gap-2 rounded-md py-1.5 pl-5 pr-2 text-[13px] transition-colors",
     active
@@ -67,7 +70,9 @@ function TreeLink({
             : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]",
         )}
       />
-      <span className="min-w-0 flex-1 truncate">{link.title}</span>
+      <span className="min-w-0 flex-1 truncate">
+        {t(`docs.nav.${navSlug(link.href)}.title` as never)}
+      </span>
       {link.badge && (
         <span
           className={cn(
@@ -75,7 +80,7 @@ function TreeLink({
             BADGE_STYLES[link.badge],
           )}
         >
-          {link.badge}
+          {t(`docs.ui.badge.${link.badge.toLowerCase()}` as never)}
         </span>
       )}
       {link.external && (
@@ -114,14 +119,17 @@ function NavGroup({
   pathname: string;
   onNavigate: () => void;
 }) {
+  const t = useTranslations();
   const hasActive = group.links.some((l) => !l.external && l.href === pathname);
   // Every group starts expanded so the full tree (and every page in it) is
   // visible without hunting; users can still collapse groups they don't want.
   const [open, setOpen] = useState(true);
 
-  useEffect(() => {
-    if (group.links.some((l) => !l.external && l.href === pathname)) setOpen(true);
-  }, [pathname, group.links]);
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    if (hasActive) setOpen(true);
+  }
 
   return (
     <div>
@@ -142,7 +150,7 @@ function NavGroup({
             open && "rotate-90",
           )}
         />
-        {group.title}
+        {t(`docs.navGroup.${groupSlug(group.title)}.title` as never)}
       </button>
 
       {/* Smooth height via the grid-rows 0fr → 1fr trick */}
@@ -175,8 +183,9 @@ function NavGroup({
 
 // ─── Nav tree ────────────────────────────────────────────────
 function NavTree({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  const t = useTranslations();
   return (
-    <nav aria-label="Documentation">
+    <nav aria-label={t("docs.ui.documentation")}>
       <ul className="flex list-none flex-col gap-0.5">
         {docsNav.map((group) => (
           <li key={group.title}>
@@ -192,13 +201,14 @@ function NavTree({ pathname, onNavigate }: { pathname: string; onNavigate: () =>
 // Fills the dead space at the bottom of the tree with a compact, quiet
 // "open source" card: a natural footer to the vault, not a billboard.
 function SidebarFooterCard() {
+  const t = useTranslations();
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
       <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-text)]">
-        Open source
+        {t("docs.ui.openSource")}
       </p>
       <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-muted)]">
-        MIT-licensed · your keys, your storage
+        {t("docs.ui.openSourceTagline")}
       </p>
       <div className="mt-2.5 grid grid-cols-2 gap-1.5">
         <a
@@ -217,7 +227,7 @@ function SidebarFooterCard() {
           className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-rose-500/40 hover:text-rose-600 dark:hover:text-rose-400"
         >
           <Heart className="h-3.5 w-3.5" />
-          Sponsor
+          {t("docs.ui.sponsor")}
         </a>
       </div>
     </div>
@@ -226,6 +236,7 @@ function SidebarFooterCard() {
 
 // ─── Desktop sidebar (hidden on mobile) ─────────────────────
 export function DocsSidebar() {
+  const t = useTranslations();
   const pathname = usePathname();
 
   return (
@@ -234,7 +245,7 @@ export function DocsSidebar() {
           so no extra top offset is needed here. */}
       <div className="border-b border-[var(--color-border)] px-4 pb-4 pt-6">
         <p className="px-1 text-[11px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
-          Documentation
+          {t("docs.ui.documentation")}
         </p>
         <div className="mt-3">
           <DocsSearchTrigger />
@@ -256,6 +267,7 @@ export function DocsSidebar() {
 
 // ─── Mobile nav (hidden on desktop) ─────────────────────────
 export function DocsMobileNav() {
+  const t = useTranslations();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { open: openSearch } = useDocsSearch();
@@ -269,7 +281,7 @@ export function DocsMobileNav() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Open docs navigation"
+          aria-label={t("docs.ui.openNav")}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
         >
           <Menu className="h-4 w-4" />
@@ -278,14 +290,14 @@ export function DocsMobileNav() {
           <>
             <span className="text-[var(--color-text-muted)]">/</span>
             <span className="min-w-0 truncate text-[13px] font-medium text-[var(--color-text-secondary)]">
-              {currentGroup.title}
+              {t(`docs.navGroup.${groupSlug(currentGroup.title)}.title` as never)}
             </span>
           </>
         )}
         <button
           type="button"
           onClick={openSearch}
-          aria-label="Search docs"
+          aria-label={t("docs.ui.searchDocs")}
           className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
         >
           <Search className="h-4 w-4" />
@@ -310,11 +322,13 @@ export function DocsMobileNav() {
       >
         <div className="border-b border-[var(--color-border)] px-4 pb-3 pt-3">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-[var(--color-text)]">Documentation</span>
+            <span className="text-[13px] font-bold text-[var(--color-text)]">
+              {t("docs.ui.documentation")}
+            </span>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close navigation"
+              aria-label={t("docs.ui.closeNav")}
               className="grid h-8 w-8 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
             >
               <X className="h-4 w-4" />

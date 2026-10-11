@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Contributing | zcrypt Docs",
   description:
@@ -17,14 +18,14 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "overview", title: "Overview" },
-  { id: "prerequisites", title: "Prerequisites" },
-  { id: "setup", title: "Local setup" },
-  { id: "env", title: "Environment variables" },
-  { id: "conventions", title: "Coding conventions" },
-  { id: "gate", title: "Quality gate" },
-  { id: "pr", title: "Branch and PR conventions" },
-  { id: "license", title: "License" },
+  { id: "overview", k: "docs.contributing.toc.overview" },
+  { id: "prerequisites", k: "docs.contributing.toc.prerequisites" },
+  { id: "setup", k: "docs.contributing.toc.setup" },
+  { id: "env", k: "docs.contributing.toc.env" },
+  { id: "conventions", k: "docs.contributing.toc.conventions" },
+  { id: "gate", k: "docs.contributing.toc.gate" },
+  { id: "pr", k: "docs.contributing.toc.pr" },
+  { id: "license", k: "docs.contributing.toc.license" },
 ];
 
 export default function ContributingDocPage() {
@@ -35,53 +36,37 @@ export default function ContributingDocPage() {
       description="How to set up zcrypt locally, the conventions the project follows, and how to submit a change."
       toc={toc}
     >
-      <DocSection id="overview" title="Overview">
+      <DocSection id="overview" title={<T k="docs.contributing.a2" />}>
         <DocP>
-          zcrypt is a zero-knowledge encrypted cloud storage system, and this page mirrors the
-          repository&apos;s{" "}
-          <Link
-            href="https://github.com/Wosmos/zcrypt/blob/main/CONTRIBUTING.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            CONTRIBUTING.md
-          </Link>
-          . Because it&apos;s a security/cryptography product, read <code>SECURITY.md</code> before
-          reporting anything that might be a vulnerability. Do not open a public issue for security
-          problems.
+          <T
+            k="docs.contributing.p1"
+            links={{ l1: "https://github.com/Wosmos/zcrypt/blob/main/CONTRIBUTING.md" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="prerequisites" title="Prerequisites">
+      <DocSection id="prerequisites" title={<T k="docs.contributing.a7" />}>
         <DocList
           items={[
-            <>Go 1.25+</>,
-            <>
-              Node.js 20+ and <code>Bun</code>
-            </>,
-            <>
-              PostgreSQL (or a free{" "}
-              <Link
-                href="https://neon.tech"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                Neon
-              </Link>{" "}
-              database)
-            </>,
-            <>Docker (optional)</>,
+            <T key="docs.contributing.p3" k="docs.contributing.p3" />,
+            <T key="docs.contributing.p4" k="docs.contributing.p4" />,
+            <T
+              key="docs.contributing.p5"
+              k="docs.contributing.p5"
+              links={{ l1: "https://neon.tech" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T key="docs.contributing.p6" k="docs.contributing.p6" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="setup" title="Local setup">
+      <DocSection id="setup" title={<T k="docs.contributing.a14" />}>
         <DocP>
-          <strong>Backend</strong>
+          <T k="docs.contributing.p8" />
         </DocP>
-        <DocCode label="shell">{`cd app/backend
+        <DocCode label={<T k="docs.contributing.a10" />}>{`cd app/backend
 
 # Create your own environment file from the template, then fill in real values.
 cp .env.example .env
@@ -94,9 +79,9 @@ go vet ./...
 
 ./zcrypt-server`}</DocCode>
         <DocP>
-          <strong>Frontend</strong>
+          <T k="docs.contributing.p11" />
         </DocP>
-        <DocCode label="shell">{`cd app/frontend
+        <DocCode label={<T k="docs.contributing.a13" />}>{`cd app/frontend
 
 bun install
 echo "NEXT_PUBLIC_API_URL=http://localhost:8080" > .env.local
@@ -107,97 +92,62 @@ bun run lint       # lint
 bun run typecheck  # type check`}</DocCode>
       </DocSection>
 
-      <DocSection id="env" title="Environment variables">
+      <DocSection id="env" title={<T k="docs.contributing.a16" />}>
         <DocP>
-          Never commit a real <code>.env</code>; it is gitignored. The backend template lives at{" "}
-          <code>app/backend/.env.example</code>. Copy it to <code>.env</code> and supply your own
-          values. Each contributor is responsible for their own credentials. If you accidentally
-          commit a secret, rotate it immediately and let a maintainer know.
+          <T k="docs.contributing.p15" />
         </DocP>
       </DocSection>
 
-      <DocSection id="conventions" title="Coding conventions">
+      <DocSection id="conventions" title={<T k="docs.contributing.a20" />}>
         <DocList
           items={[
-            <>
-              <strong>Backend</strong>. Standard Go. stdlib <code>net/http</code> (no web
-              framework). Wrap errors with <code>fmt.Errorf(&quot;context: %w&quot;, err)</code>.
-              UUID primary keys. Raw SQL via pgxpool (no ORM). Run <code>go vet ./...</code> and{" "}
-              <code>go test ./...</code> before pushing.
-            </>,
-            <>
-              <strong>Frontend</strong>. TypeScript + React 19. <code>&quot;use client&quot;</code>{" "}
-              for interactive components. Zustand for global state, Tailwind for styling, Hugeicons
-              for icons. No emojis in code. Run <code>bun run lint</code> and{" "}
-              <code>bun run typecheck</code> before pushing.
-            </>,
-            <>
-              <strong>Commits</strong>. Keep them focused and write clear messages.
-            </>,
+            <T key="docs.contributing.p17" k="docs.contributing.p17" />,
+            <T key="docs.contributing.p18" k="docs.contributing.p18" />,
+            <T key="docs.contributing.p19" k="docs.contributing.p19" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="gate" title="Quality gate">
+      <DocSection id="gate" title={<T k="docs.contributing.a26" />}>
         <DocP>
-          Before pushing, run the change-scoped quality gate. It runs typecheck, lint, tests, and
-          build for whichever modules you touched (frontend / backend / desktop), mirroring CI:
+          <T k="docs.contributing.p21" />
         </DocP>
-        <DocCode label="shell">{`bash scripts/install-hooks.sh          # once per clone, wires the pre-push hook
+        <DocCode
+          label={<T k="docs.contributing.a23" />}
+        >{`bash scripts/install-hooks.sh          # once per clone, wires the pre-push hook
 bash scripts/prepush.sh --gates-only   # fast: gates only
 bash scripts/prepush.sh                # full: gates + advisory backlog scans -> docs/report.md`}</DocCode>
-        <DocNote type="info" title="The pre-push hook runs this for you">
-          Once installed, the pre-push hook runs the gates automatically on <code>git push</code>;
-          bypass a single push with <code>git push --no-verify</code> if you must.
+        <DocNote type="info" title={<T k="docs.contributing.a25" />}>
+          <T k="docs.contributing.p24" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="pr" title="Branch and PR conventions">
+      <DocSection id="pr" title={<T k="docs.contributing.a32" />}>
         <DocList
           items={[
-            <>
-              Fork the repository (or create a feature branch if you have write access). Do not
-              commit directly to <code>main</code>.
-            </>,
-            <>
-              Use a descriptive branch name, e.g. <code>feat/repo-rotation</code>,{" "}
-              <code>fix/cors-whitelist</code>, or <code>docs/readme</code>.
-            </>,
-            <>
-              Make your change with tests where it makes sense, and ensure the build, lint, type
-              check, and tests pass.
-            </>,
-            <>
-              Open a pull request against <code>main</code> with a clear description of what changed
-              and why. Link any related issue.
-            </>,
-            <>
-              A maintainer will review. Address feedback by pushing additional commits to the same
-              branch.
-            </>,
+            <T key="docs.contributing.p27" k="docs.contributing.p27" />,
+            <T key="docs.contributing.p28" k="docs.contributing.p28" />,
+            <T key="docs.contributing.p29" k="docs.contributing.p29" />,
+            <T key="docs.contributing.p30" k="docs.contributing.p30" />,
+            <T key="docs.contributing.p31" k="docs.contributing.p31" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="license" title="License">
+      <DocSection id="license" title={<T k="docs.contributing.a35" />}>
         <DocP>
-          By contributing to zcrypt, you agree that your contributions will be licensed under the{" "}
-          <Link href="/docs/license" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            MIT License
-          </Link>
-          , the same license that covers the project.
+          <T
+            k="docs.contributing.p33"
+            links={{ l1: "/docs/license" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
         <DocP>
-          Full source and issue tracker:{" "}
-          <Link
-            href="https://github.com/Wosmos/zcrypt"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            github.com/Wosmos/zcrypt
-          </Link>
-          .
+          <T
+            k="docs.contributing.p34"
+            links={{ l1: "https://github.com/Wosmos/zcrypt" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

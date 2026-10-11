@@ -1,273 +1,251 @@
-import { LegalPage } from "@/components/marketing/legal-page";
-import {
-  BulletList,
-  ProseSection,
-  PullQuote,
-  proseBody,
-  proseLink,
-} from "@/components/marketing/prose";
+import { LegalPage, ProseSection } from "@/components/legal/legal-i18n";
+import { BulletList, PullQuote, proseBody, proseLink } from "@/components/marketing/prose";
 import { Section } from "@/components/marketing/section-reveal";
 import { PRIVACY_EMAIL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export default function PrivacyPage() {
   return (
     <LegalPage
-      eyebrow="Privacy"
-      title="Privacy Policy"
-      lead="What we can see, what we collect, and what we'll never touch. Last updated July 2026."
-      seeAlso={{ href: "/terms", label: "Terms of Service" }}
+      eyebrowK="legal.privacy.a75"
+      titleK="legal.privacy.a76"
+      leadK="legal.privacy.a77"
+      seeAlso={{ href: "/terms", label: "legal.privacy.a78" }}
     >
       <Section>
         <div className={proseBody}>
           <p>
-            zcrypt is built on a zero-knowledge architecture. This means we are technically unable
-            to access the contents of your encrypted files. This Privacy Policy explains what we{" "}
-            <em>can</em> see, what we collect, and how we use it.
+            <T k="legal.privacy.p1" />
           </p>
         </div>
       </Section>
 
-      <ProseSection id="privacy-what-we-cannot-see" eyebrow="Section 1" title="What we cannot see">
+      <ProseSection
+        id="privacy-what-we-cannot-see"
+        eyebrowK="legal.privacy.a7"
+        titleK="legal.privacy.a8"
+      >
         <div className={proseBody}>
-          <p>Due to our zero-knowledge encryption design:</p>
+          <p>
+            <T k="legal.privacy.p2" />
+          </p>
         </div>
         <BulletList
           items={[
-            <>
-              <strong className="text-[var(--color-text)]">File contents</strong>, encrypted
-              client-side with AES-256-GCM before upload.
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Your passphrase</strong>, never
-              transmitted to or stored on our servers.
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Encryption keys</strong>, derived locally
-              on your device from your passphrase.
-            </>,
+            <T key="legal.privacy.p3" k="legal.privacy.p3" />,
+            <T key="legal.privacy.p4" k="legal.privacy.p4" />,
+            <T key="legal.privacy.p5" k="legal.privacy.p5" />,
           ]}
         />
 
         <PullQuote>
-          We can&apos;t read your files. Not because of a policy, because of mathematics.
+          <T k="legal.privacy.p6" />
         </PullQuote>
       </ProseSection>
 
-      <ProseSection id="privacy-what-we-collect" eyebrow="Section 2" title="What we collect">
+      <ProseSection
+        id="privacy-what-we-collect"
+        eyebrowK="legal.privacy.a25"
+        titleK="legal.privacy.a26"
+      >
         <div className={proseBody}>
-          <p>We collect the minimum data necessary to operate the Service.</p>
+          <p>
+            <T k="legal.privacy.p9" />
+          </p>
         </div>
 
         <div className="mt-8">
           <h3 className="font-heading text-lg font-bold tracking-tight text-[var(--color-text)]">
-            Account information
+            <T k="legal.privacy.p10" />
           </h3>
           <BulletList
             items={[
-              "Email address (for authentication and service communications)",
-              "Username",
-              "Hashed password (bcrypt; we never store plaintext passwords)",
-              "OAuth provider IDs (if you sign in with Google or GitHub)",
+              <T key="legal.privacy.p11" k="legal.privacy.p11" />,
+              <T key="legal.privacy.p12" k="legal.privacy.p12" />,
+              <T key="legal.privacy.p13" k="legal.privacy.p13" />,
+              <T key="legal.privacy.p14" k="legal.privacy.p14" />,
             ]}
           />
         </div>
 
         <div className="mt-8">
           <h3 className="font-heading text-lg font-bold tracking-tight text-[var(--color-text)]">
-            Usage metadata
+            <T k="legal.privacy.p15" />
           </h3>
           <BulletList
             items={[
-              "File and folder names: encrypted client-side by default, so the server stores only an opaque name it cannot read (some older files may retain a plaintext name in a legacy column we are retiring)",
-              "File sizes (encrypted size, for storage-usage display)",
-              "Upload/download timestamps",
-              "Storage usage per account",
-              "Number of files and chunks",
+              <T key="legal.privacy.p16" k="legal.privacy.p16" />,
+              <T key="legal.privacy.p17" k="legal.privacy.p17" />,
+              <T key="legal.privacy.p18" k="legal.privacy.p18" />,
+              <T key="legal.privacy.p19" k="legal.privacy.p19" />,
+              <T key="legal.privacy.p20" k="legal.privacy.p20" />,
             ]}
           />
         </div>
 
         <div className="mt-8">
           <h3 className="font-heading text-lg font-bold tracking-tight text-[var(--color-text)]">
-            Security logs
+            <T k="legal.privacy.p21" />
           </h3>
           <BulletList
             items={[
-              "IP addresses (for rate limiting and abuse prevention)",
-              "Login timestamps and authentication events",
-              "User agent strings",
+              <T key="legal.privacy.p22" k="legal.privacy.p22" />,
+              <T key="legal.privacy.p23" k="legal.privacy.p23" />,
+              <T key="legal.privacy.p24" k="legal.privacy.p24" />,
             ]}
           />
         </div>
       </ProseSection>
 
-      <ProseSection id="privacy-platform-tokens" eyebrow="Section 3" title="Platform tokens">
+      <ProseSection
+        id="privacy-platform-tokens"
+        eyebrowK="legal.privacy.a28"
+        titleK="legal.privacy.a29"
+      >
         <div className={proseBody}>
           <p>
-            When you connect a storage platform (GitHub, GitLab, Hugging Face, Telegram), your
-            platform access token is encrypted at rest using AES-256-GCM with a key derived from our
-            master key. Tokens are only decrypted in memory during active upload/download
-            operations.
+            <T k="legal.privacy.p27" />
           </p>
         </div>
       </ProseSection>
 
       <ProseSection
         id="privacy-how-we-use-your-data"
-        eyebrow="Section 4"
-        title="How we use your data"
+        eyebrowK="legal.privacy.a35"
+        titleK="legal.privacy.a36"
       >
         <BulletList
           items={[
-            "To provide and maintain the Service",
-            "To enforce rate limits and prevent abuse",
-            "To send essential account communications (verification, password reset)",
-            "To detect and prevent abuse",
-            "To improve the Service (aggregate, anonymized usage statistics only)",
+            <T key="legal.privacy.p30" k="legal.privacy.p30" />,
+            <T key="legal.privacy.p31" k="legal.privacy.p31" />,
+            <T key="legal.privacy.p32" k="legal.privacy.p32" />,
+            <T key="legal.privacy.p33" k="legal.privacy.p33" />,
+            <T key="legal.privacy.p34" k="legal.privacy.p34" />,
           ]}
         />
       </ProseSection>
 
-      <ProseSection id="privacy-what-we-do-not-do" eyebrow="Section 5" title="What we do NOT do">
+      <ProseSection
+        id="privacy-what-we-do-not-do"
+        eyebrowK="legal.privacy.a43"
+        titleK="legal.privacy.a44"
+      >
         <BulletList
           items={[
-            <>
-              <strong className="text-[var(--color-text)]">We do not</strong> sell your data to
-              third parties.
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">We do not</strong> serve advertisements.
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">We do not</strong> track you across
-              websites.
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">We do not</strong> scan your files for
-              any purpose (we cannot. They are encrypted).
-            </>,
+            <T key="legal.privacy.p37" k="legal.privacy.p37" />,
+            <T key="legal.privacy.p38" k="legal.privacy.p38" />,
+            <T key="legal.privacy.p39" k="legal.privacy.p39" />,
+            <T key="legal.privacy.p40" k="legal.privacy.p40" />,
           ]}
         />
 
         <PullQuote>
-          No ads, no tracking, no data sales. Your data isn&apos;t our product, the service is.
+          <T k="legal.privacy.p41" />
         </PullQuote>
 
         <div className={proseBody}>
           <p>
-            We do not share data with law enforcement without valid legal process, and even then, we
-            can only provide account metadata, not file contents.
+            <T k="legal.privacy.p42" />
           </p>
         </div>
       </ProseSection>
 
       <ProseSection
         id="privacy-third-party-services"
-        eyebrow="Section 6"
-        title="Third-party services"
+        eyebrowK="legal.privacy.a51"
+        titleK="legal.privacy.a52"
       >
         <div className={proseBody}>
-          <p>We use the following third-party services:</p>
+          <p>
+            <T k="legal.privacy.p45" />
+          </p>
         </div>
         <BulletList
           items={[
-            <>
-              <strong className="text-[var(--color-text)]">Neon</strong>. PostgreSQL database
-              hosting (stores account metadata, not file contents)
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Vercel</strong>. Frontend hosting
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Railway</strong>. Backend hosting
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Resend</strong>. Transactional email
-              (verification, password reset)
-            </>,
+            <T key="legal.privacy.p46" k="legal.privacy.p46" />,
+            <T key="legal.privacy.p47" k="legal.privacy.p47" />,
+            <T key="legal.privacy.p48" k="legal.privacy.p48" />,
+            <T key="legal.privacy.p49" k="legal.privacy.p49" />,
           ]}
         />
         <div className={`mt-4 ${proseBody}`}>
           <p>
-            Your encrypted files are stored on the platforms you connect (GitHub, GitLab, Hugging
-            Face, Telegram). Those platforms&apos; privacy policies apply to the storage of
-            encrypted data on their infrastructure.
+            <T k="legal.privacy.p50" />
           </p>
         </div>
       </ProseSection>
 
-      <ProseSection id="privacy-data-retention" eyebrow="Section 7" title="Data retention">
+      <ProseSection
+        id="privacy-data-retention"
+        eyebrowK="legal.privacy.a58"
+        titleK="legal.privacy.a59"
+      >
         <BulletList
           items={[
-            "Account data is retained while your account is active.",
-            "Upon account deletion, your metadata is removed within 30 days.",
-            "Encrypted files on managed storage are scheduled for deletion upon account closure.",
-            "Security logs are retained for up to 90 days.",
-            "BYOB data remains on your infrastructure, you control its lifecycle.",
+            <T key="legal.privacy.p53" k="legal.privacy.p53" />,
+            <T key="legal.privacy.p54" k="legal.privacy.p54" />,
+            <T key="legal.privacy.p55" k="legal.privacy.p55" />,
+            <T key="legal.privacy.p56" k="legal.privacy.p56" />,
+            <T key="legal.privacy.p57" k="legal.privacy.p57" />,
           ]}
         />
       </ProseSection>
 
-      <ProseSection id="privacy-your-rights" eyebrow="Section 8" title="Your rights">
+      <ProseSection
+        id="privacy-your-rights"
+        eyebrowK="legal.privacy.a65"
+        titleK="legal.privacy.a66"
+      >
         <div className={proseBody}>
-          <p>You have the right to:</p>
+          <p>
+            <T k="legal.privacy.p60" />
+          </p>
         </div>
         <BulletList
           items={[
-            <>
-              <strong className="text-[var(--color-text)]">Access</strong> your account data
-              (available in Settings)
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Delete</strong> your account and all
-              associated data
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Export</strong> your files at any time
-              (they are always downloadable)
-            </>,
-            <>
-              <strong className="text-[var(--color-text)]">Correct</strong> your account information
-            </>,
+            <T key="legal.privacy.p61" k="legal.privacy.p61" />,
+            <T key="legal.privacy.p62" k="legal.privacy.p62" />,
+            <T key="legal.privacy.p63" k="legal.privacy.p63" />,
+            <T key="legal.privacy.p64" k="legal.privacy.p64" />,
           ]}
         />
         <div className={`mt-4 ${proseBody}`}>
           <p>
-            For GDPR, CCPA, or other data protection requests, contact{" "}
-            <a href={`mailto:${PRIVACY_EMAIL}`} className={proseLink}>
-              {PRIVACY_EMAIL}
-            </a>
-            .
+            <T
+              k="legal.privacy.contactRights"
+              values={{ email: PRIVACY_EMAIL }}
+              links={{ l1: `mailto:${PRIVACY_EMAIL}` }}
+              linkClassName={proseLink}
+            />
           </p>
         </div>
       </ProseSection>
 
-      <ProseSection id="privacy-children" eyebrow="Section 9" title="Children">
+      <ProseSection id="privacy-children" eyebrowK="legal.privacy.a68" titleK="legal.privacy.a69">
         <div className={proseBody}>
           <p>
-            zcrypt is not intended for users under 16. We do not knowingly collect data from
-            children under 16.
+            <T k="legal.privacy.p67" />
           </p>
         </div>
       </ProseSection>
 
-      <ProseSection id="privacy-changes" eyebrow="Section 10" title="Changes">
+      <ProseSection id="privacy-changes" eyebrowK="legal.privacy.a71" titleK="legal.privacy.a72">
         <div className={proseBody}>
           <p>
-            We may update this Privacy Policy. Significant changes will be communicated via email or
-            in-app notification at least 30 days before taking effect.
+            <T k="legal.privacy.p70" />
           </p>
         </div>
       </ProseSection>
 
-      <ProseSection id="privacy-contact" eyebrow="Section 11" title="Contact">
+      <ProseSection id="privacy-contact" eyebrowK="legal.privacy.a73" titleK="legal.privacy.a74">
         <div className={proseBody}>
           <p>
-            Privacy questions? Contact us at{" "}
-            <a href={`mailto:${PRIVACY_EMAIL}`} className={proseLink}>
-              {PRIVACY_EMAIL}
-            </a>
-            .
+            <T
+              k="legal.privacy.contactMail"
+              values={{ email: PRIVACY_EMAIL }}
+              links={{ l1: `mailto:${PRIVACY_EMAIL}` }}
+              linkClassName={proseLink}
+            />
           </p>
         </div>
       </ProseSection>

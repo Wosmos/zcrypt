@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Storage obfuscation | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "why", title: "Why obfuscate at all" },
-  { id: "filenames", title: "Chunk filenames" },
-  { id: "repos", title: "Repository disguise" },
-  { id: "scope", title: "Storage access & scope" },
-  { id: "limits", title: "What it does and doesn't do" },
-  { id: "next", title: "Where to go next" },
+  { id: "why", k: "docs.obfuscation.toc.why" },
+  { id: "filenames", k: "docs.obfuscation.toc.filenames" },
+  { id: "repos", k: "docs.obfuscation.toc.repos" },
+  { id: "scope", k: "docs.obfuscation.toc.scope" },
+  { id: "limits", k: "docs.obfuscation.toc.limits" },
+  { id: "next", k: "docs.obfuscation.toc.next" },
 ];
 
 export default function ObfuscationPage() {
@@ -33,157 +34,101 @@ export default function ObfuscationPage() {
       description="Strong encryption already protects your file contents. Obfuscation is the layer on top that keeps your storage from advertising itself, so the repositories holding your data read as ordinary developer projects."
       toc={toc}
     >
-      <DocSection id="why" title="Why obfuscate at all">
+      <DocSection id="why" title={<T k="docs.obfuscation.a4" />}>
         <DocP>
-          Encryption answers &ldquo;can someone read this?&rdquo; with a firm no. Obfuscation
-          answers a different question: &ldquo;does this look worth attacking?&rdquo; Your encrypted
-          chunks live in repositories on general-purpose platforms like GitHub and GitLab. If those
-          repos were obviously a stash of encrypted secrets, they would draw attention even though
-          the contents are unreadable. So zcrypt makes them look mundane.
+          <T k="docs.obfuscation.p1" />
         </DocP>
-        <DocNote type="info" title="A second layer, not a replacement">
-          This is defense in depth. The confidentiality guarantee comes entirely from{" "}
-          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            encryption
-          </Link>
-          ; obfuscation just reduces the signal that there is anything to encrypt in the first
-          place.
+        <DocNote type="info" title={<T k="docs.obfuscation.a3" />}>
+          <T
+            k="docs.obfuscation.p2"
+            links={{ l1: "/docs/security" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="filenames" title="Chunk filenames">
+      <DocSection id="filenames" title={<T k="docs.obfuscation.a9" />}>
         <DocP>
-          Each encrypted chunk is stored under a random hex filename with a{" "}
-          <span className="font-mono">.bin</span> extension: the kind of name a build tool or cache
-          would produce. There is no sequence number, no original name, and no extension that hints
-          at the underlying file type.
+          <T k="docs.obfuscation.p5" />
         </DocP>
-        <DocCode label="example stored chunk names">{`a3f9c1e8b2740d56.bin
+        <DocCode label={<T k="docs.obfuscation.a7" />}>{`a3f9c1e8b2740d56.bin
 7d10e4ab9c3f8821.bin
 0b5e2f7a16c94d3e.bin`}</DocCode>
         <DocP>
-          Because names are random rather than ordered, the storage layout doesn&apos;t reveal how
-          many files you have, how they relate, or which chunks belong together, that mapping lives
-          only in your encrypted index.
+          <T k="docs.obfuscation.p8" />
         </DocP>
       </DocSection>
 
-      <DocSection id="repos" title="Repository disguise">
+      <DocSection id="repos" title={<T k="docs.obfuscation.a16" />}>
         <DocP>
-          The repositories themselves are dressed to look like routine internal tooling rather than
-          a storage vault:
+          <T k="docs.obfuscation.p10" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Plausible project names</strong> assembled from developer-flavored words:
-              things like <span className="font-mono">core-engine-v3</span> or{" "}
-              <span className="font-mono">shared-cache-v1</span>.
-            </>,
-            <>
-              <strong>Rotating commit messages</strong> in conventional-commit style, such as{" "}
-              <span className="font-mono">chore: update cache artifacts</span> or{" "}
-              <span className="font-mono">chore: refresh build cache</span>.
-            </>,
-            <>
-              <strong>A generic README</strong> describing the repo as auto-managed build artifacts
-              and cache storage, so a casual glance finds nothing of note.
-            </>,
+            <T key="docs.obfuscation.p11" k="docs.obfuscation.p11" />,
+            <T key="docs.obfuscation.p12" k="docs.obfuscation.p12" />,
+            <T key="docs.obfuscation.p13" k="docs.obfuscation.p13" />,
           ]}
         />
-        <DocNote type="security" title="Stored as private repositories">
-          These repositories are created as <strong>private</strong>: the disguise is what they look
-          like to anyone who does gain access, not an invitation for the public to browse them.
+        <DocNote type="security" title={<T k="docs.obfuscation.a15" />}>
+          <T k="docs.obfuscation.p14" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="scope" title="Storage access & scope">
+      <DocSection id="scope" title={<T k="docs.obfuscation.a22" />}>
         <DocP>
-          For zcrypt to create and write these private repositories on your behalf, the storage
-          token you connect needs the permission to do exactly that. We will be straight about it
-          rather than calling it &ldquo;minimal.&rdquo;
+          <T k="docs.obfuscation.p17" />
         </DocP>
         <DocList
           items={[
-            <>
-              Connecting <strong>GitHub</strong> requires a token that can create and write to{" "}
-              <strong>private repositories</strong>, a classic{" "}
-              <span className="font-mono">repo</span> scope grants full control of private repos.
-              That is the access level needed to manage your storage, not a read-only sliver.
-            </>,
-            <>
-              The same principle applies to the other backends: the token must be able to create and
-              write the repositories or channels that hold your chunks.
-            </>,
-            <>
-              Whatever the scope, the token only ever lets zcrypt move <em>ciphertext</em> in and
-              out. It confers no ability to read your files.
-            </>,
+            <T key="docs.obfuscation.p18" k="docs.obfuscation.p18" />,
+            <T key="docs.obfuscation.p19" k="docs.obfuscation.p19" />,
+            <T key="docs.obfuscation.p20" k="docs.obfuscation.p20" />,
           ]}
         />
         <DocP>
-          Those tokens are encrypted at rest under a server-derived key, which is the one
-          non-zero-knowledge surface in the system, detailed in{" "}
-          <Link
-            href="/docs/zero-knowledge"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            zero-knowledge architecture
-          </Link>
-          .
+          <T
+            k="docs.obfuscation.p21"
+            links={{ l1: "/docs/zero-knowledge" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="limits" title="What it does and doesn't do">
+      <DocSection id="limits" title={<T k="docs.obfuscation.a28" />}>
         <DocList
           items={[
-            <>
-              <strong>It does</strong> make storage repos blend in, strip identifying detail from
-              filenames, and keep file relationships out of the storage layout.
-            </>,
-            <>
-              <strong>It does not</strong> hide that an account exists on the storage platform, nor
-              the aggregate size of what is stored: a determined platform operator can see byte
-              totals.
-            </>,
-            <>
-              <strong>It is not</strong> the thing keeping your data confidential. If obfuscation
-              were stripped away entirely, your files would remain unreadable, because they are
-              encrypted.
-            </>,
+            <T key="docs.obfuscation.p23" k="docs.obfuscation.p23" />,
+            <T key="docs.obfuscation.p24" k="docs.obfuscation.p24" />,
+            <T key="docs.obfuscation.p25" k="docs.obfuscation.p25" />,
           ]}
         />
-        <DocNote type="warning" title="Don't rely on it as secrecy">
-          Treat obfuscation as reducing attention, not as a confidentiality control. The security
-          argument always rests on the encryption; the disguise is there to keep the encrypted store
-          from standing out.
+        <DocNote type="warning" title={<T k="docs.obfuscation.a27" />}>
+          <T k="docs.obfuscation.p26" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.obfuscation.a32" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/zero-knowledge"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge architecture: what the server stores, including tokens
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/threat-model"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Threat model: where metadata defenses sit among the risks
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/security"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encryption model, the confidentiality guarantee underneath
-            </Link>,
+            <T
+              key="docs.obfuscation.p29"
+              k="docs.obfuscation.p29"
+              links={{ l1: "/docs/zero-knowledge" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.obfuscation.p30"
+              k="docs.obfuscation.p30"
+              links={{ l1: "/docs/threat-model" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.obfuscation.p31"
+              k="docs.obfuscation.p31"
+              links={{ l1: "/docs/security" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

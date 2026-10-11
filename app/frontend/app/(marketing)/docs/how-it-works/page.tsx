@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "How it works | zcrypt Docs",
   description:
@@ -17,13 +18,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "short", title: "The short version" },
-  { id: "compress", title: "1. Compress (zstd)" },
-  { id: "encrypt", title: "2. Encrypt (AES-256-GCM)" },
-  { id: "chunk", title: "3. Chunk (~4–16 MB)" },
-  { id: "upload", title: "4. Upload to your storage" },
-  { id: "download", title: "Downloading reverses it" },
-  { id: "next", title: "Where to go next" },
+  { id: "short", k: "docs.how-it-works.toc.short" },
+  { id: "compress", k: "docs.how-it-works.toc.compress" },
+  { id: "encrypt", k: "docs.how-it-works.toc.encrypt" },
+  { id: "chunk", k: "docs.how-it-works.toc.chunk" },
+  { id: "upload", k: "docs.how-it-works.toc.upload" },
+  { id: "download", k: "docs.how-it-works.toc.download" },
+  { id: "next", k: "docs.how-it-works.toc.next" },
 ];
 
 export default function HowItWorksDocPage() {
@@ -34,117 +35,84 @@ export default function HowItWorksDocPage() {
       description="Every transformation that protects a file happens on your device, in order, before a single byte leaves it. This is the whole journey, and downloading runs it precisely in reverse."
       toc={toc}
     >
-      <DocSection id="short" title="The short version">
+      <DocSection id="short" title={<T k="docs.how-it-works.a4" />}>
         <DocP>
-          When you add a file, zcrypt compresses it, encrypts it, and breaks it into chunks, all on
-          your device: then pushes those chunks to repositories in your own connected account. The
-          plaintext never leaves your machine, and your passphrase never leaves your browser.
+          <T k="docs.how-it-works.p1" />
         </DocP>
-        <DocCode label="the pipeline">{`compress (zstd)  →  encrypt (AES-256-GCM)  →  chunk (~4–16 MB)  →  upload to your storage`}</DocCode>
+        <DocCode
+          label={<T k="docs.how-it-works.a3" />}
+        >{`compress (zstd)  →  encrypt (AES-256-GCM)  →  chunk (~4–16 MB)  →  upload to your storage`}</DocCode>
       </DocSection>
 
-      <DocSection id="compress" title="1. Compress (zstd)">
+      <DocSection id="compress" title={<T k="docs.how-it-works.a6" />}>
         <DocP>
-          First, the file is compressed on your device with Zstandard (zstd). This happens{" "}
-          <strong>before</strong> encryption, while the data is still readable and therefore still
-          compressible: encrypted data looks random and cannot be shrunk. Smaller payloads mean less
-          of your storage used and faster uploads.
+          <T k="docs.how-it-works.p5" />
         </DocP>
       </DocSection>
 
-      <DocSection id="encrypt" title="2. Encrypt (AES-256-GCM)">
+      <DocSection id="encrypt" title={<T k="docs.how-it-works.a10" />}>
         <DocP>
-          The compressed data is encrypted with AES-256-GCM. zcrypt generates a random{" "}
-          <strong>content encryption key (CEK)</strong> for the file, then wraps (encrypts) that CEK
-          with a key derived from your passphrase. The wrapped CEK travels with the file&apos;s
-          metadata; the passphrase itself never does.
+          <T k="docs.how-it-works.p7" />
         </DocP>
-        <DocNote type="security" title="Why this makes zcrypt zero-knowledge">
-          The server only ever receives ciphertext and a wrapped key it cannot open. Even if the
-          server, the database, and your storage platform were all compromised at once, your files
-          would stay unreadable, because the key that unwraps the CEK exists only on your device,
-          derived from a passphrase we never see.
+        <DocNote type="security" title={<T k="docs.how-it-works.a9" />}>
+          <T k="docs.how-it-works.p8" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="chunk" title="3. Chunk (~4–16 MB)">
+      <DocSection id="chunk" title={<T k="docs.how-it-works.a14" />}>
         <DocP>
-          The encrypted blob is split into chunks sized to your device (~4–16 MB, ~10 MB typical),
-          and every chunk is given a randomized filename. Chunking keeps each piece within platform
-          file-size limits, enables parallel and resumable transfers, and means one failed piece can
-          be retried without re-sending the whole file.
+          <T k="docs.how-it-works.p11" />
         </DocP>
-        <DocNote type="info" title="Chunk size per device">
-          ~10 MB is the typical size. zcrypt picks 4, 10, 16 or 32 MB based on your device, trading
-          memory for throughput.
+        <DocNote type="info" title={<T k="docs.how-it-works.a13" />}>
+          <T k="docs.how-it-works.p12" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="upload" title="4. Upload to your storage">
+      <DocSection id="upload" title={<T k="docs.how-it-works.a17" />}>
         <DocP>
-          Each encrypted chunk is pushed to the platform you connected. GitHub, GitLab, Hugging
-          Face, or Telegram: stored as an ordinary-looking binary blob under disguised filenames and
-          commit messages. When a repository nears its size threshold, zcrypt creates a new one
-          automatically so your vault keeps growing without you managing anything.
+          <T k="docs.how-it-works.p15" />
         </DocP>
         <DocP>
-          The platform sees only opaque data: never your file names, never your content, never your
-          folder structure.
+          <T k="docs.how-it-works.p16" />
         </DocP>
       </DocSection>
 
-      <DocSection id="download" title="Downloading reverses it">
+      <DocSection id="download" title={<T k="docs.how-it-works.a23" />}>
         <DocP>
-          Downloading is the same pipeline run backwards, and every step still happens on your
-          device:
+          <T k="docs.how-it-works.p18" />
         </DocP>
         <DocList
           ordered
           items={[
-            <>
-              <strong>Fetch</strong> the encrypted chunks back from your repositories, several in
-              parallel for speed.
-            </>,
-            <>
-              <strong>Verify</strong> each chunk against its SHA-256 hash, so a corrupted or
-              tampered piece is caught before it is used.
-            </>,
-            <>
-              <strong>Decrypt</strong> the reassembled blob locally with the key unwrapped from your
-              passphrase.
-            </>,
-            <>
-              <strong>Decompress</strong> back to the original file and save it. No plaintext ever
-              touches the server.
-            </>,
+            <T key="docs.how-it-works.p19" k="docs.how-it-works.p19" />,
+            <T key="docs.how-it-works.p20" k="docs.how-it-works.p20" />,
+            <T key="docs.how-it-works.p21" k="docs.how-it-works.p21" />,
+            <T key="docs.how-it-works.p22" k="docs.how-it-works.p22" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.how-it-works.a27" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/uploading"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Uploading, chunked, resumable, relay vs. direct upload
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/downloading"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Downloading, fetch, verify, decrypt, decompress
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/security"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encryption model: the cryptographic detail behind each step
-            </Link>,
+            <T
+              key="docs.how-it-works.p24"
+              k="docs.how-it-works.p24"
+              links={{ l1: "/docs/uploading" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.how-it-works.p25"
+              k="docs.how-it-works.p25"
+              links={{ l1: "/docs/downloading" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.how-it-works.p26"
+              k="docs.how-it-works.p26"
+              links={{ l1: "/docs/security" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

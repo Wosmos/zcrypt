@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Decoy profile | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "what", title: "What a decoy profile is" },
-  { id: "setup", title: "Setting it up" },
-  { id: "files", title: "Stocking the decoy" },
-  { id: "login", title: "Logging in with the decoy" },
-  { id: "caveats", title: "Honest limits" },
-  { id: "next", title: "Where to go next" },
+  { id: "what", k: "docs.decoy-profile.toc.what" },
+  { id: "setup", k: "docs.decoy-profile.toc.setup" },
+  { id: "files", k: "docs.decoy-profile.toc.files" },
+  { id: "login", k: "docs.decoy-profile.toc.login" },
+  { id: "caveats", k: "docs.decoy-profile.toc.caveats" },
+  { id: "next", k: "docs.decoy-profile.toc.next" },
 ];
 
 export default function DecoyProfileDocPage() {
@@ -33,89 +34,67 @@ export default function DecoyProfileDocPage() {
       description="A second password that opens a believable, innocent-looking vault instead of your real one. If you're ever pressured (at a border, in a search, under coercion) you can unlock something that looks complete without exposing what actually matters."
       toc={toc}
     >
-      <DocSection id="what" title="What a decoy profile is">
+      <DocSection id="what" title={<T k="docs.decoy-profile.a3" />}>
         <DocP>
-          Your account can hold two passwords. Your real one unlocks your real vault. A separate{" "}
-          <strong>decoy password</strong> unlocks a <strong>decoy vault</strong>, a self-contained
-          space populated with fake files you control. To anyone watching you log in, the decoy
-          looks like an ordinary, fully populated account.
+          <T k="docs.decoy-profile.p1" />
         </DocP>
         <DocP>
-          This is sometimes called plausible deniability: when handing over <em>a</em> password is
-          unavoidable, you can hand over one that opens something harmless.
+          <T k="docs.decoy-profile.p2" />
         </DocP>
       </DocSection>
 
-      <DocSection id="setup" title="Setting it up">
-        <DocP>In settings, set a decoy password. A few rules keep it credible:</DocP>
+      <DocSection id="setup" title={<T k="docs.decoy-profile.a8" />}>
+        <DocP>
+          <T k="docs.decoy-profile.p4" />
+        </DocP>
         <DocList
           items={[
-            <>It must be at least 6 characters.</>,
-            <>
-              It must <strong>differ from your real password</strong>: zcrypt rejects a match so the
-              two vaults stay distinct.
-            </>,
-            <>
-              You can enable or disable the decoy without deleting it, and remove it entirely
-              whenever you like.
-            </>,
+            <T key="docs.decoy-profile.p5" k="docs.decoy-profile.p5" />,
+            <T key="docs.decoy-profile.p6" k="docs.decoy-profile.p6" />,
+            <T key="docs.decoy-profile.p7" k="docs.decoy-profile.p7" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="files" title="Stocking the decoy">
+      <DocSection id="files" title={<T k="docs.decoy-profile.a10" />}>
         <DocP>
-          A decoy is only convincing if it looks lived-in, so you add <strong>fake files</strong> to
-          it: each with a name and a size. These are placeholders that populate the listing to make
-          the decoy vault look like a real one at a glance; they exist to furnish the disguise, not
-          to be opened and read like your real files. Aim for a believable spread of names and sizes
-          : a single test file gives the game away.
+          <T k="docs.decoy-profile.p9" />
         </DocP>
       </DocSection>
 
-      <DocSection id="login" title="Logging in with the decoy">
+      <DocSection id="login" title={<T k="docs.decoy-profile.a12" />}>
         <DocP>
-          At the normal login screen, entering the decoy password signs you into the decoy vault
-          instead of your real one. There&rsquo;s no separate button or toggle that hints a second
-          vault exists: the password you type decides which vault opens.
+          <T k="docs.decoy-profile.p11" />
         </DocP>
       </DocSection>
 
-      <DocSection id="caveats" title="Honest limits">
-        <DocNote type="warning" title="Know what a decoy can and can't do">
-          A decoy protects against someone who makes you reveal a password and glances at the
-          result. It is not a defense against deep forensic analysis, traffic inspection, or an
-          adversary who already knows zcrypt supports decoys and insists on more. Make the decoy
-          genuinely believable, and remember that whether to use one at all, and what happens if
-          you&rsquo;re caught doing so: is a judgment call for your specific situation and
-          jurisdiction.
+      <DocSection id="caveats" title={<T k="docs.decoy-profile.a15" />}>
+        <DocNote type="warning" title={<T k="docs.decoy-profile.a14" />}>
+          <T k="docs.decoy-profile.p13" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.decoy-profile.a19" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/dead-mans-switch"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Dead man&rsquo;s switch: alert a trusted contact if you stop checking in
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/authentication"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Authentication &amp; 2FA, passwords, sessions, and two-factor
-            </Link>,
-            <Link
-              key="c"
-              href="/features/privacy"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Privacy tools, the feature tour
-            </Link>,
+            <T
+              key="docs.decoy-profile.p16"
+              k="docs.decoy-profile.p16"
+              links={{ l1: "/docs/dead-mans-switch" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.decoy-profile.p17"
+              k="docs.decoy-profile.p17"
+              links={{ l1: "/docs/authentication" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.decoy-profile.p18"
+              k="docs.decoy-profile.p18"
+              links={{ l1: "/features/privacy" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

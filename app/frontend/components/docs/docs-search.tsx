@@ -1,7 +1,16 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { Search } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +18,10 @@ const DocsSearchModal = dynamic(
   () => import("@/components/docs/docs-search-modal").then((m) => m.DocsSearchModal),
   { ssr: false },
 );
+
+function subscribeNoop() {
+  return () => {};
+}
 
 const DocsSearchContext = createContext<{ open: () => void }>({ open: () => {} });
 
@@ -25,9 +38,7 @@ export function DocsSearchProvider({ children }: { children: React.ReactNode }) 
   const [open, setOpen] = useState(false);
   const [armed, setArmed] = useState(false);
 
-  useEffect(() => {
-    if (open) setArmed(true);
-  }, [open]);
+  if (open && !armed) setArmed(true);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -60,14 +71,13 @@ export function DocsSearchTrigger({
   /** Runs before the modal opens, e.g. close the mobile drawer first. */
   onBeforeOpen?: () => void;
 }) {
+  const t = useTranslations();
   const { open } = useDocsSearch();
-  const [shortcut, setShortcut] = useState("⌘K");
-
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && !/mac/i.test(navigator.userAgent)) {
-      setShortcut("Ctrl K");
-    }
-  }, []);
+  const shortcut = useSyncExternalStore(
+    subscribeNoop,
+    () => (/mac/i.test(navigator.userAgent) ? "⌘K" : "Ctrl K"),
+    () => "⌘K",
+  );
 
   return (
     <button
@@ -82,7 +92,7 @@ export function DocsSearchTrigger({
       )}
     >
       <Search className="h-3.5 w-3.5 flex-shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-left">Search docs…</span>
+      <span className="min-w-0 flex-1 truncate text-left">{t("docs.ui.searchPlaceholder")}</span>
       <kbd className="flex-shrink-0 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] font-bold">
         {shortcut}
       </kbd>
