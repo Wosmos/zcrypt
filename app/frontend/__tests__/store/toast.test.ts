@@ -37,6 +37,16 @@ describe("useToastStore", () => {
     expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 
+  it("keeps a toast that carries an action for longer so Undo can be reached", () => {
+    const onClick = vi.fn();
+    toast.success("Moved", { label: "Undo", onClick });
+    expect(useToastStore.getState().toasts[0]).toMatchObject({ duration: 7000 });
+    vi.advanceTimersByTime(4000);
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+    vi.advanceTimersByTime(3000);
+    expect(useToastStore.getState().toasts).toHaveLength(0);
+  });
+
   it("does not dismiss before the timeout elapses", () => {
     useToastStore.getState().add("error", "still here");
     vi.advanceTimersByTime(3999);

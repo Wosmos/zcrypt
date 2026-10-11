@@ -125,7 +125,8 @@ import { ExplorerCard } from "./explorer/explorer-card";
 import type { RowDragProps } from "./explorer/types";
 import { FolderDetailsDrawer } from "./folder-details-drawer";
 import { FolderShareModal } from "./folder-share-modal";
-import { DIALOG_PANEL } from "./explorer/types";
+import { DIALOG_PANEL, gridTemplateColumns } from "./explorer/types";
+import { ExplorerSkeleton } from "./explorer/explorer-skeleton";
 import type {
   SortField,
   SortDir,
@@ -243,6 +244,10 @@ function readStoredView(): ViewMode | null {
   const v = readStored("zcrypt-explorer-view");
   return v === "grid" || v === "list" ? v : null;
 }
+
+// Beyond this many entries a folder switch would animate hundreds of tiles at
+// once; large listings skip item motion entirely.
+const MOTION_MAX_ENTRIES = 40;
 
 function readStoredGridCols(): GridCols | null {
   const g = readStored("zcrypt-explorer-gridcols");
@@ -1118,14 +1123,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     );
 
     // ── Motion (reduced-motion safe stagger) ────────────────────────────────────
-    const itemMotion = animateList
-      ? {
-          initial: { opacity: 0, y: 4 },
-          animate: { opacity: 1, y: 0 },
-          exit: { opacity: 0, y: -4 },
-          transition: { duration: 0.18 },
-        }
-      : {};
+    const itemMotion =
+      animateList && entries.length <= MOTION_MAX_ENTRIES
+        ? {
+            initial: { opacity: 0, scale: 0.96 },
+            animate: { opacity: 1, scale: 1 },
+            exit: { opacity: 0, scale: 0.96 },
+            transition: { duration: 0.18, ease: [0.22, 0.61, 0.36, 1] as const },
+          }
+        : {};
 
     const isLoading = loading || foldersLoading;
     const folderCount = sortedFolders.length;
@@ -1334,34 +1340,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             {error}
           </div>
         ) : isLoading ? (
-          <div
-            className={cn(view === "grid" ? "grid gap-1.5 sm:gap-2.5" : "space-y-px")}
-            style={
-              view === "grid"
-                ? {
-                    gridTemplateColumns:
-                      gridCols === "auto"
-                        ? isMobile
-                          ? "repeat(2, minmax(0, 1fr))"
-                          : "repeat(auto-fill, minmax(118px, 1fr))"
-                        : `repeat(${gridCols}, minmax(0, 1fr))`,
-                  }
-                : undefined
-            }
-          >
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  // `animate-pulse-soft` IS suppressed under prefers-reduced-motion
-                  // (globals.css), unlike stock `animate-pulse` (M5).
-                  !prefersReducedMotion && "animate-pulse-soft",
-                  "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]",
-                  view === "grid" ? "h-[180px]" : "h-[58px]",
-                )}
-              />
-            ))}
-          </div>
+          <ExplorerSkeleton view={view} gridCols={gridCols} isMobile={isMobile} />
         ) : isEmptyFolder ? (
           <EmptyState
             icon={<FolderIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
@@ -1469,14 +1448,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               onKeyDown={handleContainerKeyDown}
               onClick={handleListingBackgroundClick}
               className="grid gap-1.5 sm:gap-2.5"
-              style={{
-                gridTemplateColumns:
-                  gridCols === "auto"
-                    ? isMobile
-                      ? "repeat(2, minmax(0, 1fr))"
-                      : "repeat(auto-fill, minmax(118px, 1fr))"
-                    : `repeat(${gridCols}, minmax(0, 1fr))`,
-              }}
+              style={{ gridTemplateColumns: gridTemplateColumns(gridCols, isMobile) }}
             >
               {explorerItems}
             </div>

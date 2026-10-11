@@ -488,7 +488,9 @@
       "moving": "Moviendo...",
       "moveHere": "Mover aquí",
       "collapse": "Contraer {name}",
-      "expand": "Expandir {name}"
+      "expand": "Expandir {name}",
+      "undo": "Deshacer",
+      "undoFailed": "No se pudo deshacer el movimiento"
     },
     "stylePicker": {
       "customColor": "Color personalizado",

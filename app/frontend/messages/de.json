@@ -127,7 +127,8 @@
     "toastCreateFolderFailedShort": "Ordner konnte nicht erstellt werden"
   },
   "dashboard": {
-    "dropToUpload": "Dateien zum Hochladen ablegen",
+    "dropTitle": "Zum Verschlüsseln auf diesem Gerät ablegen",
+    "dropHint": "Hier verschlüsselt, bevor etwas Ihr Gerät verlässt",
     "searchVault": "Im Tresor suchen",
     "clearSearch": "Suche löschen",
     "newFolder": "Neuer Ordner",
@@ -139,12 +140,6 @@
     "hintUnlocked": "Tresor entsperrt. Lege Dateien ab, um sie sofort hochzuladen",
     "noFilesTitle": "Noch keine Dateien",
     "noFilesDescription": "Lade deine erste Datei hoch, um loszulegen. Dateien werden komprimiert, verschlüsselt und auf deine verbundenen Plattformen verteilt.",
-    "trashSelectedTitle": "Ausgewählte Dateien in den Papierkorb verschieben?",
-    "trashFileTitle": "Datei in den Papierkorb verschieben?",
-    "trashSelectedDescription": "{count, plural, one {# Datei wird} other {# Dateien werden}} in den Papierkorb verschoben. Du kannst sie unter „Gelöschte Dateien“ wiederherstellen.",
-    "trashFileDescription": "Diese Datei wird in den Papierkorb verschoben. Du kannst sie unter „Gelöschte Dateien“ wiederherstellen.",
-    "trashSelectedConfirm": "{count, plural, one {# Datei} other {# Dateien}} in den Papierkorb verschieben",
-    "trashFileConfirm": "In den Papierkorb",
     "uploadDialogTitle": "Dateien hochladen",
     "uploadDialogDescription": "Dateien werden komprimiert, Ende-zu-Ende verschlüsselt und in Blöcke aufgeteilt, bevor sie dein Gerät verlassen.",
     "toastFolderProtected": "Ordner geschützt",

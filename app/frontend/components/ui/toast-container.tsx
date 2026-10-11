@@ -23,7 +23,6 @@ const Z_STEP = 65; // depth each card recedes (collapsed)
 const GAP = 10; // gap between cards when expanded
 const VISIBLE = 3; // cards drawn in the collapsed deck
 const MAX = 5; // hard cap on rendered cards (mirrors the store cap)
-const DUR = 4000; // must mirror the store's auto-dismiss timer
 
 // SSR-safe layout effect (avoids the useLayoutEffect-on-server warning).
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -247,7 +246,7 @@ export function ToastContainer() {
                     className="absolute bottom-0 start-0 h-[3px] w-full origin-left rtl:origin-right motion-reduce:!animate-none"
                     style={{
                       background: type.color,
-                      animation: `toast-drain ${DUR}ms linear forwards`,
+                      animation: `toast-drain ${t.duration}ms linear forwards`,
                     }}
                   />
                 </div>

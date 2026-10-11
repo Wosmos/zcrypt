@@ -488,7 +488,9 @@
       "moving": "Wird verschoben...",
       "moveHere": "Hierher verschieben",
       "collapse": "{name} einklappen",
-      "expand": "{name} ausklappen"
+      "expand": "{name} ausklappen",
+      "undo": "Rückgängig",
+      "undoFailed": "Verschieben konnte nicht rückgängig gemacht werden"
     },
     "stylePicker": {
       "customColor": "Eigene Farbe",

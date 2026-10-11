@@ -127,7 +127,8 @@
     "toastCreateFolderFailedShort": "Couldn't create the folder"
   },
   "dashboard": {
-    "dropToUpload": "Drop files to upload",
+    "dropTitle": "Drop to encrypt on this device",
+    "dropHint": "Encrypted here, before anything leaves your device",
     "searchVault": "Search your vault",
     "clearSearch": "Clear search",
     "newFolder": "New folder",
@@ -139,12 +140,6 @@
     "hintUnlocked": "Vault unlocked. Drop files to upload instantly",
     "noFilesTitle": "No files yet",
     "noFilesDescription": "Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms.",
-    "trashSelectedTitle": "Move selected files to Trash?",
-    "trashFileTitle": "Move file to Trash?",
-    "trashSelectedDescription": "{count, plural, one {# file} other {# files}} will be moved to Trash. You can restore them from Deleted Files.",
-    "trashFileDescription": "This file will be moved to Trash. You can restore it from Deleted Files.",
-    "trashSelectedConfirm": "Move {count, plural, one {# file} other {# files}} to Trash",
-    "trashFileConfirm": "Move to Trash",
     "uploadDialogTitle": "Upload files",
     "uploadDialogDescription": "Files are compressed, end-to-end encrypted, and chunked before they leave your device.",
     "toastFolderProtected": "Folder protected",

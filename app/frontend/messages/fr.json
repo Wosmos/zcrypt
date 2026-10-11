@@ -127,7 +127,8 @@
     "toastCreateFolderFailedShort": "Impossible de créer le dossier"
   },
   "dashboard": {
-    "dropToUpload": "Déposez les fichiers pour les importer",
+    "dropTitle": "Déposez pour chiffrer sur cet appareil",
+    "dropHint": "Chiffré ici, avant que quoi que ce soit ne quitte votre appareil",
     "searchVault": "Rechercher dans votre coffre",
     "clearSearch": "Effacer la recherche",
     "newFolder": "Nouveau dossier",
@@ -139,12 +140,6 @@
     "hintUnlocked": "Coffre déverrouillé. Déposez des fichiers pour les importer instantanément",
     "noFilesTitle": "Aucun fichier pour l'instant",
     "noFilesDescription": "Importez votre premier fichier pour commencer. Les fichiers sont compressés, chiffrés et répartis sur vos plateformes connectées.",
-    "trashSelectedTitle": "Déplacer les fichiers sélectionnés dans la corbeille ?",
-    "trashFileTitle": "Déplacer le fichier dans la corbeille ?",
-    "trashSelectedDescription": "{count, plural, one {# fichier sera déplacé} other {# fichiers seront déplacés}} dans la corbeille. Vous pourrez les restaurer depuis Fichiers supprimés.",
-    "trashFileDescription": "Ce fichier sera déplacé dans la corbeille. Vous pourrez le restaurer depuis Fichiers supprimés.",
-    "trashSelectedConfirm": "Déplacer {count, plural, one {# fichier} other {# fichiers}} dans la corbeille",
-    "trashFileConfirm": "Déplacer dans la corbeille",
     "uploadDialogTitle": "Importer des fichiers",
     "uploadDialogDescription": "Les fichiers sont compressés, chiffrés de bout en bout et découpés en blocs avant de quitter votre appareil.",
     "toastFolderProtected": "Dossier protégé",

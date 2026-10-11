@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 import { VaultExplorer, type VaultExplorerHandle } from "@/components/files/vault-explorer";
+import { DropOverlay } from "@/components/files/drop-overlay";
 import { MoveToFolderDialog } from "@/components/files/move-to-folder-dialog";
 import { FileViewer } from "@/components/viewers/file-viewer";
 import {
@@ -26,7 +27,6 @@ import { ConnectStorageDialog } from "@/components/dashboard/connect-storage-dia
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ShareModal } from "@/components/ui/share-modal";
 import { BulkShareModal } from "@/components/ui/bulk-share-modal";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
@@ -113,9 +113,6 @@ export default function VaultPage() {
   }, []);
 
   // Modal targets the explorer hands back to the page.
-  const [deleteRequest, setDeleteRequest] = useState<
-    { kind: "single"; file: FileMetadata } | { kind: "bulk"; ids: string[] } | null
-  >(null);
   const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
   const [bulkShareIds, setBulkShareIds] = useState<string[] | null>(null);
   const [moveRequest, setMoveRequest] = useState<
@@ -271,9 +268,9 @@ export default function VaultPage() {
   const handleDeleteRequest = useCallback(
     (id: string) => {
       const file = files.find((f) => f.id === id);
-      if (file) setDeleteRequest({ kind: "single", file });
+      if (file) actions.executeDelete(file);
     },
-    [files],
+    [files, actions],
   );
 
   const handleShareRequest = useCallback(
@@ -339,16 +336,6 @@ export default function VaultPage() {
 
   const closeViewer = useCallback(() => setViewerOpen(false), []);
 
-  const executeDelete = useCallback(() => {
-    if (!deleteRequest) return;
-    if (deleteRequest.kind === "single") {
-      actions.executeDelete(deleteRequest.file);
-    } else {
-      void actions.executeBulkDelete(deleteRequest.ids);
-    }
-    setDeleteRequest(null);
-  }, [deleteRequest, actions]);
-
   // ── Upload dialog → existing upload flow ────────────────────────────────────
   const handleDialogFiles = useCallback(
     (selectedFiles: File[]) => {
@@ -411,14 +398,7 @@ export default function VaultPage() {
       onDragLeave={handlePageDragLeave}
       onDrop={handlePageDrop}
     >
-      {dragActive && (
-        <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-bg)]/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-surface)] px-12 py-10">
-            <FileUpload className="h-8 w-8 text-[var(--color-accent)]" />
-            <p className="text-base font-semibold text-[var(--color-text)]">{t("dropToUpload")}</p>
-          </div>
-        </div>
-      )}
+      <DropOverlay active={dragActive} />
       {/* Desktop actions row: shortcuts, New folder, Upload, refresh. The vault lock
           lives in the sidebar (TopBar below md); on phones New folder + Upload sit in
           the floating button. */}
@@ -523,7 +503,7 @@ export default function VaultPage() {
             onDelete={handleDeleteRequest}
             onMoveFile={actions.handleMoveFileTo}
             onMoveRequest={(fileId) => setMoveRequest({ kind: "file", fileId })}
-            onBulkDelete={(ids) => setDeleteRequest({ kind: "bulk", ids })}
+            onBulkDelete={(ids) => void actions.executeBulkDelete(ids)}
             onBulkDownload={actions.handleBulkDownload}
             onBulkMove={(ids) => setMoveRequest({ kind: "bulk", fileIds: ids })}
             onBulkShare={(ids) => setBulkShareIds(ids)}
@@ -619,6 +599,7 @@ export default function VaultPage() {
         onClose={() => setMoveRequest(null)}
         onMoved={() => refresh()}
         onMoveFile={moveRequest?.kind !== "folder" ? actions.moveFileWithRekey : undefined}
+        originOf={(id) => files.find((f) => f.id === id)?.folder_id ?? null}
       />
 
       {/* Folder unlock (open a protected folder / verify before re-key sweeps) */}
@@ -660,33 +641,6 @@ export default function VaultPage() {
           },
           onRequestVaultUnlock: () => vault.unlock(),
         }}
-      />
-
-      <ConfirmDialog
-        open={!!deleteRequest}
-        onOpenChange={(o) => !o && setDeleteRequest(null)}
-        onConfirm={executeDelete}
-        destructive
-        title={deleteRequest?.kind === "bulk" ? t("trashSelectedTitle") : t("trashFileTitle")}
-        description={
-          deleteRequest?.kind === "bulk" ? (
-            t("trashSelectedDescription", { count: deleteRequest.ids.length })
-          ) : (
-            <>
-              <span className="block">{t("trashFileDescription")}</span>
-              {deleteRequest && (
-                <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
-                  {deleteRequest.file.original_name}
-                </span>
-              )}
-            </>
-          )
-        }
-        confirmLabel={
-          deleteRequest?.kind === "bulk"
-            ? t("trashSelectedConfirm", { count: deleteRequest.ids.length })
-            : t("trashFileConfirm")
-        }
       />
 
       {/* Upload dialog: upload zone + platform selector. Lives outside the tab

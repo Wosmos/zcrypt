@@ -127,7 +127,8 @@
     "toastCreateFolderFailedShort": "تعذّر إنشاء المجلد"
   },
   "dashboard": {
-    "dropToUpload": "أفلت الملفات لرفعها",
+    "dropTitle": "أفلت لتشفير الملفات على هذا الجهاز",
+    "dropHint": "تُشفَّر هنا قبل أن يغادر أي شيء جهازك",
     "searchVault": "ابحث في خزنتك",
     "clearSearch": "مسح البحث",
     "newFolder": "مجلد جديد",
@@ -139,12 +140,6 @@
     "hintUnlocked": "الخزنة مفتوحة. أفلت الملفات لرفعها فورًا",
     "noFilesTitle": "لا توجد ملفات بعد",
     "noFilesDescription": "ارفع أول ملف لتبدأ. تُضغط الملفات وتُشفَّر وتُخزَّن عبر منصاتك المتصلة.",
-    "trashSelectedTitle": "نقل الملفات المحددة إلى سلة المحذوفات؟",
-    "trashFileTitle": "نقل الملف إلى سلة المحذوفات؟",
-    "trashSelectedDescription": "{count, plural, zero {لن يُنقل أي ملف} one {سيُنقل ملف واحد} two {سيُنقل ملفان} few {ستُنقل # ملفات} many {سيُنقل # ملفًا} other {سيُنقل # ملف}} إلى سلة المحذوفات. يمكنك استعادة الملفات من «الملفات المحذوفة».",
-    "trashFileDescription": "سيُنقل هذا الملف إلى سلة المحذوفات. يمكنك استعادته من «الملفات المحذوفة».",
-    "trashSelectedConfirm": "{count, plural, zero {نقل # ملف} one {نقل ملف واحد} two {نقل ملفين} few {نقل # ملفات} many {نقل # ملفًا} other {نقل # ملف}} إلى سلة المحذوفات",
-    "trashFileConfirm": "نقل إلى سلة المحذوفات",
     "uploadDialogTitle": "رفع الملفات",
     "uploadDialogDescription": "تُضغط الملفات وتُشفَّر من طرف إلى طرف وتُقسَّم إلى أجزاء قبل أن تغادر جهازك.",
     "toastFolderProtected": "تمت حماية المجلد",

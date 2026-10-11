@@ -257,6 +257,15 @@
   object-fit: cover;
   border-radius: 7px;
 }
+.ft-thumb-in > img {
+  animation: ft-thumb-fade 0.2s var(--ft-ease, ease-out) both;
+}
+@keyframes ft-thumb-fade {
+  from {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
 .ft-thumb-play {
   position: absolute;
   left: 50%;
@@ -311,6 +320,9 @@
   .ft-doc-page,
   .ft-thumb {
     transition: none;
+  }
+  .ft-thumb-in > img {
+    animation: none;
   }
 }
 }

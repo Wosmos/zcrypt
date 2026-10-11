@@ -127,7 +127,8 @@
     "toastCreateFolderFailedShort": "No se pudo crear la carpeta"
   },
   "dashboard": {
-    "dropToUpload": "Suelta los archivos para subirlos",
+    "dropTitle": "Suelta para cifrar en este dispositivo",
+    "dropHint": "Se cifra aquí, antes de que nada salga de tu dispositivo",
     "searchVault": "Buscar en tu bóveda",
     "clearSearch": "Borrar búsqueda",
     "newFolder": "Nueva carpeta",
@@ -139,12 +140,6 @@
     "hintUnlocked": "Bóveda desbloqueada. Suelta archivos para subirlos al instante",
     "noFilesTitle": "Aún no hay archivos",
     "noFilesDescription": "Sube tu primer archivo para empezar. Los archivos se comprimen, se cifran y se almacenan en tus plataformas conectadas.",
-    "trashSelectedTitle": "¿Mover los archivos seleccionados a la papelera?",
-    "trashFileTitle": "¿Mover el archivo a la papelera?",
-    "trashSelectedDescription": "{count, plural, one {# archivo se moverá} other {# archivos se moverán}} a la papelera. Puedes restaurarlos desde Archivos eliminados.",
-    "trashFileDescription": "Este archivo se moverá a la papelera. Puedes restaurarlo desde Archivos eliminados.",
-    "trashSelectedConfirm": "Mover {count, plural, one {# archivo} other {# archivos}} a la papelera",
-    "trashFileConfirm": "Mover a la papelera",
     "uploadDialogTitle": "Subir archivos",
     "uploadDialogDescription": "Los archivos se comprimen, se cifran de extremo a extremo y se dividen en fragmentos antes de salir de tu dispositivo.",
     "toastFolderProtected": "Carpeta protegida",
