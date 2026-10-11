@@ -40,7 +40,6 @@
         "fasterShares": "Freigabelinks werden schneller erstellt, besonders wenn du viele Dateien auf einmal teilst.",
         "updateNotes": "Der Update-Dialog sagt dir jetzt, was sich tatsächlich geändert hat, statt eines vagen Versprechens.",
         "searchFixes": "Seitentitel wiederholen den Namen nicht mehr doppelt, und die Sitemap hat jetzt echte Datumsangaben.",
-        "tuiRetired": "Die Terminal-App ist samt Download-Links verschwunden, also gibt es eine Sache weniger, die wir pflegen müssen.",
         "spacesFixes": "Spaces-Seiten bitten dich zu entsperren, statt zu scheitern, die Dateiauswahl stürzt nicht mehr ab, und der versiegelte Name eines Space bleibt nach einem Schlüsselwechsel lesbar.",
         "sealedSpaceNames": "Space-Namen werden jetzt auf deinem Gerät versiegelt, so wie es bei Dateinamen schon der Fall ist.",
         "keyPinning": "Dein Gerät merkt sich den Freigabeschlüssel, den es bei jeder Person zuerst gesehen hat, und warnt dich, wenn er sich später ändert.",
@@ -197,7 +196,6 @@
         "accounts": "Konten mit E-Mail-Bestätigung, Passwort-Zurücksetzen, Zwei-Faktor-Anmeldung, Magic Links und Anmeldung über externe Anbieter.",
         "viewer": "Eine Dateitabelle mit Sortierung, Auswahl, Vorschauen und Downloads.",
         "adminPlans": "Ein Admin-Bereich, Tarife und Preise.",
-        "tui": "Eine frühe Terminal-App für macOS, Linux und Windows. Inzwischen haben wir sie wieder entfernt.",
         "hardening": "Eine erste Runde Sicherheitshärtung und Tests."
       }
     }

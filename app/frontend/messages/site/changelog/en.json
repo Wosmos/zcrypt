@@ -40,7 +40,6 @@
         "fasterShares": "Share links are created faster, especially when you share many files at once.",
         "updateNotes": "The update dialog now tells you what actually changed instead of a vague promise.",
         "searchFixes": "Page titles no longer repeat the name twice, and the sitemap now has real dates.",
-        "tuiRetired": "The terminal app is gone, along with its download links, so there is one less thing to keep up to date.",
         "spacesFixes": "Spaces pages ask you to unlock instead of failing, the file picker no longer crashes, and a Space's sealed name stays readable after a key rotation.",
         "sealedSpaceNames": "Space names are now sealed on your device, like file names already are.",
         "keyPinning": "Your device remembers the sharing key it first saw for each person and warns you if it later changes.",
@@ -197,7 +196,6 @@
         "accounts": "Accounts with email verification, password reset, two-factor sign-in, magic links and sign-in through outside providers.",
         "viewer": "A file table with sorting, selection, previews and downloads.",
         "adminPlans": "An admin panel, plans and pricing.",
-        "tui": "An early terminal app for macOS, Linux and Windows. We have since removed it.",
         "hardening": "A first round of security hardening and tests."
       }
     }

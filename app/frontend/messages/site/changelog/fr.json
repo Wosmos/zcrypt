@@ -40,7 +40,6 @@
         "fasterShares": "Les liens de partage sont créés plus vite, surtout quand vous partagez beaucoup de fichiers d'un coup.",
         "updateNotes": "La fenêtre de mise à jour vous dit maintenant ce qui a vraiment changé, au lieu d'une vague promesse.",
         "searchFixes": "Les titres de page ne répètent plus le nom deux fois, et le plan du site a maintenant de vraies dates.",
-        "tuiRetired": "L'application de terminal a disparu, avec ses liens de téléchargement : une chose de moins à tenir à jour.",
         "spacesFixes": "Les pages Spaces vous demandent de déverrouiller au lieu d'échouer, le sélecteur de fichiers ne plante plus, et le nom scellé d'un Space reste lisible après une rotation de clé.",
         "sealedSpaceNames": "Les noms d'Espaces sont désormais scellés sur votre appareil, comme les noms de fichiers l'étaient déjà.",
         "keyPinning": "Votre appareil retient la clé de partage vue la première fois pour chaque personne et vous prévient si elle change plus tard.",
@@ -197,7 +196,6 @@
         "accounts": "Comptes avec vérification de l'e-mail, réinitialisation du mot de passe, connexion en deux étapes, liens magiques et connexion via des fournisseurs externes.",
         "viewer": "Un tableau de fichiers avec tri, sélection, aperçus et téléchargements.",
         "adminPlans": "Un panneau d'administration, des forfaits et des tarifs.",
-        "tui": "Une première application de terminal pour macOS, Linux et Windows. Nous l'avons depuis retirée.",
         "hardening": "Une première série de renforcements de sécurité et de tests."
       }
     }

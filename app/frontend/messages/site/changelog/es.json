@@ -40,7 +40,6 @@
         "fasterShares": "Los enlaces para compartir se crean más rápido, sobre todo cuando compartes muchos archivos a la vez.",
         "updateNotes": "El diálogo de actualización ahora te dice qué cambió de verdad, en lugar de una promesa vaga.",
         "searchFixes": "Los títulos de página ya no repiten el nombre dos veces, y el mapa del sitio ahora tiene fechas reales.",
-        "tuiRetired": "La app de terminal ya no existe, junto con sus enlaces de descarga, así que hay una cosa menos que mantener al día.",
         "spacesFixes": "Las páginas de Spaces te piden desbloquear en lugar de fallar, el selector de archivos ya no se cuelga, y el nombre sellado de un Space sigue siendo legible tras rotar la clave.",
         "sealedSpaceNames": "Los nombres de los espacios ahora se sellan en tu dispositivo, igual que ya pasaba con los nombres de archivo.",
         "keyPinning": "Tu dispositivo recuerda la clave de uso compartido que vio por primera vez de cada persona y te avisa si después cambia.",
@@ -197,7 +196,6 @@
         "accounts": "Cuentas con verificación de correo, restablecimiento de contraseña, inicio de sesión en dos pasos, enlaces mágicos e inicio de sesión con proveedores externos.",
         "viewer": "Una tabla de archivos con ordenación, selección, vistas previas y descargas.",
         "adminPlans": "Un panel de administración, planes y precios.",
-        "tui": "Una primera app de terminal para macOS, Linux y Windows. Desde entonces la hemos eliminado.",
         "hardening": "Una primera ronda de refuerzo de seguridad y pruebas."
       }
     }
