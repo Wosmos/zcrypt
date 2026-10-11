@@ -94,7 +94,7 @@ export function SharedStorageBanner() {
         >
           <div
             className={cn(
-              "mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-3",
+              "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-3",
               nearlyFull
                 ? "border-amber-500/30 bg-amber-500/5"
                 : "border-[var(--color-border)] bg-[var(--color-surface-1)]",
