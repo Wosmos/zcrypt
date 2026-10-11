@@ -63,4 +63,14 @@ Out of scope:
   `MASTER_KEY`/`ZCRYPT_JWT_SECRET` chosen by the operator).
 - Findings that require physical access to a user's unlocked device.
 
+## Known limits
+
+These are design limits, not vulnerabilities, so please do not report them as such:
+
+- The web app runs JavaScript served by the site. A compromised deploy could capture a passphrase. The Content-Security-Policy is enforced in production (self-hosters can set `CSP_REPORT_ONLY=1` to downgrade it), but the desktop app, which does not load code from the site, is the stronger option.
+- The server can see metadata: file sizes, timestamps, and the sharing graph. Names, labels and Space names are sealed client-side.
+- A weak vault passphrase can be guessed offline against the wrapped keys. New passphrases must be at least 10 characters; longer is better.
+- The dead-man message is not end-to-end encrypted.
+- Session IPs and server logs are coarsened (/24 for IPv4, /48 for IPv6), and login-failure logs do not contain emails.
+
 Thank you for helping keep zcrypt and its users safe.

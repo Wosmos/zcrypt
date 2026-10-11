@@ -127,15 +127,18 @@ export default function KeyManagementPage() {
           Because your private key is decrypted into the browser while you are unlocked, a
           cross-site-scripting bug becomes the threat that matters most. As defense-in-depth against
           it, the web app serves a strict <strong>Content-Security-Policy</strong> in production. It
-          is currently deployed in <strong>Report-Only</strong> mode, it reports policy violations
-          without blocking anything, and is built to flip to full enforcement once a clean window
-          confirms it breaks nothing legitimate.
+          is <strong>enforced</strong>: the browser blocks anything the policy does not allow. (A
+          self-hoster can downgrade it to report-only with <code>CSP_REPORT_ONLY=1</code>.) It is a
+          second line of defense, not a guarantee: the web app still runs the JavaScript the site
+          serves you, so the desktop app is the stronger option if that trust matters.
         </DocP>
         <DocNote type="security" title="Fingerprints defend against a swapped key">
           Because the registry is served by us, a dishonest server could in principle hand a
           collaborator the wrong public key and interpose itself. Each key carries a short SHA-256
           fingerprint you can compare out of band (in person, over a call) to catch exactly that.
-          The sealing mechanics (an ephemeral-ECDH ECIES sealed-box) are in the{" "}
+          Your browser computes the fingerprint itself from the key, pins it the first time you see
+          a collaborator&rsquo;s key (trust on first use), and asks you to confirm if that key later
+          changes. The sealing mechanics (an ephemeral-ECDH ECIES sealed-box) are in the{" "}
           <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
             encryption model
           </Link>
@@ -199,8 +202,8 @@ export default function KeyManagementPage() {
             </>,
             <>
               <strong>Refresh tokens are stored hashed.</strong> Only a SHA-256 hash of each refresh
-              token is kept, and the issuing IP address and user-agent are recorded, a change of IP
-              is flagged in the logs.
+              token is kept, and the issuing IP address (coarsened to its /24 for IPv4 or /48 for
+              IPv6) and user-agent are recorded, and a change of network is flagged in the logs.
             </>,
           ]}
         />

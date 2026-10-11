@@ -63,8 +63,12 @@ export default function SendDocPage() {
         <DocList
           items={[
             <>
-              <strong>Size:</strong> up to about <strong>50 MB</strong> per send. Larger files
-              belong in your vault, where you can use a share link instead.
+              <strong>Size:</strong> up to <strong>50 MB</strong> per file. Larger files belong in
+              your vault, where you can use a share link instead.
+            </>,
+            <>
+              <strong>Per day:</strong> anonymous senders can send up to <strong>500 MB</strong> a
+              day. Signing in raises the daily allowance.
             </>,
             <>
               <strong>Expiry:</strong> choose a lifetime between <strong>1 and 24 hours</strong>.
@@ -86,7 +90,8 @@ export default function SendDocPage() {
         <DocP>
           Turn on <strong>burn after read</strong> to make the send a one-time link. After the first
           successful access it is treated as already consumed, so a second visitor, or anyone who
-          later finds the link: sees only that it has been used.
+          later finds the link: sees only that it has been used. Once the file has been served, the
+          stored data is deleted, not just hidden.
         </DocP>
       </DocSection>
 
@@ -94,8 +99,10 @@ export default function SendDocPage() {
         <DocNote type="security" title="What's private, and what isn't">
           The file&rsquo;s contents stay private: encryption happens in your browser and the server
           only ever holds ciphertext under a disguised name. For abuse prevention, the{" "}
-          <strong>sender&rsquo;s IP address is recorded</strong> with the transfer. If that matters
-          to your threat model, send from a network you&rsquo;re comfortable being associated with.
+          <strong>sender&rsquo;s IP address is recorded</strong> with the transfer, coarsened to its
+          /24 (IPv4) or /48 (IPv6) network. The integrity hash of the file is sealed too, so the
+          server does not hold a plain hash of your content. If that matters to your threat model,
+          send from a network you&rsquo;re comfortable being associated with.
         </DocNote>
       </DocSection>
 

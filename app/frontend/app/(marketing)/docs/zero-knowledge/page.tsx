@@ -106,9 +106,9 @@ export default function ZeroKnowledgePage() {
           ]}
         />
         <DocNote type="info" title="Audit metadata">
-          Security events (logins, folder deletions, key changes) are recorded with an IP address,
-          user-agent, and event type so you and we can spot abuse. These records never contain key
-          material, passphrases, or plaintext file contents.
+          Security events (logins, folder deletions, key changes) are recorded with a coarsened IP
+          address (/24 for IPv4, /48 for IPv6), user-agent, and event type so you and we can spot
+          abuse. These records never contain key material, passphrases, or plaintext file contents.
         </DocNote>
       </DocSection>
 

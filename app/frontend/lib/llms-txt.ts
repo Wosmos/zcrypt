@@ -131,7 +131,7 @@ zcrypt (pronounced "z-crypt") is a privacy-first cloud drive. It is free and ope
 - **Encryption:** AES-256-GCM; PBKDF2-SHA256 at 600k iterations; per-file envelope keys; X25519 ECIES sealed boxes for shared vaults.
 - **Clients:** web app, desktop app (Tauri; macOS/Windows/Linux), and Android app (beta).
 - **Pricing:** free and open source: no paid tiers.
-- **Tech:** Next.js + React frontend; Go (stdlib net/http) backend; PostgreSQL. Frontend on Vercel, backend on Railway.
+- **Tech:** Next.js + React frontend; Go (stdlib net/http) backend; PostgreSQL. Frontend on Vercel, backend self-hosted in Docker behind a Cloudflare Tunnel.
 - **Not this:** not a storage reseller, not a place that can read your files, not closed source.
 
 ## Documentation

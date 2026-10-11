@@ -48,10 +48,12 @@ export default function SharedVaultsDocPage() {
       <DocSection id="what" title="What shared vaults are">
         <DocP>
           A shared vault, or <strong>space</strong>, is a vault you own but open up to other zcrypt
-          users. You give it a name, invite members by their account email, and add files. Every
-          member can download the space&rsquo;s files and decrypt them <strong>end-to-end</strong>,
-          without ever learning your vault passphrase and without the server being able to read
-          anything.
+          users. You give it a name (and optionally a description, both sealed under the space key
+          so the server stores them unreadable), invite members by their account email, and add
+          files. Spaces live on their own pages (<code>/spaces</code>, with pages to create one, add
+          files, and change settings), and the lists support keyboard multi-select. Every member can
+          download the space&rsquo;s files and decrypt them <strong>end-to-end</strong>, without
+          ever learning your vault passphrase and without the server being able to read anything.
         </DocP>
         <DocP>
           The trick is that a space has its <strong>own key</strong>: a random 256-bit key generated
@@ -176,12 +178,14 @@ export default function SharedVaultsDocPage() {
         />
         <DocNote type="security" title="Verify fingerprints out of band">
           Each member is shown with the <strong>fingerprint</strong> of their public key, the first
-          16 hex characters of its SHA-256, grouped like <code>A1B2-C3D4-E5F6-7890</code>. Compare
-          that against the fingerprint the member sees in their own encryption-key settings, over a
-          channel the server doesn&rsquo;t control (in person, a call, a signed message). Matching
-          fingerprints rule out a server that tried to swap in its own key to eavesdrop. If a member
-          hasn&rsquo;t published a key yet, no fingerprint is shown and you can&rsquo;t grant them
-          access.
+          16 hex characters of its SHA-256, grouped like <code>A1B2-C3D4-E5F6-7890</code>. Your
+          browser computes each fingerprint itself from the member&rsquo;s key, pins it the first
+          time you see it (trust on first use), and asks you to confirm if the key ever changes.
+          Compare that against the fingerprint the member sees in their own encryption-key settings,
+          over a channel the server doesn&rsquo;t control (in person, a call, a signed message).
+          Matching fingerprints rule out a server that tried to swap in its own key to eavesdrop. If
+          a member hasn&rsquo;t published a key yet, no fingerprint is shown and you can&rsquo;t
+          grant them access.
         </DocNote>
       </DocSection>
 
@@ -191,7 +195,9 @@ export default function SharedVaultsDocPage() {
             <>
               <strong>Add files</strong> (owner, editor, admin). Pick files or whole folders from
               your vault. Each one&rsquo;s key is re-wrapped under the space key in your browser;
-              the server stores only the re-wrapped envelope.
+              the server stores only the re-wrapped envelope. Files are added in the background with
+              a progress strip, in batches. On the free plan one add carries at most 200 files by
+              default (an admin can change the cap).
             </>,
             <>
               <strong>Download</strong> (any member): the space key unwraps the file&rsquo;s

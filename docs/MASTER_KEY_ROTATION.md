@@ -37,7 +37,7 @@ client-side (zero-knowledge: the server never has the keys) or keyed by
    the current or a previous `MASTER_KEY`.
 2. **Set the freeze env vars** (one-time setup, then reused every rotation):
    `BACKEND_URL` (the API's public base URL) and `MAINTENANCE_SECRET` (a fresh shared
-   secret — `openssl rand -hex 32` again) on both the **backend's** environment (Railway)
+   secret — `openssl rand -hex 32` again) on both the **backend's** environment (`deploy/server/.env` on the server)
    and wherever you'll run the reseal tool from. These must match exactly; see
    `cmd/maintenance.go`.
 3. **Dry run first, always**:
@@ -62,8 +62,8 @@ client-side (zero-knowledge: the server never has the keys) or keyed by
    (fail-open-with-noise, not a hard refusal — matches the Neon rotation's philosophy:
    sometimes speed matters more than a perfect freeze, e.g. responding to an active
    leak).
-5. **Update `MASTER_KEY` and redeploy**: set `MASTER_KEY=<new key>` on Railway, redeploy
-   the backend. Until this step, the running app is still using the OLD key — the
+5. **Update `MASTER_KEY` and redeploy**: set `MASTER_KEY=<new key>` in `deploy/server/.env`, then
+   rebuild and restart the backend (`bash deploy/server/setup.sh`). Until this step, the running app is still using the OLD key — the
    freeze in step 4 protects the *database* from missed writes, but the app itself keeps
    serving with the old key until it restarts with the new one.
 6. **Verify**: confirm a platform-token-gated action (e.g. viewing connected platforms)

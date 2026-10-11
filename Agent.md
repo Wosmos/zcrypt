@@ -23,7 +23,7 @@ Android apps are secondary clients of the same backend.
 ## 2. Architecture
 
 ```
-Clients                         Backend (Go / Railway)          Storage
+Clients                         Backend (Go / Docker)          Storage
 ┌─────────────────────────┐     ┌────────────────────────┐      ┌────────────────┐
 │ Web app (Next.js/Vercel)│     │ stdlib net/http        │ ───> │ GitHub (850MB) │
 │                         │ ──> │ chunk relay + commit   │ ───> │ GitLab (9GB)   │
@@ -47,12 +47,12 @@ Clients                         Backend (Go / Railway)          Storage
 | ----------- | ------------------------------------------------------------------ |
 | Frontend    | Next.js 16, React 19, TypeScript, Tailwind, Zustand 5, motion 12    |
 | Icons       | Hugeicons (barrel at `app/frontend/lib/icons.tsx`)                  |
-| Backend     | Go 1.25 (`toolchain go1.25.14`), stdlib `net/http`, pgxpool         |
+| Backend     | Go 1.26 (`toolchain go1.26.6`), stdlib `net/http`, pgxpool         |
 | Database    | PostgreSQL on Neon; raw SQL, no ORM; UUID PKs (`gen_random_uuid()`) |
 | Crypto      | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF per-user KEK, X25519 ECIES  |
 | Compression | zstd: client-side in the browser                                   |
 | Auth        | JWT (HS256) + bcrypt (cost 12) + TOTP 2FA + magic links + OAuth     |
-| Deploy      | Frontend on Vercel, Backend on Railway (Docker), DB on Neon         |
+| Deploy      | Frontend on Vercel, Backend self-hosted (Docker + Cloudflare Tunnel, see deploy/server), DB on Neon         |
 
 ## 4. Directory ownership
 

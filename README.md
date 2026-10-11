@@ -120,7 +120,7 @@ Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that imple
 | Client | Status | Notes |
 | ------ | ------ | ----- |
 | **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane. |
-| **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater. Installers are currently unsigned. |
+| **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater. Installers are currently unsigned (see [Install the desktop app](#install-the-desktop-app)). |
 | **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Distributed as a sideload from the rolling [`android-latest`](https://github.com/Wosmos/zcrypt/releases) prerelease. Signed with an ephemeral CI key today, so it is not Play-Store-eligible and updates do not install over a prior sideload. |
 
 iOS compiles but is not yet built in CI. It is in development.
@@ -130,7 +130,8 @@ iOS compiles but is not yet built in CI. It is in development.
 **Encryption & privacy**
 - Zero-knowledge, client-side AES-256-GCM encryption: your passphrase never leaves your device
 - Envelope encryption: a random per-file key (CEK) wrapped by a passphrase-derived KEK (PBKDF2-SHA256, 600,000 iterations)
-- Encrypted filenames and keyed content hashing (HMAC) to resist confirmation-of-file attacks
+- Encrypted filenames and keyed content hashing (HMAC) to resist confirmation-of-file attacks. Web uploads never send a plaintext filename or a plain content hash, and anonymous Send seals its integrity hash
+- New vault passphrases must be at least 10 characters
 - Decoy / duress profile: a separate password opens a plausible decoy vault under coercion
 
 **Storage**
@@ -142,8 +143,8 @@ iOS compiles but is not yet built in CI. It is in development.
 
 **Files & collaboration**
 - Folders, optionally protected with a per-folder password
-- Sharing: password-protected file & folder links, and ephemeral **Send** links (expiry + burn-after-read)
-- **Spaces**: multi-member shared vaults with per-member X25519 key wrapping and key rotation
+- Sharing: password-protected file & folder links, and ephemeral **Send** links (expiry + burn-after-read, which deletes the stored data; anonymous sends are limited to 50 MB per file and 500 MB per day)
+- **Spaces**: multi-member shared vaults with per-member X25519 key wrapping and key rotation. Each Space has its own pages (`/spaces`, `/spaces/new`, `/spaces/[id]`, `/add`, `/settings`) with keyboard multi-select, files are added in the background with a progress strip, member key fingerprints are computed in your browser and pinned on first use (you are asked to confirm if one changes), and the Space name and description are sealed under the Space key. The free plan caps how many files one add can carry (`max_space_batch_files`, default 200, admin-editable)
 - **Timed Vaults**: self-destructing vaults that expire on a schedule
 - **Text Pad**: encrypted, expiring / burn-after-read paste
 - **Device Transfer**: direct device-to-device transfer over a WebSocket relay with code/QR pairing
@@ -185,6 +186,13 @@ iOS compiles but is not yet built in CI. It is in development.
 - Recover your passphrase (PBKDF2 is one-way)
 - Access your storage without your token (tokens are sealed at rest; on desktop/mobile they never leave your device)
 
+### Honest limits
+- **The web app trusts the JavaScript the site serves you.** A compromised or malicious deploy could ship code that steals your passphrase. The CSP and the open source code help, but the desktop app, which does not load code from the site, is the stronger option.
+- **The server sees metadata:** file sizes, timestamps, and the sharing graph (who shared with whom). Names, labels, and Space names are sealed, but these are not.
+- **Weak passphrases can be guessed offline.** Anyone who gets the wrapped keys can try guesses at PBKDF2 speed. Use a long passphrase.
+- **The dead-man message is not end-to-end encrypted** (the UI says so). Do not put secrets in it.
+- Session IPs and server logs are coarsened (/24 for IPv4, /48 for IPv6), and login-failure logs no longer include emails.
+
 ## Tech stack
 
 | Layer | Technology |
@@ -196,7 +204,28 @@ iOS compiles but is not yet built in CI. It is in development.
 | Database | PostgreSQL on Neon (serverless) |
 | Encryption | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF-SHA256, X25519 (sharing), bcrypt, TOTP |
 | Compression | zstd (WebCrypto/WASM in the browser; native in the Rust core) |
-| Deploy | Web on Vercel, backend on Railway (distroless Docker), DB on Neon |
+| Deploy | Web on Vercel, backend self-hosted in Docker behind a Cloudflare Tunnel (see [`deploy/server`](deploy/server/README.md)), DB on Neon |
+
+## Install the desktop app
+
+The installers are **unsigned**: the macOS build is not notarized, and Windows signing (SignPath, wired in `.github/workflows/device.yml`) only turns on once `SIGNPATH_API_TOKEN` is set. The one-line installers below skip the "unverified app" prompt on first launch. Or grab a file from the [releases page](https://github.com/Wosmos/zcrypt/releases) or the download page on the site.
+
+```bash
+# macOS and Linux
+curl -fsSL https://zcrypt.cloud/install.sh | sh
+
+# Windows (PowerShell)
+irm https://zcrypt.cloud/install.ps1 | iex
+
+# macOS, Homebrew
+brew tap wosmos/zcrypt
+brew trust wosmos/zcrypt
+brew install --cask zcrypt
+```
+
+If you install by hand instead, your OS will warn you the first time:
+- **macOS:** System Settings, then Privacy & Security, then **Open Anyway**.
+- **Windows:** SmartScreen, then **More info**, then **Run anyway**.
 
 ## Quick start
 
@@ -242,6 +271,8 @@ bun run tauri build    # produce an installer for the current OS
 ```
 
 ### Docker (backend)
+
+To run the production setup on a server (Docker Compose plus a Cloudflare Tunnel, no open ports), follow [`deploy/server/README.md`](deploy/server/README.md). For a quick local container:
 
 ```bash
 docker build -t zcrypt .
@@ -360,13 +391,14 @@ The backend speaks JSON over `net/http`, authenticated with `Authorization: Bear
 | Method | Endpoint | Description |
 | ------ | -------- | ----------- |
 | GET | `/api/files` · `/files/trash` · `/files/{id}/meta` | Listing & metadata |
+| POST | `/api/files/meta` | Batch metadata for up to 200 file ids |
 | GET | `/api/files/{id}/chunks/{idx}` · `/files/{id}/locators` | Relay / BYOS-direct download |
 | DELETE | `/api/files/{id}` · `/files/{id}/purge` | Trash / permanent delete |
 | POST | `/api/repos/register` · `/repos/{id}/deactivate` | Client-registered BYOS repos |
 | GET | `/api/changes?since=` · `/api/events` | Change feed & SSE progress |
 | GET | `/api/transfer/ws` | Device-to-device WebSocket transfer |
 
-Sharing (`/api/shares`, `/api/folder-shares`, `/api/send`), Spaces (`/api/shared-vaults`), Timed Vaults (`/api/vaults`), Pad (`/api/pad`), keys (`/api/keys`), quota, snapshots/integrity, and admin (`/api/admin/*`, including `/audit` + `/audit/verify`) round out the surface.
+Sharing (`/api/shares`, `/api/folder-shares`, `/api/send`), Spaces (`/api/shared-vaults`, including `POST /api/shared-vaults/{id}/files/batch` to add many files at once), Timed Vaults (`/api/vaults`), Pad (`/api/pad`), keys (`/api/keys`), quota, snapshots/integrity, and admin (`/api/admin/*`, including `/audit` + `/audit/verify`) round out the surface.
 
 ## Storage platforms
 

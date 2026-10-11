@@ -251,6 +251,11 @@ export default function ApiDocPage() {
               "File metadata: size, chunk count, salt/IV.",
             ],
             [
+              "POST",
+              <code key="p">/api/files/meta</code>,
+              "Batch metadata for up to 200 file ids in one request.",
+            ],
+            [
               "GET",
               <code key="p">
                 /api/files/{`{id}`}/chunks/{`{idx}`}
@@ -373,6 +378,11 @@ export default function ApiDocPage() {
               "POST",
               <code key="p">/api/shared-vaults/{`{id}`}/files</code>,
               "Share a file into the space (editor/admin).",
+            ],
+            [
+              "POST",
+              <code key="p">/api/shared-vaults/{`{id}`}/files/batch</code>,
+              "Share many files into the space in one transaction (editor/admin). The free plan caps a batch at max_space_batch_files (default 200).",
             ],
             [
               "DELETE",

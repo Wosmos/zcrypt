@@ -408,14 +408,14 @@ Stress-tests concurrent EventSource connections.
 
 ### Architecture Capacity Estimates
 
-Based on the current stack (Railway Go server, Neon serverless):
+Based on the current stack (self-hosted Go server, Neon serverless):
 
 | Scenario | Expected Capacity | Bottleneck |
 |---|---|---|
 | Auth requests | ~500 req/s | bcrypt cost (CPU) |
 | File list | ~1000 req/s | DB query (Neon cold start) |
 | Upload init | ~200 req/s | DB write + staging dir |
-| Chunk upload (10MB) | ~50 concurrent | Disk I/O on Railway |
+| Chunk upload (10MB) | ~50 concurrent | Disk I/O on the server |
 | SSE connections | ~300 concurrent | Go goroutine memory |
 | Platform sync | ~20 concurrent | Git API rate limits |
 

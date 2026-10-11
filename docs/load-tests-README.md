@@ -72,7 +72,7 @@ Running `stress.js`/`soak.js` needs somewhere safe to point them: not a bare
 `go run .` (unrealistic resource limits) and never real production, since
 that means real GitHub/GitLab/HuggingFace/Telegram accounts and the real
 Neon DB. `docker-compose.loadtest.yml` gives you a disposable stack that
-approximates Railway (backend, resource-capped) + a Vercel-like production
+approximates the production backend host (resource-capped) + a Vercel-like production
 build (frontend, optional) and swaps every real storage platform for a
 disk-backed `mock` adapter (`app/backend/adapters/mock.go`) that's only
 reachable when `ZCRYPT_ENABLE_MOCK_ADAPTER=true` is explicitly set — unset
@@ -106,8 +106,8 @@ make loadtest-docker-down    # stop without wiping
 Watch backend container logs (`docker compose -f docker-compose.loadtest.yml logs -f backend`)
 for `sync-worker: no adapter for chunk...` during the upload test -- that
 means the seed step didn't take (rerun `make loadtest-docker-seed`). Expect
-the containers' CPU/memory caps to become the bottleneck sooner than real
-Railway; that's expected, and the reason this exists.
+the containers' CPU/memory caps to become the bottleneck sooner than the real
+host; that's expected, and the reason this exists.
 
 ## Key metrics to watch
 
@@ -122,6 +122,6 @@ Railway; that's expected, and the reason this exists.
 
 - **Neon CU-hours**: open Neon dashboard → Monitoring. Should flatline (event-driven
   sync_worker means 0 idle DB hits; connections drain after 30s idle).
-- **Memory**: watch Railway/Oracle metrics for linear growth (goroutine leak).
+- **Memory**: watch the host's metrics (`docker stats`, Oracle console) for linear growth (goroutine leak).
 - **DB connections**: should never exceed 5 (pgxpool MaxConns=5).
 - **Errors in backend logs**: look for `context deadline exceeded` or `connection refused`.

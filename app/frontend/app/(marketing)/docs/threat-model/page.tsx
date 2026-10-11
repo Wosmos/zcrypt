@@ -88,6 +88,12 @@ export default function ThreatModelPage() {
               or read decrypted data from memory. Endpoint security is on you.
             </>,
             <>
+              <strong>Metadata the server can see.</strong> Names are sealed, but the server still
+              knows file sizes, timestamps, and the sharing graph (who shared what with whom). IPs
+              in sessions and logs are coarsened to a /24 (IPv4) or /48 (IPv6) network, but a
+              network-level view remains.
+            </>,
+            <>
               <strong>A weak passphrase.</strong> 600,000 PBKDF2 iterations slow guessing down
               dramatically, but they cannot save a passphrase that is short or common. If it can be
               guessed, the derived key can be reproduced.
@@ -95,7 +101,9 @@ export default function ThreatModelPage() {
             <>
               <strong>Frontend supply-chain risk.</strong> The web app is code we serve, so in
               principle a compromised build could be made to exfil a passphrase. This is mitigated
-              by the project being open source: you can audit and self-host it.
+              by the project being open source (you can audit and self-host it) and by an enforced
+              Content-Security-Policy, but you still trust the JavaScript the site serves. The
+              desktop app does not load code from the site and is the stronger option.
             </>,
           ]}
         />
@@ -118,7 +126,8 @@ export default function ThreatModelPage() {
             ["Storage provider snooping", "Yes", "Providers hold encrypted .bin blobs only"],
             ["Network interception (MITM)", "Yes", "TLS plus client-side encryption"],
             ["Malicious or compelled insider", "Yes", "No keys exist on the server to misuse"],
-            ["Metadata / folder-name leakage", "Yes", "Encrypted names + disguised storage"],
+            ["Folder-name / storage-name leakage", "Yes", "Encrypted names + disguised storage"],
+            ["Sizes, timestamps, sharing graph", "No", "Visible to the server"],
             ["File-name leakage", "Partial", "A legacy plaintext name column still exists"],
             [
               "Storage-token theft from server",

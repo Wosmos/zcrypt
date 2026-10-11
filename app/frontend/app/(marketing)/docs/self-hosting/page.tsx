@@ -73,7 +73,7 @@ export default function SelfHostingDocPage() {
               multi-stage <code>Dockerfile</code> at its root.
             </>,
             <>
-              <strong>Go 1.25+</strong>: only needed if you build the backend from source instead of
+              <strong>Go 1.26+</strong>: only needed if you build the backend from source instead of
               using Docker.
             </>,
             <>
@@ -102,8 +102,11 @@ docker run -p 8080:8080 \\
   zcrypt`}</DocCode>
         <DocP>
           Prefer an env file? Pass <code>--env-file app/backend/.env</code> instead of repeating{" "}
-          <code>-e</code> flags. The container listens on <code>8080</code> by default; hosts like
-          Railway inject a <code>PORT</code> variable, which the server also honours.
+          <code>-e</code> flags. The container listens on <code>8080</code> by default; hosts that
+          inject a <code>PORT</code> variable are honoured too. To run it on a Linux server behind a
+          Cloudflare Tunnel (no open ports, no certificates to manage), follow{" "}
+          <code>deploy/server/README.md</code> in the repository: it ships a Docker Compose file and
+          a setup script.
         </DocP>
         <DocNote type="security" title="Guard the MASTER_KEY">
           The <code>MASTER_KEY</code> is a 32-byte hex value that encrypts every stored platform
@@ -186,7 +189,9 @@ docker run -p 8080:8080 \\
                 Number of trusted reverse-proxy hops in front of the app. The real client IP is read
                 that many hops in from the right of the <code>X-Forwarded-For</code> chain.{" "}
                 <code>0</code> (default) ignores forwarding headers so clients cannot spoof their IP
-                to bypass rate limits; set <code>1</code> behind a single proxy such as Railway.
+                to bypass rate limits; set <code>1</code> behind a single proxy such as a Cloudflare
+                Tunnel or a load balancer (the bundled <code>deploy/server</code> setup uses{" "}
+                <code>1</code>).
               </>,
             ],
             [

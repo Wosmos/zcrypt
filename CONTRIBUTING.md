@@ -20,6 +20,9 @@ for security problems.**
 ```
 app/backend/    Go backend (module: github.com/zcrypt/zcrypt)
 app/frontend/   Next.js 16 / React 19 frontend
+app/core/       Rust client engine (zcrypt-core), shared by desktop and Android
+app/desktop/    Tauri v2 shell for desktop and Android
+deploy/server/  Docker Compose + Cloudflare Tunnel setup for hosting the backend
 ```
 
 ## Local setup

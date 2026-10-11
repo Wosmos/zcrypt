@@ -88,9 +88,9 @@ export default function PadDocPage() {
       <DocSection id="privacy" title="Privacy and what we log">
         <DocNote type="security" title="What's private, and what isn't">
           The note&rsquo;s contents stay private: the server only ever stores ciphertext. For abuse
-          prevention, the <strong>creator&rsquo;s IP address is recorded</strong> alongside the Pad.
-          If that matters to you, create the Pad from a network you&rsquo;re comfortable being
-          associated with.
+          prevention, the <strong>creator&rsquo;s IP address is recorded</strong> alongside the Pad,
+          coarsened to its /24 (IPv4) or /48 (IPv6) network. If that matters to you, create the Pad
+          from a network you&rsquo;re comfortable being associated with.
         </DocNote>
       </DocSection>
 

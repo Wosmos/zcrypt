@@ -52,7 +52,9 @@ export default function DeadMansSwitchDocPage() {
               before it fires.
             </>,
             <>
-              <strong>A message</strong>: optional text included in the email to your contact.
+              <strong>A message</strong>: optional text included in the email to your contact. It is{" "}
+              <strong>not end-to-end encrypted</strong>: the server and the email provider can read
+              it, so do not put secrets in it.
             </>,
           ]}
         />

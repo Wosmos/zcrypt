@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocList, DocNote, DocCode } from "@/components/docs/doc-page";
 import { desktopEngine } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
 
@@ -114,6 +114,22 @@ export default function DesktopAppDocPage() {
             </>,
           ]}
         />
+        <DocP>
+          Or install from a terminal. These installers are <strong>unsigned</strong> (the macOS
+          build is not notarized, and Windows signing only turns on once it is configured), and the
+          scripts skip the first-launch &quot;unverified app&quot; prompt for you:
+        </DocP>
+        <DocCode label="macOS and Linux">{`curl -fsSL https://zcrypt.cloud/install.sh | sh`}</DocCode>
+        <DocCode label="Windows (PowerShell)">{`irm https://zcrypt.cloud/install.ps1 | iex`}</DocCode>
+        <DocCode label="macOS (Homebrew)">{`brew tap wosmos/zcrypt
+brew trust wosmos/zcrypt
+brew install --cask zcrypt`}</DocCode>
+        <DocNote type="info" title="If your OS warns you">
+          If you installed a downloaded file by hand, the first launch may be blocked. On macOS,
+          open System Settings, then Privacy &amp; Security, and choose <strong>Open Anyway</strong>
+          . On Windows, choose <strong>More info</strong>, then <strong>Run anyway</strong> in the
+          SmartScreen prompt.
+        </DocNote>
         <DocNote type="info">
           The desktop app is young and ships from GitHub releases, so available installers and
           platforms can vary between versions. If you don&apos;t see a build for your OS yet, the{" "}
