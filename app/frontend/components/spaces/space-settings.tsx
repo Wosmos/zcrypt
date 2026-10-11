@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { spaceKeysReady, useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { deleteSharedVault, removeSharedVaultMember, updateSharedVaultMemberRole } from "@/lib/api";
@@ -206,6 +207,7 @@ export function SpaceSettings() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { query, detail, perms, userId } = useSpaceDetail(id);
+  const ready = useVaultReady();
   const meta = useSpaceMeta(detail ?? undefined);
   const selfFingerprint = useKeysStore((s) => s.fingerprint);
 
@@ -303,16 +305,18 @@ export function SpaceSettings() {
     if (description.trim() !== meta.description) patch.description = description.trim();
     const limit = limitGb.trim() ? Math.round(gb * 1024 ** 3) : 0;
     if (limit !== d.size_limit_bytes) patch.size_limit_bytes = limit;
-    setSaving(true);
-    try {
-      await updateSpaceDetails(d, patch);
-      await Promise.all([refreshSpace(d.id), refreshSpaces()]);
-      toast.success("Space updated");
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Couldn't save changes");
-    } finally {
-      setSaving(false);
-    }
+    ready(async () => {
+      setSaving(true);
+      try {
+        await updateSpaceDetails(d, patch);
+        await Promise.all([refreshSpace(d.id), refreshSpaces()]);
+        toast.success("Space updated");
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Couldn't save changes");
+      } finally {
+        setSaving(false);
+      }
+    });
   };
 
   const rotate = async (members: SharedVaultMember[]) => {
@@ -324,17 +328,19 @@ export function SpaceSettings() {
     void refreshSpaces();
   };
 
-  const handleRotate = async () => {
+  const handleRotate = () => {
     setRotateError("");
-    setRotating(true);
-    try {
-      await rotate(d.members);
-      toast.success("Space key rotated");
-    } catch (err) {
-      setRotateError(err instanceof Error ? err.message : "Key rotation failed");
-    } finally {
-      setRotating(false);
-    }
+    ready(async () => {
+      setRotating(true);
+      try {
+        await rotate(d.members);
+        toast.success("Space key rotated");
+      } catch (err) {
+        setRotateError(err instanceof Error ? err.message : "Key rotation failed");
+      } finally {
+        setRotating(false);
+      }
+    });
   };
 
   const handleRole = async (userIdOf: string, role: SpaceRole) => {
@@ -556,6 +562,10 @@ export function SpaceSettings() {
                 roles={inviteRoles(perms.owner)}
                 actionLabel="Invite"
                 onSubmit={async (email, role) => {
+                  if (!spaceKeysReady()) {
+                    ready(async () => {});
+                    return "Unlock your vault, then send the invite again.";
+                  }
                   try {
                     const member = await inviteMember(d, email, role);
                     patchSpace(d.id, (x) => ({

@@ -45,6 +45,10 @@ export function defaultIsTypingTarget(el: EventTarget | null): boolean {
   return t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable === true;
 }
 
+function sameIds<Id>(a: readonly Id[], b: readonly Id[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
+}
+
 export function useKeyboardSelection<Id extends string = string>(
   opts: KeyboardSelectionOptions<Id>,
 ): KeyboardSelection<Id> {
@@ -66,7 +70,7 @@ export function useKeyboardSelection<Id extends string = string>(
   const anchorRef = useRef<Id | null>(null);
 
   const [prevIds, setPrevIds] = useState(ids);
-  if (ids !== prevIds) {
+  if (ids !== prevIds && !sameIds(ids, prevIds)) {
     setPrevIds(ids);
     if (focusedId && !ids.includes(focusedId)) setFocusedId(ids[0] ?? null);
   }

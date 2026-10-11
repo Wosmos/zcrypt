@@ -10,7 +10,6 @@ import { cn, formatBytes, midTrunc } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useKeyboardSelection } from "@/hooks/useKeyboardSelection";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,6 +18,7 @@ import {
   LiveRegion,
   plural,
   useSlashToFocus,
+  SelectTick,
 } from "@/components/spaces/shared";
 import type { FileMetadata } from "@/types";
 import { ChevronRight, Folder, Home, Search } from "@/lib/icons";
@@ -291,13 +291,7 @@ export function FilePicker({
                     isSel && "bg-[var(--color-accent)]/8 hover:bg-[var(--color-accent)]/12",
                   )}
                 >
-                  <Checkbox
-                    checked={isSel}
-                    tabIndex={-1}
-                    aria-label={`Select ${f.original_name}`}
-                    onClick={(e) => e.stopPropagation()}
-                    onCheckedChange={() => toggleFile(f.id)}
-                  />
+                  <SelectTick checked={isSel} />
                   <FileTypeIcon
                     name={f.original_name}
                     className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]"

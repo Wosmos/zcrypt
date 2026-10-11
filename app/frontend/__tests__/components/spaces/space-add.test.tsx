@@ -21,6 +21,13 @@ const { api, spaces, nav, adds, limit, files } = vi.hoisted(() => ({
   },
 }));
 
+const runReady = (action: () => Promise<void>) => {
+  void action();
+};
+vi.mock("@/components/spaces/use-vault-ready", () => ({
+  useVaultReady: () => runReady,
+  spaceKeysReady: () => true,
+}));
 vi.mock("@/lib/api", () => api);
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "s1" }),

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { unshareFileFromSpace, downloadSpaceFile } from "@/lib/spaces";
@@ -32,6 +33,7 @@ import {
   plural,
   useGridColumns,
   useSlashToFocus,
+  SelectTick,
 } from "@/components/spaces/shared";
 import {
   patchSpace,
@@ -140,29 +142,32 @@ export function SpaceHome() {
 
   const columns = useGridColumns(gridRef, view === "grid" && ids.length > 0);
 
+  const ready = useVaultReady();
   const downloadFiles = useCallback(
     async (fileIds: string[]) => {
       if (!detail) return;
-      for (const fid of fileIds) {
-        const row = rowById.get(fid);
-        if (!row) continue;
-        setDownloading((prev) => new Set(prev).add(fid));
-        try {
-          await downloadSpaceFile(detail, fid, row.wrappedCek, row.name);
-        } catch (err) {
-          toast.error(
-            `${midTrunc(row.name, 24, 8)}: ${err instanceof Error ? err.message : "Download failed"}`,
-          );
-        } finally {
-          setDownloading((prev) => {
-            const next = new Set(prev);
-            next.delete(fid);
-            return next;
-          });
+      ready(async () => {
+        for (const fid of fileIds) {
+          const row = rowById.get(fid);
+          if (!row) continue;
+          setDownloading((prev) => new Set(prev).add(fid));
+          try {
+            await downloadSpaceFile(detail, fid, row.wrappedCek, row.name);
+          } catch (err) {
+            toast.error(
+              `${midTrunc(row.name, 24, 8)}: ${err instanceof Error ? err.message : "Download failed"}`,
+            );
+          } finally {
+            setDownloading((prev) => {
+              const next = new Set(prev);
+              next.delete(fid);
+              return next;
+            });
+          }
         }
-      }
+      });
     },
-    [detail, rowById],
+    [detail, rowById, ready],
   );
 
   const removeFiles = async () => {
@@ -592,14 +597,15 @@ function FileItem({
     onPointerLeave: onPressEnd,
   };
   const check = (
-    <Checkbox
-      checked={selected}
-      tabIndex={-1}
-      aria-label={`Select ${row.name}`}
-      onClick={(e) => e.stopPropagation()}
-      onCheckedChange={onToggle}
-      className={cn(view === "grid" && "absolute start-2.5 top-2.5")}
-    />
+    <span
+      className={cn("flex-shrink-0 p-0.5", view === "grid" && "absolute start-2 top-2")}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+    >
+      <SelectTick checked={selected} />
+    </span>
   );
 
   if (view === "grid") {

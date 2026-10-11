@@ -8,6 +8,7 @@ import { AppTransfers } from "@/components/transfer/app-transfers";
 import { FileEventsBridge } from "@/components/providers/file-events-bridge";
 import { SpaceAddsStrip, SpaceAddsGuard } from "@/components/share/space-adds-strip";
 import { KeyChangeHost } from "@/components/spaces/key-change";
+import { SharingKeysLoader } from "@/components/providers/sharing-keys-loader";
 import { ReviewPrompt } from "@/components/feedback/review-prompt";
 import { TourProvider } from "@/components/onboarding/tour-provider";
 import { AccountDeletionBanner } from "@/components/auth/account-deletion-banner";
@@ -62,6 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <SpaceAddsStrip />
               <SpaceAddsGuard />
               <KeyChangeHost />
+              <SharingKeysLoader />
             </div>
             <CommandPalette />
           </VaultLockProvider>

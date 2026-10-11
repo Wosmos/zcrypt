@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { FileMetadata } from "@/types";
+import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { warmSpaceKeys } from "@/lib/spaces";
@@ -31,14 +33,17 @@ const SHORTCUTS: [string, string][] = [
   ["?", "Show these shortcuts"],
 ];
 
+const NO_FILES: FileMetadata[] = [];
+
 export function SpaceAdd() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { query, detail, perms } = useSpaceDetail(id);
   const meta = useSpaceMeta(detail ?? undefined);
-  const { data: files = [], isPending: filesLoading } = useFilesQuery();
+  const { data: files = NO_FILES, isPending: filesLoading } = useFilesQuery();
   const job = useSpaceAdds((s) => s.jobs[id]);
   const batchLimit = useSpaceBatchLimit();
+  const ready = useVaultReady();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
   const fileIds = useMemo(() => [...selected], [selected]);
@@ -92,8 +97,10 @@ export function SpaceAdd() {
 
   const submit = () => {
     if (selected.size === 0 || overLimit || blockedReason) return;
-    useSpaceAdds.getState().enqueue(detail, fileIds, spaceName);
-    router.push(`/spaces/${id}`);
+    ready(async () => {
+      useSpaceAdds.getState().enqueue(detail, fileIds, spaceName);
+      router.push(`/spaces/${id}`);
+    });
   };
 
   return (

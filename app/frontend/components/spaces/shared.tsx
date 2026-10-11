@@ -5,7 +5,7 @@ import { createElement, useEffect, useState, type ReactNode, type RefObject } fr
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { defaultIsTypingTarget } from "@/hooks/useKeyboardSelection";
 import { cn, fileIconFor } from "@/lib/utils";
-import { ChevronRight, Users } from "@/lib/icons";
+import { Check, ChevronRight, Users } from "@/lib/icons";
 
 export const FOCUS_RING =
   "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
@@ -188,5 +188,22 @@ export function Notice({
     >
       {children}
     </div>
+  );
+}
+
+/** Visual selection tick for a row whose own role="option" carries the state. */
+export function SelectTick({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors",
+        checked
+          ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-bg)]"
+          : "border-[var(--color-border-hover)] bg-transparent",
+      )}
+    >
+      {checked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+    </span>
   );
 }

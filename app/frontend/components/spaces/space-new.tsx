@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useEffect, useMemo, useState } from "react";
 import { createSpace, warmSpaceKeys } from "@/lib/spaces";
 import { ensureUserKeypair } from "@/lib/keys";
@@ -24,7 +25,7 @@ import {
 import { MemberAvatar } from "@/components/spaces/space-ui";
 import { Notice, PageShell, SpaceBreadcrumb, plural } from "@/components/spaces/shared";
 import type { SpaceRole } from "@/lib/spaces";
-import type { SharedVault } from "@/types";
+import type { FileMetadata, SharedVault } from "@/types";
 import { Plus, X } from "@/lib/icons";
 
 interface PendingInvite {
@@ -58,9 +59,11 @@ async function runInvites(vault: SharedVault, invites: PendingInvite[]) {
   for (const msg of failed) toast.warning(msg);
 }
 
+const NO_FILES: FileMetadata[] = [];
+
 export function SpaceNew() {
   const router = useRouter();
-  const { data: files = [], isPending: filesLoading } = useFilesQuery();
+  const { data: files = NO_FILES, isPending: filesLoading } = useFilesQuery();
   const batchLimit = useSpaceBatchLimit();
 
   const [name, setName] = useState("");
@@ -86,7 +89,9 @@ export function SpaceNew() {
 
   const overLimit = selected.size > batchLimit;
 
-  const submit = async () => {
+  const ready = useVaultReady();
+
+  const submit = () => {
     setError("");
     if (!name.trim()) {
       setError("Give the space a name.");
@@ -99,19 +104,21 @@ export function SpaceNew() {
       return;
     }
     const limitBytes = sizeLimitGb.trim() ? Math.round(gb * 1024 * 1024 * 1024) : 0;
-    setCreating(true);
-    try {
-      const vault = await createSpace(name.trim(), description.trim(), [], limitBytes);
-      queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) => [vault, ...(prev ?? [])]);
-      void queryClient.invalidateQueries({ queryKey: qk.spaces });
-      if (fileIds.length > 0) useSpaceAdds.getState().enqueue(vault, fileIds, name.trim());
-      if (invites.length > 0) void runInvites(vault, invites);
-      toast.success(`Space “${name.trim()}” created`);
-      router.push(`/spaces/${vault.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create the space");
-      setCreating(false);
-    }
+    ready(async () => {
+      setCreating(true);
+      try {
+        const vault = await createSpace(name.trim(), description.trim(), [], limitBytes);
+        queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) => [vault, ...(prev ?? [])]);
+        void queryClient.invalidateQueries({ queryKey: qk.spaces });
+        if (fileIds.length > 0) useSpaceAdds.getState().enqueue(vault, fileIds, name.trim());
+        if (invites.length > 0) void runInvites(vault, invites);
+        toast.success(`Space “${name.trim()}” created`);
+        router.push(`/spaces/${vault.id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create the space");
+        setCreating(false);
+      }
+    });
   };
 
   return (

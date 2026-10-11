@@ -7,6 +7,7 @@ import type { SharedVault } from "@/types";
 
 const SEALED = "s1:";
 const FALLBACK = "Untitled space";
+const LOCKED = "Locked space";
 
 interface Opened {
   stamp: string;
@@ -59,5 +60,5 @@ export function useSpaceMeta(vault: SharedVault | undefined): {
   if (opened && opened.stamp === stamp) {
     return { name: opened.name, description: opened.description, ready: true };
   }
-  return { name: "", description: "", ready: false };
+  return { name: keysReady ? "" : LOCKED, description: "", ready: false };
 }

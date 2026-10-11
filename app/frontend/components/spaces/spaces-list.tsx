@@ -45,10 +45,10 @@ function MetaProbe({
   vault: SharedVault;
   onMeta: (id: string, meta: Meta) => void;
 }) {
-  const { name, description, ready } = useSpaceMeta(vault);
+  const { name, description } = useSpaceMeta(vault);
   useEffect(() => {
-    if (ready) onMeta(vault.id, { name, description });
-  }, [ready, name, description, vault.id, onMeta]);
+    onMeta(vault.id, { name, description });
+  }, [name, description, vault.id, onMeta]);
   return null;
 }
 
