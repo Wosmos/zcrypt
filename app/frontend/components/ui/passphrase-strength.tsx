@@ -1,5 +1,7 @@
 "use client";
 
+export const MIN_NEW_PASSPHRASE_LENGTH = 10;
+
 interface PassphraseStrengthProps {
   passphrase: string;
 }
@@ -9,10 +11,11 @@ function evaluateStrength(passphrase: string): { score: number; label: string; c
 
   const len = passphrase.length;
 
-  // Simple length-based scoring, no nagging about special chars
-  if (len < 4) return { score: 1, label: "Short", color: "#f97316" };
-  if (len < 8) return { score: 2, label: "Okay", color: "#eab308" };
-  if (len < 14) return { score: 3, label: "Good", color: "#22c55e" };
+  // Length-based scoring, no nagging about special chars. Anything under the
+  // creation minimum is "Too short"; a long passphrase is the real strength.
+  if (len < MIN_NEW_PASSPHRASE_LENGTH) return { score: 1, label: "Too short", color: "#f97316" };
+  if (len < 14) return { score: 2, label: "Okay", color: "#eab308" };
+  if (len < 20) return { score: 3, label: "Good", color: "#22c55e" };
   return { score: 4, label: "Strong", color: "#00d5e4" };
 }
 

@@ -5,7 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "next-intl";
 import { usePassphraseStore } from "@/store/passphrase";
 import { Lock, X, Loader2, Fingerprint } from "@/lib/icons";
-import { PassphraseStrength } from "@/components/ui/passphrase-strength";
+import { MIN_NEW_PASSPHRASE_LENGTH, PassphraseStrength } from "@/components/ui/passphrase-strength";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   isTauri,
@@ -31,6 +31,12 @@ interface PassphraseModalProps {
    * there's nothing to verify against: e.g. when SETTING a new passphrase.
    */
   verify?: (passphrase: string) => Promise<boolean>;
+  /**
+   * True only while a NEW vault passphrase is being created. Enforces the
+   * minimum length and shows the create-step guidance. Never set when
+   * unlocking an existing vault, which must accept whatever it was made with.
+   */
+  creating?: boolean;
 }
 
 export function PassphraseModal({
@@ -42,6 +48,7 @@ export function PassphraseModal({
   confirmLabel,
   error,
   verify,
+  creating = false,
 }: PassphraseModalProps) {
   const t = useTranslations("passphrase");
   const tc = useTranslations("common");
@@ -102,6 +109,12 @@ export function PassphraseModal({
       if (!candidate || verifying) return;
       setLocalError(null);
 
+      if (creating && candidate.length < MIN_NEW_PASSPHRASE_LENGTH) {
+        setLocalError(t("tooShort", { min: MIN_NEW_PASSPHRASE_LENGTH }));
+        inputRef.current?.focus();
+        return;
+      }
+
       // Verify the passphrase BEFORE caching it, so a wrong one is rejected right
       // here in the modal instead of being cached and only failing later when a
       // file won't decrypt. `verify` returns false ONLY when it's definitively
@@ -131,7 +144,7 @@ export function PassphraseModal({
       onConfirm(candidate);
       setPassphrase("");
     },
-    [verifying, verify, remember, setRememberDevice, cachePassphrase, onConfirm, t],
+    [verifying, verify, creating, remember, setRememberDevice, cachePassphrase, onConfirm, t],
   );
 
   const handleConfirm = useCallback(
@@ -269,7 +282,12 @@ export function PassphraseModal({
                 autoComplete="off"
               />
 
-              <PassphraseStrength passphrase={passphrase} />
+              {creating && (
+                <>
+                  <PassphraseStrength passphrase={passphrase} />
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">{t("createHint")}</p>
+                </>
+              )}
 
               <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
                 <Checkbox
@@ -292,7 +310,12 @@ export function PassphraseModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={!passphrase || verifying || bioBusy}
+                  disabled={
+                    !passphrase ||
+                    (creating && passphrase.length < MIN_NEW_PASSPHRASE_LENGTH) ||
+                    verifying ||
+                    bioBusy
+                  }
                   className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {verifying && <Loader2 className="h-4 w-4 animate-spin" />}

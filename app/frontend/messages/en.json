@@ -62,7 +62,9 @@
     "placeholder": "Your encryption passphrase",
     "keepUnlocked": "Keep me unlocked on this device",
     "unlockTitle": "Unlock your vault",
-    "unlockSubtitle": "Enter your passphrase to decrypt, preview, and download your files"
+    "unlockSubtitle": "Enter your passphrase to decrypt, preview, and download your files",
+    "tooShort": "Use at least {min} characters for a new vault passphrase.",
+    "createHint": "Don't reuse your login password. We never see this passphrase, so we can't reset it."
   },
   "explorer": {
     "gridColumns": "Grid columns",

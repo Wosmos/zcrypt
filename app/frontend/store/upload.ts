@@ -8,7 +8,6 @@ import {
   generateCEK,
   wrapKey,
   unwrapKey,
-  sha256File,
   contentMacFile,
   deriveDedupKeyBytes,
   toBase64,
@@ -498,6 +497,8 @@ interface UploadFileOpts {
 // startUpload and retryUpload. The server ALSO resumes: an init for a file with
 // an active session returns that session (`resumed: true`), pinned to its
 // original platform and chunk size.
+const VAULT_LOCKED_MSG = "Unlock your vault to continue";
+
 async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
   const { passphrase, platform, profile, onRefresh, folderId } = opts;
   const { updateStatus, setFileId, setError } = useUploadStore.getState();
@@ -556,8 +557,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let shouldCompress = true;
     let done = new Set<number>();
     let fileSha256 = ""; // per-user keyed content MAC (hmac_v1); known on the fresh path only
-    let fileScheme = "plain"; // 'hmac_v1' once the MAC is computed below
-    let encryptedName = ""; // zero-knowledge file name (base64); '' → send plaintext filename
+    let fileScheme = "plain"; // set to 'hmac_v1' once the MAC is computed below; never sent as plain on a fresh upload
+    let encryptedName = ""; // zero-knowledge file name (base64)
     let fileId = "";
     let wasResumed = false;
 
@@ -572,10 +573,21 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // key), NOT a plaintext SHA-256. It stays deterministic per (user,
       // passphrase, content) so server-authoritative dedup/resume still matches on
       // it, but a passphrase-less DB attacker can't recompute it for a known file
-      // (defeats confirmation-of-file). Falls back to plain SHA only if we can't
-      // resolve the user id (should not happen for an authenticated upload).
-      updateStatus(id, "encrypting", 1, "Hashing file…", 0, file.size);
+      // (defeats confirmation-of-file).
+      //
+      // Both the MAC key and the name key are resolved BEFORE hashing and held for
+      // the whole run: hashing can take minutes, long enough for auto-lock to wipe
+      // the cached vault passphrase. There is no plaintext fallback; without them
+      // the upload stops with a retryable error.
       const dedupUserId = useAuthStore.getState().user?.id;
+      const vaultPass = usePassphraseStore.getState().getPassphrase();
+      if (!dedupUserId || !vaultPass) throw new Error(VAULT_LOCKED_MSG);
+      // The name is sealed from the VAULT passphrase, NOT the upload `passphrase`,
+      // which for a protected folder is the folder password. This keeps it
+      // decryptable by decryptFileNames and independent of the file's content key.
+      const nameKey = await nameKeyFor(vaultPass, dedupUserId);
+      const dedupKey = await deriveDedupKeyBytes(passphrase, dedupUserId);
+      updateStatus(id, "encrypting", 1, "Hashing file…", 0, file.size);
       const onHashProgress = (hashed: number) => {
         // Feed hash progress into the STAGE text (the bar's byte unit stays
         // reserved for upload bytes) so a multi-GB pre-hash visibly moves.
@@ -590,27 +602,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           file.size,
         );
       };
-      if (dedupUserId) {
-        const dedupKey = await deriveDedupKeyBytes(passphrase, dedupUserId);
-        fileSha256 = await contentMacFile(file, dedupKey, onHashProgress);
-        fileScheme = "hmac_v1";
-      } else {
-        fileSha256 = await sha256File(file, onHashProgress);
-        fileScheme = "plain";
-      }
+      fileSha256 = await contentMacFile(file, dedupKey, onHashProgress);
+      fileScheme = "hmac_v1";
       if (pauseCheckpoint()) return;
 
-      // Zero-knowledge file name: encrypt it under the per-user NAME key derived
-      // from the VAULT passphrase (getPassphrase), NOT the upload `passphrase`,
-      // which for a protected folder is the folder password. This keeps it
-      // decryptable by decryptFileNames (which also uses the vault passphrase),
-      // and independent of the file's content key. If the vault passphrase or
-      // user id isn't available, fall back to the legacy plaintext filename.
-      const vaultPass = usePassphraseStore.getState().getPassphrase();
-      if (dedupUserId && vaultPass) {
-        const nameKey = await nameKeyFor(vaultPass, dedupUserId);
-        encryptedName = await encryptName(file.name, nameKey);
-      }
+      encryptedName = await encryptName(file.name, nameKey);
 
       updateStatus(id, "encrypting", 2, "Deriving encryption key...");
       // Batch path: reuse the salt + KEK startUpload derived once for the whole
@@ -638,9 +634,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           if (isPaused()) return null;
           try {
             return await initUpload({
-              // Zero-knowledge: when the name is encrypted, send an EMPTY filename
-              // so the server never sees the plaintext; otherwise fall back to it.
-              filename: encryptedName ? "" : file.name,
+              // Zero-knowledge: the plaintext name is never sent.
+              filename: "",
               encrypted_name: encryptedName,
               original_size: file.size,
               sha256: fileSha256,

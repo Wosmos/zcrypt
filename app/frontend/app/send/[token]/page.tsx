@@ -6,6 +6,7 @@ import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Shield, Send, Download, AlertTriangle, Eye, Clock } from "@/lib/icons";
 import { formatBytes, saveBlob } from "@/lib/utils";
+import { openSendHash } from "@/lib/send-hash";
 import { keyFromFragment } from "@/lib/share-link";
 import { isSealed, openText, keyFromBytes } from "@/lib/sealed";
 import {
@@ -173,7 +174,8 @@ export default function SendDownloadPage() {
     }
 
     const actualHash = await sha256Hex(fullFile);
-    if (actualHash !== meta.sha256) {
+    const expectedHash = await openSendHash(meta.sha256, await keyFromBytes(keyBytes));
+    if (actualHash !== expectedHash) {
       throw new Error("File integrity check failed. SHA-256 mismatch");
     }
 

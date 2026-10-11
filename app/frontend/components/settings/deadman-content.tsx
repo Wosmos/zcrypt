@@ -343,6 +343,15 @@ export function DeadManContent() {
                 rows={3}
                 className="resize-none"
               />
+              <div
+                role="note"
+                className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5"
+              >
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  This message is sent by email from our server and is not end-to-end encrypted.
+                  Never put your passphrase in it.
+                </p>
+              </div>
             </div>
             <label className="flex cursor-pointer items-center gap-3">
               <Checkbox

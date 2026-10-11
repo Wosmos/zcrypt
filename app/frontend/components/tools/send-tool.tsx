@@ -82,7 +82,7 @@ export function SendTool() {
       const session = await sendInit({
         filename: await sealText(selectedFile.name, nameKey),
         original_size: selectedFile.size,
-        sha256: fileHash,
+        sha256: await sealText(fileHash, nameKey),
         salt: toBase64(salt),
         chunk_count: chunkCount,
         burn_after_read: burnAfterRead,

@@ -107,10 +107,10 @@ vi.mock("@/lib/crypto", () => ({
 // under an empty localStorage (no user, locked vault) so every existing test is
 // unaffected; the dedup test overrides them.
 vi.mock("@/store/auth", () => ({
-  useAuthStore: { getState: vi.fn(() => ({ user: undefined })) },
+  useAuthStore: { getState: vi.fn(() => ({ user: { id: "user-1" } })) },
 }));
 vi.mock("@/store/passphrase", () => ({
-  usePassphraseStore: { getState: vi.fn(() => ({ getPassphrase: () => null })) },
+  usePassphraseStore: { getState: vi.fn(() => ({ getPassphrase: () => "vault-pass" })) },
 }));
 vi.mock("@/lib/name-crypto", () => ({
   deriveNameKey: vi.fn(async () => ({}) as CryptoKey),
@@ -330,7 +330,7 @@ describe("useUploadStore", () => {
 
       expect(initUpload).toHaveBeenCalledWith(
         expect.objectContaining({
-          filename: "a.txt",
+          filename: "",
           original_size: 10,
           chunk_count: 1,
           chunk_size: SMALL_PROFILE.chunkSize,
@@ -1250,7 +1250,7 @@ describe("useUploadStore", () => {
       // here would survive .mockClear() into every later test in the file,
       // since clearing call history does not undo a custom implementation.
       let resolveHash: (v: string) => void = () => {};
-      (sha256File as Mock).mockImplementationOnce(
+      (contentMacFile as Mock).mockImplementationOnce(
         () =>
           new Promise<string>((resolve) => {
             resolveHash = () => resolve("sha-a");
@@ -1272,8 +1272,8 @@ describe("useUploadStore", () => {
     it("ignores a hash-progress tick that arrives after pause instead of reviving the row", async () => {
       let onProgressCb: ((n: number) => void) | undefined;
       let resolveHash: (v: string) => void = () => {};
-      (sha256File as Mock).mockImplementationOnce(
-        (_file: File, onProgress: (n: number) => void) => {
+      (contentMacFile as Mock).mockImplementationOnce(
+        (_file: File, _key: Uint8Array, onProgress: (n: number) => void) => {
           onProgressCb = onProgress;
           return new Promise<string>((resolve) => {
             resolveHash = () => resolve("sha-a");
@@ -1302,7 +1302,7 @@ describe("useUploadStore", () => {
     // fresh startUpload (whose only "hang" point is the batch-level derive,
     // already covered by the sibling test above via a different mechanism).
     it("stops during a retry's per-file key derivation (no batch-shared KEK) without calling initUpload", async () => {
-      (sha256File as Mock).mockRejectedValueOnce(new Error("disk read failed"));
+      (contentMacFile as Mock).mockRejectedValueOnce(new Error("disk read failed"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -1386,7 +1386,7 @@ describe("useUploadStore", () => {
       // a real abort-driven "Upload paused" from any other source of that
       // exact string): this locks in that CONTRACT: whatever the origin,
       // the outer catch must treat it as a stop, never call setError/toast.
-      (sha256File as Mock).mockRejectedValueOnce(new Error("Upload paused"));
+      (contentMacFile as Mock).mockRejectedValueOnce(new Error("Upload paused"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -2052,8 +2052,8 @@ describe("useUploadStore", () => {
   describe("zero-knowledge dedup + encrypted filename", () => {
     afterEach(() => {
       // Restore the empty-vault defaults so nothing leaks into later tests.
-      (useAuthStore.getState as Mock).mockReturnValue({ user: undefined });
-      (usePassphraseStore.getState as Mock).mockReturnValue({ getPassphrase: () => null });
+      (useAuthStore.getState as Mock).mockReturnValue({ user: { id: "user-1" } });
+      (usePassphraseStore.getState as Mock).mockReturnValue({ getPassphrase: () => "vault-pass" });
     });
 
     it("uses the HMAC dedup scheme and encrypts the filename when a user id + unlocked vault are present", async () => {
@@ -2084,16 +2084,58 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("done");
     });
 
-    it("keeps the plain sha256 scheme when there is no user id (dedup path skipped)", async () => {
+    it("fails with an unlock prompt, never a plaintext fallback, when there is no user id", async () => {
+      (useAuthStore.getState as Mock).mockReturnValue({ user: undefined });
       const file = makeFile("plain.txt", 10, "0123456789");
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
       await flush();
 
-      expect(deriveDedupKeyBytes).not.toHaveBeenCalled();
-      expect(deriveNameKey).not.toHaveBeenCalled();
-      expect(initUpload).toHaveBeenCalledWith(
-        expect.objectContaining({ sha256_scheme: "plain", filename: "plain.txt" })
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe("Unlock your vault to continue");
+      expect(contentMacFile).not.toHaveBeenCalled();
+      expect(sha256File).not.toHaveBeenCalled();
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("fails before hashing when the vault passphrase is not cached", async () => {
+      (usePassphraseStore.getState as Mock).mockReturnValue({ getPassphrase: () => null });
+      const file = makeFile("locked.txt", 10, "0123456789");
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe("Unlock your vault to continue");
+      expect(contentMacFile).not.toHaveBeenCalled();
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("keeps the name key resolved up front even if the vault locks while hashing", async () => {
+      let resolveHash: (v: string) => void = () => {};
+      (contentMacFile as Mock).mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveHash = resolve;
+          })
       );
+      const file = makeFile("slow.txt", 10, "0123456789");
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(3);
+
+      (usePassphraseStore.getState as Mock).mockReturnValue({ getPassphrase: () => null });
+      resolveHash("mac-slow");
+      await flush();
+
+      expect(initUpload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filename: "",
+          encrypted_name: "enc:slow.txt",
+          sha256_scheme: "hmac_v1",
+        })
+      );
+      expect(getItem(id)?.status).toBe("done");
     });
   });
 
@@ -2131,7 +2173,7 @@ describe("useUploadStore", () => {
       expect(msg).toContain("and 1 more");
       expect(msg).toContain("exceed"); // plural form: no trailing "s"
       // The one valid file still uploads.
-      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ filename: "ok.txt" }));
+      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ filename: "" }));
     });
   });
 
@@ -2251,7 +2293,7 @@ describe("useUploadStore", () => {
   describe("pause at the earliest checkpoints", () => {
     it("stops before hashing when the item is already paused", async () => {
       let resolveHash: () => void = () => {};
-      (sha256File as Mock).mockImplementationOnce(
+      (contentMacFile as Mock).mockImplementationOnce(
         () => new Promise<string>((resolve) => {
           resolveHash = () => resolve("sha-a");
         }),
@@ -2305,7 +2347,7 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(getItem(id)?.status).toBe("paused");
-      expect(sha256File).not.toHaveBeenCalled();
+      expect(contentMacFile).not.toHaveBeenCalled();
       expect(initUpload).not.toHaveBeenCalled();
     });
 
