@@ -6,6 +6,7 @@ import { Logo } from "@/components/ui/logo";
 import { UpdatePill } from "@/components/ui/update-pill";
 import { VaultLock } from "@/components/ui/vault-lock";
 import { GlobalSearch } from "@/components/ui/global-search";
+import { usePathname } from "next/navigation";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 
 export function TopBar() {
@@ -13,13 +14,15 @@ export function TopBar() {
   // toggle lives here, left of notifications (the vault page header carries it on
   // desktop). Wrapped in sm:hidden so desktop TopBar is untouched.
   const vault = useVaultLockContext();
+  const onVault = usePathname() === "/dashboard";
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-lg px-2 pb-6 pt-[calc(1.5rem+var(--safe-top))] md:mt-0 md:py-0 md:pt-0">
-      {/* Left: logo on mobile, then the global vault search on every page. */}
+      {/* Left: logo on mobile, then the vault search on the vault page only. Other
+          pages carry their own search (Spaces) or none (Insights, Settings). */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Logo size="lg" iconOnly href="/dashboard" className="shrink-0 sm:hidden" />
-        <GlobalSearch className="max-w-2xl" />
+        {onVault ? <GlobalSearch className="max-w-2xl" /> : null}
       </div>
 
       {/* Right: vault lock (mobile only), notification + avatar, pinned right */}

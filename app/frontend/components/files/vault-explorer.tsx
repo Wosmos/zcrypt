@@ -1239,9 +1239,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           hidden on mobile), so mobile keeps its own compact single-select type
           row, bridged onto the SAME `filters.types` set (at most one entry on
           mobile) rather than a second, separate piece of state. Sticks just
-          under the sticky search bar; hidden in select mode for focus. */}
+          at the top of the scroll area; hidden in select mode for focus. */}
         {!selectMode && isMobile && (
-          <div className="sticky top-[55px] z-10 -mx-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+          <div className="sticky -top-1 z-10 -mx-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
             <FileTypeFilter
               compact
               files={folderFiles}

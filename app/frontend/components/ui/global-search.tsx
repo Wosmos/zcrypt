@@ -135,10 +135,14 @@ export function GlobalSearch({ className }: { className?: string }) {
   const optionId = (i: number) => `${listId}-opt-${i}`;
 
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)} data-tour="vault-search">
+    <div
+      ref={rootRef}
+      className={cn("relative w-full min-w-0", className)}
+      data-tour="vault-search"
+    >
       <div
         className={cn(
-          "group flex h-11 items-center gap-3 rounded-2xl border bg-[var(--color-surface)] px-4 transition-[border-color,box-shadow] duration-200",
+          "group flex h-11 items-center gap-2 rounded-2xl border bg-[var(--color-surface)] px-3 transition sm:gap-3 sm:px-4-[border-color,box-shadow] duration-200",
           panelOpen
             ? "border-[var(--color-accent)]/50 shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-accent)_14%,transparent)]"
             : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
@@ -166,7 +170,7 @@ export function GlobalSearch({ className }: { className?: string }) {
             setOpen(true);
           }}
           onKeyDown={onKeyDown}
-          className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] [&::-webkit-search-cancel-button]:hidden"
+          className="h-full min-w-0 flex-1 bg-transparent text-sm sm:text-[15px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] [&::-webkit-search-cancel-button]:hidden"
         />
         {query ? (
           <button

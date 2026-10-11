@@ -135,7 +135,7 @@ export function SharedStorageBanner() {
 
             <Link
               href="/settings?tab=storage"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+              className="order-last inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-2 sm:order-none sm:w-auto sm:py-1.5 text-sm font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
             >
               {t("connectOwn")}
               <ArrowRight className="h-3.5 w-3.5" />
