@@ -570,6 +570,10 @@ jobs:
       && (needs.sign-windows.result == 'success' || needs.sign-windows.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Download platform build artifacts
         uses: actions/download-artifact@v8
         with:
@@ -586,8 +590,9 @@ jobs:
           set -euo pipefail
           VER="${TAG#v}"
           PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          json=$(jq -n --arg v "$VER" --arg d "$PUB_DATE" \
-            '{version: $v, notes: "See the GitHub release notes for details.", pub_date: $d, platforms: {}}')
+          NOTES="$(bash scripts/release-notes.sh "$TAG")"
+          json=$(jq -n --arg v "$VER" --arg n "$NOTES" --arg d "$PUB_DATE" \
+            '{version: $v, notes: $n, pub_date: $d, platforms: {}}')
 
           shopt -s nullglob
           for dir in artifacts/zcrypt-*; do
