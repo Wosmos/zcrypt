@@ -7,6 +7,12 @@ export type ViewMode = "list" | "grid";
 /** Grid density: "auto" = responsive (2/3/4 by width), or a user-locked column count. */
 export type GridCols = "auto" | 1 | 2 | 4 | 6 | 8 | 10 | 12;
 
+/** CSS grid-template-columns shared by the real grid and its loading skeleton. */
+export function gridTemplateColumns(gridCols: GridCols, isMobile: boolean): string {
+  if (gridCols !== "auto") return `repeat(${gridCols}, minmax(0, 1fr))`;
+  return isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fill, minmax(118px, 1fr))";
+}
+
 /**
  * Solid focus ring shared across every interactive explorer element (a11y-H3),
  * mirroring the transfer dock: a high-contrast accent ring with an offset that
