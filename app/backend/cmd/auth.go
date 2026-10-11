@@ -275,7 +275,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
 		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed who=%s ip=%s reason=not_found", emailTag(req.Email), anonIP(clientIP))
-		s.audit(r, nil, "login_failed", map[string]interface{}{"email": req.Email, "reason": "not_found"})
+		s.audit(r, nil, "login_failed", map[string]interface{}{"who": emailTag(req.Email), "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
@@ -298,7 +298,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 					})
 					return
 				}
-				s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email})
+				s.audit(r, &user.ID, "login_decoy", nil)
 				s.issueDecoyTokens(w, r, user)
 				return
 			}
@@ -306,7 +306,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed user=%s ip=%s reason=wrong_password", user.ID, anonIP(clientIP))
-		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"email": req.Email, "reason": "wrong_password"})
+		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
@@ -964,7 +964,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		}
 		remaining, _ := s.db.CountUnusedBackupCodes(ctx, user.ID)
 		if claims.Decoy {
-			s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email, "method": "backup_code"})
+			s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"method": "backup_code"})
 			s.issueDecoyTokens(w, r, user)
 			return
 		}
@@ -999,7 +999,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims.Decoy {
-		s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email, "method": "2fa"})
+		s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"method": "2fa"})
 		s.issueDecoyTokens(w, r, user)
 		return
 	}
