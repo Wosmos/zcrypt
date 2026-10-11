@@ -240,6 +240,15 @@
       "fullscreen": "Vollbild",
       "pause": "Pause",
       "play": "Abspielen"
+    },
+    "whatsNew": {
+      "title": "Was ist neu",
+      "menu": "Was ist neu",
+      "unread": "Neu",
+      "unreadAria": "Ungelesene Versionshinweise",
+      "seeFull": "Vollständigen Changelog ansehen",
+      "gotIt": "Verstanden",
+      "loading": "Wird geladen"
     }
   }
 }

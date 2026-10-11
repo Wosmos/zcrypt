@@ -9,8 +9,19 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useAuthStore } from "@/store/auth";
 import { usePreferencesStore } from "@/store/preferences";
+import { selectWhatsNewUnread, useWhatsNewStore } from "@/store/whats-new";
 import { logout as logoutApi } from "@/lib/auth-api";
-import { Sun, Moon, LogOut, Settings, Cog, AlertTriangle, Star, Compass } from "@/lib/icons";
+import {
+  Sun,
+  Moon,
+  LogOut,
+  Settings,
+  Cog,
+  AlertTriangle,
+  Star,
+  Compass,
+  Sparkles,
+} from "@/lib/icons";
 import { useTour } from "@/components/onboarding/tour-provider";
 import { BugReportDialog } from "@/components/feedback/bug-report-dialog";
 import { ReviewDialog } from "@/components/feedback/review-dialog";
@@ -38,6 +49,9 @@ function ToggleSwitch({ enabled }: { enabled: boolean }) {
 
 export function AvatarDropdown() {
   const t = useTranslations("shell");
+  const tw = useTranslations("ui.whatsNew");
+  const unread = useWhatsNewStore(selectWhatsNewUnread);
+  const openWhatsNew = useWhatsNewStore((s) => s.setOpen);
   const [open, setOpen] = useState(false);
   const [bugOpen, setBugOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -91,6 +105,13 @@ export function AvatarDropdown() {
             Gated to hover-capable pointers: on touch, :hover latches after a
             tap and would leave the band parked over the avatar until reload. */}
         <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-full" />
+        {unread && (
+          <span
+            aria-hidden="true"
+            data-testid="whats-new-dot-trigger"
+            className="absolute end-0.5 top-0.5 z-10 h-2.5 w-2.5 rounded-full border-2 border-[var(--color-surface)] bg-[var(--color-accent)]"
+          />
+        )}
         {me && (
           <UserAvatar
             userId={me.userId}
@@ -172,6 +193,26 @@ export function AvatarDropdown() {
               >
                 <Compass className="h-4 w-4 text-[var(--color-text-muted)]" />
                 {t("takeTour")}
+              </button>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  openWhatsNew(true);
+                }}
+                className="flex items-center justify-between w-full px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
+              >
+                <span className="flex items-center gap-3">
+                  <Sparkles className="h-4 w-4 text-[var(--color-text-muted)]" />
+                  {tw("menu")}
+                </span>
+                {unread && (
+                  <span
+                    role="img"
+                    aria-label={tw("unreadAria")}
+                    data-testid="whats-new-dot"
+                    className="h-2 w-2 rounded-full bg-[var(--color-accent)]"
+                  />
+                )}
               </button>
               <button
                 onClick={() => {

@@ -240,6 +240,15 @@
       "fullscreen": "全屏",
       "pause": "暂停",
       "play": "播放"
+    },
+    "whatsNew": {
+      "title": "新功能",
+      "menu": "新功能",
+      "unread": "新",
+      "unreadAria": "未读的发布说明",
+      "seeFull": "查看完整更新日志",
+      "gotIt": "知道了",
+      "loading": "加载中"
     }
   }
 }

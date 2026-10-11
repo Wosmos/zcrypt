@@ -1,0 +1,181 @@
+{
+  "changelog": {
+    "page": {
+      "eyebrow": "Journal des modifications",
+      "title": "Nouveautés",
+      "lede": "Chaque version de zcrypt, en mots simples. Nous les écrivons à la main pour que vous voyiez ce qui a changé sans lire des messages de commit.",
+      "metaTitle": "Nouveautés de zcrypt",
+      "latestBadge": "Dernière",
+      "upcomingBadge": "À venir",
+      "upcomingNote": "Pas encore publiée. Voici ce qui est prévu pour la prochaine version.",
+      "versionLabel": "Version {version}",
+      "readMore": "Ouvrir cette version",
+      "allVersions": "Toutes les versions",
+      "previous": "Plus ancienne",
+      "next": "Plus récente",
+      "getLatest": "Obtenir la dernière version",
+      "getLatestBody": "Les mises à jour sont gratuites, et l'application de bureau peut se mettre à jour toute seule. Récupérez la version la plus récente pour votre appareil.",
+      "download": "Télécharger zcrypt",
+      "footerLink": "Nouveautés",
+      "downloadLink": "Voir les nouveautés de cette version",
+      "kinds": {
+        "new": "Nouveau",
+        "improved": "Amélioré",
+        "fixed": "Corrigé",
+        "security": "Sécurité"
+      }
+    },
+    "v0_1_8": {
+      "title": "Tout en huit langues",
+      "summary": "zcrypt parle désormais huit langues de bout en bout, les Espaces ont de vraies pages, et beaucoup de travail sur la confidentialité s'est fait discrètement en coulisses.",
+      "items": {
+        "translation": "Toute l'application et le site sont maintenant traduits en arabe, allemand, espagnol, français, russe, ourdou et chinois, pas seulement les menus.",
+        "spacesPages": "Les Espaces ont quitté les fenêtres contextuelles pour de vraies pages avec leurs propres liens, et vous pouvez les piloter au clavier.",
+        "keyboardSelect": "Sélectionnez des fichiers au clavier, sans souris.",
+        "backgroundAdds": "L'ajout de fichiers à un Espace continue en arrière-plan pendant que vous faites autre chose.",
+        "fasterShares": "Les liens de partage sont créés plus vite, surtout quand vous partagez beaucoup de fichiers d'un coup.",
+        "avatars": "Votre photo de profil s'affiche partout où apparaît votre avatar, au lieu d'une simple initiale.",
+        "installers": "Des installateurs en une ligne pour macOS, Linux et Windows qui évitent l'effrayant message d'application non vérifiée, plus un tap Homebrew.",
+        "updateNotes": "La fenêtre de mise à jour vous dit maintenant ce qui a vraiment changé, au lieu d'une vague promesse.",
+        "searchFixes": "Les moteurs de recherche trouvent enfin le site correctement, et les titres de page ne répètent plus le nom deux fois.",
+        "selfHosting": "Un kit d'auto-hébergement : faites tourner votre propre serveur zcrypt sur n'importe quelle machine Linux derrière un Cloudflare Tunnel.",
+        "fingerprints": "Les Espaces affichent une empreinte de clé que vous pouvez comparer avec un ami, pour savoir que vous partagez avec la bonne personne.",
+        "sealedSpaceNames": "Les noms d'Espaces sont désormais scellés sur votre appareil, comme les noms de fichiers l'étaient déjà.",
+        "passphraseMinimum": "Les phrases secrètes ont maintenant une longueur minimale raisonnable, avec des conseils dans chaque langue.",
+        "noPlaintextNames": "L'application n'envoie jamais un nom de fichier en clair au serveur, et refuse de le faire si une ancienne version essaie.",
+        "sealedSendHash": "Le hash des liens Send est lui aussi scellé, pour que même ce petit indice reste chez vous.",
+        "csp": "Une politique de sécurité de contenu stricte est désormais appliquée, ce qui rend l'exécution de scripts injectés bien plus difficile.",
+        "coarseIps": "Les journaux de connexion ne gardent plus votre e-mail, et les adresses IP ne sont stockées que de façon approximative.",
+        "masterKey": "Les bases d'une clé maître unique pour le compte, afin qu'une future version rende les changements de phrase secrète indolores. Désactivée par défaut.",
+        "oldClients": "Les très anciennes versions de l'application doivent se mettre à jour avant d'envoyer des fichiers, pour ne pas écrire de noms non protégés."
+      }
+    },
+    "v0_1_7": {
+      "title": "Une visite guidée, un bouton de bug, un coffre mieux rangé",
+      "summary": "Une première semaine plus accueillante : une visite guidée, un moyen de nous dire quand quelque chose casse, des Espaces repensés et un coffre qui s'ouvre plus vite.",
+      "items": {
+        "tour": "Une courte visite guidée présente le coffre aux nouveaux venus. Vous pouvez la rejouer à tout moment depuis le menu du compte.",
+        "bugReports": "Signalez un bug directement depuis le menu du compte, avec une capture d'écran si vous voulez.",
+        "reviews": "Notez zcrypt depuis l'application. Nous lisons chaque avis, même les grincheux.",
+        "spacesRedesign": "Les Espaces ont été repensés, avec des rôles plus clairs pour savoir qui peut voir, modifier ou gérer.",
+        "languagePicker": "Un sélecteur de langue se trouve à côté du bouton de thème, avec huit langues au choix.",
+        "toolsRedesign": "Pad, Send et Transfer s'accordent désormais au reste du site.",
+        "sendLimits": "Les liens Send anonymes sont limités à 50 Mo par fichier et 500 Mo par jour, et un fichier à lecture unique est supprimé dès qu'il a été lu.",
+        "androidUpdate": "L'application Android vérifie vraiment les mises à jour, au lieu de vous annoncer joyeusement que vous êtes à jour.",
+        "fasterVault": "Le coffre se charge en parallèle et affiche ce dont il se souvient pendant l'actualisation, ce qui le rend plus rapide.",
+        "healthBanner": "Une bannière d'état explique ce qui ne va pas avec une connexion de stockage et quoi faire.",
+        "updatePill": "Une petite pastille vous prévient quand une nouvelle version de bureau est prête.",
+        "folderLinks": "Les liens de dossier se créent plus vite.",
+        "signInSync": "Se connecter ou se déconnecter dans un onglet se répercute maintenant sur vos autres onglets.",
+        "resumeUploads": "Un clic reprend un envoi inachevé depuis le même appareil.",
+        "realNames": "Les fichiers et dossiers partagés affichent leurs vrais noms au lieu de noms génériques.",
+        "sendRetry": "Send remplace un dépôt de stockage supprimé et réessaie, et permet de lire un lien à lecture unique jusqu'au bout.",
+        "dragDrop": "Le glisser-déposer de fichiers sur un dossier, et l'écran blanc occasionnel, ont été corrigés.",
+        "uploadIntoFolder": "Les envois depuis le bureau arrivent dans le dossier que vous avez ouvert.",
+        "refreshRace": "Deux onglets qui s'actualisent en même temps ne vous déconnectent plus.",
+        "twoFactor": "L'authentification à deux facteurs est maintenant demandée pour tous les types de connexion, y compris les liens magiques et OAuth.",
+        "transferKey": "La clé d'un Transfer ne passe plus par le relais.",
+        "shareDownloads": "Le nombre de téléchargements d'un partage est compté par le serveur, les limites ne peuvent donc plus être contournées.",
+        "sealedNames": "Les envois depuis le bureau et Android scellent les noms de fichiers et utilisent un hash de contenu à clé."
+      }
+    },
+    "v0_1_6": {
+      "title": "Une nouvelle porte d'entrée et une vraie page Statistiques",
+      "summary": "La page d'accueil a été reconstruite autour du produit, Statistiques a eu une vraie refonte, et le coffre a gagné plein de petites commodités.",
+      "items": {
+        "newHome": "Une nouvelle page d'accueil qui montre le drive d'abord et explique ensuite.",
+        "siteDesign": "Toutes les pages marketing partagent maintenant le style de la page d'accueil.",
+        "insights": "Statistiques a été repensée, avec une plage de dates, une carte de chiffres clés et une disposition à faire défiler sur téléphone.",
+        "quickFilter": "Une fenêtre de filtre rapide, une notification d'annulation, l'envoi par dépôt n'importe où, le renommage sur place et une liste des fichiers récemment consultés.",
+        "bulkActions": "Déplacez ou partagez plusieurs fichiers d'un coup.",
+        "folderTiles": "Les vignettes de dossiers et de documents du coffre ont maintenant le même aspect en couches que la page d'accueil.",
+        "mobileTabs": "Une barre à quatre onglets sur téléphone qui paraît native.",
+        "sharedCap": "Le stockage partagé est plafonné à 1 Gio par utilisateur, pour que l'offre gratuite reste équitable.",
+        "fasterMarketing": "Les pages marketing se chargent sans attendre la vérification de connexion.",
+        "heroFlash": "La page d'accueil ne clignote plus et ne rejoue plus son animation d'entrée au chargement.",
+        "logout": "Se déconnecter sur le web met maintenant vraiment fin à la session.",
+        "rateLimit": "Statistiques affiche des messages honnêtes quand elle est limitée en débit.",
+        "refreshToken": "Le jeton d'actualisation n'est plus conservé dans le stockage local du navigateur.",
+        "secretScanning": "L'analyse des secrets surveille désormais le code à la recherche de clés commises par accident."
+      }
+    },
+    "v0_1_5": {
+      "title": "Des serveurs plus calmes, des téléchargements plus stables",
+      "summary": "Surtout du travail qu'on ne remarque que lorsqu'il manque : des liens de téléchargement stables, des métadonnées plus sûres et beaucoup de petites réparations sur téléphone.",
+      "items": {
+        "stableLinks": "Les liens de téléchargement sont stables pour toujours, un par plateforme, et vous donnent toujours la version la plus récente.",
+        "sealedMetadata": "Des informations qui arrivaient en clair au serveur sont maintenant scellées sur votre appareil.",
+        "noPlainNames": "Le serveur arrête de stocker les noms de fichiers en clair et les adresses IP exactes.",
+        "auditRetention": "Les anciennes entrées du journal d'audit sont effacées automatiquement après un moment.",
+        "confirmations": "L'application vous demande confirmation avant de changer un forfait ou de retirer un membre du coffre.",
+        "mitCore": "Le moteur central de zcrypt est maintenant sous licence MIT, comme le reste du projet.",
+        "safeArea": "Les écrans de téléphone ne perdent plus leurs bords, même avec un WebView système obsolète.",
+        "mobileLinks": "Les liens qui s'ouvrent en dehors de l'application fonctionnent maintenant sur mobile.",
+        "updaterLies": "Le programme de mise à jour du bureau arrête de proposer des mises à jour qu'il ne peut pas installer pour les utilisateurs de .deb et .rpm.",
+        "downloadVersion": "La page de téléchargement n'affiche plus une version périmée quand GitHub est lent.",
+        "phoneDetect": "La page de téléchargement ne prend plus les téléphones pour des ordinateurs, et affiche les paquets Linux.",
+        "emptyLanding": "La page d'accueil a cessé de s'afficher comme un grand vide.",
+        "patches": "Versions corrigées du runtime Go, de Tauri et de plusieurs bibliothèques."
+      }
+    },
+    "v0_1_4": {
+      "title": "Boutons d'annulation et tuyauterie remise en ordre",
+      "summary": "Vous pouvez maintenant annuler un transfert sur le bureau, les mises à jour en direct se reconnectent plus doucement, et beaucoup d'entretien s'est fait en coulisses.",
+      "items": {
+        "cancelTransfers": "Le bouton Annuler de l'application de bureau annule vraiment un envoi ou un téléchargement en cours.",
+        "repoRotation": "Quand un dépôt de stockage est plein, l'application de bureau passe toute seule à un nouveau.",
+        "sseBackoff": "Les mises à jour en direct se reconnectent avec des pauses croissantes au lieu de marteler le serveur.",
+        "themeFlip": "Changer de thème ne joue plus une transition lourde.",
+        "emailLinks": "Les e-mails pointent vers la bonne adresse.",
+        "goPatch": "Mise à jour de Go et d'une bibliothèque de texte pour corriger des vulnérabilités connues."
+      }
+    },
+    "v0_1_3": {
+      "title": "Signature Mac et page de téléchargement plus solide",
+      "summary": "Une petite version pour les utilisateurs de macOS et pour la page de téléchargement.",
+      "items": {
+        "macSigned": "La version Mac est maintenant signée, pour que macOS s'en méfie moins.",
+        "downloadFallback": "La page de téléchargement se rabat sur une version connue quand GitHub est injoignable."
+      }
+    },
+    "v0_1_2": {
+      "title": "Finitions du bureau",
+      "summary": "Deux petits correctifs qui rendent l'application de bureau moins rugueuse.",
+      "items": {
+        "trayIcon": "L'icône de la zone de notification est maintenant une icône propre, d'une seule couleur, qui s'intègre à votre barre de menus.",
+        "desktopCors": "L'application de bureau est maintenant autorisée à parler au serveur zcrypt."
+      }
+    },
+    "v0_1_1": {
+      "title": "Une page de téléchargement et la première application de bureau",
+      "summary": "Chaque chose a eu sa propre page : les téléchargements, un explorateur unifié et des visionneuses pour les fichiers que vous avez vraiment.",
+      "items": {
+        "desktopApp": "La première application de bureau, qui se connecte via le navigateur de votre système. Elle était rugueuse, et nous l'avons dit.",
+        "downloadPage": "Une page de téléchargement qui pointe toujours vers la dernière version.",
+        "explorer": "Un explorateur unique avec une vue en grille par défaut et une densité réglable.",
+        "viewers": "Des visionneuses pour de nombreux types de fichiers, dont une visionneuse PDF reconstruite et des aperçus flous pour les images pendant leur chargement.",
+        "bulkDelete": "Suppression groupée et file d'envoi remaniée.",
+        "transferManager": "Un gestionnaire de transferts et un chiffrement par dossier.",
+        "fasterOpen": "Les fichiers ouverts sont mis en cache et les suivants préchargés, pour qu'ils s'ouvrent plus vite.",
+        "gentleSync": "La synchronisation en arrière-plan ralentit quand rien ne se passe.",
+        "wrongPassword": "Une mauvaise phrase secrète vous laisse maintenant réessayer au lieu de laisser un fichier cassé.",
+        "vsProton": "Une comparaison avec Proton Drive.",
+        "goPatch": "Une mise à jour d'un pilote de base de données corrige une vulnérabilité publiée."
+      }
+    },
+    "v0_1_0": {
+      "title": "La première version publique",
+      "summary": "zcrypt démarre : vous chiffrez vos fichiers sur votre appareil et les gardez où vous voulez.",
+      "items": {
+        "upload": "Envoyez et téléchargez des fichiers, chiffrés et compressés sur votre appareil avant d'aller où que ce soit.",
+        "ownStorage": "Connectez votre propre compte GitHub ou Hugging Face comme stockage.",
+        "sharing": "Partagez des fichiers avec un lien.",
+        "sharedVaults": "Coffres partagés, Send et un interrupteur d'homme mort.",
+        "accounts": "Des comptes avec vérification de l'e-mail, réinitialisation du mot de passe et connexion via des fournisseurs externes.",
+        "viewer": "Un tableau de fichiers avec tri, sélection, aperçus et téléchargements.",
+        "adminPlans": "Un panneau d'administration, des forfaits et des tarifs.",
+        "hardening": "Une première série de renforcements de sécurité et de tests."
+      }
+    }
+  }
+}

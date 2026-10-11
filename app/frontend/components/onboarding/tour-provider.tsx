@@ -27,6 +27,7 @@ interface TourApi {
   startOnce: (name: TourName) => boolean;
   close: (name: TourName) => void;
   replay: () => void;
+  isActive: () => boolean;
 }
 
 const TourContext = createContext<TourApi | null>(null);
@@ -116,7 +117,12 @@ function TourController({ children }: { children: ReactNode }) {
     else router.push("/dashboard");
   }, [userId, pathname, begin, router]);
 
-  const api = useMemo(() => ({ startOnce, close, replay }), [startOnce, close, replay]);
+  const isActive = useCallback(() => live.current.isNextStepVisible, []);
+
+  const api = useMemo(
+    () => ({ startOnce, close, replay, isActive }),
+    [startOnce, close, replay, isActive],
+  );
   const reduce = useReducedMotion();
 
   return (

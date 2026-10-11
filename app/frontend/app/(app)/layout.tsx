@@ -11,6 +11,7 @@ import { KeyChangeHost } from "@/components/spaces/key-change";
 import { SharingKeysLoader } from "@/components/providers/sharing-keys-loader";
 import { ReviewPrompt } from "@/components/feedback/review-prompt";
 import { TourProvider } from "@/components/onboarding/tour-provider";
+import { WhatsNewHost } from "@/components/ui/whats-new-host";
 import { AccountDeletionBanner } from "@/components/auth/account-deletion-banner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -60,6 +61,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <AppTransfers />
               <FileEventsBridge />
               <ReviewPrompt />
+              <WhatsNewHost />
               <SpaceAddsStrip />
               <SpaceAddsGuard />
               <KeyChangeHost />

@@ -1,0 +1,181 @@
+{
+  "changelog": {
+    "page": {
+      "eyebrow": "Changelog",
+      "title": "Was ist neu",
+      "lede": "Jede Version von zcrypt, in einfachen Worten. Wir schreiben das von Hand, damit du siehst, was sich geändert hat, ohne Commit-Nachrichten lesen zu müssen.",
+      "metaTitle": "Was ist neu in zcrypt",
+      "latestBadge": "Aktuell",
+      "upcomingBadge": "Geplant",
+      "upcomingNote": "Noch nicht veröffentlicht. Das steht für die nächste Version an.",
+      "versionLabel": "Version {version}",
+      "readMore": "Diese Version öffnen",
+      "allVersions": "Alle Versionen",
+      "previous": "Älter",
+      "next": "Neuer",
+      "getLatest": "Hol dir die neueste Version",
+      "getLatestBody": "Updates sind kostenlos, und die Desktop-App kann sich selbst aktualisieren. Lade die neueste Version für dein Gerät herunter.",
+      "download": "zcrypt herunterladen",
+      "footerLink": "Was ist neu",
+      "downloadLink": "Sieh dir an, was in dieser Version neu ist",
+      "kinds": {
+        "new": "Neu",
+        "improved": "Verbessert",
+        "fixed": "Behoben",
+        "security": "Sicherheit"
+      }
+    },
+    "v0_1_8": {
+      "title": "Alles in acht Sprachen",
+      "summary": "zcrypt spricht jetzt durchgehend acht Sprachen, Spaces haben richtige Seiten bekommen, und im Hintergrund ist leise viel Datenschutzarbeit passiert.",
+      "items": {
+        "translation": "Die ganze App und die Website sind jetzt ins Arabische, Deutsche, Spanische, Französische, Russische, Urdu und Chinesische übersetzt, nicht nur die Menüs.",
+        "spacesPages": "Spaces sind von Pop-up-Fenstern auf echte Seiten mit eigenen Links umgezogen, und du kannst sie per Tastatur bedienen.",
+        "keyboardSelect": "Wähle Dateien mit der Tastatur aus, ganz ohne Maus.",
+        "backgroundAdds": "Das Hinzufügen von Dateien zu einem Space läuft im Hintergrund weiter, während du etwas anderes machst.",
+        "fasterShares": "Freigabelinks werden schneller erstellt, besonders wenn du viele Dateien auf einmal teilst.",
+        "avatars": "Dein Profilfoto erscheint jetzt überall, wo dein Avatar auftaucht, statt nur eines Anfangsbuchstabens.",
+        "installers": "Einzeilige Installer für macOS, Linux und Windows, die die gruselige Warnung vor nicht verifizierten Apps umgehen, dazu ein Homebrew-Tap.",
+        "updateNotes": "Der Update-Dialog sagt dir jetzt, was sich tatsächlich geändert hat, statt eines vagen Versprechens.",
+        "searchFixes": "Suchmaschinen finden die Website jetzt richtig, und die Seitentitel wiederholen den Namen nicht mehr doppelt.",
+        "selfHosting": "Ein Self-Hosting-Paket: Betreibe deinen eigenen zcrypt-Server auf jedem Linux-Rechner hinter einem Cloudflare Tunnel.",
+        "fingerprints": "Spaces zeigen einen Schlüssel-Fingerabdruck, den du mit einem Freund vergleichen kannst, damit du weißt, dass du mit der richtigen Person teilst.",
+        "sealedSpaceNames": "Space-Namen werden jetzt auf deinem Gerät versiegelt, so wie es bei Dateinamen schon der Fall ist.",
+        "passphraseMinimum": "Passphrasen haben jetzt eine sinnvolle Mindestlänge, mit Hinweisen in jeder Sprache.",
+        "noPlaintextNames": "Die App schickt nie einen Dateinamen im Klartext an den Server und weigert sich, wenn eine alte Version es versucht.",
+        "sealedSendHash": "Auch der Hash für Send-Links ist versiegelt, sodass selbst dieser kleine Hinweis bei dir bleibt.",
+        "csp": "Eine strenge Content Security Policy wird jetzt durchgesetzt, wodurch eingeschleuste Skripte sich viel schwerer ausführen lassen.",
+        "coarseIps": "Anmeldeprotokolle speichern deine E-Mail-Adresse nicht mehr, und IP-Adressen werden nur noch grob gespeichert.",
+        "masterKey": "Vorarbeit für einen Konto-Hauptschlüssel, damit eine künftige Version Passphrasen-Wechsel schmerzfrei machen kann. Standardmäßig ist er aus.",
+        "oldClients": "Sehr alte Versionen der App werden vor dem Hochladen aufgefordert, sich zu aktualisieren, damit sie keine ungeschützten Namen schreiben können."
+      }
+    },
+    "v0_1_7": {
+      "title": "Eine Tour, ein Bug-Knopf, ein aufgeräumterer Tresor",
+      "summary": "Eine freundlichere erste Woche: eine geführte Tour, ein Weg, uns zu sagen, wenn etwas kaputtgeht, neu gestaltete Spaces und ein Tresor, der schneller aufgeht.",
+      "items": {
+        "tour": "Eine kurze geführte Tour zeigt Neuen den Tresor. Du kannst sie jederzeit über das Kontomenü wiederholen.",
+        "bugReports": "Melde einen Fehler direkt im Kontomenü, auf Wunsch mit Screenshot.",
+        "reviews": "Bewerte zcrypt direkt in der App. Wir lesen jede Bewertung, auch die grummeligen.",
+        "spacesRedesign": "Spaces wurden neu gestaltet, mit klareren Rollen dafür, wer ansehen, bearbeiten oder verwalten darf.",
+        "languagePicker": "Neben dem Theme-Schalter sitzt jetzt eine Sprachauswahl mit acht Sprachen.",
+        "toolsRedesign": "Pad, Send und Transfer passen jetzt zum Rest der Seite.",
+        "sendLimits": "Anonyme Send-Links sind auf 50 MB pro Datei und 500 MB pro Tag begrenzt, und eine Datei mit Löschen nach dem Lesen wird gelöscht, sobald sie gelesen wurde.",
+        "androidUpdate": "Die Android-App sucht jetzt wirklich nach Updates, statt fröhlich zu behaupten, du seist auf dem neuesten Stand.",
+        "fasterVault": "Der Tresor lädt parallel und zeigt während des Aktualisierens, woran er sich erinnert, damit er sich schneller anfühlt.",
+        "healthBanner": "Ein Statusbanner erklärt, was bei einer Speicherverbindung nicht stimmt und was du dagegen tun kannst.",
+        "updatePill": "Eine kleine Pille sagt dir, wenn eine neue Desktop-Version bereit ist.",
+        "folderLinks": "Ordnerlinks lassen sich schneller erstellen.",
+        "signInSync": "Das An- oder Abmelden in einem Tab gilt jetzt auch in deinen anderen Tabs.",
+        "resumeUploads": "Ein Klick setzt einen unfertigen Upload vom selben Gerät aus fort.",
+        "realNames": "Geteilte Dateien und Ordner zeigen ihre echten Namen statt Platzhaltern.",
+        "sendRetry": "Send ersetzt ein gelöschtes Speicher-Repo und versucht es erneut und lässt einen Link mit Löschen nach dem Lesen bis zum Ende lesen.",
+        "dragDrop": "Das Ziehen von Dateien auf einen Ordner und der gelegentliche leere Bildschirm wurden repariert.",
+        "uploadIntoFolder": "Desktop-Uploads landen in dem Ordner, den du gerade offen hast.",
+        "refreshRace": "Zwei Tabs, die gleichzeitig aktualisieren, melden dich nicht mehr ab.",
+        "twoFactor": "Die Zwei-Faktor-Authentifizierung wird jetzt bei jeder Art von Anmeldung abgefragt, auch bei Magic Links und OAuth.",
+        "transferKey": "Der Schlüssel für einen Transfer läuft nicht mehr über das Relay.",
+        "shareDownloads": "Die Download-Zähler von Freigaben werden vom Server gezählt, sodass sich Limits nicht umgehen lassen.",
+        "sealedNames": "Desktop- und Android-Uploads versiegeln Dateinamen und verwenden einen Inhalts-Hash mit Schlüssel."
+      }
+    },
+    "v0_1_6": {
+      "title": "Eine neue Eingangstür und eine richtige Insights-Seite",
+      "summary": "Die Startseite wurde rund um das Produkt neu gebaut, Insights hat ein echtes Redesign bekommen, und der Tresor hat einen Haufen kleiner Annehmlichkeiten dazugewonnen.",
+      "items": {
+        "newHome": "Eine neue Startseite, die zuerst das Laufwerk zeigt und erst danach erklärt.",
+        "siteDesign": "Jede Marketing-Seite teilt jetzt den Look der Startseite.",
+        "insights": "Insights wurde neu gestaltet, mit Zeitraum, einer Kennzahlenkarte und einem wischbaren Layout auf dem Handy.",
+        "quickFilter": "Ein Schnellfilter-Popover, ein Rückgängig-Hinweis, Uploads per Drop an beliebiger Stelle, Umbenennen an Ort und Stelle und eine Liste zuletzt angesehener Dateien.",
+        "bulkActions": "Viele Dateien auf einmal verschieben oder teilen.",
+        "folderTiles": "Ordner- und Dokumentkacheln im Tresor haben jetzt den gleichen geschichteten Look wie die Startseite.",
+        "mobileTabs": "Eine Leiste mit vier Tabs auf dem Handy, die sich nativ anfühlt.",
+        "sharedCap": "Geteilter Speicher ist auf 1 GiB pro Nutzer begrenzt, damit der kostenlose Tarif fair bleibt.",
+        "fasterMarketing": "Marketing-Seiten laden, ohne auf die Anmeldeprüfung zu warten.",
+        "heroFlash": "Die Startseite flackert beim Laden nicht mehr und spielt ihren Auftritt nicht noch einmal ab.",
+        "logout": "Das Abmelden im Web beendet die Sitzung jetzt ordentlich.",
+        "rateLimit": "Insights zeigt ehrliche Meldungen, wenn es ausgebremst wird.",
+        "refreshToken": "Das Refresh-Token wird nicht mehr im lokalen Speicher des Browsers abgelegt.",
+        "secretScanning": "Secret Scanning überwacht den Code jetzt auf versehentlich eingecheckte Schlüssel."
+      }
+    },
+    "v0_1_5": {
+      "title": "Ruhigere Server, stabilere Downloads",
+      "summary": "Meist Arbeit, die man erst bemerkt, wenn sie fehlt: stabile Download-Links, sicherere Metadaten und viele kleine Reparaturen auf dem Handy.",
+      "items": {
+        "stableLinks": "Download-Links sind dauerhaft stabil, einer pro Plattform, und liefern immer die neueste Version.",
+        "sealedMetadata": "Angaben, die früher im Klartext beim Server ankamen, werden jetzt auf deinem Gerät versiegelt.",
+        "noPlainNames": "Der Server speichert keine Dateinamen im Klartext und keine exakten IP-Adressen mehr.",
+        "auditRetention": "Alte Einträge im Audit-Protokoll werden nach einer Weile automatisch gelöscht.",
+        "confirmations": "Die App bittet um Bestätigung, bevor sie einen Tarif ändert oder ein Tresor-Mitglied entfernt.",
+        "mitCore": "Die zcrypt-Kern-Engine steht jetzt unter der MIT-Lizenz, wie der Rest des Projekts.",
+        "safeArea": "Handy-Bildschirme verlieren ihre Ränder nicht mehr, selbst mit veraltetem System-WebView.",
+        "mobileLinks": "Links, die sich außerhalb der App öffnen, funktionieren jetzt auf dem Handy.",
+        "updaterLies": "Der Desktop-Updater bietet für .deb- und .rpm-Nutzer keine Updates mehr an, die er nicht installieren kann.",
+        "downloadVersion": "Die Download-Seite zeigt keine veraltete Version mehr, wenn GitHub langsam ist.",
+        "phoneDetect": "Die Download-Seite hält Handys nicht mehr für Desktops und zeigt Linux-Pakete an.",
+        "emptyLanding": "Die Startseite wird nicht mehr als leere Flächen dargestellt.",
+        "patches": "Gepatchte Versionen der Go-Laufzeit, von Tauri und mehreren Bibliotheken."
+      }
+    },
+    "v0_1_4": {
+      "title": "Abbrechen-Knöpfe und aufgeräumtere Technik",
+      "summary": "Du kannst jetzt eine Übertragung auf dem Desktop abbrechen, Live-Updates verbinden sich sanfter neu, und hinter den Kulissen ist viel Wartung gelandet.",
+      "items": {
+        "cancelTransfers": "Der Abbrechen-Knopf in der Desktop-App bricht jetzt wirklich einen laufenden Upload oder Download ab.",
+        "repoRotation": "Wenn ein Speicher-Repository voll ist, wechselt die Desktop-App von selbst zu einem frischen.",
+        "sseBackoff": "Live-Updates verbinden sich mit wachsenden Pausen neu, statt den Server zu bombardieren.",
+        "themeFlip": "Beim Wechseln des Themes läuft keine schwere Animation mehr ab.",
+        "emailLinks": "E-Mails verlinken auf die richtige Adresse.",
+        "goPatch": "Go und eine Textbibliothek aktualisiert, um bekannte Schwachstellen zu schließen."
+      }
+    },
+    "v0_1_3": {
+      "title": "Mac-Signierung und eine robustere Download-Seite",
+      "summary": "Ein kleines Release für macOS-Nutzer und für die Download-Seite.",
+      "items": {
+        "macSigned": "Das Mac-Build ist jetzt signiert, damit macOS ihm weniger misstraut.",
+        "downloadFallback": "Die Download-Seite greift auf ein bekanntes Release zurück, wenn GitHub nicht erreichbar ist."
+      }
+    },
+    "v0_1_2": {
+      "title": "Feinschliff für den Desktop",
+      "summary": "Zwei kleine Korrekturen, die die Desktop-App weniger holprig machen.",
+      "items": {
+        "trayIcon": "Das Tray-Symbol ist jetzt ein sauberes einfarbiges Symbol, das in deine Menüleiste passt.",
+        "desktopCors": "Die Desktop-App darf jetzt mit dem zcrypt-Server sprechen."
+      }
+    },
+    "v0_1_1": {
+      "title": "Eine Download-Seite und die erste Desktop-App",
+      "summary": "Alles bekam eine eigene Seite: Downloads, ein einheitlicher Explorer und Viewer für die Dateien, die du tatsächlich hast.",
+      "items": {
+        "desktopApp": "Die erste Desktop-App, die sich über deinen System-Browser anmeldet. Sie war holprig, und wir haben es auch gesagt.",
+        "downloadPage": "Eine Download-Seite, die immer auf das neueste Release zeigt.",
+        "explorer": "Ein einziger Explorer mit Rasteransicht als Standard und einstellbarer Dichte.",
+        "viewers": "Viewer für viele Dateitypen, darunter ein neu gebauter PDF-Viewer und unscharfe Vorschauen für Bilder, solange sie laden.",
+        "bulkDelete": "Massenlöschen und eine überarbeitete Upload-Warteschlange.",
+        "transferManager": "Ein Transfer-Manager und Verschlüsselung pro Ordner.",
+        "fasterOpen": "Geöffnete Dateien werden zwischengespeichert und die nächsten vorab geladen, damit sie schneller aufgehen.",
+        "gentleSync": "Die Hintergrund-Synchronisierung drosselt sich, wenn nichts los ist.",
+        "wrongPassword": "Eine falsche Passphrase lässt dich es jetzt erneut versuchen, statt eine kaputte Datei zu hinterlassen.",
+        "vsProton": "Ein Vergleich mit Proton Drive.",
+        "goPatch": "Ein Update des Datenbanktreibers schließt eine veröffentlichte Schwachstelle."
+      }
+    },
+    "v0_1_0": {
+      "title": "Die erste öffentliche Version",
+      "summary": "zcrypt legt los: Du verschlüsselst deine Dateien auf deinem Gerät und bewahrst sie auf, wo du willst.",
+      "items": {
+        "upload": "Dateien hoch- und herunterladen, auf deinem Gerät verschlüsselt und komprimiert, bevor sie irgendwohin gehen.",
+        "ownStorage": "Verbinde dein eigenes GitHub- oder Hugging-Face-Konto als Speicher.",
+        "sharing": "Dateien per Link teilen.",
+        "sharedVaults": "Geteilte Tresore, Send und ein Totmannschalter.",
+        "accounts": "Konten mit E-Mail-Bestätigung, Passwort-Zurücksetzen und Anmeldung über externe Anbieter.",
+        "viewer": "Eine Dateitabelle mit Sortierung, Auswahl, Vorschauen und Downloads.",
+        "adminPlans": "Ein Admin-Bereich, Tarife und Preise.",
+        "hardening": "Eine erste Runde Sicherheitshärtung und Tests."
+      }
+    }
+  }
+}

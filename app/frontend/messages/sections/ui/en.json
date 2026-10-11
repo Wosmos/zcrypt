@@ -240,6 +240,15 @@
       "fullscreen": "Fullscreen",
       "pause": "Pause",
       "play": "Play"
+    },
+    "whatsNew": {
+      "title": "What's new",
+      "menu": "What's new",
+      "unread": "New",
+      "unreadAria": "Unread release notes",
+      "seeFull": "See full changelog",
+      "gotIt": "Got it",
+      "loading": "Loading"
     }
   }
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Check, Github, ShieldCheck } from "@/lib/icons";
 import { GITHUB_REPO, desktopEngine } from "@/lib/data";
 import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
@@ -79,6 +80,14 @@ export default async function DownloadPage() {
           <li className="flex items-center gap-1.5">
             <Check className="h-3.5 w-3.5 text-[var(--pv2-accent-ink)]" strokeWidth={3} />
             macOS · Windows · Linux
+          </li>
+          <li>
+            <Link
+              href="/changelog"
+              className="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
+            >
+              <T k="changelog.page.downloadLink" />
+            </Link>
           </li>
         </ul>
       </PageHero>

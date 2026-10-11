@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { docsNav } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
+import { RELEASES } from "@/lib/changelog";
 
 type ChangeFreq = MetadataRoute.Sitemap[number]["changeFrequency"];
 
@@ -21,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     make("", 1, "weekly"),
     make("/download", 0.9, "weekly"),
     make("/features", 0.8, "monthly"),
+    make("/changelog", 0.6, "weekly"),
     make("/about", 0.6, "monthly"),
     make("/philosophy", 0.6, "yearly"),
     make("/send", 0.7, "monthly"),
@@ -44,6 +46,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "apps",
   ].map((s) => make(`/features/${s}`, 0.8, "monthly"));
 
+  const changelogRoutes = RELEASES.filter((r) => r.date !== null).map((r) =>
+    make(`/changelog/${r.version}`, 0.4, "yearly"),
+  );
+
   const vsRoutes = ["dropbox", "google-drive", "proton-drive"].map((s) =>
     make(`/vs/${s}`, 0.7, "monthly"),
   );
@@ -62,5 +68,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...docHrefs.filter((h) => h !== "/docs").map((h) => make(h, 0.6, "monthly")),
   ];
 
-  return [...staticRoutes, ...featureRoutes, ...vsRoutes, ...docsRoutes];
+  return [...staticRoutes, ...featureRoutes, ...changelogRoutes, ...vsRoutes, ...docsRoutes];
 }

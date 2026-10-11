@@ -8,7 +8,7 @@ import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
 const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
 
-type FooterLink = { key: string; href: string; external?: boolean };
+type FooterLink = { key: string; href: string; external?: boolean; labelKey?: string };
 
 const FOOTER_COLUMNS: { titleKey: string; links: FooterLink[] }[] = [
   {
@@ -25,6 +25,7 @@ const FOOTER_COLUMNS: { titleKey: string; links: FooterLink[] }[] = [
     titleKey: "colCompare",
     links: [
       { key: "download", href: "/download" },
+      { key: "changelog", href: "/changelog", labelKey: "changelog.page.footerLink" },
       { key: "vsDropbox", href: "/vs/dropbox" },
       { key: "vsGoogle", href: "/vs/google-drive" },
       { key: "vsProton", href: "/vs/proton-drive" },
@@ -64,13 +65,16 @@ function FooterNavLink({
   linkKey,
   href,
   external,
+  labelKey,
 }: {
   linkKey: string;
   href: string;
   external?: boolean;
+  labelKey?: string;
 }) {
   const t = useTranslations("marketing.footer");
-  const label = t(`links.${linkKey}`);
+  const tRoot = useTranslations();
+  const label = labelKey ? tRoot(labelKey) : t(`links.${linkKey}`);
   if (external) {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
@@ -161,7 +165,12 @@ export function MarketingFooter() {
                 <ul className="list-none">
                   {column.links.map((link) => (
                     <li key={link.key}>
-                      <FooterNavLink linkKey={link.key} href={link.href} external={link.external} />
+                      <FooterNavLink
+                        linkKey={link.key}
+                        href={link.href}
+                        external={link.external}
+                        labelKey={link.labelKey}
+                      />
                     </li>
                   ))}
                 </ul>
