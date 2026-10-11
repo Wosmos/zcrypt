@@ -118,7 +118,7 @@ export function LocaleSuggestion() {
       aria-label={name}
       lang={suggested}
       dir={localeDir(suggested)}
-      className="fixed inset-x-0 top-0 z-[60] flex items-center justify-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 text-sm text-[var(--color-text)] shadow-sm backdrop-blur"
+      className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[60] mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 py-2 ps-4 pe-2 text-sm text-[var(--color-text)] shadow-xl shadow-black/20 backdrop-blur md:bottom-6"
     >
       <span className="min-w-0 truncate">{copy.message}</span>
       <button
