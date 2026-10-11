@@ -13,10 +13,10 @@ import (
 func (db *DB) GetUserKey(ctx context.Context, userID string) (*types.UserKey, error) {
 	k := &types.UserKey{}
 	err := db.pool.QueryRow(ctx, `
-		SELECT user_id, public_key, wrapped_private_key, kdf_salt, fingerprint, updated_at
+		SELECT user_id, public_key, wrapped_private_key, kdf_salt, fingerprint, wrapped_master_key, updated_at
 		FROM user_keys WHERE user_id = $1`,
 		userID,
-	).Scan(&k.UserID, &k.PublicKey, &k.WrappedPrivateKey, &k.KDFSalt, &k.Fingerprint, &k.UpdatedAt)
+	).Scan(&k.UserID, &k.PublicKey, &k.WrappedPrivateKey, &k.KDFSalt, &k.Fingerprint, &k.WrappedMasterKey, &k.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -40,6 +40,45 @@ func (db *DB) UpsertUserKey(ctx context.Context, userID, publicKey, wrappedPriva
 			updated_at = NOW()`,
 		userID, publicKey, wrappedPrivateKey, kdfSalt, fingerprint)
 	return err
+}
+
+// SetWrappedMasterKey stores the account master key envelope exactly once. It
+// returns (found, stored): found is false when the user has no key row; stored
+// is false when a master key already exists (never overwritten).
+func (db *DB) SetWrappedMasterKey(ctx context.Context, userID, wrapped string) (found, stored bool, err error) {
+	tag, err := db.pool.Exec(ctx, `
+		UPDATE user_keys SET wrapped_master_key = $2, updated_at = NOW()
+		WHERE user_id = $1 AND wrapped_master_key = ''`, userID, wrapped)
+	if err != nil {
+		return false, false, err
+	}
+	if tag.RowsAffected() == 1 {
+		return true, true, nil
+	}
+	var exists bool
+	if err := db.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM user_keys WHERE user_id = $1)`, userID).Scan(&exists); err != nil {
+		return false, false, err
+	}
+	return exists, false, nil
+}
+
+// GetAvatarForViewer returns the target's avatar data URI when the viewer is the
+// target or shares a Space with them; ("", nil) otherwise (indistinguishable
+// from no avatar).
+func (db *DB) GetAvatarForViewer(ctx context.Context, viewerID, targetID string) (string, error) {
+	var uri string
+	err := db.pool.QueryRow(ctx, `
+		SELECT u.avatar_url FROM users u
+		WHERE u.id::text = $2 AND u.avatar_url <> ''
+		  AND ($1 = $2 OR EXISTS (
+		    SELECT 1 FROM shared_vault_members a
+		    JOIN shared_vault_members b ON a.vault_id = b.vault_id
+		    WHERE a.user_id::text = $1 AND b.user_id::text = $2))`,
+		viewerID, targetID).Scan(&uri)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return uri, err
 }
 
 // ResolveUserPublicKey looks up a user's PUBLIC key by email OR username, so an

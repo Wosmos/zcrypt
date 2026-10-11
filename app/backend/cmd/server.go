@@ -921,6 +921,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Per-user X25519 keypairs (zero-knowledge sharing foundation)
 	mux.HandleFunc("GET /api/keys/me", s.AuthMiddleware(s.HandleGetMyKey))
 	mux.HandleFunc("POST /api/keys", maxJSON(s.AuthMiddleware(s.HandlePublishKey)))
+	mux.HandleFunc("PUT /api/keys/master", maxJSON(s.AuthMiddleware(s.HandleSetMasterKey)))
+	mux.HandleFunc("GET /api/users/{id}/avatar", s.AuthMiddleware(s.HandleGetUserAvatar))
 	mux.HandleFunc("GET /api/keys/lookup", s.AuthMiddleware(s.HandleLookupUserKey))
 	mux.HandleFunc("GET /api/keys/user/{id}", s.AuthMiddleware(s.HandleGetUserPublicKey))
 
@@ -948,6 +950,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/admin/quota", maxJSON(s.AdminMiddleware(s.HandleAdminSetDefaultQuota)))
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", maxJSON(s.AdminMiddleware(s.HandleAdminSetUserQuota)))
 	mux.HandleFunc("PUT /api/admin/users/{id}/plan", maxJSON(s.AdminMiddleware(s.HandleAdminSetPlan)))
+	mux.HandleFunc("GET /api/admin/settings/master-key-writes", s.AdminMiddleware(s.HandleAdminGetMasterKeyWrites))
+	mux.HandleFunc("PUT /api/admin/settings/master-key-writes", maxJSON(s.AdminMiddleware(s.HandleAdminSetMasterKeyWrites)))
 	mux.HandleFunc("GET /api/admin/audit", s.AdminMiddleware(s.HandleAdminAuditLog))
 	mux.HandleFunc("GET /api/admin/audit/verify", s.AdminMiddleware(s.HandleAdminVerifyAuditChain))
 	mux.HandleFunc("GET /api/admin/feedback", s.AdminMiddleware(s.HandleAdminListFeedback))

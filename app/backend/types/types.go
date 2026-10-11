@@ -213,6 +213,8 @@ type User struct {
 	Username      string `json:"username"`
 	DisplayName   string `json:"display_name"`
 	AvatarURL     string `json:"avatar_url"`
+	HasAvatar     bool   `json:"has_avatar"`
+	AvatarVersion string `json:"avatar_version"`
 	PasswordHash  string `json:"-"`
 	EmailVerified bool   `json:"email_verified"`
 	TOTPSecret    string `json:"-"`
@@ -848,8 +850,10 @@ type SharedVault struct {
 
 // SharedVaultPreview is the minimal member identity shown in a card's avatar stack.
 type SharedVaultPreview struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
+	UserID        string `json:"user_id"`
+	Username      string `json:"username"`
+	HasAvatar     bool   `json:"has_avatar"`
+	AvatarVersion string `json:"avatar_version"`
 }
 
 // SharedVaultUpdateRequest renames or re-limits a space. Nil fields are unchanged.
@@ -881,7 +885,9 @@ type SharedVaultMember struct {
 	Fingerprint string `json:"fingerprint,omitempty"`
 	// PublicKey is the member's published public key (base64) so clients can
 	// derive the fingerprint themselves instead of trusting the server's.
-	PublicKey string `json:"public_key,omitempty"`
+	PublicKey     string `json:"public_key,omitempty"`
+	HasAvatar     bool   `json:"has_avatar"`
+	AvatarVersion string `json:"avatar_version"`
 }
 
 // SharedVaultRequest is the JSON body for creating a shared vault. The owner
@@ -1031,6 +1037,8 @@ type UserKey struct {
 	WrappedPrivateKey string    `json:"wrapped_private_key"`
 	KDFSalt           string    `json:"kdf_salt"`
 	Fingerprint       string    `json:"fingerprint"`
+	WrappedMasterKey  string    `json:"wrapped_master_key"`
+	MasterKeyWrites   bool      `json:"master_key_writes"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 

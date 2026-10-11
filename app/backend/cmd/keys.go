@@ -23,6 +23,10 @@ func (s *Server) HandleGetMyKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if key != nil {
+		key.MasterKeyWrites = s.masterKeyWritesEnabled(ctx)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(key) // nil → JSON null (client then generates)
 }
