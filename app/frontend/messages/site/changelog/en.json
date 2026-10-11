@@ -31,23 +31,26 @@
       "items": {
         "translation": "The whole app and the website are now translated into Arabic, German, Spanish, French, Russian, Urdu and Chinese, not just the menus.",
         "spacesPages": "Spaces moved from pop-up windows to real pages with their own links, and you can drive them from the keyboard.",
-        "keyboardSelect": "Select files with the keyboard, no mouse required.",
         "backgroundAdds": "Adding files to a Space keeps working in the background while you carry on with something else.",
-        "fasterShares": "Share links are created faster, especially when you share many files at once.",
         "avatars": "Your profile photo now shows wherever your avatar appears, instead of just an initial.",
-        "installers": "One-line installers for macOS, Linux and Windows that skip the scary unverified-app prompt, plus a Homebrew tap.",
-        "updateNotes": "The update dialog now tells you what actually changed instead of a vague promise.",
-        "searchFixes": "Search engines can now find the site properly, and the page titles stop repeating the name twice.",
+        "installers": "One-line installers for macOS, Linux and Windows that avoid the unverified-app warning, plus a Homebrew tap on the download page.",
         "selfHosting": "A self-hosting kit: run your own zcrypt server on any Linux box behind a Cloudflare Tunnel.",
-        "fingerprints": "Spaces show a key fingerprint you can compare with a friend, so you know you are sharing with the right person.",
+        "languageSuggestion": "The site suggests a language based on your country instead of switching it behind your back.",
+        "changelogPage": "This changelog, with a page for every version, an RSS feed and a What's new dialog in the app.",
+        "fasterShares": "Share links are created faster, especially when you share many files at once.",
+        "updateNotes": "The update dialog now tells you what actually changed instead of a vague promise.",
+        "searchFixes": "Page titles no longer repeat the name twice, and the sitemap now has real dates.",
+        "tuiRetired": "The terminal app is gone, along with its download links, so there is one less thing to keep up to date.",
+        "spacesFixes": "Spaces pages ask you to unlock instead of failing, the file picker no longer crashes, and a Space's sealed name stays readable after a key rotation.",
         "sealedSpaceNames": "Space names are now sealed on your device, like file names already are.",
+        "keyPinning": "Your device remembers the sharing key it first saw for each person and warns you if it later changes.",
         "passphraseMinimum": "Passphrases have a sensible minimum length now, with hints in every language.",
-        "noPlaintextNames": "The app never sends a file name to the server in the clear, and refuses to if an old version tries.",
+        "noPlaintextNames": "The app never sends a file name or hash in the clear, and the server will refuse an old app that tries, once the server is updated.",
         "sealedSendHash": "The hash for Send links is sealed too, so even that small clue stays with you.",
-        "csp": "A strict content security policy is now enforced, which makes injected scripts much harder to run.",
-        "coarseIps": "Login records no longer keep your email, and IP addresses are stored only roughly.",
+        "csp": "The content security policy is now enforced by default instead of only reporting, which makes injected scripts much harder to run.",
+        "coarseIps": "Sign-in sessions now store only a rough IP address too, and login records no longer keep the email you typed.",
         "masterKey": "Groundwork for one account master key, so a future version can make passphrase changes painless. It is off by default.",
-        "oldClients": "Very old versions of the app are told to update before uploading, so they can't write unprotected names."
+        "oldClients": "Very old versions of the app will be told to update before uploading once the server is updated, so they can't write unprotected names."
       }
     },
     "v0_1_7": {
@@ -62,6 +65,7 @@
         "toolsRedesign": "Pad, Send and Transfer now match the rest of the site.",
         "sendLimits": "Anonymous Send links are capped at 50 MB per file and 500 MB per day, and a burn-after-read file is deleted once it has been read.",
         "androidUpdate": "The Android app checks for updates for real, instead of cheerfully saying you are up to date.",
+        "accountControls": "You can export your account data, delete your account, and see and sign out your signed-in devices.",
         "fasterVault": "The vault loads in parallel and shows what it remembers while it refreshes, so it feels quicker.",
         "healthBanner": "A health banner explains what is wrong with a storage connection and what to do about it.",
         "updatePill": "A small pill tells you when a new desktop version is ready.",
@@ -70,13 +74,14 @@
         "resumeUploads": "One click resumes an unfinished upload from the same device.",
         "realNames": "Shared files and folders show their real names instead of placeholders.",
         "sendRetry": "Send replaces a storage repo that was deleted and retries, and lets a burn-after-read link be read to the end.",
-        "dragDrop": "Dragging files onto a folder, and the occasional blank screen, got fixed.",
+        "dragDrop": "Dragging files onto a folder works reliably, and an ended session sends you to sign-in instead of a blank page.",
         "uploadIntoFolder": "Desktop uploads land in the folder you have open.",
         "refreshRace": "Two tabs refreshing at once no longer log you out.",
         "twoFactor": "Two-factor authentication is now asked on every kind of login, including magic links and OAuth.",
         "transferKey": "The key for a Transfer no longer passes through the relay.",
         "shareDownloads": "Share download counts are counted by the server, so limits can't be skipped.",
-        "sealedNames": "Desktop and Android uploads seal file names and use a keyed content hash."
+        "sealedNames": "Desktop and Android uploads seal file names and use a keyed content hash.",
+        "nextPatch": "Updated Next.js to patch a remote code execution vulnerability."
       }
     },
     "v0_1_6": {
@@ -84,49 +89,67 @@
       "summary": "The homepage was rebuilt around the product, Insights got a proper redesign, and the vault gained a pile of small conveniences.",
       "items": {
         "newHome": "A new homepage that shows the drive first and explains later.",
-        "siteDesign": "Every marketing page now shares the homepage's look.",
         "insights": "Insights was redesigned, with a date range, a headline numbers card and a swipeable layout on phones.",
         "quickFilter": "A quick filter popover, an undo toast, drop-anywhere uploads, rename in place and a recently viewed list.",
         "bulkActions": "Move or share many files at once.",
-        "folderTiles": "Folder and document tiles in the vault now have the same layered look as the homepage.",
         "mobileTabs": "A four-tab bar on phones that feels native.",
         "sharedCap": "Shared storage is capped at 1 GiB per user, so the free tier stays fair.",
+        "siteDesign": "Every marketing page now shares the homepage's look.",
+        "folderTiles": "Folder and document tiles in the vault now have the same layered look as the homepage.",
         "fasterMarketing": "Marketing pages load without waiting for the sign-in check.",
         "heroFlash": "The homepage no longer flashes or replays its entrance when it loads.",
         "logout": "Logging out on the web now properly ends the session.",
         "rateLimit": "Insights shows honest messages when it is rate limited.",
+        "macUpdates": "Mac updates no longer point at a page that does not exist.",
         "refreshToken": "The refresh token is no longer kept in the browser's local storage.",
-        "secretScanning": "Secret scanning now watches the code for accidentally committed keys."
+        "secretScanning": "A secret scanner now checks our code for accidentally committed keys. For now it only warns."
       }
     },
     "v0_1_5": {
       "title": "Quieter servers, steadier downloads",
       "summary": "Mostly work you only notice when it is missing: stable download links, safer metadata and a lot of small repairs on phones.",
       "items": {
-        "stableLinks": "Download links are stable forever, one per platform, and always hand you the newest build.",
-        "sealedMetadata": "Details that used to reach the server in the clear are now sealed on your device.",
-        "noPlainNames": "The server stops storing plaintext file names and exact IP addresses.",
-        "auditRetention": "Old audit log entries are cleared automatically after a while.",
-        "confirmations": "The app asks you to confirm before it changes a plan or removes a vault member.",
+        "stableLinks": "One stable download link per platform, always pointing at the newest build.",
         "mitCore": "The zcrypt core engine is now MIT licensed, like the rest of the project.",
+        "profile": "A profile panel for your name, avatar and password, so you can change your password without a reset email.",
+        "desktopUpdates": "The desktop app can now update itself with signed updates, and Settings has an App updates panel. Installs older than 0.1.5 still have to update by hand once.",
+        "confirmations": "The app asks you to confirm before it changes a plan or removes a vault member.",
         "safeArea": "Phone screens no longer lose their edges, even with an out-of-date system WebView.",
         "mobileLinks": "Links that open outside the app work on mobile now.",
         "updaterLies": "The desktop updater stops offering updates it can't install for .deb and .rpm users.",
         "downloadVersion": "The download page stops showing a stale version when GitHub is slow.",
         "phoneDetect": "The download page no longer mistakes phones for desktops, and shows Linux packages.",
         "emptyLanding": "The landing page stopped rendering as empty voids.",
+        "sealedMetadata": "Details that used to reach the server in the clear are now sealed on your device.",
+        "noPlainNames": "The server stops storing plaintext file names, and audit, Pad and Send records keep only a rough IP address.",
+        "auditRetention": "Old audit log entries are cleared automatically after a while.",
         "patches": "Patched versions of the Go runtime, Tauri and several libraries."
       }
     },
     "v0_1_4": {
-      "title": "Cancel buttons and tidier plumbing",
-      "summary": "You can now cancel a transfer on desktop, live updates reconnect more gently, and a lot of maintenance landed behind the scenes.",
+      "title": "Spaces, folder links and a new desktop engine",
+      "summary": "This was a much bigger release than it first looked: end-to-end Spaces, shareable folders, resumable transfers, themes and a rebuilt desktop app, plus the cancel button.",
       "items": {
+        "spaces": "Spaces (shared vaults) got real end-to-end keys: every member has their own key, you can add files and folders, set a size limit, compare key fingerprints and re-key when someone is removed.",
+        "folderShare": "Share a whole folder with a public link, and download it as one zip.",
+        "resumeTransfers": "Unfinished uploads survive a page reload and can be resumed or discarded, downloads can pause and resume, and a single file can be up to 10 GB.",
+        "insightsPage": "A dedicated Insights page for how you use your storage.",
+        "themes": "Per-device colour themes, a custom theme with your own accent and background, and your own icon and colour for files and folders.",
+        "mediaPlayer": "A reworked audio and video player that recognises many more formats and moves on to the next track by itself.",
+        "mobileVault": "The vault was reworked for phones, with a better file grid and drag-to-select.",
+        "desktopEngine": "The desktop app now runs on a new built-in engine instead of a separate helper program, with Touch ID unlock on Mac and auto-lock after a while of inactivity.",
+        "androidBeta": "The first Android build, as a beta APK you install yourself.",
+        "telegramConnect": "Connecting Telegram is guided now, and it finds your chat ID by itself.",
         "cancelTransfers": "The Cancel button in the desktop app now really cancels a running upload or download.",
         "repoRotation": "When a storage repository fills up, the desktop app moves on to a fresh one by itself.",
+        "fasterDownloads": "Downloads are decrypted in background workers and large files stream straight to disk.",
         "sseBackoff": "Live updates reconnect with growing pauses instead of hammering the server.",
         "themeFlip": "Switching theme no longer plays a heavy transition.",
         "emailLinks": "Emails link to the right address.",
+        "fileNames": "New uploads have their file names encrypted on your device, and the content hash is keyed per user.",
+        "twoFactorHardening": "Two-factor sign-in got stricter checks, backup codes, and its secrets are now encrypted at rest.",
+        "auditLog": "Admin actions go into a tamper-evident audit log, and destructive ones ask for extra confirmation.",
+        "cspReportOnly": "A content security policy was added in report-only mode, so it watched for problems without blocking anything yet.",
         "goPatch": "Updated Go and a text library to clear known vulnerabilities."
       }
     },
@@ -134,8 +157,8 @@
       "title": "Mac signing and a sturdier download page",
       "summary": "A small release for macOS users and for the download page.",
       "items": {
-        "macSigned": "The Mac build is now signed so macOS is less suspicious of it.",
-        "downloadFallback": "The download page falls back to a known release when GitHub can't be reached."
+        "downloadFallback": "The download page falls back to a known release when GitHub can't be reached.",
+        "macSigned": "The Mac build is now ad-hoc signed. That is not Apple's notarization, so macOS may still warn you before opening it."
       }
     },
     "v0_1_2": {
@@ -156,10 +179,10 @@
         "viewers": "Viewers for many file types, including a rebuilt PDF viewer and blurred previews for images while they load.",
         "bulkDelete": "Bulk delete and a revamped upload queue.",
         "transferManager": "A transfer manager and per-folder encryption.",
+        "vsProton": "A comparison with Proton Drive.",
         "fasterOpen": "Opened files are cached and the next ones are prefetched, so they open faster.",
         "gentleSync": "Background sync backs off when nothing is happening.",
         "wrongPassword": "A wrong passphrase now lets you try again instead of leaving a broken file.",
-        "vsProton": "A comparison with Proton Drive.",
         "goPatch": "A database driver update patches a published vulnerability."
       }
     },
@@ -168,12 +191,13 @@
       "summary": "zcrypt starts: you encrypt your files on your device and keep them wherever you like.",
       "items": {
         "upload": "Upload and download files, encrypted and compressed on your device before they go anywhere.",
-        "ownStorage": "Connect your own GitHub or Hugging Face account as storage.",
+        "ownStorage": "Connect your own GitHub, GitLab, Hugging Face or Telegram account as storage.",
         "sharing": "Share files with a link.",
-        "sharedVaults": "Shared vaults, Send and a dead man's switch.",
-        "accounts": "Accounts with email verification, password reset and sign-in through outside providers.",
+        "sharedVaults": "Shared vaults, Send, Pad, Transfer and a dead man's switch.",
+        "accounts": "Accounts with email verification, password reset, two-factor sign-in, magic links and sign-in through outside providers.",
         "viewer": "A file table with sorting, selection, previews and downloads.",
         "adminPlans": "An admin panel, plans and pricing.",
+        "tui": "An early terminal app for macOS, Linux and Windows. We have since removed it.",
         "hardening": "A first round of security hardening and tests."
       }
     }

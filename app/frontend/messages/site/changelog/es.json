@@ -31,23 +31,26 @@
       "items": {
         "translation": "Toda la aplicación y el sitio web están traducidos al árabe, alemán, español, francés, ruso, urdu y chino, no solo los menús.",
         "spacesPages": "Los espacios pasaron de ventanas emergentes a páginas reales con su propio enlace, y puedes manejarlos con el teclado.",
-        "keyboardSelect": "Selecciona archivos con el teclado, sin ratón.",
         "backgroundAdds": "Añadir archivos a un espacio sigue funcionando en segundo plano mientras haces otra cosa.",
-        "fasterShares": "Los enlaces para compartir se crean más rápido, sobre todo cuando compartes muchos archivos a la vez.",
         "avatars": "Tu foto de perfil ahora aparece donde sale tu avatar, en lugar de una simple inicial.",
-        "installers": "Instaladores de una sola línea para macOS, Linux y Windows que se saltan el aviso de aplicación no verificada que da tanto miedo, además de un tap de Homebrew.",
-        "updateNotes": "El diálogo de actualización ahora te dice qué cambió de verdad, en lugar de una promesa vaga.",
-        "searchFixes": "Los buscadores ya encuentran bien el sitio, y los títulos de página dejan de repetir el nombre dos veces.",
+        "installers": "Instaladores de una línea para macOS, Linux y Windows que evitan el aviso de app no verificada, además de un Homebrew tap en la página de descarga.",
         "selfHosting": "Un kit de autoalojamiento: ejecuta tu propio servidor de zcrypt en cualquier equipo Linux detrás de un Cloudflare Tunnel.",
-        "fingerprints": "Los espacios muestran una huella de clave que puedes comparar con un amigo, para saber que compartes con la persona correcta.",
+        "languageSuggestion": "El sitio sugiere un idioma según tu país en lugar de cambiarlo a tus espaldas.",
+        "changelogPage": "Este registro de cambios, con una página por versión, un feed RSS y un diálogo de novedades en la app.",
+        "fasterShares": "Los enlaces para compartir se crean más rápido, sobre todo cuando compartes muchos archivos a la vez.",
+        "updateNotes": "El diálogo de actualización ahora te dice qué cambió de verdad, en lugar de una promesa vaga.",
+        "searchFixes": "Los títulos de página ya no repiten el nombre dos veces, y el mapa del sitio ahora tiene fechas reales.",
+        "tuiRetired": "La app de terminal ya no existe, junto con sus enlaces de descarga, así que hay una cosa menos que mantener al día.",
+        "spacesFixes": "Las páginas de Spaces te piden desbloquear en lugar de fallar, el selector de archivos ya no se cuelga, y el nombre sellado de un Space sigue siendo legible tras rotar la clave.",
         "sealedSpaceNames": "Los nombres de los espacios ahora se sellan en tu dispositivo, igual que ya pasaba con los nombres de archivo.",
+        "keyPinning": "Tu dispositivo recuerda la clave de uso compartido que vio por primera vez de cada persona y te avisa si después cambia.",
         "passphraseMinimum": "Las frases de contraseña ahora tienen una longitud mínima razonable, con pistas en todos los idiomas.",
-        "noPlaintextNames": "La aplicación nunca envía un nombre de archivo al servidor en claro, y se niega a hacerlo si una versión antigua lo intenta.",
+        "noPlaintextNames": "La app nunca envía un nombre de archivo ni un hash en claro, y el servidor rechazará a una app antigua que lo intente, una vez que el servidor se actualice.",
         "sealedSendHash": "El hash de los enlaces de Send también está sellado, así que hasta esa pista tan pequeña se queda contigo.",
-        "csp": "Ahora se aplica una política de seguridad de contenido estricta, lo que hace mucho más difícil ejecutar scripts inyectados.",
-        "coarseIps": "Los registros de inicio de sesión ya no guardan tu correo, y las direcciones IP se almacenan solo de forma aproximada.",
+        "csp": "La política de seguridad de contenido ahora se aplica por defecto en lugar de solo informar, lo que dificulta mucho ejecutar scripts inyectados.",
+        "coarseIps": "Las sesiones de inicio también guardan ya solo una IP aproximada, y los registros de acceso ya no conservan el correo que escribiste.",
         "masterKey": "Los cimientos de una clave maestra de cuenta, para que una versión futura haga que cambiar la frase de contraseña sea indoloro. Viene desactivada por defecto.",
-        "oldClients": "A las versiones muy antiguas de la aplicación se les pide que se actualicen antes de subir archivos, para que no puedan escribir nombres sin proteger."
+        "oldClients": "A las versiones muy antiguas de la app se les pedirá actualizar antes de subir, una vez actualizado el servidor, para que no escriban nombres sin proteger."
       }
     },
     "v0_1_7": {
@@ -62,6 +65,7 @@
         "toolsRedesign": "Pad, Send y Transferencia ahora combinan con el resto del sitio.",
         "sendLimits": "Los enlaces de Send anónimo tienen un tope de 50 MB por archivo y 500 MB al día, y un archivo que se destruye tras leerse se elimina en cuanto se lee.",
         "androidUpdate": "La aplicación de Android comprueba las actualizaciones de verdad, en lugar de decir alegremente que estás al día.",
+        "accountControls": "Puedes exportar los datos de tu cuenta, eliminarla, y ver y cerrar la sesión de tus dispositivos conectados.",
         "fasterVault": "La bóveda carga en paralelo y muestra lo que recuerda mientras se actualiza, así que se siente más rápida.",
         "healthBanner": "Un aviso de estado explica qué le pasa a una conexión de almacenamiento y qué hacer al respecto.",
         "updatePill": "Una pequeña etiqueta te avisa cuando hay una nueva versión de escritorio lista.",
@@ -70,13 +74,14 @@
         "resumeUploads": "Un clic reanuda una subida sin terminar desde el mismo dispositivo.",
         "realNames": "Los archivos y carpetas compartidos muestran sus nombres reales en lugar de marcadores.",
         "sendRetry": "Send reemplaza un repositorio de almacenamiento que se haya borrado y reintenta, y permite leer hasta el final un enlace que se destruye tras leerse.",
-        "dragDrop": "Se corrigió arrastrar archivos a una carpeta, y la pantalla en blanco ocasional.",
+        "dragDrop": "Arrastrar archivos a una carpeta funciona de forma fiable, y una sesión terminada te lleva al inicio de sesión en lugar de a una pantalla en blanco.",
         "uploadIntoFolder": "Las subidas desde el escritorio van a la carpeta que tienes abierta.",
         "refreshRace": "Dos pestañas actualizándose a la vez ya no te cierran la sesión.",
         "twoFactor": "Ahora se pide la autenticación en dos pasos en todo tipo de inicio de sesión, incluidos los enlaces mágicos y OAuth.",
         "transferKey": "La clave de una Transferencia ya no pasa por el relé.",
         "shareDownloads": "El servidor cuenta las descargas de los enlaces compartidos, así que no se pueden saltar los límites.",
-        "sealedNames": "Las subidas desde escritorio y Android sellan los nombres de archivo y usan un hash de contenido con clave."
+        "sealedNames": "Las subidas desde escritorio y Android sellan los nombres de archivo y usan un hash de contenido con clave.",
+        "nextPatch": "Actualizamos Next.js para corregir una vulnerabilidad de ejecución remota de código."
       }
     },
     "v0_1_6": {
@@ -84,49 +89,67 @@
       "summary": "La página de inicio se reconstruyó alrededor del producto, Estadísticas recibió un rediseño en serio y la bóveda ganó un montón de pequeñas comodidades.",
       "items": {
         "newHome": "Una página de inicio nueva que primero muestra la unidad y explica después.",
-        "siteDesign": "Todas las páginas de marketing comparten ahora el aspecto de la página de inicio.",
         "insights": "Estadísticas se rediseñó, con un rango de fechas, una tarjeta de cifras destacadas y un diseño deslizable en el móvil.",
         "quickFilter": "Un filtro rápido emergente, un aviso para deshacer, subidas soltando en cualquier sitio, renombrar en el mismo lugar y una lista de vistos recientemente.",
         "bulkActions": "Mueve o comparte muchos archivos a la vez.",
-        "folderTiles": "Las losetas de carpetas y documentos de la bóveda ahora tienen el mismo aspecto en capas que la página de inicio.",
         "mobileTabs": "Una barra de cuatro pestañas en el móvil que se siente nativa.",
         "sharedCap": "El almacenamiento compartido tiene un tope de 1 GiB por usuario, para que el plan gratuito siga siendo justo.",
+        "siteDesign": "Todas las páginas de marketing comparten ahora el aspecto de la página de inicio.",
+        "folderTiles": "Las losetas de carpetas y documentos de la bóveda ahora tienen el mismo aspecto en capas que la página de inicio.",
         "fasterMarketing": "Las páginas de marketing cargan sin esperar a la comprobación de inicio de sesión.",
         "heroFlash": "La página de inicio ya no parpadea ni repite su animación de entrada al cargar.",
         "logout": "Cerrar sesión en la web ahora termina la sesión como debe.",
         "rateLimit": "Estadísticas muestra mensajes sinceros cuando se le limita el ritmo.",
+        "macUpdates": "Las actualizaciones de Mac ya no apuntan a una página que no existe.",
         "refreshToken": "El token de actualización ya no se guarda en el almacenamiento local del navegador.",
-        "secretScanning": "El análisis de secretos ahora vigila el código por si se cuela una clave por error."
+        "secretScanning": "Un escáner de secretos revisa ahora nuestro código en busca de claves subidas por error. Por ahora solo avisa."
       }
     },
     "v0_1_5": {
       "title": "Servidores más tranquilos, descargas más estables",
       "summary": "Sobre todo trabajo que solo notas cuando falta: enlaces de descarga estables, metadatos más seguros y muchos arreglos pequeños en el móvil.",
       "items": {
-        "stableLinks": "Los enlaces de descarga son estables para siempre, uno por plataforma, y siempre te dan la versión más reciente.",
-        "sealedMetadata": "Los datos que antes llegaban en claro al servidor ahora se sellan en tu dispositivo.",
-        "noPlainNames": "El servidor deja de guardar nombres de archivo en texto plano y direcciones IP exactas.",
-        "auditRetention": "Las entradas antiguas del registro de auditoría se borran solas pasado un tiempo.",
-        "confirmations": "La aplicación te pide confirmar antes de cambiar un plan o quitar a un miembro de la bóveda.",
+        "stableLinks": "Un enlace de descarga estable por plataforma, que siempre apunta a la versión más reciente.",
         "mitCore": "El motor principal de zcrypt ahora tiene licencia MIT, como el resto del proyecto.",
+        "profile": "Un panel de perfil para tu nombre, avatar y contraseña, para cambiarla sin un correo de restablecimiento.",
+        "desktopUpdates": "La app de escritorio ahora puede actualizarse sola con actualizaciones firmadas, y Ajustes tiene un panel de actualizaciones. Las instalaciones anteriores a la 0.1.5 deben actualizarse a mano una vez.",
+        "confirmations": "La aplicación te pide confirmar antes de cambiar un plan o quitar a un miembro de la bóveda.",
         "safeArea": "Las pantallas del móvil ya no pierden sus bordes, ni siquiera con un WebView del sistema desactualizado.",
         "mobileLinks": "Los enlaces que se abren fuera de la aplicación ya funcionan en el móvil.",
         "updaterLies": "El actualizador de escritorio deja de ofrecer actualizaciones que no puede instalar a quienes usan .deb y .rpm.",
         "downloadVersion": "La página de descargas deja de mostrar una versión vieja cuando GitHub va lento.",
         "phoneDetect": "La página de descargas ya no confunde los móviles con ordenadores, y muestra los paquetes de Linux.",
         "emptyLanding": "La página de inicio dejó de mostrarse como un vacío.",
+        "sealedMetadata": "Los datos que antes llegaban en claro al servidor ahora se sellan en tu dispositivo.",
+        "noPlainNames": "El servidor deja de guardar los nombres de archivo en texto plano, y los registros de auditoría, Pad y Send conservan solo una IP aproximada.",
+        "auditRetention": "Las entradas antiguas del registro de auditoría se borran solas pasado un tiempo.",
         "patches": "Versiones parcheadas del entorno de ejecución de Go, de Tauri y de varias bibliotecas."
       }
     },
     "v0_1_4": {
-      "title": "Botones de cancelar y fontanería más ordenada",
-      "summary": "Ahora puedes cancelar una transferencia en el escritorio, las actualizaciones en vivo se reconectan con más suavidad y se coló mucho mantenimiento entre bambalinas.",
+      "title": "Spaces, enlaces de carpetas y un motor de escritorio nuevo",
+      "summary": "Fue una versión mucho más grande de lo que parecía: Spaces de extremo a extremo, carpetas compartibles, transferencias reanudables, temas y una app de escritorio reconstruida, además del botón de cancelar.",
       "items": {
+        "spaces": "Los Spaces (bóvedas compartidas) recibieron claves reales de extremo a extremo: cada miembro tiene la suya, puedes añadir archivos y carpetas, fijar un límite de tamaño, comparar huellas de claves y cambiar la clave cuando alguien sale.",
+        "folderShare": "Comparte una carpeta entera con un enlace público y descárgala como un solo zip.",
+        "resumeTransfers": "Las subidas sin terminar sobreviven a recargar la página y puedes reanudarlas o descartarlas, las descargas se pueden pausar y reanudar, y un archivo puede pesar hasta 10 GB.",
+        "insightsPage": "Una página Insights propia para ver cómo usas tu almacenamiento.",
+        "themes": "Temas de color por dispositivo, un tema propio con tu acento y tu fondo, y un icono y un color a tu gusto para archivos y carpetas.",
+        "mediaPlayer": "Un reproductor de audio y vídeo renovado que reconoce muchos más formatos y pasa solo a la siguiente pista.",
+        "mobileVault": "La bóveda se rehízo para móviles, con una cuadrícula de archivos mejor y selección arrastrando.",
+        "desktopEngine": "La app de escritorio ahora funciona con un motor integrado nuevo en lugar de un programa auxiliar aparte, con desbloqueo por Touch ID en Mac y bloqueo automático tras un rato de inactividad.",
+        "androidBeta": "La primera versión para Android, como un APK beta que instalas tú mismo.",
+        "telegramConnect": "Conectar Telegram ahora es guiado y encuentra tu ID de chat por sí solo.",
         "cancelTransfers": "El botón Cancelar de la aplicación de escritorio ahora cancela de verdad una subida o descarga en curso.",
         "repoRotation": "Cuando un repositorio de almacenamiento se llena, la aplicación de escritorio pasa sola a uno nuevo.",
+        "fasterDownloads": "Las descargas se descifran en procesos en segundo plano y los archivos grandes se escriben directamente en el disco.",
         "sseBackoff": "Las actualizaciones en vivo se reconectan con pausas crecientes en lugar de machacar al servidor.",
         "themeFlip": "Cambiar de tema ya no reproduce una transición pesada.",
         "emailLinks": "Los correos enlazan a la dirección correcta.",
+        "fileNames": "En las subidas nuevas, los nombres de archivo se cifran en tu dispositivo y el hash del contenido usa una clave por usuario.",
+        "twoFactorHardening": "El inicio de sesión en dos pasos tiene comprobaciones más estrictas y códigos de respaldo, y sus secretos ahora se guardan cifrados.",
+        "auditLog": "Las acciones de administración quedan en un registro de auditoría que delata manipulaciones, y las destructivas piden una confirmación extra.",
+        "cspReportOnly": "Se añadió una política de seguridad de contenido en modo solo informe: vigilaba problemas, pero todavía no bloqueaba nada.",
         "goPatch": "Se actualizaron Go y una biblioteca de texto para eliminar vulnerabilidades conocidas."
       }
     },
@@ -134,8 +157,8 @@
       "title": "Firma para Mac y una página de descargas más robusta",
       "summary": "Una versión pequeña para quienes usan macOS y para la página de descargas.",
       "items": {
-        "macSigned": "La versión para Mac ahora está firmada, para que macOS desconfíe menos de ella.",
-        "downloadFallback": "La página de descargas recurre a una versión conocida cuando no se puede llegar a GitHub."
+        "downloadFallback": "La página de descargas recurre a una versión conocida cuando no se puede llegar a GitHub.",
+        "macSigned": "La versión para Mac ahora está firmada ad hoc. No es la notarización de Apple, así que macOS aún puede avisarte antes de abrirla."
       }
     },
     "v0_1_2": {
@@ -156,10 +179,10 @@
         "viewers": "Visores para muchos tipos de archivo, incluido un visor de PDF reconstruido y vistas previas difuminadas de imágenes mientras cargan.",
         "bulkDelete": "Eliminación en bloque y una cola de subidas renovada.",
         "transferManager": "Un gestor de transferencias y cifrado por carpeta.",
+        "vsProton": "Una comparación con Proton Drive.",
         "fasterOpen": "Los archivos abiertos se guardan en caché y los siguientes se precargan, así que se abren más rápido.",
         "gentleSync": "La sincronización en segundo plano afloja el ritmo cuando no pasa nada.",
         "wrongPassword": "Una frase de contraseña incorrecta ahora te deja volver a intentarlo en lugar de dejar un archivo roto.",
-        "vsProton": "Una comparación con Proton Drive.",
         "goPatch": "Una actualización del controlador de la base de datos corrige una vulnerabilidad publicada."
       }
     },
@@ -168,12 +191,13 @@
       "summary": "zcrypt arranca: cifras tus archivos en tu dispositivo y los guardas donde quieras.",
       "items": {
         "upload": "Sube y descarga archivos, cifrados y comprimidos en tu dispositivo antes de que salgan a ningún sitio.",
-        "ownStorage": "Conecta tu propia cuenta de GitHub o Hugging Face como almacenamiento.",
+        "ownStorage": "Conecta tu propia cuenta de GitHub, GitLab, Hugging Face o Telegram como almacenamiento.",
         "sharing": "Comparte archivos con un enlace.",
-        "sharedVaults": "Bóvedas compartidas, Send y un interruptor de hombre muerto.",
-        "accounts": "Cuentas con verificación de correo, restablecimiento de contraseña e inicio de sesión mediante proveedores externos.",
+        "sharedVaults": "Bóvedas compartidas, Send, Pad, Transfer y un interruptor de hombre muerto.",
+        "accounts": "Cuentas con verificación de correo, restablecimiento de contraseña, inicio de sesión en dos pasos, enlaces mágicos e inicio de sesión con proveedores externos.",
         "viewer": "Una tabla de archivos con ordenación, selección, vistas previas y descargas.",
         "adminPlans": "Un panel de administración, planes y precios.",
+        "tui": "Una primera app de terminal para macOS, Linux y Windows. Desde entonces la hemos eliminado.",
         "hardening": "Una primera ronda de refuerzo de seguridad y pruebas."
       }
     }

@@ -9,22 +9,27 @@
         "items": [
           "translation",
           "spacesPages",
-          "keyboardSelect",
           "backgroundAdds",
           "avatars",
           "installers",
           "selfHosting",
-          "fingerprints"
+          "languageSuggestion",
+          "changelogPage"
         ]
       },
       {
         "kind": "improved",
-        "items": ["fasterShares", "updateNotes", "searchFixes"]
+        "items": ["fasterShares", "updateNotes", "searchFixes", "tuiRetired"]
+      },
+      {
+        "kind": "fixed",
+        "items": ["spacesFixes"]
       },
       {
         "kind": "security",
         "items": [
           "sealedSpaceNames",
+          "keyPinning",
           "passphraseMinimum",
           "noPlaintextNames",
           "sealedSendHash",
@@ -51,7 +56,8 @@
           "languagePicker",
           "toolsRedesign",
           "sendLimits",
-          "androidUpdate"
+          "androidUpdate",
+          "accountControls"
         ]
       },
       {
@@ -71,7 +77,7 @@
       },
       {
         "kind": "security",
-        "items": ["twoFactor", "transferKey", "shareDownloads", "sealedNames"]
+        "items": ["twoFactor", "transferKey", "shareDownloads", "sealedNames", "nextPatch"]
       }
     ]
   },
@@ -90,7 +96,7 @@
       },
       {
         "kind": "fixed",
-        "items": ["heroFlash", "logout", "rateLimit"]
+        "items": ["heroFlash", "logout", "rateLimit", "macUpdates"]
       },
       {
         "kind": "security",
@@ -105,7 +111,7 @@
     "groups": [
       {
         "kind": "new",
-        "items": ["stableLinks", "mitCore"]
+        "items": ["stableLinks", "mitCore", "profile", "desktopUpdates"]
       },
       {
         "kind": "improved",
@@ -130,16 +136,29 @@
   },
   {
     "version": "0.1.4",
-    "date": "2026-09-05",
+    "date": "2026-09-08",
     "key": "v0_1_4",
     "groups": [
       {
         "kind": "new",
-        "items": ["cancelTransfers", "repoRotation"]
+        "items": [
+          "spaces",
+          "folderShare",
+          "resumeTransfers",
+          "insightsPage",
+          "themes",
+          "mediaPlayer",
+          "mobileVault",
+          "desktopEngine",
+          "androidBeta",
+          "telegramConnect",
+          "cancelTransfers",
+          "repoRotation"
+        ]
       },
       {
         "kind": "improved",
-        "items": ["sseBackoff", "themeFlip"]
+        "items": ["fasterDownloads", "sseBackoff", "themeFlip"]
       },
       {
         "kind": "fixed",
@@ -147,7 +166,7 @@
       },
       {
         "kind": "security",
-        "items": ["goPatch"]
+        "items": ["fileNames", "twoFactorHardening", "auditLog", "cspReportOnly", "goPatch"]
       }
     ]
   },
@@ -179,7 +198,7 @@
   },
   {
     "version": "0.1.1",
-    "date": "2026-06-28",
+    "date": "2026-06-27",
     "key": "v0_1_1",
     "groups": [
       {
@@ -210,7 +229,7 @@
   },
   {
     "version": "0.1.0",
-    "date": "2026-03-25",
+    "date": "2026-03-26",
     "key": "v0_1_0",
     "groups": [
       {
@@ -222,7 +241,8 @@
           "sharedVaults",
           "accounts",
           "viewer",
-          "adminPlans"
+          "adminPlans",
+          "tui"
         ]
       },
       {
