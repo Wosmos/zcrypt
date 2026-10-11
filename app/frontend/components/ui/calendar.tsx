@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "@/lib/icons";
 import { cn, localDateKey as toKey } from "@/lib/utils";
 
-const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const weekdayInitials = (locale: string) =>
+  Array.from({ length: 7 }, (_, i) =>
+    new Date(2024, 0, 7 + i).toLocaleDateString(locale, { weekday: "narrow" }),
+  );
 
 function fromKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
@@ -34,7 +38,8 @@ interface MonthPaneProps {
 }
 
 function MonthPane({ year, month, start, end, max, todayKey, onPick }: MonthPaneProps) {
-  const label = new Date(year, month, 1).toLocaleDateString("en-US", {
+  const locale = useLocale();
+  const label = new Date(year, month, 1).toLocaleDateString(locale, {
     month: "long",
     year: "numeric",
   });
@@ -44,7 +49,7 @@ function MonthPane({ year, month, start, end, max, todayKey, onPick }: MonthPane
     <div className="w-[15.5rem]">
       <div className="mb-2 text-center text-sm font-semibold text-[var(--color-text)]">{label}</div>
       <div className="grid grid-cols-7 gap-y-1 text-center">
-        {WEEKDAYS.map((w, i) => (
+        {weekdayInitials(locale).map((w, i) => (
           <span key={i} className="text-[11px] font-medium text-[var(--color-text-muted)]">
             {w}
           </span>
@@ -109,6 +114,7 @@ interface CalendarProps {
  * (an earlier click restarts the range from there).
  */
 export function Calendar({ start, end, onChange, maxDate }: CalendarProps) {
+  const t = useTranslations("ui.calendar");
   const todayKey = toKey(new Date());
   const max = maxDate ?? todayKey;
   const anchor = start ? fromKey(start) : new Date();
@@ -146,7 +152,7 @@ export function Calendar({ start, end, onChange, maxDate }: CalendarProps) {
       <div className="mb-1 flex items-center justify-between">
         <button
           type="button"
-          aria-label="Previous month"
+          aria-label={t("previousMonth")}
           onClick={() => goMonth(-1)}
           className="rounded-md p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
         >
@@ -154,7 +160,7 @@ export function Calendar({ start, end, onChange, maxDate }: CalendarProps) {
         </button>
         <button
           type="button"
-          aria-label="Next month"
+          aria-label={t("nextMonth")}
           onClick={() => goMonth(1)}
           disabled={nextDisabled}
           className="rounded-md p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] disabled:opacity-30 disabled:hover:bg-transparent"
@@ -190,7 +196,7 @@ export function Calendar({ start, end, onChange, maxDate }: CalendarProps) {
           onClick={() => onChange("", "")}
           className="text-xs font-medium text-[var(--color-accent)] hover:underline"
         >
-          Clear
+          {t("clear")}
         </button>
         <button
           type="button"
@@ -201,7 +207,7 @@ export function Calendar({ start, end, onChange, maxDate }: CalendarProps) {
           }}
           className="text-xs font-medium text-[var(--color-accent)] hover:underline"
         >
-          Today
+          {t("today")}
         </button>
       </div>
     </div>

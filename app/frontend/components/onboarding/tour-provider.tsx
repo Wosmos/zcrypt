@@ -11,10 +11,18 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { MotionConfig, useReducedMotion } from "motion/react";
 import { NextStep, NextStepProvider, useNextStep } from "nextstepjs";
 import { useAuthStore } from "@/store/auth";
-import { hasSeenTour, markTourSeen, resetTours, resolveTour, type TourName } from "@/lib/tours";
+import {
+  TOUR_STEPS,
+  hasSeenTour,
+  markTourSeen,
+  resetTours,
+  resolveTour,
+  type TourName,
+} from "@/lib/tours";
 import { TourCard } from "./tour-card";
 
 interface ActiveTour {
@@ -49,6 +57,11 @@ export function useAutoTour(name: TourName, ready: boolean, delayMs = 700) {
 }
 
 function TourController({ children }: { children: ReactNode }) {
+  const t = useTranslations("ui.tour.steps");
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const userId = useAuthStore((s) => s.user?.id);
   const router = useRouter();
   const pathname = usePathname();
@@ -56,7 +69,9 @@ function TourController({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<ActiveTour[]>([]);
   const pending = useRef<TourName | null>(null);
   const live = useRef({ currentTour, isNextStepVisible, startNextStep, closeNextStep });
-  live.current = { currentTour, isNextStepVisible, startNextStep, closeNextStep };
+  useEffect(() => {
+    live.current = { currentTour, isNextStepVisible, startNextStep, closeNextStep };
+  }, [currentTour, isNextStepVisible, startNextStep, closeNextStep]);
 
   useEffect(() => {
     if (!pending.current) return;
@@ -68,7 +83,16 @@ function TourController({ children }: { children: ReactNode }) {
   const begin = useCallback(
     (name: TourName) => {
       if (!userId) return false;
-      const steps = resolveTour(name);
+      const steps = resolveTour(name).map((step) => {
+        const i = TOUR_STEPS[name].findIndex((d) => d.title === step.title);
+        if (i < 0) return step;
+        const key = `${name === "share-copy" ? "shareCopy" : name}.${i}`;
+        return {
+          ...step,
+          title: tRef.current(`${key}.title`),
+          content: tRef.current(`${key}.content`),
+        };
+      });
       if (steps.length === 0) return false;
       if (live.current.isNextStepVisible) live.current.closeNextStep();
       markTourSeen(userId, name);

@@ -1,3 +1,245 @@
 {
-  "ui": {}
+  "ui": {
+    "errors": {
+      "title": "出了点问题",
+      "body": "发生了意外错误，请重试。",
+      "retry": "重试"
+    },
+    "notFound": {
+      "title": "页面未找到",
+      "body": "您要查找的页面不存在或已被移动。请检查网址，或返回安全页面。",
+      "home": "返回首页",
+      "signIn": "登录",
+      "help": "需要帮助？请联系<support>支持团队</support>"
+    },
+    "feedback": {
+      "bug": {
+        "attachFailed": "无法添加该图片",
+        "sent": "错误报告已发送，谢谢。",
+        "sendFailed": "无法发送报告",
+        "title": "报告问题",
+        "description": "请告诉我们出了什么问题。应用版本、平台和当前页面会自动附上，绝不会包含您保险库中的任何内容。",
+        "placeholder": "发生了什么？您原本期望的是什么？",
+        "descriptionLabel": "问题描述",
+        "screenshotAlt": "已附加的截图",
+        "removeScreenshot": "移除截图",
+        "processing": "正在处理图片...",
+        "addScreenshot": "添加截图（选择文件或直接粘贴）",
+        "sending": "正在发送...",
+        "send": "发送报告"
+      },
+      "modal": {
+        "failed": "提交反馈失败",
+        "thanks": "谢谢！",
+        "thanksBody": "您的反馈帮助我们打造更好的产品。",
+        "title": "我们做得怎么样？",
+        "subtitle": "我们很想听听您对 zcrypt 的看法。",
+        "close": "关闭",
+        "stars": "{count, plural, other {# 颗星}}",
+        "placeholder": "说说您的想法...（可选）",
+        "later": "以后再说",
+        "sending": "正在发送...",
+        "submit": "提交"
+      },
+      "review": {
+        "thanksPublic": "谢谢。我们阅读后，它将显示在网站上。",
+        "thanks": "感谢您的评价。",
+        "failed": "无法发送您的评价",
+        "title": "为 zcrypt 评分",
+        "description": "坦诚胜过客套。只有您允许公开的评价才会显示在网站上，而且需经我们阅读之后。",
+        "rating": "评分",
+        "stars": "{count, plural, other {# 颗星}}",
+        "quotePlaceholder": "您喜欢或不喜欢 zcrypt 的什么？",
+        "quoteLabel": "您的评价",
+        "displayName": "显示名称",
+        "displayNamePlaceholder": "您的名字应如何显示",
+        "publicOk": "可在网站上展示",
+        "sending": "正在发送...",
+        "update": "更新评价",
+        "send": "发送评价"
+      },
+      "prompt": {
+        "rate": "为 zcrypt 评分",
+        "dismiss": "忽略",
+        "title": "喜欢 zcrypt 吗？",
+        "body": "一两句话的帮助比您想象的更大，只需不到一分钟。",
+        "notNow": "暂不"
+      }
+    },
+    "tour": {
+      "label": "导览：{title}",
+      "progress": "{current} / {total}",
+      "skip": "跳过导览",
+      "back": "上一步",
+      "next": "下一步",
+      "done": "完成",
+      "steps": {
+        "vault": {
+          "0": {
+            "title": "快速查找",
+            "content": "输入文字即可筛选文件和文件夹。在任意位置按 / 即可跳到这里。"
+          },
+          "1": {
+            "title": "添加文件",
+            "content": "在这里上传文件。文件在离开设备前就已在本地加密。在手机上请使用加号按钮。"
+          },
+          "2": {
+            "title": "保持整洁",
+            "content": "新建文件夹来整理文件，之后可以把文件拖进去。"
+          },
+          "3": {
+            "title": "每个文件都有菜单",
+            "content": "右键点击文件（手机上长按），即可分享、移动、重命名或删除。"
+          },
+          "4": {
+            "title": "锁定与解锁",
+            "content": "这是您的保险库锁。用口令解锁后即可打开文件，用完再锁上。"
+          },
+          "5": {
+            "title": "空间",
+            "content": "与您邀请的人共享文件夹，依然是端到端加密。"
+          },
+          "6": {
+            "title": "洞察",
+            "content": "查看您使用了多少存储空间，以及保险库的活动情况。"
+          }
+        },
+        "share": {
+          "0": {
+            "title": "添加密码",
+            "content": "开启后，任何打开链接的人还需要输入密码。"
+          },
+          "1": {
+            "title": "设置有效期",
+            "content": "选择链接何时失效。之后任何人都无法再打开它。"
+          },
+          "2": {
+            "title": "生成链接",
+            "content": "对选项满意后，创建您的链接。"
+          }
+        },
+        "shareCopy": {
+          "0": {
+            "title": "复制链接",
+            "content": "复制后发给任何人。请保留完整链接，包括 # 之后的部分。"
+          }
+        },
+        "spaces": {
+          "0": {
+            "title": "欢迎使用空间",
+            "content": "空间是仅限您邀请的人打开的共享文件夹，一切依然是端到端加密。"
+          },
+          "1": {
+            "title": "创建空间",
+            "content": "创建一个空间，为它命名并邀请成员。由您决定谁可以编辑，谁只能查看。"
+          },
+          "2": {
+            "title": "您的空间都在这里",
+            "content": "打开任意空间即可添加文件、管理成员或撤销访问权限。"
+          }
+        }
+      }
+    },
+    "externalLinkFailed": "无法在此设备上打开该链接",
+    "processing": "处理中...",
+    "logoHome": "zcrypt 首页",
+    "calendar": {
+      "previousMonth": "上个月",
+      "nextMonth": "下个月",
+      "clear": "清除",
+      "today": "今天"
+    },
+    "pagination": {
+      "label": "分页",
+      "showing": "显示 {start}–{end}，共 {total}",
+      "page": "第 {page} 页",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "command": {
+      "title": "搜索",
+      "description": "搜索文件并运行命令"
+    },
+    "palette": {
+      "analytics": "分析",
+      "deviceTransfer": "设备传输",
+      "placeholder": "搜索文件或跳转到…",
+      "empty": "未找到结果。",
+      "goTo": "前往",
+      "files": "文件"
+    },
+    "notifications": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
+      "daysAgo": "{count} 天前",
+      "unread": "{count, plural, other {# 条未读通知}}",
+      "title": "通知",
+      "pushEnabled": "推送通知已开启",
+      "enablePush": "开启推送通知",
+      "markAllRead": "全部标为已读",
+      "readAll": "全部已读",
+      "clearAll": "全部清除",
+      "empty": "暂无通知",
+      "emptyHint": "上传和下载活动将显示在这里",
+      "dismiss": "忽略"
+    },
+    "toasts": {
+      "label": "通知",
+      "dismiss": "忽略通知：{message}",
+      "showingAll": "正在显示全部通知",
+      "more": "<b>另有 {count} 条</b>通知",
+      "moreOne": "<b>另有 1 条</b>通知",
+      "showLess": "收起",
+      "showAll": "显示全部"
+    },
+    "strength": {
+      "tooShort": "太短",
+      "okay": "一般",
+      "good": "良好",
+      "strong": "强"
+    },
+    "theme": {
+      "toLight": "切换到浅色模式",
+      "toDark": "切换到深色模式"
+    },
+    "update": {
+      "aria": "有新版本可用。打开更新。",
+      "ariaWithVersion": "有新版本 ({version}) 可用。打开更新。",
+      "out": "新版本已发布",
+      "outWithVersion": "新版本 {version} 已发布"
+    },
+    "qr": {
+      "hide": "隐藏二维码",
+      "show": "显示手机二维码"
+    },
+    "preview": {
+      "save": "保存",
+      "close": "关闭",
+      "truncated": "...已截断（显示 {size} 中的前 100KB）",
+      "unavailable": "此文件类型不支持预览",
+      "downloadToView": "下载后查看"
+    },
+    "media": {
+      "seekValue": "{current} / {duration}",
+      "unmute": "取消静音",
+      "mute": "静音",
+      "volume": "音量",
+      "speedLabel": "播放速度 {speed}x",
+      "speed": "播放速度",
+      "unplayable": "此格式无法在浏览器中播放。请下载后用本地播放器打开。",
+      "download": "下载",
+      "seekAudio": "拖动音频进度",
+      "seekVideo": "拖动视频进度",
+      "loopOn": "循环已开",
+      "loop": "循环",
+      "previousTrack": "上一首",
+      "nextTrack": "下一首",
+      "noVideo": "您的浏览器不支持视频播放。",
+      "playVideo": "播放视频",
+      "fullscreen": "全屏",
+      "pause": "暂停",
+      "play": "播放"
+    }
+  }
 }

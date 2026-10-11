@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "Authentication failed",
+    "completing": "Completing sign in...",
+    "goToLogin": "Go to login",
+    "magic": {
+      "invalidLink": "Invalid or missing link",
+      "signedIn": "Signed in successfully",
+      "expiredFallback": "Link expired or invalid",
+      "expiredTitle": "Link expired",
+      "verifying": "Verifying your login link..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "Invalid link",
+      "invalidBody": "This verification link is invalid or has expired.",
+      "verifying": "Verifying your email...",
+      "moment": "Just a moment",
+      "successTitle": "Email verified",
+      "successBody": "Your account is now active. You can sign in.",
+      "failedTitle": "Verification failed",
+      "failedFallback": "The link may have expired. Try requesting a new one."
+    },
+    "reset": {
+      "invalidTitle": "Invalid link",
+      "invalidBody": "This password reset link is invalid or has expired.",
+      "requestNew": "Request a new link",
+      "doneTitle": "Password updated",
+      "doneBody": "Your password has been reset. You can now sign in.",
+      "failed": "Reset failed",
+      "title": "New password",
+      "subtitle": "Choose a new password for your vault",
+      "newPassword": "New Password",
+      "resetting": "Resetting...",
+      "submit": "Reset password"
+    },
+    "twoFa": {
+      "title": "Two-factor authentication",
+      "subtitle": "Enter the 6-digit code from your authenticator app",
+      "enterAll": "Enter all 6 digits",
+      "expired": "Session expired. Please log in again.",
+      "invalid": "Invalid code",
+      "verifying": "Verifying...",
+      "verify": "Verify",
+      "digit": "Digit {n} of 6"
+    },
+    "relay": {
+      "nothingTitle": "Nothing to approve",
+      "nothingBody": "This sign-in expired or was already handled. Start again from the zcrypt app.",
+      "approveTitle": "Sign in to the zcrypt app?",
+      "codeHint": "Approve only if the app on your device shows this code.",
+      "noCodeHint": "Approve only if you just started this sign-in from the zcrypt app yourself.",
+      "approve": "Approve sign-in",
+      "approvedTitle": "Sign-in approved",
+      "approvedBody": "You can close this tab and return to the zcrypt app."
+    },
+    "deletion": {
+      "cancelled": "Your account is no longer scheduled for deletion",
+      "cancelFailed": "Could not cancel the deletion",
+      "title": "This account will be deleted on {date}",
+      "body": "Your files, folders and share links are erased then. Keep the account to stop it.",
+      "keep": "Keep my account"
+    },
+    "onboarding": {
+      "connected": "{name} connected!",
+      "connectionFailed": "Connection failed",
+      "welcome": "Welcome to <brand>zcrypt</brand>",
+      "intro": "Encrypted, compressed, zero-knowledge cloud storage using Git platforms as free backends.",
+      "featureEncryptionTitle": "AES-256-GCM encryption",
+      "featureEncryptionDesc": "Files are encrypted before leaving your machine",
+      "featureCompressionTitle": "Zstd compression",
+      "featureCompressionDesc": "Maximum compression before encryption",
+      "featurePlatformsTitle": "Multi-platform storage",
+      "featurePlatformsDesc": "GitHub, GitLab, Hugging Face, or Telegram as backends",
+      "getStarted": "Get Started",
+      "skip": "Skip for now",
+      "choosePlatform": "Choose a platform",
+      "choosePlatformHint": "Connect at least one platform to start storing files",
+      "continue": "Continue",
+      "connectTitle": "Connect {name}",
+      "tokenHint": "Create a Personal Access Token with <code>{scope}</code> scope",
+      "connecting": "Connecting...",
+      "connect": "Connect",
+      "backToPlatforms": "Back to platform selection",
+      "doneTitle": "You're all set!",
+      "doneBody": "Start uploading encrypted files to your vault.",
+      "goToVault": "Go to Vault",
+      "platformTagline": {
+        "github": "Large repos · 100 MiB per file",
+        "gitlab": "10 GiB per project",
+        "huggingface": "100 GB private per account",
+        "telegram": "Unlimited storage via channels"
+      },
+      "platformTokenLabel": {
+        "github": "Generate token on GitHub",
+        "gitlab": "Generate token on GitLab",
+        "huggingface": "Generate token on Hugging Face",
+        "telegram": "Create bot via @BotFather"
+      }
+    }
+  }
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useTranslations } from "next-intl";
 import { X, AlertTriangle, Trash2, Info } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
@@ -63,13 +64,14 @@ export function ConfirmModal({
   title,
   description,
   details,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   variant = "danger",
   loading = false,
   confirmDisabled = false,
   children,
 }: ConfirmModalProps) {
+  const t = useTranslations();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const config = variantConfig[variant];
   const Icon = config.icon;
@@ -109,7 +111,7 @@ export function ConfirmModal({
                 </DialogPrimitive.Description>
               </div>
               <DialogPrimitive.Close
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1 -mt-1 flex-shrink-0"
               >
                 <X className="h-4 w-4" />
@@ -136,7 +138,7 @@ export function ConfirmModal({
                 disabled={loading}
                 className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-50"
               >
-                {cancelLabel}
+                {cancelLabel ?? t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -150,10 +152,10 @@ export function ConfirmModal({
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <LogoSpinner size={14} speed="fast" />
-                    Processing...
+                    {t("ui.processing")}
                   </span>
                 ) : (
-                  confirmLabel
+                  (confirmLabel ?? t("common.confirm"))
                 )}
               </button>
             </div>

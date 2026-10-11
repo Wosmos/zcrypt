@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Star, Send, Heart } from "@/lib/icons";
 import { submitFeedback } from "@/lib/api";
@@ -14,6 +15,7 @@ interface FeedbackModalProps {
 }
 
 export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps) {
+  const t = useTranslations("ui.feedback.modal");
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [message, setMessage] = useState("");
@@ -41,7 +43,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
         }, 300);
       }, 2000);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to submit feedback");
+      toast.error(err instanceof Error ? err.message : t("failed"));
     } finally {
       setSubmitting(false);
     }
@@ -92,9 +94,9 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                   >
                     <Heart className="h-8 w-8 text-cyan-500" />
                   </motion.div>
-                  <h3 className="text-xl font-bold">Thank you!</h3>
+                  <h3 className="text-xl font-bold">{t("thanks")}</h3>
                   <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-                    Your feedback helps us build a better product.
+                    {t("thanksBody")}
                   </p>
                 </motion.div>
               ) : (
@@ -102,13 +104,14 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                   {/* Header */}
                   <div className="flex items-start justify-between mb-6">
                     <div>
-                      <h3 className="text-lg font-bold">How are we doing?</h3>
+                      <h3 className="text-lg font-bold">{t("title")}</h3>
                       <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                        We&apos;d love to hear your thoughts on zcrypt.
+                        {t("subtitle")}
                       </p>
                     </div>
                     <button
                       onClick={handleDismiss}
+                      aria-label={t("close")}
                       className="p-1.5 rounded-lg hover:bg-[var(--color-bg)] transition-colors"
                     >
                       <X className="h-4 w-4 text-[var(--color-text-muted)]" />
@@ -123,6 +126,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                         onMouseEnter={() => setHoveredStar(star)}
                         onMouseLeave={() => setHoveredStar(0)}
                         onClick={() => setRating(star)}
+                        aria-label={t("stars", { count: star })}
                         className="p-1 transition-transform hover:scale-110"
                       >
                         <Star
@@ -140,7 +144,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                   <Textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Tell us what you think... (optional)"
+                    placeholder={t("placeholder")}
                     rows={3}
                     className="bg-[var(--color-bg)] px-4 py-3 resize-none focus:ring-cyan-500/30 focus:border-[var(--color-border)]"
                   />
@@ -151,7 +155,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                       onClick={handleDismiss}
                       className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
                     >
-                      Maybe later
+                      {t("later")}
                     </button>
                     <button
                       onClick={handleSubmit}
@@ -159,10 +163,10 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {submitting ? (
-                        "Sending..."
+                        t("sending")
                       ) : (
                         <>
-                          Submit <Send className="h-3.5 w-3.5" />
+                          {t("submit")} <Send className="h-3.5 w-3.5" />
                         </>
                       )}
                     </button>

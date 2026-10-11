@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import type { CardComponentProps } from "nextstepjs";
 
 const isTypingTarget = (el: EventTarget | null) =>
@@ -16,9 +17,12 @@ export function TourCard({
   skipTour,
   arrow,
 }: CardComponentProps) {
+  const t = useTranslations("ui.tour");
   const nextRef = useRef<HTMLButtonElement>(null);
   const handlers = useRef({ nextStep, prevStep, skipTour });
-  handlers.current = { nextStep, prevStep, skipTour };
+  useEffect(() => {
+    handlers.current = { nextStep, prevStep, skipTour };
+  }, [nextStep, prevStep, skipTour]);
   const isLast = currentStep === totalSteps - 1;
 
   useEffect(() => {
@@ -47,13 +51,13 @@ export function TourCard({
   return (
     <div
       role="dialog"
-      aria-label={`Tour: ${step.title}`}
+      aria-label={t("label", { title: step.title })}
       className="w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-[var(--color-text)] shadow-2xl shadow-black/20"
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">{step.title}</h2>
         <span className="flex-shrink-0 text-[11px] tabular-nums text-[var(--color-text-muted)]">
-          {currentStep + 1} of {totalSteps}
+          {t("progress", { current: currentStep + 1, total: totalSteps })}
         </span>
       </div>
       <p
@@ -71,7 +75,7 @@ export function TourCard({
             onClick={() => skipTour?.()}
             className="rounded-lg px-2 py-1.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
           >
-            Skip tour
+            {t("skip")}
           </button>
         )}
         <div className="flex items-center gap-2">
@@ -81,7 +85,7 @@ export function TourCard({
               onClick={prevStep}
               className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             >
-              Back
+              {t("back")}
             </button>
           )}
           <button
@@ -90,7 +94,7 @@ export function TourCard({
             onClick={nextStep}
             className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
           >
-            {isLast ? "Done" : "Next"}
+            {isLast ? t("done") : t("next")}
           </button>
         </div>
       </div>

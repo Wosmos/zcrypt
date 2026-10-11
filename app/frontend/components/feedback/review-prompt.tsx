@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Star, X } from "@/lib/icons";
 import {
@@ -16,6 +17,7 @@ import { ReviewDialog } from "./review-dialog";
 const SHOW_DELAY_MS = 4000;
 
 export function ReviewPrompt() {
+  const t = useTranslations("ui.feedback.prompt");
   const user = useAuthStore((s) => s.user);
   const userId = user?.id;
   const createdAt = user?.created_at;
@@ -53,7 +55,7 @@ export function ReviewPrompt() {
         {visible && (
           <motion.aside
             role="complementary"
-            aria-label="Rate zcrypt"
+            aria-label={t("rate")}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
@@ -63,17 +65,17 @@ export function ReviewPrompt() {
             <button
               type="button"
               onClick={() => setVisible(false)}
-              aria-label="Dismiss"
+              aria-label={t("dismiss")}
               className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)]"
             >
               <X className="h-3.5 w-3.5" />
             </button>
             <div className="flex items-center gap-2 pr-8">
               <Star className="h-4 w-4 text-[var(--color-accent)]" />
-              <p className="text-sm font-semibold text-[var(--color-text)]">Enjoying zcrypt?</p>
+              <p className="text-sm font-semibold text-[var(--color-text)]">{t("title")}</p>
             </div>
             <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              A sentence or two helps more than you would think. It takes under a minute.
+              {t("body")}
             </p>
             <div className="mt-3 flex gap-2">
               <Button
@@ -83,10 +85,10 @@ export function ReviewPrompt() {
                   setDialogOpen(true);
                 }}
               >
-                Rate zcrypt
+                {t("rate")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setVisible(false)}>
-                Not now
+                {t("notNow")}
               </Button>
             </div>
           </motion.aside>

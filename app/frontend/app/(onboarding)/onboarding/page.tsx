@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { connectPlatform } from "@/lib/api";
@@ -21,6 +22,7 @@ type Step = "welcome" | "platform" | "token" | "done";
 const platforms = PLATFORMS;
 
 export default function OnboardingPage() {
+  const t = useTranslations("auth.onboarding");
   const router = useRouter();
   const [step, setStep] = useState<Step>("welcome");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -38,10 +40,10 @@ export default function OnboardingPage() {
       // Refresh the cached platform status so the dashboard doesn't briefly show
       // "nothing connected" after onboarding hands off.
       void invalidatePlatforms();
-      toast.success(`${platform?.name ?? selectedPlatform} connected!`);
+      toast.success(t("connected", { name: platform?.name ?? selectedPlatform }));
       setStep("done");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Connection failed");
+      toast.error(err instanceof Error ? err.message : t("connectionFailed"));
     } finally {
       setConnecting(false);
     }
@@ -55,11 +57,11 @@ export default function OnboardingPage() {
     try {
       await connectPlatform("telegram", fullToken);
       void invalidatePlatforms();
-      toast.success("Telegram connected!");
+      toast.success(t("connected", { name: "Telegram" }));
       setStep("done");
       return true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Connection failed");
+      toast.error(err instanceof Error ? err.message : t("connectionFailed"));
       return false;
     } finally {
       setConnecting(false);
@@ -110,37 +112,39 @@ export default function OnboardingPage() {
                 <LogoIcon size={56} />
               </div>
               <h1 className="text-3xl font-bold">
-                Welcome to <span className="text-[var(--color-accent)]">zcrypt</span>
+                {t.rich("welcome", {
+                  brand: (chunks) => <span className="text-[var(--color-accent)]">{chunks}</span>,
+                })}
               </h1>
               <p className="text-sm text-[var(--color-text-secondary)] max-w-sm mx-auto">
-                Encrypted, compressed, zero-knowledge cloud storage using Git platforms as free
-                backends.
+                {t("intro")}
               </p>
             </div>
 
             <div className="space-y-2.5">
               <FeatureRow
                 icon={<Lock className="h-4 w-4" />}
-                title="AES-256-GCM Encryption"
-                desc="Files are encrypted before leaving your machine"
+                title={t("featureEncryptionTitle")}
+                desc={t("featureEncryptionDesc")}
               />
               <FeatureRow
                 icon={<Zap className="h-4 w-4" />}
-                title="Zstd Compression"
-                desc="Maximum compression before encryption"
+                title={t("featureCompressionTitle")}
+                desc={t("featureCompressionDesc")}
               />
               <FeatureRow
                 icon={<Shield className="h-4 w-4" />}
-                title="Multi-platform Storage"
-                desc="GitHub, GitLab, Hugging Face, or Telegram as backends"
+                title={t("featurePlatformsTitle")}
+                desc={t("featurePlatformsDesc")}
               />
             </div>
 
             <PrimaryWithSkip
+              skipLabel={t("skip")}
               onPrimaryClick={() => setStep("platform")}
               primaryLabel={
                 <>
-                  Get Started <ArrowRight className="h-4 w-4" />
+                  {t("getStarted")} <ArrowRight className="h-4 w-4" />
                 </>
               }
               onSkip={handleSkip}
@@ -151,9 +155,9 @@ export default function OnboardingPage() {
         {step === "platform" && (
           <div className="space-y-6 animate-fade-in">
             <div className="text-center space-y-3">
-              <h2 className="text-2xl font-bold">Choose a platform</h2>
+              <h2 className="text-2xl font-bold">{t("choosePlatform")}</h2>
               <p className="text-sm text-[var(--color-text-secondary)]">
-                Connect at least one platform to start storing files
+                {t("choosePlatformHint")}
               </p>
             </div>
 
@@ -176,7 +180,9 @@ export default function OnboardingPage() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{p.name}</p>
-                      <p className="text-xs text-[var(--color-text-muted)]">{p.tagline}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        {t(`platformTagline.${p.id}`)}
+                      </p>
                     </div>
                     {isSelected && (
                       <div className="h-5 w-5 rounded-full bg-[var(--color-accent)] flex items-center justify-center">
@@ -189,6 +195,7 @@ export default function OnboardingPage() {
             </div>
 
             <PrimaryWithSkip
+              skipLabel={t("skip")}
               onPrimaryClick={() => {
                 setToken("");
                 setStep("token");
@@ -196,7 +203,7 @@ export default function OnboardingPage() {
               primaryDisabled={!selectedPlatform}
               primaryLabel={
                 <>
-                  Continue <ArrowRight className="h-4 w-4" />
+                  {t("continue")} <ArrowRight className="h-4 w-4" />
                 </>
               }
               onSkip={handleSkip}
@@ -210,13 +217,16 @@ export default function OnboardingPage() {
               <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-[var(--color-surface-1)] mx-auto">
                 <PlatformIcon platform={platform.id} className="h-7 w-7" />
               </div>
-              <h2 className="text-2xl font-bold">Connect {platform.name}</h2>
+              <h2 className="text-2xl font-bold">{t("connectTitle", { name: platform.name })}</h2>
               <p className="text-sm text-[var(--color-text-secondary)]">
-                Create a Personal Access Token with{" "}
-                <code className="text-xs bg-[var(--color-surface-1)] px-1.5 py-0.5 rounded">
-                  {platform.scope}
-                </code>{" "}
-                scope
+                {t.rich("tokenHint", {
+                  scope: platform.scope,
+                  code: (chunks) => (
+                    <code className="text-xs bg-[var(--color-surface-1)] px-1.5 py-0.5 rounded">
+                      {chunks}
+                    </code>
+                  ),
+                })}
               </p>
             </div>
 
@@ -243,7 +253,7 @@ export default function OnboardingPage() {
                     onClick={handleConnect}
                     disabled={connecting || !token.trim()}
                   >
-                    {connecting ? "Connecting..." : "Connect"}
+                    {connecting ? t("connecting") : t("connect")}
                   </Button>
 
                   <a
@@ -252,7 +262,7 @@ export default function OnboardingPage() {
                     rel="noopener noreferrer"
                     className="block text-center text-xs text-[var(--color-accent)] hover:underline transition-colors"
                   >
-                    {platform.tokenLabel}
+                    {t(`platformTokenLabel.${platform.id}`)}
                   </a>
                 </>
               )}
@@ -261,7 +271,7 @@ export default function OnboardingPage() {
                 onClick={() => setStep("platform")}
                 className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors py-1"
               >
-                Back to platform selection
+                {t("backToPlatforms")}
               </button>
             </div>
           </div>
@@ -273,13 +283,11 @@ export default function OnboardingPage() {
               <LogoIcon size={56} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">You&apos;re all set!</h2>
-              <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-                Start uploading encrypted files to your vault.
-              </p>
+              <h2 className="text-2xl font-bold">{t("doneTitle")}</h2>
+              <p className="text-sm text-[var(--color-text-secondary)] mt-2">{t("doneBody")}</p>
             </div>
             <Button className="w-full" size="lg" onClick={finishOnboarding}>
-              Go to Vault <ArrowRight className="h-4 w-4" />
+              {t("goToVault")} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -304,11 +312,13 @@ function FeatureRow({ icon, title, desc }: { icon: React.ReactNode; title: strin
 
 /** Primary step-advance button + "Skip for now" link: shared by the welcome and platform steps. */
 function PrimaryWithSkip({
+  skipLabel,
   onPrimaryClick,
   primaryDisabled,
   primaryLabel,
   onSkip,
 }: {
+  skipLabel: string;
   onPrimaryClick: () => void;
   primaryDisabled?: boolean;
   primaryLabel: React.ReactNode;
@@ -324,7 +334,7 @@ function PrimaryWithSkip({
         className="w-full flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors py-2"
       >
         <SkipForward className="h-3 w-3" />
-        Skip for now
+        {skipLabel}
       </button>
     </div>
   );

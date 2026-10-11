@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "فشلت المصادقة",
+    "completing": "جارٍ إكمال تسجيل الدخول...",
+    "goToLogin": "الذهاب إلى تسجيل الدخول",
+    "magic": {
+      "invalidLink": "الرابط غير صالح أو مفقود",
+      "signedIn": "تم تسجيل الدخول بنجاح",
+      "expiredFallback": "انتهت صلاحية الرابط أو أنه غير صالح",
+      "expiredTitle": "انتهت صلاحية الرابط",
+      "verifying": "جارٍ التحقق من رابط تسجيل الدخول..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "رابط غير صالح",
+      "invalidBody": "رابط التحقق هذا غير صالح أو انتهت صلاحيته.",
+      "verifying": "جارٍ التحقق من بريدك الإلكتروني...",
+      "moment": "لحظة من فضلك",
+      "successTitle": "تم التحقق من البريد الإلكتروني",
+      "successBody": "حسابك نشط الآن. يمكنك تسجيل الدخول.",
+      "failedTitle": "فشل التحقق",
+      "failedFallback": "ربما انتهت صلاحية الرابط. حاول طلب رابط جديد."
+    },
+    "reset": {
+      "invalidTitle": "رابط غير صالح",
+      "invalidBody": "رابط إعادة تعيين كلمة المرور هذا غير صالح أو انتهت صلاحيته.",
+      "requestNew": "طلب رابط جديد",
+      "doneTitle": "تم تحديث كلمة المرور",
+      "doneBody": "تمت إعادة تعيين كلمة المرور. يمكنك الآن تسجيل الدخول.",
+      "failed": "فشلت إعادة التعيين",
+      "title": "كلمة مرور جديدة",
+      "subtitle": "اختر كلمة مرور جديدة لخزنتك",
+      "newPassword": "كلمة المرور الجديدة",
+      "resetting": "جارٍ إعادة التعيين...",
+      "submit": "إعادة تعيين كلمة المرور"
+    },
+    "twoFa": {
+      "title": "المصادقة الثنائية",
+      "subtitle": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة",
+      "enterAll": "أدخل الأرقام الستة كاملة",
+      "expired": "انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.",
+      "invalid": "رمز غير صالح",
+      "verifying": "جارٍ التحقق...",
+      "verify": "تحقق",
+      "digit": "الرقم {n} من 6"
+    },
+    "relay": {
+      "nothingTitle": "لا شيء للموافقة عليه",
+      "nothingBody": "انتهت صلاحية تسجيل الدخول هذا أو تمت معالجته بالفعل. ابدأ من جديد من تطبيق zcrypt.",
+      "approveTitle": "تسجيل الدخول إلى تطبيق zcrypt؟",
+      "codeHint": "وافق فقط إذا كان التطبيق على جهازك يعرض هذا الرمز.",
+      "noCodeHint": "وافق فقط إذا كنت قد بدأت تسجيل الدخول هذا بنفسك من تطبيق zcrypt.",
+      "approve": "الموافقة على تسجيل الدخول",
+      "approvedTitle": "تمت الموافقة على تسجيل الدخول",
+      "approvedBody": "يمكنك إغلاق هذه العلامة والعودة إلى تطبيق zcrypt."
+    },
+    "deletion": {
+      "cancelled": "لم يعد حسابك مجدولاً للحذف",
+      "cancelFailed": "تعذّر إلغاء الحذف",
+      "title": "سيتم حذف هذا الحساب في {date}",
+      "body": "سيتم حينها محو ملفاتك ومجلداتك وروابط المشاركة. احتفظ بالحساب لإيقاف ذلك.",
+      "keep": "الاحتفاظ بحسابي"
+    },
+    "onboarding": {
+      "connected": "تم ربط {name}!",
+      "connectionFailed": "فشل الاتصال",
+      "welcome": "مرحباً بك في <brand>zcrypt</brand>",
+      "intro": "تخزين سحابي مشفّر ومضغوط بمعرفة صفرية يستخدم منصات Git كخوادم خلفية مجانية.",
+      "featureEncryptionTitle": "تشفير AES-256-GCM",
+      "featureEncryptionDesc": "تُشفَّر الملفات قبل مغادرتها جهازك",
+      "featureCompressionTitle": "ضغط Zstd",
+      "featureCompressionDesc": "أقصى ضغط قبل التشفير",
+      "featurePlatformsTitle": "تخزين متعدد المنصات",
+      "featurePlatformsDesc": "GitHub أو GitLab أو Hugging Face أو Telegram كخوادم خلفية",
+      "getStarted": "ابدأ الآن",
+      "skip": "تخطَّ الآن",
+      "choosePlatform": "اختر منصة",
+      "choosePlatformHint": "اربط منصة واحدة على الأقل لبدء تخزين الملفات",
+      "continue": "متابعة",
+      "connectTitle": "ربط {name}",
+      "tokenHint": "أنشئ رمز وصول شخصي بنطاق <code>{scope}</code>",
+      "connecting": "جارٍ الاتصال...",
+      "connect": "ربط",
+      "backToPlatforms": "العودة إلى اختيار المنصة",
+      "doneTitle": "كل شيء جاهز!",
+      "doneBody": "ابدأ برفع الملفات المشفّرة إلى خزنتك.",
+      "goToVault": "الذهاب إلى الخزنة",
+      "platformTagline": {
+        "github": "مستودعات كبيرة · 100 MiB لكل ملف",
+        "gitlab": "10 GiB لكل مشروع",
+        "huggingface": "100 GB خاصة لكل حساب",
+        "telegram": "تخزين غير محدود عبر القنوات"
+      },
+      "platformTokenLabel": {
+        "github": "أنشئ الرمز على GitHub",
+        "gitlab": "أنشئ الرمز على GitLab",
+        "huggingface": "أنشئ الرمز على Hugging Face",
+        "telegram": "أنشئ بوتاً عبر @BotFather"
+      }
+    }
+  }
 }

@@ -8,6 +8,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useTranslations } from "next-intl";
 import { useToastStore, type ToastType } from "@/store/toast";
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ function cardStyle(color: string): CSSProperties {
 }
 
 export function ToastContainer() {
+  const tr = useTranslations("ui.toasts");
   const toasts = useToastStore((s) => s.toasts);
   const remove = useToastStore((s) => s.remove);
 
@@ -79,9 +81,11 @@ export function ToastContainer() {
   // Drop transient expand state once the deck empties.
   useEffect(() => {
     if (total === 0 && (pinned || hovered || focused)) {
-      setPinned(false);
-      setHovered(false);
-      setFocused(false);
+      queueMicrotask(() => {
+        setPinned(false);
+        setHovered(false);
+        setFocused(false);
+      });
     }
   }, [total, pinned, hovered, focused]);
 
@@ -122,7 +126,7 @@ export function ToastContainer() {
       {total > 0 && (
         <div
           ref={containerRef}
-          aria-label="Notifications"
+          aria-label={tr("label")}
           className={cn(
             // Mobile: near-full-width, pinned near the top clear of the notch.
             "fixed top-[calc(var(--safe-top)+0.75rem)] inset-x-3 z-[100] flex flex-col gap-2",
@@ -231,7 +235,7 @@ export function ToastContainer() {
                       e.stopPropagation();
                       remove(t.id);
                     }}
-                    aria-label={`Dismiss notification: ${t.message}`}
+                    aria-label={tr("dismiss", { message: t.message })}
                     className="-me-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -255,14 +259,14 @@ export function ToastContainer() {
           {hidden > 0 && (
             <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.5)]">
               <span className="text-[13px] text-[var(--color-text-secondary)]">
-                {expanded ? (
-                  "Showing all notifications"
-                ) : (
-                  <>
-                    <b className="font-semibold text-[var(--color-text)]">{hidden} more</b>{" "}
-                    notification{hidden > 1 ? "s" : ""}
-                  </>
-                )}
+                {expanded
+                  ? tr("showingAll")
+                  : tr.rich(hidden === 1 ? "moreOne" : "more", {
+                      count: hidden,
+                      b: (chunks) => (
+                        <b className="font-semibold text-[var(--color-text)]">{chunks}</b>
+                      ),
+                    })}
               </span>
               <button
                 type="button"
@@ -272,7 +276,7 @@ export function ToastContainer() {
                 }}
                 className="text-[13px] font-semibold text-[var(--color-accent)] transition-opacity hover:opacity-80"
               >
-                {expanded ? "Show less" : "Show all"}
+                {expanded ? tr("showLess") : tr("showAll")}
               </button>
             </div>
           )}
