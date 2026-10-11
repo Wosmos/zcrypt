@@ -181,6 +181,27 @@ func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMe
 	return f, nil
 }
 
+// GetFilesByIDs returns the caller's own files among ids in one query.
+func (db *DB) GetFilesByIDs(ctx context.Context, userID string, ids []string) ([]*types.FileMetadata, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, encrypted_style
+		 FROM files WHERE id = ANY($1::uuid[]) AND user_id = $2`, ids, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get files by ids: %w", err)
+	}
+	defer rows.Close()
+	var out []*types.FileMetadata
+	for rows.Next() {
+		f := &types.FileMetadata{}
+		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.EncryptedName, &f.OriginalSize, &f.CompressedSize,
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt, &f.EncryptedStyle); err != nil {
+			return nil, fmt.Errorf("get files by ids: %w", err)
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // UpdateFileKey re-keys a single file by overwriting ONLY its salt + wrapped_cek columns,
 // scoped to the owning user. salt is the raw 32-byte per-file salt (BYTEA); wrappedCek is the
 // opaque base64 envelope. Used when a file crosses a protection boundary (vault <-> folder

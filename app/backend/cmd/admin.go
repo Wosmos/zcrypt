@@ -30,12 +30,12 @@ func defaultPlanConfigs() *types.PlanConfigs {
 				StorageBytes:         0, // 0 = unlimited
 				MaxFileBytes:         0, // 0 = unlimited
 				MaxConcurrentUploads: 0, // 0 = unlimited
+				MaxSpaceBatchFiles:   types.DefaultMaxSpaceBatchFiles,
 				StorageDisplay:       "Unlimited", MaxFileDisplay: "Unlimited", ConcurrentDisplay: "Unlimited",
 				Features: []types.PlanFeature{
 					{Text: "Zero-knowledge encryption", Included: true},
 					{Text: "Multi-platform storage", Included: true},
 					{Text: "Unlimited shares", Included: true},
-					{Text: "CLI access", Included: true},
 					{Text: "BYOB (Bring Your Own Backend)", Included: true},
 				},
 				SortOrder: 0, AllowsBYOB: true,
@@ -66,6 +66,17 @@ func (s *Server) loadPlanConfigs(ctx context.Context) *types.PlanConfigs {
 	s.planCache = configs
 	s.planMu.Unlock()
 	return configs
+}
+
+// maxSpaceBatchFiles resolves the per-request Space batch cap for a plan id
+// (0 = unlimited). Unknown plans fall back to the default.
+func (s *Server) maxSpaceBatchFiles(ctx context.Context, planID string) int {
+	for _, p := range s.loadPlanConfigs(ctx).Plans {
+		if p.ID == planID {
+			return p.MaxSpaceBatchFiles
+		}
+	}
+	return types.DefaultMaxSpaceBatchFiles
 }
 
 // invalidatePlanCache clears the cached plan configs so they are reloaded from DB.
@@ -552,7 +563,8 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		HasPersonalKey:       hasPersonal,
 		IsUnlimited:          quota == 0,
 		Plan:                 plan,
-		MaxConcurrentUploads: 0,              // 0 = unlimited
+		MaxConcurrentUploads: 0, // 0 = unlimited
+		MaxSpaceBatchFiles:   s.maxSpaceBatchFiles(ctx, plan),
 		MaxFileSize:          maxUploadBytes, // per-file cap enforced by HandleUploadInit
 		CanUpload:            canUpload,
 		AllowsBYOB:           true,

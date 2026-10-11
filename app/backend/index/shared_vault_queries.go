@@ -133,7 +133,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	// verification) rides along; empty when they've not set up a keypair yet.
 	rows, err := db.pool.Query(ctx, `
 		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at, svm.wrapped_space_key,
-		       COALESCE(uk.fingerprint, '')
+		       COALESCE(uk.fingerprint, ''), COALESCE(uk.public_key, '')
 		FROM shared_vault_members svm
 		JOIN users u ON svm.user_id = u.id
 		LEFT JOIN user_keys uk ON uk.user_id = svm.user_id
@@ -146,7 +146,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	for rows.Next() {
 		var m types.SharedVaultMember
-		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint); err != nil {
+		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint, &m.PublicKey); err != nil {
 			return nil, err
 		}
 		vault.Members = append(vault.Members, m)
@@ -502,4 +502,137 @@ func (db *DB) MemberSpaceFileGrant(ctx context.Context, userID, fileID string) (
 		return nil, err
 	}
 	return g, nil
+}
+
+// SpaceFileView is a file readable through a space, with the space-wrapped CEK.
+type SpaceFileView struct {
+	File       *types.FileMetadata
+	WrappedCEK string
+}
+
+// MemberSpaceFilesByIDs is the batch form of MemberSpaceFileGrant plus the file
+// row: the live files among ids that sit in a space the caller belongs to.
+func (db *DB) MemberSpaceFilesByIDs(ctx context.Context, userID string, ids []string) ([]SpaceFileView, error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT DISTINCT ON (f.id) f.id, f.user_id, f.original_name, f.encrypted_name, f.original_size, f.compressed_size,
+		       f.encrypted_size, f.chunk_count, f.sha256, f.sha256_scheme, f.salt, f.iv, f.wrapped_cek, f.status, f.created_at,
+		       svf.wrapped_cek
+		FROM shared_vault_files svf
+		JOIN shared_vault_members svm ON svm.vault_id = svf.vault_id AND svm.user_id = $1
+		JOIN files f ON f.id = svf.file_id AND f.deleted_at IS NULL
+		WHERE svf.file_id = ANY($2::uuid[])
+		ORDER BY f.id`, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SpaceFileView
+	for rows.Next() {
+		f := &types.FileMetadata{}
+		var spaceCEK string
+		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.EncryptedName, &f.OriginalSize, &f.CompressedSize,
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
+			&spaceCEK); err != nil {
+			return nil, err
+		}
+		out = append(out, SpaceFileView{File: f, WrappedCEK: spaceCEK})
+	}
+	return out, rows.Err()
+}
+
+// OwnedFileSizes returns original_size for each of ids the user owns.
+func (db *DB) OwnedFileSizes(ctx context.Context, userID string, ids []string) (map[string]int64, error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT id::text, original_size FROM files WHERE id = ANY($1::uuid[]) AND user_id = $2`, ids, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]int64, len(ids))
+	for rows.Next() {
+		var id string
+		var size int64
+		if err := rows.Scan(&id, &size); err != nil {
+			return nil, err
+		}
+		out[id] = size
+	}
+	return out, rows.Err()
+}
+
+// SharedVaultBatchState returns, in one query, which of ids are already in the
+// space, the space's used bytes and its size limit (0 = unlimited).
+func (db *DB) SharedVaultBatchState(ctx context.Context, vaultID string, ids []string) (present map[string]bool, used, limit int64, err error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT svf.file_id::text, f.original_size
+		FROM shared_vault_files svf JOIN files f ON f.id = svf.file_id
+		WHERE svf.vault_id = $1`, vaultID)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	defer rows.Close()
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	present = map[string]bool{}
+	for rows.Next() {
+		var id string
+		var size int64
+		if err := rows.Scan(&id, &size); err != nil {
+			return nil, 0, 0, err
+		}
+		used += size
+		if want[id] {
+			present[id] = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, 0, err
+	}
+	err = db.pool.QueryRow(ctx,
+		`SELECT COALESCE((SELECT size_limit_bytes FROM shared_vaults WHERE id = $1), 0)`, vaultID).Scan(&limit)
+	return present, used, limit, err
+}
+
+// AddSharedVaultFiles registers many files in a space in one transaction. The
+// caller passes only ids not already present; the array mirror is extended with
+// a single array_cat of the ids it does not yet hold.
+func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, files []types.SharedVaultAddFileRequest) (int, error) {
+	if len(files) == 0 {
+		return 0, nil
+	}
+	ids := make([]string, len(files))
+	ceks := make([]string, len(files))
+	names := make([]string, len(files))
+	for i, f := range files {
+		ids[i], ceks[i], names[i] = f.FileID, f.WrappedCEK, f.WrappedName
+	}
+
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, wrapped_name, added_by)
+		SELECT $1, t.fid::uuid, t.cek, t.name, $5
+		FROM unnest($2::text[], $3::text[], $4::text[]) AS t(fid, cek, name)
+		ON CONFLICT (vault_id, file_id) DO NOTHING`,
+		vaultID, ids, ceks, names, addedBy)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE shared_vaults
+		SET file_ids = array_cat(file_ids, COALESCE((SELECT array_agg(x) FROM unnest($2::text[]) AS x WHERE NOT x = ANY(file_ids)), '{}')),
+		    updated_at = NOW()
+		WHERE id = $1`, vaultID, ids); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
 }

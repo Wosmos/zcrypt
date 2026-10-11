@@ -777,6 +777,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Client-side decrypted download (chunked)
 	mux.HandleFunc("GET /api/files/{id}/meta", s.AuthMiddleware(s.HandleGetFileMeta))
+	mux.HandleFunc("POST /api/files/meta", maxJSON(s.AuthMiddleware(s.HandleBatchFileMeta)))
 	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(s.HandleGetChunk))
 	mux.HandleFunc("GET /api/files/{id}/locators", s.AuthMiddleware(s.HandleGetFileLocators))
 	mux.HandleFunc("GET /api/changes", s.AuthMiddleware(s.HandleGetChanges))
@@ -904,6 +905,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultMember)))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(s.HandleRemoveSharedVaultMember)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultFile)))
+	mux.HandleFunc("POST /api/shared-vaults/{id}/files/batch", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultFiles)))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/files/{fid}", maxJSON(s.AuthMiddleware(s.HandleRemoveSharedVaultFile)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/rotate", maxJSON(s.AuthMiddleware(s.HandleRotateSharedVault)))
 

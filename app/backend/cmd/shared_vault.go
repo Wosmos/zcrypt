@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"net/http"
+
+	"github.com/google/uuid"
 
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
@@ -91,12 +94,18 @@ func (s *Server) HandleCreateSharedVault(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	name, ok := boundedField(req.Name, 120)
+	name, ok := boundedField(req.Name, maxSpaceNameLen)
 	if !ok || name == "" {
-		http.Error(w, `{"error":"name is required and must be under 120 characters"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"name is required and is too long"}`, http.StatusBadRequest)
 		return
 	}
 	req.Name = name
+	desc, ok := boundedField(req.Description, maxSpaceDescriptionLen)
+	if !ok {
+		http.Error(w, `{"error":"description is too long"}`, http.StatusBadRequest)
+		return
+	}
+	req.Description = desc
 
 	vault, err := s.db.CreateSharedVault(ctx, userID, req)
 	if err != nil {
@@ -259,6 +268,149 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+const (
+	maxSpaceBatchHardCap = 1000
+	// A sealed name is base64 of IV(12) + ciphertext + tag(16): ~(bytes+28)*4/3
+	// chars. 100 chars at 4 UTF-8 bytes each seals to ~572, 500 to ~2704.
+	maxSpaceNameLen        = 640
+	maxSpaceDescriptionLen = 3000
+)
+
+// HandleAddSharedVaultFiles shares many files into a space in one request, with
+// the same per-file fields and rules as HandleAddSharedVaultFile. Any file the
+// caller does not own rejects the whole batch; files already in the space are
+// skipped.
+// POST /api/shared-vaults/{id}/files/batch
+func (s *Server) HandleAddSharedVaultFiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	vaultID := r.PathValue("id")
+
+	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
+	if err != nil || (role != "admin" && role != "editor") {
+		http.Error(w, `{"error":"only editors or admins can add files"}`, http.StatusForbidden)
+		return
+	}
+
+	need, err := s.db.SharedVaultNeedsRotation(ctx, vaultID)
+	if err != nil {
+		internalError(w, "check rotation", err)
+		return
+	}
+	if need {
+		http.Error(w, `{"error":"space key must be rotated before adding files"}`, http.StatusConflict)
+		return
+	}
+
+	var req types.SharedVaultAddFilesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.Files) == 0 {
+		http.Error(w, `{"error":"files is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	maxFiles := maxSpaceBatchHardCap
+	plan := "free"
+	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
+		plan = user.Plan
+	}
+	if n := s.maxSpaceBatchFiles(ctx, plan); n > 0 && n < maxFiles {
+		maxFiles = n
+	}
+	if len(req.Files) > maxFiles {
+		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
+			"error":                 "too many files in one request",
+			"max_space_batch_files": maxFiles,
+		})
+		return
+	}
+
+	result := types.SharedVaultAddFilesResult{Skipped: []string{}, Rejected: []types.SharedVaultFileReject{}}
+	ids := make([]string, 0, len(req.Files))
+	byID := make(map[string]types.SharedVaultAddFileRequest, len(req.Files))
+	for _, f := range req.Files {
+		if f.FileID == "" || f.WrappedCEK == "" {
+			http.Error(w, `{"error":"file_id and wrapped_cek are required"}`, http.StatusBadRequest)
+			return
+		}
+		parsed, perr := uuid.Parse(f.FileID)
+		if perr != nil {
+			http.Error(w, `{"error":"invalid file id"}`, http.StatusBadRequest)
+			return
+		}
+		f.FileID = parsed.String()
+		if _, dup := byID[f.FileID]; dup {
+			result.Skipped = append(result.Skipped, f.FileID)
+			continue
+		}
+		byID[f.FileID] = f
+		ids = append(ids, f.FileID)
+	}
+
+	sizes, err := s.db.OwnedFileSizes(ctx, userID, ids)
+	if err != nil {
+		internalError(w, "batch add owned sizes", err)
+		return
+	}
+	for _, id := range ids {
+		if _, owned := sizes[id]; !owned {
+			result.Rejected = append(result.Rejected, types.SharedVaultFileReject{FileID: id, Reason: "not found"})
+		}
+	}
+	if len(result.Rejected) > 0 {
+		writeJSON(w, http.StatusForbidden, map[string]interface{}{
+			"error":    "some files are not yours to share",
+			"added":    0,
+			"skipped":  result.Skipped,
+			"rejected": result.Rejected,
+		})
+		return
+	}
+
+	present, used, limit, err := s.db.SharedVaultBatchState(ctx, vaultID, ids)
+	if err != nil {
+		log.Printf("shared-vaults: batch usage: %v", err)
+		http.Error(w, `{"error":"failed to check space usage"}`, http.StatusInternalServerError)
+		return
+	}
+	var newBytes int64
+	toAdd := make([]types.SharedVaultAddFileRequest, 0, len(ids))
+	for _, id := range ids {
+		if present[id] {
+			result.Skipped = append(result.Skipped, id)
+			continue
+		}
+		size := sizes[id]
+		if size < 0 {
+			http.Error(w, `{"error":"invalid file size"}`, http.StatusBadRequest)
+			return
+		}
+		if size > math.MaxInt64-newBytes {
+			http.Error(w, `{"error":"space size limit exceeded"}`, http.StatusRequestEntityTooLarge)
+			return
+		}
+		newBytes += size
+		toAdd = append(toAdd, byID[id])
+	}
+	if limit > 0 && (used >= limit || limit-used < newBytes) {
+		http.Error(w, `{"error":"space size limit exceeded"}`, http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	added, err := s.db.AddSharedVaultFiles(ctx, vaultID, userID, toAdd)
+	if err != nil {
+		log.Printf("shared-vaults: batch add files: %v", err)
+		http.Error(w, `{"error":"failed to add files"}`, http.StatusInternalServerError)
+		return
+	}
+	result.Added = added
+
+	writeJSON(w, http.StatusCreated, result)
+}
+
 // HandleRemoveSharedVaultFile unshares a file from a space (editor/admin only).
 // DELETE /api/shared-vaults/{id}/files/{fid}
 func (s *Server) HandleRemoveSharedVaultFile(w http.ResponseWriter, r *http.Request) {
@@ -399,7 +551,7 @@ func (s *Server) HandleUpdateSharedVault(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if req.Name != nil {
-		n, ok := boundedField(*req.Name, 120)
+		n, ok := boundedField(*req.Name, maxSpaceNameLen)
 		if !ok || n == "" {
 			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
 			return
@@ -407,7 +559,7 @@ func (s *Server) HandleUpdateSharedVault(w http.ResponseWriter, r *http.Request)
 		req.Name = &n
 	}
 	if req.Description != nil {
-		d, ok := boundedField(*req.Description, 1000)
+		d, ok := boundedField(*req.Description, maxSpaceDescriptionLen)
 		if !ok {
 			http.Error(w, `{"error":"description is too long"}`, http.StatusBadRequest)
 			return

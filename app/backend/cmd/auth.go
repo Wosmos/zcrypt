@@ -274,7 +274,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
 		s.loginFailLimiter.record(failKey)
-		log.Printf("auth: login failed email=%s ip=%s reason=not_found", req.Email, clientIP)
+		log.Printf("auth: login failed who=%s ip=%s reason=not_found", emailTag(req.Email), anonIP(clientIP))
 		s.audit(r, nil, "login_failed", map[string]interface{}{"email": req.Email, "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
@@ -305,7 +305,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.loginFailLimiter.record(failKey)
-		log.Printf("auth: login failed email=%s ip=%s reason=wrong_password", req.Email, clientIP)
+		log.Printf("auth: login failed user=%s ip=%s reason=wrong_password", user.ID, anonIP(clientIP))
 		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"email": req.Email, "reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
@@ -364,9 +364,9 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log IP mismatch (potential stolen token usage) but don't block. IPs change legitimately
-	clientIP := s.clientIP(r)
-	if rt.IP != "" && rt.IP != clientIP {
-		log.Printf("security: refresh token IP mismatch for user %s: issued=%s current=%s", rt.UserID, rt.IP, clientIP)
+	currentIP := anonIP(s.clientIP(r))
+	if rt.IP != "" && anonIP(rt.IP) != currentIP {
+		log.Printf("security: refresh token IP mismatch for user %s: issued=%s current=%s", rt.UserID, anonIP(rt.IP), currentIP)
 	}
 
 	user, err := s.db.GetUserByID(ctx, rt.UserID)
@@ -1558,7 +1558,7 @@ func (s *Server) newTokenPair(r *http.Request, user *types.User, sessionID strin
 		UserID:           user.ID,
 		TokenHash:        auth.HashToken(refreshToken),
 		ExpiresAt:        time.Now().Add(auth.RefreshTokenDuration),
-		IP:               s.clientIP(r),
+		IP:               anonIP(s.clientIP(r)),
 		UserAgent:        r.UserAgent(),
 		SessionID:        sessionID,
 		SessionStartedAt: startedAt,

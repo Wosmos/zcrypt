@@ -337,6 +337,7 @@ type QuotaInfo struct {
 	IsUnlimited          bool   `json:"is_unlimited"`
 	Plan                 string `json:"plan"`
 	MaxConcurrentUploads int    `json:"max_concurrent_uploads"`
+	MaxSpaceBatchFiles   int    `json:"max_space_batch_files"`
 	MaxFileSize          int64  `json:"max_file_size"`
 	CanUpload            bool   `json:"can_upload"`
 	AllowsBYOB           bool   `json:"allows_byob"`
@@ -415,6 +416,7 @@ type PlanConfig struct {
 	StorageBytes         int64         `json:"storage_bytes"`
 	MaxFileBytes         int64         `json:"max_file_bytes"`
 	MaxConcurrentUploads int           `json:"max_concurrent_uploads"`
+	MaxSpaceBatchFiles   int           `json:"max_space_batch_files"`
 	StorageDisplay       string        `json:"storage_display"`
 	MaxFileDisplay       string        `json:"max_file_display"`
 	ConcurrentDisplay    string        `json:"concurrent_display"`
@@ -425,6 +427,22 @@ type PlanConfig struct {
 	SocialProof          *string       `json:"social_proof"`
 	SortOrder            int           `json:"sort_order"`
 	AllowsBYOB           bool          `json:"allows_byob"`
+}
+
+// DefaultMaxSpaceBatchFiles is the per-request Space batch size assumed when a
+// stored plan predates the max_space_batch_files field.
+const DefaultMaxSpaceBatchFiles = 200
+
+// UnmarshalJSON defaults MaxSpaceBatchFiles for stored plan configs that were
+// saved before the field existed (0 is a real value meaning unlimited).
+func (p *PlanConfig) UnmarshalJSON(data []byte) error {
+	type alias PlanConfig
+	a := alias{MaxSpaceBatchFiles: DefaultMaxSpaceBatchFiles}
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*p = PlanConfig(a)
+	return nil
 }
 
 // PlanConfigs wraps all plan configurations.
@@ -861,6 +879,9 @@ type SharedVaultMember struct {
 	// verification against a server that might swap keys (MITM). Empty if the
 	// member hasn't set up their keypair yet.
 	Fingerprint string `json:"fingerprint,omitempty"`
+	// PublicKey is the member's published public key (base64) so clients can
+	// derive the fingerprint themselves instead of trusting the server's.
+	PublicKey string `json:"public_key,omitempty"`
 }
 
 // SharedVaultRequest is the JSON body for creating a shared vault. The owner
@@ -911,6 +932,25 @@ type SharedVaultAddFileRequest struct {
 	FileID      string `json:"file_id"`
 	WrappedCEK  string `json:"wrapped_cek"`
 	WrappedName string `json:"wrapped_name"`
+}
+
+// SharedVaultAddFilesRequest is the JSON body for adding many files to a space
+// in one call; each entry mirrors SharedVaultAddFileRequest.
+type SharedVaultAddFilesRequest struct {
+	Files []SharedVaultAddFileRequest `json:"files"`
+}
+
+// SharedVaultAddFilesResult reports a batch add.
+type SharedVaultAddFilesResult struct {
+	Added    int                     `json:"added"`
+	Skipped  []string                `json:"skipped"`
+	Rejected []SharedVaultFileReject `json:"rejected"`
+}
+
+// SharedVaultFileReject names a file a batch add refused and why.
+type SharedVaultFileReject struct {
+	FileID string `json:"file_id"`
+	Reason string `json:"reason"`
 }
 
 // SpaceFileGrant is the server-side authorization result for a member reading a

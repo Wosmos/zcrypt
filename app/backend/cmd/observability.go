@@ -102,7 +102,7 @@ func (s *Server) RequestLogger(next http.Handler) http.Handler {
 			slog.String("path", r.URL.Path),
 			slog.Int("status", sr.code),
 			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
-			slog.String("ip", s.clientIP(r)),
+			slog.String("ip", anonIP(s.clientIP(r))),
 		)
 	})
 }

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net"
 	"net/http"
 	"strings"
@@ -65,8 +67,7 @@ func (s *Server) clientIP(r *http.Request) string {
 // anonIP coarsens an address before it is written to a long-lived row (audit
 // log, pads, sends): IPv4 keeps its /24, IPv6 its /48. Enough to notice "a login
 // from somewhere new" or an abuse pattern, not enough to pin a person to a
-// household. Session rows (refresh_tokens) keep the exact IP on purpose, the
-// Devices page shows it to the account owner as a security signal.
+// household. Session rows (refresh_tokens) store the coarsened address too.
 func anonIP(ip string) string {
 	p := net.ParseIP(ip)
 	if p == nil {
@@ -76,4 +77,11 @@ func anonIP(ip string) string {
 		return v4.Mask(net.CIDRMask(24, 32)).String()
 	}
 	return p.Mask(net.CIDRMask(48, 128)).String()
+}
+
+// emailTag is a short non-reversible tag for log lines that must not carry the
+// plaintext address.
+func emailTag(email string) string {
+	sum := sha256.Sum256([]byte(email))
+	return hex.EncodeToString(sum[:4])
 }

@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/types"
@@ -123,7 +124,11 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 	// (unwrapped with the space key, not the owner's vault passphrase); for the
 	// owner it's identical to file.WrappedCEK.
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(fileMetaView(file, wrappedCEK))
+}
+
+func fileMetaView(file *types.FileMetadata, wrappedCEK string) map[string]interface{} {
+	return map[string]interface{}{
 		"id":              file.ID,
 		"original_name":   file.OriginalName,
 		"encrypted_name":  file.EncryptedName,
@@ -137,7 +142,80 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 		"wrapped_cek":     wrappedCEK,
 		"status":          file.Status,
 		"created_at":      file.CreatedAt,
-	})
+	}
+}
+
+const maxBatchMetaIDs = 200
+
+// HandleBatchFileMeta returns HandleGetFileMeta's object for many files in one
+// round trip, using the same read rules (owner, else space member). Ids the
+// caller cannot read are omitted.
+// POST /api/files/meta
+func (s *Server) HandleBatchFileMeta(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.IDs) == 0 || len(req.IDs) > maxBatchMetaIDs {
+		http.Error(w, `{"error":"ids must contain between 1 and 200 file ids"}`, http.StatusBadRequest)
+		return
+	}
+	ids, ok := uniqueUUIDs(req.IDs)
+	if !ok {
+		http.Error(w, `{"error":"invalid file id"}`, http.StatusBadRequest)
+		return
+	}
+
+	owned, err := s.db.GetFilesByIDs(ctx, userID, ids)
+	if err != nil {
+		internalError(w, "batch file meta", err)
+		return
+	}
+	granted, err := s.db.MemberSpaceFilesByIDs(ctx, userID, ids)
+	if err != nil {
+		internalError(w, "batch file meta (space)", err)
+		return
+	}
+
+	out := make([]map[string]interface{}, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, f := range owned {
+		seen[f.ID] = true
+		out = append(out, fileMetaView(f, f.WrappedCEK))
+	}
+	for _, g := range granted {
+		if seen[g.File.ID] {
+			continue
+		}
+		out = append(out, fileMetaView(g.File, g.WrappedCEK))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"files": out})
+}
+
+// uniqueUUIDs drops repeats and reports false if any entry is not a UUID.
+func uniqueUUIDs(in []string) ([]string, bool) {
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, id := range in {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, false
+		}
+		id = parsed.String()
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out, true
 }
 
 // HandleGetChunk downloads a single encrypted chunk and streams it to the client.

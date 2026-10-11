@@ -17,3 +17,13 @@ func TestAnonIP(t *testing.T) {
 		}
 	}
 }
+
+func TestEmailTagIsShortAndStable(t *testing.T) {
+	a, b := emailTag("someone@example.com"), emailTag("someone@example.com")
+	if a != b || len(a) != 8 || a == emailTag("other@example.com") {
+		t.Fatalf("emailTag = %q / %q", a, b)
+	}
+	if a == "someone@example.com" {
+		t.Fatal("emailTag leaked the address")
+	}
+}
