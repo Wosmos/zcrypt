@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import { Box, Lock, Server } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
-import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
 import { bringYourOwnStorage } from "../_data/bring-your-own-storage";
@@ -44,24 +41,14 @@ export default function BringYourOwnStoragePage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          {
-            name: "Bring your own storage",
-            url: `${SITE_URL}/features/bring-your-own-storage`,
-          },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "Bring your own storage",
+          path: "/features/bring-your-own-storage",
+          parent: "/features/encrypted-drive",
+        }}
       >
         {/* Adapters mock */}
         <MockWindowFrame
@@ -132,12 +119,7 @@ export default function BringYourOwnStoragePage() {
 
       {/* ═══ OWNERSHIP TIE-IN ═══ */}
       <TieInSection
-        eyebrow={tieIn.eyebrow}
-        heading={tieIn.heading}
-        body={tieIn.body}
-        checklist={<IconList items={tieIn.checklistItems} />}
-        linkLabel={tieIn.linkLabel}
-        linkHref={tieIn.linkHref}
+        {...tieIn}
         panel={
           <CodePanel
             comment={<T k="site.features.byos.panel.comment" />}
@@ -172,9 +154,7 @@ export default function BringYourOwnStoragePage() {
         }
       />
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

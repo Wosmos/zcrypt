@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import { Folder, FolderOpen, Lock, Unlock } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
-import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { folders } from "../_data/folders";
 import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
@@ -79,21 +76,14 @@ export default function FoldersPage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          { name: "Folders", url: `${SITE_URL}/features/folders` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "Folders",
+          path: "/features/folders",
+          parent: "/features/encrypted-drive",
+        }}
       >
         {/* Folder-tree mock */}
         <MockWindowFrame
@@ -138,22 +128,12 @@ export default function FoldersPage() {
         </MockWindowFrame>
       </FeatureHero>
 
-      {/* ═══ CAPABILITIES ═══ */}
-      <CapabilityGrid
-        heading={capabilitiesSection.heading}
-        subheading={capabilitiesSection.subheading}
-        items={capabilities}
-      />
+      <CapabilityGrid {...capabilitiesSection} items={capabilities} />
 
       {/* ═══ HOW THE FOLDER KEY WORKS ═══ */}
       <TieInSection
         join
-        eyebrow={tieIn.eyebrow}
-        heading={tieIn.heading}
-        body={tieIn.body}
-        checklist={<IconList items={tieIn.checklistItems} />}
-        linkLabel={tieIn.linkLabel}
-        linkHref={tieIn.linkHref}
+        {...tieIn}
         panel={
           <CodePanel
             comment={<T k="site.features.folders.panel.comment" />}
@@ -179,9 +159,7 @@ export default function FoldersPage() {
         }
       />
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

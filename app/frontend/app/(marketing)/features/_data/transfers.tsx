@@ -9,33 +9,16 @@ import {
   hero,
   section,
   checklist,
-  type HeroData,
-  type CtaData,
-  type SectionData,
-  type RelatedItem,
-  type CapabilityData,
+  type FeaturePageData,
 } from "./t";
 
-export interface TransfersPageData {
-  hero: HeroData;
-  capabilitiesSection: SectionData;
-  capabilities: CapabilityData<typeof Clock>[];
-  tieIn: {
-    eyebrow: ReactNode;
-    heading: ReactNode;
-    body: ReactNode;
-    checklistItems: ReactNode[];
-    linkLabel: ReactNode;
-    linkHref: string;
-  };
+export interface TransfersPageData extends FeaturePageData<typeof Clock> {
   deviceToDevice: {
     eyebrow: ReactNode;
     heading: ReactNode;
     body: ReactNode;
     checklistItems: ReactNode[];
   };
-  related: RelatedItem[];
-  cta: CtaData;
 }
 
 const tx = pageText("transfers");

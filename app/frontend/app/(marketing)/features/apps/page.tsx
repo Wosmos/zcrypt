@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Globe, Monitor, Smartphone, ShieldCheck, Server, Check } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { SectionHead } from "@/components/marketing/landing/section-head";
 import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
@@ -49,21 +47,10 @@ export default function AppsPage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          { name: "Apps", url: `${SITE_URL}/features/apps` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{ name: "Apps", path: "/features/apps", parent: "/features/encrypted-drive" }}
       >
         {/* Three-surface mock */}
         <div className="mx-auto mt-16 max-w-4xl">
@@ -270,9 +257,7 @@ export default function AppsPage() {
         </div>
       </section>
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

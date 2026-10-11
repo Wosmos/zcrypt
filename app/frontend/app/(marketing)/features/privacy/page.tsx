@@ -18,9 +18,8 @@ import { IconList } from "@/components/marketing/features/icon-list";
 import { SectionHead } from "@/components/marketing/landing/section-head";
 import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { privacy } from "../_data/privacy";
 import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
@@ -293,9 +292,7 @@ export default function PrivacyToolsPage() {
         </div>
       </section>
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

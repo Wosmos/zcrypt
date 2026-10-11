@@ -1,5 +1,4 @@
 import { ChevronRight, Search, Eye, Lock, FolderOpen, LayoutGrid } from "@/lib/icons";
-import type { ReactNode } from "react";
 import {
   pageText,
   commonText,
@@ -9,28 +8,10 @@ import {
   hero,
   section,
   checklist,
-  type HeroData,
-  type CtaData,
-  type SectionData,
-  type RelatedItem,
-  type CapabilityData,
+  type FeaturePageData,
 } from "./t";
 
-export interface EncryptedDrivePageData {
-  hero: HeroData;
-  capabilitiesSection: SectionData;
-  capabilities: CapabilityData<typeof FolderOpen>[];
-  tieIn: {
-    eyebrow: ReactNode;
-    heading: ReactNode;
-    body: ReactNode;
-    checklistItems: ReactNode[];
-    linkLabel: ReactNode;
-    linkHref: string;
-  };
-  related: RelatedItem[];
-  cta: CtaData;
-}
+export type EncryptedDrivePageData = FeaturePageData<typeof FolderOpen>;
 
 const tx = pageText("encryptedDrive");
 

@@ -19,17 +19,11 @@
       },
       {
         "kind": "improved",
-        "items": [
-          "fasterShares",
-          "updateNotes",
-          "searchFixes"
-        ]
+        "items": ["fasterShares", "updateNotes", "searchFixes"]
       },
       {
         "kind": "fixed",
-        "items": [
-          "spacesFixes"
-        ]
+        "items": ["spacesFixes"]
       },
       {
         "kind": "security",
@@ -79,23 +73,11 @@
       },
       {
         "kind": "fixed",
-        "items": [
-          "realNames",
-          "sendRetry",
-          "dragDrop",
-          "uploadIntoFolder",
-          "refreshRace"
-        ]
+        "items": ["realNames", "sendRetry", "dragDrop", "uploadIntoFolder", "refreshRace"]
       },
       {
         "kind": "security",
-        "items": [
-          "twoFactor",
-          "transferKey",
-          "shareDownloads",
-          "sealedNames",
-          "nextPatch"
-        ]
+        "items": ["twoFactor", "transferKey", "shareDownloads", "sealedNames", "nextPatch"]
       }
     ]
   },
@@ -106,38 +88,19 @@
     "groups": [
       {
         "kind": "new",
-        "items": [
-          "newHome",
-          "insights",
-          "quickFilter",
-          "bulkActions",
-          "mobileTabs",
-          "sharedCap"
-        ]
+        "items": ["newHome", "insights", "quickFilter", "bulkActions", "mobileTabs", "sharedCap"]
       },
       {
         "kind": "improved",
-        "items": [
-          "siteDesign",
-          "folderTiles",
-          "fasterMarketing"
-        ]
+        "items": ["siteDesign", "folderTiles", "fasterMarketing"]
       },
       {
         "kind": "fixed",
-        "items": [
-          "heroFlash",
-          "logout",
-          "rateLimit",
-          "macUpdates"
-        ]
+        "items": ["heroFlash", "logout", "rateLimit", "macUpdates"]
       },
       {
         "kind": "security",
-        "items": [
-          "refreshToken",
-          "secretScanning"
-        ]
+        "items": ["refreshToken", "secretScanning"]
       }
     ]
   },
@@ -148,18 +111,11 @@
     "groups": [
       {
         "kind": "new",
-        "items": [
-          "stableLinks",
-          "mitCore",
-          "profile",
-          "desktopUpdates"
-        ]
+        "items": ["stableLinks", "mitCore", "profile", "desktopUpdates"]
       },
       {
         "kind": "improved",
-        "items": [
-          "confirmations"
-        ]
+        "items": ["confirmations"]
       },
       {
         "kind": "fixed",
@@ -174,12 +130,7 @@
       },
       {
         "kind": "security",
-        "items": [
-          "sealedMetadata",
-          "noPlainNames",
-          "auditRetention",
-          "patches"
-        ]
+        "items": ["sealedMetadata", "noPlainNames", "auditRetention", "patches"]
       }
     ]
   },
@@ -207,27 +158,15 @@
       },
       {
         "kind": "improved",
-        "items": [
-          "fasterDownloads",
-          "sseBackoff",
-          "themeFlip"
-        ]
+        "items": ["fasterDownloads", "sseBackoff", "themeFlip"]
       },
       {
         "kind": "fixed",
-        "items": [
-          "emailLinks"
-        ]
+        "items": ["emailLinks"]
       },
       {
         "kind": "security",
-        "items": [
-          "fileNames",
-          "twoFactorHardening",
-          "auditLog",
-          "cspReportOnly",
-          "goPatch"
-        ]
+        "items": ["fileNames", "twoFactorHardening", "auditLog", "cspReportOnly", "goPatch"]
       }
     ]
   },
@@ -238,15 +177,11 @@
     "groups": [
       {
         "kind": "improved",
-        "items": [
-          "downloadFallback"
-        ]
+        "items": ["downloadFallback"]
       },
       {
         "kind": "fixed",
-        "items": [
-          "macSigned"
-        ]
+        "items": ["macSigned"]
       }
     ]
   },
@@ -257,10 +192,7 @@
     "groups": [
       {
         "kind": "fixed",
-        "items": [
-          "trayIcon",
-          "desktopCors"
-        ]
+        "items": ["trayIcon", "desktopCors"]
       }
     ]
   },
@@ -283,22 +215,15 @@
       },
       {
         "kind": "improved",
-        "items": [
-          "fasterOpen",
-          "gentleSync"
-        ]
+        "items": ["fasterOpen", "gentleSync"]
       },
       {
         "kind": "fixed",
-        "items": [
-          "wrongPassword"
-        ]
+        "items": ["wrongPassword"]
       },
       {
         "kind": "security",
-        "items": [
-          "goPatch"
-        ]
+        "items": ["goPatch"]
       }
     ]
   },
@@ -321,9 +246,7 @@
       },
       {
         "kind": "security",
-        "items": [
-          "hardening"
-        ]
+        "items": ["hardening"]
       }
     ]
   }

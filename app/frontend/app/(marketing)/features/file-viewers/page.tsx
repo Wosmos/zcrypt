@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Image as ImageIcon, Video, Music, FileText, Code, Lock, Shield } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid, StepCards } from "@/components/marketing/features/capability-grid";
 import { SectionHead } from "@/components/marketing/landing/section-head";
 import { IconWell, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { fileViewers } from "../_data/file-viewers";
 import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
@@ -59,21 +57,14 @@ export default function FileViewersPage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/file-viewers` },
-          { name: "File Viewers", url: `${SITE_URL}/features/file-viewers` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "File Viewers",
+          path: "/features/file-viewers",
+          parent: "/features/file-viewers",
+        }}
       >
         {/* Viewer mock: a full-bleed preview overlay */}
         <div className="mx-auto mt-16 max-w-4xl">
@@ -192,9 +183,7 @@ export default function FileViewersPage() {
         items={overlayFeatures}
       />
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

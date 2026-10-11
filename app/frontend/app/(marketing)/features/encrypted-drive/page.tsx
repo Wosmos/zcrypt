@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import { Folder, Lock, ChevronRight, Archive, Image as ImageIcon, FileText } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
-import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { encryptedDrive } from "../_data/encrypted-drive";
 import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
@@ -53,21 +50,14 @@ export default function EncryptedDrivePage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          { name: "Encrypted Drive", url: `${SITE_URL}/features/encrypted-drive` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "Encrypted Drive",
+          path: "/features/encrypted-drive",
+          parent: "/features/encrypted-drive",
+        }}
       >
         {/* Explorer mock */}
         <MockWindowFrame
@@ -116,22 +106,11 @@ export default function EncryptedDrivePage() {
         </MockWindowFrame>
       </FeatureHero>
 
-      {/* ═══ CAPABILITIES ═══ */}
-      <CapabilityGrid
-        heading={capabilitiesSection.heading}
-        subheading={capabilitiesSection.subheading}
-        items={capabilities}
-      />
+      <CapabilityGrid {...capabilitiesSection} items={capabilities} />
 
-      {/* ═══ PRIVACY TIE-IN ═══ */}
       <TieInSection
         join
-        eyebrow={tieIn.eyebrow}
-        heading={tieIn.heading}
-        body={tieIn.body}
-        checklist={<IconList items={tieIn.checklistItems} />}
-        linkLabel={tieIn.linkLabel}
-        linkHref={tieIn.linkHref}
+        {...tieIn}
         panel={
           <CodePanel
             comment={<T k="site.features.encryptedDrive.panel.comment" />}
@@ -153,9 +132,7 @@ export default function EncryptedDrivePage() {
         }
       />
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

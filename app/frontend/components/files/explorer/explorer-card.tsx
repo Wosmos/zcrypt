@@ -5,23 +5,17 @@ import { useTranslations } from "next-intl";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import { folderLook } from "./folder-look";
-import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
+import {
+  ExplorerEntryDispatch,
+  SelectCheckbox,
+  fileEntryProps,
+  useFileEntryView,
+} from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
 import { StarButton } from "./star-button";
-import { useIsStarred, useStarredStore } from "@/store/starred";
-import {
-  formatBytes,
-  getFileTypeInfo,
-  isVideoFile,
-  cn,
-  midTrunc,
-  fileIconFor,
-  extOf,
-} from "@/lib/utils";
-import { useThumbnail } from "@/hooks/useThumbnail";
+import { useStarredStore } from "@/store/starred";
+import { formatBytes, isVideoFile, cn, midTrunc, extOf } from "@/lib/utils";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
-import { prefetchOnHover } from "@/hooks/useFileDecryptor";
-import { getIconByKey } from "@/lib/folder-icons";
 import {
   Folder,
   FolderOpen,
@@ -185,51 +179,36 @@ function FileCardInner({
   drag,
 }: FileItemProps) {
   const t = useTranslations("app.explorerItem");
-  // Defensive fallback: use the already-decrypted original_name when present,
-  // else re-decrypt encrypted_name directly (see useExplorerFileName), so a
-  // folder's contents never fall back to the raw file id while a real name is
-  // decryptable.
-  const displayName = useExplorerFileName(file);
-  const { thumbnailUrl, pending, unavailable, cardRef } = useThumbnail(
-    file.id,
+  const {
     displayName,
-    file.original_size,
-  );
-  const typeInfo = getFileTypeInfo(displayName);
-  const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
-  const Icon = customIcon ?? fileIconFor(displayName);
+    thumbnailUrl,
+    pending,
+    unavailable,
+    cardRef,
+    typeInfo,
+    Icon,
+    iconColorStyle,
+    starred,
+  } = useFileEntryView(file);
   const iconColorClass = file.style?.color ? undefined : typeInfo.color;
-  const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
   const isVideo = isVideoFile(displayName);
-
   const ext = extOf(displayName).toUpperCase().slice(0, 4);
-  const starred = useIsStarred(file.id);
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
           ref={cardRef}
-          role="button"
-          data-entry-id={file.id}
+          {...fileEntryProps(
+            { entry, file, focused, selected, drag, onFileClick, onEntryKeyDown },
+            t(unavailable ? "fileHintUnavailable" : "fileHint", {
+              name: displayName,
+              type: typeInfo.label,
+              size: formatBytes(file.original_size),
+            }),
+          )}
           data-tour="file-card"
-          tabIndex={focused ? 0 : -1}
-          aria-pressed={selected}
-          aria-label={t(unavailable ? "fileHintUnavailable" : "fileHint", {
-            name: displayName,
-            type: typeInfo.label,
-            size: formatBytes(file.original_size),
-          })}
-          draggable={drag.draggable}
-          onClick={(e) => onFileClick(file, e)}
-          onKeyDown={(e) => onEntryKeyDown(entry, e)}
-          // Desktop-only hover prefetch: warm the decrypt cache for previewable
-          // files so opening feels instant (guards + dedup live in prefetchOnHover).
-          onPointerEnter={() => prefetchOnHover(file)}
-          onDragStart={drag.onDragStart}
-          onDragEnd={drag.onDragEnd}
           onTouchStart={drag.onTouchStart}
-          {...(drag.dropHandlers ?? {})}
           className={cn(
             "ft-host group relative flex select-none flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all duration-200 [-webkit-touch-callout:none] focus-visible:ring-inset",
             FOCUS_RING,

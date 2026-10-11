@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import { Link2, Lock, Clock, Download, XCircle, Zap, FileText } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
-import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { sharing } from "../_data/sharing";
 import { T } from "@/components/i18n/t";
@@ -52,21 +49,14 @@ export default function SharingPage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          { name: "Sharing", url: `${SITE_URL}/features/sharing` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "Sharing",
+          path: "/features/sharing",
+          parent: "/features/encrypted-drive",
+        }}
       >
         {/* Share-link mock */}
         <MockWindowFrame
@@ -136,12 +126,7 @@ export default function SharingPage() {
       {/* ═══ WHY THE FRAGMENT MATTERS ═══ */}
       <TieInSection
         join
-        eyebrow={tieIn.eyebrow}
-        heading={tieIn.heading}
-        body={tieIn.body}
-        checklist={<IconList items={tieIn.checklistItems} />}
-        linkLabel={tieIn.linkLabel}
-        linkHref={tieIn.linkHref}
+        {...tieIn}
         panel={
           <CodePanel
             comment={<T k="site.features.sharing.panel.comment" />}
@@ -182,9 +167,7 @@ export default function SharingPage() {
         ]}
       />
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

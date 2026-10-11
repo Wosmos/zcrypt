@@ -12,6 +12,7 @@ import {
   type CtaData,
   type RelatedItem,
   type CapabilityData,
+  type TieInData,
 } from "./t";
 
 export interface BringYourOwnStoragePageData {
@@ -23,14 +24,7 @@ export interface BringYourOwnStoragePageData {
     footnote: ReactNode;
   };
   capabilities: CapabilityData<typeof Layers>[];
-  tieIn: {
-    eyebrow: ReactNode;
-    heading: ReactNode;
-    body: ReactNode;
-    checklistItems: ReactNode[];
-    linkLabel: ReactNode;
-    linkHref: string;
-  };
+  tieIn: TieInData;
   related: RelatedItem[];
   cta: CtaData;
 }

@@ -10,11 +10,9 @@ import {
   CheckCircle2,
   ChevronDown,
 } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
@@ -95,21 +93,14 @@ export default function TransfersPage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          { name: "Transfers", url: `${SITE_URL}/features/transfers` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "Transfers",
+          path: "/features/transfers",
+          parent: "/features/encrypted-drive",
+        }}
       >
         {/* Docked transfer panel mock */}
         <MockWindowFrame
@@ -162,12 +153,7 @@ export default function TransfersPage() {
         </MockWindowFrame>
       </FeatureHero>
 
-      {/* ═══ CAPABILITIES ═══ */}
-      <CapabilityGrid
-        heading={capabilitiesSection.heading}
-        subheading={capabilitiesSection.subheading}
-        items={capabilities}
-      />
+      <CapabilityGrid {...capabilitiesSection} items={capabilities} />
 
       {/* ═══ RESUME DEEP-DIVE ═══ */}
       <TieInSection
@@ -259,9 +245,7 @@ export default function TransfersPage() {
         </div>
       </section>
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

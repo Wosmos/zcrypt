@@ -23,9 +23,9 @@ const flatten = (tree: Tree, prefix = ""): Record<string, string> =>
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)(?=[,}])/g)].map((m) => m[1]).sort();
 const tags = (s: string) => [...s.matchAll(/<(\w+)>/g)].map((m) => m[1]).sort();
 
-const sectionFiles = import.meta.glob<{ default: Tree }>("../../messages/{sections,site}/*/*.json", {
+const sectionFiles = import.meta.glob("../../messages/{sections,site}/*/*.json", {
   eager: true,
-});
+}) as unknown as Record<string, { default: Tree }>;
 const sectionTree = (code: string): Tree =>
   Object.entries(sectionFiles)
     .filter(([path]) => path.endsWith(`/${code}.json`))

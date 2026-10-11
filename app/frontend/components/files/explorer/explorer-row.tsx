@@ -5,22 +5,16 @@ import { memo, type ComponentType, type CSSProperties } from "react";
 import NextImage from "next/image";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
-import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
+import {
+  ExplorerEntryDispatch,
+  SelectCheckbox,
+  fileEntryProps,
+  useFileEntryView,
+} from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
 import { StarButton } from "./star-button";
-import { useIsStarred, useStarredStore } from "@/store/starred";
-import {
-  formatBytes,
-  formatDate,
-  getFileTypeInfo,
-  cn,
-  midTrunc,
-  fileIconFor,
-  savingsPercent,
-} from "@/lib/utils";
-import { useThumbnail } from "@/hooks/useThumbnail";
-import { prefetchOnHover } from "@/hooks/useFileDecryptor";
-import { getIconByKey } from "@/lib/folder-icons";
+import { useStarredStore } from "@/store/starred";
+import { formatBytes, formatDate, cn, midTrunc, savingsPercent } from "@/lib/utils";
 import { folderLook } from "./folder-look";
 import {
   Folder,
@@ -237,44 +231,29 @@ function FileRow({
   drag,
 }: FileItemProps) {
   const t = useTranslations("app.explorerItem");
-  // Defensive fallback: use the already-decrypted original_name when present,
-  // else re-decrypt encrypted_name directly (see useExplorerFileName), so a
-  // folder's contents never fall back to the raw file id while a real name is
-  // decryptable.
-  const displayName = useExplorerFileName(file);
-  const typeInfo = getFileTypeInfo(displayName);
-  const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
-  const Icon = customIcon ?? fileIconFor(displayName);
-  const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
-  const { thumbnailUrl, unavailable, cardRef } = useThumbnail(
-    file.id,
+  const {
     displayName,
-    file.original_size,
-  );
+    unavailable,
+    thumbnailUrl,
+    cardRef,
+    typeInfo,
+    Icon,
+    iconColorStyle,
+    starred,
+  } = useFileEntryView(file);
   const savings = savingsPercent(file.original_size, file.encrypted_size);
-  const starred = useIsStarred(file.id);
 
   return (
     <div
       ref={cardRef}
-      role="button"
-      data-entry-id={file.id}
-      tabIndex={focused ? 0 : -1}
-      aria-pressed={selected}
-      aria-label={t(unavailable ? "rowUnavailable" : "row", {
-        name: displayName,
-        type: typeInfo.label,
-        size: formatBytes(file.original_size),
-      })}
-      draggable={drag.draggable}
-      onClick={(e) => onFileClick(file, e)}
-      onKeyDown={(e) => onEntryKeyDown(entry, e)}
-      // Desktop-only hover prefetch: warm the decrypt cache for previewable
-      // files so opening feels instant (guards + dedup live in prefetchOnHover).
-      onPointerEnter={() => prefetchOnHover(file)}
-      onDragStart={drag.onDragStart}
-      onDragEnd={drag.onDragEnd}
-      {...(drag.dropHandlers ?? {})}
+      {...fileEntryProps(
+        { entry, file, focused, selected, drag, onFileClick, onEntryKeyDown },
+        t(unavailable ? "rowUnavailable" : "row", {
+          name: displayName,
+          type: typeInfo.label,
+          size: formatBytes(file.original_size),
+        }),
+      )}
       className={rowContainerClassName(
         drag,
         selected ? ROW_SELECTED : "hover:bg-[var(--color-surface-1)] hover:shadow-sm",

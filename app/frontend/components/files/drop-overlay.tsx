@@ -63,9 +63,7 @@ export function DropOverlay({ active }: { active: boolean }) {
               <p className="text-xl font-semibold tracking-tight text-[var(--color-text)] sm:text-2xl">
                 {t("dropTitle")}
               </p>
-              <p className="max-w-sm text-sm text-[var(--color-text-secondary)]">
-                {t("dropHint")}
-              </p>
+              <p className="max-w-sm text-sm text-[var(--color-text-secondary)]">{t("dropHint")}</p>
             </div>
           </motion.div>
         </motion.div>

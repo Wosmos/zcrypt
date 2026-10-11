@@ -37,6 +37,25 @@ export interface CtaData {
   subtext: ReactNode;
 }
 
+export interface TieInData {
+  eyebrow: ReactNode;
+  heading: ReactNode;
+  body: ReactNode;
+  checklistItems: ReactNode[];
+  linkLabel: ReactNode;
+  linkHref: string;
+}
+
+/** The sections every features/* page has; pages extend it with their own. */
+export interface FeaturePageData<I> {
+  hero: HeroData;
+  capabilitiesSection: SectionData;
+  capabilities: CapabilityData<I>[];
+  tieIn: TieInData;
+  related: RelatedItem[];
+  cta: CtaData;
+}
+
 export interface SectionData {
   heading: ReactNode;
   subheading: ReactNode;

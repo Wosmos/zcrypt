@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type ComponentType } from "react";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
-import { cn } from "@/lib/utils";
 import { FOCUS_RING } from "./types";
 import { CheckSquare, Square } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
@@ -11,6 +10,11 @@ import { decryptNameSafe } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
+import { useIsStarred } from "@/store/starred";
+import { useThumbnail } from "@/hooks/useThumbnail";
+import { prefetchOnHover } from "@/hooks/useFileDecryptor";
+import { getIconByKey } from "@/lib/folder-icons";
+import { cn, fileIconFor, getFileTypeInfo } from "@/lib/utils";
 
 /**
  * Defensive fallback name resolver for the explorer's file card/row.
@@ -180,4 +184,45 @@ export function ExplorerEntryDispatch({
       drag={drag}
     />
   );
+}
+
+/** Everything a file card and a file row derive from one file: its resolved
+ *  name, type, icon (custom or by extension), thumbnail state and star. */
+export function useFileEntryView(file: FileMetadata) {
+  const displayName = useExplorerFileName(file);
+  const thumb = useThumbnail(file.id, displayName, file.original_size);
+  const typeInfo = getFileTypeInfo(displayName);
+  const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
+  return {
+    displayName,
+    ...thumb,
+    typeInfo,
+    Icon: customIcon ?? fileIconFor(displayName),
+    iconColorStyle: file.style?.color ? { color: file.style.color } : undefined,
+    starred: useIsStarred(file.id),
+  };
+}
+
+/** The interactive root props shared by a file card and a file row. */
+export function fileEntryProps(
+  p: Pick<
+    FileItemProps,
+    "entry" | "file" | "focused" | "selected" | "drag" | "onFileClick" | "onEntryKeyDown"
+  >,
+  label: string,
+) {
+  return {
+    role: "button",
+    "data-entry-id": p.file.id,
+    tabIndex: p.focused ? 0 : -1,
+    "aria-pressed": p.selected,
+    "aria-label": label,
+    draggable: p.drag.draggable,
+    onClick: (e: React.MouseEvent) => p.onFileClick(p.file, e),
+    onKeyDown: (e: React.KeyboardEvent) => p.onEntryKeyDown(p.entry, e),
+    onPointerEnter: () => prefetchOnHover(p.file),
+    onDragStart: p.drag.onDragStart,
+    onDragEnd: p.drag.onDragEnd,
+    ...(p.drag.dropHandlers ?? {}),
+  } as const;
 }

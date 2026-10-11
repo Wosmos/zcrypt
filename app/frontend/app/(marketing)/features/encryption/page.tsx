@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Lock, Shield, Cpu, Server, Eye, X } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid, StepCards } from "@/components/marketing/features/capability-grid";
-import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
@@ -44,21 +42,14 @@ export default function EncryptionPage() {
 
   return (
     <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: SITE_URL },
-          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
-          { name: "Encryption", url: `${SITE_URL}/features/encryption` },
-        ]}
-      />
-
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow={hero.eyebrow}
-        title={hero.title}
-        subtext={hero.subtext}
-        secondaryLabel={hero.secondaryLabel}
-        secondaryHref={hero.secondaryHref}
+        {...hero}
+        breadcrumb={{
+          name: "Encryption",
+          path: "/features/encryption",
+          parent: "/features/encrypted-drive",
+        }}
       >
         {/* Encryption boundary diagram */}
         <div className="mx-auto mt-16 max-w-4xl">
@@ -184,9 +175,7 @@ export default function EncryptionPage() {
         }
       />
 
-      {/* ═══ RELATED + CTA ═══ */}
-      <RelatedLinks items={related} />
-      <ClosingCta title={cta.heading} subtext={cta.subtext} />
+      <FeatureFooter related={related} cta={cta} />
     </>
   );
 }

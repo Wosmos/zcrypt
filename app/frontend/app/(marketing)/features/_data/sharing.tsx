@@ -9,29 +9,13 @@ import {
   hero,
   section,
   checklist,
-  type HeroData,
-  type CtaData,
   type SectionData,
-  type RelatedItem,
-  type CapabilityData,
+  type FeaturePageData,
 } from "./t";
 
-export interface SharingPageData {
-  hero: HeroData;
-  capabilitiesSection: SectionData;
-  capabilities: CapabilityData<typeof Link2>[];
-  tieIn: {
-    eyebrow: ReactNode;
-    heading: ReactNode;
-    body: ReactNode;
-    checklistItems: ReactNode[];
-    linkLabel: ReactNode;
-    linkHref: string;
-  };
+export interface SharingPageData extends FeaturePageData<typeof Link2> {
   moreWaysSection: SectionData;
   moreWays: { title: ReactNode; desc: ReactNode }[];
-  related: RelatedItem[];
-  cta: CtaData;
 }
 
 const tx = pageText("sharing");

@@ -1,35 +1,7 @@
 import { FolderOpen, Lock, Key, Shield, RefreshCw, Layers } from "@/lib/icons";
-import type { ReactNode } from "react";
-import {
-  pageText,
-  related,
-  caps,
-  cta,
-  hero,
-  section,
-  checklist,
-  type HeroData,
-  type CtaData,
-  type SectionData,
-  type RelatedItem,
-  type CapabilityData,
-} from "./t";
+import { pageText, related, caps, cta, hero, section, checklist, type FeaturePageData } from "./t";
 
-export interface FoldersPageData {
-  hero: HeroData;
-  capabilitiesSection: SectionData;
-  capabilities: CapabilityData<typeof FolderOpen>[];
-  tieIn: {
-    eyebrow: ReactNode;
-    heading: ReactNode;
-    body: ReactNode;
-    checklistItems: ReactNode[];
-    linkLabel: ReactNode;
-    linkHref: string;
-  };
-  related: RelatedItem[];
-  cta: CtaData;
-}
+export type FoldersPageData = FeaturePageData<typeof FolderOpen>;
 
 const tx = pageText("folders");
 

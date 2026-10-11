@@ -39,10 +39,7 @@ export function ExplorerSkeleton({
 }) {
   if (view === "list") {
     return (
-      <div
-        aria-hidden
-        className="overflow-hidden rounded-xl border border-[var(--color-border)]"
-      >
+      <div aria-hidden className="overflow-hidden rounded-xl border border-[var(--color-border)]">
         <div className="hidden h-[41px] border-b border-[var(--color-border)] bg-[var(--color-surface-1)] sm:block" />
         {Array.from({ length: ROW_COUNT }, (_, i) => (
           <SkeletonListRow key={i} />

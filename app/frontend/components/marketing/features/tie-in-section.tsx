@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { SectionHead, headId } from "@/components/marketing/landing/section-head";
+import { IconList } from "@/components/marketing/features/icon-list";
 
 /** Two columns: a left-aligned SectionHead with body, checklist and link, and a panel. */
 export function TieInSection({
@@ -10,6 +11,7 @@ export function TieInSection({
   heading,
   body,
   checklist,
+  checklistItems,
   linkLabel,
   linkHref,
   panel,
@@ -20,6 +22,8 @@ export function TieInSection({
   heading: ReactNode;
   body: ReactNode;
   checklist?: ReactNode;
+  /** Shorthand for `checklist={<IconList items={...} />}`. */
+  checklistItems?: ReactNode[];
   linkLabel?: ReactNode;
   linkHref?: string;
   panel: ReactNode;
@@ -39,7 +43,7 @@ export function TieInSection({
             align="left"
             className="pv2-head-flush pv2-head-col"
           />
-          {checklist}
+          {checklist ?? (checklistItems ? <IconList items={checklistItems} /> : null)}
           {linkLabel && linkHref ? (
             <Link
               href={linkHref}
