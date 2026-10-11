@@ -13,8 +13,6 @@ import {
   RemoveFolderPasswordDialog,
 } from "@/components/files/folder-password-dialogs";
 import { DetailsDrawer } from "@/components/files/details-drawer";
-import { PlatformHealth } from "@/components/vault/platform-health";
-import { ExportImport } from "@/components/vault/export-import";
 import { VaultFab } from "@/components/vault/vault-fab";
 import { VaultLockOverlay } from "@/components/vault/vault-lock-overlay";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
@@ -33,12 +31,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ShareModal } from "@/components/ui/share-modal";
 import { BulkShareModal } from "@/components/ui/bulk-share-modal";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -66,7 +58,7 @@ import { useVaultSearch } from "@/components/ui/command-palette";
 import { VaultShortcuts } from "@/components/files/vault-shortcuts";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 
-import { Shield, AlertTriangle, RefreshCw, FileUpload, HardDrive, FolderAdd } from "@/lib/icons";
+import { Shield, AlertTriangle, RefreshCw, FileUpload, FolderAdd } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 import { useAutoTour } from "@/components/onboarding/tour-provider";
 
@@ -143,7 +135,7 @@ export default function VaultPage() {
   const [viewerOpen, setViewerOpen] = useState(false);
 
   const { files, loading, error, refresh, setFiles } = useFileList();
-  const { statuses, repos } = usePlatformHealth();
+  const { statuses } = usePlatformHealth();
   const { quota: quotaInfo, refresh: refreshQuota } = useQuota();
   const preview = useFilePreview();
 
@@ -385,10 +377,6 @@ export default function VaultPage() {
     [actions],
   );
 
-  // Mirror PlatformHealth's filter so the "Storage & backup" panel only renders
-  // when it has content to show.
-  const hasConnectedPlatform = statuses.some((s) => s.connected);
-
   const uploadHint =
     quotaInfo && !quotaInfo.can_upload
       ? t("storageUnavailable")
@@ -558,30 +546,6 @@ export default function VaultPage() {
             onRemoveFolderPassword={setRemoveTarget}
             onMoveFolderRequest={(folder) => setMoveRequest({ kind: "folder", folder })}
           />
-        )}
-
-        {/* Storage & backup, de-emphasized, collapsed by default. Only render
-              when there's content: a personal platform or files to back up.
-              Hidden on mobile (md-): platform storage lives in Insights and vault
-              export/import in Settings, so it'd only clutter the phone. */}
-        {(hasConnectedPlatform || files.length > 0) && (
-          <Accordion type="single" collapsible className="hidden pt-2 md:block">
-            <AccordionItem
-              value="storage-backup"
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4"
-            >
-              <AccordionTrigger className="py-3.5 text-sm font-medium text-[var(--color-text-secondary)] hover:no-underline hover:text-[var(--color-text)] [&>svg]:text-[var(--color-text-muted)]">
-                <span className="flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
-                  {ta("dashboard.storageBackup")}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="grid gap-3 pb-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
-                <PlatformHealth statuses={statuses} repos={repos} />
-                {files.length > 0 && <ExportImport files={files} />}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
         )}
 
         {/* Feedback modal */}
