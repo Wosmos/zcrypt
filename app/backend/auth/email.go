@@ -45,16 +45,7 @@ func wrapEmail(heading, content, footerNote, baseURL string) string {
 
 <!-- Logo -->
 <tr><td align="center" style="padding-bottom:32px">
-  <table role="presentation" cellpadding="0" cellspacing="0">
-  <tr>
-    <td style="background:%s;width:36px;height:36px;border-radius:10px;text-align:center;vertical-align:middle">
-      <span style="color:#fff;font-size:18px;font-weight:700;line-height:36px">z</span>
-    </td>
-    <td style="padding-left:10px">
-      <span style="font-size:22px;font-weight:700;color:%s;letter-spacing:-0.5px">zcrypt</span>
-    </td>
-  </tr>
-  </table>
+  <a href="%s" style="text-decoration:none"><img src="%s/brand/zcrypt-logo-email.png" width="220" height="79" alt="zcrypt" style="display:block;margin:0 auto;border:0;outline:none;width:220px;height:79px;border-radius:14px"></a>
 </td></tr>
 
 <!-- Card -->
@@ -87,7 +78,7 @@ func wrapEmail(heading, content, footerNote, baseURL string) string {
 </table>
 </body></html>`,
 		brandBg, brandBg,
-		brandCyanDark, brandText,
+		baseURL, baseURL,
 		brandCardBg, brandBorder,
 		brandText, heading, brandCyan,
 		content,
