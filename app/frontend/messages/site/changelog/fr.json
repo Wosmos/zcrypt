@@ -53,7 +53,20 @@
         "csp": "La politique de sécurité du contenu est désormais appliquée par défaut au lieu de simplement signaler, ce qui rend l'exécution de scripts injectés bien plus difficile.",
         "coarseIps": "Les sessions de connexion ne stockent plus qu'une adresse IP approximative, et les journaux de connexion ne gardent plus l'e-mail saisi.",
         "masterKey": "Les bases d'une clé maître unique pour le compte, afin qu'une future version rende les changements de phrase secrète indolores. Désactivée par défaut.",
-        "oldClients": "Les très anciennes versions de l'application devront se mettre à jour avant d'envoyer des fichiers, une fois le serveur mis à jour, pour ne pas écrire de noms non protégés."
+        "oldClients": "Les très anciennes versions de l'application devront se mettre à jour avant d'envoyer des fichiers, une fois le serveur mis à jour, pour ne pas écrire de noms non protégés.",
+        "quickSettings": "Un panneau de réglages rapides derrière l'icône d'engrenage : thème, clair ou sombre, langue et mode avancé sans quitter la page.",
+        "getApps": "Un bouton « Obtenir les applis » : scannez un QR code pour l'appli Android ou téléchargez l'appli de bureau pour votre système en un clic.",
+        "recentsStarred": "Récents et Favoris dans la barre latérale. Ajoutez une étoile à n'importe quel fichier et retrouvez-le au même endroit (les étoiles restent sur cet appareil pour l'instant).",
+        "paletteActions": "La palette de commandes (Ctrl ou Cmd + K) agit désormais : envoyer, nouveau dossier, verrouiller le coffre, changer de thème et plus.",
+        "customThemeModes": "Les thèmes personnalisés ont une version claire et une version sombre calculées à partir de vos couleurs, lisibles dans les deux modes.",
+        "backgrounds": "Douze nouveaux fonds pour les thèmes personnalisés, tous dans votre couleur d'accent.",
+        "vaultSearch": "Une seule barre de recherche, plus grande, sur la page du coffre, avec vos fichiers récents dans sa liste.",
+        "iosSwitch": "Chaque interrupteur est désormais un interrupteur façon iOS dans la couleur de votre thème, bien visible même désactivé.",
+        "undoToasts": "Supprimer ou déplacer des fichiers se fait tout de suite avec un bouton Annuler, au lieu de vous demander d'abord.",
+        "vaultPolish": "Un coffre plus soigné : une seule notice de stockage discrète, des icônes liste et grille plus claires, un anneau de stockage dans la barre latérale, des états vides plus sympathiques, des menus au clic droit et un chargement plus fluide.",
+        "mobileLayout": "Une mise en page plus propre sur téléphones et tablettes : le cadenas toujours accessible, les filtres fixés en haut et rien ne dépasse de l'écran.",
+        "toolPages": "Les pages Pad, Send et Transfer affichent à nouveau leurs étapes et leur texte de fin.",
+        "systemTheme": "Avec le thème sur Système, l'appli suit désormais tout de suite le passage clair ou sombre de votre appareil."
       }
     },
     "v0_1_7": {

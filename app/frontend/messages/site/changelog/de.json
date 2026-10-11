@@ -53,7 +53,20 @@
         "csp": "Die Content-Security-Policy wird jetzt standardmäßig durchgesetzt statt nur zu melden, was eingeschleusten Skripten das Laufen deutlich erschwert.",
         "coarseIps": "Auch Anmeldesitzungen speichern jetzt nur noch eine grobe IP-Adresse, und Login-Einträge behalten die eingetippte E-Mail nicht mehr.",
         "masterKey": "Vorarbeit für einen Konto-Hauptschlüssel, damit eine künftige Version Passphrasen-Wechsel schmerzfrei machen kann. Standardmäßig ist er aus.",
-        "oldClients": "Sehr alte App-Versionen werden nach dem Server-Update aufgefordert, sich vor dem Hochladen zu aktualisieren, damit sie keine ungeschützten Namen schreiben können."
+        "oldClients": "Sehr alte App-Versionen werden nach dem Server-Update aufgefordert, sich vor dem Hochladen zu aktualisieren, damit sie keine ungeschützten Namen schreiben können.",
+        "quickSettings": "Ein Schnelleinstellungs-Panel hinter dem Zahnrad: Design, hell oder dunkel, Sprache und Erweiterter Modus, ohne die Seite zu verlassen.",
+        "getApps": "Ein Button „Apps holen“: QR-Code für die Android-App scannen oder die Desktop-App für dein System mit einem Klick laden.",
+        "recentsStarred": "Zuletzt verwendet und Markiert in der Seitenleiste. Markiere eine Datei mit einem Stern und finde sie an einem Ort wieder (Sterne bleiben vorerst auf diesem Gerät).",
+        "paletteActions": "Die Befehlspalette (Strg oder Cmd + K) kann jetzt handeln: hochladen, neuer Ordner, Tresor sperren, Design wechseln und mehr.",
+        "customThemeModes": "Eigene Designs bekommen eine passende helle und dunkle Version aus deinen Farben, damit sie in beiden lesbar bleiben.",
+        "backgrounds": "Zwölf neue Hintergründe für eigene Designs, alle in deiner Akzentfarbe.",
+        "vaultSearch": "Eine größere Suchleiste auf der Tresorseite, mit deinen zuletzt geöffneten Dateien direkt im Dropdown.",
+        "iosSwitch": "Jeder Schalter ist jetzt ein Schalter im iOS-Stil in deiner Designfarbe, auch ausgeschaltet gut zu sehen.",
+        "undoToasts": "Dateien löschen oder verschieben passiert sofort, mit einem Rückgängig-Button statt einer Rückfrage.",
+        "vaultPolish": "Ein aufgeräumterer Tresor: ein schmaler Speicherhinweis, klarere Listen- und Rastersymbole, ein Speicherring in der Seitenleiste, freundlichere leere Zustände, Rechtsklick-Menüs und flüssigeres Laden.",
+        "mobileLayout": "Sauberes Layout auf Handys und Tablets: das Schloss ist immer erreichbar, Filter bleiben oben und nichts ragt über den Rand.",
+        "toolPages": "Die Seiten Pad, Send und Transfer zeigen wieder ihre Schritte und den Abschlusstext.",
+        "systemTheme": "Steht das Design auf System, folgt die App jetzt sofort dem Hell-Dunkel-Wechsel deines Geräts."
       }
     },
     "v0_1_7": {

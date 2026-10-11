@@ -53,7 +53,20 @@
         "csp": "La política de seguridad de contenido ahora se aplica por defecto en lugar de solo informar, lo que dificulta mucho ejecutar scripts inyectados.",
         "coarseIps": "Las sesiones de inicio también guardan ya solo una IP aproximada, y los registros de acceso ya no conservan el correo que escribiste.",
         "masterKey": "Los cimientos de una clave maestra de cuenta, para que una versión futura haga que cambiar la frase de contraseña sea indoloro. Viene desactivada por defecto.",
-        "oldClients": "A las versiones muy antiguas de la app se les pedirá actualizar antes de subir, una vez actualizado el servidor, para que no escriban nombres sin proteger."
+        "oldClients": "A las versiones muy antiguas de la app se les pedirá actualizar antes de subir, una vez actualizado el servidor, para que no escriban nombres sin proteger.",
+        "quickSettings": "Un panel de ajustes rápidos tras el icono del engranaje: tema, claro u oscuro, idioma y modo avanzado sin salir de la página.",
+        "getApps": "Un botón «Obtener las apps»: escanea un código QR para la app de Android o descarga la app de escritorio para tu sistema con un clic.",
+        "recentsStarred": "Recientes y Destacados en la barra lateral. Marca cualquier archivo con una estrella y encuéntralo en un solo lugar (por ahora las estrellas se guardan en ese dispositivo).",
+        "paletteActions": "La paleta de comandos (Ctrl o Cmd + K) ahora hace cosas: subir, nueva carpeta, bloquear la bóveda, cambiar el tema y más.",
+        "customThemeModes": "Los temas personalizados tienen una versión clara y otra oscura calculadas a partir de tus colores, para que se lean bien en ambos.",
+        "backgrounds": "Doce fondos nuevos para los temas personalizados, todos siguen tu color de acento.",
+        "vaultSearch": "Una barra de búsqueda más grande en la bóveda, con tus archivos recientes en su menú desplegable.",
+        "iosSwitch": "Todos los interruptores son ahora de estilo iOS y del color de tu tema, fáciles de ver incluso apagados.",
+        "undoToasts": "Borrar o mover archivos ocurre al instante con un botón Deshacer, en lugar de preguntarte antes.",
+        "vaultPolish": "Una bóveda más ordenada: un aviso de almacenamiento discreto, iconos de lista y cuadrícula más claros, un anillo de almacenamiento en la barra lateral, estados vacíos más amables, menús con clic derecho y carga más fluida.",
+        "mobileLayout": "Diseño más limpio en móviles y tabletas: el candado siempre a mano, los filtros fijos arriba y nada se sale de la pantalla.",
+        "toolPages": "Las páginas de Pad, Send y Transfer vuelven a mostrar sus pasos y el texto final.",
+        "systemTheme": "Con el tema en Sistema, la app ahora sigue al instante el cambio entre claro y oscuro de tu dispositivo."
       }
     },
     "v0_1_7": {

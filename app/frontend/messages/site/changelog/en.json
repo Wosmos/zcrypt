@@ -53,7 +53,20 @@
         "csp": "The content security policy is now enforced by default instead of only reporting, which makes injected scripts much harder to run.",
         "coarseIps": "Sign-in sessions now store only a rough IP address too, and login records no longer keep the email you typed.",
         "masterKey": "Groundwork for one account master key, so a future version can make passphrase changes painless. It is off by default.",
-        "oldClients": "Very old versions of the app will be told to update before uploading once the server is updated, so they can't write unprotected names."
+        "oldClients": "Very old versions of the app will be told to update before uploading once the server is updated, so they can't write unprotected names.",
+        "quickSettings": "A quick settings panel behind the gear icon: theme, light or dark, language and advanced mode without leaving the page.",
+        "getApps": "A Get the apps button: scan a QR code for the Android app, or download the desktop app for your system in one click.",
+        "recentsStarred": "Recents and Starred in the sidebar. Star any file and find it again in one place (stars stay on that device for now).",
+        "paletteActions": "The command palette (Ctrl or Cmd + K) can now do things: upload, new folder, lock the vault, switch theme and more.",
+        "customThemeModes": "Custom themes get a matching light and dark version worked out from your colors, so they stay readable in both.",
+        "backgrounds": "Twelve new background designs for custom themes, all following your accent color.",
+        "vaultSearch": "One bigger search bar on the vault page, with your recent files right in its dropdown.",
+        "iosSwitch": "Every toggle is now an iOS-style switch in your theme color, easy to see when it is off.",
+        "undoToasts": "Deleting or moving files happens straight away with an Undo button, instead of asking you first.",
+        "vaultPolish": "A tidier vault: one slim storage notice, clearer list and grid icons, a storage ring in the sidebar, friendlier empty states, right-click menus and smoother loading.",
+        "mobileLayout": "Phones and tablets get a cleaner layout: the lock is always reachable, filters stick to the top and nothing spills off the screen.",
+        "toolPages": "The Pad, Send and Transfer pages show their steps and closing text again.",
+        "systemTheme": "With the theme set to System, the app now follows your device's light or dark switch straight away."
       }
     },
     "v0_1_7": {

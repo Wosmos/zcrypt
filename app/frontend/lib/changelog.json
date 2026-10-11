@@ -14,16 +14,31 @@
           "installers",
           "selfHosting",
           "languageSuggestion",
-          "changelogPage"
+          "changelogPage",
+          "quickSettings",
+          "getApps",
+          "recentsStarred",
+          "paletteActions",
+          "customThemeModes",
+          "backgrounds"
         ]
       },
       {
         "kind": "improved",
-        "items": ["fasterShares", "updateNotes", "searchFixes"]
+        "items": [
+          "fasterShares",
+          "updateNotes",
+          "searchFixes",
+          "vaultSearch",
+          "iosSwitch",
+          "undoToasts",
+          "vaultPolish",
+          "mobileLayout"
+        ]
       },
       {
         "kind": "fixed",
-        "items": ["spacesFixes"]
+        "items": ["spacesFixes", "toolPages", "systemTheme"]
       },
       {
         "kind": "security",
