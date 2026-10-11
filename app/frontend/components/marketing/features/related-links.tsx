@@ -2,7 +2,8 @@ import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { SectionHead, headId } from "@/components/marketing/landing/section-head";
+import { T } from "@/components/i18n/t";
+import { SectionHead } from "@/components/marketing/landing/section-head";
 import { cardSurfaceSm } from "@/components/marketing/ui/card";
 
 export interface RelatedLinkItem {
@@ -14,17 +15,17 @@ export interface RelatedLinkItem {
 
 /** The "Keep exploring" row of linked cards near the end of a page. */
 export function RelatedLinks({
-  heading = "Keep exploring",
-  eyebrow = "Related",
+  heading = <T k="site.features.common.keepExploring" />,
+  eyebrow = <T k="site.features.common.related" />,
   items,
   columns = 3,
 }: {
-  heading?: string;
-  eyebrow?: string;
+  heading?: ReactNode;
+  eyebrow?: ReactNode;
   items: RelatedLinkItem[];
   columns?: 2 | 3;
 }) {
-  const id = headId(heading, "related");
+  const id = "h-related";
   return (
     <section className="pv2-sec pv2-sec-join" aria-labelledby={id}>
       <div className="pv2-wrap">

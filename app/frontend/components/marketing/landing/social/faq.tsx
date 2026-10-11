@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { T } from "@/components/i18n/t";
 import { faqs } from "@/lib/data";
 import { SectionHead } from "../section-head";
 
@@ -10,29 +10,25 @@ export function Faq() {
         <div className="zs-faq-l">
           <SectionHead
             id="h-faq"
-            eyebrow="Questions"
-            title="Straight answers"
-            lede={
-              <>
-                If something&apos;s missing,{" "}
-                <Link href="/docs" className="zs-link">
-                  the docs
-                </Link>{" "}
-                have the long version.
-              </>
-            }
+            eyebrow={<T k="site.home.faq.eyebrow" />}
+            title={<T k="site.home.faq.title" />}
+            lede={<T k="site.home.faq.lede" links={{ docs: "/docs" }} linkClassName="zs-link" />}
             align="left"
           />
         </div>
         <div className="zs-faq-r">
-          {faqs.map((f) => (
+          {faqs.map((f, i) => (
             <details key={f.q} className="zs-dt" data-owner-confirm={f.flag}>
               <summary className="zs-sum">
-                <span>{f.q}</span>
+                <span>
+                  <T k={`site.home.faq.items.${i}.q`} />
+                </span>
                 <span className="zs-pm" aria-hidden="true" />
               </summary>
               <div className="zs-ans">
-                <p>{f.a}</p>
+                <p>
+                  <T k={`site.home.faq.items.${i}.a`} />
+                </p>
               </div>
             </details>
           ))}

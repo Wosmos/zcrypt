@@ -1,123 +1,61 @@
 import { FolderOpen, Lock, Key, Shield, RefreshCw, Layers } from "@/lib/icons";
 import type { ReactNode } from "react";
+import {
+  pageText,
+  related,
+  caps,
+  cta,
+  hero,
+  section,
+  checklist,
+  type HeroData,
+  type CtaData,
+  type SectionData,
+  type RelatedItem,
+  type CapabilityData,
+} from "./t";
 
 export interface FoldersPageData {
-  hero: {
-    eyebrow: string;
-    title: string;
-    subtext: ReactNode;
-    secondaryLabel: string;
-    secondaryHref: string;
-  };
-  capabilitiesSection: { heading: string; subheading: string };
-  capabilities: { Icon: typeof FolderOpen; title: string; desc: string }[];
+  hero: HeroData;
+  capabilitiesSection: SectionData;
+  capabilities: CapabilityData<typeof FolderOpen>[];
   tieIn: {
-    eyebrow: string;
-    heading: string;
+    eyebrow: ReactNode;
+    heading: ReactNode;
     body: ReactNode;
-    checklistItems: string[];
-    linkLabel: string;
+    checklistItems: ReactNode[];
+    linkLabel: ReactNode;
     linkHref: string;
   };
-  related: { href: string; title: string; desc: string }[];
-  cta: { heading: string; subtext: string };
+  related: RelatedItem[];
+  cta: CtaData;
 }
 
+const tx = pageText("folders");
+
 export const folders: FoldersPageData = {
-  hero: {
-    eyebrow: "Encrypted folders",
-    title: "Folders that lock themselves",
-    subtext: (
-      <>
-        Organize with real, nestable folders whose names are encrypted on your device. Then give any
-        folder its own password: a second lock, separate from your vault, that keeps it sealed even
-        when everything else is open.
-      </>
-    ),
-    secondaryLabel: "Read the docs",
-    secondaryHref: "/docs/folder-encryption",
-  },
-
-  capabilitiesSection: {
-    heading: "Structure that keeps secrets",
-    subheading:
-      "The folders you expect, plus a second layer of encryption you can drop onto any one of them, all the way down.",
-  },
-  capabilities: [
-    {
-      Icon: FolderOpen,
-      title: "Real, nestable folders",
-      desc: "Build the hierarchy you actually think in: folders inside folders, as deep as you need. Not tags pretending to be structure.",
-    },
-    {
-      Icon: Lock,
-      title: "Encrypted folder names",
-      desc: "Every folder name is encrypted on your device. The server stores opaque ciphertext. It never learns what you called anything.",
-    },
-    {
-      Icon: Key,
-      title: "A password per folder",
-      desc: "Give any folder its own password, separate from your vault passphrase. It guards the most sensitive corners on its own terms.",
-    },
-    {
-      Icon: Shield,
-      title: "Sealed independently",
-      desc: "A protected folder stays locked even while the rest of your vault is open. Unlocking your vault is not the same as unlocking it.",
-    },
-    {
-      Icon: RefreshCw,
-      title: "Automatic re-keying",
-      desc: "Move a file into or out of a protected folder and it is re-encrypted under the right key automatically. No manual steps, no leaks.",
-    },
-    {
-      Icon: Layers,
-      title: "Verified locally",
-      desc: "The folder password is checked on your device against the folder's own key material, never sent to the server, never round-tripped.",
-    },
-  ],
-
+  hero: hero(tx, pageText("common")("readDocs"), "/docs/folder-encryption"),
+  capabilitiesSection: section(tx, "capSection"),
+  capabilities: caps(tx, "caps", [
+    ["nestable", FolderOpen],
+    ["names", Lock],
+    ["password", Key],
+    ["sealed", Shield],
+    ["rekey", RefreshCw],
+    ["verified", Layers],
+  ]),
   tieIn: {
-    eyebrow: "A lock within the lock",
-    heading: "A key the server never sees",
-    body: (
-      <>
-        When you protect a folder, its files are re-encrypted under a key derived from a password
-        only you know. That password is verified locally against the folder&apos;s own key material
-        . It never travels to the server, and neither does the key it unlocks. Move a file in or out
-        and zcrypt re-keys it for you, so nothing is ever left under the wrong lock.
-      </>
-    ),
-    checklistItems: [
-      "Folder password derived to a key on your device",
-      "Verified locally, no server round-trip, no guess oracle",
-      "Stays sealed even while your vault is unlocked",
-      "Files re-encrypted automatically when moved in or out",
-    ],
-    linkLabel: "How folder encryption works",
+    eyebrow: tx("tieIn.eyebrow"),
+    heading: tx("tieIn.heading"),
+    body: tx("tieIn.body"),
+    checklistItems: checklist(tx, "tieIn.check", 4),
+    linkLabel: tx("tieIn.linkLabel"),
     linkHref: "/docs/folder-encryption",
   },
-
-  related: [
-    {
-      href: "/features/encrypted-drive",
-      title: "The encrypted drive",
-      desc: "Folders, search, previews, drag-and-drop, encrypted end to end.",
-    },
-    {
-      href: "/docs/folders",
-      title: "Docs: Folders",
-      desc: "Create, nest, move, and rename folders in your vault.",
-    },
-    {
-      href: "/docs/folder-encryption",
-      title: "Docs: Folder encryption",
-      desc: "How per-folder passwords and re-keying work under the hood.",
-    },
-  ],
-
-  cta: {
-    heading: "Lock the folders that matter most",
-    subtext:
-      "Free and open source. Organize your drive and lock any folder with a password of its own.",
-  },
+  related: related(tx, [
+    ["/features/encrypted-drive", "drive"],
+    ["/docs/folders", "docsFolders"],
+    ["/docs/folder-encryption", "docsEncryption"],
+  ]),
+  cta: cta(tx),
 };

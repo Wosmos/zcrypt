@@ -1,6 +1,7 @@
 "use client";
 
 import { type ComponentType, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { MOTION_REDUCE } from "@/components/marketing/landing/gsap";
 import { SectionHead } from "@/components/marketing/landing/section-head";
 import {
@@ -15,76 +16,22 @@ import { useSpotlight } from "./use-spotlight";
 
 type Tile = {
   key: string;
-  kicker: string;
-  title: string;
-  sentence: string;
-  short: string;
   size: "hero" | "wide" | "one";
   Vignette: ComponentType;
 };
 
 const TILES: readonly Tile[] = [
-  {
-    key: "drive",
-    kicker: "Looks like a normal drive",
-    title: "Folders, search, drag and drop.",
-    sentence:
-      "Press / to search, sort by anything, move things around. Photos, videos, PDFs and documents open right in your browser, on the web, Mac, Windows, Linux and Android (beta).",
-    short: "Search, sort, drag and drop. Files open right in your browser.",
-    size: "hero",
-    Vignette: DriveVignette,
-  },
-  {
-    key: "lock",
-    kicker: "A second lock",
-    title: "A password on any folder.",
-    sentence: "For the extra private stuff. Yes, even more private than private.",
-    short: "For the extra private stuff.",
-    size: "one",
-    Vignette: LockVignette,
-  },
-  {
-    key: "share",
-    kicker: "Share it",
-    title: "Share links with rules.",
-    sentence: "Add a password, an end date and a download limit. Then forget about it.",
-    short: "Password, end date, download limit.",
-    size: "one",
-    Vignette: ShareVignette,
-  },
-  {
-    key: "send",
-    kicker: "No account needed",
-    title: "Send to anyone.",
-    sentence:
-      "They don't need zcrypt. It can vanish after one read, like a spy film but with a PDF.",
-    short: "They don't need zcrypt.",
-    size: "one",
-    Vignette: SendVignette,
-  },
-  {
-    key: "spaces",
-    kicker: "Spaces",
-    title: "Spaces for your people.",
-    sentence: "Family photos, house paperwork, the group project nobody else is doing.",
-    short: "Family photos, house paperwork.",
-    size: "one",
-    Vignette: SpacesVignette,
-  },
-  {
-    key: "resume",
-    kicker: "Bad Wi-Fi friendly",
-    title: "Uploads that carry on.",
-    sentence:
-      "Close the laptop, lose the signal, come back later. It picks up where it stopped. Deleted something by mistake? There's a restore button.",
-    short: "Lose the signal, it picks up where it stopped.",
-    size: "wide",
-    Vignette: ResumeVignette,
-  },
+  { key: "drive", size: "hero", Vignette: DriveVignette },
+  { key: "lock", size: "one", Vignette: LockVignette },
+  { key: "share", size: "one", Vignette: ShareVignette },
+  { key: "send", size: "one", Vignette: SendVignette },
+  { key: "spaces", size: "one", Vignette: SpacesVignette },
+  { key: "resume", size: "wide", Vignette: ResumeVignette },
 ];
 
 /** What's inside: six feature tiles, two rows deep on desktop. */
 export function InsideBento() {
+  const t = useTranslations("site");
   const grid = useRef<HTMLDivElement>(null);
   useSpotlight(grid);
 
@@ -123,12 +70,12 @@ export function InsideBento() {
       <div className="pv2-wrap">
         <SectionHead
           id="h-inside"
-          eyebrow="What's inside"
-          title="It works like the drive you already know"
-          lede="It just can't read your stuff."
+          eyebrow={t("home.bento.eyebrow")}
+          title={t("home.bento.title")}
+          lede={t("home.bento.lede")}
         />
         <div ref={grid} className="zc-bento zc-spotlist">
-          {TILES.map(({ key, kicker, title, sentence, short, size, Vignette }) => (
+          {TILES.map(({ key, size, Vignette }) => (
             <article
               key={key}
               className={`zc-tile zc-tile-${key} zc-tile-${size} zc-spot pv2-ring corner-squircle`}
@@ -142,12 +89,12 @@ export function InsideBento() {
                   </div>
                 </div>
                 <div className="zc-tt">
-                  <p className="zc-kick">{kicker}</p>
+                  <p className="zc-kick">{t(`home.bento.tiles.${key}.kicker`)}</p>
                   <h3 id={`zc-b-${key}`} className="zc-bh3">
-                    {title}
+                    {t(`home.bento.tiles.${key}.title`)}
                   </h3>
-                  <p className="zc-sent">{sentence}</p>
-                  <p className="zc-short">{short}</p>
+                  <p className="zc-sent">{t(`home.bento.tiles.${key}.sentence`)}</p>
+                  <p className="zc-short">{t(`home.bento.tiles.${key}.short`)}</p>
                 </div>
               </div>
             </article>

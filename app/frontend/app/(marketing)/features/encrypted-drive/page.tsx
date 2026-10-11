@@ -10,6 +10,7 @@ import { CodePanel } from "@/components/marketing/features/code-panel";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { encryptedDrive } from "../_data/encrypted-drive";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -36,9 +37,9 @@ export const metadata: Metadata = {
 };
 
 const explorerFolders = [
-  { name: "Projects", count: "12 items" },
-  { name: "Photos 2026", count: "248 items" },
-  { name: "Tax & legal", count: "9 items", locked: true },
+  { id: "projects", count: 12 },
+  { id: "photos", count: 248 },
+  { id: "tax", count: 9, locked: true },
 ];
 
 const explorerFiles = [
@@ -72,26 +73,27 @@ export default function EncryptedDrivePage() {
         <MockWindowFrame
           label={
             <>
-              My Vault <ChevronRight className="h-3 w-3" /> Projects
+              <T k="site.features.encryptedDrive.mock.vault" /> <ChevronRight className="h-3 w-3" />{" "}
+              <T k="site.features.encryptedDrive.mock.projects" />
             </>
           }
           badgeIcon={Lock}
-          badgeLabel="Unlocked"
+          badgeLabel={<T k="site.features.encryptedDrive.mock.unlocked" />}
         >
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {explorerFolders.map((f) => (
               <div
-                key={f.name}
+                key={f.id}
                 className="flex items-center gap-2.5 rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]"
               >
                 <Folder className="h-5 w-5 flex-shrink-0 text-cyan-500" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1 truncate text-xs font-medium">
-                    {f.name}
+                    <T k={`site.features.encryptedDrive.mock.${f.id}`} />
                     {f.locked && <Lock className="h-3 w-3 text-amber-500" />}
                   </div>
                   <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                    {f.count}
+                    <T k="site.features.encryptedDrive.mock.items" values={{ n: f.count }} />
                   </div>
                 </div>
               </div>
@@ -132,8 +134,8 @@ export default function EncryptedDrivePage() {
         linkHref={tieIn.linkHref}
         panel={
           <CodePanel
-            comment="// what the server stores"
-            success="✓ folder names sealed · keys never sent · contents encrypted"
+            comment={<T k="site.features.encryptedDrive.panel.comment" />}
+            success={<T k="site.features.encryptedDrive.panel.success" />}
           >
             <div className="break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}

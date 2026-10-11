@@ -1,42 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "@/lib/icons";
 import { useReducedMotion } from "motion/react";
 import { SectionHead } from "../section-head";
 import { STORY_SCENES } from "./story-icons";
 
-type Beat = { n: string; title: string; body: string };
-
-const BEATS: readonly Beat[] = [
-  {
-    n: "01",
-    title: "I ran out of room",
-    body: "Google Drive tapped me on the shoulder at 15 GB and asked for my card. So I made a second account. Then a third. For a week I was splitting one folder across three logins like a low-budget digital smuggler.",
-  },
-  {
-    n: "02",
-    title: "The free terabyte came with fine print",
-    body: "TeraBox said one terabyte, free. What they did not say: the download button is hidden like a state secret, and the fine print treats your files as theirs to scan and learn from.",
-  },
-  {
-    n: "03",
-    title: "Then it failed at 80 percent",
-    body: "I uploaded a 4 GB folder, watched it crawl to 80 percent, and watched it fail. My first thought was not “let me retry”. It was “why am I handing my life to a company whose business is knowing what’s inside it”.",
-  },
-  {
-    n: "04",
-    title: "The price tag was me",
-    body: "Free storage was never free. I just hadn't read the price tag. So I built the one with no limit and nobody reading it.",
-  },
-];
+const BEATS: readonly { n: string }[] = [{ n: "01" }, { n: "02" }, { n: "03" }, { n: "04" }];
 
 const reduceMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** The maker's story as a native, swipeable rail of four cards. */
 export function StoryRail() {
+  const t = useTranslations("site");
   const railRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const still = useReducedMotion();
@@ -160,7 +139,7 @@ export function StoryRail() {
           key={b.n}
           type="button"
           className="zs-seg"
-          aria-label={`Go to part ${i + 1}`}
+          aria-label={t("home.story.goTo", { n: i + 1 })}
           aria-current={i === active ? "step" : undefined}
           data-on={i === active ? "true" : undefined}
           onClick={() => goTo(i)}
@@ -176,8 +155,8 @@ export function StoryRail() {
       <div className="pv2-wrap zs-why-top">
         <SectionHead
           id="h-why"
-          eyebrow="Why this exists"
-          title="Free storage was never free"
+          eyebrow={t("home.story.eyebrow")}
+          title={t("home.story.title")}
           align="left"
           className="zs-why-head"
         />
@@ -187,7 +166,7 @@ export function StoryRail() {
             <button
               type="button"
               className="zs-round"
-              aria-label="Previous part"
+              aria-label={t("home.story.prev")}
               disabled={atStart}
               onClick={() => goTo(active - 1)}
             >
@@ -196,7 +175,7 @@ export function StoryRail() {
             <button
               type="button"
               className="zs-round"
-              aria-label="Next part"
+              aria-label={t("home.story.next")}
               disabled={atEnd}
               onClick={() => goTo(active + 1)}
             >
@@ -210,7 +189,7 @@ export function StoryRail() {
         ref={railRef}
         className="zs-rail"
         role="region"
-        aria-label="The story, in four parts"
+        aria-label={t("home.story.rail")}
         tabIndex={0}
         onKeyDown={onKey}
       >
@@ -231,10 +210,10 @@ export function StoryRail() {
               </div>
               <div className="zs-beat-copy">
                 <h3 id={`zs-beat-${b.n}`} className="zs-beat-h">
-                  <span className="sr-only">Part {i + 1}: </span>
-                  {b.title}
+                  <span className="sr-only">{t("home.story.part", { n: i + 1 })} </span>
+                  {t(`home.story.beats.${i}.title`)}
                 </h3>
-                <p className="zs-beat-p">{b.body}</p>
+                <p className="zs-beat-p">{t(`home.story.beats.${i}.body`)}</p>
               </div>
             </article>
           );
@@ -244,12 +223,12 @@ export function StoryRail() {
       <div className="pv2-wrap">
         <div className="zs-why-mseg">{progress}</div>
         <div className="zs-sign">
-          <p className="zs-sign-line">There is a team. It&apos;s me.</p>
+          <p className="zs-sign-line">{t("home.story.sign")}</p>
           <p className="zs-sign-meta">
             <span className="zs-sign-name">Wosmo</span>
             <span aria-hidden="true"> · </span>
             <Link href="/about" className="zs-link">
-              Read the longer version
+              {t("home.story.longer")}
               <ArrowRight className="size-3.5" />
             </Link>
           </p>

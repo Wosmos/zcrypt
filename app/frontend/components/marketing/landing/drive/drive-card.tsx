@@ -19,6 +19,7 @@ import {
   type Piece,
 } from "./drive-data";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
+import { useDriveText } from "./drive-i18n";
 import { BinTile } from "./bin-tile";
 import { PreviewArt } from "./preview-art";
 import { useCardFlip } from "./use-card-flip";
@@ -58,6 +59,7 @@ function untilt(e: React.PointerEvent<HTMLElement>) {
 }
 
 function YouFace({ item, kind }: { item: CardItem; kind: CardKind }) {
+  const { folder } = useDriveText();
   if (kind === "folder") {
     const fo = item as DriveFolder;
     return (
@@ -65,7 +67,7 @@ function YouFace({ item, kind }: { item: CardItem; kind: CardKind }) {
         <span className="zh-ec-prev zh-ec-prev-fold">
           <FolderTile Glyph={fo.glyph ? PH[fo.glyph] : null} locked={fo.locked} />
         </span>
-        <span className="zh-ec-name zh-ec-name-fold">{fo.name}</span>
+        <span className="zh-ec-name zh-ec-name-fold">{folder(fo.id)}</span>
       </>
     );
   }
@@ -137,15 +139,18 @@ export function DriveCard({
   fresh?: boolean;
   onOpen: OpenFn;
 }) {
+  const { t, folder } = useDriveText();
   const ref = useRef<HTMLDivElement>(null);
   useCardFlip(ref, isGh, index);
   const fo = kind === "folder" ? (item as DriveFolder) : null;
   const size = kind === "file" ? formatBytes((item as DriveFile).size) : "";
   const label = isGh
-    ? `${piece.name}, ${piece.size}`
+    ? t("drive.card.fileLabel", { name: piece.name, size: piece.size })
     : fo
-      ? `${fo.name}, folder${fo.locked ? ", password protected" : ""}`
-      : `${item.name}, ${size}`;
+      ? t(fo.locked ? "drive.card.folderLocked" : "drive.card.folderLabel", {
+          name: folder(fo.id),
+        })
+      : t("drive.card.fileLabel", { name: item.name, size });
 
   return (
     <div
@@ -196,6 +201,7 @@ export function GhOnlyCard({
   more?: string;
   onOpen: (piece: Piece, el: HTMLElement) => void;
 }) {
+  const { t } = useDriveText();
   const ref = useRef<HTMLDivElement>(null);
   useCardFlip(ref, isGh, index, true);
   return (
@@ -203,7 +209,11 @@ export function GhOnlyCard({
       <button
         type="button"
         className="zh-ec-btn"
-        aria-label={more ? `${more} pieces of the same file` : `${piece.name}, ${piece.size}`}
+        aria-label={
+          more
+            ? t("drive.card.morePieces", { more })
+            : t("drive.card.fileLabel", { name: piece.name, size: piece.size })
+        }
         tabIndex={isGh ? 0 : -1}
         onClick={(e) => (more ? undefined : onOpen(piece, e.currentTarget))}
       >
@@ -212,7 +222,9 @@ export function GhOnlyCard({
             <span className="zh-ec-prev">
               <BinTile name={piece.name} more={more} />
             </span>
-            <span className="zh-ec-name zh-ec-mono">{more ? "same file" : piece.name}</span>
+            <span className="zh-ec-name zh-ec-mono">
+              {more ? t("drive.card.sameFile") : piece.name}
+            </span>
             <span className="zh-ec-size">{piece.size}</span>
           </span>
         </span>
@@ -235,6 +247,7 @@ export function DriveRow({
   selectMode?: boolean;
   onOpen: OpenFn;
 }) {
+  const { t, folder, type, mod } = useDriveText();
   if (kind === "folder") {
     const fo = item as DriveFolder;
     const G = fo.glyph ? PH[fo.glyph] : null;
@@ -244,7 +257,9 @@ export function DriveRow({
         className="zh-row"
         data-id={fo.id}
         data-kind="folder"
-        aria-label={`${fo.name}, folder${fo.locked ? ", password protected" : ""}`}
+        aria-label={t(fo.locked ? "drive.card.folderLocked" : "drive.card.folderLabel", {
+          name: folder(fo.id),
+        })}
         onClick={(e) => onOpen(fo, "folder", e.currentTarget, e)}
       >
         <span className="zh-row-ic zh-row-fold" aria-hidden="true">
@@ -259,11 +274,11 @@ export function DriveRow({
             </span>
           ) : null}
         </span>
-        <span className="zh-row-n">{fo.name}</span>
-        <span className="zh-row-t">Folder</span>
+        <span className="zh-row-n">{folder(fo.id)}</span>
+        <span className="zh-row-t">{type("Folder")}</span>
         <span className="zh-row-s">-</span>
         <span className="zh-row-v">-</span>
-        <span className="zh-row-m">Sep 02</span>
+        <span className="zh-row-m">{mod("Sep 02")}</span>
         <span className="zh-row-c" aria-hidden="true">
           <ChevronRight className="h-4 w-4" />
         </span>
@@ -271,7 +286,7 @@ export function DriveRow({
     );
   }
   const fi = item as DriveFile | DroppedFile;
-  const t = typeOf(fi.name);
+  const tp = typeOf(fi.name);
   const Icon = fileIconFor(fi.name);
   const url = isDropped(fi) ? fi.url : null;
   return (
@@ -282,11 +297,11 @@ export function DriveRow({
       data-kind="file"
       data-sel={selected || undefined}
       data-new={isDropped(fi) && fi.fresh ? "" : undefined}
-      aria-label={`${fi.name}, ${formatBytes(fi.size)}`}
+      aria-label={t("drive.card.fileLabel", { name: fi.name, size: formatBytes(fi.size) })}
       aria-pressed={selectMode ? !!selected : undefined}
       onClick={(e) => onOpen(fi, "file", e.currentTarget, e)}
     >
-      <span className={cn("zh-row-ic", t.bg, t.color)} aria-hidden="true">
+      <span className={cn("zh-row-ic", tp.bg, tp.color)} aria-hidden="true">
         {url ? (
           // oxlint-disable-next-line nextjs/no-img-element
           <img src={url} alt="" className="zh-row-img" />
@@ -295,10 +310,10 @@ export function DriveRow({
         )}
       </span>
       <span className="zh-row-n">{fi.name}</span>
-      <span className="zh-row-t">{t.label}</span>
+      <span className="zh-row-t">{type(tp.label)}</span>
       <span className="zh-row-s">{formatBytes(fi.size)}</span>
       <span className={cn("zh-row-v", fi.saved > 0 && "zh-row-pos")}>{fi.saved}%</span>
-      <span className="zh-row-m">{fi.mod}</span>
+      <span className="zh-row-m">{mod(fi.mod)}</span>
       <span className="zh-row-c" />
     </button>
   );

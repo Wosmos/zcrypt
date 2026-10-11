@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { TelegramIcon } from "@/components/icons/telegram";
 import { CheckCircle2, ChevronDown, Upload } from "@/lib/icons";
@@ -8,6 +9,7 @@ import { useDrive } from "./drive-store";
 
 /** The app's Transfers panel, replaying one upload to Telegram. */
 export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
+  const t = useTranslations("site");
   const { state } = useDrive();
   const { upload, uploadItem, uploadAt, uploadMs } = state;
   const fill = useRef<HTMLElement>(null);
@@ -70,8 +72,10 @@ export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
           {running ? <span className="zh-spin" /> : <CheckCircle2 className="zh-dk-ok" />}
         </span>
         <div className="zh-dk-ht">
-          <p className="zh-dk-title">Transfers</p>
-          <p className="zh-dk-sub">{running ? "1 uploading" : "All done"}</p>
+          <p className="zh-dk-title">{t("drive.transfers.title")}</p>
+          <p className="zh-dk-sub">
+            {running ? t("drive.transfers.uploading") : t("drive.transfers.allDone")}
+          </p>
         </div>
         <span className="zh-dk-chev">
           <ChevronDown className="h-4 w-4" />
@@ -99,7 +103,7 @@ export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
             </div>
             <p className="zh-dk-st">
               <span className={cn(!running && "zh-dk-saved")}>
-                {running ? "Uploading..." : "Saved"}
+                {running ? t("drive.transfers.progress") : t("drive.transfers.saved")}
               </span>
               <span className="zh-pchip">
                 <TelegramIcon className="zh-pchip-ic" />

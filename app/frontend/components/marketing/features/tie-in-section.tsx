@@ -14,6 +14,7 @@ export function TieInSection({
   linkHref,
   panel,
   join = false,
+  id: idProp,
 }: {
   eyebrow?: ReactNode;
   heading: ReactNode;
@@ -23,8 +24,9 @@ export function TieInSection({
   linkHref?: string;
   panel: ReactNode;
   join?: boolean;
+  id?: string;
 }) {
-  const id = headId(heading, "tie-in");
+  const id = idProp ?? headId(heading, "tie-in");
   return (
     <section className={cn("pv2-sec", join && "pv2-sec-join")} aria-labelledby={id}>
       <div className="pv2-wrap grid items-center gap-10 lg:grid-cols-2 lg:gap-16">

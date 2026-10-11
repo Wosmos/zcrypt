@@ -14,7 +14,8 @@ import {
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { featuresNav } from "@/lib/data";
-import DocsSearch from "@/components/docs/docs-search-modal";
+import { FeaturesIndexSearch } from "@/components/marketing/features/index-search";
+import { T } from "@/components/i18n/t";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { IconWell, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
@@ -67,40 +68,45 @@ export default function FeaturesPage() {
       />
 
       <PageHero
-        eyebrow="Features"
-        title="Everything the drive does"
-        lede="A real file manager where only you can open what's inside. Here's every part of it, so dig into whichever matters to you."
+        eyebrow={<T k="site.features.index.eyebrow" />}
+        title={<T k="site.features.index.title" />}
+        lede={<T k="site.features.index.lede" />}
       >
         <div className="mx-auto mt-8 max-w-xl">
-          <DocsSearch placeholder="Search features & docs..." />
+          <FeaturesIndexSearch />
         </div>
       </PageHero>
 
       <section className="pv2-sec pv2-sec-join" aria-labelledby="h-all">
         <div className="pv2-wrap">
           <h2 id="h-all" className="sr-only">
-            All features
+            <T k="site.features.index.allFeatures" />
           </h2>
           <ul className="grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {featuresNav.map(({ href, icon, title, desc }) => (
-              <li key={href}>
-                <Link href={href} className={cn(cardSurfaceSm, "group block h-full p-6 sm:p-7")}>
-                  <IconWell icon={ICONS[icon]} />
-                  <h3 className="pv2-h3 mt-5 flex items-center gap-2 text-lg">
-                    {title}
-                    <ArrowRight className="ml-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5" />
-                  </h3>
-                  <p className="pv2-body mt-2">{desc}</p>
-                </Link>
-              </li>
-            ))}
+            {featuresNav.map(({ href, icon }) => {
+              const slug = href.split("/").pop();
+              return (
+                <li key={href}>
+                  <Link href={href} className={cn(cardSurfaceSm, "group block h-full p-6 sm:p-7")}>
+                    <IconWell icon={ICONS[icon]} />
+                    <h3 className="pv2-h3 mt-5 flex items-center gap-2 text-lg">
+                      <T k={`site.chrome.featuresNav.${slug}.title`} />
+                      <ArrowRight className="ml-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5" />
+                    </h3>
+                    <p className="pv2-body mt-2">
+                      <T k={`site.chrome.featuresNav.${slug}.desc`} />
+                    </p>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </section>
 
       <ClosingCta
-        title="Start with a drive you actually own"
-        subtext="Free and open source. Bring a storage account you already have."
+        title={<T k="site.features.index.ctaTitle" />}
+        subtext={<T k="site.features.index.ctaSubtext" />}
       />
     </>
   );

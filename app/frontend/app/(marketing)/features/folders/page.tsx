@@ -10,6 +10,7 @@ import { CodePanel } from "@/components/marketing/features/code-panel";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { folders } from "../_data/folders";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -36,19 +37,42 @@ export const metadata: Metadata = {
 };
 
 const treeLines = [
-  { depth: 0, Icon: FolderOpen, name: "My Vault", meta: "root", open: true },
-  { depth: 1, Icon: Folder, name: "Projects", meta: "12 items" },
-  { depth: 1, Icon: Folder, name: "Photos 2026", meta: "248 items" },
-  { depth: 1, Icon: Lock, name: "Tax & legal", meta: "sealed", locked: true },
+  {
+    depth: 0,
+    Icon: FolderOpen,
+    name: <T k="site.features.folders.mock.root" />,
+    meta: <T k="site.features.folders.mock.rootMeta" />,
+  },
+  {
+    depth: 1,
+    Icon: Folder,
+    name: <T k="site.features.folders.mock.projects" />,
+    meta: <T k="site.features.folders.mock.items" values={{ n: 12 }} />,
+  },
+  {
+    depth: 1,
+    Icon: Folder,
+    name: <T k="site.features.folders.mock.photos" />,
+    meta: <T k="site.features.folders.mock.items" values={{ n: 248 }} />,
+  },
+  {
+    depth: 1,
+    Icon: Lock,
+    name: <T k="site.features.folders.mock.tax" />,
+    meta: <T k="site.features.folders.mock.sealed" />,
+    locked: true,
+  },
   {
     depth: 2,
     Icon: Lock,
     name: "··········",
-    meta: "password required",
+    meta: <T k="site.features.folders.mock.passwordRequired" />,
     locked: true,
     child: true,
   },
 ];
+
+const LEAD = "[&_strong]:font-normal [&_strong]:text-cyan-600/80 dark:[&_strong]:text-cyan-400/80";
 
 export default function FoldersPage() {
   const { hero, capabilitiesSection, capabilities, tieIn, related, cta } = folders;
@@ -74,9 +98,9 @@ export default function FoldersPage() {
         {/* Folder-tree mock */}
         <MockWindowFrame
           maxWidth="max-w-2xl"
-          label="Folder tree"
+          label={<T k="site.features.folders.mock.label" />}
           badgeIcon={Unlock}
-          badgeLabel="Vault unlocked"
+          badgeLabel={<T k="site.features.folders.mock.badge" />}
         >
           <div className="space-y-1.5">
             {treeLines.map((row, i) => (
@@ -102,16 +126,14 @@ export default function FoldersPage() {
                 </div>
                 {row.locked && !row.child && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                    <Lock className="h-2.5 w-2.5" /> Password
+                    <Lock className="h-2.5 w-2.5" /> <T k="site.features.folders.mock.password" />
                   </span>
                 )}
               </div>
             ))}
           </div>
-          <p className="mt-3 px-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-            The vault is open, but{" "}
-            <span className="text-amber-600 dark:text-amber-400">Tax &amp; legal</span> stays sealed
-            until you enter its own password.
+          <p className="mt-3 px-1 text-[11px] leading-relaxed text-[var(--color-text-muted)] [&_em]:not-italic [&_em]:text-amber-600 dark:[&_em]:text-amber-400">
+            <T k="site.features.folders.mock.note" />
           </p>
         </MockWindowFrame>
       </FeatureHero>
@@ -134,23 +156,24 @@ export default function FoldersPage() {
         linkHref={tieIn.linkHref}
         panel={
           <CodePanel
-            comment="// unlocking a protected folder"
-            success="✓ password never sent. key never sent."
+            comment={<T k="site.features.folders.panel.comment" />}
+            success={<T k="site.features.folders.panel.success" />}
           >
-            <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">on device</span> password →
-              derive folder key
+            <div className={LEAD}>
+              <T k="site.features.folders.panel.line1" />
             </div>
-            <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">verify</span> key against
-              sealed marker, locally
+            <div className={"mt-1.5 " + LEAD}>
+              <T k="site.features.folders.panel.line2" />
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}
               7c5b13·f0e2a9·9f2a1c·b8d40e, sealed
             </div>
             <div className="mt-1.5 text-[var(--color-text-muted)]">
-              server receives: <span className="text-amber-500">nothing</span>
+              <T k="site.features.folders.panel.line3" />{" "}
+              <span className="text-amber-500">
+                <T k="site.features.folders.panel.nothing" />
+              </span>
             </div>
           </CodePanel>
         }

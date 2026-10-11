@@ -17,7 +17,8 @@ import { PillLink } from "@/components/marketing/ui/pill-link";
 import { IconWell, MarketingCard, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { WOSMO, WOSMO_SOCIALS, WosmoWordmark } from "@/components/marketing/wosmo";
 import { PersonJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
-import { about } from "./_data/about";
+import { T } from "@/components/i18n/t";
+import { aboutProjects, aboutStack } from "./_data/about";
 import { SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -54,16 +55,16 @@ export default function AboutPage() {
         align="left"
         className={readingWidth}
         badge={<WosmoWordmark className="mb-8 h-8 w-auto text-[var(--color-text)]" />}
-        eyebrow={about.hero.eyebrow}
-        title={about.hero.title}
-        lede={about.hero.subtext}
+        eyebrow={<T k="site.about.hero.eyebrow" />}
+        title={<T k="site.about.hero.title" />}
+        lede={<T k="site.about.hero.subtext" />}
         actions={
           <>
             <PillLink href={WOSMO.portfolio} external>
-              {about.hero.primaryLabel}
+              <T k="site.about.hero.primary" />
             </PillLink>
             <PillLink href={WOSMO.github} external variant="secondary" icon={Github}>
-              {about.hero.secondaryLabel}
+              GitHub
             </PillLink>
           </>
         }
@@ -71,10 +72,14 @@ export default function AboutPage() {
         <div className="mt-8 flex flex-wrap items-center gap-2.5">
           <span className={chip}>
             <MapPin className="h-3.5 w-3.5 text-[var(--pv2-accent-ink)]" />
-            {WOSMO.location}
+            <T k="site.about.chips.location" />
           </span>
-          <span className={chip}>{WOSMO.role}</span>
-          <span className={chip}>Building in the open</span>
+          <span className={chip}>
+            <T k="site.about.chips.role" />
+          </span>
+          <span className={chip}>
+            <T k="site.about.chips.openBuilding" />
+          </span>
         </div>
       </PageHero>
 
@@ -83,46 +88,56 @@ export default function AboutPage() {
           <MarketingCard className="flex flex-col gap-4 p-6 sm:flex-row sm:p-8">
             <IconWell icon={ShieldCheck} />
             <div>
-              <p className="pv2-eyebrow">{about.trust.eyebrow}</p>
+              <p className="pv2-eyebrow">
+                <T k="site.about.trust.eyebrow" />
+              </p>
               <p className="mt-3 text-base leading-relaxed text-[var(--color-text-secondary)] sm:text-lg">
-                {about.trust.body}
+                <T k="site.about.trust.body" />
               </p>
             </div>
           </MarketingCard>
         </Section>
 
-        <ProseSection id="about-origin" eyebrow={about.origin.eyebrow} title={about.origin.heading}>
+        <ProseSection
+          id="about-origin"
+          eyebrow={<T k="site.about.origin.eyebrow" />}
+          title={<T k="site.about.origin.heading" />}
+        >
           <div className={proseBody}>
-            {about.origin.paragraphsBeforeQuote.map((p, i) => (
-              <p key={i}>{p}</p>
+            {["p1", "p2", "p3", "p4", "p5"].map((k) => (
+              <p key={k}>
+                <T k={`site.about.origin.${k}`} />
+              </p>
             ))}
           </div>
-          <PullQuote>{about.origin.pullQuote}</PullQuote>
+          <PullQuote>
+            <T k="site.about.origin.pullQuote" />
+          </PullQuote>
           <div className={proseBody}>
-            {about.origin.paragraphsAfterQuote.map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
+            <p>
+              <T k="site.about.origin.after1" />
+            </p>
           </div>
           <Link
             href="/philosophy"
             className={cn(proseLink, "mt-6 inline-flex items-center gap-1.5 text-sm")}
           >
-            {about.origin.philosophyLinkLabel}
+            <T k="site.about.origin.philosophyLink" />
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </ProseSection>
 
         <ProseSection
           id="about-projects"
-          eyebrow={about.projects.eyebrow}
-          title={about.projects.heading}
+          eyebrow={<T k="site.about.projects.eyebrow" />}
+          title={<T k="site.about.projects.heading" />}
         >
           <p className="text-base leading-relaxed text-[var(--color-text-secondary)]">
-            {about.projects.intro}
+            <T k="site.about.projects.intro" />
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {about.projects.items.map((p) => (
+            {aboutProjects.map((p) => (
               <a
                 key={p.name}
                 href={p.href}
@@ -135,7 +150,7 @@ export default function AboutPage() {
                   <ArrowUpRight className="h-4 w-4 text-[var(--pv2-accent-ink)] opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {p.blurb}
+                  <T k={`site.about.projects.${p.key}`} />
                 </p>
                 <p className="mt-3 font-mono text-[11px] tracking-tight text-[var(--color-text-muted)]">
                   {p.stack}
@@ -150,17 +165,21 @@ export default function AboutPage() {
             rel="noopener noreferrer"
             className={cn(proseLink, "mt-8 inline-flex items-center gap-1.5 text-sm")}
           >
-            {about.projects.portfolioLinkLabel}
+            <T k="site.about.projects.portfolioLink" />
             <ArrowUpRight className="h-3.5 w-3.5" />
           </a>
         </ProseSection>
 
-        <ProseSection id="about-stack" eyebrow={about.stack.eyebrow} title={about.stack.heading}>
+        <ProseSection
+          id="about-stack"
+          eyebrow={<T k="site.about.stack.eyebrow" />}
+          title={<T k="site.about.stack.heading" />}
+        >
           <p className="text-base leading-relaxed text-[var(--color-text-secondary)]">
-            {about.stack.intro}
+            <T k="site.about.stack.intro" />
           </p>
           <div className="mt-6 flex flex-wrap gap-2.5">
-            {about.stack.items.map((tech) => (
+            {aboutStack.map((tech) => (
               <span key={tech} className={chip}>
                 {tech}
               </span>
@@ -173,9 +192,9 @@ export default function AboutPage() {
             <WosmoWordmark className="mx-auto mb-8 h-8 w-auto text-[var(--color-text)]" />
             <SectionHead
               id="about-contact"
-              eyebrow={about.cta.eyebrow}
-              title={about.cta.heading}
-              lede={about.cta.body}
+              eyebrow={<T k="site.about.cta.eyebrow" />}
+              title={<T k="site.about.cta.heading" />}
+              lede={<T k="site.about.cta.body" />}
               className={cn("mb-0!", proseHeadSize)}
             />
             <div className="mt-8 flex flex-wrap justify-center gap-2.5">
@@ -193,7 +212,13 @@ export default function AboutPage() {
                     )}
                   >
                     <Icon className="h-4 w-4" />
-                    {label}
+                    {label === "Portfolio" ? (
+                      <T k="site.chrome.social.portfolio" />
+                    ) : label === "Email" ? (
+                      <T k="site.chrome.social.email" />
+                    ) : (
+                      label
+                    )}
                   </a>
                 );
               })}

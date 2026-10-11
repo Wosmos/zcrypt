@@ -9,6 +9,7 @@ import { SectionHead } from "@/components/marketing/landing/section-head";
 import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
 import { apps } from "../_data/apps";
+import { T } from "@/components/i18n/t";
 import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -79,9 +80,11 @@ export default function AppsPage() {
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">
                 <Globe className="h-7 w-7 text-[var(--pv2-accent-ink)]" />
-                <div className="text-xs font-bold">Web</div>
+                <div className="text-xs font-bold">
+                  <T k="site.features.apps.mock.web" />
+                </div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                  any browser
+                  <T k="site.features.apps.mock.anyBrowser" />
                 </div>
               </div>
             </div>
@@ -98,9 +101,11 @@ export default function AppsPage() {
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">
                 <Monitor className="h-7 w-7 text-[var(--pv2-accent-ink)]" />
-                <div className="text-xs font-bold">Desktop</div>
+                <div className="text-xs font-bold">
+                  <T k="site.features.apps.mock.desktop" />
+                </div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                  macOS · Win · Linux
+                  <T k="site.features.apps.mock.desktopOs" />
                 </div>
               </div>
             </div>
@@ -117,9 +122,11 @@ export default function AppsPage() {
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">
                 <Smartphone className="h-7 w-7 text-emerald-500" />
-                <div className="text-xs font-bold">Android</div>
+                <div className="text-xs font-bold">
+                  <T k="site.features.apps.mock.android" />
+                </div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                  sideload APK
+                  <T k="site.features.apps.mock.sideload" />
                 </div>
               </div>
             </div>
@@ -141,13 +148,13 @@ export default function AppsPage() {
         <div className="pv2-wrap">
           <SectionHead
             id="h-surfaces"
-            eyebrow="Pick your surface"
+            eyebrow={surfacesSection.eyebrow}
             title={surfacesSection.heading}
             lede={surfacesSection.subheading}
           />
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
-            {surfaces.map((s) => (
-              <li key={s.name} className={cn(cardSurfaceSm, "flex flex-col p-6")}>
+            {surfaces.map((s, i) => (
+              <li key={i} className={cn(cardSurfaceSm, "flex flex-col p-6")}>
                 <IconWell icon={s.Icon} className="mb-5" />
                 <div className="flex items-center gap-2">
                   <h3 className="pv2-h3 text-lg">{s.name}</h3>
@@ -160,9 +167,9 @@ export default function AppsPage() {
                 <p className="mt-1 text-xs font-medium text-[var(--pv2-accent-ink)]">{s.tagline}</p>
                 <p className="pv2-body mt-3 text-sm">{s.desc}</p>
                 <ul className="mt-4 space-y-2">
-                  {s.points.map((p) => (
+                  {s.points.map((p, j) => (
                     <li
-                      key={p}
+                      key={j}
                       className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]"
                     >
                       <Check
@@ -191,7 +198,7 @@ export default function AppsPage() {
         <div className="pv2-wrap">
           <SectionHead
             id="h-compare"
-            eyebrow="Side by side"
+            eyebrow={comparisonSection.eyebrow}
             title={comparisonSection.heading}
             lede={comparisonSection.subheading}
           />
@@ -202,25 +209,22 @@ export default function AppsPage() {
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
                   <th className="py-3 pr-4 font-heading text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Surface
+                    <T k="site.features.apps.compare.surface" />
                   </th>
                   <th className="py-3 pr-4 font-heading text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Best for
+                    <T k="site.features.apps.compare.bestFor" />
                   </th>
                   <th className="py-3 pr-4 font-heading text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Install
+                    <T k="site.features.apps.compare.install" />
                   </th>
                   <th className="py-3 font-heading text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Runs on
+                    <T k="site.features.apps.compare.runsOn" />
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {comparison.map((row) => (
-                  <tr
-                    key={row.surface}
-                    className="border-b border-[var(--color-border)] last:border-0"
-                  >
+                {comparison.map((row, i) => (
+                  <tr key={i} className="border-b border-[var(--color-border)] last:border-0">
                     <td className="py-4 pr-4 font-semibold">{row.surface}</td>
                     <td className="py-4 pr-4 text-[var(--color-text-secondary)]">{row.bestFor}</td>
                     <td className="py-4 pr-4 text-[var(--color-text-secondary)]">{row.install}</td>
@@ -232,20 +236,26 @@ export default function AppsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {comparison.map((row) => (
-              <div key={row.surface} className={cn(cardSurfaceSm, "p-5")}>
+            {comparison.map((row, i) => (
+              <div key={i} className={cn(cardSurfaceSm, "p-5")}>
                 <h3 className="pv2-h3 text-base">{row.surface}</h3>
                 <dl className="mt-3 space-y-1.5 text-xs">
                   <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--color-text-muted)]">Best for</dt>
+                    <dt className="text-[var(--color-text-muted)]">
+                      <T k="site.features.apps.compare.bestFor" />
+                    </dt>
                     <dd className="text-right text-[var(--color-text-secondary)]">{row.bestFor}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--color-text-muted)]">Install</dt>
+                    <dt className="text-[var(--color-text-muted)]">
+                      <T k="site.features.apps.compare.install" />
+                    </dt>
                     <dd className="text-right text-[var(--color-text-secondary)]">{row.install}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--color-text-muted)]">Runs on</dt>
+                    <dt className="text-[var(--color-text-muted)]">
+                      <T k="site.features.apps.compare.runsOn" />
+                    </dt>
                     <dd className="text-right text-[var(--color-text-secondary)]">{row.runsOn}</dd>
                   </div>
                 </dl>

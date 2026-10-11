@@ -39,88 +39,34 @@ export const metadata: Metadata = toolMetadata({
 });
 
 const features: ToolFeature[] = [
-  {
-    icon: Lock,
-    title: "Browser encryption",
-    desc: "Files are encrypted with AES-256-GCM before they leave your device. The server never sees your data.",
-  },
-  {
-    icon: Shield,
-    title: "Zero-knowledge",
-    desc: "The encryption key lives only in the share link fragment. We cannot decrypt your files, even if compelled.",
-  },
-  {
-    icon: Clock,
-    title: "Auto-expiry",
-    desc: "Set files to expire after 1 hour, 24 hours, or 7 days. Expired files are permanently deleted.",
-  },
-  {
-    icon: Eye,
-    title: "Burn after read",
-    desc: "Enable one-time access so the file is destroyed after a single download.",
-  },
-  {
-    icon: Zap,
-    title: "No account required",
-    desc: "Send encrypted files instantly. No sign-up, no tracking, no strings attached.",
-  },
-  {
-    icon: Server,
-    title: "Up to 50 MB",
-    desc: "Send files up to 50 MB for free. Need more? Create a free account for larger uploads.",
-  },
+  { icon: Lock, id: "f1" },
+  { icon: Shield, id: "f2" },
+  { icon: Clock, id: "f3" },
+  { icon: Eye, id: "f4" },
+  { icon: Zap, id: "f5" },
+  { icon: Server, id: "f6" },
 ];
 
 export default function SendPublicPage() {
   return (
     <>
-      <ToolHero
-        badgeIcon={Lock}
-        badgeLabel="End-to-end encrypted"
-        titleLead="Send files securely."
-        titleAccent="No account needed."
-        subtitle="Drop a file, get an encrypted link. Your file is encrypted in your browser with AES-256 before upload. The decryption key never touches our servers."
-      />
+      <ToolHero badgeIcon={Lock} base="site.tools.send.hero" />
 
-      {/* Tool */}
       <ToolSection maxWidth="max-w-lg">
         <SendTool />
       </ToolSection>
 
-      {/* How it works */}
       <ToolBand
-        title="How encrypted file sharing works"
-        lede="Three steps. No accounts. No tracking. Your privacy is built into the protocol."
+        id="send-how"
+        titleKey="site.tools.send.how.title"
+        ledeKey="site.tools.send.how.lede"
       >
-        <StepGrid
-          steps={[
-            {
-              step: "1",
-              title: "Drop your file",
-              desc: "Select any file up to 50 MB. It never leaves your browser unencrypted.",
-            },
-            {
-              step: "2",
-              title: "Automatic encryption",
-              desc: "Your file is encrypted with a unique AES-256-GCM key generated in your browser.",
-            },
-            {
-              step: "3",
-              title: "Share the link",
-              desc: "The decryption key is embedded in the URL fragment. Only the recipient can decrypt.",
-            },
-          ]}
-        />
+        <StepGrid base="site.tools.send.how" />
       </ToolBand>
 
-      {/* Features grid */}
-      <FeatureGrid heading="Built for privacy, designed for simplicity" features={features} />
+      <FeatureGrid id="send-features" base="site.tools.send.features" features={features} />
 
-      {/* CTA */}
-      <ToolCta
-        heading="Need more than 50 MB?"
-        description="Create a free zcrypt account for 10 GB of zero-knowledge encrypted cloud storage, larger file transfers, and persistent encrypted notes."
-      />
+      <ToolCta base="site.tools.send.cta" />
     </>
   );
 }

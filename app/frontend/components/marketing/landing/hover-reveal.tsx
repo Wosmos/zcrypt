@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 
 export function HoverReveal() {
+  const t = useTranslations("site");
   const [show, setShow] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -26,7 +28,7 @@ export function HoverReveal() {
             exit={{ opacity: 0 }}
             className="text-xs text-[var(--color-text-muted)] text-center italic"
           >
-            seriously, it&apos;s free. we&apos;re not kidding.
+            {t("home.hoverReveal")}
           </motion.p>
         )}
       </AnimatePresence>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef } from "react";
 import { Eye, EyeOff } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export function ViewToggle({
   size?: "sm" | "lg";
   className?: string;
 }) {
+  const t = useTranslations("site");
   const name = useId();
   const track = useRef<HTMLDivElement>(null);
 
@@ -39,16 +41,11 @@ export function ViewToggle({
     <div
       ref={track}
       role="radiogroup"
-      aria-label="Choose a view"
+      aria-label={t("drive.view.aria")}
       className={cn("zh-tog", size === "lg" && "zh-tog-lg", className)}
     >
       <span className="zh-tog-thumb" aria-hidden="true" />
-      {(
-        [
-          ["you", "Your view"],
-          ["gh", "What we see"],
-        ] as const
-      ).map(([v, label]) => (
+      {(["you", "gh"] as const).map((v) => (
         <label key={v} className="zh-tog-o" data-v={v}>
           <input
             type="radio"
@@ -60,7 +57,7 @@ export function ViewToggle({
           />
           <span className="zh-tog-l">
             {v === "gh" ? <EyeOff className="zh-tog-gh" /> : <Eye className="zh-tog-gh" />}
-            {label}
+            {t(`drive.view.${v}`)}
           </span>
         </label>
       ))}

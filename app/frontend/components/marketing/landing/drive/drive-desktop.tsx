@@ -27,6 +27,7 @@ import {
 } from "@/lib/icons";
 import { cn, fileIconFor, formatBytes } from "@/lib/utils";
 import { COMMIT, countLabel, FOLDERS, README_LINE, REPO } from "./drive-data";
+import { useDriveText } from "./drive-i18n";
 import { DriveRow } from "./drive-card";
 import { FilterMenu } from "./drive-parts";
 import { TransfersDock } from "./transfers-dock";
@@ -34,23 +35,24 @@ import { ExplorerCards, ExplorerOverlays, useRefocus } from "./explorer-shared";
 import { useExplorer } from "./use-explorer";
 
 const NAV = [
-  { icon: Shield, label: "Vault", on: true },
-  { icon: BarChart3, label: "Insights" },
-  { icon: Layers, label: "Spaces" },
+  { icon: Shield, label: "vault", on: true },
+  { icon: BarChart3, label: "insights" },
+  { icon: Layers, label: "spaces" },
 ] as const;
 const ACCOUNT = [
-  { icon: Settings, label: "Settings" },
-  { icon: Trash2, label: "Deleted Files" },
+  { icon: Settings, label: "settings" },
+  { icon: Trash2, label: "deleted" },
 ] as const;
 
 /** The desktop app shell: sidebar, top bar and the explorer panel, with sample data. */
 export function DriveDesktop({ onPick }: { onPick: () => void }) {
   const x = useExplorer();
+  const { t, folder } = useDriveText();
   const { state, dispatch, gh, cards, recent } = x;
   const search = useRef<HTMLInputElement>(null);
   const hint = () => dispatch({ type: "hint" });
   const fo = FOLDERS.find((f) => f.id === state.folder);
-  const count = countLabel(state.view, x.entries, state.dropped, state.folder);
+  const count = countLabel(t, state.view, x.entries, state.dropped, state.folder);
   const list = state.layout === "list" && !gh;
   const refocus = useRefocus(x);
 
@@ -65,12 +67,12 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
         }
       }}
     >
-      <aside className="zh-sb zh-panel zh-dim" aria-label="Sample app sidebar">
+      <aside className="zh-sb zh-panel zh-dim" aria-label={t("drive.desktop.sidebarAria")}>
         <div className="zh-sb-logo">
-          <Logo size="xl" subtitle="Cloud Encrypted Drive" className="zh-sb-full" />
+          <Logo size="xl" subtitle={t("drive.desktop.logoSubtitle")} className="zh-sb-full" />
           <LogoIcon size={40} className="zh-sb-mark" />
         </div>
-        <nav className="zh-sb-nav" aria-label="Sample app sections">
+        <nav className="zh-sb-nav" aria-label={t("drive.desktop.sectionsAria")}>
           {NAV.map(({ icon: I, label, ...r }) => (
             <button
               key={label}
@@ -81,14 +83,14 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
               onClick={() => ("on" in r ? dispatch({ type: "folder", id: null }) : hint())}
             >
               <I className="zh-sb-ic" />
-              <span className="zh-sb-l">{label}</span>
+              <span className="zh-sb-l">{t(`drive.nav.${label}`)}</span>
             </button>
           ))}
-          <p className="zh-sb-group">Account</p>
+          <p className="zh-sb-group">{t("drive.desktop.account")}</p>
           {ACCOUNT.map(({ icon: I, label }) => (
             <button key={label} type="button" className="zh-sb-it" onClick={hint}>
               <I className="zh-sb-ic" />
-              <span className="zh-sb-l">{label}</span>
+              <span className="zh-sb-l">{t(`drive.nav.${label}`)}</span>
             </button>
           ))}
         </nav>
@@ -96,14 +98,14 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
           <span className="zh-sb-store-h">
             <span className="zh-sb-store-l">
               <Database className="h-3.5 w-3.5" />
-              <span>Storage</span>
+              <span>{t("drive.desktop.storage")}</span>
             </span>
             <span className="zh-inf">∞</span>
           </span>
           <span className="zh-sb-bar" aria-hidden="true">
             <i />
           </span>
-          <span className="zh-sb-used">212.4 GB used</span>
+          <span className="zh-sb-used">{t("drive.desktop.used", { size: "212.4 GB" })}</span>
         </button>
         <div className="zh-sb-foot">
           <span className="zh-ibtn" aria-hidden="true">
@@ -114,10 +116,20 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
 
       <div className="zh-col">
         <div className="zh-tb zh-dim">
-          <button type="button" className="zh-bell" aria-label="Notifications" onClick={hint}>
+          <button
+            type="button"
+            className="zh-bell"
+            aria-label={t("drive.desktop.notifications")}
+            onClick={hint}
+          >
             <Bell className="h-5 w-5" />
           </button>
-          <button type="button" className="zh-avatar" aria-label="Account" onClick={hint}>
+          <button
+            type="button"
+            className="zh-avatar"
+            aria-label={t("drive.desktop.account")}
+            onClick={hint}
+          >
             A
           </button>
         </div>
@@ -132,8 +144,8 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                     ref={search}
                     type="search"
                     className="zh-search-in"
-                    placeholder="Search your vault"
-                    aria-label="Search sample files"
+                    placeholder={t("drive.desktop.searchPlaceholder")}
+                    aria-label={t("drive.desktop.searchAria")}
                     value={state.query}
                     disabled={gh}
                     onChange={(e) => dispatch({ type: "query", query: e.target.value })}
@@ -144,19 +156,24 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                 </label>
                 <span className="zh-vlock">
                   <LockKeyOpen className="h-5 w-5" aria-hidden="true" />
-                  <span className="zh-vlock-t">this device</span>
+                  <span className="zh-vlock-t">{t("drive.desktop.thisDevice")}</span>
                 </span>
               </div>
               <div className="zh-hdr-r">
                 <button type="button" className="zh-btn2" onClick={hint}>
                   <FolderAdd className="h-4 w-4" />
-                  <span className="zh-btn-t">New folder</span>
+                  <span className="zh-btn-t">{t("drive.desktop.newFolder")}</span>
                 </button>
                 <button type="button" className="zh-btn1" onClick={onPick} data-pick="">
                   <FileUpload className="h-4 w-4" />
-                  <span className="zh-btn-t">Upload</span>
+                  <span className="zh-btn-t">{t("drive.desktop.upload")}</span>
                 </button>
-                <button type="button" className="zh-btn2 zh-sq" aria-label="Refresh" onClick={hint}>
+                <button
+                  type="button"
+                  className="zh-btn2 zh-sq"
+                  aria-label={t("drive.desktop.refresh")}
+                  onClick={hint}
+                >
                   <RefreshCw className="h-4 w-4" />
                 </button>
               </div>
@@ -164,7 +181,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
 
             <div className="zh-swap zh-rvw">
               <div className="zh-sw" data-for="you" aria-hidden={gh || undefined}>
-                <div className="zh-xlabel">Recently viewed</div>
+                <div className="zh-xlabel">{t("drive.desktop.recent")}</div>
                 <div className="zh-rv-row">
                   {recent.map((r) => {
                     const Icon = fileIconFor(r.name);
@@ -175,7 +192,10 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                         className="zh-rv"
                         data-new={"fresh" in r && r.fresh ? "" : undefined}
                         onClick={(e) => x.openRecent(r, e.currentTarget)}
-                        aria-label={`Open ${r.name}, ${formatBytes(r.size)}`}
+                        aria-label={t("drive.card.openLabel", {
+                          name: r.name,
+                          size: formatBytes(r.size),
+                        })}
                       >
                         <span className="zh-rv-ic">
                           <Icon className="h-4 w-4" />
@@ -203,7 +223,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                 <nav
                   className="zh-sw zh-crumbs"
                   data-for="you"
-                  aria-label="Folder path"
+                  aria-label={t("drive.desktop.folderPath")}
                   aria-hidden={gh || undefined}
                 >
                   {fo ? (
@@ -214,17 +234,17 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                         onClick={() => dispatch({ type: "folder", id: null })}
                       >
                         <Home className="h-3.5 w-3.5" />
-                        <span>My Vault</span>
+                        <span>{t("drive.desktop.myVault")}</span>
                       </button>
                       <ChevronRight className="zh-bc-sep" aria-hidden="true" />
                       <span className="zh-bc" aria-current="page">
-                        {fo.name}
+                        {folder(fo.id)}
                       </span>
                     </>
                   ) : (
                     <span className="zh-bc" aria-current="page">
                       <Home className="h-3.5 w-3.5" />
-                      <span>My Vault</span>
+                      <span>{t("drive.desktop.myVault")}</span>
                     </span>
                   )}
                 </nav>
@@ -238,12 +258,12 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                   <FilterMenu />
                   <button type="button" className="zh-tool zh-tool-auto" onClick={hint}>
                     <LayoutGrid className="h-3.5 w-3.5" />
-                    <span>Auto</span>
+                    <span>{t("drive.desktop.auto")}</span>
                   </button>
                   <span className="zh-seg">
                     <button
                       type="button"
-                      aria-label="List view"
+                      aria-label={t("drive.desktop.listView")}
                       aria-pressed={state.layout === "list"}
                       onClick={() => dispatch({ type: "layout", layout: "list" })}
                     >
@@ -251,7 +271,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                     </button>
                     <button
                       type="button"
-                      aria-label="Grid view"
+                      aria-label={t("drive.desktop.gridView")}
                       aria-pressed={state.layout === "grid"}
                       onClick={() => dispatch({ type: "layout", layout: "grid" })}
                     >
@@ -265,7 +285,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                     onClick={() => dispatch({ type: "selectMode" })}
                   >
                     <CheckSquare className="h-3.5 w-3.5" />
-                    <span className="zh-btn-t">Select</span>
+                    <span className="zh-btn-t">{t("drive.desktop.select")}</span>
                   </button>
                 </div>
                 <div
@@ -275,20 +295,20 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                 >
                   <GitCommit className="h-3.5 w-3.5" />
                   <span className="zh-commit-m">{COMMIT.msg}</span>
-                  <span className="zh-commit-w">{COMMIT.when}</span>
+                  <span className="zh-commit-w">{t("drive.desktop.commitWhen")}</span>
                 </div>
               </div>
             </div>
 
             {list ? (
-              <div className="zh-list" role="group" aria-label="Sample files">
+              <div className="zh-list" role="group" aria-label={t("drive.desktop.sampleFiles")}>
                 <div className="zh-row zh-row-head" aria-hidden="true">
                   <span className="zh-row-ic" />
-                  <span className="zh-row-n">Name</span>
-                  <span className="zh-row-t">Type</span>
-                  <span className="zh-row-s">Size</span>
-                  <span className="zh-row-v">Saved</span>
-                  <span className="zh-row-m">Modified</span>
+                  <span className="zh-row-n">{t("drive.row.name")}</span>
+                  <span className="zh-row-t">{t("drive.row.type")}</span>
+                  <span className="zh-row-s">{t("drive.row.size")}</span>
+                  <span className="zh-row-v">{t("drive.row.saved")}</span>
+                  <span className="zh-row-m">{t("drive.row.modified")}</span>
                   <span className="zh-row-c" />
                 </div>
                 <div ref={x.gridRef} className="zh-list-body">
@@ -311,14 +331,14 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                 ref={x.gridRef}
                 className={cn("zh-grid", state.extra && "zh-grid-extra")}
                 role="group"
-                aria-label="Sample files"
+                aria-label={t("drive.desktop.sampleFiles")}
                 data-select={state.selectMode || undefined}
               >
                 <ExplorerCards x={x} />
               </div>
             )}
             {!gh && cards.every((c) => c.hidden) ? (
-              <p className="zh-empty">Nothing here matches. Try another word.</p>
+              <p className="zh-empty">{t("drive.desktop.empty")}</p>
             ) : null}
             <p className="zh-count">{count}</p>
           </div>

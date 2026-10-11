@@ -1,46 +1,37 @@
 import type { ReactNode } from "react";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { IconWell, MarketingCard } from "@/components/marketing/ui/card";
-import { SectionHead, headId } from "@/components/marketing/landing/section-head";
-import { ClosingCta } from "@/components/marketing/landing/closing-cta";
+import { SectionHead } from "@/components/marketing/landing/section-head";
+import { T } from "@/components/i18n/t";
+import { ToolCtaBlock } from "@/components/tools/tool-cta";
 import { cn } from "@/lib/utils";
 
 type ToolIcon = typeof import("@/lib/icons")["File"];
 
 export interface ToolFeature {
   icon: ToolIcon;
-  title: string;
-  desc: string;
+  id: string;
 }
 
-export function ToolHero({
-  badgeIcon: BadgeIcon,
-  badgeLabel,
-  titleLead,
-  titleAccent,
-  subtitle,
-}: {
-  badgeIcon: ToolIcon;
-  badgeLabel: string;
-  titleLead: string;
-  titleAccent: string;
-  subtitle: string;
-}) {
+export function ToolHero({ badgeIcon: BadgeIcon, base }: { badgeIcon: ToolIcon; base: string }) {
   return (
     <PageHero
       badge={
         <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs font-medium text-[var(--color-text-muted)]">
           <BadgeIcon className="h-3 w-3 text-[var(--color-accent)]" />
-          {badgeLabel}
+          <T k={`${base}.badge`} />
         </span>
       }
       title={
         <>
-          {titleLead} <span className="text-[var(--color-accent)]">{titleAccent}</span>
+          <T k={`${base}.titleLead`} />{" "}
+          <span className="text-[var(--color-accent)]">
+            <T k={`${base}.titleAccent`} />
+          </span>
         </>
       }
       accent={false}
-      lede={subtitle}
+      lede={<T k={`${base}.subtitle`} />}
     />
   );
 }
@@ -55,57 +46,77 @@ export function ToolSection({ maxWidth, children }: { maxWidth: string; children
   );
 }
 
-export interface ToolStep {
-  step: string;
-  title: string;
-  desc: string;
-}
-
 export function ToolBand({
-  title,
-  lede,
+  id,
+  titleKey,
+  ledeKey,
+  accent,
   children,
 }: {
-  title: string;
-  lede?: string;
+  id: string;
+  titleKey: string;
+  ledeKey?: string;
+  accent?: string | false;
   children: ReactNode;
 }) {
-  const id = headId(title);
   return (
     <section className="pv2-sec" aria-labelledby={id}>
       <div className="pv2-wrap">
-        <SectionHead id={id} title={title} lede={lede} />
+        <SectionHead
+          id={id}
+          title={<T k={titleKey} />}
+          lede={ledeKey ? <T k={ledeKey} /> : undefined}
+          accent={accent}
+        />
         {children}
       </div>
     </section>
   );
 }
 
-export function StepGrid({ steps }: { steps: ToolStep[] }) {
+export function StepGrid({ base }: { base: string }) {
   return (
     <ol className="grid list-none grid-cols-1 gap-4 md:grid-cols-3">
-      {steps.map((s) => (
-        <MarketingCard key={s.step} as="li" size="sm" className="p-6 sm:p-7">
+      {["1", "2", "3"].map((n) => (
+        <MarketingCard key={n} as="li" size="sm" className="p-6 sm:p-7">
           <span className="pv2-ic corner-squircle text-lg font-bold" aria-hidden="true">
-            {s.step}
+            {n}
           </span>
-          <h3 className="pv2-h3 mt-5">{s.title}</h3>
-          <p className="pv2-body mt-2">{s.desc}</p>
+          <h3 className="pv2-h3 mt-5">
+            <T k={`${base}.s${n}.title`} />
+          </h3>
+          <p className="pv2-body mt-2">
+            <T k={`${base}.s${n}.desc`} />
+          </p>
         </MarketingCard>
       ))}
     </ol>
   );
 }
 
-export function FeatureGrid({ heading, features }: { heading: string; features: ToolFeature[] }) {
+export function FeatureGrid({
+  id,
+  base,
+  accent,
+  features,
+}: {
+  id: string;
+  base: string;
+  accent?: string | false;
+  features: ToolFeature[];
+}) {
   return (
-    <ToolBand title={heading}>
+    <ToolBand id={id} titleKey={`${base}.heading`} accent={accent}>
       <ul className="grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((f) => (
-          <MarketingCard key={f.title} as="li" size="sm" className="p-6 sm:p-7">
+          <MarketingCard key={f.id} as="li" size="sm" className="p-6 sm:p-7">
             <IconWell icon={f.icon} />
-            <h3 className="pv2-h3 mt-5">{f.title}</h3>
-            <p className="pv2-body mt-2">{f.desc}</p>
+            <h3 className="pv2-h3 mt-5">
+              <T k={`${base}.${f.id}.title`} />
+            </h3>
+            <p className="pv2-body mt-2">
+              <T k={`${base}.${f.id}.desc`} />
+            </p>
           </MarketingCard>
         ))}
       </ul>
@@ -113,12 +124,6 @@ export function FeatureGrid({ heading, features }: { heading: string; features: 
   );
 }
 
-export function ToolCta({ heading, description }: { heading: string; description: string }) {
-  return (
-    <ClosingCta
-      title={heading}
-      subtext={description}
-      secondary={{ href: "/features", label: "See features" }}
-    />
-  );
+export function ToolCta({ base }: { base: string }) {
+  return <ToolCtaBlock base={base} />;
 }

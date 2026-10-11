@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { PillLink } from "@/components/marketing/ui/pill-link";
+import { T } from "@/components/i18n/t";
 
 /** PageHero with the standard pair of CTAs used by every features/* page. */
 export function FeatureHero({
@@ -12,8 +13,8 @@ export function FeatureHero({
   trustLine,
   children,
 }: {
-  eyebrow: string;
-  title: string;
+  eyebrow: ReactNode;
+  title: ReactNode;
   subtext: ReactNode;
   secondaryLabel: ReactNode;
   secondaryHref: string;
@@ -28,7 +29,9 @@ export function FeatureHero({
       note={trustLine}
       actions={
         <>
-          <PillLink href="/register">Start free</PillLink>
+          <PillLink href="/register">
+            <T k="site.features.common.startFree" />
+          </PillLink>
           <PillLink href={secondaryHref} variant="secondary" arrow>
             {secondaryLabel}
           </PillLink>

@@ -23,6 +23,7 @@ import { IconWell, cardSurface } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { transfers } from "../_data/transfers";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -53,28 +54,28 @@ const queue = [
   {
     Icon: Upload,
     name: "q4-research.tar.zst",
-    stage: "Encrypting · chunk 18/24",
+    stage: "encrypting",
     pct: 74,
     state: "active" as const,
   },
   {
     Icon: Upload,
     name: "design-system.fig",
-    stage: "Paused · 41% complete",
+    stage: "paused",
     pct: 41,
     state: "paused" as const,
   },
   {
     Icon: Download,
     name: "photos-2026.zip",
-    stage: "Downloading · decrypting",
+    stage: "downloading",
     pct: 56,
     state: "active" as const,
   },
   {
     Icon: Archive,
     name: "tax-documents.zip",
-    stage: "Done",
+    stage: "done",
     pct: 100,
     state: "done" as const,
   },
@@ -85,6 +86,8 @@ const stateStyles: Record<string, string> = {
   paused: "bg-amber-500",
   done: "bg-emerald-500",
 };
+
+const LEAD = "[&_strong]:font-normal [&_strong]:text-cyan-600/80 dark:[&_strong]:text-cyan-400/80";
 
 export default function TransfersPage() {
   const { hero, capabilitiesSection, capabilities, tieIn, deviceToDevice, related, cta } =
@@ -119,9 +122,11 @@ export default function TransfersPage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-500/60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
               </span>
-              <span className="text-sm font-semibold">Transfers</span>
+              <span className="text-sm font-semibold">
+                <T k="site.features.transfers.mock.title" />
+              </span>
               <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                2 active · 1 paused
+                <T k="site.features.transfers.mock.summary" />
               </span>
               <ChevronDown className="ml-auto h-4 w-4 text-[var(--color-text-muted)]" />
             </>
@@ -149,7 +154,7 @@ export default function TransfersPage() {
                   />
                 </div>
                 <div className="mt-1.5 font-mono text-[10px] text-[var(--color-text-muted)]">
-                  {q.stage}
+                  <T k={`site.features.transfers.mock.${q.stage}`} />
                 </div>
               </div>
             ))}
@@ -181,14 +186,15 @@ export default function TransfersPage() {
         linkHref={tieIn.linkHref}
         panel={
           <CodePanel
-            comment="// resuming a paused 24-chunk upload"
-            success="✓ complete, 18 chunks never re-sent"
+            comment={<T k="site.features.transfers.panel.comment" />}
+            success={<T k="site.features.transfers.panel.success" />}
           >
-            <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">session</span> reused, same
-              content key
+            <div className={LEAD}>
+              <T k="site.features.transfers.panel.line1" />
             </div>
-            <div className="mt-1.5 text-emerald-500">chunk[0..17] already on server → skipped</div>
+            <div className="mt-1.5 text-emerald-500">
+              <T k="site.features.transfers.panel.line2" />
+            </div>
             <div className="mt-1.5">
               chunk[18] encrypt → upload{" "}
               <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span>
@@ -230,7 +236,7 @@ export default function TransfersPage() {
               <div className="flex items-center justify-center border-t border-[var(--color-border)] bg-[var(--color-bg)]/60 p-8 md:border-l md:border-t-0">
                 <div className="w-full max-w-[240px] text-center">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Pairing code
+                    <T k="site.features.transfers.d2d.pairingCode" />
                   </div>
                   <div className="mt-3 flex justify-center gap-1.5">
                     {["4", "8", "2", "1", "0", "7"].map((d, i) => (
@@ -244,7 +250,7 @@ export default function TransfersPage() {
                   </div>
                   <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-cyan-600 dark:text-cyan-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
-                    Waiting for peer…
+                    <T k="site.features.transfers.d2d.waiting" />
                   </div>
                 </div>
               </div>

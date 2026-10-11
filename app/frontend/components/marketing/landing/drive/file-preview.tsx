@@ -5,6 +5,7 @@ import { ScrollTrigger } from "@/components/marketing/landing/gsap";
 import { ChevronLeft, ChevronRight, Download, FileText, Maximize, Minimize, X } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { kindOf, typeOf, type View } from "./drive-data";
+import { useDriveText } from "./drive-i18n";
 import { trapFocus } from "./drive-parts";
 import {
   AudioBody,
@@ -20,8 +21,6 @@ import {
 
 const EMPH = "cubic-bezier(0.05, 0.7, 0.1, 1)";
 const EXIT = "cubic-bezier(0.3, 0, 0.8, 0.15)";
-const DROPPED_LINE =
-  "This is your file, and it stayed on your device. Sign up to open it right here.";
 
 function focusables(root: HTMLElement) {
   return Array.from(
@@ -47,6 +46,7 @@ export function FilePreview({
   mode: View;
   toast: (msg: string) => void;
 }) {
+  const { t: tr, type } = useDriveText();
   const ref = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -142,7 +142,8 @@ export function FilePreview({
   if (gh) body = <HexBody file={file} />;
   else if (kind === "image" && (file.url || file.art))
     body = <ImageBody key={file.id} file={file} />;
-  else if (file.dropped) body = <FallbackBody file={file} toast={toast} line={DROPPED_LINE} />;
+  else if (file.dropped)
+    body = <FallbackBody file={file} toast={toast} line={tr("drive.preview.droppedLine")} />;
   else if (kind === "pdf") body = <PdfBody key={file.id} file={file} toast={toast} />;
   else if (kind === "docx") body = <DocBody />;
   else if (kind === "video") body = <VideoBody key={file.id} file={file} />;
@@ -168,7 +169,7 @@ export function FilePreview({
           <div id={titleId} className={cn("zh-pv-name", gh && "font-mono")}>
             {file.name}
           </div>
-          <div className="zh-pv-type">{gh ? "Binary" : t.label}</div>
+          <div className="zh-pv-type">{gh ? tr("drive.preview.binary") : type(t.label)}</div>
         </div>
         {files.length > 1 ? (
           <span className="zh-pv-n">
@@ -179,7 +180,7 @@ export function FilePreview({
           <button
             type="button"
             className="zh-pv-ib"
-            aria-label={full ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={full ? tr("drive.preview.exitFullscreen") : tr("drive.preview.fullscreen")}
             aria-pressed={full}
             onClick={() => setFull((v) => !v)}
           >
@@ -188,8 +189,8 @@ export function FilePreview({
           <button
             type="button"
             className="zh-pv-ib"
-            aria-label="Download"
-            onClick={() => toast("Downloads work after you sign up.")}
+            aria-label={tr("drive.preview.download")}
+            onClick={() => toast(tr("drive.preview.dl"))}
           >
             <Download className="h-4 w-4" />
           </button>
@@ -197,7 +198,7 @@ export function FilePreview({
             ref={closeBtn}
             type="button"
             className="zh-pv-ib"
-            aria-label="Close"
+            aria-label={tr("drive.dialog.close")}
             onClick={close}
           >
             <X className="h-4 w-4" />
@@ -210,7 +211,7 @@ export function FilePreview({
             <button
               type="button"
               className="zh-pv-nav zh-pv-prev"
-              aria-label="Previous"
+              aria-label={tr("drive.preview.previous")}
               onClick={() => step(-1)}
             >
               <ChevronLeft className="h-5 w-5" />
@@ -218,7 +219,7 @@ export function FilePreview({
             <button
               type="button"
               className="zh-pv-nav zh-pv-next"
-              aria-label="Next"
+              aria-label={tr("drive.preview.next")}
               onClick={() => step(1)}
             >
               <ChevronRight className="h-5 w-5" />
@@ -229,7 +230,7 @@ export function FilePreview({
           {loading ? (
             <div className="zh-pv-load" role="status">
               <span className="zh-spin zh-spin-lg" aria-hidden="true" />
-              <span className="zh-pv-load-t">Opening...</span>
+              <span className="zh-pv-load-t">{tr("drive.preview.opening")}</span>
               <span className="zh-pv-load-bar" aria-hidden="true">
                 <i />
               </span>

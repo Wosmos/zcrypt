@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, FileUpload, Filter, Lock, X } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { FILTERS, FOLDERS, type FilterKey } from "./drive-data";
+import { useDriveText } from "./drive-i18n";
 import { useDrive } from "./drive-store";
 
 /** Keeps Tab and Shift+Tab cycling inside `list`. */
@@ -30,6 +32,7 @@ function trap(e: React.KeyboardEvent<HTMLElement>, root: HTMLElement | null) {
 
 /** The app's "Unlock protected folder" dialog. Any password works here. */
 export function UnlockDialog({ onDone }: { onDone: () => void }) {
+  const { t, folder: folderName } = useDriveText();
   const { state, dispatch } = useDrive();
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -82,7 +85,10 @@ export function UnlockDialog({ onDone }: { onDone: () => void }) {
           setBusy(true);
           timer.current = window.setTimeout(() => {
             dispatch({ type: "folder", id: folder.id });
-            dispatch({ type: "announce", msg: `Opened ${folder.name}.` });
+            dispatch({
+              type: "announce",
+              msg: t("drive.live.opened", { name: folderName(folder.id) }),
+            });
             onDone();
           }, 520);
         }}
@@ -93,13 +99,18 @@ export function UnlockDialog({ onDone }: { onDone: () => void }) {
           </span>
           <div className="zh-dlg-ht">
             <div id={titleId} className="zh-dlg-t">
-              Unlock protected folder
+              {t("drive.dialog.title")}
             </div>
             <p id={subId} className="zh-dlg-sub">
-              Enter the password for “{folder.name}”
+              {t("drive.dialog.sub", { name: folderName(folder.id) })}
             </p>
           </div>
-          <button type="button" className="zh-dlg-x" aria-label="Close" onClick={close}>
+          <button
+            type="button"
+            className="zh-dlg-x"
+            aria-label={t("drive.dialog.close")}
+            onClick={close}
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -107,19 +118,19 @@ export function UnlockDialog({ onDone }: { onDone: () => void }) {
           ref={input}
           type="password"
           className="zh-dlg-in"
-          placeholder="Folder password"
-          aria-label="Folder password"
+          placeholder={t("drive.dialog.password")}
+          aria-label={t("drive.dialog.password")}
           autoComplete="off"
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />
-        <p className="zh-dlg-help">Any password works in this demo.</p>
+        <p className="zh-dlg-help">{t("drive.dialog.help")}</p>
         <div className="zh-dlg-a">
           <button type="button" className="zh-db2" onClick={close}>
-            Cancel
+            {t("drive.dialog.cancel")}
           </button>
           <button type="submit" className="zh-db1" disabled={!value || busy}>
-            {busy ? "Verifying..." : "Unlock"}
+            {busy ? t("drive.dialog.verifying") : t("drive.dialog.unlock")}
           </button>
         </div>
       </form>
@@ -129,12 +140,13 @@ export function UnlockDialog({ onDone }: { onDone: () => void }) {
 
 /** The bottom-centre toast that answers anything the replica cannot do. */
 export function HintToast() {
+  const t = useTranslations("site");
   const { state } = useDrive();
   return (
     <div className="zh-toast-wrap" role="status" aria-live="polite">
       {state.hint ? (
         <p key={state.hint.n} className="zh-toast">
-          {state.hint.msg}
+          {state.hint.msg ?? t("drive.hint")}
         </p>
       ) : null}
     </div>
@@ -142,11 +154,12 @@ export function HintToast() {
 }
 
 export function DropOverlay() {
+  const t = useTranslations("site");
   return (
     <div className="zh-drop" aria-hidden="true">
       <div className="zh-drop-box">
         <FileUpload className="h-8 w-8" />
-        <p>Drop files to upload</p>
+        <p>{t("drive.drop")}</p>
       </div>
     </div>
   );
@@ -154,6 +167,7 @@ export function DropOverlay() {
 
 /** The explorer toolbar's filter menu. */
 export function FilterMenu({ className }: { className?: string }) {
+  const t = useTranslations("site");
   const { state, dispatch } = useDrive();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -209,20 +223,22 @@ export function FilterMenu({ className }: { className?: string }) {
         onClick={() => setOpen((v) => !v)}
       >
         <Filter className="h-3.5 w-3.5" />
-        {state.filter ? FILTERS.find((f) => f.key === state.filter)?.label : "Filter"}
+        {state.filter
+          ? t(`drive.filters.${FILTERS.find((f) => f.key === state.filter)?.id}`)
+          : t("drive.filter.button")}
       </button>
       {open ? (
-        <div id={menuId} role="menu" aria-label="Filter by type" className="zh-menu">
+        <div id={menuId} role="menu" aria-label={t("drive.filter.menu")} className="zh-menu">
           {FILTERS.map((f) => (
             <button
-              key={f.label}
+              key={f.id}
               type="button"
               role="menuitemradio"
               aria-checked={state.filter === f.key}
               className="zh-menu-it"
               onClick={() => pick(f.key)}
             >
-              {f.label}
+              {t(`drive.filters.${f.id}`)}
               {state.filter === f.key ? <Check className="h-3.5 w-3.5" /> : null}
             </button>
           ))}

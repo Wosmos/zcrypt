@@ -16,6 +16,7 @@ import {
 } from "@/lib/icons";
 import { cn, fileIconFor, formatBytes } from "@/lib/utils";
 import { seededHex, typeOf, type ArtKey } from "./drive-data";
+import { useDriveText } from "./drive-i18n";
 import { PreviewArt } from "./preview-art";
 
 export type PreviewFile = {
@@ -32,8 +33,6 @@ export type PreviewFile = {
 };
 
 type Toast = (msg: string) => void;
-
-const DL = "Downloads work after you sign up.";
 
 function Tool({
   label,
@@ -60,6 +59,7 @@ function Tool({
 }
 
 export function ImageBody({ file }: { file: PreviewFile }) {
+  const { t } = useDriveText();
   const [zoom, setZoom] = useState(100);
   const [rot, setRot] = useState(0);
   return (
@@ -80,7 +80,7 @@ export function ImageBody({ file }: { file: PreviewFile }) {
       </div>
       <div className="zh-pv-pill">
         <Tool
-          label="Zoom out"
+          label={t("drive.body.zoomOut")}
           onClick={() => setZoom((z) => Math.max(50, z - 25))}
           disabled={zoom <= 50}
         >
@@ -90,18 +90,18 @@ export function ImageBody({ file }: { file: PreviewFile }) {
           {zoom}%
         </span>
         <Tool
-          label="Zoom in"
+          label={t("drive.body.zoomIn")}
           onClick={() => setZoom((z) => Math.min(300, z + 25))}
           disabled={zoom >= 300}
         >
           <ZoomIn className="h-4 w-4" />
         </Tool>
         <span className="zh-pv-div" aria-hidden="true" />
-        <Tool label="Rotate" onClick={() => setRot((r) => r + 90)}>
+        <Tool label={t("drive.body.rotate")} onClick={() => setRot((r) => r + 90)}>
           <RotateCw className="h-4 w-4" />
         </Tool>
         <Tool
-          label="Fit to screen"
+          label={t("drive.body.fit")}
           onClick={() => {
             setZoom(100);
             setRot(0);
@@ -138,6 +138,8 @@ function PageSkeleton({ first, passport }: { first: boolean; passport?: boolean 
 }
 
 export function PdfBody({ file, toast }: { file: PreviewFile; toast: Toast }) {
+  const { t } = useDriveText();
+  const DL = t("drive.preview.dl");
   const n = file.pages ?? 2;
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(100);
@@ -164,7 +166,7 @@ export function PdfBody({ file, toast }: { file: PreviewFile; toast: Toast }) {
         </span>
         <span className="zh-pv-bar-g">
           <Tool
-            label="Zoom out"
+            label={t("drive.body.zoomOut")}
             onClick={() => setZoom((z) => Math.max(50, z - 25))}
             disabled={zoom <= 50}
           >
@@ -172,7 +174,7 @@ export function PdfBody({ file, toast }: { file: PreviewFile; toast: Toast }) {
           </Tool>
           <span className="zh-pv-pct">{zoom}%</span>
           <Tool
-            label="Zoom in"
+            label={t("drive.body.zoomIn")}
             onClick={() => setZoom((z) => Math.min(200, z + 25))}
             disabled={zoom >= 200}
           >
@@ -180,10 +182,10 @@ export function PdfBody({ file, toast }: { file: PreviewFile; toast: Toast }) {
           </Tool>
         </span>
         <span className="zh-pv-bar-g">
-          <Tool label="Open in new tab" onClick={() => toast(DL)}>
+          <Tool label={t("drive.body.openTab")} onClick={() => toast(DL)}>
             <ExternalLink className="h-4 w-4" />
           </Tool>
-          <Tool label="Download" onClick={() => toast(DL)}>
+          <Tool label={t("drive.preview.download")} onClick={() => toast(DL)}>
             <Download className="h-4 w-4" />
           </Tool>
         </span>
@@ -200,11 +202,12 @@ export function PdfBody({ file, toast }: { file: PreviewFile; toast: Toast }) {
 }
 
 export function DocBody() {
+  const { t } = useDriveText();
   return (
     <div className="zh-pv-col zh-pv-doc">
       <div className="zh-pv-pages">
         <div className="zh-pv-page">
-          <span className="zh-pv-title">Thesis, final (v9)</span>
+          <span className="zh-pv-title">{t("drive.body.thesis")}</span>
           <span className="zh-pv-sub" />
           {LINE_W.slice(0, 6).map((w, i) => (
             <span key={i} className="zh-pv-ln" style={{ width: `${w}%` }} />
@@ -262,6 +265,7 @@ function useFakePlay() {
 }
 
 export function VideoBody({ file }: { file: PreviewFile }) {
+  const { t } = useDriveText();
   const { playing, p, toggle } = useFakePlay();
   const total = secs(file.duration);
   return (
@@ -269,7 +273,12 @@ export function VideoBody({ file }: { file: PreviewFile }) {
       <div className="zh-pv-vid-box">
         {file.art ? <PreviewArt art={file.art} wide className="zh-pv-vid-art" /> : null}
         {!playing ? (
-          <button type="button" className="zh-pv-bigplay" aria-label="Play" onClick={toggle}>
+          <button
+            type="button"
+            className="zh-pv-bigplay"
+            aria-label={t("drive.body.play")}
+            onClick={toggle}
+          >
             <Play className="h-7 w-7" />
           </button>
         ) : null}
@@ -277,7 +286,7 @@ export function VideoBody({ file }: { file: PreviewFile }) {
           <button
             type="button"
             className="zh-pv-tool zh-pv-tool-l"
-            aria-label={playing ? "Pause" : "Play"}
+            aria-label={playing ? t("drive.body.pause") : t("drive.body.play")}
             onClick={toggle}
           >
             {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -301,6 +310,7 @@ export function VideoBody({ file }: { file: PreviewFile }) {
 }
 
 export function AudioBody({ file }: { file: PreviewFile }) {
+  const { t } = useDriveText();
   const { playing, p, toggle } = useFakePlay();
   const total = secs(file.duration);
   const bars = Array.from({ length: 40 }, (_, i) => {
@@ -308,10 +318,10 @@ export function AudioBody({ file }: { file: PreviewFile }) {
     return 0.22 + 0.78 * Math.abs(Math.sin(i * 0.55)) * (0.55 + 0.45 * v);
   });
   const Icon = fileIconFor(file.name);
-  const t = typeOf(file.name);
+  const tp = typeOf(file.name);
   return (
     <div className="zh-pv-aud">
-      <span className={cn("zh-pv-aud-ic", t.bg, t.color)}>
+      <span className={cn("zh-pv-aud-ic", tp.bg, tp.color)}>
         <Icon className="h-8 w-8" />
       </span>
       <p className="zh-pv-fname">{file.name}</p>
@@ -324,7 +334,7 @@ export function AudioBody({ file }: { file: PreviewFile }) {
         <button
           type="button"
           className="zh-pv-play"
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? t("drive.body.pause") : t("drive.body.play")}
           onClick={toggle}
         >
           {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
@@ -337,14 +347,10 @@ export function AudioBody({ file }: { file: PreviewFile }) {
   );
 }
 
-const NOTES = [
-  "Meeting notes, Tuesday",
-  "- Agreed the budget is a suggestion.",
-  "- Nobody took notes except me.",
-  "- Next meeting: same time, fewer slides.",
-];
+const NOTES = ["0", "1", "2", "3"];
 
 export function TextBody() {
+  const { t } = useDriveText();
   return (
     <div className="zh-pv-text">
       <pre className="zh-pv-pre">
@@ -353,7 +359,7 @@ export function TextBody() {
             <span className="zh-pv-ln-n" aria-hidden="true">
               {i + 1}
             </span>
-            {l}
+            {t(`drive.body.notes.${l}`)}
           </span>
         ))}
       </pre>
@@ -370,29 +376,32 @@ export function FallbackBody({
   toast: Toast;
   line?: string;
 }) {
+  const { t, type } = useDriveText();
+  const DL = t("drive.preview.dl");
   const Icon = fileIconFor(file.name);
-  const t = typeOf(file.name);
+  const tp = typeOf(file.name);
   return (
     <div className="zh-pv-fb">
-      <span className={cn("zh-pv-fb-ic corner-squircle", t.bg, t.color)}>
+      <span className={cn("zh-pv-fb-ic corner-squircle", tp.bg, tp.color)}>
         <Icon className="h-9 w-9" />
       </span>
       <div className="zh-pv-fb-t">
         <p className="zh-pv-fname">{file.name}</p>
         <p className="zh-pv-fmeta">
-          {t.label} · {formatBytes(file.size)}
+          {type(tp.label)} · {formatBytes(file.size)}
         </p>
-        <p className="zh-pv-fline">{line ?? "No preview available for this file type."}</p>
+        <p className="zh-pv-fline">{line ?? t("drive.body.noPreview")}</p>
       </div>
       <button type="button" className="zh-pv-dl" onClick={() => toast(DL)}>
         <Download className="h-4 w-4" />
-        Download
+        {t("drive.preview.download")}
       </button>
     </div>
   );
 }
 
 export function HexBody({ file }: { file: PreviewFile }) {
+  const { t } = useDriveText();
   const seed = Number.parseInt(file.name.replace(/[^0-9a-f]/g, "").slice(0, 8) || "1", 16);
   const rows = Array.from({ length: 24 }, (_, r) => {
     const hex = seededHex(seed + r * 977, 32);
@@ -404,9 +413,9 @@ export function HexBody({ file }: { file: PreviewFile }) {
       <div className="zh-pv-hex-h">
         <span className="zh-pv-hex-n">{file.name}</span>
         <span>{file.sizeLabel ?? "10.0 MB"}</span>
-        <span>binary</span>
+        <span>{t("drive.body.hexBinary")}</span>
       </div>
-      <pre className="zh-pv-hex-pre" aria-label="Random bytes">
+      <pre className="zh-pv-hex-pre" aria-label={t("drive.body.hexAria")}>
         {rows.map((r) => (
           <span key={r.off} className="zh-pv-hex-r">
             <span className="zh-pv-hex-o">{r.off}</span>
@@ -416,7 +425,7 @@ export function HexBody({ file }: { file: PreviewFile }) {
           </span>
         ))}
       </pre>
-      <p className="zh-pv-hex-cap">Random bytes. Without your password, this is all anyone gets.</p>
+      <p className="zh-pv-hex-cap">{t("drive.body.hexCaption")}</p>
     </div>
   );
 }

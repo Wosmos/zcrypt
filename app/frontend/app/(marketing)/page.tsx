@@ -51,7 +51,7 @@ export default function HomePage() {
       <PriceZero />
       <QuoteMarquee />
       <Faq />
-      <ClosingCta id="start" label="Start free" className="pb-12" />
+      <ClosingCta id="start" className="pb-12" />
       <StickyCta />
       <ScrollRefresh />
       <OffscreenPause />

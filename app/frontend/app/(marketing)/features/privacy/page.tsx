@@ -22,6 +22,7 @@ import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { privacy } from "../_data/privacy";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -82,6 +83,7 @@ export default function PrivacyToolsPage() {
 
       {/* ═══ DECOY PROFILE ═══ */}
       <TieInSection
+        id="h-decoy"
         eyebrow={decoy.eyebrow}
         heading={decoy.heading}
         body={decoy.body}
@@ -92,7 +94,7 @@ export default function PrivacyToolsPage() {
             iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--pv2-accent-ink)]"
           />
         }
-        linkLabel="How decoy profiles work"
+        linkLabel={<T k="site.features.privacy.decoy.linkLabel" />}
         linkHref="/docs/decoy-profile"
         panel={
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -102,21 +104,21 @@ export default function PrivacyToolsPage() {
                   <Eye className="h-3.5 w-3.5" />
                 </span>
                 <span className="text-xs font-semibold text-[var(--color-text-muted)]">
-                  Decoy password
+                  <T k="site.features.privacy.decoy.decoyPassword" />
                 </span>
               </div>
               <div className="space-y-1.5">
-                {["budget-2024.xlsx", "cat-photos", "recipes.txt"].map((f) => (
+                {["fileBudget", "fileCats", "fileRecipes"].map((f) => (
                   <div
                     key={f}
                     className="truncate rounded-lg bg-black/[0.02] px-2.5 py-1.5 font-mono text-[11px] text-[var(--color-text-secondary)] dark:bg-white/[0.02]"
                   >
-                    {f}
+                    <T k={`site.features.privacy.decoy.${f}`} />
                   </div>
                 ))}
               </div>
               <p className="mt-3 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                Looks ordinary
+                <T k="site.features.privacy.decoy.looksOrdinary" />
               </p>
             </div>
             <div className={cn(cardSurfaceSm, "p-5")}>
@@ -125,7 +127,7 @@ export default function PrivacyToolsPage() {
                   <Lock className="h-3.5 w-3.5" />
                 </span>
                 <span className="text-xs font-semibold text-cyan-600 dark:text-cyan-400">
-                  Real password
+                  <T k="site.features.privacy.decoy.realPassword" />
                 </span>
               </div>
               <div className="space-y-1.5">
@@ -139,7 +141,7 @@ export default function PrivacyToolsPage() {
                 ))}
               </div>
               <p className="mt-3 text-[10px] uppercase tracking-wider text-cyan-600/80 dark:text-cyan-400/80">
-                Never revealed
+                <T k="site.features.privacy.decoy.neverRevealed" />
               </p>
             </div>
           </div>
@@ -148,6 +150,7 @@ export default function PrivacyToolsPage() {
 
       {/* ═══ DEAD MAN'S SWITCH ═══ */}
       <TieInSection
+        id="h-dms"
         join
         eyebrow={deadMansSwitch.eyebrow}
         heading={deadMansSwitch.heading}
@@ -156,18 +159,20 @@ export default function PrivacyToolsPage() {
           <div className={cn(cardSurfaceSm, "mt-7 p-5")}>
             <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
               <Clock className="h-3.5 w-3.5 text-cyan-500" />
-              Check-in window
+              <T k="site.features.privacy.dms.window" />
               <span className="ml-auto font-mono text-[var(--color-text-muted)]">
-                7 to 365 days
+                <T k="site.features.privacy.dms.windowRange" />
               </span>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-1)]">
               <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400" />
             </div>
             <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
-              <span>last login resets it</span>
+              <span>
+                <T k="site.features.privacy.dms.resets" />
+              </span>
               <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
-                <Bell className="h-3 w-3" /> contact notified
+                <Bell className="h-3 w-3" /> <T k="site.features.privacy.dms.notified" />
               </span>
             </div>
           </div>
@@ -179,12 +184,14 @@ export default function PrivacyToolsPage() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
                   <Mail className="h-4 w-4" />
                 </span>
-                <h3 className="pv2-h3 text-base">What it does</h3>
+                <h3 className="pv2-h3 text-base">
+                  <T k="site.features.privacy.dms.doesTitle" />
+                </h3>
               </div>
               <ul className="space-y-2.5">
-                {deadMansSwitch.does.map((c) => (
+                {deadMansSwitch.does.map((c, i) => (
                   <li
-                    key={c}
+                    key={i}
                     className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
                   >
                     <Check
@@ -202,12 +209,14 @@ export default function PrivacyToolsPage() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
                 </span>
-                <h3 className="pv2-h3 text-base">What it doesn&apos;t do</h3>
+                <h3 className="pv2-h3 text-base">
+                  <T k="site.features.privacy.dms.doesNotTitle" />
+                </h3>
               </div>
               <ul className="space-y-2.5">
-                {deadMansSwitch.doesNot.map((c) => (
+                {deadMansSwitch.doesNot.map((c, i) => (
                   <li
-                    key={c}
+                    key={i}
                     className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
                   >
                     <X className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" strokeWidth={2.5} />
@@ -228,17 +237,17 @@ export default function PrivacyToolsPage() {
         <div className="pv2-wrap">
           <SectionHead
             id="h-beta"
-            eyebrow="In beta"
+            eyebrow={<T k="site.features.privacy.beta.eyebrow" />}
             title={betaSection.heading}
             lede={betaSection.subheading}
           />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {betaTools.map(({ Icon, title, desc, caveat, href }) => (
-              <article key={title} className={cn(cardSurfaceSm, "p-6 sm:p-7")}>
+            {betaTools.map(({ Icon, title, desc, caveat, href }, i) => (
+              <article key={i} className={cn(cardSurfaceSm, "p-6 sm:p-7")}>
                 <div className="mb-5 flex items-center justify-between">
                   <IconWell icon={Icon} />
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                    Beta
+                    <T k="site.features.common.beta" />
                   </span>
                 </div>
                 <h3 className="pv2-h3 text-lg">{title}</h3>
@@ -253,7 +262,7 @@ export default function PrivacyToolsPage() {
                   href={href}
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
-                  Read the docs
+                  <T k="site.features.common.readDocs" />
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </article>
@@ -277,7 +286,7 @@ export default function PrivacyToolsPage() {
               href="/docs/how-it-works"
               className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
             >
-              How the encryption works
+              <T k="site.features.privacy.core.linkLabel" />
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

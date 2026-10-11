@@ -8,7 +8,27 @@ import {
 import { cn } from "@/lib/utils";
 import { cardSurface } from "@/components/marketing/ui/card";
 import { pillClass } from "@/components/marketing/ui/pill-link";
+import { T } from "@/components/i18n/t";
 import { OS_GLYPHS } from "./os-glyphs";
+
+const OPTION_LABEL_KEYS: Record<string, string> = {
+  Installer: "installer",
+  "MSI package": "msiPackage",
+  Portable: "portable",
+};
+
+function OptionLabel({ label }: { label: string }) {
+  const key = OPTION_LABEL_KEYS[label];
+  return key ? <T k={`site.download.desktop.options.${key}`} /> : <>{label}</>;
+}
+
+function OptionNote({ note }: { note: string }) {
+  return note.startsWith("One-time setup") ? (
+    <T k="site.download.desktop.appImageNote" />
+  ) : (
+    <>{note}</>
+  );
+}
 
 const glyphColor: Record<PlatformId, string> = {
   macos: "text-[var(--color-text)]",
@@ -44,14 +64,16 @@ function LinuxOptions({ options }: { options: DownloadOption[] }) {
             className="group/row flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 transition-colors hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
           >
             <span>
-              <span className="block text-sm font-semibold">{o.label}</span>
+              <span className="block text-sm font-semibold">
+                <OptionLabel label={o.label} />
+              </span>
               <span className="block text-[11px] text-[var(--color-text-muted)]">{o.sublabel}</span>
             </span>
             <Download className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-transform group-hover/row:translate-y-0.5 group-hover/row:text-[var(--color-text)]" />
           </a>
           {o.note && (
             <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-              {o.note}
+              <OptionNote note={o.note} />
             </p>
           )}
         </div>
@@ -62,16 +84,18 @@ function LinuxOptions({ options }: { options: DownloadOption[] }) {
 
 // Collapsed by default so the page doesn't shout a security warning at every
 // visitor: one click away for the person who actually hits the OS prompt.
-function SecurityNote({ note }: { note: { title: string; body: string } }) {
+function SecurityNote({ id }: { id: PlatformId }) {
   return (
     <details className="group/note relative mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5">
       <summary className="cursor-pointer list-none text-[11px] font-medium text-[var(--color-text-secondary)] marker:content-none">
-        {note.title}
-        <span className="ml-1 font-normal text-[var(--color-text-muted)] group-open/note:hidden">
-          : tap for how to proceed
+        <T k={`site.download.desktop.security.${id}.title`} />
+        <span className="ms-1 font-normal text-[var(--color-text-muted)] group-open/note:hidden">
+          <T k="site.download.desktop.tapHow" />
         </span>
       </summary>
-      <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{note.body}</p>
+      <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <T k={`site.download.desktop.security.${id}.body`} />
+      </p>
     </details>
   );
 }
@@ -82,7 +106,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
     return (
       <div className={cn("mx-auto max-w-md p-8 text-center", cardSurface)}>
         <p className="text-sm text-[var(--color-text-secondary)]">
-          Couldn&apos;t load the latest builds right now.
+          <T k="site.download.desktop.loadFail" />
         </p>
         <a
           href={RELEASES_FALLBACK_URL}
@@ -90,7 +114,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
           rel="noopener noreferrer"
           className={cn("mt-5", pillClass("secondary"))}
         >
-          View all downloads on GitHub
+          <T k="site.download.desktop.viewAll" />
           <ArrowRight className="h-4 w-4" />
         </a>
       </div>
@@ -101,16 +125,12 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
     <>
       {release.isFallback && (
         <div className="mx-auto mb-5 max-w-lg rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-700 dark:text-amber-400">
-          Couldn&apos;t reach GitHub for the latest release, showing{" "}
-          <span className="font-semibold">v{release.version}</span>.{" "}
-          <a
-            href={RELEASES_FALLBACK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium underline underline-offset-2"
-          >
-            Check for newer
-          </a>
+          <T
+            k="site.download.desktop.fallback"
+            values={{ version: release.version }}
+            links={{ releases: RELEASES_FALLBACK_URL }}
+            linkClassName="font-medium underline underline-offset-2"
+          />
         </div>
       )}
       <ul className="grid grid-cols-1 gap-5 md:grid-cols-3 list-none">
@@ -135,7 +155,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
 
               <h3 className="pv2-h3 relative mt-6 text-xl">{platform.name}</h3>
               <p className="relative mt-1.5 min-h-[2.5rem] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-                {platform.blurb}
+                <T k={`site.download.desktop.blurb.${platform.id}`} />
               </p>
 
               <div className="relative mt-6 flex flex-1 flex-col justify-end">
@@ -148,13 +168,14 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
                       className={cn("group/dl w-full", pillClass("secondary"))}
                     >
                       <Download className="h-4 w-4 transition-transform group-hover/dl:translate-y-0.5" />
-                      Download for {platform.name}
+                      <T k="site.download.desktop.downloadFor" values={{ name: platform.name }} />
                     </a>
                     <p className="mt-2.5 text-center text-[11px] text-[var(--color-text-muted)]">
                       {primary.sublabel}
                       {others.length > 0 && (
                         <>
-                          {" · also "}
+                          {" · "}
+                          <T k="site.download.desktop.also" />{" "}
                           {others.map((o, i) => (
                             <span key={o.label}>
                               {i > 0 && ", "}
@@ -171,7 +192,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
                     </p>
                   </>
                 )}
-                {platform.securityNote && <SecurityNote note={platform.securityNote} />}
+                {platform.securityNote && <SecurityNote id={platform.id} />}
               </div>
             </CardShell>
           );

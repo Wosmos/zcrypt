@@ -11,6 +11,7 @@ import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
 import { bringYourOwnStorage } from "../_data/bring-your-own-storage";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -64,10 +65,10 @@ export default function BringYourOwnStoragePage() {
       >
         {/* Adapters mock */}
         <MockWindowFrame
-          label="Connected storage"
+          label={<T k="site.features.byos.mock.label" />}
           labelIcon={Server}
           badgeIcon={Lock}
-          badgeLabel="Encrypted before upload"
+          badgeLabel={<T k="site.features.byos.mock.badge" />}
         >
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {adapters.map((a) => (
@@ -78,7 +79,7 @@ export default function BringYourOwnStoragePage() {
                 <a.Mark className="h-5 w-5" />
                 <div className="mt-2 text-xs font-semibold">{a.name}</div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                  {a.capacity}
+                  <T k={`site.features.byos.platforms.${a.id}.capacity`} />
                 </div>
               </div>
             ))}
@@ -97,7 +98,7 @@ export default function BringYourOwnStoragePage() {
                 chunk-03
               </span>
               <span className="text-[var(--color-text-muted)]">
-                → stored as build-cache in a repo you own
+                <T k="site.features.byos.mock.storedAs" />
               </span>
             </div>
           </div>
@@ -106,7 +107,8 @@ export default function BringYourOwnStoragePage() {
 
       {/* ═══ ADAPTERS DETAIL ═══ */}
       <CapabilityGrid
-        eyebrow="Where your files live"
+        id="h-adapters"
+        eyebrow={adaptersSection.eyebrow}
         heading={adaptersSection.heading}
         subheading={adaptersSection.subheading}
         columns={4}
@@ -117,16 +119,16 @@ export default function BringYourOwnStoragePage() {
           desc: (
             <>
               <span className="mb-1.5 block font-mono text-xs text-[var(--pv2-accent-ink)]">
-                {a.capacity}
+                <T k={`site.features.byos.platforms.${a.id}.capacity`} />
               </span>
-              {a.note}
+              <T k={`site.features.byos.platforms.${a.id}.note`} />
             </>
           ),
         }))}
       />
 
       {/* ═══ HOW IT GROWS ═══ */}
-      <CapabilityGrid items={capabilities} join />
+      <CapabilityGrid id="h-capabilities" items={capabilities} join />
 
       {/* ═══ OWNERSHIP TIE-IN ═══ */}
       <TieInSection
@@ -138,27 +140,33 @@ export default function BringYourOwnStoragePage() {
         linkHref={tieIn.linkHref}
         panel={
           <CodePanel
-            comment="// how a file lands in your storage"
-            success="✓ your accounts. your bytes. no zcrypt-sold quota."
+            comment={<T k="site.features.byos.panel.comment" />}
+            success={<T k="site.features.byos.panel.success" />}
           >
             <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">1</span> encrypt on device.
-              AES-256-GCM
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">1</span>{" "}
+              <T k="site.features.byos.panel.step1" />
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">2</span> split into chunks
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">2</span>{" "}
+              <T k="site.features.byos.panel.step2" />
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">3</span> disguise as{" "}
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">3</span>{" "}
+              <T k="site.features.byos.panel.step3" />{" "}
               <span className="text-[var(--color-text-secondary)]">build-cache-*.bin</span>
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">4</span> upload to a repo you
-              own
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">4</span>{" "}
+              <T k="site.features.byos.panel.step4" />
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">5</span> repo near limit?{" "}
-              <span className="text-amber-500">rotate →</span> fresh repo
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">5</span>{" "}
+              <T k="site.features.byos.panel.step5" />{" "}
+              <span className="text-amber-500">
+                <T k="site.features.byos.panel.rotate" />
+              </span>{" "}
+              <T k="site.features.byos.panel.fresh" />
             </div>
           </CodePanel>
         }

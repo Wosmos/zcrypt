@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { fileViewers } from "../_data/file-viewers";
+import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -85,14 +86,15 @@ export default function FileViewersPage() {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-semibold">annual-report.pdf</div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                  PDF document
+                  <T k="site.features.fileViewers.mock.pdfDocument" />
                 </div>
               </div>
               <span className="hidden select-none text-[11px] font-medium tabular-nums text-[var(--color-text-secondary)] sm:inline">
                 3 / 18
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-600 dark:text-cyan-400">
-                <Lock className="h-2.5 w-2.5" /> Decrypted locally
+                <Lock className="h-2.5 w-2.5" />{" "}
+                <T k="site.features.fileViewers.mock.decryptedLocally" />
               </span>
             </div>
             {/* overlay body */}
@@ -109,7 +111,7 @@ export default function FileViewersPage() {
                   <div className="h-2 w-full rounded bg-[var(--color-border)]/70" />
                 </div>
                 <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/40 px-2.5 py-0.5 font-mono text-[10px] text-white/80 backdrop-blur-sm">
-                  page 1 / 24
+                  <T k="site.features.fileViewers.mock.page" values={{ current: 1, total: 24 }} />
                 </span>
               </div>
               {/* media playlist / neighbours rail */}
@@ -152,6 +154,7 @@ export default function FileViewersPage() {
 
       {/* ═══ SUPPORTED VIEWERS ═══ */}
       <CapabilityGrid
+        id="h-viewers"
         heading={viewersSection.heading}
         subheading={viewersSection.subheading}
         items={viewers}
@@ -182,6 +185,7 @@ export default function FileViewersPage() {
 
       {/* ═══ THE OVERLAY ═══ */}
       <CapabilityGrid
+        id="h-overlay"
         join
         heading={overlaySection.heading}
         subheading={overlaySection.subheading}

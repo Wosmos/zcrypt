@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { gsap, MOTION_FULL, MOTION_REDUCE, useGSAP } from "@/components/marketing/landing/gsap";
 import { DriveDesktop } from "./drive-desktop";
@@ -24,6 +25,7 @@ export function DriveStage({
   head: ReactNode;
   section: RefObject<HTMLElement | null>;
 }) {
+  const t = useTranslations("site");
   const { state, dispatch, accept, startIntro } = useDrive();
   const spacer = useRef<HTMLDivElement>(null);
   const pin = useRef<HTMLDivElement>(null);
@@ -233,7 +235,7 @@ export function DriveStage({
       <div ref={pin} className="zh-pin">
         {head}
         <a href="#how" className="zh-skip">
-          Skip the app preview
+          {t("drive.skip")}
         </a>
         <div ref={frame} className="zh-frame" suppressHydrationWarning>
           <div className="zh-frame-sh" aria-hidden="true" />
@@ -241,7 +243,10 @@ export function DriveStage({
             <div className="zh-flipdock">
               <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-dock" />
             </div>
-            <MacWindow title="zcrypt" toolbar={<span className="zh-win-pill">Sample files</span>}>
+            <MacWindow
+              title="zcrypt"
+              toolbar={<span className="zh-win-pill">{t("drive.samplePill")}</span>}
+            >
               <DriveDesktop onPick={onPick} />
             </MacWindow>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Check } from "@/lib/icons";
 import { LogoIcon } from "@/components/ui/logo";
 import { SectionHead } from "../section-head";
@@ -18,82 +19,83 @@ const COLS: readonly { key: Col; name: string; short: string }[] = [
 
 const RIVALS = COLS.filter((c): c is { key: Rival; name: string; short: string } => c.key !== "z");
 
-function Yes({ children }: { children: ReactNode }) {
-  return (
-    <span className="zs-yes">
-      <Check className="zs-yes-ck" aria-hidden="true" />
-      {children}
-    </span>
-  );
-}
+type Cell =
+  | { k: string; yes?: boolean; big?: boolean; note?: string }
+  | { raw: string; big?: boolean };
 
-function Big({ value, note }: { value: string; note?: string }) {
-  return (
-    <>
-      <b className="zs-big">{value}</b>
-      {note ? <small className="zs-note">{note}</small> : null}
-    </>
-  );
-}
+const BIG = (k: string, note?: string): Cell => ({ k: `big.${k}`, big: true, note });
+const YES = (k: string): Cell => ({ k: `cell.${k}`, yes: true });
+const TXT = (k: string): Cell => ({ k: `cell.${k}` });
 
-const ROWS: readonly { label: string; big?: boolean; cells: readonly ReactNode[] }[] = [
+const ROWS: readonly { id: string; big?: boolean; cells: readonly Cell[] }[] = [
   {
-    label: "Free storage",
+    id: "free",
     big: true,
     cells: [
-      <Big key="z" value="No limit" note="on accounts you connect" />,
-      <Big key="g" value="Up to 15 GB" note="shared with Gmail and Photos" />,
-      <Big key="d" value="2 GB" />,
-      <Big key="p" value="Up to 5 GB" />,
-      <Big key="t" value="1 TB" note="with ads" />,
+      BIG("zcrypt", "zcryptNote"),
+      BIG("gdrive", "gdriveNote"),
+      { raw: "2 GB", big: true },
+      BIG("proton"),
+      BIG("terabox", "teraboxNote"),
     ],
   },
   {
-    label: "Could the company open your files?",
+    id: "open",
+    cells: [YES("no"), TXT("technically"), TXT("technically"), YES("no"), TXT("technically")],
+  },
+  {
+    id: "where",
     cells: [
-      <Yes key="z">No</Yes>,
-      "Yes, technically",
-      "Yes, technically",
-      <Yes key="p">No</Yes>,
-      "Yes, technically",
+      YES("ownAccounts"),
+      TXT("theirServers"),
+      TXT("theirServers"),
+      TXT("theirServers"),
+      TXT("theirServers"),
     ],
   },
   {
-    label: "Where your files live",
-    cells: [
-      <Yes key="z">Your own accounts</Yes>,
-      "Their servers",
-      "Their servers",
-      "Their servers",
-      "Their servers",
-    ],
+    id: "paid",
+    cells: [YES("noneExist"), TXT("yes"), TXT("yes"), TXT("yes"), TXT("yes")],
   },
   {
-    label: "Paid plans",
-    cells: [<Yes key="z">None exist</Yes>, "Yes", "Yes", "Yes", "Yes"],
+    id: "oss",
+    cells: [YES("allOfIt"), TXT("no"), TXT("no"), TXT("theApps"), TXT("no")],
   },
   {
-    label: "Open source",
-    cells: [<Yes key="z">All of it</Yes>, "No", "No", "The apps", "No"],
+    id: "self",
+    cells: [YES("yes"), TXT("no"), TXT("no"), TXT("no"), TXT("no")],
   },
   {
-    label: "Run it on your own computer",
-    cells: [<Yes key="z">Yes</Yes>, "No", "No", "No", "No"],
-  },
-  {
-    label: "iPhone app",
-    cells: [
-      "Not yet (website works)",
-      <Yes key="g">Yes</Yes>,
-      <Yes key="d">Yes</Yes>,
-      <Yes key="p">Yes</Yes>,
-      <Yes key="t">Yes</Yes>,
-    ],
+    id: "iphone",
+    cells: [TXT("notYet"), YES("yes"), YES("yes"), YES("yes"), YES("yes")],
   },
 ];
 
 /** zcrypt next to the four free tiers people already know. */
 export function Compared() {
+  const t = useTranslations("site");
+  const render = (cell: Cell): ReactNode => {
+    if ("raw" in cell) return <b className="zs-big">{cell.raw}</b>;
+    const text = t(`home.compared.${cell.k}`);
+    if (cell.big) {
+      return (
+        <>
+          <b className="zs-big">{text}</b>
+          {cell.note ? (
+            <small className="zs-note">{t(`home.compared.big.${cell.note}`)}</small>
+          ) : null}
+        </>
+      );
+    }
+    return cell.yes ? (
+      <span className="zs-yes">
+        <Check className="zs-yes-ck" aria-hidden="true" />
+        {text}
+      </span>
+    ) : (
+      text
+    );
+  };
   const [sel, setSel] = useState<Rival>("gdrive");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState<"start" | "mid" | "end" | "none">("none");
@@ -125,16 +127,16 @@ export function Compared() {
       <div className="pv2-wrap">
         <SectionHead
           id="h-compared"
-          eyebrow="Compared"
-          title="Same job, different deal"
-          lede="We picked the ones you've heard of."
+          eyebrow={t("home.compared.eyebrow")}
+          title={t("home.compared.title")}
+          lede={t("home.compared.lede")}
         />
 
         <div className="zs-cmp" data-sel={sel}>
           <div
             className="zs-seg-pick"
             role="radiogroup"
-            aria-label="Compare zcrypt with"
+            aria-label={t("home.compared.pick")}
             style={{ "--i": selIndex } as CSSProperties}
           >
             <span className="zs-seg-thumb" aria-hidden="true" />
@@ -163,15 +165,15 @@ export function Compared() {
 
           <div ref={scrollRef} className="zs-cmp-scroll" data-edge={edge}>
             <table className="zs-table">
-              <caption className="sr-only">
-                zcrypt compared with Google Drive, Dropbox, Proton Drive and TeraBox
-              </caption>
+              <caption className="sr-only">{t("home.compared.caption")}</caption>
               <thead>
                 <tr>
                   <td className="zs-rl" />
                   {COLS.map((c) => (
                     <th key={c.key} scope="col" className={`zs-c-${c.key}`}>
-                      {c.key === "z" ? <span className="zs-here">You are here</span> : null}
+                      {c.key === "z" ? (
+                        <span className="zs-here">{t("home.compared.here")}</span>
+                      ) : null}
                       <span className="zs-cn">
                         {c.key === "z" ? <LogoIcon size={20} hover={false} /> : null}
                         {c.name}
@@ -182,13 +184,13 @@ export function Compared() {
               </thead>
               <tbody>
                 {ROWS.map((row) => (
-                  <tr key={row.label} className={row.big ? "zs-r-big" : undefined}>
+                  <tr key={row.id} className={row.big ? "zs-r-big" : undefined}>
                     <th scope="row" className="zs-rl">
-                      {row.label}
+                      {t(`home.compared.rows.${row.id}`)}
                     </th>
                     {row.cells.map((cell, i) => (
                       <td key={COLS[i].key} className={`zs-c-${COLS[i].key}`}>
-                        {cell}
+                        {render(cell)}
                       </td>
                     ))}
                   </tr>
@@ -198,11 +200,7 @@ export function Compared() {
           </div>
         </div>
 
-        <p className="zs-foot">
-          Their numbers come from their own pricing pages as of September 2026. They change things
-          now and then, so check before you quote us. &ldquo;Technically&rdquo; means they hold the
-          keys, not that anyone is snooping.
-        </p>
+        <p className="zs-foot">{t("home.compared.foot")}</p>
       </div>
     </section>
   );
