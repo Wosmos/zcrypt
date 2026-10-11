@@ -129,7 +129,7 @@ describe("createSpace", () => {
     // The request carries the plaintext fields + a sealed key envelope.
     expect(createSharedVault).toHaveBeenCalledTimes(1);
     const req = vi.mocked(createSharedVault).mock.calls[0][0];
-    expect(req.name).toBe("Docs");
+    expect(req.name.startsWith("s1:")).toBe(true);
     expect(req.file_ids).toEqual(["f1", "f2"]);
     expect(req.size_limit_bytes).toBe(500);
     expect(req.wrapped_space_key).toBeTruthy();

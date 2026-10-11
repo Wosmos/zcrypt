@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createFileShareLink, sealFileNameForLink } from "@/lib/file-share";
+import {
+  createFileShareLink,
+  sealFileNameForLink,
+  warmFileShareKey,
+  clearFileShareCache,
+} from "@/lib/file-share";
 import { decryptName } from "@/lib/name-crypto";
 import { userNameKey } from "@/lib/sealed";
 import { getFileMeta, createShare } from "@/lib/api";
@@ -54,6 +59,7 @@ function unlockedWith(passphrase: string | null) {
 describe("createFileShareLink", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearFileShareCache();
     unlockedWith("correct horse");
     getFileMetaMock.mockResolvedValue({
       salt: "c2FsdA==",
@@ -145,6 +151,46 @@ describe("createFileShareLink", () => {
   it("invalidates the shares cache for the file", async () => {
     await createFileShareLink("file-99");
     expect(invalidateSharesMock).toHaveBeenCalledWith("file-99");
+  });
+});
+
+describe("warmFileShareKey", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearFileShareCache();
+    unlockedWith("correct horse");
+    getFileMetaMock.mockResolvedValue({
+      salt: "c2FsdA==",
+      wrapped_cek: "d3JhcHBlZA==",
+    } as Awaited<ReturnType<typeof getFileMeta>>);
+    resolveFileKeyMock.mockResolvedValue(new Uint8Array([9, 9, 9]).buffer);
+    generateCEKMock.mockReturnValue(new Uint8Array([5, 5, 5]));
+    wrapKeyMock.mockResolvedValue(new Uint8Array([7, 7]));
+    createShareMock.mockResolvedValue({ token: "tok" } as Awaited<ReturnType<typeof createShare>>);
+    userNameKeyMock.mockResolvedValue(nameKey);
+  });
+
+  it("reuses the warmed meta + key when the link is created", async () => {
+    warmFileShareKey("file-1");
+    await createFileShareLink("file-1");
+    await createFileShareLink("file-1");
+    expect(getFileMetaMock).toHaveBeenCalledTimes(1);
+    expect(resolveFileKeyMock).toHaveBeenCalledTimes(1);
+    expect(createShareMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing while the vault is locked", () => {
+    unlockedWith(null);
+    warmFileShareKey("file-1");
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+  });
+
+  it("does not cache a failed warm-up", async () => {
+    getFileMetaMock.mockRejectedValueOnce(new Error("net"));
+    warmFileShareKey("file-1");
+    await new Promise((r) => setTimeout(r, 0));
+    await createFileShareLink("file-1");
+    expect(getFileMetaMock).toHaveBeenCalledTimes(2);
   });
 });
 

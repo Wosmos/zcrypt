@@ -18,7 +18,7 @@ import {
   toBase64,
   toArrayBuffer,
 } from "@/lib/crypto";
-import { getFileMeta, createShare } from "@/lib/api";
+import { getFileMeta, createShare, type FileMetaResponse } from "@/lib/api";
 import { decryptName } from "@/lib/name-crypto";
 import { sealText, keyFromBytes, userNameKey } from "@/lib/sealed";
 import { invalidateShares } from "@/hooks/useShares";
@@ -53,6 +53,53 @@ export interface FileShareOptions {
   maxDownloads?: number;
 }
 
+type WarmEntry = { meta: FileMetaResponse; cek: Uint8Array };
+const warmed = new Map<string, Promise<WarmEntry>>();
+let lockWatched = false;
+
+function watchLock(): void {
+  if (lockWatched || typeof usePassphraseStore.subscribe !== "function") return;
+  lockWatched = true;
+  usePassphraseStore.subscribe((s) => {
+    if (!s.cachedPassphrase) clearFileShareCache();
+  });
+}
+
+/** Drop every warmed key (vault lock; also used by tests). */
+export function clearFileShareCache(): void {
+  warmed.clear();
+}
+
+function prepareFileKey(fileId: string, passphrase: string): Promise<WarmEntry> {
+  const hit = warmed.get(fileId);
+  if (hit) return hit;
+  watchLock();
+  const p = (async () => {
+    const meta = await getFileMeta(fileId);
+    if (!meta.wrapped_cek) {
+      throw new Error(
+        "This file was uploaded before sharing was supported. Re-upload it to share.",
+      );
+    }
+    const cekBuf = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
+    return { meta, cek: new Uint8Array(cekBuf) };
+  })();
+  warmed.set(fileId, p);
+  p.catch(() => {
+    if (warmed.get(fileId) === p) warmed.delete(fileId);
+  });
+  return p;
+}
+
+/** Fetch the file's meta and run its key derivation ahead of time (e.g. when
+ *  the share dialog opens) so creating the link afterwards is near-instant.
+ *  Cleared when the vault locks. Best effort. */
+export function warmFileShareKey(fileId: string): void {
+  const passphrase = usePassphraseStore.getState().getPassphrase();
+  if (!passphrase) return;
+  prepareFileKey(fileId, passphrase).catch(() => {});
+}
+
 /**
  * Create a public link for a single file. Requires an unlocked vault (the
  * passphrase recovers the file's CEK). Returns the shareable URL (with the share
@@ -73,12 +120,7 @@ export async function createFileShareLink(
   }
 
   // 1. Recover this file's CEK using the owner's passphrase.
-  const meta = await getFileMeta(fileId);
-  if (!meta.wrapped_cek) {
-    throw new Error("This file was uploaded before sharing was supported. Re-upload it to share.");
-  }
-  const cekBuf = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
-  const cek = new Uint8Array(cekBuf);
+  const { meta, cek } = await prepareFileKey(fileId, passphrase);
 
   // 2. Wrap the CEK under a fresh random share key.
   const shareKey = generateCEK();
