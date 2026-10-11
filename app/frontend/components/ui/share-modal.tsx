@@ -63,7 +63,9 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     if (open && fileId) warmFileShareKey(fileId);
   }, [open, fileId]);
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) {
       setError("");
       setStep("form");
@@ -75,7 +77,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
       setShareKeyB64("");
       setCopied(false);
     }
-  }, [open]);
+  }
 
   const handleGenerate = useCallback(async () => {
     // Sharing needs the passphrase to recover the file's CEK so it can be

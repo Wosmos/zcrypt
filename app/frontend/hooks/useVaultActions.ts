@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { isTauri } from "@/lib/tauri";
 import { primeThumbnails } from "@/hooks/useThumbnail";
-import { ensureUserKeypair } from "@/lib/keys";
+import { ensureUserKeypair, OwnKeyMismatchError } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore, canStreamToDisk, ZIP_IN_MEMORY_MAX_BYTES } from "@/store/download";
 import { zipRefusal } from "@/lib/bulk-download";
@@ -152,7 +152,14 @@ export function useVaultActions({
     if (!vaultUnlocked) return;
     const run = () => {
       const passphrase = usePassphraseStore.getState().getPassphrase();
-      if (passphrase) void ensureUserKeypair(passphrase);
+      if (!passphrase) return;
+      ensureUserKeypair(passphrase).catch((err: unknown) => {
+        if (err instanceof OwnKeyMismatchError) {
+          toast.error(
+            "Your sharing key on the server doesn't match this device. Sharing is paused for your safety; contact support.",
+          );
+        }
+      });
     };
     if (typeof window.requestIdleCallback === "function") {
       const id = window.requestIdleCallback(run, { timeout: 5000 });

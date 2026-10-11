@@ -54,6 +54,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
   const [expiryHours, setExpiryHours] = useState(0);
   const [maxDownloads, setMaxDownloads] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -104,6 +105,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
     if (!folder) return;
     setError("");
     setCreating(true);
+    setProgress(null);
     try {
       const { url, shared, skipped, nestingIncomplete } = await createFolderShareLink(
         folder.id,
@@ -113,6 +115,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
           password: usePassword ? password : undefined,
           expiresHours: expiryHours || undefined,
           maxDownloads: maxDownloads || undefined,
+          onProgress: (done, total) => setProgress({ done, total }),
         },
       );
       setLink(url);
@@ -132,6 +135,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
       setError(err instanceof Error ? err.message : "Failed to create folder link");
     } finally {
       setCreating(false);
+      setProgress(null);
     }
   };
 
@@ -327,7 +331,11 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                 ) : (
                   <Link2 className="h-3.5 w-3.5" />
                 )}
-                {creating ? "Creating…" : "Create link"}
+                {creating
+                  ? progress && progress.total > 1
+                    ? `Preparing ${progress.done} of ${progress.total} files`
+                    : "Preparing link…"
+                  : "Create link"}
               </Button>
             </>
           )}
