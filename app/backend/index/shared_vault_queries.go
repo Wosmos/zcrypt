@@ -215,8 +215,10 @@ func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, email, role, wr
 // RotateSharedVaultKeys atomically re-keys a space: it overwrites each listed
 // member's wrapped space key and each listed file's wrapped CEK. Only rows that
 // still exist are updated (a stale/removed member's id updates nothing), so a
-// removed member can't regain access. All values are opaque to the server.
-func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members []types.MemberKeyGrant, files []types.FileKeyWrap) error {
+// removed member can't regain access. A non-nil name or description replaces
+// the stored one in the same transaction, since the client re-seals them under
+// the new key. All values are opaque to the server.
+func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members []types.MemberKeyGrant, files []types.FileKeyWrap, name, description *string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -308,7 +310,11 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 			return err
 		}
 	}
-	if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET updated_at = NOW(), needs_rotation = false WHERE id = $1`, vaultID); err != nil {
+	if _, err := tx.Exec(ctx, `
+		UPDATE shared_vaults
+		SET updated_at = NOW(), needs_rotation = false,
+		    name = COALESCE($2, name), description = COALESCE($3, description)
+		WHERE id = $1`, vaultID, name, description); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

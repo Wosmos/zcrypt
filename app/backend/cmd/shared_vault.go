@@ -497,7 +497,24 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.Members, req.Files); err != nil {
+	if req.Name != nil {
+		n, ok := boundedField(*req.Name, maxSpaceNameLen)
+		if !ok || n == "" {
+			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			return
+		}
+		req.Name = &n
+	}
+	if req.Description != nil {
+		d, ok := boundedField(*req.Description, maxSpaceDescriptionLen)
+		if !ok {
+			http.Error(w, `{"error":"description is too long"}`, http.StatusBadRequest)
+			return
+		}
+		req.Description = &d
+	}
+
+	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.Members, req.Files, req.Name, req.Description); err != nil {
 		if errors.Is(err, index.ErrRotationIncomplete) {
 			http.Error(w, `{"error":"rotation must cover every member and file"}`, http.StatusConflict)
 			return

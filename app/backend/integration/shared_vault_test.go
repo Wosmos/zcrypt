@@ -519,6 +519,42 @@ func TestSharedVaultRotation(t *testing.T) {
 		requireStatus(t, resp, http.StatusOK)
 	})
 
+	t.Run("rotation stores the name and description re-sealed under the new key", func(t *testing.T) {
+		id := ts.createSpace(owner, "s1:sealed-under-old-key", 0)
+		grants := []map[string]string{}
+		for _, uid := range memberIDs(owner, id) {
+			grants = append(grants, map[string]string{"user_id": uid, "wrapped_space_key": b64("new-" + uid)})
+		}
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", map[string]interface{}{
+			"members":     grants,
+			"files":       []interface{}{},
+			"name":        "s1:sealed-under-new-key",
+			"description": "s1:desc-under-new-key",
+		}, owner), http.StatusOK)
+
+		body := requireStatus(t, ts.GET("/api/shared-vaults/"+id, owner), http.StatusOK)
+		var d struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		require.NoError(t, json.Unmarshal(body, &d))
+		assert.Equal(t, "s1:sealed-under-new-key", d.Name)
+		assert.Equal(t, "s1:desc-under-new-key", d.Description)
+	})
+
+	t.Run("rotation without a name keeps the stored one", func(t *testing.T) {
+		id := ts.createSpace(owner, "KeepName", 0)
+		grants := []map[string]string{}
+		for _, uid := range memberIDs(owner, id) {
+			grants = append(grants, map[string]string{"user_id": uid, "wrapped_space_key": b64("new-" + uid)})
+		}
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", map[string]interface{}{
+			"members": grants, "files": []interface{}{},
+		}, owner), http.StatusOK)
+		body := requireStatus(t, ts.GET("/api/shared-vaults/"+id, owner), http.StatusOK)
+		assert.Contains(t, string(body), `"name":"KeepName"`)
+	})
+
 	t.Run("rotation that omits a current member is rejected (anti-lockout)", func(t *testing.T) {
 		requireStatus(t, ts.POST("/api/keys", publishKeyBody(), member), http.StatusOK)
 		id := ts.createSpace(owner, "RotatePartial", 0)

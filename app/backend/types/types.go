@@ -983,6 +983,10 @@ type FileKeyWrap struct {
 type SharedVaultRotateRequest struct {
 	Members []MemberKeyGrant `json:"members"`
 	Files   []FileKeyWrap    `json:"files"`
+	// Name and Description are re-sealed under the new key by the client;
+	// without them a sealed name would stay locked under the discarded key.
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
 }
 
 // OfflinePin represents a file pinned for offline access.
