@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocaleControl } from "@/components/providers/i18n-provider";
 import { LOCALES, isLocale, localeDir, readStoredLocale, type Locale } from "@/lib/i18n";
 import { isTauri } from "@/lib/tauri";
-import { X } from "@/lib/icons";
+import { Languages, X } from "@/lib/icons";
 
 const DISMISSED_KEY = "zcrypt-locale-hint-dismissed";
 const OVERRIDE_PARAM = "zc_country";
@@ -118,8 +118,11 @@ export function LocaleSuggestion() {
       aria-label={name}
       lang={suggested}
       dir={localeDir(suggested)}
-      className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[60] mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 py-2 ps-4 pe-2 text-sm text-[var(--color-text)] shadow-xl shadow-black/20 backdrop-blur md:bottom-6"
+      className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[60] mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-2xl border border-[var(--color-accent)]/50 bg-[var(--color-surface)] py-2 ps-3 pe-2 text-sm font-medium text-[var(--color-text)] shadow-2xl shadow-[var(--color-accent)]/20 ring-4 ring-[var(--color-accent)]/10 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 motion-reduce:animate-none md:bottom-6"
     >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-[var(--color-accent)]">
+        <Languages className="h-4 w-4" />
+      </span>
       <span className="min-w-0 truncate">{copy.message}</span>
       <button
         type="button"
@@ -128,7 +131,7 @@ export function LocaleSuggestion() {
           setLocale(suggested);
           setSuggested(null);
         }}
-        className="shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-1 text-xs font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
+        className="shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
       >
         {copy.action}
       </button>
