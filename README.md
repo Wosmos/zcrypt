@@ -177,7 +177,7 @@ iOS compiles but is not yet built in CI. It is in development.
 ### Server hardening
 - CORS allow-list (no wildcard); 1 MB JSON body cap; path-traversal and header-injection protection on filenames.
 - Global and per-endpoint rate limiting (in-memory, per instance).
-- Security headers: HSTS, `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, and a Content-Security-Policy on the frontend. **Note:** the CSP ships **report-only** by default. Set `CSP_ENFORCE=1` to enforce it.
+- Security headers: HSTS, `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, and a Content-Security-Policy on the frontend. The CSP is **enforced** in production; set `CSP_REPORT_ONLY=1` to downgrade it to report-only.
 - Errors are logged server-side only; clients receive sanitized messages.
 
 ### What the server cannot do
@@ -290,7 +290,7 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | -------- | ----------- |
 | `ZCRYPT_PORT` | Server port (default 8080; some hosts inject `PORT`) |
 | `RESEND_API_KEY` / `RESEND_FROM` | [Resend](https://resend.com) credentials: enables verification / reset emails |
-| `CSP_ENFORCE` | `1` enforces the frontend Content-Security-Policy (report-only otherwise) |
+| `CSP_REPORT_ONLY` | `1` downgrades the frontend Content-Security-Policy to report-only (enforced otherwise) |
 | `DEV_MODE` | `true` disables ALL rate limiting: local load testing only, never in production |
 | `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |
 

@@ -13,6 +13,15 @@ import { verifyVaultPassphrase } from "@/lib/vault-verify";
 // existing convention (see store/passphrase.ts REMEMBER_KEY).
 const PASSPHRASE_ACK_KEY = "zcrypt-vault-passphrase-ack";
 
+function isCreatingPassphrase(files: unknown): boolean {
+  if (!Array.isArray(files) || files.length !== 0) return false;
+  try {
+    return localStorage.getItem(PASSPHRASE_ACK_KEY) !== "1";
+  } catch {
+    return false; // storage unavailable, never block the unlock
+  }
+}
+
 /**
  * The context value is the vault-lock API plus `ready`: true once the
  * device-persisted-passphrase rehydrate attempt has settled. Consumers gate the
@@ -83,20 +92,14 @@ export function VaultLockProvider({ children }: { children: React.ReactNode }) {
   // onConfirm, so by the time we get here it's already cached, confirm runs the
   // real onConfirm (closing the modal + firing any pending action such as the
   // upload that prompted the unlock); cancel re-locks to fully undo it.
+  // Warn ONLY when the list has loaded and is empty AND we've never warned
+  // before. An unknown/loading list, or any existing files, proceeds
+  // normally, so an established user is never scared by this.
+  const creating = isCreatingPassphrase(filesQuery.data);
+
   const handleConfirm = useCallback(
     (passphrase: string) => {
-      const files = filesQuery.data;
-      const emptyVault = Array.isArray(files) && files.length === 0;
-      let acked = true;
-      try {
-        acked = localStorage.getItem(PASSPHRASE_ACK_KEY) === "1";
-      } catch {
-        acked = true; // storage unavailable, never block the unlock
-      }
-      // Warn ONLY when the list has loaded and is empty AND we've never warned
-      // before. An unknown/loading list, or any existing files, proceeds
-      // normally, so an established user is never scared by this.
-      if (emptyVault && !acked) {
+      if (isCreatingPassphrase(filesQuery.data)) {
         setPendingFirstTime(passphrase);
         return;
       }
@@ -134,6 +137,7 @@ export function VaultLockProvider({ children }: { children: React.ReactNode }) {
           held in useVaultLock's pendingRef, so we suppress it via `open` instead. */}
       <PassphraseModal
         {...vault.modalProps}
+        creating={creating}
         onConfirm={handleConfirm}
         open={vault.modalProps.open && pendingFirstTime === null}
       />

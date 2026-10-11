@@ -4,9 +4,14 @@ const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 
 // ── Content-Security-Policy ──────────────────────────────────────────────
 // Defense-in-depth against XSS (the #1 threat once users hold private keys in
-// the browser). Rolled out as Report-Only by default so it can never break
-// production; set CSP_ENFORCE=1 once a deploy shows no violations in the
-// console to switch to enforcing.
+// the browser). ENFORCED by default in production. Set CSP_REPORT_ONLY=1 to
+// downgrade it to Report-Only if a deploy needs to be debugged.
+//
+// Audited against what the app loads: fonts are self-hosted (next/font bundles
+// Google fonts at build time), previews are blob: URLs (img/media/frame), the
+// crypto + pdf.js workers are same-origin or blob:, the HTML preview is a
+// sandboxed srcdoc iframe, avatars are inline data: URLs, and file chunks only
+// travel through the API origin.
 //
 // Notes:
 //  - 'unsafe-inline' in script-src is required because Next injects inline
@@ -37,9 +42,9 @@ const cspValue = [
   "upgrade-insecure-requests",
 ].join("; ");
 const cspHeaderKey =
-  process.env.CSP_ENFORCE === "1"
-    ? "Content-Security-Policy"
-    : "Content-Security-Policy-Report-Only";
+  process.env.CSP_REPORT_ONLY === "1"
+    ? "Content-Security-Policy-Report-Only"
+    : "Content-Security-Policy";
 
 const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "" },
@@ -92,8 +97,8 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
-          // CSP only in production (dev needs eval/ws for HMR). Report-Only by
-          // default: flip with CSP_ENFORCE=1 after verifying a deploy.
+          // CSP only in production (dev needs eval/ws for HMR). Enforced by
+          // default: set CSP_REPORT_ONLY=1 to downgrade to Report-Only.
           ...(process.env.NODE_ENV === "production"
             ? [{ key: cspHeaderKey, value: cspValue }]
             : []),
