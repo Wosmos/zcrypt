@@ -113,7 +113,6 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
         <button
           type="button"
           aria-label={t("filterFiles")}
-          title={t("filterFiles")}
           className={cn(
             "flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors",
             count > 0
@@ -122,7 +121,7 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
           )}
         >
           <Filter className="h-3.5 w-3.5" />
-          <span className="hidden xl:inline">{t("filter")}</span>
+          {t("filter")}
           {count > 0 && (
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-semibold text-white">
               {count}

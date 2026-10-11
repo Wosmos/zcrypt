@@ -137,7 +137,6 @@ import type {
 
 export interface VaultExplorerProps {
   files: FileMetadata[];
-  toolbarTrailing?: React.ReactNode;
   loading: boolean;
   error: string | null;
 
@@ -259,7 +258,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
   function VaultExplorer(
     {
       files,
-      toolbarTrailing,
       loading,
       error,
       onPreview,
@@ -1227,7 +1225,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           files={folderFiles}
           filters={filters}
           onFiltersChange={setFilters}
-          trailing={toolbarTrailing}
         />
 
         {/* Mobile-only type-filter chips: the toolbar's Filter popover (type +

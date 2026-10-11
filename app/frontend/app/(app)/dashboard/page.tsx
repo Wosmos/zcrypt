@@ -400,49 +400,6 @@ export default function VaultPage() {
   const showLockOverlay = vault.ready && !vault.unlocked && files.length > 0;
   useAutoTour("vault", vault.ready && !loading && !error && !showLockOverlay && !currentFolderId);
 
-  const showExplorer = !(vault.ready && !loading && !error && files.length === 0);
-  const pageActions = (
-    <>
-      <VaultLock
-        unlocked={vault.unlocked}
-        remainingSeconds={vault.remainingSeconds}
-        persistent={vault.persistent}
-        modalOpen={vault.modalProps.open}
-        onUnlock={() => vault.unlock()}
-        onLock={vault.lock}
-        className="h-8 flex-shrink-0"
-        tour="vault-lock"
-      />
-      <VaultShortcuts className="h-8 w-8 rounded-lg md:hidden lg:inline-flex" />
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => explorerRef.current?.startNewFolder()}
-        aria-label={t("newFolder")}
-        data-tour="new-folder"
-      >
-        <FolderAdd className="h-3.5 w-3.5" />
-        <span className="hidden xl:inline">{t("newFolder")}</span>
-      </Button>
-      <Button
-        size="sm"
-        onClick={() => setUploadOpen(true)}
-        aria-label={t("upload")}
-        data-tour="upload-button"
-      >
-        <FileUpload className="h-3.5 w-3.5" />
-        <span className="hidden lg:inline">{t("upload")}</span>
-      </Button>
-      <IconButton
-        icon={RefreshCw}
-        label={t("refresh")}
-        variant="secondary"
-        className="h-8 w-8"
-        onClick={() => refresh()}
-      />
-    </>
-  );
-
   return (
     // No animate-fade-in anywhere on this tree: it leaves a lingering `transform`
     // that becomes the containing block for position:sticky, which breaks BOTH
@@ -463,13 +420,48 @@ export default function VaultPage() {
           </div>
         </div>
       )}
-      {/* Desktop page actions (lock, shortcuts, New folder, Upload, refresh) sit in
-          the explorer's toolbar row; with no explorer (empty vault) they get their
-          own row. Phones carry the lock in the TopBar and New folder + Upload in
-          the floating button. */}
-      {!showExplorer ? (
-        <div className="hidden items-center justify-end gap-2 sm:flex">{pageActions}</div>
-      ) : null}
+      {/* Desktop actions row: vault lock, then [New folder, Upload, refresh]. Search
+          is the global bar in the TopBar; on mobile the lock lives in the TopBar and
+          New folder + Upload move beside the type filters. */}
+      <div className="hidden flex-row items-center justify-between gap-3 sm:flex">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
+          <VaultLock
+            unlocked={vault.unlocked}
+            remainingSeconds={vault.remainingSeconds}
+            persistent={vault.persistent}
+            modalOpen={vault.modalProps.open}
+            onUnlock={() => vault.unlock()}
+            onLock={vault.lock}
+            className="hidden flex-shrink-0 sm:inline-flex"
+            tour="vault-lock"
+          />
+        </div>
+        {/* Desktop actions. New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
+        <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
+          <VaultShortcuts />
+          <Button
+            variant="secondary"
+            onClick={() => explorerRef.current?.startNewFolder()}
+            aria-label={t("newFolder")}
+            data-tour="new-folder"
+          >
+            <FolderAdd className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("newFolder")}</span>
+          </Button>
+          <Button onClick={() => setUploadOpen(true)} data-tour="upload-button">
+            <FileUpload className="h-4 w-4" />
+            {t("upload")}
+          </Button>
+          <IconButton
+            icon={RefreshCw}
+            label={t("refresh")}
+            variant="secondary"
+            onClick={() => refresh()}
+          />
+        </div>
+        {/* Mobile has no refresh button: native pull-to-refresh (drag down at the
+            top) reloads the vault. The desktop refresh above stays. */}
+      </div>
 
       {/* Vault file browser */}
       <div className="flex flex-col gap-6">
@@ -530,7 +522,6 @@ export default function VaultPage() {
           />
         ) : (
           <VaultExplorer
-            toolbarTrailing={pageActions}
             ref={explorerRef}
             search={search}
             onSearchChange={setSearch}

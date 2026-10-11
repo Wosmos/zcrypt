@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ShortcutsHelp } from "@/components/spaces/shared";
 
-export function VaultShortcuts({ className }: { className?: string }) {
+export function VaultShortcuts() {
   const t = useTranslations();
   const items: [string, string][] = [
     [t("spaces.shared.arrowKeys"), t("app.vaultExplorer.shortcuts.move")],
@@ -19,11 +19,5 @@ export function VaultShortcuts({ className }: { className?: string }) {
     ["/", t("ui.globalSearch.placeholder")],
     ["?", t("app.vaultExplorer.shortcuts.show")],
   ];
-  return (
-    <ShortcutsHelp
-      items={items}
-      title={t("app.vaultExplorer.shortcutsTitle")}
-      className={className}
-    />
-  );
+  return <ShortcutsHelp items={items} title={t("app.vaultExplorer.shortcutsTitle")} />;
 }
