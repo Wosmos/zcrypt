@@ -197,7 +197,7 @@
     "features": {
       "zkTitle": "Chiffrement à connaissance nulle",
       "zkDesc": "Chiffré sur votre appareil avant l'envoi. Nous ne voyons jamais vos données.",
-      "securityTitle": "Sécurité de niveau militaire",
+      "securityTitle": "Chiffrement solide et standard",
       "securityDesc": "Chiffrement AES-256-GCM associé à une compression moderne.",
       "openTitle": "Open source et vérifiable",
       "openDesc": "Chaque ligne de code est publique. Vérifiez par vous-même."

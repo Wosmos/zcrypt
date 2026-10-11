@@ -197,7 +197,7 @@
     "features": {
       "zkTitle": "Zero-Knowledge-Verschlüsselung",
       "zkDesc": "Auf deinem Gerät verschlüsselt, bevor etwas hochgeladen wird. Wir sehen deine Daten nie.",
-      "securityTitle": "Sicherheit auf Militärniveau",
+      "securityTitle": "Starke, standardisierte Verschlüsselung",
       "securityDesc": "AES-256-GCM-Verschlüsselung kombiniert mit moderner Kompression.",
       "openTitle": "Open Source & prüfbar",
       "openDesc": "Jede Codezeile ist öffentlich. Überzeuge dich selbst."

@@ -94,7 +94,7 @@ export const metadata: Metadata = {
     "privacy focused cloud storage",
     "zcrypt",
     "zcrypt cloud",
-    "military grade encryption storage",
+    "strong encryption storage",
     "BYOB cloud storage",
     "bring your own backend storage",
     "git based cloud storage",
@@ -138,7 +138,6 @@ export const metadata: Metadata = {
     title: "zcrypt. The Encrypted Cloud Drive You Actually Own",
     description:
       "A zero-knowledge encrypted cloud drive: real folders, instant previews, AES-256-GCM, your own storage. Free and open source.",
-    creator: "@zcryptcloud",
   },
   robots: {
     index: true,

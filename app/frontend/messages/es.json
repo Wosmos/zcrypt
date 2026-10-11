@@ -197,7 +197,7 @@
     "features": {
       "zkTitle": "Cifrado de conocimiento cero",
       "zkDesc": "Cifrado en tu dispositivo antes de subirlo. Nunca vemos tus datos.",
-      "securityTitle": "Seguridad de nivel militar",
+      "securityTitle": "Cifrado sólido y estándar",
       "securityDesc": "Cifrado AES-256-GCM junto con compresión moderna.",
       "openTitle": "Código abierto y auditable",
       "openDesc": "Cada línea de código es pública. Compruébalo tú mismo."

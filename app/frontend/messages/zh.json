@@ -197,7 +197,7 @@
     "features": {
       "zkTitle": "零知识加密",
       "zkDesc": "上传前在你的设备上加密。我们永远看不到你的数据。",
-      "securityTitle": "军用级安全",
+      "securityTitle": "强大的标准加密",
       "securityDesc": "AES-256-GCM 加密搭配现代压缩技术。",
       "openTitle": "开源且可审计",
       "openDesc": "每一行代码都是公开的。欢迎自行验证。"

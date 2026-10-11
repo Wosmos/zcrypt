@@ -197,7 +197,7 @@
     "features": {
       "zkTitle": "Zero-knowledge encryption",
       "zkDesc": "Encrypted on your device before upload. We never see your data.",
-      "securityTitle": "Military-grade security",
+      "securityTitle": "Strong, standard encryption",
       "securityDesc": "AES-256-GCM encryption paired with modern compression.",
       "openTitle": "Open source & auditable",
       "openDesc": "Every line of code is public. Verify it yourself."

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Home } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { T } from "@/components/i18n/t";
+import { SUPPORT_EMAIL } from "@/lib/site";
 
 export default function NotFound() {
   return (
@@ -61,7 +62,7 @@ export default function NotFound() {
           <p className="text-xs text-[var(--color-text-muted)]">
             <T
               k="ui.notFound.help"
-              links={{ support: "mailto:[EMAIL_ADDRESS]" }}
+              links={{ support: `mailto:${SUPPORT_EMAIL}` }}
               linkClassName="text-[var(--color-accent)] hover:underline"
             />
           </p>
