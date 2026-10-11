@@ -10,8 +10,18 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="text-center py-16">
-      <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)] mb-5">
-        {icon}
+      <div className="relative mb-6 inline-flex">
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 -rotate-6 scale-95 rounded-2xl bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/20"
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rotate-6 scale-95 rounded-2xl bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)]"
+        />
+        <div className="relative inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-surface)] ring-1 ring-[var(--color-border)]">
+          {icon}
+        </div>
       </div>
       <h3 className="text-lg font-semibold text-[var(--color-text)]">{title}</h3>
       <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 max-w-sm mx-auto leading-relaxed">

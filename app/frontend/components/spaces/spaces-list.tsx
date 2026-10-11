@@ -13,6 +13,7 @@ import { useKeyboardSelection } from "@/hooks/useKeyboardSelection";
 import { useAutoTour } from "@/components/onboarding/tour-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { buttonClass } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { SpaceCard, SpaceCardSkeleton } from "@/components/spaces/space-ui";
 import {
@@ -136,20 +137,18 @@ export function SpacesList() {
           ))}
         </div>
       ) : vaults.length === 0 ? (
-        <div className="panel flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
-            <Users className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-[var(--color-text)]">{t("list.emptyTitle")}</p>
-            <p className="mx-auto max-w-sm text-sm text-[var(--color-text-secondary)]">
-              {t("list.emptyBody")}
-            </p>
-          </div>
-          <Link href="/spaces/new" className={buttonClass("secondary", "sm")}>
-            <Plus className="h-3.5 w-3.5" />
-            {t("list.createFirst")}
-          </Link>
+        <div className="panel">
+          <EmptyState
+            icon={<Users className="h-7 w-7 text-[var(--color-accent)]" />}
+            title={t("list.emptyTitle")}
+            description={t("list.emptyBody")}
+            action={
+              <Link href="/spaces/new" className={buttonClass("secondary", "sm")}>
+                <Plus className="h-3.5 w-3.5" />
+                {t("list.createFirst")}
+              </Link>
+            }
+          />
         </div>
       ) : (
         <div className="space-y-4" data-tour="space-list">
