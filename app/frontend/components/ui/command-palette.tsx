@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { create } from "zustand";
 import {
   CommandDialog,
@@ -49,22 +50,23 @@ export const useVaultSearch = create<VaultSearchState>((set) => ({
 }));
 
 const NAV = [
-  { label: "Vault", href: "/dashboard", icon: Shield },
-  { label: "Spaces", href: "/spaces", icon: Layers },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
-  { label: "Deleted Files", href: "/trash", icon: Trash2 },
-  { label: "Device Transfer", href: "/transfer", icon: RefreshCcw },
-  { label: "Settings", href: "/settings", icon: Settings },
-  { label: "Tools", href: "/tools", icon: Cog },
+  { key: "shell.vault", href: "/dashboard", icon: Shield },
+  { key: "shell.spaces", href: "/spaces", icon: Layers },
+  { key: "ui.palette.analytics", href: "/analytics", icon: BarChart3 },
+  { key: "shell.deletedFiles", href: "/trash", icon: Trash2 },
+  { key: "ui.palette.deviceTransfer", href: "/transfer", icon: RefreshCcw },
+  { key: "shell.settings", href: "/settings", icon: Settings },
+  { key: "shell.tools", href: "/tools", icon: Cog },
 ];
 
-const ADMIN_NAV = { label: "Admin", href: "/admin", icon: Users };
+const ADMIN_NAV = { key: "shell.admin", href: "/admin", icon: Users };
 
 // Matches are picked here, from the whole library, before cmdk ranks them, so
 // any file is findable while the list stays small enough to render instantly.
 const MAX_FILE_RESULTS = 50;
 
 export function CommandPalette() {
+  const t = useTranslations();
   const router = useRouter();
   const open = useCommandPalette((s) => s.open);
   const setOpen = useCommandPalette((s) => s.setOpen);
@@ -111,22 +113,22 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Search files or jump to…"
+        placeholder={t("ui.palette.placeholder")}
         value={search}
         onValueChange={setSearch}
       />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Go to">
+        <CommandEmpty>{t("ui.palette.empty")}</CommandEmpty>
+        <CommandGroup heading={t("ui.palette.goTo")}>
           {nav.map((n) => (
-            <CommandItem key={n.href} value={`go ${n.label}`} onSelect={() => go(n.href)}>
+            <CommandItem key={n.href} value={`go ${t(n.key as never)}`} onSelect={() => go(n.href)}>
               <n.icon className="h-4 w-4 text-[var(--color-text-muted)]" />
-              {n.label}
+              {t(n.key as never)}
             </CommandItem>
           ))}
         </CommandGroup>
         {fileResults.length > 0 && (
-          <CommandGroup heading="Files">
+          <CommandGroup heading={t("ui.palette.files")}>
             {fileResults.map((f) => (
               <CommandItem
                 key={f.id}

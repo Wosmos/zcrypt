@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import {
   Bell,
@@ -31,15 +32,18 @@ const typeColors: Record<NotificationType, string> = {
   info: "text-blue-500",
 };
 
-function timeAgo(ts: number): string {
+type Translate = ReturnType<typeof useTranslations>;
+
+function timeAgo(ts: number, t: Translate): string {
   const diff = Date.now() - ts;
-  if (diff < 60_000) return "just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
+  if (diff < 60_000) return t("justNow");
+  if (diff < 3_600_000) return t("minutesAgo", { count: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t("hoursAgo", { count: Math.floor(diff / 3_600_000) });
+  return t("daysAgo", { count: Math.floor(diff / 86_400_000) });
 }
 
 export function NotificationCenter() {
+  const t = useTranslations("ui.notifications");
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } =
@@ -64,7 +68,7 @@ export function NotificationCenter() {
               ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10"
               : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]",
         )}
-        title={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+        title={unreadCount > 0 ? t("unread", { count: unreadCount }) : t("title")}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -84,7 +88,7 @@ export function NotificationCenter() {
         <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-h-[420px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl overflow-hidden z-50 animate-fade-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-            <h3 className="text-sm font-semibold">Notifications</h3>
+            <h3 className="text-sm font-semibold">{t("title")}</h3>
             <div className="flex items-center gap-1">
               {/* Push notification toggle */}
               {isSupported && (
@@ -96,7 +100,7 @@ export function NotificationCenter() {
                       ? "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
                       : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]",
                   )}
-                  title={isGranted ? "Push notifications enabled" : "Enable push notifications"}
+                  title={isGranted ? t("pushEnabled") : t("enablePush")}
                 >
                   {isGranted ? (
                     <Bell className="h-3.5 w-3.5" />
@@ -109,10 +113,10 @@ export function NotificationCenter() {
                 <button
                   onClick={markAllRead}
                   className="flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
-                  title="Mark all as read"
+                  title={t("markAllRead")}
                 >
                   <Check className="h-3 w-3" />
-                  Read all
+                  {t("readAll")}
                 </button>
               )}
               {notifications.length > 0 && (
@@ -122,7 +126,7 @@ export function NotificationCenter() {
                     setOpen(false);
                   }}
                   className="flex items-center justify-center h-7 w-7 rounded-lg text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                  title="Clear all"
+                  title={t("clearAll")}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -135,9 +139,9 @@ export function NotificationCenter() {
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
                 <Bell className="h-8 w-8 text-[var(--color-text-muted)] mb-2 opacity-30" />
-                <p className="text-sm text-[var(--color-text-muted)]">No notifications yet</p>
+                <p className="text-sm text-[var(--color-text-muted)]">{t("empty")}</p>
                 <p className="text-xs text-[var(--color-text-muted)] mt-0.5 opacity-60">
-                  Upload and download activity will appear here
+                  {t("emptyHint")}
                 </p>
               </div>
             ) : (
@@ -171,10 +175,11 @@ export function NotificationCenter() {
                         {n.message}
                       </p>
                       <p className="text-[10px] text-[var(--color-text-muted)] opacity-60 mt-1">
-                        {timeAgo(n.timestamp)}
+                        {timeAgo(n.timestamp, t)}
                       </p>
                     </div>
                     <button
+                      aria-label={t("dismiss")}
                       onClick={(e) => {
                         e.stopPropagation();
                         remove(n.id);

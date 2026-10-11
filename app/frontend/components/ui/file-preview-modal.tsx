@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { X, Download, FileText, Eye } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { MediaPlayer } from "@/components/ui/media-player";
@@ -88,6 +89,7 @@ export function FilePreviewModal({
   filename,
   fileSize,
 }: FilePreviewModalProps) {
+  const t = useTranslations("ui.preview");
   const [textContent, setTextContent] = useState<string | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const previewType = getPreviewType(filename);
@@ -164,10 +166,11 @@ export function FilePreviewModal({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
-              Save
+              {t("save")}
             </button>
             <button
               onClick={handleClose}
+              aria-label={t("close")}
               className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors p-1"
             >
               <X className="h-4 w-4" />
@@ -214,19 +217,19 @@ export function FilePreviewModal({
               {textContent}
               {blob.size > 100 * 1024 && (
                 <span className="text-[var(--color-text-muted)] block mt-4 italic">
-                  ... truncated (showing first 100KB of {formatBytes(blob.size)})
+                  {t("truncated", { size: formatBytes(blob.size) })}
                 </span>
               )}
             </pre>
           ) : (
             <div className="flex flex-col items-center justify-center h-40 text-[var(--color-text-muted)]">
               <FileText className="h-10 w-10 mb-3 opacity-40" />
-              <p className="text-sm">Preview not available for this file type</p>
+              <p className="text-sm">{t("unavailable")}</p>
               <button
                 onClick={handleDownload}
                 className="mt-3 text-xs text-cyan-500 hover:text-cyan-400 transition-colors"
               >
-                Download to view
+                {t("downloadToView")}
               </button>
             </div>
           )}

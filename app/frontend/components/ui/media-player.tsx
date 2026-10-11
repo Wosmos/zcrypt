@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import {
   Play,
   Pause,
@@ -275,6 +276,7 @@ function SeekBar({
   onScrubEnd: (time: number) => void;
   ariaLabel: string;
 }) {
+  const tm = useTranslations("ui.media");
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const pct = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
@@ -344,7 +346,10 @@ function SeekBar({
       aria-valuemin={0}
       aria-valuemax={Math.floor(duration) || 0}
       aria-valuenow={Math.floor(current) || 0}
-      aria-valuetext={`${formatTime(current)} of ${formatTime(duration)}`}
+      aria-valuetext={tm("seekValue", {
+        current: formatTime(current),
+        duration: formatTime(duration),
+      })}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -384,6 +389,7 @@ function VolumeControl({
   onToggleMute: () => void;
   onChange: (value: number) => void;
 }) {
+  const tm = useTranslations("ui.media");
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const effective = muted ? 0 : volume;
@@ -400,7 +406,7 @@ function VolumeControl({
     <div className="group/vol flex items-center gap-1.5">
       <IconButton
         icon={Volume2}
-        label={muted || volume === 0 ? "Unmute" : "Mute"}
+        label={muted || volume === 0 ? tm("unmute") : tm("mute")}
         onClick={onToggleMute}
         iconClassName={cn("h-4 w-4 transition-opacity", (muted || effective === 0) && "opacity-40")}
       />
@@ -408,7 +414,7 @@ function VolumeControl({
         ref={trackRef}
         role="slider"
         tabIndex={0}
-        aria-label="Volume"
+        aria-label={tm("volume")}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
@@ -452,6 +458,7 @@ function VolumeControl({
 /* -------------------------------------------------------------------------- */
 
 function SpeedControl({ speed, onCycle }: { speed: number; onCycle: () => void }) {
+  const tm = useTranslations("ui.media");
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
@@ -459,14 +466,14 @@ function SpeedControl({ speed, onCycle }: { speed: number; onCycle: () => void }
           <button
             type="button"
             onClick={onCycle}
-            aria-label={`Playback speed ${speed}x`}
+            aria-label={tm("speedLabel", { speed })}
             className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium tabular-nums text-[var(--color-text-secondary)] outline-none transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-surface)] cursor-pointer"
           >
             <Gauge className="h-4 w-4" />
             {speed}x
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top">Playback speed</TooltipContent>
+        <TooltipContent side="top">{tm("speed")}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -504,6 +511,7 @@ function MediaErrorFallback({
   filename: string;
   kind: "audio" | "video";
 }) {
+  const tm = useTranslations("ui.media");
   return (
     <div className="flex w-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-surface-1)] text-[var(--color-text-muted)]">
@@ -511,7 +519,7 @@ function MediaErrorFallback({
       </div>
       <p className="max-w-full truncate text-sm font-medium text-[var(--color-text)]">{filename}</p>
       <p className="max-w-xs text-xs leading-relaxed text-[var(--color-text-muted)]">
-        This format can&rsquo;t be played in the browser. Download it to open in a native player.
+        {tm("unplayable")}
       </p>
       <a
         href={src}
@@ -519,7 +527,7 @@ function MediaErrorFallback({
         className="mt-1 inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
       >
         <Download className="h-4 w-4" />
-        Download
+        {tm("download")}
       </a>
     </div>
   );
@@ -542,6 +550,7 @@ function AudioPlayer({
   onPrev?: () => void;
   onNext?: () => void;
 }) {
+  const tm = useTranslations("ui.media");
   const reduce = useReducedMotion() ?? false;
   const {
     playing,
@@ -614,7 +623,7 @@ function AudioPlayer({
               current={current}
               duration={duration}
               buffered={buffered}
-              ariaLabel="Seek audio"
+              ariaLabel={tm("seekAudio")}
               onScrubStart={() => setScrubbing(true)}
               onScrub={(t) => setCurrent(t)}
               onScrubEnd={(t) => {
@@ -631,21 +640,21 @@ function AudioPlayer({
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <IconButton
                   icon={RefreshCw}
-                  label={loop ? "Loop on" : "Loop"}
+                  label={loop ? tm("loopOn") : tm("loop")}
                   aria-pressed={loop}
                   onClick={toggleLoop}
                   iconClassName={cn("h-4 w-4", loop && "text-[var(--color-accent)]")}
                 />
                 <IconButton
                   icon={SkipForward}
-                  label="Previous track"
+                  label={tm("previousTrack")}
                   onClick={onPrev}
                   disabled={!onPrev}
                   iconClassName="h-4 w-4 -scale-x-100"
                 />
                 <IconButton
                   icon={playing ? Pause : Play}
-                  label={playing ? "Pause" : "Play"}
+                  label={playing ? tm("pause") : tm("play")}
                   variant="primary"
                   onClick={togglePlay}
                   className="h-11 w-11 rounded-full"
@@ -653,7 +662,7 @@ function AudioPlayer({
                 />
                 <IconButton
                   icon={SkipForward}
-                  label="Next track"
+                  label={tm("nextTrack")}
                   onClick={onNext}
                   disabled={!onNext}
                   iconClassName="h-4 w-4"
@@ -678,6 +687,7 @@ function AudioPlayer({
       )}
 
       <audio
+        // oxlint-disable-next-line react/refs
         ref={controller.ref as React.RefObject<HTMLAudioElement>}
         src={src}
         preload="metadata"
@@ -703,6 +713,7 @@ function VideoPlayer({
   poster?: string;
   controller: Controller;
 }) {
+  const tm = useTranslations("ui.media");
   const containerRef = useRef<HTMLDivElement>(null);
   const [showControls, setShowControls] = useState(true);
   // Intrinsic aspect ratio (w/h) read from the decoded video, so the frame hugs
@@ -737,7 +748,7 @@ function VideoPlayer({
   }, [playing]);
 
   useEffect(() => {
-    if (!playing) setShowControls(true);
+    if (!playing) queueMicrotask(() => setShowControls(true));
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
@@ -755,11 +766,12 @@ function VideoPlayer({
     };
     el.addEventListener("loadedmetadata", read);
     el.addEventListener("resize", read);
-    if (el.readyState >= 1) read();
+    if (el.readyState >= 1) queueMicrotask(read);
     return () => {
       el.removeEventListener("loadedmetadata", read);
       el.removeEventListener("resize", read);
     };
+    // oxlint-disable-next-line react/refs
   }, [controller.ref, src]);
 
   const toggleFullscreen = useToggleFullscreen(containerRef);
@@ -796,6 +808,7 @@ function VideoPlayer({
       )}
     >
       <video
+        // oxlint-disable-next-line react/refs
         ref={controller.ref as React.RefObject<HTMLVideoElement>}
         src={src}
         poster={poster}
@@ -805,7 +818,7 @@ function VideoPlayer({
         onClick={togglePlay}
         className="h-full w-full bg-black object-contain"
       >
-        Your browser does not support video playback.
+        {tm("noVideo")}
       </video>
 
       {/* Center play affordance when paused */}
@@ -813,7 +826,7 @@ function VideoPlayer({
         <button
           type="button"
           onClick={togglePlay}
-          aria-label="Play video"
+          aria-label={tm("playVideo")}
           className="absolute inset-0 flex items-center justify-center bg-black/20 outline-none transition-colors hover:bg-black/30 focus-visible:bg-black/30"
         >
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-[#1a1f36] shadow-lg backdrop-blur-sm">
@@ -834,7 +847,7 @@ function VideoPlayer({
             current={current}
             duration={duration}
             buffered={buffered}
-            ariaLabel="Seek video"
+            ariaLabel={tm("seekVideo")}
             onScrubStart={() => setScrubbing(true)}
             onScrub={(t) => setCurrent(t)}
             onScrubEnd={(t) => {
@@ -847,7 +860,7 @@ function VideoPlayer({
         <div className="flex items-center gap-1 text-white">
           <IconButton
             icon={playing ? Pause : Play}
-            label={playing ? "Pause" : "Play"}
+            label={playing ? tm("pause") : tm("play")}
             onClick={togglePlay}
             className="text-white hover:bg-white/15 hover:text-white"
           />
@@ -873,7 +886,7 @@ function VideoPlayer({
             </div>
             <IconButton
               icon={Monitor}
-              label="Fullscreen"
+              label={tm("fullscreen")}
               onClick={toggleFullscreen}
               className="text-white hover:bg-white/15 hover:text-white"
             />

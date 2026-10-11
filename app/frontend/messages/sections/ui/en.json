@@ -1,3 +1,245 @@
 {
-  "ui": {}
+  "ui": {
+    "errors": {
+      "title": "Something went wrong",
+      "body": "An unexpected error occurred. Please try again.",
+      "retry": "Try again"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you're looking for doesn't exist or has been moved. Check the URL or head back to safety.",
+      "home": "Go home",
+      "signIn": "Sign in",
+      "help": "Need help? Contact <support>support</support>"
+    },
+    "feedback": {
+      "bug": {
+        "attachFailed": "Could not attach that image",
+        "sent": "Bug report sent. Thank you.",
+        "sendFailed": "Could not send the report",
+        "title": "Report a bug",
+        "description": "Tell us what went wrong. Your app version, platform and current page are attached automatically. Nothing from your vault is ever included.",
+        "placeholder": "What happened, and what did you expect instead?",
+        "descriptionLabel": "Bug description",
+        "screenshotAlt": "Attached screenshot",
+        "removeScreenshot": "Remove screenshot",
+        "processing": "Processing image...",
+        "addScreenshot": "Add a screenshot (choose a file or paste one)",
+        "sending": "Sending...",
+        "send": "Send report"
+      },
+      "modal": {
+        "failed": "Failed to submit feedback",
+        "thanks": "Thank you!",
+        "thanksBody": "Your feedback helps us build a better product.",
+        "title": "How are we doing?",
+        "subtitle": "We'd love to hear your thoughts on zcrypt.",
+        "close": "Close",
+        "stars": "{count, plural, one {# star} other {# stars}}",
+        "placeholder": "Tell us what you think... (optional)",
+        "later": "Maybe later",
+        "sending": "Sending...",
+        "submit": "Submit"
+      },
+      "review": {
+        "thanksPublic": "Thanks. It will show on the site once we've read it.",
+        "thanks": "Thanks for the review.",
+        "failed": "Could not send your review",
+        "title": "Rate zcrypt",
+        "description": "Honest is better than nice. Only reviews you allow on the website are ever shown there, and only after we have read them.",
+        "rating": "Rating",
+        "stars": "{count, plural, one {# star} other {# stars}}",
+        "quotePlaceholder": "What do you like, or not like, about zcrypt?",
+        "quoteLabel": "Your review",
+        "displayName": "Display name",
+        "displayNamePlaceholder": "How your name should appear",
+        "publicOk": "OK to show on the website",
+        "sending": "Sending...",
+        "update": "Update review",
+        "send": "Send review"
+      },
+      "prompt": {
+        "rate": "Rate zcrypt",
+        "dismiss": "Dismiss",
+        "title": "Enjoying zcrypt?",
+        "body": "A sentence or two helps more than you would think. It takes under a minute.",
+        "notNow": "Not now"
+      }
+    },
+    "tour": {
+      "label": "Tour: {title}",
+      "progress": "{current} of {total}",
+      "skip": "Skip tour",
+      "back": "Back",
+      "next": "Next",
+      "done": "Done",
+      "steps": {
+        "vault": {
+          "0": {
+            "title": "Find anything fast",
+            "content": "Type to filter your files and folders. Press / from anywhere to jump here."
+          },
+          "1": {
+            "title": "Add your files",
+            "content": "Upload files here. They are encrypted on your device before they go anywhere. On a phone, use the plus button."
+          },
+          "2": {
+            "title": "Keep things tidy",
+            "content": "Make a new folder to organize your files. You can drag files into it later."
+          },
+          "3": {
+            "title": "Every file has a menu",
+            "content": "Right-click a file, or long-press on a phone, to share, move, rename or delete it."
+          },
+          "4": {
+            "title": "Lock and unlock",
+            "content": "This is your vault lock. Unlock it with your passphrase to open files, and lock it again when you are done."
+          },
+          "5": {
+            "title": "Spaces",
+            "content": "Share a folder with people you invite, still end-to-end encrypted."
+          },
+          "6": {
+            "title": "Insights",
+            "content": "See how much storage you use and what your vault has been up to."
+          }
+        },
+        "share": {
+          "0": {
+            "title": "Add a password",
+            "content": "Turn this on and anyone opening the link will need the password too."
+          },
+          "1": {
+            "title": "Set an expiry",
+            "content": "Pick when the link stops working. After that, nobody can open it."
+          },
+          "2": {
+            "title": "Make the link",
+            "content": "When you are happy with the options, create your link."
+          }
+        },
+        "shareCopy": {
+          "0": {
+            "title": "Copy your link",
+            "content": "Copy it and send it to whoever you like. Keep the whole link, including the part after the #."
+          }
+        },
+        "spaces": {
+          "0": {
+            "title": "Welcome to Spaces",
+            "content": "A space is a shared folder that only the people you invite can open. Everything stays end-to-end encrypted."
+          },
+          "1": {
+            "title": "Start a space",
+            "content": "Create one, name it, and invite people. You choose who can edit and who can only view."
+          },
+          "2": {
+            "title": "Your spaces live here",
+            "content": "Open any space to add files, manage members or revoke access."
+          }
+        }
+      }
+    },
+    "externalLinkFailed": "Couldn't open that link on this device",
+    "processing": "Processing...",
+    "logoHome": "zcrypt home",
+    "calendar": {
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "clear": "Clear",
+      "today": "Today"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "showing": "Showing {start}–{end} of {total}",
+      "page": "Page {page}",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "command": {
+      "title": "Search",
+      "description": "Search files and run commands"
+    },
+    "palette": {
+      "analytics": "Analytics",
+      "deviceTransfer": "Device Transfer",
+      "placeholder": "Search files or jump to…",
+      "empty": "No results found.",
+      "goTo": "Go to",
+      "files": "Files"
+    },
+    "notifications": {
+      "justNow": "just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago",
+      "unread": "{count, plural, one {# unread notification} other {# unread notifications}}",
+      "title": "Notifications",
+      "pushEnabled": "Push notifications enabled",
+      "enablePush": "Enable push notifications",
+      "markAllRead": "Mark all as read",
+      "readAll": "Read all",
+      "clearAll": "Clear all",
+      "empty": "No notifications yet",
+      "emptyHint": "Upload and download activity will appear here",
+      "dismiss": "Dismiss"
+    },
+    "toasts": {
+      "label": "Notifications",
+      "dismiss": "Dismiss notification: {message}",
+      "showingAll": "Showing all notifications",
+      "more": "<b>{count} more</b> notifications",
+      "moreOne": "<b>1 more</b> notification",
+      "showLess": "Show less",
+      "showAll": "Show all"
+    },
+    "strength": {
+      "tooShort": "Too short",
+      "okay": "Okay",
+      "good": "Good",
+      "strong": "Strong"
+    },
+    "theme": {
+      "toLight": "Switch to light mode",
+      "toDark": "Switch to dark mode"
+    },
+    "update": {
+      "aria": "A new version is available. Open updates.",
+      "ariaWithVersion": "A new version ({version}) is available. Open updates.",
+      "out": "New version is out",
+      "outWithVersion": "New version {version} is out"
+    },
+    "qr": {
+      "hide": "Hide QR code",
+      "show": "Show QR code for mobile"
+    },
+    "preview": {
+      "save": "Save",
+      "close": "Close",
+      "truncated": "... truncated (showing first 100KB of {size})",
+      "unavailable": "Preview not available for this file type",
+      "downloadToView": "Download to view"
+    },
+    "media": {
+      "seekValue": "{current} of {duration}",
+      "unmute": "Unmute",
+      "mute": "Mute",
+      "volume": "Volume",
+      "speedLabel": "Playback speed {speed}x",
+      "speed": "Playback speed",
+      "unplayable": "This format can't be played in the browser. Download it to open in a native player.",
+      "download": "Download",
+      "seekAudio": "Seek audio",
+      "seekVideo": "Seek video",
+      "loopOn": "Loop on",
+      "loop": "Loop",
+      "previousTrack": "Previous track",
+      "nextTrack": "Next track",
+      "noVideo": "Your browser does not support video playback.",
+      "playVideo": "Play video",
+      "fullscreen": "Fullscreen",
+      "pause": "Pause",
+      "play": "Play"
+    }
+  }
 }

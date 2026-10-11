@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "Error de autenticación",
+    "completing": "Completando el inicio de sesión...",
+    "goToLogin": "Ir al inicio de sesión",
+    "magic": {
+      "invalidLink": "Enlace no válido o ausente",
+      "signedIn": "Sesión iniciada correctamente",
+      "expiredFallback": "El enlace ha caducado o no es válido",
+      "expiredTitle": "Enlace caducado",
+      "verifying": "Verificando tu enlace de acceso..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "Enlace no válido",
+      "invalidBody": "Este enlace de verificación no es válido o ha caducado.",
+      "verifying": "Verificando tu correo...",
+      "moment": "Un momento",
+      "successTitle": "Correo verificado",
+      "successBody": "Tu cuenta ya está activa. Puedes iniciar sesión.",
+      "failedTitle": "Error de verificación",
+      "failedFallback": "Es posible que el enlace haya caducado. Solicita uno nuevo."
+    },
+    "reset": {
+      "invalidTitle": "Enlace no válido",
+      "invalidBody": "Este enlace para restablecer la contraseña no es válido o ha caducado.",
+      "requestNew": "Solicitar un enlace nuevo",
+      "doneTitle": "Contraseña actualizada",
+      "doneBody": "Tu contraseña se ha restablecido. Ya puedes iniciar sesión.",
+      "failed": "Error al restablecer",
+      "title": "Nueva contraseña",
+      "subtitle": "Elige una nueva contraseña para tu bóveda",
+      "newPassword": "Nueva contraseña",
+      "resetting": "Restableciendo...",
+      "submit": "Restablecer contraseña"
+    },
+    "twoFa": {
+      "title": "Autenticación en dos pasos",
+      "subtitle": "Introduce el código de 6 dígitos de tu app de autenticación",
+      "enterAll": "Introduce los 6 dígitos",
+      "expired": "La sesión ha caducado. Inicia sesión de nuevo.",
+      "invalid": "Código no válido",
+      "verifying": "Verificando...",
+      "verify": "Verificar",
+      "digit": "Dígito {n} de 6"
+    },
+    "relay": {
+      "nothingTitle": "Nada que aprobar",
+      "nothingBody": "Este inicio de sesión ha caducado o ya se procesó. Empieza de nuevo desde la app de zcrypt.",
+      "approveTitle": "¿Iniciar sesión en la app de zcrypt?",
+      "codeHint": "Aprueba solo si la app de tu dispositivo muestra este código.",
+      "noCodeHint": "Aprueba solo si acabas de iniciar este inicio de sesión tú mismo desde la app de zcrypt.",
+      "approve": "Aprobar inicio de sesión",
+      "approvedTitle": "Inicio de sesión aprobado",
+      "approvedBody": "Puedes cerrar esta pestaña y volver a la app de zcrypt."
+    },
+    "deletion": {
+      "cancelled": "Tu cuenta ya no está programada para eliminarse",
+      "cancelFailed": "No se pudo cancelar la eliminación",
+      "title": "Esta cuenta se eliminará el {date}",
+      "body": "Entonces se borrarán tus archivos, carpetas y enlaces compartidos. Conserva la cuenta para evitarlo.",
+      "keep": "Conservar mi cuenta"
+    },
+    "onboarding": {
+      "connected": "¡{name} conectado!",
+      "connectionFailed": "Error de conexión",
+      "welcome": "Te damos la bienvenida a <brand>zcrypt</brand>",
+      "intro": "Almacenamiento en la nube cifrado, comprimido y de conocimiento cero que usa plataformas Git como servidores gratuitos.",
+      "featureEncryptionTitle": "Cifrado AES-256-GCM",
+      "featureEncryptionDesc": "Los archivos se cifran antes de salir de tu equipo",
+      "featureCompressionTitle": "Compresión Zstd",
+      "featureCompressionDesc": "Compresión máxima antes del cifrado",
+      "featurePlatformsTitle": "Almacenamiento multiplataforma",
+      "featurePlatformsDesc": "GitHub, GitLab, Hugging Face o Telegram como servidores",
+      "getStarted": "Empezar",
+      "skip": "Omitir por ahora",
+      "choosePlatform": "Elige una plataforma",
+      "choosePlatformHint": "Conecta al menos una plataforma para empezar a guardar archivos",
+      "continue": "Continuar",
+      "connectTitle": "Conectar {name}",
+      "tokenHint": "Crea un token de acceso personal con el alcance <code>{scope}</code>",
+      "connecting": "Conectando...",
+      "connect": "Conectar",
+      "backToPlatforms": "Volver a la selección de plataforma",
+      "doneTitle": "¡Todo listo!",
+      "doneBody": "Empieza a subir archivos cifrados a tu bóveda.",
+      "goToVault": "Ir a la bóveda",
+      "platformTagline": {
+        "github": "Repos grandes · 100 MiB por archivo",
+        "gitlab": "10 GiB por proyecto",
+        "huggingface": "100 GB privados por cuenta",
+        "telegram": "Almacenamiento ilimitado mediante canales"
+      },
+      "platformTokenLabel": {
+        "github": "Generar token en GitHub",
+        "gitlab": "Generar token en GitLab",
+        "huggingface": "Generar token en Hugging Face",
+        "telegram": "Crear bot con @BotFather"
+      }
+    }
+  }
 }

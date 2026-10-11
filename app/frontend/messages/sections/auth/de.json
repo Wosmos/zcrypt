@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "Authentifizierung fehlgeschlagen",
+    "completing": "Anmeldung wird abgeschlossen...",
+    "goToLogin": "Zur Anmeldung",
+    "magic": {
+      "invalidLink": "Ungültiger oder fehlender Link",
+      "signedIn": "Erfolgreich angemeldet",
+      "expiredFallback": "Link abgelaufen oder ungültig",
+      "expiredTitle": "Link abgelaufen",
+      "verifying": "Ihr Anmeldelink wird überprüft..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "Ungültiger Link",
+      "invalidBody": "Dieser Bestätigungslink ist ungültig oder abgelaufen.",
+      "verifying": "Ihre E-Mail wird bestätigt...",
+      "moment": "Einen Moment",
+      "successTitle": "E-Mail bestätigt",
+      "successBody": "Ihr Konto ist jetzt aktiv. Sie können sich anmelden.",
+      "failedTitle": "Bestätigung fehlgeschlagen",
+      "failedFallback": "Der Link ist möglicherweise abgelaufen. Fordern Sie einen neuen an."
+    },
+    "reset": {
+      "invalidTitle": "Ungültiger Link",
+      "invalidBody": "Dieser Link zum Zurücksetzen des Passworts ist ungültig oder abgelaufen.",
+      "requestNew": "Neuen Link anfordern",
+      "doneTitle": "Passwort aktualisiert",
+      "doneBody": "Ihr Passwort wurde zurückgesetzt. Sie können sich jetzt anmelden.",
+      "failed": "Zurücksetzen fehlgeschlagen",
+      "title": "Neues Passwort",
+      "subtitle": "Wählen Sie ein neues Passwort für Ihren Tresor",
+      "newPassword": "Neues Passwort",
+      "resetting": "Wird zurückgesetzt...",
+      "submit": "Passwort zurücksetzen"
+    },
+    "twoFa": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "subtitle": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein",
+      "enterAll": "Geben Sie alle 6 Ziffern ein",
+      "expired": "Sitzung abgelaufen. Bitte melden Sie sich erneut an.",
+      "invalid": "Ungültiger Code",
+      "verifying": "Wird überprüft...",
+      "verify": "Bestätigen",
+      "digit": "Ziffer {n} von 6"
+    },
+    "relay": {
+      "nothingTitle": "Nichts zu genehmigen",
+      "nothingBody": "Diese Anmeldung ist abgelaufen oder wurde bereits bearbeitet. Starten Sie erneut in der zcrypt-App.",
+      "approveTitle": "In der zcrypt-App anmelden?",
+      "codeHint": "Genehmigen Sie nur, wenn die App auf Ihrem Gerät diesen Code anzeigt.",
+      "noCodeHint": "Genehmigen Sie nur, wenn Sie diese Anmeldung gerade selbst in der zcrypt-App gestartet haben.",
+      "approve": "Anmeldung genehmigen",
+      "approvedTitle": "Anmeldung genehmigt",
+      "approvedBody": "Sie können diesen Tab schließen und zur zcrypt-App zurückkehren."
+    },
+    "deletion": {
+      "cancelled": "Ihr Konto ist nicht mehr zur Löschung vorgemerkt",
+      "cancelFailed": "Löschung konnte nicht abgebrochen werden",
+      "title": "Dieses Konto wird am {date} gelöscht",
+      "body": "Dann werden Ihre Dateien, Ordner und Freigabelinks gelöscht. Behalten Sie das Konto, um das zu verhindern.",
+      "keep": "Mein Konto behalten"
+    },
+    "onboarding": {
+      "connected": "{name} verbunden!",
+      "connectionFailed": "Verbindung fehlgeschlagen",
+      "welcome": "Willkommen bei <brand>zcrypt</brand>",
+      "intro": "Verschlüsselter, komprimierter Zero-Knowledge-Cloudspeicher, der Git-Plattformen als kostenlose Backends nutzt.",
+      "featureEncryptionTitle": "AES-256-GCM-Verschlüsselung",
+      "featureEncryptionDesc": "Dateien werden verschlüsselt, bevor sie Ihr Gerät verlassen",
+      "featureCompressionTitle": "Zstd-Komprimierung",
+      "featureCompressionDesc": "Maximale Komprimierung vor der Verschlüsselung",
+      "featurePlatformsTitle": "Speicher auf mehreren Plattformen",
+      "featurePlatformsDesc": "GitHub, GitLab, Hugging Face oder Telegram als Backends",
+      "getStarted": "Loslegen",
+      "skip": "Vorerst überspringen",
+      "choosePlatform": "Plattform wählen",
+      "choosePlatformHint": "Verbinden Sie mindestens eine Plattform, um Dateien zu speichern",
+      "continue": "Weiter",
+      "connectTitle": "{name} verbinden",
+      "tokenHint": "Erstellen Sie ein persönliches Zugriffstoken mit dem Scope <code>{scope}</code>",
+      "connecting": "Verbindung wird hergestellt...",
+      "connect": "Verbinden",
+      "backToPlatforms": "Zurück zur Plattformauswahl",
+      "doneTitle": "Alles bereit!",
+      "doneBody": "Laden Sie jetzt verschlüsselte Dateien in Ihren Tresor hoch.",
+      "goToVault": "Zum Tresor",
+      "platformTagline": {
+        "github": "Große Repos · 100 MiB pro Datei",
+        "gitlab": "10 GiB pro Projekt",
+        "huggingface": "100 GB privat pro Konto",
+        "telegram": "Unbegrenzter Speicher über Kanäle"
+      },
+      "platformTokenLabel": {
+        "github": "Token auf GitHub erzeugen",
+        "gitlab": "Token auf GitLab erzeugen",
+        "huggingface": "Token auf Hugging Face erzeugen",
+        "telegram": "Bot über @BotFather erstellen"
+      }
+    }
+  }
 }

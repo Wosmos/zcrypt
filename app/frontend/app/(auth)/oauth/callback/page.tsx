@@ -2,12 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { toast } from "@/store/toast";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function OAuthCallbackPage() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setTokens, setUser } = useAuthStore();
@@ -42,7 +44,7 @@ export default function OAuthCallbackPage() {
     }
 
     if (!accessToken || !refreshToken) {
-      toast.error("Authentication failed");
+      toast.error(t("authFailed"));
       router.replace("/login");
       return;
     }
@@ -57,12 +59,12 @@ export default function OAuthCallbackPage() {
       .catch(() => {
         router.replace("/dashboard");
       });
-  }, [searchParams, setTokens, setUser, router]);
+  }, [searchParams, setTokens, setUser, router, t]);
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <LogoSpinner size={32} speed="default" />
-      <p className="text-sm text-[var(--color-text-secondary)]">Completing sign in...</p>
+      <p className="text-sm text-[var(--color-text-secondary)]">{t("completing")}</p>
     </div>
   );
 }

@@ -1,3 +1,245 @@
 {
-  "ui": {}
+  "ui": {
+    "errors": {
+      "title": "Etwas ist schiefgelaufen",
+      "body": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+      "retry": "Erneut versuchen"
+    },
+    "notFound": {
+      "title": "Seite nicht gefunden",
+      "body": "Die gesuchte Seite existiert nicht oder wurde verschoben. Prüfen Sie die URL oder kehren Sie zurück.",
+      "home": "Zur Startseite",
+      "signIn": "Anmelden",
+      "help": "Brauchen Sie Hilfe? Kontaktieren Sie den <support>Support</support>"
+    },
+    "feedback": {
+      "bug": {
+        "attachFailed": "Das Bild konnte nicht angehängt werden",
+        "sent": "Fehlerbericht gesendet. Vielen Dank.",
+        "sendFailed": "Der Bericht konnte nicht gesendet werden",
+        "title": "Fehler melden",
+        "description": "Beschreiben Sie, was schiefgelaufen ist. App-Version, Plattform und aktuelle Seite werden automatisch angehängt. Inhalte Ihres Tresors werden nie übermittelt.",
+        "placeholder": "Was ist passiert, und was hatten Sie stattdessen erwartet?",
+        "descriptionLabel": "Fehlerbeschreibung",
+        "screenshotAlt": "Angehängter Screenshot",
+        "removeScreenshot": "Screenshot entfernen",
+        "processing": "Bild wird verarbeitet...",
+        "addScreenshot": "Screenshot hinzufügen (Datei wählen oder einfügen)",
+        "sending": "Wird gesendet...",
+        "send": "Bericht senden"
+      },
+      "modal": {
+        "failed": "Feedback konnte nicht gesendet werden",
+        "thanks": "Vielen Dank!",
+        "thanksBody": "Ihr Feedback hilft uns, ein besseres Produkt zu bauen.",
+        "title": "Wie machen wir uns?",
+        "subtitle": "Wir freuen uns auf Ihre Meinung zu zcrypt.",
+        "close": "Schließen",
+        "stars": "{count, plural, one {# Stern} other {# Sterne}}",
+        "placeholder": "Sagen Sie uns, was Sie denken... (optional)",
+        "later": "Vielleicht später",
+        "sending": "Wird gesendet...",
+        "submit": "Absenden"
+      },
+      "review": {
+        "thanksPublic": "Danke. Die Bewertung erscheint auf der Website, sobald wir sie gelesen haben.",
+        "thanks": "Danke für die Bewertung.",
+        "failed": "Ihre Bewertung konnte nicht gesendet werden",
+        "title": "zcrypt bewerten",
+        "description": "Ehrlich ist besser als nett. Auf der Website erscheinen nur Bewertungen, die Sie freigeben, und erst nachdem wir sie gelesen haben.",
+        "rating": "Bewertung",
+        "stars": "{count, plural, one {# Stern} other {# Sterne}}",
+        "quotePlaceholder": "Was gefällt Ihnen an zcrypt, und was nicht?",
+        "quoteLabel": "Ihre Bewertung",
+        "displayName": "Anzeigename",
+        "displayNamePlaceholder": "Wie Ihr Name erscheinen soll",
+        "publicOk": "Darf auf der Website angezeigt werden",
+        "sending": "Wird gesendet...",
+        "update": "Bewertung aktualisieren",
+        "send": "Bewertung senden"
+      },
+      "prompt": {
+        "rate": "zcrypt bewerten",
+        "dismiss": "Schließen",
+        "title": "Gefällt Ihnen zcrypt?",
+        "body": "Ein, zwei Sätze helfen mehr, als Sie denken. Das dauert weniger als eine Minute.",
+        "notNow": "Nicht jetzt"
+      }
+    },
+    "tour": {
+      "label": "Tour: {title}",
+      "progress": "{current} von {total}",
+      "skip": "Tour überspringen",
+      "back": "Zurück",
+      "next": "Weiter",
+      "done": "Fertig",
+      "steps": {
+        "vault": {
+          "0": {
+            "title": "Alles schnell finden",
+            "content": "Tippen Sie, um Dateien und Ordner zu filtern. Drücken Sie überall /, um hierher zu springen."
+          },
+          "1": {
+            "title": "Dateien hinzufügen",
+            "content": "Laden Sie hier Dateien hoch. Sie werden auf Ihrem Gerät verschlüsselt, bevor sie irgendwohin gehen. Auf dem Handy nutzen Sie die Plus-Schaltfläche."
+          },
+          "2": {
+            "title": "Ordnung halten",
+            "content": "Erstellen Sie einen neuen Ordner, um Ihre Dateien zu ordnen. Später können Sie Dateien hineinziehen."
+          },
+          "3": {
+            "title": "Jede Datei hat ein Menü",
+            "content": "Rechtsklicken Sie auf eine Datei (auf dem Handy lange drücken), um sie zu teilen, zu verschieben, umzubenennen oder zu löschen."
+          },
+          "4": {
+            "title": "Sperren und entsperren",
+            "content": "Das ist das Schloss Ihres Tresors. Entsperren Sie ihn mit Ihrer Passphrase, um Dateien zu öffnen, und sperren Sie ihn danach wieder."
+          },
+          "5": {
+            "title": "Spaces",
+            "content": "Teilen Sie einen Ordner mit eingeladenen Personen, weiterhin Ende-zu-Ende-verschlüsselt."
+          },
+          "6": {
+            "title": "Insights",
+            "content": "Sehen Sie, wie viel Speicher Sie nutzen und was in Ihrem Tresor passiert ist."
+          }
+        },
+        "share": {
+          "0": {
+            "title": "Passwort hinzufügen",
+            "content": "Schalten Sie dies ein, und jeder, der den Link öffnet, braucht zusätzlich das Passwort."
+          },
+          "1": {
+            "title": "Ablaufdatum festlegen",
+            "content": "Wählen Sie, wann der Link nicht mehr funktioniert. Danach kann ihn niemand mehr öffnen."
+          },
+          "2": {
+            "title": "Link erstellen",
+            "content": "Wenn die Optionen passen, erstellen Sie Ihren Link."
+          }
+        },
+        "shareCopy": {
+          "0": {
+            "title": "Link kopieren",
+            "content": "Kopieren Sie ihn und senden Sie ihn, an wen Sie möchten. Behalten Sie den ganzen Link, auch den Teil nach dem #."
+          }
+        },
+        "spaces": {
+          "0": {
+            "title": "Willkommen bei Spaces",
+            "content": "Ein Space ist ein gemeinsamer Ordner, den nur die von Ihnen eingeladenen Personen öffnen können. Alles bleibt Ende-zu-Ende-verschlüsselt."
+          },
+          "1": {
+            "title": "Space erstellen",
+            "content": "Erstellen Sie einen, benennen Sie ihn und laden Sie Personen ein. Sie bestimmen, wer bearbeiten und wer nur ansehen darf."
+          },
+          "2": {
+            "title": "Ihre Spaces finden Sie hier",
+            "content": "Öffnen Sie einen Space, um Dateien hinzuzufügen, Mitglieder zu verwalten oder Zugriff zu entziehen."
+          }
+        }
+      }
+    },
+    "externalLinkFailed": "Dieser Link konnte auf diesem Gerät nicht geöffnet werden",
+    "processing": "Wird verarbeitet...",
+    "logoHome": "zcrypt-Startseite",
+    "calendar": {
+      "previousMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "clear": "Zurücksetzen",
+      "today": "Heute"
+    },
+    "pagination": {
+      "label": "Seitennavigation",
+      "showing": "{start}–{end} von {total}",
+      "page": "Seite {page}",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite"
+    },
+    "command": {
+      "title": "Suchen",
+      "description": "Dateien suchen und Befehle ausführen"
+    },
+    "palette": {
+      "analytics": "Analysen",
+      "deviceTransfer": "Gerätetransfer",
+      "placeholder": "Dateien suchen oder springen zu…",
+      "empty": "Keine Ergebnisse gefunden.",
+      "goTo": "Gehe zu",
+      "files": "Dateien"
+    },
+    "notifications": {
+      "justNow": "gerade eben",
+      "minutesAgo": "vor {count} Min.",
+      "hoursAgo": "vor {count} Std.",
+      "daysAgo": "vor {count} Tg.",
+      "unread": "{count, plural, one {# ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
+      "title": "Benachrichtigungen",
+      "pushEnabled": "Push-Benachrichtigungen aktiviert",
+      "enablePush": "Push-Benachrichtigungen aktivieren",
+      "markAllRead": "Alle als gelesen markieren",
+      "readAll": "Alle lesen",
+      "clearAll": "Alle löschen",
+      "empty": "Noch keine Benachrichtigungen",
+      "emptyHint": "Upload- und Download-Aktivitäten erscheinen hier",
+      "dismiss": "Schließen"
+    },
+    "toasts": {
+      "label": "Benachrichtigungen",
+      "dismiss": "Benachrichtigung schließen: {message}",
+      "showingAll": "Alle Benachrichtigungen werden angezeigt",
+      "more": "<b>{count} weitere</b> Benachrichtigungen",
+      "moreOne": "<b>1 weitere</b> Benachrichtigung",
+      "showLess": "Weniger anzeigen",
+      "showAll": "Alle anzeigen"
+    },
+    "strength": {
+      "tooShort": "Zu kurz",
+      "okay": "Okay",
+      "good": "Gut",
+      "strong": "Stark"
+    },
+    "theme": {
+      "toLight": "Zum hellen Modus wechseln",
+      "toDark": "Zum dunklen Modus wechseln"
+    },
+    "update": {
+      "aria": "Eine neue Version ist verfügbar. Updates öffnen.",
+      "ariaWithVersion": "Eine neue Version ({version}) ist verfügbar. Updates öffnen.",
+      "out": "Neue Version ist da",
+      "outWithVersion": "Neue Version {version} ist da"
+    },
+    "qr": {
+      "hide": "QR-Code ausblenden",
+      "show": "QR-Code für Mobilgeräte anzeigen"
+    },
+    "preview": {
+      "save": "Speichern",
+      "close": "Schließen",
+      "truncated": "... gekürzt (die ersten 100 KB von {size} werden angezeigt)",
+      "unavailable": "Für diesen Dateityp ist keine Vorschau verfügbar",
+      "downloadToView": "Zum Ansehen herunterladen"
+    },
+    "media": {
+      "seekValue": "{current} von {duration}",
+      "unmute": "Stummschaltung aufheben",
+      "mute": "Stummschalten",
+      "volume": "Lautstärke",
+      "speedLabel": "Wiedergabegeschwindigkeit {speed}x",
+      "speed": "Wiedergabegeschwindigkeit",
+      "unplayable": "Dieses Format lässt sich im Browser nicht abspielen. Laden Sie es herunter und öffnen Sie es in einem Player.",
+      "download": "Herunterladen",
+      "seekAudio": "Im Audio suchen",
+      "seekVideo": "Im Video suchen",
+      "loopOn": "Wiederholung an",
+      "loop": "Wiederholen",
+      "previousTrack": "Vorheriger Titel",
+      "nextTrack": "Nächster Titel",
+      "noVideo": "Ihr Browser unterstützt keine Videowiedergabe.",
+      "playVideo": "Video abspielen",
+      "fullscreen": "Vollbild",
+      "pause": "Pause",
+      "play": "Abspielen"
+    }
+  }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ interface BugReportDialogProps {
 }
 
 export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
+  const t = useTranslations("ui.feedback.bug");
+  const tc = useTranslations("common");
   const pathname = usePathname();
   const [description, setDescription] = useState("");
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -33,8 +36,10 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
 
   useEffect(() => {
     if (!open) {
-      setDescription("");
-      setScreenshot(null);
+      queueMicrotask(() => {
+        setDescription("");
+        setScreenshot(null);
+      });
     }
   }, [open]);
 
@@ -43,7 +48,7 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
     try {
       setScreenshot(await downscaleToJpeg(file));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not attach that image");
+      toast.error(err instanceof Error ? err.message : t("attachFailed"));
     } finally {
       setProcessing(false);
     }
@@ -67,10 +72,10 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
         ...(screenshot ? { screenshot } : {}),
         ...(await collectBugContext(pathname)),
       });
-      toast.success("Bug report sent. Thank you.");
+      toast.success(t("sent"));
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send the report");
+      toast.error(err instanceof Error ? err.message : t("sendFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -83,11 +88,8 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
         onPaste={handlePaste}
       >
         <DialogHeader>
-          <DialogTitle>Report a bug</DialogTitle>
-          <DialogDescription>
-            Tell us what went wrong. Your app version, platform and current page are attached
-            automatically. Nothing from your vault is ever included.
-          </DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -97,8 +99,8 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
               onChange={(e) => setDescription(e.target.value)}
               maxLength={MAX_LEN}
               rows={5}
-              placeholder="What happened, and what did you expect instead?"
-              aria-label="Bug description"
+              placeholder={t("placeholder")}
+              aria-label={t("descriptionLabel")}
               autoFocus
             />
             <p className="mt-1 text-right text-[11px] text-[var(--color-text-muted)] tabular-nums">
@@ -111,13 +113,13 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={screenshot}
-                alt="Attached screenshot"
+                alt={t("screenshotAlt")}
                 className="max-h-44 w-full object-contain"
               />
               <button
                 type="button"
                 onClick={() => setScreenshot(null)}
-                aria-label="Remove screenshot"
+                aria-label={t("removeScreenshot")}
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
               >
                 <X className="h-3.5 w-3.5" />
@@ -131,7 +133,7 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border-hover)] px-3 py-4 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] disabled:opacity-50"
             >
               <ImageIcon className="h-4 w-4" />
-              {processing ? "Processing image..." : "Add a screenshot (choose a file or paste one)"}
+              {processing ? t("processing") : t("addScreenshot")}
             </button>
           )}
           <input
@@ -149,13 +151,13 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             onClick={() => void handleSubmit()}
             disabled={!description.trim() || submitting || processing}
           >
-            {submitting ? "Sending..." : "Send report"}
+            {submitting ? t("sending") : t("send")}
           </Button>
         </div>
       </DialogContent>

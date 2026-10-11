@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ interface ReviewDialogProps {
 }
 
 export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
+  const t = useTranslations("ui.feedback.review");
+  const tc = useTranslations("common");
   const user = useAuthStore((s) => s.user);
   const fallbackName = user?.display_name || user?.username || "";
   const { data: existing } = useQuery({
@@ -45,10 +48,12 @@ export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
 
   useEffect(() => {
     if (!open) return;
-    setRating(existing?.rating ?? 0);
-    setQuote(existing?.quote ?? "");
-    setName(existing?.display_name || fallbackName);
-    setPublicOk(existing?.public_ok ?? false);
+    queueMicrotask(() => {
+      setRating(existing?.rating ?? 0);
+      setQuote(existing?.quote ?? "");
+      setName(existing?.display_name || fallbackName);
+      setPublicOk(existing?.public_ok ?? false);
+    });
   }, [open, existing, fallbackName]);
 
   const canSubmit = rating > 0 && quote.trim() !== "" && name.trim() !== "" && !submitting;
@@ -63,14 +68,10 @@ export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
         display_name: name.trim(),
         public_ok: publicOk,
       });
-      toast.success(
-        publicOk
-          ? "Thanks. It will show on the site once we've read it."
-          : "Thanks for the review.",
-      );
+      toast.success(publicOk ? t("thanksPublic") : t("thanks"));
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send your review");
+      toast.error(err instanceof Error ? err.message : t("failed"));
     } finally {
       setSubmitting(false);
     }
@@ -80,22 +81,19 @@ export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl border-[var(--color-border)] bg-[var(--color-surface)]">
         <DialogHeader>
-          <DialogTitle>Rate zcrypt</DialogTitle>
-          <DialogDescription>
-            Honest is better than nice. Only reviews you allow on the website are ever shown there,
-            and only after we have read them.
-          </DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div role="radiogroup" aria-label="Rating" className="flex gap-1">
+          <div role="radiogroup" aria-label={t("rating")} className="flex gap-1">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 type="button"
                 role="radio"
                 aria-checked={rating === n}
-                aria-label={`${n} ${n === 1 ? "star" : "stars"}`}
+                aria-label={t("stars", { count: n })}
                 onClick={() => setRating(n)}
                 className="rounded-md p-1 outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
               >
@@ -117,8 +115,8 @@ export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
               onChange={(e) => setQuote(e.target.value)}
               maxLength={QUOTE_MAX}
               rows={4}
-              placeholder="What do you like, or not like, about zcrypt?"
-              aria-label="Your review"
+              placeholder={t("quotePlaceholder")}
+              aria-label={t("quoteLabel")}
             />
             <p className="mt-1 text-right text-[11px] text-[var(--color-text-muted)] tabular-nums">
               {quote.length}/{QUOTE_MAX}
@@ -126,11 +124,11 @@ export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
           </div>
 
           <Input
-            label="Display name"
+            label={t("displayName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={NAME_MAX}
-            placeholder="How your name should appear"
+            placeholder={t("displayNamePlaceholder")}
           />
 
           <label className="flex cursor-pointer items-start gap-2.5 text-sm text-[var(--color-text-secondary)]">
@@ -139,16 +137,16 @@ export function ReviewDialog({ open, onOpenChange }: ReviewDialogProps) {
               onCheckedChange={(v) => setPublicOk(v === true)}
               className="mt-0.5"
             />
-            OK to show on the website
+            {t("publicOk")}
           </label>
         </div>
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
-            {submitting ? "Sending..." : existing ? "Update review" : "Send review"}
+            {submitting ? t("sending") : existing ? t("update") : t("send")}
           </Button>
         </div>
       </DialogContent>

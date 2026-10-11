@@ -1,3 +1,245 @@
 {
-  "ui": {}
+  "ui": {
+    "errors": {
+      "title": "Algo salió mal",
+      "body": "Ocurrió un error inesperado. Inténtalo de nuevo.",
+      "retry": "Intentar de nuevo"
+    },
+    "notFound": {
+      "title": "Página no encontrada",
+      "body": "La página que buscas no existe o se ha movido. Revisa la URL o vuelve a un lugar seguro.",
+      "home": "Ir al inicio",
+      "signIn": "Iniciar sesión",
+      "help": "¿Necesitas ayuda? Contacta con <support>soporte</support>"
+    },
+    "feedback": {
+      "bug": {
+        "attachFailed": "No se pudo adjuntar esa imagen",
+        "sent": "Informe de error enviado. Gracias.",
+        "sendFailed": "No se pudo enviar el informe",
+        "title": "Informar de un error",
+        "description": "Cuéntanos qué salió mal. La versión de la app, la plataforma y la página actual se adjuntan automáticamente. Nunca se incluye nada de tu bóveda.",
+        "placeholder": "¿Qué pasó y qué esperabas que pasara?",
+        "descriptionLabel": "Descripción del error",
+        "screenshotAlt": "Captura de pantalla adjunta",
+        "removeScreenshot": "Quitar captura de pantalla",
+        "processing": "Procesando imagen...",
+        "addScreenshot": "Añade una captura de pantalla (elige un archivo o pega una)",
+        "sending": "Enviando...",
+        "send": "Enviar informe"
+      },
+      "modal": {
+        "failed": "No se pudo enviar el comentario",
+        "thanks": "¡Gracias!",
+        "thanksBody": "Tus comentarios nos ayudan a crear un mejor producto.",
+        "title": "¿Cómo lo estamos haciendo?",
+        "subtitle": "Nos encantaría saber qué opinas de zcrypt.",
+        "close": "Cerrar",
+        "stars": "{count, plural, one {# estrella} other {# estrellas}}",
+        "placeholder": "Cuéntanos qué opinas... (opcional)",
+        "later": "Quizás más tarde",
+        "sending": "Enviando...",
+        "submit": "Enviar"
+      },
+      "review": {
+        "thanksPublic": "Gracias. Aparecerá en el sitio cuando la hayamos leído.",
+        "thanks": "Gracias por la reseña.",
+        "failed": "No se pudo enviar tu reseña",
+        "title": "Valora zcrypt",
+        "description": "Mejor sincero que amable. En el sitio solo se muestran las reseñas que permitas, y solo después de que las leamos.",
+        "rating": "Valoración",
+        "stars": "{count, plural, one {# estrella} other {# estrellas}}",
+        "quotePlaceholder": "¿Qué te gusta o no te gusta de zcrypt?",
+        "quoteLabel": "Tu reseña",
+        "displayName": "Nombre visible",
+        "displayNamePlaceholder": "Cómo debe aparecer tu nombre",
+        "publicOk": "Se puede mostrar en el sitio web",
+        "sending": "Enviando...",
+        "update": "Actualizar reseña",
+        "send": "Enviar reseña"
+      },
+      "prompt": {
+        "rate": "Valorar zcrypt",
+        "dismiss": "Descartar",
+        "title": "¿Te gusta zcrypt?",
+        "body": "Una o dos frases ayudan más de lo que imaginas. Lleva menos de un minuto.",
+        "notNow": "Ahora no"
+      }
+    },
+    "tour": {
+      "label": "Recorrido: {title}",
+      "progress": "{current} de {total}",
+      "skip": "Omitir recorrido",
+      "back": "Atrás",
+      "next": "Siguiente",
+      "done": "Listo",
+      "steps": {
+        "vault": {
+          "0": {
+            "title": "Encuentra lo que sea al instante",
+            "content": "Escribe para filtrar tus archivos y carpetas. Pulsa / desde cualquier sitio para venir aquí."
+          },
+          "1": {
+            "title": "Añade tus archivos",
+            "content": "Sube archivos aquí. Se cifran en tu dispositivo antes de ir a ninguna parte. En el móvil, usa el botón de más."
+          },
+          "2": {
+            "title": "Mantén todo ordenado",
+            "content": "Crea una carpeta nueva para organizar tus archivos. Luego podrás arrastrar archivos a ella."
+          },
+          "3": {
+            "title": "Cada archivo tiene un menú",
+            "content": "Haz clic derecho en un archivo, o mantén pulsado en el móvil, para compartirlo, moverlo, renombrarlo o eliminarlo."
+          },
+          "4": {
+            "title": "Bloquear y desbloquear",
+            "content": "Este es el candado de tu bóveda. Desbloquéalo con tu frase de contraseña para abrir archivos y bloquéalo de nuevo al terminar."
+          },
+          "5": {
+            "title": "Espacios",
+            "content": "Comparte una carpeta con las personas que invites, siempre con cifrado de extremo a extremo."
+          },
+          "6": {
+            "title": "Estadísticas",
+            "content": "Consulta cuánto almacenamiento usas y qué ha hecho tu bóveda."
+          }
+        },
+        "share": {
+          "0": {
+            "title": "Añade una contraseña",
+            "content": "Actívalo y cualquiera que abra el enlace necesitará también la contraseña."
+          },
+          "1": {
+            "title": "Fija una caducidad",
+            "content": "Elige cuándo deja de funcionar el enlace. Después, nadie podrá abrirlo."
+          },
+          "2": {
+            "title": "Crea el enlace",
+            "content": "Cuando las opciones te convenzan, crea tu enlace."
+          }
+        },
+        "shareCopy": {
+          "0": {
+            "title": "Copia tu enlace",
+            "content": "Cópialo y envíaselo a quien quieras. Conserva el enlace completo, incluida la parte después del #."
+          }
+        },
+        "spaces": {
+          "0": {
+            "title": "Te damos la bienvenida a Espacios",
+            "content": "Un espacio es una carpeta compartida que solo pueden abrir las personas que invites. Todo sigue cifrado de extremo a extremo."
+          },
+          "1": {
+            "title": "Crea un espacio",
+            "content": "Crea uno, ponle nombre e invita a gente. Tú eliges quién puede editar y quién solo ver."
+          },
+          "2": {
+            "title": "Tus espacios viven aquí",
+            "content": "Abre cualquier espacio para añadir archivos, gestionar miembros o revocar el acceso."
+          }
+        }
+      }
+    },
+    "externalLinkFailed": "No se pudo abrir ese enlace en este dispositivo",
+    "processing": "Procesando...",
+    "logoHome": "Inicio de zcrypt",
+    "calendar": {
+      "previousMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "clear": "Borrar",
+      "today": "Hoy"
+    },
+    "pagination": {
+      "label": "Paginación",
+      "showing": "Mostrando {start}–{end} de {total}",
+      "page": "Página {page}",
+      "previous": "Página anterior",
+      "next": "Página siguiente"
+    },
+    "command": {
+      "title": "Buscar",
+      "description": "Busca archivos y ejecuta comandos"
+    },
+    "palette": {
+      "analytics": "Analíticas",
+      "deviceTransfer": "Transferencia de dispositivo",
+      "placeholder": "Busca archivos o ve a…",
+      "empty": "No se encontraron resultados.",
+      "goTo": "Ir a",
+      "files": "Archivos"
+    },
+    "notifications": {
+      "justNow": "ahora mismo",
+      "minutesAgo": "hace {count} min",
+      "hoursAgo": "hace {count} h",
+      "daysAgo": "hace {count} d",
+      "unread": "{count, plural, one {# notificación sin leer} other {# notificaciones sin leer}}",
+      "title": "Notificaciones",
+      "pushEnabled": "Notificaciones push activadas",
+      "enablePush": "Activar notificaciones push",
+      "markAllRead": "Marcar todo como leído",
+      "readAll": "Leer todo",
+      "clearAll": "Borrar todo",
+      "empty": "Aún no hay notificaciones",
+      "emptyHint": "La actividad de subidas y descargas aparecerá aquí",
+      "dismiss": "Descartar"
+    },
+    "toasts": {
+      "label": "Notificaciones",
+      "dismiss": "Descartar notificación: {message}",
+      "showingAll": "Mostrando todas las notificaciones",
+      "more": "<b>{count} notificaciones</b> más",
+      "moreOne": "<b>1 notificación</b> más",
+      "showLess": "Mostrar menos",
+      "showAll": "Mostrar todo"
+    },
+    "strength": {
+      "tooShort": "Demasiado corta",
+      "okay": "Aceptable",
+      "good": "Buena",
+      "strong": "Fuerte"
+    },
+    "theme": {
+      "toLight": "Cambiar al modo claro",
+      "toDark": "Cambiar al modo oscuro"
+    },
+    "update": {
+      "aria": "Hay una versión nueva disponible. Abrir actualizaciones.",
+      "ariaWithVersion": "Hay una versión nueva ({version}) disponible. Abrir actualizaciones.",
+      "out": "Ya hay una versión nueva",
+      "outWithVersion": "Ya está la versión {version}"
+    },
+    "qr": {
+      "hide": "Ocultar código QR",
+      "show": "Mostrar código QR para el móvil"
+    },
+    "preview": {
+      "save": "Guardar",
+      "close": "Cerrar",
+      "truncated": "... truncado (mostrando los primeros 100 KB de {size})",
+      "unavailable": "La vista previa no está disponible para este tipo de archivo",
+      "downloadToView": "Descargar para ver"
+    },
+    "media": {
+      "seekValue": "{current} de {duration}",
+      "unmute": "Activar sonido",
+      "mute": "Silenciar",
+      "volume": "Volumen",
+      "speedLabel": "Velocidad de reproducción {speed}x",
+      "speed": "Velocidad de reproducción",
+      "unplayable": "Este formato no se puede reproducir en el navegador. Descárgalo para abrirlo en un reproductor nativo.",
+      "download": "Descargar",
+      "seekAudio": "Buscar en el audio",
+      "seekVideo": "Buscar en el vídeo",
+      "loopOn": "Bucle activado",
+      "loop": "Bucle",
+      "previousTrack": "Pista anterior",
+      "nextTrack": "Pista siguiente",
+      "noVideo": "Tu navegador no admite la reproducción de vídeo.",
+      "playVideo": "Reproducir vídeo",
+      "fullscreen": "Pantalla completa",
+      "pause": "Pausa",
+      "play": "Reproducir"
+    }
+  }
 }

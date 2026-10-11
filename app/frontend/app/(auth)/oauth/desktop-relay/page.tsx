@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 type Stage = "idle" | "approving" | "approved" | "failed";
@@ -15,6 +16,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
  * the session to their own app. The desktop app then collects it.
  */
 export default function DesktopRelayPage() {
+  const t = useTranslations("auth");
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const [approval, setApproval] = useState({ session: "", token: "", code: "" });
@@ -25,7 +27,8 @@ export default function DesktopRelayPage() {
     const session = p.get("session") ?? "";
     const token = p.get("approve") ?? "";
     if (session && token) {
-      setApproval({ session, token, code: p.get("code") ?? "" });
+      const code = p.get("code") ?? "";
+      queueMicrotask(() => setApproval({ session, token, code }));
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);
@@ -62,40 +65,36 @@ export default function DesktopRelayPage() {
             </svg>
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Login failed</h2>
+            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+              {t("login.failed")}
+            </h2>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">{error}</p>
           </div>
         </>
       ) : stage === "failed" || (awaiting && !approval.token) ? (
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-            Nothing to approve
+            {t("relay.nothingTitle")}
           </h2>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            This sign-in expired or was already handled. Start again from the zcrypt app.
-          </p>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">{t("relay.nothingBody")}</p>
         </div>
       ) : awaiting ? (
         <div className="max-w-sm space-y-4">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-            Sign in to the zcrypt app?
+            {t("relay.approveTitle")}
           </h2>
           {approval.code ? (
             <>
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Approve only if the app on your device shows this code.
-              </p>
+              <p className="text-sm text-[var(--color-text-muted)]">{t("relay.codeHint")}</p>
               <p className="font-mono text-3xl tracking-[0.25em] text-[var(--color-text-primary)]">
                 {approval.code}
               </p>
             </>
           ) : (
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Approve only if you just started this sign-in from the zcrypt app yourself.
-            </p>
+            <p className="text-sm text-[var(--color-text-muted)]">{t("relay.noCodeHint")}</p>
           )}
           <Button onClick={approve} disabled={stage === "approving"} className="w-full">
-            Approve sign-in
+            {t("relay.approve")}
           </Button>
         </div>
       ) : (
@@ -113,11 +112,9 @@ export default function DesktopRelayPage() {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-              Sign-in approved
+              {t("relay.approvedTitle")}
             </h2>
-            <p className="text-sm text-[var(--color-text-muted)] mt-1">
-              You can close this tab and return to the zcrypt app.
-            </p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">{t("relay.approvedBody")}</p>
           </div>
         </>
       )}

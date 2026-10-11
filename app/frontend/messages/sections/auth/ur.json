@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "تصدیق ناکام ہو گئی",
+    "completing": "سائن ان مکمل ہو رہا ہے...",
+    "goToLogin": "لاگ ان پر جائیں",
+    "magic": {
+      "invalidLink": "لنک غلط ہے یا موجود نہیں",
+      "signedIn": "کامیابی سے سائن ان ہو گیا",
+      "expiredFallback": "لنک کی میعاد ختم ہو گئی یا وہ غلط ہے",
+      "expiredTitle": "لنک کی میعاد ختم",
+      "verifying": "آپ کے لاگ ان لنک کی تصدیق ہو رہی ہے..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "غلط لنک",
+      "invalidBody": "یہ تصدیقی لنک غلط ہے یا اس کی میعاد ختم ہو چکی ہے۔",
+      "verifying": "آپ کے ای میل کی تصدیق ہو رہی ہے...",
+      "moment": "ذرا انتظار کریں",
+      "successTitle": "ای میل کی تصدیق ہو گئی",
+      "successBody": "آپ کا اکاؤنٹ اب فعال ہے۔ آپ سائن ان کر سکتے ہیں۔",
+      "failedTitle": "تصدیق ناکام ہو گئی",
+      "failedFallback": "ممکن ہے لنک کی میعاد ختم ہو گئی ہو۔ نیا لنک منگوائیں۔"
+    },
+    "reset": {
+      "invalidTitle": "غلط لنک",
+      "invalidBody": "پاس ورڈ ری سیٹ کا یہ لنک غلط ہے یا اس کی میعاد ختم ہو چکی ہے۔",
+      "requestNew": "نیا لنک منگوائیں",
+      "doneTitle": "پاس ورڈ اپ ڈیٹ ہو گیا",
+      "doneBody": "آپ کا پاس ورڈ ری سیٹ ہو گیا ہے۔ اب آپ سائن ان کر سکتے ہیں۔",
+      "failed": "ری سیٹ ناکام ہو گیا",
+      "title": "نیا پاس ورڈ",
+      "subtitle": "اپنے والٹ کے لیے نیا پاس ورڈ منتخب کریں",
+      "newPassword": "نیا پاس ورڈ",
+      "resetting": "ری سیٹ ہو رہا ہے...",
+      "submit": "پاس ورڈ ری سیٹ کریں"
+    },
+    "twoFa": {
+      "title": "دو مرحلہ تصدیق",
+      "subtitle": "اپنی تصدیقی ایپ سے 6 ہندسوں کا کوڈ درج کریں",
+      "enterAll": "تمام 6 ہندسے درج کریں",
+      "expired": "سیشن کی میعاد ختم ہو گئی۔ براہ کرم دوبارہ لاگ ان کریں۔",
+      "invalid": "غلط کوڈ",
+      "verifying": "تصدیق ہو رہی ہے...",
+      "verify": "تصدیق کریں",
+      "digit": "ہندسہ {n} از 6"
+    },
+    "relay": {
+      "nothingTitle": "منظوری کے لیے کچھ نہیں",
+      "nothingBody": "یہ سائن ان ختم ہو گیا یا پہلے ہی نمٹایا جا چکا ہے۔ zcrypt ایپ سے دوبارہ شروع کریں۔",
+      "approveTitle": "کیا zcrypt ایپ میں سائن ان کریں؟",
+      "codeHint": "صرف اسی صورت منظور کریں جب آپ کے آلے پر ایپ یہی کوڈ دکھائے۔",
+      "noCodeHint": "صرف اسی صورت منظور کریں جب آپ نے خود ابھی zcrypt ایپ سے یہ سائن ان شروع کیا ہو۔",
+      "approve": "سائن ان منظور کریں",
+      "approvedTitle": "سائن ان منظور ہو گیا",
+      "approvedBody": "آپ یہ ٹیب بند کر کے zcrypt ایپ پر واپس جا سکتے ہیں۔"
+    },
+    "deletion": {
+      "cancelled": "آپ کا اکاؤنٹ اب حذف کے لیے طے شدہ نہیں رہا",
+      "cancelFailed": "حذف منسوخ نہیں کیا جا سکا",
+      "title": "یہ اکاؤنٹ {date} کو حذف کر دیا جائے گا",
+      "body": "اس وقت آپ کی فائلیں، فولڈرز اور شیئر لنکس مٹا دیے جائیں گے۔ اسے روکنے کے لیے اکاؤنٹ برقرار رکھیں۔",
+      "keep": "میرا اکاؤنٹ رکھیں"
+    },
+    "onboarding": {
+      "connected": "{name} منسلک ہو گیا!",
+      "connectionFailed": "کنکشن ناکام ہو گیا",
+      "welcome": "<brand>zcrypt</brand> میں خوش آمدید",
+      "intro": "خفیہ، دبایا ہوا، زیرو نالج کلاؤڈ اسٹوریج جو Git پلیٹ فارمز کو مفت بیک اینڈ کے طور پر استعمال کرتا ہے۔",
+      "featureEncryptionTitle": "AES-256-GCM خفیہ کاری",
+      "featureEncryptionDesc": "فائلیں آپ کے آلے سے نکلنے سے پہلے ہی خفیہ ہو جاتی ہیں",
+      "featureCompressionTitle": "Zstd کمپریشن",
+      "featureCompressionDesc": "خفیہ کاری سے پہلے زیادہ سے زیادہ کمپریشن",
+      "featurePlatformsTitle": "کئی پلیٹ فارمز پر اسٹوریج",
+      "featurePlatformsDesc": "GitHub، GitLab، Hugging Face یا Telegram بطور بیک اینڈ",
+      "getStarted": "شروع کریں",
+      "skip": "فی الحال چھوڑ دیں",
+      "choosePlatform": "پلیٹ فارم منتخب کریں",
+      "choosePlatformHint": "فائلیں محفوظ کرنا شروع کرنے کے لیے کم از کم ایک پلیٹ فارم جوڑیں",
+      "continue": "جاری رکھیں",
+      "connectTitle": "{name} جوڑیں",
+      "tokenHint": "<code>{scope}</code> اسکوپ کے ساتھ ایک پرسنل ایکسیس ٹوکن بنائیں",
+      "connecting": "جوڑا جا رہا ہے...",
+      "connect": "جوڑیں",
+      "backToPlatforms": "پلیٹ فارم کے انتخاب پر واپس",
+      "doneTitle": "سب تیار ہے!",
+      "doneBody": "اپنے والٹ میں خفیہ فائلیں اپ لوڈ کرنا شروع کریں۔",
+      "goToVault": "والٹ پر جائیں",
+      "platformTagline": {
+        "github": "بڑے ریپوز · فی فائل 100 MiB",
+        "gitlab": "فی پروجیکٹ 10 GiB",
+        "huggingface": "فی اکاؤنٹ 100 GB نجی",
+        "telegram": "چینلز کے ذریعے لامحدود اسٹوریج"
+      },
+      "platformTokenLabel": {
+        "github": "GitHub پر ٹوکن بنائیں",
+        "gitlab": "GitLab پر ٹوکن بنائیں",
+        "huggingface": "Hugging Face پر ٹوکن بنائیں",
+        "telegram": "@BotFather کے ذریعے بوٹ بنائیں"
+      }
+    }
+  }
 }

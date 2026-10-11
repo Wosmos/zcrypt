@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useId } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -224,6 +225,7 @@ export function Logo({
   href,
   subtitle,
 }: LogoProps) {
+  const t = useTranslations("ui");
   const cfg = sizeConfig[size];
 
   const content = (
@@ -257,7 +259,7 @@ export function Logo({
 
   if (href) {
     return (
-      <Link href={href} aria-label="zcrypt home" className="inline-flex">
+      <Link href={href} aria-label={t("logoHome")} className="inline-flex">
         {content}
       </Link>
     );

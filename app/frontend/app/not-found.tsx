@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Home } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
+import { T } from "@/components/i18n/t";
 
 export default function NotFound() {
   return (
@@ -31,10 +32,11 @@ export default function NotFound() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+        <h1 className="text-2xl font-bold mb-2">
+          <T k="ui.notFound.title" />
+        </h1>
         <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-sm mx-auto">
-          The page you&apos;re looking for doesn&apos;t exist or has been moved. Check the URL or
-          head back to safety.
+          <T k="ui.notFound.body" />
         </p>
 
         {/* Actions */}
@@ -44,23 +46,24 @@ export default function NotFound() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Home className="h-4 w-4" />
-            Go home
+            <T k="ui.notFound.home" />
           </Link>
           <Link
             href="/login"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors"
           >
-            Sign in
+            <T k="ui.notFound.signIn" />
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
         <div className="mt-12">
           <p className="text-xs text-[var(--color-text-muted)]">
-            Need help? Contact{" "}
-            <a href="mailto:[EMAIL_ADDRESS]" className="text-[var(--color-accent)] hover:underline">
-              support
-            </a>
+            <T
+              k="ui.notFound.help"
+              links={{ support: "mailto:[EMAIL_ADDRESS]" }}
+              linkClassName="text-[var(--color-accent)] hover:underline"
+            />
           </p>
         </div>
       </div>

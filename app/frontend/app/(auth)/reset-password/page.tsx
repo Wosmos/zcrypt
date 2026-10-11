@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resetPassword } from "@/lib/auth-api";
@@ -13,6 +14,7 @@ import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 function ResetPasswordForm() {
+  const t = useTranslations("auth");
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [password, setPassword] = useState("");
@@ -25,18 +27,16 @@ function ResetPasswordForm() {
       <AuthStatusCard
         icon={AlertTriangle}
         tone="amber"
-        title="Invalid link"
+        title={t("reset.invalidTitle")}
         action={
           <Link href="/forgot-password">
             <Button variant="secondary" className="mt-5">
-              Request a new link
+              {t("reset.requestNew")}
             </Button>
           </Link>
         }
       >
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-          This password reset link is invalid or has expired.
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2">{t("reset.invalidBody")}</p>
       </AuthStatusCard>
     );
   }
@@ -46,18 +46,16 @@ function ResetPasswordForm() {
       <AuthStatusCard
         icon={CheckCircle2}
         tone="cyan"
-        title="Password updated"
+        title={t("reset.doneTitle")}
         action={
           <Link href="/login">
             <Button className="mt-5">
-              Sign in <ArrowRight className="h-4 w-4" />
+              {t("register.signIn")} <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
         }
       >
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-          Your password has been reset. You can now sign in.
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2">{t("reset.doneBody")}</p>
       </AuthStatusCard>
     );
   }
@@ -65,7 +63,7 @@ function ResetPasswordForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast.error("Passwords don't match");
+      toast.error(t("register.mismatch"));
       return;
     }
 
@@ -74,7 +72,7 @@ function ResetPasswordForm() {
       await resetPassword(token, password);
       setSuccess(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Reset failed");
+      toast.error(err instanceof Error ? err.message : t("reset.failed"));
     } finally {
       setLoading(false);
     }
@@ -83,17 +81,15 @@ function ResetPasswordForm() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight">New password</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Choose a new password for your vault
-        </p>
+        <h1 className="text-xl font-bold tracking-tight">{t("reset.title")}</h1>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t("reset.subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input
-          label="New Password"
+          label={t("reset.newPassword")}
           type="password"
-          placeholder="Your password"
+          placeholder={t("passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}
@@ -101,9 +97,9 @@ function ResetPasswordForm() {
           autoComplete="new-password"
         />
         <Input
-          label="Confirm Password"
+          label={t("register.confirmPassword")}
           type="password"
-          placeholder="Type it again"
+          placeholder={t("register.confirmPlaceholder")}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}
@@ -115,10 +111,10 @@ function ResetPasswordForm() {
           type="submit"
           loading={loading}
           disabled={loading || !password || !confirmPassword}
-          loadingLabel="Resetting..."
+          loadingLabel={t("reset.resetting")}
           icon={ArrowRight}
         >
-          Reset password
+          {t("reset.submit")}
         </SubmitButton>
       </form>
     </div>

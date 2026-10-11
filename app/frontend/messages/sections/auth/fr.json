@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "Échec de l'authentification",
+    "completing": "Finalisation de la connexion...",
+    "goToLogin": "Aller à la connexion",
+    "magic": {
+      "invalidLink": "Lien invalide ou manquant",
+      "signedIn": "Connexion réussie",
+      "expiredFallback": "Lien expiré ou invalide",
+      "expiredTitle": "Lien expiré",
+      "verifying": "Vérification de votre lien de connexion..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "Lien invalide",
+      "invalidBody": "Ce lien de vérification est invalide ou a expiré.",
+      "verifying": "Vérification de votre e-mail...",
+      "moment": "Un instant",
+      "successTitle": "E-mail vérifié",
+      "successBody": "Votre compte est maintenant actif. Vous pouvez vous connecter.",
+      "failedTitle": "Échec de la vérification",
+      "failedFallback": "Le lien a peut-être expiré. Essayez d'en demander un nouveau."
+    },
+    "reset": {
+      "invalidTitle": "Lien invalide",
+      "invalidBody": "Ce lien de réinitialisation du mot de passe est invalide ou a expiré.",
+      "requestNew": "Demander un nouveau lien",
+      "doneTitle": "Mot de passe mis à jour",
+      "doneBody": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.",
+      "failed": "Échec de la réinitialisation",
+      "title": "Nouveau mot de passe",
+      "subtitle": "Choisissez un nouveau mot de passe pour votre coffre",
+      "newPassword": "Nouveau mot de passe",
+      "resetting": "Réinitialisation...",
+      "submit": "Réinitialiser le mot de passe"
+    },
+    "twoFa": {
+      "title": "Authentification à deux facteurs",
+      "subtitle": "Saisissez le code à 6 chiffres de votre application d'authentification",
+      "enterAll": "Saisissez les 6 chiffres",
+      "expired": "Session expirée. Veuillez vous reconnecter.",
+      "invalid": "Code invalide",
+      "verifying": "Vérification...",
+      "verify": "Vérifier",
+      "digit": "Chiffre {n} sur 6"
+    },
+    "relay": {
+      "nothingTitle": "Rien à approuver",
+      "nothingBody": "Cette connexion a expiré ou a déjà été traitée. Recommencez depuis l'application zcrypt.",
+      "approveTitle": "Se connecter à l'application zcrypt ?",
+      "codeHint": "N'approuvez que si l'application sur votre appareil affiche ce code.",
+      "noCodeHint": "N'approuvez que si vous venez de lancer vous-même cette connexion depuis l'application zcrypt.",
+      "approve": "Approuver la connexion",
+      "approvedTitle": "Connexion approuvée",
+      "approvedBody": "Vous pouvez fermer cet onglet et revenir à l'application zcrypt."
+    },
+    "deletion": {
+      "cancelled": "Votre compte n'est plus programmé pour suppression",
+      "cancelFailed": "Impossible d'annuler la suppression",
+      "title": "Ce compte sera supprimé le {date}",
+      "body": "Vos fichiers, dossiers et liens de partage seront alors effacés. Conservez le compte pour l'éviter.",
+      "keep": "Conserver mon compte"
+    },
+    "onboarding": {
+      "connected": "{name} connecté !",
+      "connectionFailed": "Échec de la connexion",
+      "welcome": "Bienvenue sur <brand>zcrypt</brand>",
+      "intro": "Stockage cloud chiffré, compressé et à connaissance nulle, qui utilise les plateformes Git comme serveurs gratuits.",
+      "featureEncryptionTitle": "Chiffrement AES-256-GCM",
+      "featureEncryptionDesc": "Les fichiers sont chiffrés avant de quitter votre appareil",
+      "featureCompressionTitle": "Compression Zstd",
+      "featureCompressionDesc": "Compression maximale avant le chiffrement",
+      "featurePlatformsTitle": "Stockage multiplateforme",
+      "featurePlatformsDesc": "GitHub, GitLab, Hugging Face ou Telegram comme serveurs",
+      "getStarted": "Commencer",
+      "skip": "Passer pour l'instant",
+      "choosePlatform": "Choisissez une plateforme",
+      "choosePlatformHint": "Connectez au moins une plateforme pour commencer à stocker des fichiers",
+      "continue": "Continuer",
+      "connectTitle": "Connecter {name}",
+      "tokenHint": "Créez un jeton d'accès personnel avec la portée <code>{scope}</code>",
+      "connecting": "Connexion...",
+      "connect": "Connecter",
+      "backToPlatforms": "Retour au choix de la plateforme",
+      "doneTitle": "Tout est prêt !",
+      "doneBody": "Commencez à envoyer des fichiers chiffrés dans votre coffre.",
+      "goToVault": "Aller au coffre",
+      "platformTagline": {
+        "github": "Gros dépôts · 100 Mio par fichier",
+        "gitlab": "10 Gio par projet",
+        "huggingface": "100 Go privés par compte",
+        "telegram": "Stockage illimité via les canaux"
+      },
+      "platformTokenLabel": {
+        "github": "Générer un jeton sur GitHub",
+        "gitlab": "Générer un jeton sur GitLab",
+        "huggingface": "Générer un jeton sur Hugging Face",
+        "telegram": "Créer un bot via @BotFather"
+      }
+    }
+  }
 }

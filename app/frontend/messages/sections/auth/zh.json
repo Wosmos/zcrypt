@@ -1,3 +1,101 @@
 {
-  "auth": {}
+  "auth": {
+    "authFailed": "身份验证失败",
+    "completing": "正在完成登录...",
+    "goToLogin": "前往登录",
+    "magic": {
+      "invalidLink": "链接无效或缺失",
+      "signedIn": "登录成功",
+      "expiredFallback": "链接已过期或无效",
+      "expiredTitle": "链接已过期",
+      "verifying": "正在验证您的登录链接..."
+    },
+    "verifyEmail": {
+      "invalidTitle": "链接无效",
+      "invalidBody": "此验证链接无效或已过期。",
+      "verifying": "正在验证您的邮箱...",
+      "moment": "请稍候",
+      "successTitle": "邮箱已验证",
+      "successBody": "您的账户已激活，现在可以登录。",
+      "failedTitle": "验证失败",
+      "failedFallback": "链接可能已过期，请尝试重新申请。"
+    },
+    "reset": {
+      "invalidTitle": "链接无效",
+      "invalidBody": "此密码重置链接无效或已过期。",
+      "requestNew": "重新申请链接",
+      "doneTitle": "密码已更新",
+      "doneBody": "您的密码已重置，现在可以登录。",
+      "failed": "重置失败",
+      "title": "新密码",
+      "subtitle": "为您的保险库设置新密码",
+      "newPassword": "新密码",
+      "resetting": "正在重置...",
+      "submit": "重置密码"
+    },
+    "twoFa": {
+      "title": "双重身份验证",
+      "subtitle": "输入验证器应用中的 6 位验证码",
+      "enterAll": "请输入全部 6 位数字",
+      "expired": "会话已过期，请重新登录。",
+      "invalid": "验证码无效",
+      "verifying": "正在验证...",
+      "verify": "验证",
+      "digit": "第 {n} 位，共 6 位"
+    },
+    "relay": {
+      "nothingTitle": "没有需要批准的内容",
+      "nothingBody": "此次登录已过期或已处理。请从 zcrypt 应用重新开始。",
+      "approveTitle": "登录 zcrypt 应用？",
+      "codeHint": "仅当您设备上的应用显示此代码时才批准。",
+      "noCodeHint": "仅当您刚刚亲自从 zcrypt 应用发起此次登录时才批准。",
+      "approve": "批准登录",
+      "approvedTitle": "登录已批准",
+      "approvedBody": "您可以关闭此标签页并返回 zcrypt 应用。"
+    },
+    "deletion": {
+      "cancelled": "您的账户不再计划删除",
+      "cancelFailed": "无法取消删除",
+      "title": "此账户将于 {date} 删除",
+      "body": "届时您的文件、文件夹和分享链接将被清除。保留账户即可取消。",
+      "keep": "保留我的账户"
+    },
+    "onboarding": {
+      "connected": "{name} 已连接！",
+      "connectionFailed": "连接失败",
+      "welcome": "欢迎使用 <brand>zcrypt</brand>",
+      "intro": "加密、压缩、零知识的云存储，以 Git 平台作为免费后端。",
+      "featureEncryptionTitle": "AES-256-GCM 加密",
+      "featureEncryptionDesc": "文件在离开您的设备之前就已加密",
+      "featureCompressionTitle": "Zstd 压缩",
+      "featureCompressionDesc": "加密前进行最大程度压缩",
+      "featurePlatformsTitle": "多平台存储",
+      "featurePlatformsDesc": "使用 GitHub、GitLab、Hugging Face 或 Telegram 作为后端",
+      "getStarted": "开始使用",
+      "skip": "暂时跳过",
+      "choosePlatform": "选择平台",
+      "choosePlatformHint": "至少连接一个平台即可开始存储文件",
+      "continue": "继续",
+      "connectTitle": "连接 {name}",
+      "tokenHint": "创建具有 <code>{scope}</code> 权限范围的个人访问令牌",
+      "connecting": "正在连接...",
+      "connect": "连接",
+      "backToPlatforms": "返回平台选择",
+      "doneTitle": "一切就绪！",
+      "doneBody": "开始向您的保险库上传加密文件。",
+      "goToVault": "前往保险库",
+      "platformTagline": {
+        "github": "大型仓库 · 每个文件 100 MiB",
+        "gitlab": "每个项目 10 GiB",
+        "huggingface": "每个账户 100 GB 私有空间",
+        "telegram": "通过频道实现无限存储"
+      },
+      "platformTokenLabel": {
+        "github": "在 GitHub 生成令牌",
+        "gitlab": "在 GitLab 生成令牌",
+        "huggingface": "在 Hugging Face 生成令牌",
+        "telegram": "通过 @BotFather 创建机器人"
+      }
+    }
+  }
 }

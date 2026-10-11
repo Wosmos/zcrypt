@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/store/auth";
 import { verifyMagicLink } from "@/lib/auth-api";
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
@@ -11,21 +12,20 @@ import { Wand2 } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function MagicLinkPage() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setTokens, setUser } = useAuthStore();
   const handled = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const token = searchParams.get("token");
+  const [failure, setFailure] = useState<string | null>(null);
+  const error = token ? failure : t("magic.invalidLink");
 
   useEffect(() => {
     if (handled.current) return;
     handled.current = true;
 
-    const token = searchParams.get("token");
-    if (!token) {
-      setError("Invalid or missing link");
-      return;
-    }
+    if (!token) return;
 
     verifyMagicLink(token)
       .then((res) => {
@@ -35,29 +35,29 @@ export default function MagicLinkPage() {
         } else if (res.access_token && res.refresh_token) {
           setTokens(res.access_token, res.refresh_token);
           if (res.user) setUser(res.user);
-          toast.success("Signed in successfully");
+          toast.success(t("magic.signedIn"));
           router.replace("/dashboard");
         } else {
-          setError("Authentication failed");
+          setFailure(t("authFailed"));
         }
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Link expired or invalid");
+        setFailure(err instanceof Error ? err.message : t("magic.expiredFallback"));
       });
-  }, [searchParams, setTokens, setUser, router]);
+  }, [token, setTokens, setUser, router, t]);
 
   if (error) {
     return (
       <AuthStatusCard
         icon={Wand2}
         tone="red"
-        title="Link expired"
+        title={t("magic.expiredTitle")}
         action={
           <AuthLink
             onClick={() => router.push("/login")}
             className={`mt-4 text-sm ${AUTH_LINK_CLASS}`}
           >
-            Back to login
+            {t("backToLogin")}
           </AuthLink>
         }
       >
@@ -69,7 +69,7 @@ export default function MagicLinkPage() {
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <LogoSpinner size={32} speed="default" />
-      <p className="text-sm text-[var(--color-text-secondary)]">Verifying your login link...</p>
+      <p className="text-sm text-[var(--color-text-secondary)]">{t("magic.verifying")}</p>
     </div>
   );
 }

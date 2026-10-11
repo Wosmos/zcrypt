@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { verify2FA, getMe } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
@@ -11,6 +12,7 @@ import { ArrowLeft } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function TwoFactorVerifyPage() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const { setUser, setTokens } = useAuthStore();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -67,11 +69,11 @@ export default function TwoFactorVerifyPage() {
   const handleSubmit = async (codeStr?: string) => {
     const fullCode = codeStr || code.join("");
     if (fullCode.length !== 6) {
-      toast.warning("Enter all 6 digits");
+      toast.warning(t("twoFa.enterAll"));
       return;
     }
     if (!tempToken) {
-      toast.error("Session expired. Please log in again.");
+      toast.error(t("twoFa.expired"));
       router.push("/login");
       return;
     }
@@ -92,7 +94,7 @@ export default function TwoFactorVerifyPage() {
         router.push("/dashboard");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Invalid code");
+      toast.error(err instanceof Error ? err.message : t("twoFa.invalid"));
       setCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -103,10 +105,8 @@ export default function TwoFactorVerifyPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight">Two-factor authentication</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Enter the 6-digit code from your authenticator app
-        </p>
+        <h1 className="text-xl font-bold tracking-tight">{t("twoFa.title")}</h1>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t("twoFa.subtitle")}</p>
       </div>
 
       <div className="flex justify-center gap-2 mb-5" onPaste={handlePaste}>
@@ -119,6 +119,7 @@ export default function TwoFactorVerifyPage() {
             type="text"
             inputMode="numeric"
             maxLength={1}
+            aria-label={t("twoFa.digit", { n: i + 1 })}
             value={digit}
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
@@ -137,10 +138,10 @@ export default function TwoFactorVerifyPage() {
         {loading ? (
           <span className="flex items-center gap-2">
             <LogoSpinner size={16} speed="fast" />
-            Verifying...
+            {t("twoFa.verifying")}
           </span>
         ) : (
-          "Verify"
+          t("twoFa.verify")
         )}
       </Button>
 
@@ -149,7 +150,7 @@ export default function TwoFactorVerifyPage() {
           href="/login"
           className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors inline-flex items-center gap-1"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to login
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("backToLogin")}
         </Link>
       </p>
     </div>

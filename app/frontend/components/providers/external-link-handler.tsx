@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { isTauri, openExternal } from "@/lib/tauri";
 import { toast } from "@/store/toast";
 
@@ -23,6 +24,12 @@ import { toast } from "@/store/toast";
  * No-op on the web, where target="_blank" works natively.
  */
 export function ExternalLinkHandler() {
+  const t = useTranslations("ui");
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
   useEffect(() => {
     if (!isTauri) return;
 
@@ -63,7 +70,7 @@ export function ExternalLinkHandler() {
       void openExternal(url.href).catch(() => {
         // Thrown when no installed app claims the URL. Say so, the old
         // behaviour was an unexplained dead tap.
-        toast.error("Couldn't open that link on this device");
+        toast.error(tRef.current("externalLinkFailed"));
       });
     };
 
