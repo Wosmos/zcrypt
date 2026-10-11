@@ -28,6 +28,7 @@ interface ExplorerToolbarProps {
   files: FileMetadata[];
   filters: EntryFilters;
   onFiltersChange: (filters: EntryFilters) => void;
+  trailing?: ReactNode;
 }
 
 /**
@@ -46,17 +47,18 @@ export function ExplorerToolbar({
   files,
   filters,
   onFiltersChange,
+  trailing,
 }: ExplorerToolbarProps) {
   const t = useTranslations("explorer");
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
       {/* Row 1 (mobile) / left side (desktop): breadcrumb */}
-      <div className="min-w-0 flex-1">{breadcrumb}</div>
+      <div className="min-w-0 flex-1 sm:min-w-[7rem]">{breadcrumb}</div>
 
       {/* Right side (desktop only): filter, grid density, view toggle, Select.
           Hidden on mobile. Select/bulk starts from a file's long-press →
           "Select" there, and grid/view were already desktop-only. */}
-      <div className="hidden items-center gap-2 sm:flex sm:w-auto sm:flex-shrink-0">
+      <div className="hidden max-w-full flex-wrap items-center justify-end gap-2 sm:ms-auto sm:flex">
         <FilterPopover files={files} filters={filters} onFiltersChange={onFiltersChange} />
         {/* Grid density: user picks the column count (Auto / 1–4). Only in grid
             view; the choice is persisted by the explorer. */}
@@ -76,7 +78,7 @@ export function ExplorerToolbar({
                   )}
                 >
                   <LayoutGrid className="h-4 w-4" />
-                  <span className="text-xs font-medium tabular-nums">
+                  <span className="hidden text-xs font-medium tabular-nums xl:inline">
                     {gridCols === "auto" ? t("auto") : gridCols}
                   </span>
                 </button>
@@ -130,11 +132,19 @@ export function ExplorerToolbar({
           size="sm"
           onClick={onToggleSelect}
           aria-pressed={selectMode}
+          aria-label={t("select")}
+          title={t("select")}
           className="flex-shrink-0"
         >
           <CheckSquare className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{t("select")}</span>
+          <span className="hidden xl:inline">{t("select")}</span>
         </Button>
+        {trailing ? (
+          <>
+            <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-[var(--color-border)]" />
+            {trailing}
+          </>
+        ) : null}
       </div>
     </div>
   );

@@ -107,7 +107,7 @@ export function SharedStorageBanner() {
               )}
             />
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 sm:basis-64">
               <p className="text-sm text-[var(--color-text)]">
                 {nearlyFull ? t("nearlyFull") : t("using")}{" "}
                 <span className="text-[var(--color-text-muted)]">
@@ -146,7 +146,7 @@ export function SharedStorageBanner() {
                 type="button"
                 onClick={dismiss}
                 aria-label={t("dismiss")}
-                className="shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                className="ms-auto shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 <X className="h-4 w-4" />
               </button>

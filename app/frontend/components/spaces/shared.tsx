@@ -115,7 +115,15 @@ export function LiveRegion({ message }: { message: string }) {
   );
 }
 
-export function ShortcutsHelp({ items, title }: { items: [string, string][]; title: string }) {
+export function ShortcutsHelp({
+  items,
+  title,
+  className,
+}: {
+  items: [string, string][];
+  title: string;
+  className?: string;
+}) {
   const t = useTranslations("spaces");
   const [open, setOpen] = useState(false);
 
@@ -140,6 +148,7 @@ export function ShortcutsHelp({ items, title }: { items: [string, string][]; tit
           className={cn(
             "hidden h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] font-mono text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] md:inline-flex",
             FOCUS_RING,
+            className,
           )}
         >
           ?
