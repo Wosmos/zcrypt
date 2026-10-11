@@ -15,7 +15,6 @@
       "fileCountSelected": "{count, plural, one {# fichier sélectionné} other {# fichiers sélectionnés}}"
     },
     "page": {
-      "eyebrow": "Boîte à outils",
       "title": "Outils",
       "description": "Des outils avancés pour partager, synchroniser et vérifier votre coffre chiffré. Tout s’exécute chiffré de bout en bout dans votre navigateur.",
       "tabs": {

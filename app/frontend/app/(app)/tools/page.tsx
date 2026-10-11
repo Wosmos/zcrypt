@@ -66,11 +66,7 @@ export default function ToolsPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <PageHeader
-        eyebrow={t("page.eyebrow")}
-        title={t("page.title")}
-        description={t("page.description")}
-      />
+      <PageHeader title={t("page.title")} description={t("page.description")} />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <ScrollArea className="w-full">

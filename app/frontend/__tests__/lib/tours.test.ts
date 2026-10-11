@@ -117,6 +117,17 @@ describe("resolveTour", () => {
     expect(steps.map((s) => s.selector)).toEqual(['[data-tour="upload-fab"]']);
   });
 
+  it("uses the compact side on small screens and the default side otherwise", () => {
+    add("upload-fab");
+    const matches = (value: boolean) =>
+      vi.stubGlobal("matchMedia", () => ({ matches: value }) as MediaQueryList);
+    matches(false);
+    expect(resolveTour("vault")[0].side).toBe("bottom");
+    matches(true);
+    expect(resolveTour("vault")[0].side).toBe("top");
+    vi.unstubAllGlobals();
+  });
+
   it("keeps steps without a target", () => {
     const steps = resolveTour("spaces");
     expect(steps).toHaveLength(1);

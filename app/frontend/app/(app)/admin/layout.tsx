@@ -51,7 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="animate-fade-in space-y-6">
-      <PageHeader eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
+      <PageHeader title={t("title")} description={t("description")} />
 
       {/* Mobile: select-based nav */}
       <div className="sm:hidden">

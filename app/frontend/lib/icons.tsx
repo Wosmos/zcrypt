@@ -62,6 +62,9 @@ import {
   Key as KeyData,
   Layers as LayersData,
   LayoutGrid as LayoutGridData,
+  LayoutThreeColumnIcon as LayoutThreeColumnIconData,
+  ListViewIcon as ListViewIconData,
+  GridViewIcon as GridViewIconData,
   Link2 as Link2Data,
   LoaderCircle as LoaderCircleData,
   Location01Icon as Location01IconData,
@@ -249,6 +252,9 @@ export const ArrowUpDown = makeIcon(ArrowUpDownData, "ArrowUpDown");
 export const Box = makeIcon(BoxData, "Box");
 export const Cpu = makeIcon(CpuData, "Cpu");
 export const LayoutGrid = makeIcon(LayoutGridData, "LayoutGrid");
+export const GridView = makeIcon(GridViewIconData, "GridView");
+export const ListView = makeIcon(ListViewIconData, "ListView");
+export const Columns = makeIcon(LayoutThreeColumnIconData, "LayoutThreeColumn");
 export const Monitor = makeIcon(MonitorData, "Monitor");
 export const MonitorSmartphone = makeIcon(MonitorSmartphoneData, "MonitorSmartphone");
 export const MoreHorizontal = makeIcon(MoreHorizontalData, "MoreHorizontal");

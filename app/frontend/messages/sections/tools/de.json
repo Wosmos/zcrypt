@@ -15,7 +15,6 @@
       "fileCountSelected": "{count, plural, one {# Datei} other {# Dateien}} ausgewählt"
     },
     "page": {
-      "eyebrow": "Werkzeugkasten",
       "title": "Tools",
       "description": "Erweiterte Werkzeuge zum Teilen, Synchronisieren und Überprüfen deines verschlüsselten Tresors. Alles läuft Ende-zu-Ende-verschlüsselt in deinem Browser.",
       "tabs": {

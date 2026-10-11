@@ -100,7 +100,6 @@ export function SpacesList() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow={t("list.eyebrow")}
         title={t("list.title")}
         description={t("list.description")}
         actions={
@@ -137,10 +136,7 @@ export function SpacesList() {
           ))}
         </div>
       ) : vaults.length === 0 ? (
-        <div
-          className="panel flex flex-col items-center justify-center gap-3 px-6 py-16 text-center"
-          data-tour="space-list"
-        >
+        <div className="panel flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
             <Users className="h-6 w-6" />
           </div>

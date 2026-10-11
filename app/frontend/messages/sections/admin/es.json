@@ -1,7 +1,6 @@
 {
   "admin": {
     "layout": {
-      "eyebrow": "Administración",
       "title": "Admin",
       "description": "Gestiona usuarios, tokens de plataforma y planes, y revisa la actividad del sistema.",
       "selectSection": "Seleccionar sección de administración",

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import type { ViewMode, GridCols } from "./types";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, TableProperties, CheckSquare, Check } from "@/lib/icons";
+import { Columns, GridView, ListView, CheckSquare, Check } from "@/lib/icons";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -75,7 +75,7 @@ export function ExplorerToolbar({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
                   )}
                 >
-                  <LayoutGrid className="h-4 w-4" />
+                  <Columns className="h-4 w-4" />
                   <span className="text-xs font-medium tabular-nums">
                     {gridCols === "auto" ? t("auto") : gridCols}
                   </span>
@@ -102,8 +102,8 @@ export function ExplorerToolbar({
           className="hidden sm:flex flex-shrink-0 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
         >
           {[
-            { mode: "list" as const, icon: TableProperties, title: t("listView") },
-            { mode: "grid" as const, icon: LayoutGrid, title: t("gridView") },
+            { mode: "list" as const, icon: ListView, title: t("listView") },
+            { mode: "grid" as const, icon: GridView, title: t("gridView") },
           ].map(({ mode, icon: Icon, title }) => (
             <button
               key={mode}

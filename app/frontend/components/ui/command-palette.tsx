@@ -57,7 +57,7 @@ const NAV = [
   { key: "shell.vault", href: "/dashboard", icon: Shield },
   { key: "shell.spaces", href: "/spaces", icon: Layers },
   { key: "ui.palette.analytics", href: "/analytics", icon: BarChart3 },
-  { key: "shell.deletedFiles", href: "/trash", icon: Trash2 },
+  { key: "shell.trash", href: "/trash", icon: Trash2 },
   { key: "ui.palette.deviceTransfer", href: "/transfer", icon: RefreshCcw },
   { key: "shell.settings", href: "/settings", icon: Settings },
   { key: "shell.tools", href: "/tools", icon: Cog },

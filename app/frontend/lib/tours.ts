@@ -1,10 +1,13 @@
 export type TourName = "vault" | "share" | "share-copy" | "spaces";
 
+type TourSide = "top" | "bottom" | "left" | "right";
+
 export interface TourStepDef {
   targets?: string[];
   title: string;
   content: string;
-  side?: "top" | "bottom" | "left" | "right";
+  side?: TourSide;
+  compactSide?: TourSide;
 }
 
 export interface ResolvedTourStep {
@@ -12,7 +15,7 @@ export interface ResolvedTourStep {
   title: string;
   content: string;
   selector?: string;
-  side?: TourStepDef["side"];
+  side?: TourSide;
   showControls: boolean;
   showSkip: boolean;
   blockKeyboardControl: boolean;
@@ -36,6 +39,7 @@ export const TOUR_STEPS: Record<TourName, TourStepDef[]> = {
       content:
         "Upload files here. They are encrypted on your device before they go anywhere. On a phone, use the plus button.",
       side: "bottom",
+      compactSide: "top",
     },
     {
       targets: ["new-folder"],
@@ -47,7 +51,7 @@ export const TOUR_STEPS: Record<TourName, TourStepDef[]> = {
       targets: ["file-card"],
       title: "Every file has a menu",
       content: "Right-click a file, or long-press on a phone, to share, move, rename or delete it.",
-      side: "right",
+      side: "bottom",
     },
     {
       targets: ["vault-lock", "vault-lock-mobile"],
@@ -61,12 +65,14 @@ export const TOUR_STEPS: Record<TourName, TourStepDef[]> = {
       title: "Spaces",
       content: "Share a folder with people you invite, still end-to-end encrypted.",
       side: "right",
+      compactSide: "top",
     },
     {
       targets: ["nav-insights", "nav-insights-mobile"],
       title: "Insights",
       content: "See how much storage you use and what your vault has been up to.",
       side: "right",
+      compactSide: "top",
     },
   ],
   share: [
@@ -109,7 +115,8 @@ export const TOUR_STEPS: Record<TourName, TourStepDef[]> = {
       title: "Start a space",
       content:
         "Create one, name it, and invite people. You choose who can edit and who can only view.",
-      side: "bottom",
+      side: "left",
+      compactSide: "top",
     },
     {
       targets: ["space-list"],
@@ -156,6 +163,12 @@ export function resetTours(userId: string): void {
 
 export const tourSelector = (id: string) => `[data-tour="${id}"]`;
 
+function isCompactViewport(): boolean {
+  return (
+    typeof window !== "undefined" && window.matchMedia?.("(max-width: 639px)").matches === true
+  );
+}
+
 function isVisible(el: Element): boolean {
   return el.getClientRects().length > 0;
 }
@@ -171,6 +184,7 @@ function findVisibleTarget(targets: string[], root: ParentNode): string | null {
 
 export function resolveTour(name: TourName, root: ParentNode = document): ResolvedTourStep[] {
   const out: ResolvedTourStep[] = [];
+  const compact = isCompactViewport();
   for (const [index, def] of TOUR_STEPS[name].entries()) {
     let selector: string | undefined;
     if (def.targets) {
@@ -183,7 +197,7 @@ export function resolveTour(name: TourName, root: ParentNode = document): Resolv
       title: def.title,
       content: def.content,
       selector,
-      side: def.side,
+      side: (compact && def.compactSide) || def.side,
       showControls: true,
       showSkip: true,
       blockKeyboardControl: true,

@@ -91,7 +91,6 @@ export function AnalyticsClient() {
 
   const header = (
     <PageHeader
-      eyebrow={t("eyebrow")}
       title={t("title")}
       description={t("description")}
       actions={

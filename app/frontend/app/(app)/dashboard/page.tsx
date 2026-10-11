@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
 
 import { VaultExplorer, type VaultExplorerHandle } from "@/components/files/vault-explorer";
 import { DropOverlay } from "@/components/files/drop-overlay";
@@ -57,7 +56,7 @@ import { useVaultSearch } from "@/components/ui/command-palette";
 import { VaultShortcuts } from "@/components/files/vault-shortcuts";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 
-import { Shield, AlertTriangle, RefreshCw, FileUpload, FolderAdd } from "@/lib/icons";
+import { Shield, RefreshCw, FileUpload, FolderAdd } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 import { useAutoTour } from "@/components/onboarding/tour-provider";
 
@@ -432,33 +431,9 @@ export default function VaultPage() {
 
       {/* Vault file browser */}
       <div className="flex flex-col gap-6">
-        {/* No storage available warning */}
-        {quotaInfo && !quotaInfo.can_upload && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-            <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                {t("storageUnavailable")}
-              </p>
-              <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                {t.rich("storageSettingUp", {
-                  link: (chunks) => (
-                    <Link
-                      href="/settings"
-                      className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Shared storage nudge: only renders for users riding the global token,
-              and only once a day. Above the uploads so it is seen before someone
-              starts a transfer that the cap would refuse. */}
+        {/* One strip for storage state: "not available yet" wins, otherwise the
+              shared-storage nudge for users riding the global token. Above the
+              uploads so it is seen before a transfer the cap would refuse. */}
         <SharedStorageBanner />
         <ConnectStorageDialog />
 

@@ -406,10 +406,7 @@ export function SettingsContent() {
         {active === null ? (
           <div className="space-y-6">
             <div className="px-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">
-                {t("configuration")}
-              </p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text)]">
+              <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">
                 {t("title")}
               </h1>
             </div>
@@ -454,10 +451,7 @@ export function SettingsContent() {
       {/* ── DESKTOP: two-pane (nav rail + active section) ──────────────── */}
       <div className="hidden md:flex md:gap-8">
         <nav className="w-60 flex-shrink-0">
-          <p className="px-3 text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">
-            {t("configuration")}
-          </p>
-          <h1 className="mt-1 px-3 text-lg font-bold tracking-tight text-[var(--color-text)]">
+          <h1 className="px-3 text-lg font-bold tracking-tight text-[var(--color-text)]">
             {t("title")}
           </h1>
           <div className="mt-4 space-y-4">

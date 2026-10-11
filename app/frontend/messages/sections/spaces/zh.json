@@ -74,7 +74,6 @@
       "offered": "现在提供的"
     },
     "list": {
-      "eyebrow": "协作",
       "title": "空间",
       "description": "与你邀请的人共享加密文件。空间密钥会用每位成员的密钥封装：服务器永远看不到它。",
       "shortcutsTitle": "空间快捷键",
