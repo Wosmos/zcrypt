@@ -179,7 +179,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await api.dispose();
 
     await loginUser(page, email, PASSWORD);
-    await expect(page.getByText("No files yet")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Nothing to hide yet")).toBeVisible({ timeout: 15_000 });
   });
 
   test("vault tour appears once, can be skipped and does not come back", async () => {
@@ -195,7 +195,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await expect(skip).toBeHidden();
 
     await page.reload();
-    await expect(page.getByText("No files yet").or(page.getByText(single.name, { exact: true }).first())).toBeVisible({
+    await expect(page.getByText("Nothing to hide yet").or(page.getByText(single.name, { exact: true }).first())).toBeVisible({
       timeout: 15_000,
     });
     await page.waitForTimeout(2_500);
