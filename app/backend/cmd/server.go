@@ -978,6 +978,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", s.HandleHealth)
+	mux.HandleFunc("GET /api/geo/country", s.HandleGeoCountry)
 
 	// Maintenance-mode toggle for the Neon rotation write-freeze (internal use
 	// only; authenticated by static secret, see HandleMaintenanceToggle).
