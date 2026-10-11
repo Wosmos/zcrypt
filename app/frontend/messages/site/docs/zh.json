@@ -2673,7 +2673,9 @@
         "license": "许可证",
         "privacy": "隐私",
         "terms": "条款"
-      }
+      },
+      "breadcrumb": "面包屑导航",
+      "pagination": "分页"
     }
   }
 }

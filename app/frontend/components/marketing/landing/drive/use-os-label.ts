@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { detectDevice } from "@/components/marketing/download/download-cta";
 import type { DetectedDevice } from "@/lib/releases";
 
@@ -16,12 +16,11 @@ const LABELS: Record<DetectedDevice, { labelKey: string; href: string }> = {
 
 const FALLBACK: OsLabel = { os: null, labelKey: "osFallback", href: "/download" };
 
-/** The OS download button's label and link, resolved after mount so SSR and hydration agree. */
+const subscribe = () => () => {};
+const serverDevice = (): DetectedDevice | null => null;
+
+/** The OS download button's label and link. The server snapshot is the fallback, so SSR and hydration agree. */
 export function useOsLabel(): OsLabel {
-  const [value, setValue] = useState<OsLabel>(FALLBACK);
-  useEffect(() => {
-    const os = detectDevice();
-    if (os) setValue({ os, ...LABELS[os] });
-  }, []);
-  return value;
+  const os = useSyncExternalStore(subscribe, detectDevice, serverDevice);
+  return os ? { os, ...LABELS[os] } : FALLBACK;
 }

@@ -23,6 +23,7 @@ import { zstdDecompress } from "@/lib/zstd";
 import { Zip, ZipPassThrough } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { concatChunks, saveBlob } from "@/lib/utils";
+import { tr } from "@/store/translate";
 import type { DiskWritable } from "@/lib/download-session";
 import type { DownloadPasswordResolver } from "@/store/download";
 
@@ -105,14 +106,14 @@ function packedBytes(files: BulkDownloadFile[]): number {
  *  Files over the entry cap are skipped (reported) rather than refused. */
 export function zipRefusal(files: BulkDownloadFile[]): string | null {
   if (files.length > ZIP_MAX_ENTRIES) {
-    return `A ZIP holds at most ${ZIP_MAX_ENTRIES} files. Select fewer files.`;
+    return tr("l10n.zip.tooMany", { max: ZIP_MAX_ENTRIES });
   }
   const packable = files.filter((f) => f.fileSize <= ZIP_ENTRY_MAX_BYTES);
   if (packable.length === 0) {
-    return "Files over 1 GB can't go in a ZIP. Download them individually.";
+    return tr("l10n.zip.tooLarge");
   }
   if (packedBytes(packable) > ZIP32_MAX_BYTES) {
-    return "A ZIP is limited to 4 GB. Select fewer files, or download them individually.";
+    return tr("l10n.zip.tooBig");
   }
   return null;
 }
@@ -164,7 +165,7 @@ async function fetchVerifiedFile(
     try {
       plain = await decryptChunk(keyBytes, new Uint8Array(data));
     } catch {
-      throw new Error(`Decryption failed for ${file.filename}, wrong passphrase?`);
+      throw new Error(tr("l10n.zip.decryptFailed", { name: file.filename }));
     }
 
     if (compressed) {
@@ -185,13 +186,13 @@ async function fetchVerifiedFile(
     // store: only an actual hmac_v1 download needs the current user id.
     const { useAuthStore } = await import("@/store/auth");
     const uid = useAuthStore.getState().user?.id;
-    if (!uid) throw new Error(`Integrity check failed for ${file.filename}, not signed in`);
+    if (!uid) throw new Error(tr("l10n.zip.integritySignedOut", { name: file.filename }));
     contentHash = await contentMacBytes(fullFile, await deriveDedupKeyBytes(filePassphrase, uid));
   } else {
     contentHash = await sha256Hex(fullFile);
   }
   if (contentHash !== meta.sha256) {
-    throw new Error(`Integrity check failed for ${file.filename}`);
+    throw new Error(tr("l10n.zip.integrityFailed", { name: file.filename }));
   }
   return fullFile;
 }
@@ -234,7 +235,7 @@ export async function downloadAsZip(
     for (const file of files) {
       assertNotAborted(signal);
       onProgress?.({
-        stage: `Downloading ${file.filename}`,
+        stage: tr("l10n.zip.stageDownloading", { name: file.filename }),
         percent: Math.round((filesDone / totalFiles) * 95),
         currentFile: file.filename,
         filesDone,
@@ -246,7 +247,7 @@ export async function downloadAsZip(
         report.failed.push({
           fileId: file.fileId,
           filename: file.filename,
-          error: "Over 1 GB, too large for a ZIP",
+          error: tr("l10n.zip.overLimit"),
         });
         continue;
       }
@@ -278,7 +279,7 @@ export async function downloadAsZip(
     if (report.added === 0 && firstError) throw firstError;
 
     onProgress?.({
-      stage: "Saving ZIP...",
+      stage: tr("l10n.zip.stageSaving"),
       percent: 96,
       currentFile: "",
       filesDone: totalFiles,
@@ -302,7 +303,7 @@ export async function downloadAsZip(
   }
 
   onProgress?.({
-    stage: "Done",
+    stage: tr("l10n.zip.stageDone"),
     percent: 100,
     currentFile: "",
     filesDone: totalFiles,

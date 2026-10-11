@@ -861,6 +861,87 @@
       "zipFailed": "ZIP 下载失败",
       "zipFailedMsg": "ZIP 下载失败：{msg}",
       "zipWrongPassword": "此 ZIP 中的文件夹密码错误。请重试并重新输入。"
+    },
+    "l10n": {
+      "justNow": "刚刚",
+      "justNowCap": "刚刚",
+      "expired": "已过期",
+      "expiryDH": "{d}天{h}小时",
+      "expiryHM": "{h}小时{m}分钟",
+      "expiry": {
+        "never": "永不",
+        "h1": "1 小时",
+        "h24": "24 小时",
+        "d7": "7 天",
+        "d30": "30 天"
+      },
+      "quota": {
+        "invalid": "请输入有效的配额(GB)",
+        "unlimited": "无限制"
+      },
+      "unknown": "未知",
+      "untitledSpace": "未命名空间",
+      "lockedSpace": "已锁定的空间",
+      "lockedName": "[已锁定]",
+      "zip": {
+        "tooMany": "一个 ZIP 最多包含 {max} 个文件，请选择更少的文件。",
+        "tooLarge": "超过 1 GB 的文件无法放入 ZIP，请单独下载。",
+        "tooBig": "ZIP 最大为 4 GB，请选择更少的文件，或单独下载。",
+        "overLimit": "超过 1 GB，无法放入 ZIP",
+        "stageDownloading": "正在下载 {name}",
+        "stageSaving": "正在保存 ZIP...",
+        "stageDone": "完成",
+        "decryptFailed": "{name} 解密失败，密码短语是否有误？",
+        "integritySignedOut": "{name} 完整性校验失败，未登录",
+        "integrityFailed": "{name} 完整性校验失败"
+      },
+      "err": {
+        "unlockFolderShare": "请先解锁保险库再分享文件夹。",
+        "folderEmpty": "此文件夹中没有可分享的文件。",
+        "folderNoneShareable": "此文件夹中的文件都无法分享。它们可能位于受密码保护的文件夹中，或是在支持分享之前上传的。",
+        "fileLegacy": "此文件是在支持分享之前上传的，请重新上传后再分享。",
+        "passphraseLocked": "您的密码短语已锁定。请先打开或下载一个文件以解锁，然后再试一次分享。",
+        "keyNotReady": "您的加密密钥尚未就绪，请先解锁保险库。",
+        "spaceKeyUnavailable": "此空间的密钥不可用，请先解锁保险库。",
+        "unlockShareFiles": "请先解锁保险库再分享文件。",
+        "fileNotFound": "未找到文件",
+        "addFilesFailed": "添加文件失败",
+        "prepareFileFailed": "准备文件失败"
+      },
+      "platform": {
+        "github": {
+          "tagline": "大型仓库 · 每个文件 100 MiB",
+          "description": "具有 repo 权限范围的个人访问令牌",
+          "capacity": "10 GB / 仓库 (建议值；无硬性上限)",
+          "fileLimit": "100 MiB / 文件 (50 MiB 时警告)",
+          "rateInfo": "5 千次请求 / 小时 (已认证；约 500 次写入/小时)",
+          "tokenLabel": "在 GitHub 上生成令牌"
+        },
+        "gitlab": {
+          "tagline": "每个项目 10 GiB",
+          "description": "具有 api 权限范围的个人访问令牌",
+          "capacity": "10 GiB / 项目 (超出后只读)",
+          "fileLimit": "5 GiB / 次推送 (无单文件上限)",
+          "rateInfo": "2 千次请求 / 分钟 (已认证)",
+          "tokenLabel": "在 GitLab 上生成令牌"
+        },
+        "huggingface": {
+          "tagline": "每个账户 100 GB 私有空间",
+          "description": "具有写入权限的访问令牌",
+          "capacity": "100 GB / 账户 (共享，非按仓库)",
+          "fileLimit": "500 GB / 文件 (LFS；建议 200 GB)",
+          "rateInfo": "约 128 次提交 / 小时 (另有 1 千次 API 请求 / 5 分钟)",
+          "tokenLabel": "在 Hugging Face 上生成令牌"
+        },
+        "telegram": {
+          "tagline": "通过频道实现无限存储",
+          "description": "机器人令牌 + 频道，引导式设置，存储无上限",
+          "capacity": "无限制",
+          "fileLimit": "无限制 (分块)",
+          "rateInfo": "每个聊天约 20 条消息/分钟",
+          "tokenLabel": "通过 @BotFather 创建机器人"
+        }
+      }
     }
   }
 }

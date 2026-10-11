@@ -2673,7 +2673,9 @@
         "license": "License",
         "privacy": "Privacy",
         "terms": "Terms"
-      }
+      },
+      "breadcrumb": "Breadcrumb",
+      "pagination": "Pagination"
     }
   }
 }

@@ -24,6 +24,7 @@ import {
 import { Folder, FolderOpen, Home, Lock, ChevronRight } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
+import { tr } from "@/store/translate";
 import { DIALOG_PANEL } from "./explorer/types";
 
 interface MoveToFolderDialogProps {
@@ -109,7 +110,7 @@ export function MoveToFolderDialog({
     return Promise.all(
       raw.map(async (f) => ({
         id: f.id,
-        name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
+        name: key ? await decryptNameSafe(f.encrypted_name, key) : tr("l10n.lockedName"),
       })),
     );
   }, []);

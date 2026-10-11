@@ -23,6 +23,7 @@ import { decryptName } from "@/lib/name-crypto";
 import { sealText, keyFromBytes, userNameKey } from "@/lib/sealed";
 import { invalidateShares } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
+import { tr } from "@/store/translate";
 
 /**
  * The owner's file name, sealed under a link key so a recipient can save the
@@ -77,9 +78,7 @@ function prepareFileKey(fileId: string, passphrase: string): Promise<WarmEntry> 
   const p = (async () => {
     const meta = await getFileMeta(fileId);
     if (!meta.wrapped_cek) {
-      throw new Error(
-        "This file was uploaded before sharing was supported. Re-upload it to share.",
-      );
+      throw new Error(tr("l10n.err.fileLegacy"));
     }
     const cekBuf = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
     return { meta, cek: new Uint8Array(cekBuf) };
@@ -114,9 +113,7 @@ export async function createFileShareLink(
 ): Promise<{ url: string; token: string; shareKey: string }> {
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) {
-    throw new Error(
-      "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
-    );
+    throw new Error(tr("l10n.err.passphraseLocked"));
   }
 
   // 1. Recover this file's CEK using the owner's passphrase.

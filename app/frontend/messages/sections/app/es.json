@@ -861,6 +861,87 @@
       "zipFailed": "Error al descargar el ZIP",
       "zipFailedMsg": "Error al descargar el ZIP: {msg}",
       "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla."
+    },
+    "l10n": {
+      "justNow": "ahora mismo",
+      "justNowCap": "Ahora mismo",
+      "expired": "Caducado",
+      "expiryDH": "{d} d {h} h",
+      "expiryHM": "{h} h {m} min",
+      "expiry": {
+        "never": "Nunca",
+        "h1": "1 hora",
+        "h24": "24 horas",
+        "d7": "7 días",
+        "d30": "30 días"
+      },
+      "quota": {
+        "invalid": "Introduce una cuota válida en GB",
+        "unlimited": "Ilimitado"
+      },
+      "unknown": "Desconocido",
+      "untitledSpace": "Espacio sin título",
+      "lockedSpace": "Espacio bloqueado",
+      "lockedName": "[bloqueado]",
+      "zip": {
+        "tooMany": "Un ZIP admite como máximo {max} archivos. Selecciona menos archivos.",
+        "tooLarge": "Los archivos de más de 1 GB no caben en un ZIP. Descárgalos de uno en uno.",
+        "tooBig": "Un ZIP tiene un límite de 4 GB. Selecciona menos archivos o descárgalos de uno en uno.",
+        "overLimit": "Más de 1 GB, demasiado grande para un ZIP",
+        "stageDownloading": "Descargando {name}",
+        "stageSaving": "Guardando ZIP...",
+        "stageDone": "Listo",
+        "decryptFailed": "Falló el descifrado de {name}, ¿frase de contraseña incorrecta?",
+        "integritySignedOut": "Falló la comprobación de integridad de {name}, no has iniciado sesión",
+        "integrityFailed": "Falló la comprobación de integridad de {name}"
+      },
+      "err": {
+        "unlockFolderShare": "Desbloquea tu bóveda para compartir una carpeta.",
+        "folderEmpty": "Esta carpeta no tiene archivos para compartir.",
+        "folderNoneShareable": "No se pudo compartir ninguno de los archivos de esta carpeta. Puede que estén en una carpeta protegida con contraseña o que se subieran antes de que existiera la función de compartir.",
+        "fileLegacy": "Este archivo se subió antes de que existiera la función de compartir. Vuelve a subirlo para compartirlo.",
+        "passphraseLocked": "Tu frase de contraseña está bloqueada. Abre o descarga primero un archivo para desbloquearla y vuelve a intentar compartir.",
+        "keyNotReady": "Tu clave de cifrado aún no está lista, desbloquea primero tu bóveda.",
+        "spaceKeyUnavailable": "La clave de este espacio no está disponible, desbloquea primero tu bóveda.",
+        "unlockShareFiles": "Desbloquea tu bóveda para compartir archivos.",
+        "fileNotFound": "Archivo no encontrado",
+        "addFilesFailed": "No se pudieron añadir los archivos",
+        "prepareFileFailed": "No se pudo preparar el archivo"
+      },
+      "platform": {
+        "github": {
+          "tagline": "Repos grandes · 100 MiB por archivo",
+          "description": "Token de acceso personal con alcance repo",
+          "capacity": "10 GB / repo (recomendado; sin límite estricto)",
+          "fileLimit": "100 MiB / archivo (aviso a partir de 50 MiB)",
+          "rateInfo": "5k solicitudes / hora (autenticado; ~500 escrituras/h)",
+          "tokenLabel": "Generar token en GitHub"
+        },
+        "gitlab": {
+          "tagline": "10 GiB por proyecto",
+          "description": "Token de acceso personal con alcance api",
+          "capacity": "10 GiB / proyecto (después, solo lectura)",
+          "fileLimit": "5 GiB / push (sin límite por archivo)",
+          "rateInfo": "2k solicitudes / min (autenticado)",
+          "tokenLabel": "Generar token en GitLab"
+        },
+        "huggingface": {
+          "tagline": "100 GB privados por cuenta",
+          "description": "Token de acceso con permiso de escritura",
+          "capacity": "100 GB / cuenta (compartido, no por repo)",
+          "fileLimit": "500 GB / archivo (LFS; recomendado 200 GB)",
+          "rateInfo": "~128 commits / hora (y 1k solicitudes API / 5 min)",
+          "tokenLabel": "Generar token en Hugging Face"
+        },
+        "telegram": {
+          "tagline": "Almacenamiento ilimitado mediante canales",
+          "description": "Token de bot + canal, configuración guiada, almacenamiento ilimitado",
+          "capacity": "Ilimitado",
+          "fileLimit": "Ilimitado (por fragmentos)",
+          "rateInfo": "~20 mensajes/min por chat",
+          "tokenLabel": "Crear bot con @BotFather"
+        }
+      }
     }
   }
 }

@@ -861,6 +861,87 @@
       "zipFailed": "ZIP-Download fehlgeschlagen",
       "zipFailedMsg": "ZIP-Download fehlgeschlagen: {msg}",
       "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben."
+    },
+    "l10n": {
+      "justNow": "gerade eben",
+      "justNowCap": "Gerade eben",
+      "expired": "Abgelaufen",
+      "expiryDH": "{d} T {h} Std.",
+      "expiryHM": "{h} Std. {m} Min.",
+      "expiry": {
+        "never": "Nie",
+        "h1": "1 Stunde",
+        "h24": "24 Stunden",
+        "d7": "7 Tage",
+        "d30": "30 Tage"
+      },
+      "quota": {
+        "invalid": "Gib ein gültiges Kontingent in GB ein",
+        "unlimited": "Unbegrenzt"
+      },
+      "unknown": "Unbekannt",
+      "untitledSpace": "Unbenannter Space",
+      "lockedSpace": "Gesperrter Space",
+      "lockedName": "[gesperrt]",
+      "zip": {
+        "tooMany": "Ein ZIP enthält höchstens {max} Dateien. Wähle weniger Dateien aus.",
+        "tooLarge": "Dateien über 1 GB passen nicht in ein ZIP. Lade sie einzeln herunter.",
+        "tooBig": "Ein ZIP ist auf 4 GB begrenzt. Wähle weniger Dateien aus oder lade sie einzeln herunter.",
+        "overLimit": "Über 1 GB, zu groß für ein ZIP",
+        "stageDownloading": "{name} wird heruntergeladen",
+        "stageSaving": "ZIP wird gespeichert...",
+        "stageDone": "Fertig",
+        "decryptFailed": "Entschlüsselung von {name} fehlgeschlagen, falsche Passphrase?",
+        "integritySignedOut": "Integritätsprüfung für {name} fehlgeschlagen, nicht angemeldet",
+        "integrityFailed": "Integritätsprüfung für {name} fehlgeschlagen"
+      },
+      "err": {
+        "unlockFolderShare": "Entsperre deinen Tresor, um einen Ordner zu teilen.",
+        "folderEmpty": "Dieser Ordner enthält keine Dateien zum Teilen.",
+        "folderNoneShareable": "Keine der Dateien in diesem Ordner konnte geteilt werden. Sie liegen möglicherweise in einem passwortgeschützten Ordner oder wurden hochgeladen, bevor das Teilen unterstützt wurde.",
+        "fileLegacy": "Diese Datei wurde hochgeladen, bevor das Teilen unterstützt wurde. Lade sie erneut hoch, um sie zu teilen.",
+        "passphraseLocked": "Deine Passphrase ist gesperrt. Öffne oder lade zuerst eine Datei herunter, um sie zu entsperren, und versuche das Teilen dann erneut.",
+        "keyNotReady": "Dein Verschlüsselungsschlüssel ist noch nicht bereit, entsperre zuerst deinen Tresor.",
+        "spaceKeyUnavailable": "Der Schlüssel dieses Spaces ist nicht verfügbar, entsperre zuerst deinen Tresor.",
+        "unlockShareFiles": "Entsperre deinen Tresor, um Dateien zu teilen.",
+        "fileNotFound": "Datei nicht gefunden",
+        "addFilesFailed": "Dateien konnten nicht hinzugefügt werden",
+        "prepareFileFailed": "Datei konnte nicht vorbereitet werden"
+      },
+      "platform": {
+        "github": {
+          "tagline": "Große Repos · 100 MiB pro Datei",
+          "description": "Persönliches Zugriffstoken mit repo-Scope",
+          "capacity": "10 GB / Repo (empfohlen; kein hartes Limit)",
+          "fileLimit": "100 MiB / Datei (Warnung ab 50 MiB)",
+          "rateInfo": "5k Anfragen / Stunde (authentifiziert; ~500 Schreibvorgänge/Std.)",
+          "tokenLabel": "Token auf GitHub erstellen"
+        },
+        "gitlab": {
+          "tagline": "10 GiB pro Projekt",
+          "description": "Persönliches Zugriffstoken mit api-Scope",
+          "capacity": "10 GiB / Projekt (danach schreibgeschützt)",
+          "fileLimit": "5 GiB / Push (kein Limit pro Datei)",
+          "rateInfo": "2k Anfragen / Min. (authentifiziert)",
+          "tokenLabel": "Token auf GitLab erstellen"
+        },
+        "huggingface": {
+          "tagline": "100 GB privat pro Konto",
+          "description": "Zugriffstoken mit Schreibberechtigung",
+          "capacity": "100 GB / Konto (geteilt, nicht pro Repo)",
+          "fileLimit": "500 GB / Datei (LFS; empfohlen 200 GB)",
+          "rateInfo": "~128 Commits / Stunde (zudem 1k API-Anfragen / 5 Min.)",
+          "tokenLabel": "Token auf Hugging Face erstellen"
+        },
+        "telegram": {
+          "tagline": "Unbegrenzter Speicher über Kanäle",
+          "description": "Bot-Token + Kanal, geführte Einrichtung, unbegrenzter Speicher",
+          "capacity": "Unbegrenzt",
+          "fileLimit": "Unbegrenzt (in Blöcken)",
+          "rateInfo": "~20 Nachrichten/Min. pro Chat",
+          "tokenLabel": "Bot über @BotFather erstellen"
+        }
+      }
     }
   }
 }

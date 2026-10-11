@@ -12,6 +12,8 @@ import {
   Code,
   Cog,
 } from "@/lib/icons";
+import { documentLocale, intlLocale } from "@/lib/i18n";
+import { tr } from "@/store/translate";
 import type { FileMetadata } from "@/types";
 
 // Re-exported so existing importers of `@/lib/utils` keep working while the
@@ -71,6 +73,17 @@ export function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+type RelativeUnit = "minute" | "hour" | "day";
+
+function relativeAgo(count: number, unit: RelativeUnit): string {
+  if (documentLocale() === "en")
+    return `${count}${unit === "minute" ? "m" : unit === "hour" ? "h" : "d"} ago`;
+  return new Intl.RelativeTimeFormat(intlLocale(), { numeric: "always", style: "narrow" }).format(
+    -count,
+    unit,
+  );
+}
+
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -79,12 +92,12 @@ export function formatDate(dateStr: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return tr("l10n.justNowCap");
+  if (diffMins < 60) return relativeAgo(diffMins, "minute");
+  if (diffHours < 24) return relativeAgo(diffHours, "hour");
+  if (diffDays < 7) return relativeAgo(diffDays, "day");
 
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(intlLocale(), {
     month: "short",
     day: "numeric",
     year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
@@ -114,6 +127,11 @@ export interface FileTypeInfo {
 }
 
 export function getFileTypeInfo(filename: string): FileTypeInfo {
+  const info = fileTypeBase(filename);
+  return { ...info, label: tr(`fileTypeFilter.categories.${info.label}`) };
+}
+
+function fileTypeBase(filename: string): FileTypeInfo {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
 
   const typeMap: Record<string, FileTypeInfo> = {
@@ -593,7 +611,7 @@ export function getFileTypeInfo(filename: string): FileTypeInfo {
 }
 
 export function getFileCategory(filename: string): string {
-  return getFileTypeInfo(filename).label;
+  return fileTypeBase(filename).label;
 }
 
 export function isImageFile(filename: string): boolean {
@@ -694,7 +712,7 @@ export type Severity = "success" | "error" | "warning" | "info";
  * note that adopting this also forces the "en-US" locale on that site).
  */
 export function formatDateTime(iso: string | number | Date, opts?: { seconds?: boolean }): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleDateString(intlLocale(), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -710,7 +728,7 @@ export function formatDateTime(iso: string | number | Date, opts?: { seconds?: b
  * on those locale-default sites (intended).
  */
 export function formatDateShort(iso: string | number | Date): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleDateString(intlLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -733,13 +751,13 @@ export function formatRelativeTime(input: string | number | Date): string {
         : new Date(input).getTime();
   const diff = Date.now() - ts;
   const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return tr("l10n.justNow");
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return relativeAgo(minutes, "minute");
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return relativeAgo(hours, "hour");
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return relativeAgo(days, "day");
   return formatDateShort(ts);
 }
 
@@ -776,22 +794,27 @@ export function formatDuration(
  */
 export function formatExpiry(expiresAt: string): string {
   const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return "Expired";
+  if (diff <= 0) return tr("l10n.expired");
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
-  if (days > 0) return `${days}d ${hours}h`;
+  if (days > 0) return tr("l10n.expiryDH", { d: days, h: hours });
   const minutes = Math.floor((diff % 3600000) / 60000);
-  return `${hours}h ${minutes}m`;
+  return tr("l10n.expiryHM", { h: hours, m: minutes });
 }
 
 /** Share-link expiry choices, shared by the file details drawer and both share modals. */
 export const EXPIRY_OPTIONS = [
-  { label: "Never", value: 0 },
-  { label: "1 hour", value: 1 },
-  { label: "24 hours", value: 24 },
-  { label: "7 days", value: 168 },
-  { label: "30 days", value: 720 },
-];
+  { key: "never", value: 0 },
+  { key: "h1", value: 1 },
+  { key: "h24", value: 24 },
+  { key: "d7", value: 168 },
+  { key: "d30", value: 720 },
+].map(({ key, value }) => ({
+  get label() {
+    return tr(`l10n.expiry.${key}`);
+  },
+  value,
+}));
 
 /** YYYY-MM-DD in LOCAL time (avoids the UTC drift toISOString() causes). */
 export function localDateKey(d: Date): string {

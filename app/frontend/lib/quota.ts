@@ -7,6 +7,7 @@
  *   - stored quota `> 0`   → a custom byte override (edited in GB)
  */
 import { formatBytes, gbToBytes } from "@/lib/utils";
+import { tr } from "@/store/translate";
 
 export type QuotaMode = "default" | "unlimited" | "custom";
 
@@ -33,7 +34,7 @@ export function parseQuotaInput(
   if (mode === "unlimited") return { ok: true, bytes: 0 };
   if (mode === "default") return { ok: true, bytes: null };
   const gb = parseFloat(input);
-  if (isNaN(gb) || gb <= 0) return { ok: false, error: "Enter a valid quota in GB" };
+  if (isNaN(gb) || gb <= 0) return { ok: false, error: tr("l10n.quota.invalid") };
   return { ok: true, bytes: Math.round(gbToBytes(gb)) };
 }
 
@@ -51,8 +52,8 @@ export function formatQuotaDisplay(
   if (bytes === null) {
     if (opts?.planDisplay) return opts.planDisplay;
     const def = opts?.defaultBytes ?? 0;
-    return def > 0 ? formatBytes(def) : "Unlimited";
+    return def > 0 ? formatBytes(def) : tr("l10n.quota.unlimited");
   }
-  if (bytes === 0) return "Unlimited";
+  if (bytes === 0) return tr("l10n.quota.unlimited");
   return formatBytes(bytes);
 }

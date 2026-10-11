@@ -17,6 +17,7 @@ import { sealText, keyFromBytes } from "@/lib/sealed";
 import { sealFileNameForLink } from "@/lib/file-share";
 import { runPool } from "@/lib/pool";
 import { usePassphraseStore } from "@/store/passphrase";
+import { tr } from "@/store/translate";
 
 export interface FolderShareOptions {
   password?: string;
@@ -118,8 +119,8 @@ export async function createFolderShareLink(
   nestingIncomplete: boolean;
 }> {
   const passphrase = usePassphraseStore.getState().getPassphrase();
-  if (!passphrase) throw new Error("Unlock your vault to share a folder.");
-  if (files.length === 0) throw new Error("This folder has no files to share.");
+  if (!passphrase) throw new Error(tr("l10n.err.unlockFolderShare"));
+  if (files.length === 0) throw new Error(tr("l10n.err.folderEmpty"));
 
   const folderKey = generateCEK();
   const folderKeyBuf = folderKey.buffer.slice(0) as ArrayBuffer;
@@ -190,9 +191,7 @@ export async function createFolderShareLink(
   });
   const wraps = slots.filter((w): w is NonNullable<typeof w> => w !== undefined);
   if (wraps.length === 0) {
-    throw new Error(
-      "None of this folder's files could be shared. They may be in a password-protected folder, or were uploaded before sharing was supported.",
-    );
+    throw new Error(tr("l10n.err.folderNoneShareable"));
   }
 
   // The share's display name is sealed under the folder-share key too: only

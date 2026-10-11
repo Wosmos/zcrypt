@@ -15,14 +15,7 @@ import { useTranslations } from "next-intl";
 import { MotionConfig, useReducedMotion } from "motion/react";
 import { NextStep, NextStepProvider, useNextStep } from "nextstepjs";
 import { useAuthStore } from "@/store/auth";
-import {
-  TOUR_STEPS,
-  hasSeenTour,
-  markTourSeen,
-  resetTours,
-  resolveTour,
-  type TourName,
-} from "@/lib/tours";
+import { hasSeenTour, markTourSeen, resetTours, resolveTour, type TourName } from "@/lib/tours";
 import { TourCard } from "./tour-card";
 
 interface ActiveTour {
@@ -84,9 +77,7 @@ function TourController({ children }: { children: ReactNode }) {
     (name: TourName) => {
       if (!userId) return false;
       const steps = resolveTour(name).map((step) => {
-        const i = TOUR_STEPS[name].findIndex((d) => d.title === step.title);
-        if (i < 0) return step;
-        const key = `${name === "share-copy" ? "shareCopy" : name}.${i}`;
+        const key = `${name === "share-copy" ? "shareCopy" : name}.${step.index}`;
         return {
           ...step,
           title: tRef.current(`${key}.title`),
