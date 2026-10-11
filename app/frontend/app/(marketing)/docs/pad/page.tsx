@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Encrypted Pad | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "what", title: "What a Pad is" },
-  { id: "how", title: "How it works" },
-  { id: "limits", title: "Size and expiry" },
-  { id: "burn", title: "Burn after read" },
-  { id: "privacy", title: "Privacy and what we log" },
-  { id: "next", title: "Where to go next" },
+  { id: "what", k: "docs.pad.toc.what" },
+  { id: "how", k: "docs.pad.toc.how" },
+  { id: "limits", k: "docs.pad.toc.limits" },
+  { id: "burn", k: "docs.pad.toc.burn" },
+  { id: "privacy", k: "docs.pad.toc.privacy" },
+  { id: "next", k: "docs.pad.toc.next" },
 ];
 
 export default function PadDocPage() {
@@ -33,84 +34,66 @@ export default function PadDocPage() {
       description="Send a snippet of text (a password, a note, a paste) that's encrypted in your browser and can be set to self-destruct after a single read. Think of it as an encrypted, expiring pastebin."
       toc={toc}
     >
-      <DocSection id="what" title="What a Pad is">
+      <DocSection id="what" title={<T k="docs.pad.a2" />}>
         <DocP>
-          A Pad is a short-lived, encrypted note. You type or paste text, zcrypt encrypts it on your
-          device, and you get a link to share. It&rsquo;s the right tool when you need to pass along
-          something sensitive in text form: credentials, a recovery phrase, a private message,
-          without leaving it sitting in a chat log or email forever.
+          <T k="docs.pad.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="how" title="How it works">
+      <DocSection id="how" title={<T k="docs.pad.a7" />}>
         <DocP>
-          The text is encrypted in your browser before upload. The server receives and stores{" "}
-          <strong>only the ciphertext</strong>. It has no way to read what you wrote. When the
-          recipient opens the link, the ciphertext is fetched and decrypted locally in their
-          browser.
+          <T k="docs.pad.p3" />
         </DocP>
         <DocList
           items={[
-            <>Encryption and decryption happen entirely on-device.</>,
-            <>The server holds opaque ciphertext and nothing more.</>,
-            <>The recipient needs no account to read the note.</>,
+            <T key="docs.pad.p4" k="docs.pad.p4" />,
+            <T key="docs.pad.p5" k="docs.pad.p5" />,
+            <T key="docs.pad.p6" k="docs.pad.p6" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="limits" title="Size and expiry">
+      <DocSection id="limits" title={<T k="docs.pad.a10" />}>
         <DocList
           items={[
-            <>
-              <strong>Size:</strong> up to about <strong>1 MB</strong> of text, ample for notes,
-              keys, and pastes, but not for files. For files, use{" "}
-              <Link href="/docs/send" className="text-cyan-600 hover:underline dark:text-cyan-400">
-                Anonymous Send
-              </Link>
-              .
-            </>,
-            <>
-              <strong>Expiry:</strong> choose <strong>1 hour</strong>, <strong>24 hours</strong>, or{" "}
-              <strong>7 days</strong>. After that the Pad expires and can no longer be opened.
-            </>,
+            <T
+              key="docs.pad.p8"
+              k="docs.pad.p8"
+              links={{ l1: "/docs/send" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T key="docs.pad.p9" k="docs.pad.p9" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="burn" title="Burn after read">
+      <DocSection id="burn" title={<T k="docs.pad.a12" />}>
         <DocP>
-          Enable <strong>burn after read</strong> to make the Pad one-time. After the first view it
-          is consumed and removed, so anyone who opens the link afterward sees only that it has
-          already been read.
+          <T k="docs.pad.p11" />
         </DocP>
       </DocSection>
 
-      <DocSection id="privacy" title="Privacy and what we log">
-        <DocNote type="security" title="What's private, and what isn't">
-          The note&rsquo;s contents stay private: the server only ever stores ciphertext. For abuse
-          prevention, the <strong>creator&rsquo;s IP address is recorded</strong> alongside the Pad,
-          coarsened to its /24 (IPv4) or /48 (IPv6) network. If that matters to you, create the Pad
-          from a network you&rsquo;re comfortable being associated with.
+      <DocSection id="privacy" title={<T k="docs.pad.a15" />}>
+        <DocNote type="security" title={<T k="docs.pad.a14" />}>
+          <T k="docs.pad.p13" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.pad.a18" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/send"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Anonymous Send: share a file instead of text
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/sync-transfer"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Sync &amp; device transfer: push text and links to your own devices
-            </Link>,
+            <T
+              key="docs.pad.p16"
+              k="docs.pad.p16"
+              links={{ l1: "/docs/send" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.pad.p17"
+              k="docs.pad.p17"
+              links={{ l1: "/docs/sync-transfer" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

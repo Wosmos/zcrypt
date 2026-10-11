@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Quickstart | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "account", title: "Create a free account" },
-  { id: "passphrase", title: "Understand your passphrase" },
-  { id: "storage", title: "Connect a storage platform" },
-  { id: "upload", title: "Upload your first file" },
-  { id: "open", title: "Preview or download it" },
-  { id: "next", title: "Where to go next" },
+  { id: "account", k: "docs.getting-started.toc.account" },
+  { id: "passphrase", k: "docs.getting-started.toc.passphrase" },
+  { id: "storage", k: "docs.getting-started.toc.storage" },
+  { id: "upload", k: "docs.getting-started.toc.upload" },
+  { id: "open", k: "docs.getting-started.toc.open" },
+  { id: "next", k: "docs.getting-started.toc.next" },
 ];
 
 /** One rung of the quickstart timeline: a numbered badge with a connector line
@@ -36,7 +37,7 @@ function Step({
 }: {
   id: string;
   n: number;
-  title: string;
+  title: React.ReactNode;
   last?: boolean;
   children: React.ReactNode;
 }) {
@@ -71,135 +72,96 @@ export default function GettingStartedPage() {
       description="Sign up, set your passphrase, connect a storage platform you already use, and upload your first encrypted file, in a few minutes."
       toc={toc}
     >
-      <DocNote type="info" title="Free, open source, and yours">
-        zcrypt has no paid tiers, no credit card, and no storage to sell you. You bring your own
-        backend: your encrypted files live in a GitHub, GitLab, Hugging Face, or Telegram account
-        you already have, so your capacity is whatever free space those platforms give you.
+      <DocNote type="info" title={<T k="docs.getting-started.a2" />}>
+        <T k="docs.getting-started.p1" />
       </DocNote>
 
       <div className="mt-8">
-        <Step id="account" n={1} title="Create a free account">
+        <Step id="account" n={1} title={<T k="docs.getting-started.a5" />}>
           <DocP>
-            Sign up at <strong>{SITE_DOMAIN}</strong> with your email and a strong account password,
-            then click the verification link we email you. Verifying your address activates your
-            account.
+            <T k="docs.getting-started.p3" values={{ v1: SITE_DOMAIN }} />
           </DocP>
           <DocP>
-            This account password only logs you in. It is <em>not</em> what encrypts your files.
-            That is the passphrase you set next, and the two are intentionally different.
+            <T k="docs.getting-started.p4" />
           </DocP>
         </Step>
 
-        <Step id="passphrase" n={2} title="Understand your passphrase">
+        <Step id="passphrase" n={2} title={<T k="docs.getting-started.a10" />}>
           <DocP>
-            On your first sign-in you create a <strong>passphrase</strong>. zcrypt uses it to derive
-            your encryption key locally, in your browser. The passphrase and the key it derives
-            never leave your device and are never sent to our servers. That is what makes zcrypt
-            zero-knowledge.
+            <T k="docs.getting-started.p6" />
           </DocP>
           <DocP>
-            Choose something strong and memorable, and store it in a password manager. For the full
-            picture of how your key is derived and held, see{" "}
-            <Link
-              href="/docs/concepts"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Core concepts
-            </Link>
-            .
+            <T
+              k="docs.getting-started.p7"
+              links={{ l1: "/docs/concepts" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />
           </DocP>
-          <DocNote type="warning" title="There is no passphrase recovery">
-            Because your passphrase never touches our servers, we cannot reset it for you. If you
-            lose it, your files cannot be decrypted by anyone, including us. Save it somewhere safe.
+          <DocNote type="warning" title={<T k="docs.getting-started.a9" />}>
+            <T k="docs.getting-started.p8" />
           </DocNote>
         </Step>
 
-        <Step id="storage" n={3} title="Connect a storage platform">
+        <Step id="storage" n={3} title={<T k="docs.getting-started.a13" />}>
           <DocP>
-            zcrypt does not run a storage farm. Your encrypted data lives in a platform account you
-            connect: <strong>GitHub</strong>, <strong>GitLab</strong>, <strong>Hugging Face</strong>
-            , or <strong>Telegram</strong>. Open <strong>Settings</strong> and add an access token
-            (or a bot token and channel for Telegram). zcrypt then creates private repositories, or
-            a private channel: on your behalf and stores your encrypted chunks there.
+            <T k="docs.getting-started.p11" />
           </DocP>
           <DocP>
-            Want more room? Connect more than one platform. For per-platform setup and how tokens
-            are kept, see{" "}
-            <Link
-              href="/docs/connect-storage"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Connect your storage
-            </Link>
-            .
+            <T
+              k="docs.getting-started.p12"
+              links={{ l1: "/docs/connect-storage" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />
           </DocP>
         </Step>
 
-        <Step id="upload" n={4} title="Upload your first file">
+        <Step id="upload" n={4} title={<T k="docs.getting-started.a19" />}>
           <DocP>
-            Open your vault and drag a file onto the explorer, or click to browse. Before anything
-            leaves your device, zcrypt does all of the following <strong>in your browser</strong>:
+            <T k="docs.getting-started.p14" />
           </DocP>
           <DocList
             items={[
-              <>
-                <strong>Compresses</strong> the file with zstd: client-side, so the savings happen
-                before encryption.
-              </>,
-              <>
-                <strong>Encrypts</strong> it with AES-256-GCM under a key wrapped by your
-                passphrase.
-              </>,
-              <>
-                <strong>Splits</strong> it into encrypted chunks (~4–16 MB each, tuned to your
-                device) and uploads them to your connected platform.
-              </>,
+              <T key="docs.getting-started.p15" k="docs.getting-started.p15" />,
+              <T key="docs.getting-started.p16" k="docs.getting-started.p16" />,
+              <T key="docs.getting-started.p17" k="docs.getting-started.p17" />,
             ]}
           />
           <DocP>
-            You see real-time progress as each chunk completes. Only ciphertext ever reaches your
-            storage platform.
+            <T k="docs.getting-started.p18" />
           </DocP>
         </Step>
 
-        <Step id="open" n={5} title="Preview or download it" last>
+        <Step id="open" n={5} title={<T k="docs.getting-started.a22" />} last>
           <DocP>
-            Click the file to open it in the full-screen viewer, images, video, audio, PDFs,
-            documents, and text are decrypted on the fly and rendered locally, with no plaintext
-            leaving your device. Or download it: zcrypt fetches the chunks, reassembles, decrypts,
-            and decompresses them back into the original file on your device.
+            <T k="docs.getting-started.p20" />
           </DocP>
           <DocP>
-            If your vault is locked, you will be asked for your passphrase once; it then unlocks
-            everything for the rest of your session.
+            <T k="docs.getting-started.p21" />
           </DocP>
         </Step>
       </div>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.getting-started.a26" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/concepts"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Core concepts: vault, passphrase, folders, and chunks
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/connect-storage"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Connect your storage: tokens, encryption at rest, and auto-rotation
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/folders"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Folders &amp; the file explorer, organize your encrypted drive
-            </Link>,
+            <T
+              key="docs.getting-started.p23"
+              k="docs.getting-started.p23"
+              links={{ l1: "/docs/concepts" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.getting-started.p24"
+              k="docs.getting-started.p24"
+              links={{ l1: "/docs/connect-storage" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.getting-started.p25"
+              k="docs.getting-started.p25"
+              links={{ l1: "/docs/folders" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

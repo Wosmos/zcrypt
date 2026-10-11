@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Anonymous Send | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "what", title: "What Send is for" },
-  { id: "how", title: "How it works" },
-  { id: "limits", title: "Limits and expiry" },
-  { id: "burn", title: "Burn after read" },
-  { id: "privacy", title: "Privacy and what we log" },
-  { id: "next", title: "Where to go next" },
+  { id: "what", k: "docs.send.toc.what" },
+  { id: "how", k: "docs.send.toc.how" },
+  { id: "limits", k: "docs.send.toc.limits" },
+  { id: "burn", k: "docs.send.toc.burn" },
+  { id: "privacy", k: "docs.send.toc.privacy" },
+  { id: "next", k: "docs.send.toc.next" },
 ];
 
 export default function SendDocPage() {
@@ -33,96 +34,69 @@ export default function SendDocPage() {
       description="Drop someone an encrypted file without signing up for anything. Send encrypts in your browser, stores the result under a disguised name for a short window, and can wipe it the moment it's read."
       toc={toc}
     >
-      <DocSection id="what" title="What Send is for">
+      <DocSection id="what" title={<T k="docs.send.a2" />}>
         <DocP>
-          Anonymous Send is the fastest way to hand off a single file when you don&rsquo;t have, or
-          don&rsquo;t want to use, an account. It&rsquo;s built for one-off transfers: a document to
-          a journalist, a build to a tester, a photo to a friend. You get a link to share; the
-          recipient needs no account either.
+          <T k="docs.send.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="how" title="How it works">
+      <DocSection id="how" title={<T k="docs.send.a7" />}>
         <DocP>
-          The file is encrypted on your device before it leaves your browser. zcrypt then splits the
-          ciphertext into chunks and uploads them under a <strong>disguised name</strong> so the
-          stored object reveals nothing about the original file. You receive a token-based link to
-          pass on; the recipient&rsquo;s browser downloads the chunks, verifies them, and decrypts
-          locally.
+          <T k="docs.send.p3" />
         </DocP>
         <DocList
           items={[
-            <>The server stores only ciphertext: it cannot read the file.</>,
-            <>The stored chunks carry disguised filenames, not your original&rsquo;s.</>,
-            <>No account, sign-in, or email is required to send or receive.</>,
+            <T key="docs.send.p4" k="docs.send.p4" />,
+            <T key="docs.send.p5" k="docs.send.p5" />,
+            <T key="docs.send.p6" k="docs.send.p6" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="limits" title="Limits and expiry">
+      <DocSection id="limits" title={<T k="docs.send.a13" />}>
         <DocList
           items={[
-            <>
-              <strong>Size:</strong> up to <strong>50 MB</strong> per file. Larger files belong in
-              your vault, where you can use a share link instead.
-            </>,
-            <>
-              <strong>Per day:</strong> anonymous senders can send up to <strong>500 MB</strong> a
-              day. Signing in raises the daily allowance.
-            </>,
-            <>
-              <strong>Expiry:</strong> choose a lifetime between <strong>1 and 24 hours</strong>.
-              When it lapses, the link reports that it has expired and the data is no longer
-              retrievable.
-            </>,
+            <T key="docs.send.p8" k="docs.send.p8" />,
+            <T key="docs.send.p9" k="docs.send.p9" />,
+            <T key="docs.send.p10" k="docs.send.p10" />,
           ]}
         />
-        <DocNote type="info" title="Need something bigger or longer-lived?">
-          Sign in and upload the file to your vault, then create a{" "}
-          <Link href="/docs/sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            share link
-          </Link>{" "}
-          : those support larger files and longer expiries.
+        <DocNote type="info" title={<T k="docs.send.a12" />}>
+          <T
+            k="docs.send.p11"
+            links={{ l1: "/docs/sharing" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="burn" title="Burn after read">
+      <DocSection id="burn" title={<T k="docs.send.a15" />}>
         <DocP>
-          Turn on <strong>burn after read</strong> to make the send a one-time link. After the first
-          successful access it is treated as already consumed, so a second visitor, or anyone who
-          later finds the link: sees only that it has been used. Once the file has been served, the
-          stored data is deleted, not just hidden.
+          <T k="docs.send.p14" />
         </DocP>
       </DocSection>
 
-      <DocSection id="privacy" title="Privacy and what we log">
-        <DocNote type="security" title="What's private, and what isn't">
-          The file&rsquo;s contents stay private: encryption happens in your browser and the server
-          only ever holds ciphertext under a disguised name. For abuse prevention, the{" "}
-          <strong>sender&rsquo;s IP address is recorded</strong> with the transfer, coarsened to its
-          /24 (IPv4) or /48 (IPv6) network. The integrity hash of the file is sealed too, so the
-          server does not hold a plain hash of your content. If that matters to your threat model,
-          send from a network you&rsquo;re comfortable being associated with.
+      <DocSection id="privacy" title={<T k="docs.send.a18" />}>
+        <DocNote type="security" title={<T k="docs.send.a17" />}>
+          <T k="docs.send.p16" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.send.a21" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/pad"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encrypted Pad: for sharing text and notes instead of files
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/sharing"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Share links: account-backed sharing with passwords and limits
-            </Link>,
+            <T
+              key="docs.send.p19"
+              k="docs.send.p19"
+              links={{ l1: "/docs/pad" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.send.p20"
+              k="docs.send.p20"
+              links={{ l1: "/docs/sharing" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

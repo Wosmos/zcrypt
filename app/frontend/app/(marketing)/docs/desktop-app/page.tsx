@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocCode } from "@/components/docs/doc-page";
-import { desktopEngine } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Desktop app | zcrypt Docs",
   description:
@@ -18,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "what", title: "What it is" },
-  { id: "native", title: "Native conveniences" },
-  { id: "same-core", title: "Same zero-knowledge core" },
-  { id: "download", title: "Getting it" },
-  { id: "next", title: "Where to go next" },
+  { id: "what", k: "docs.desktop-app.toc.what" },
+  { id: "native", k: "docs.desktop-app.toc.native" },
+  { id: "same-core", k: "docs.desktop-app.toc.same-core" },
+  { id: "download", k: "docs.desktop-app.toc.download" },
+  { id: "next", k: "docs.desktop-app.toc.next" },
 ];
 
 export default function DesktopAppDocPage() {
@@ -33,144 +33,114 @@ export default function DesktopAppDocPage() {
       description="A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption."
       toc={toc}
     >
-      <DocSection id="what" title="What it is">
+      <DocSection id="what" title={<T k="docs.desktop-app.a3" />}>
         <DocP>
-          The zcrypt desktop app is a native build for <strong>macOS, Windows, and Linux</strong>,
-          packaged with <strong>Tauri</strong>. Tauri renders the same zcrypt interface in a
-          lightweight native shell using your operating system&apos;s own webview, so you get a
-          proper application window and OS integration without a heavy bundled browser.
+          <T k="docs.desktop-app.p1" />
         </DocP>
         <DocP>
-          Underneath that shell, encryption, compression, chunking, and storage sync run in{" "}
-          <strong>{desktopEngine.name}</strong>, an in-process {desktopEngine.language} engine, not
-          a browser sandbox and not a background subprocess. It replaces what used to be{" "}
-          {desktopEngine.replaces}: {desktopEngine.why} The same engine backs the Android app, so a
-          file encrypted on desktop opens cleanly there too.
+          <T k="docs.desktop-app.p2" />
         </DocP>
       </DocSection>
 
-      <DocSection id="native" title="Native conveniences">
-        <DocP>Running natively unlocks a few things a browser tab can&apos;t do as cleanly:</DocP>
+      <DocSection id="native" title={<T k="docs.desktop-app.a8" />}>
+        <DocP>
+          <T k="docs.desktop-app.p4" />
+        </DocP>
         <DocList
           items={[
-            <>
-              <strong>Native file picker</strong>: choose files and folders to upload through your
-              operating system&apos;s own dialog.
-            </>,
-            <>
-              <strong>OAuth via your system browser</strong>: signing in with Google or GitHub opens
-              your default browser rather than an embedded webview, so you authenticate in a
-              trusted, familiar environment and the app receives your tokens through a one-time,
-              single-use hand-off. See{" "}
-              <Link href="/docs/oauth" className="text-cyan-600 hover:underline dark:text-cyan-400">
-                Sign in with Google or GitHub
-              </Link>
-              .
-            </>,
-            <>
-              A dedicated app window that lives in your dock or taskbar, separate from your
-              browsing.
-            </>,
+            <T key="docs.desktop-app.p5" k="docs.desktop-app.p5" />,
+            <T
+              key="docs.desktop-app.p6"
+              k="docs.desktop-app.p6"
+              links={{ l1: "/docs/oauth" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T key="docs.desktop-app.p7" k="docs.desktop-app.p7" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="same-core" title="Same zero-knowledge core">
+      <DocSection id="same-core" title={<T k="docs.desktop-app.a12" />}>
         <DocP>
-          The desktop app is the same zcrypt, not a stripped-down sibling. Encryption and decryption
-          still happen entirely on your device, your vault passphrase is still never sent to the
-          server, and the session vault lock behaves just as it does on the web. Anything you learn
-          about how zcrypt protects your data applies here unchanged.
+          <T k="docs.desktop-app.p9" />
         </DocP>
-        <DocP>One thing does differ: {desktopEngine.dataPlane}</DocP>
+        <DocP>
+          <T k="docs.desktop-app.p10" />
+        </DocP>
         <DocNote type="security">
-          Because the cryptography is identical to the web app, the recovery rules are too: lose
-          your vault passphrase and your files cannot be decrypted on any platform. Keep it in a
-          password manager. See{" "}
-          <Link href="/docs/recovery" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Account recovery
-          </Link>
-          .
+          <T
+            k="docs.desktop-app.p11"
+            links={{ l1: "/docs/recovery" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="download" title="Getting it">
+      <DocSection id="download" title={<T k="docs.desktop-app.a25" />}>
         <DocP>
-          Desktop builds are published on the project&apos;s GitHub releases page. Grab the asset
-          that matches your platform from there:
+          <T k="docs.desktop-app.p13" />
         </DocP>
         <DocList
           items={[
-            <>
-              <a
-                href="/download"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-                target="_blank"
-                rel="noreferrer"
-              >
-                zcrypt.cloud/download
-              </a>{" "}
-              . Pick the latest release and download the build for macOS, Windows, or Linux.
-            </>,
+            <T
+              key="docs.desktop-app.p14"
+              k="docs.desktop-app.p14"
+              links={{ l1: "/download" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
         <DocP>
-          Or install from a terminal. These installers are <strong>unsigned</strong> (the macOS
-          build is not notarized, and Windows signing only turns on once it is configured), and the
-          scripts skip the first-launch &quot;unverified app&quot; prompt for you:
+          <T k="docs.desktop-app.p15" />
         </DocP>
-        <DocCode label="macOS and Linux">{`curl -fsSL https://zcrypt.cloud/install.sh | sh`}</DocCode>
-        <DocCode label="Windows (PowerShell)">{`irm https://zcrypt.cloud/install.ps1 | iex`}</DocCode>
-        <DocCode label="macOS (Homebrew)">{`brew tap wosmos/zcrypt
+        <DocCode
+          label={<T k="docs.desktop-app.a17" />}
+        >{`curl -fsSL https://zcrypt.cloud/install.sh | sh`}</DocCode>
+        <DocCode
+          label={<T k="docs.desktop-app.a19" />}
+        >{`irm https://zcrypt.cloud/install.ps1 | iex`}</DocCode>
+        <DocCode label={<T k="docs.desktop-app.a21" />}>{`brew tap wosmos/zcrypt
 brew trust wosmos/zcrypt
 brew install --cask zcrypt`}</DocCode>
-        <DocNote type="info" title="If your OS warns you">
-          If you installed a downloaded file by hand, the first launch may be blocked. On macOS,
-          open System Settings, then Privacy &amp; Security, and choose <strong>Open Anyway</strong>
-          . On Windows, choose <strong>More info</strong>, then <strong>Run anyway</strong> in the
-          SmartScreen prompt.
+        <DocNote type="info" title={<T k="docs.desktop-app.a23" />}>
+          <T k="docs.desktop-app.p22" />
         </DocNote>
         <DocNote type="info">
-          The desktop app is young and ships from GitHub releases, so available installers and
-          platforms can vary between versions. If you don&apos;t see a build for your OS yet, the{" "}
-          <Link href="/docs/web-app" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            web app
-          </Link>{" "}
-          gives you the full product in the meantime.
+          <T
+            k="docs.desktop-app.p24"
+            links={{ l1: "/docs/web-app" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.desktop-app.a30" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/web-app"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Web app: the same product in any modern browser
-            </Link>,
-            <Link
-              key="d"
-              href="/download#android"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Android app: the same engine, sideloaded on your phone
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/oauth"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Sign in with Google or GitHub: including the desktop sign-in flow
-            </Link>,
-            <Link
-              key="e"
-              href="/features/apps"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              zcrypt everywhere: the same vault across web, desktop, and Android
-            </Link>,
+            <T
+              key="docs.desktop-app.p26"
+              k="docs.desktop-app.p26"
+              links={{ l1: "/docs/web-app" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.desktop-app.p27"
+              k="docs.desktop-app.p27"
+              links={{ l1: "/download#android" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.desktop-app.p28"
+              k="docs.desktop-app.p28"
+              links={{ l1: "/docs/oauth" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.desktop-app.p29"
+              k="docs.desktop-app.p29"
+              links={{ l1: "/features/apps" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

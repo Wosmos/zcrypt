@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
@@ -11,6 +11,7 @@ import {
   DocTable,
 } from "@/components/docs/doc-page";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Encryption model | zcrypt Docs",
   description:
@@ -25,13 +26,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "primitives", title: "The primitives" },
-  { id: "envelope", title: "Envelope encryption" },
-  { id: "sharing", title: "Sealing keys to other people" },
-  { id: "derivation", title: "Key derivation" },
-  { id: "pipeline", title: "The upload pipeline" },
-  { id: "chunks", title: "Chunks & integrity" },
-  { id: "next", title: "Where to go next" },
+  { id: "primitives", k: "docs.security.toc.primitives" },
+  { id: "envelope", k: "docs.security.toc.envelope" },
+  { id: "sharing", k: "docs.security.toc.sharing" },
+  { id: "derivation", k: "docs.security.toc.derivation" },
+  { id: "pipeline", k: "docs.security.toc.pipeline" },
+  { id: "chunks", k: "docs.security.toc.chunks" },
+  { id: "next", k: "docs.security.toc.next" },
 ];
 
 export default function EncryptionModelPage() {
@@ -42,303 +43,200 @@ export default function EncryptionModelPage() {
       description="Everything in zcrypt is encrypted on your device before it touches the network. This page documents exactly which algorithms run, in what order, and where each key lives, no hand-waving."
       toc={toc}
     >
-      <DocSection id="primitives" title="The primitives">
+      <DocSection id="primitives" title={<T k="docs.security.a18" />}>
         <DocP>
-          zcrypt uses a small, deliberately boring set of well-understood primitives. There is no
-          custom cipher and no novel construction: just standard authenticated encryption and a
-          standard key-derivation function, run client-side via the Web Crypto API (in the browser)
-          or native Rust (in the desktop and Android apps). The exact parameters below are shared by
-          every client, so a file encrypted in one decrypts in any other.
+          <T k="docs.security.p1" />
         </DocP>
         <DocTable
-          head={["Purpose", "Primitive", "Parameters"]}
+          head={[
+            <T key="docs.security.p2" k="docs.security.p2" />,
+            <T key="docs.security.p3" k="docs.security.p3" />,
+            <T key="docs.security.p4" k="docs.security.p4" />,
+          ]}
           rows={[
             [
-              "Content encryption",
+              <T key="docs.security.p5" k="docs.security.p5" />,
               <span key="a" className="font-mono">
                 AES-256-GCM
               </span>,
-              "256-bit key, 12-byte random nonce, 16-byte auth tag",
+              <T key="docs.security.p6" k="docs.security.p6" />,
             ],
             [
-              "Key derivation",
+              <T key="docs.security.p7" k="docs.security.p7" />,
               <span key="b" className="font-mono">
                 PBKDF2-HMAC-SHA256
               </span>,
-              "600,000 iterations, 32-byte random salt, 256-bit output",
+              <T key="docs.security.p8" k="docs.security.p8" />,
             ],
             [
-              "Integrity",
+              <T key="docs.security.p9" k="docs.security.p9" />,
               <span key="c" className="font-mono">
                 SHA-256
               </span>,
-              "Per-chunk and whole-file digests",
+              <T key="docs.security.p10" k="docs.security.p10" />,
             ],
             [
-              "Sharing keys to other users (client-side)",
+              <T key="docs.security.p11" k="docs.security.p11" />,
               <span key="e" className="font-mono">
                 X25519 + AES-256-GCM
               </span>,
-              "ECIES sealed-box: ephemeral ECDH, SHA-256-derived wrap key",
+              <T key="docs.security.p12" k="docs.security.p12" />,
             ],
             [
-              "Token wrapping (server-side)",
+              <T key="docs.security.p13" k="docs.security.p13" />,
               <span key="d" className="font-mono">
                 HKDF-SHA256 + AES-256-GCM
               </span>,
-              "Per-user KEK derived from a server master key",
+              <T key="docs.security.p14" k="docs.security.p14" />,
             ],
           ]}
         />
-        <DocNote type="info" title="Why AES-GCM specifically">
-          GCM is <em>authenticated</em> encryption: every ciphertext carries a 16-byte tag bound to
-          the key and nonce. Flip a single bit of a stored chunk and decryption fails loudly rather
-          than returning garbage. You get confidentiality and tamper-detection from one pass.
+        <DocNote type="info" title={<T k="docs.security.a16" />}>
+          <T k="docs.security.p15" />
         </DocNote>
         <DocP>
-          The last row (token wrapping) is the one place zcrypt holds a key server-side, and it
-          never touches your files. It is covered honestly in{" "}
-          <Link
-            href="/docs/zero-knowledge"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            the zero-knowledge architecture
-          </Link>
-          .
+          <T
+            k="docs.security.p17"
+            links={{ l1: "/docs/zero-knowledge" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="envelope" title="Envelope encryption">
+      <DocSection id="envelope" title={<T k="docs.security.a26" />}>
         <DocP>
-          Your passphrase does not encrypt your files directly. Instead, every file gets its own
-          random 256-bit <strong>Content Encryption Key (CEK)</strong>. The file&apos;s chunks are
-          encrypted with that CEK, and the CEK itself is then <em>wrapped</em> (encrypted) with a
-          Key Encryption Key (KEK) derived from your passphrase. This is called envelope encryption.
+          <T k="docs.security.p19" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>The CEK</strong> is generated fresh, at random, per file, never derived from
-              anything you type.
-            </>,
-            <>
-              <strong>The KEK</strong> is derived from your passphrase plus the file&apos;s salt and
-              is used only to wrap and unwrap the CEK.
-            </>,
-            <>
-              <strong>The server stores the wrapped CEK</strong> (a small base64 ciphertext) and the
-              salt, but holds no key that can unwrap it.
-            </>,
+            <T key="docs.security.p20" k="docs.security.p20" />,
+            <T key="docs.security.p21" k="docs.security.p21" />,
+            <T key="docs.security.p22" k="docs.security.p22" />,
           ]}
         />
         <DocP>
-          This indirection is what makes secure sharing and{" "}
-          <Link
-            href="/docs/folder-encryption"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            per-folder passwords
-          </Link>{" "}
-          possible without ever exposing your passphrase: zcrypt can re-wrap a file&apos;s CEK under
-          a different key: a link&apos;s one-time share key, a folder-password key, or a key{" "}
-          <Link href="#sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            sealed to another user&apos;s public key
-          </Link>{" "}
-          , so a recipient (or a different password) can decrypt that one file while your master
-          passphrase never moves. The underlying chunks are untouched; only the small wrapped CEK
-          changes. See{" "}
-          <Link
-            href="/docs/key-management"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            passphrase &amp; key management
-          </Link>{" "}
-          for how keys flow end to end.
+          <T
+            k="docs.security.p23"
+            links={{ l1: "/docs/folder-encryption", l2: "#sharing", l3: "/docs/key-management" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
-        <DocNote type="security" title="Legacy files">
-          A small number of files predate envelope encryption and were encrypted directly with the
-          passphrase-derived key (no wrapped CEK). zcrypt detects this automatically on download, a
-          file with no stored wrapped CEK uses the passphrase-derived key as the content key
-          directly, so either path just works and you never have to think about it.
+        <DocNote type="security" title={<T k="docs.security.a25" />}>
+          <T k="docs.security.p24" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="sharing" title="Sealing keys to other people">
+      <DocSection id="sharing" title={<T k="docs.security.a34" />}>
         <DocP>
-          The same envelope idea extends to sharing with another zcrypt account without ever handing
-          a usable key to the server. Every account is bootstrapped with its own{" "}
-          <strong>X25519 keypair</strong>. The public half is published to a registry the server
-          keeps in the clear, so anyone can wrap a key <em>to</em> you; the private half is wrapped
-          under your passphrase-derived key: the very same PBKDF2 &rarr; AES-256-GCM envelope used
-          for file CEKs, so the server stores only ciphertext it cannot open.
+          <T k="docs.security.p27" />
         </DocP>
         <DocP>
-          To grant access: for example, to a{" "}
-          <Link
-            href="/docs/shared-vaults"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            shared space
-          </Link>{" "}
-          and its files: the client seals the relevant symmetric key to the recipient&apos;s public
-          key with an <strong>ECIES sealed-box</strong>: a fresh ephemeral keypair performs an
-          X25519 Diffie&ndash;Hellman with the recipient, the shared secret is hashed with SHA-256
-          into an AES-256-GCM key, and the ephemeral public key is prepended so the recipient can
-          reconstruct the secret.
+          <T
+            k="docs.security.p28"
+            links={{ l1: "/docs/shared-vaults" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
-        <DocCode label="sealing a key to a recipient (conceptual)">{`eph     = X25519 keygen()                          // fresh per seal
+        <DocCode
+          label={<T k="docs.security.a30" />}
+        >{`eph     = X25519 keygen()                          // fresh per seal
 shared  = X25519(eph.private, recipientPublicKey)  // ECDH
 aesKey  = SHA-256(shared || eph.public || recipientPublicKey)
 sealed  = eph.public || AES-256-GCM(key = aesKey, plaintext = spaceKey)`}</DocCode>
         <DocP>
-          Only the recipient&apos;s private key can reproduce the shared secret, so only they can
-          unseal the key. The server stores the sealed blob and the re-wrapped file envelopes and
-          can read neither. Revoking a member is a key rotation: a new space key is generated,
-          re-sealed to the remaining members, and every shared file&apos;s CEK re-wrapped under it,
-          so a removed member&apos;s old grant opens nothing.
+          <T k="docs.security.p31" />
         </DocP>
-        <DocNote type="security" title="Verify a fingerprint out of band">
-          Each published public key carries a short SHA-256 fingerprint. Compare it with your
-          collaborator over a channel that isn&apos;t zcrypt (in person, a phone call) to rule out a
-          substituted key: the only way an honest-but-curious server could interpose itself in the
-          exchange. How the keypair is derived and held is covered in{" "}
-          <Link
-            href="/docs/key-management"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            passphrase &amp; key management
-          </Link>
-          .
+        <DocNote type="security" title={<T k="docs.security.a33" />}>
+          <T
+            k="docs.security.p32"
+            links={{ l1: "/docs/key-management" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="derivation" title="Key derivation">
+      <DocSection id="derivation" title={<T k="docs.security.a39" />}>
         <DocP>
-          Keys are derived with PBKDF2-HMAC-SHA256 at <strong>600,000 iterations</strong> against a
-          cryptographically random <strong>32-byte salt</strong>. The high iteration count makes
-          each guess expensive, so brute-forcing a strong passphrase is computationally impractical.
-          The salt is unique per file, so identical passphrases never produce identical keys and a
-          precomputed-table attack buys an adversary nothing.
+          <T k="docs.security.p35" />
         </DocP>
-        <DocCode label="key derivation (conceptual)">{`salt = random(32 bytes)                       // unique per file
+        <DocCode
+          label={<T k="docs.security.a37" />}
+        >{`salt = random(32 bytes)                       // unique per file
 KEK  = PBKDF2-HMAC-SHA256(passphrase, salt,    // 600,000 iterations
                           iter = 600000,
                           dkLen = 32)
 CEK  = random(32 bytes)                        // unique per file
 wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
         <DocP>
-          The salt is not secret. It is stored alongside the file&apos;s metadata. The passphrase
-          is. It is never transmitted, never written to our database, and exists only in your
-          device&apos;s memory for the duration of an unlocked session.
+          <T k="docs.security.p38" />
         </DocP>
       </DocSection>
 
-      <DocSection id="pipeline" title="The upload pipeline">
+      <DocSection id="pipeline" title={<T k="docs.security.a47" />}>
         <DocP>
-          When you add a file, all of the heavy lifting happens locally: in a Web Worker in the
-          browser, or on-device in the desktop and Android apps. The server only ever receives
-          finished, encrypted chunks.
+          <T k="docs.security.p40" />
         </DocP>
         <DocList
           ordered
           items={[
-            <>
-              <strong>Compress.</strong> The file is compressed with zstd{" "}
-              <em>on your device, before encryption</em>. Encrypted data is effectively random and
-              will not compress, so this order matters.
-            </>,
-            <>
-              <strong>Encrypt.</strong> Each compressed chunk is sealed with AES-256-GCM under the
-              file&apos;s CEK, producing{" "}
-              <span className="font-mono">[12B nonce][ciphertext][16B tag]</span>.
-            </>,
-            <>
-              <strong>Hash.</strong> A SHA-256 digest is computed per chunk for integrity, and a
-              whole-file digest is recorded.
-            </>,
-            <>
-              <strong>Store.</strong> Chunks are pushed to your configured storage backend as opaque
-              binary blobs.
-            </>,
+            <T key="docs.security.p41" k="docs.security.p41" />,
+            <T key="docs.security.p42" k="docs.security.p42" />,
+            <T key="docs.security.p43" k="docs.security.p43" />,
+            <T key="docs.security.p44" k="docs.security.p44" />,
           ]}
         />
-        <DocNote type="warning" title="Compression is client-side only">
-          The backend does <strong>not</strong> compress anything. It merely carries a per-chunk{" "}
-          <span className="font-mono">compressed</span> flag so the client knows whether to run zstd
-          in reverse on the way back down. Older documentation implied server-side zstd. That was
-          never how it worked.
+        <DocNote type="warning" title={<T k="docs.security.a46" />}>
+          <T k="docs.security.p45" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="chunks" title="Chunks & integrity">
+      <DocSection id="chunks" title={<T k="docs.security.a55" />}>
         <DocP>
-          Files are split into chunks so uploads can run in parallel, resume after interruption, and
-          stay within storage-provider size limits. The plaintext chunk size is chosen adaptively
-          for your device: <strong>4 MB</strong> on constrained hardware up to{" "}
-          <strong>16 MB</strong> on machines with plenty of memory, and each encrypted chunk adds a
-          12-byte nonce plus a 16-byte tag of overhead. Encrypted chunks therefore top out around{" "}
-          <strong>16–17 MB</strong>.
+          <T k="docs.security.p48" />
         </DocP>
         <DocList
           items={[
-            <>
-              Every chunk is independently authenticated by its GCM tag, so tampering with one chunk
-              cannot silently corrupt the file.
-            </>,
-            <>
-              Per-chunk and whole-file SHA-256 digests let the client verify that what it downloaded
-              is exactly what it uploaded.
-            </>,
-            <>
-              Because each chunk is encrypted on its own, large files stream through memory in
-              bounded windows rather than being held whole.
-            </>,
-            <>
-              On the way back down, decryption and zstd decompression run across a device-aware pool
-              of Web Workers, off the main thread: the same client-side pipeline as upload, just in
-              reverse. Plaintext never leaves your device.
-            </>,
+            <T key="docs.security.p49" k="docs.security.p49" />,
+            <T key="docs.security.p50" k="docs.security.p50" />,
+            <T key="docs.security.p51" k="docs.security.p51" />,
+            <T key="docs.security.p52" k="docs.security.p52" />,
           ]}
         />
-        <DocNote type="info" title="On chunk sizes">
-          A nonce and a tag are appended per chunk, not per file, so overhead is a flat ~28 bytes
-          per chunk regardless of file size. The exact plaintext window is picked from your
-          device&apos;s reported memory at upload time.
+        <DocNote type="info" title={<T k="docs.security.a54" />}>
+          <T k="docs.security.p53" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
-        <DocP>Dig into the guarantees and the honest edges of this design.</DocP>
+      <DocSection id="next" title={<T k="docs.security.a61" />}>
+        <DocP>
+          <T k="docs.security.p56" />
+        </DocP>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/zero-knowledge"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge architecture: what the server can and cannot see
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/key-management"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Passphrase &amp; key management: how keys are derived, held, and revoked
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/threat-model"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Threat model: what zcrypt defends against, and what it does not
-            </Link>,
-            <Link
-              key="d"
-              href="/features/encryption"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge encryption, the feature tour
-            </Link>,
+            <T
+              key="docs.security.p57"
+              k="docs.security.p57"
+              links={{ l1: "/docs/zero-knowledge" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.security.p58"
+              k="docs.security.p58"
+              links={{ l1: "/docs/key-management" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.security.p59"
+              k="docs.security.p59"
+              links={{ l1: "/docs/threat-model" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.security.p60"
+              k="docs.security.p60"
+              links={{ l1: "/features/encryption" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

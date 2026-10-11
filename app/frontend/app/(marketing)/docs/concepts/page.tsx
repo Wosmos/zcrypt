@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Core concepts | zcrypt Docs",
   description:
@@ -17,13 +18,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "vault", title: "Your vault" },
-  { id: "passphrase", title: "The passphrase" },
-  { id: "folders", title: "Folders" },
-  { id: "files", title: "Files & per-file keys" },
-  { id: "chunks", title: "Chunks" },
-  { id: "lock", title: "The vault lock" },
-  { id: "stay-unlocked", title: "Staying unlocked on a device" },
+  { id: "vault", k: "docs.concepts.toc.vault" },
+  { id: "passphrase", k: "docs.concepts.toc.passphrase" },
+  { id: "folders", k: "docs.concepts.toc.folders" },
+  { id: "files", k: "docs.concepts.toc.files" },
+  { id: "chunks", k: "docs.concepts.toc.chunks" },
+  { id: "lock", k: "docs.concepts.toc.lock" },
+  { id: "stay-unlocked", k: "docs.concepts.toc.stay-unlocked" },
 ];
 
 export default function ConceptsDocPage() {
@@ -34,112 +35,92 @@ export default function ConceptsDocPage() {
       description="A few ideas explain almost everything about how zcrypt works. Understand these and the rest of the product reads itself."
       toc={toc}
     >
-      <DocSection id="vault" title="Your vault">
+      <DocSection id="vault" title={<T k="docs.concepts.a2" />}>
         <DocP>
-          Your <strong>vault</strong> is your encrypted drive: the entire tree of folders and files
-          that belong to you. It is presented like any normal drive, but every name and every byte
-          inside it is encrypted on your device before it is stored. The server holds only
-          ciphertext and the structure needed to fetch it back.
+          <T k="docs.concepts.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="passphrase" title="The passphrase">
+      <DocSection id="passphrase" title={<T k="docs.concepts.a6" />}>
         <DocP>
-          Your <strong>passphrase</strong> is the one secret that unlocks the vault. It is not a
-          login credential: your account password handles signing in. Instead, zcrypt feeds the
-          passphrase through a key derivation function in your browser to produce your{" "}
-          <strong>vault key</strong>. That key, and the passphrase behind it, are{" "}
-          <strong>never transmitted</strong> to our servers.
+          <T k="docs.concepts.p3" />
         </DocP>
-        <DocNote type="warning" title="No recovery">
-          Because nothing readable leaves your device, a forgotten passphrase cannot be reset. There
-          is nothing on our side to recover it from. Store it in a password manager. See{" "}
-          <Link
-            href="/docs/key-management"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Passphrase &amp; key management
-          </Link>{" "}
-          for the derivation details.
+        <DocNote type="warning" title={<T k="docs.concepts.a5" />}>
+          <T
+            k="docs.concepts.p4"
+            links={{ l1: "/docs/key-management" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="folders" title="Folders">
+      <DocSection id="folders" title={<T k="docs.concepts.a9" />}>
         <DocP>
-          Folders are real and nestable, just like on a desktop drive. Open one and create another
-          inside it, as deep as you like. A folder&apos;s <strong>name is encrypted</strong> on your
-          device exactly like file contents, so your organization is private too. When the vault is
-          locked, names show as placeholders until you unlock.
+          <T k="docs.concepts.p7" />
         </DocP>
         <DocP>
-          A folder can also have its own password layered on top. See{" "}
-          <Link
-            href="/docs/folder-encryption"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Per-folder encryption
-          </Link>
-          .
+          <T
+            k="docs.concepts.p8"
+            links={{ l1: "/docs/folder-encryption" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="files" title="Files & per-file keys">
+      <DocSection id="files" title={<T k="docs.concepts.a12" />}>
         <DocP>
-          zcrypt uses <strong>envelope encryption</strong>. Each file gets its own random{" "}
-          <strong>content encryption key</strong> (CEK) that encrypts that file&apos;s bytes with
-          AES-256-GCM. The CEK itself is then encrypted (&ldquo;wrapped&rdquo;) by the key derived
-          from your passphrase.
+          <T k="docs.concepts.p10" />
         </DocP>
         <DocP>
-          The payoff: your passphrase only ever has to protect small wrapped keys, not gigabytes of
-          data. To open a file, zcrypt unwraps its CEK with your vault key, then uses the CEK to
-          decrypt the content, all locally.
+          <T k="docs.concepts.p11" />
         </DocP>
       </DocSection>
 
-      <DocSection id="chunks" title="Chunks">
+      <DocSection id="chunks" title={<T k="docs.concepts.a14" />}>
         <DocP>
-          After compression and encryption, each file is split into <strong>chunks</strong>:
-          encrypted pieces sized to your device (~4–16 MB, ~10 MB typical). Chunks are what actually
-          get uploaded, one per request, to the repositories or channel on your connected platform.
-          On download, zcrypt fetches the chunks, verifies them, and reassembles the file on your
-          device.
+          <T k="docs.concepts.p13" />
         </DocP>
       </DocSection>
 
-      <DocSection id="lock" title="The vault lock">
+      <DocSection id="lock" title={<T k="docs.concepts.a17" />}>
         <DocP>
-          The vault has a single lock state, surfaced as <strong>one pill</strong> in the interface
-          and unlocked through <strong>one modal</strong>. Enter your passphrase once and the whole
-          vault unlocks for the rest of the session. There is no per-file or per-folder prompting to
-          wade through.
+          <T k="docs.concepts.p15" />
         </DocP>
         <DocP>
-          The unlock lasts for a session <strong>time-to-live (TTL)</strong>. When it expires, the
-          pill returns to locked and the next action that needs your key reopens the single modal.
+          <T k="docs.concepts.p16" />
         </DocP>
       </DocSection>
 
-      <DocSection id="stay-unlocked" title="Staying unlocked on a device">
+      <DocSection id="stay-unlocked" title={<T k="docs.concepts.a31" />}>
         <DocP>
-          When unlocking, you can choose{" "}
-          <strong>&ldquo;keep me unlocked on this device.&rdquo;</strong> Instead of re-typing your
-          passphrase every session, zcrypt stores it <strong>encrypted at rest</strong> in your
-          browser&apos;s IndexedDB, sealed under a <strong>non-extractable</strong> key the browser
-          will not hand back to any script.
+          <T k="docs.concepts.p18" />
         </DocP>
         <DocTable
-          head={["", "Plain localStorage", "zcrypt on this device"]}
+          head={[
+            "",
+            <T key="docs.concepts.p19" k="docs.concepts.p19" />,
+            <T key="docs.concepts.p20" k="docs.concepts.p20" />,
+          ]}
           rows={[
-            ["Stored as", "Readable text", "Ciphertext in IndexedDB"],
-            ["Sealing key", "None", "Non-extractable, browser-held"],
-            ["Sent to server", "n/a", "Never"],
+            [
+              <T key="docs.concepts.p21" k="docs.concepts.p21" />,
+              <T key="docs.concepts.p22" k="docs.concepts.p22" />,
+              <T key="docs.concepts.p23" k="docs.concepts.p23" />,
+            ],
+            [
+              <T key="docs.concepts.p24" k="docs.concepts.p24" />,
+              <T key="docs.concepts.p25" k="docs.concepts.p25" />,
+              <T key="docs.concepts.p26" k="docs.concepts.p26" />,
+            ],
+            [
+              <T key="docs.concepts.p27" k="docs.concepts.p27" />,
+              "n/a",
+              <T key="docs.concepts.p28" k="docs.concepts.p28" />,
+            ],
           ]}
         />
-        <DocNote type="security" title="Safer than localStorage, but still local trust">
-          This is meaningfully harder to scrape than a passphrase sitting in localStorage, and it is
-          never sent to the server. It still trusts the device, so only enable it on hardware you
-          control. Locking the vault or signing out clears it.
+        <DocNote type="security" title={<T k="docs.concepts.a30" />}>
+          <T k="docs.concepts.p29" />
         </DocNote>
       </DocSection>
     </DocPage>

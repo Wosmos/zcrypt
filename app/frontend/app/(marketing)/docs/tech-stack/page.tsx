@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocTable, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Tech stack & infrastructure | zcrypt Docs",
   description:
@@ -17,14 +18,14 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "principles", title: "How it's put together" },
-  { id: "backend", title: "Backend" },
-  { id: "web", title: "Web app" },
-  { id: "core", title: "Native core & apps" },
-  { id: "crypto", title: "Crypto & compression" },
-  { id: "data", title: "Data & storage" },
-  { id: "infra", title: "Infrastructure & hosting" },
-  { id: "next", title: "Where to go next" },
+  { id: "principles", k: "docs.tech-stack.toc.principles" },
+  { id: "backend", k: "docs.tech-stack.toc.backend" },
+  { id: "web", k: "docs.tech-stack.toc.web" },
+  { id: "core", k: "docs.tech-stack.toc.core" },
+  { id: "crypto", k: "docs.tech-stack.toc.crypto" },
+  { id: "data", k: "docs.tech-stack.toc.data" },
+  { id: "infra", k: "docs.tech-stack.toc.infra" },
+  { id: "next", k: "docs.tech-stack.toc.next" },
 ];
 
 export default function TechStackPage() {
@@ -35,241 +36,244 @@ export default function TechStackPage() {
       description="Everything zcrypt is built with, layer by layer, and how each piece is deployed. Versions track the repository; the manifests (go.mod, package.json, Cargo.toml) are the source of truth."
       toc={toc}
     >
-      <DocSection id="principles" title="How it's put together">
+      <DocSection id="principles" title={<T k="docs.tech-stack.a4" />}>
         <DocP>
-          zcrypt is one product across three surfaces: web, desktop, and Android, sharing a single
-          design principle: all encryption happens on your device, and the server only ever handles
-          ciphertext. That principle drives the stack. The backend stays deliberately thin
-          (standard-library Go, no framework), the cryptography lives in code that runs on the
-          client (a Rust core for native, Web Workers for the browser), and the database stores only
-          metadata and encrypted blobs.
+          <T k="docs.tech-stack.p1" />
         </DocP>
-        <DocNote type="info" title="The manifests are canonical">
-          Exact versions live in <code>app/backend/go.mod</code>,{" "}
-          <code>app/frontend/package.json</code>, and <code>app/core/Cargo.toml</code>. The numbers
-          below reflect the current tree and may drift slightly ahead of a release.
+        <DocNote type="info" title={<T k="docs.tech-stack.a3" />}>
+          <T k="docs.tech-stack.p2" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="backend" title="Backend">
+      <DocSection id="backend" title={<T k="docs.tech-stack.a24" />}>
         <DocP>
-          A stateless HTTP service written in Go with the standard library only, no web framework,
-          just <code>net/http</code>. It brokers the chunked upload/download API, coordinates the
-          storage adapters, and holds no plaintext and no encryption keys.
+          <T k="docs.tech-stack.p5" />
         </DocP>
         <DocTable
-          head={["Piece", "Choice", "Why"]}
+          head={[
+            <T key="docs.tech-stack.p6" k="docs.tech-stack.p6" />,
+            <T key="docs.tech-stack.p7" k="docs.tech-stack.p7" />,
+            <T key="docs.tech-stack.p8" k="docs.tech-stack.p8" />,
+          ]}
           rows={[
             [
-              <strong key="l">Language</strong>,
-              "Go 1.25",
-              "Fast, statically linked, tiny distroless container.",
+              <T key="docs.tech-stack.p9" k="docs.tech-stack.p9" />,
+              <T key="docs.tech-stack.p10" k="docs.tech-stack.p10" />,
+              <T key="docs.tech-stack.p11" k="docs.tech-stack.p11" />,
             ],
             [
-              <strong key="h">HTTP</strong>,
-              <>
-                Standard library <code>net/http</code>
-              </>,
-              "No framework: fewer moving parts, easy to audit.",
+              <T key="docs.tech-stack.p12" k="docs.tech-stack.p12" />,
+              <T key="docs.tech-stack.p13" k="docs.tech-stack.p13" />,
+              <T key="docs.tech-stack.p14" k="docs.tech-stack.p14" />,
             ],
             [
-              <strong key="d">DB driver</strong>,
-              "pgx / pgxpool",
-              "Raw SQL against PostgreSQL, no ORM.",
+              <T key="docs.tech-stack.p15" k="docs.tech-stack.p15" />,
+              <T key="docs.tech-stack.p16" k="docs.tech-stack.p16" />,
+              <T key="docs.tech-stack.p17" k="docs.tech-stack.p17" />,
             ],
             [
-              <strong key="a">Auth</strong>,
-              "JWT (HS256), bcrypt, TOTP",
-              "Access/refresh tokens, hashed passwords, 2FA.",
+              <T key="docs.tech-stack.p18" k="docs.tech-stack.p18" />,
+              <T key="docs.tech-stack.p19" k="docs.tech-stack.p19" />,
+              <T key="docs.tech-stack.p20" k="docs.tech-stack.p20" />,
             ],
             [
-              <strong key="c">Compression / crypto</strong>,
-              "zstd · AES-256-GCM",
-              "Server-side only for the narrow re-encryption paths; file crypto is client-side.",
+              <T key="docs.tech-stack.p21" k="docs.tech-stack.p21" />,
+              <T key="docs.tech-stack.p22" k="docs.tech-stack.p22" />,
+              <T key="docs.tech-stack.p23" k="docs.tech-stack.p23" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="web" title="Web app">
+      <DocSection id="web" title={<T k="docs.tech-stack.a42" />}>
         <DocP>
-          The browser client is a Next.js App Router application. The full encryption pipeline runs
-          here in a pool of Web Workers, so compression, encryption, and hashing happen off the main
-          thread: the server never sees a plaintext byte.
+          <T k="docs.tech-stack.p25" />
         </DocP>
         <DocTable
-          head={["Piece", "Choice"]}
-          rows={[
-            [<strong key="f">Framework</strong>, "Next.js 16 (App Router)"],
-            [<strong key="r">UI runtime</strong>, "React 19"],
-            [<strong key="t">Language</strong>, "TypeScript 5.7"],
-            [<strong key="s">Styling</strong>, "Tailwind CSS"],
-            [<strong key="st">State</strong>, "Zustand"],
-            [<strong key="m">Motion</strong>, "Motion (Framer Motion)"],
-            [<strong key="rt">Runtime / package manager</strong>, "Bun"],
+          head={[
+            <T key="docs.tech-stack.p26" k="docs.tech-stack.p26" />,
+            <T key="docs.tech-stack.p27" k="docs.tech-stack.p27" />,
           ]}
-        />
-      </DocSection>
-
-      <DocSection id="core" title="Native core & apps">
-        <DocP>
-          Desktop and mobile run <strong>zcrypt-core</strong>, a shared Rust crate that implements
-          the same zero-knowledge crypto and chunk pipeline as the web workers, compiled to native
-          code and embedded in-process, so there is no subprocess (which is what makes it work
-          inside Apple&apos;s app sandbox). The native shell is Tauri v2.
-        </DocP>
-        <DocTable
-          head={["Piece", "Choice", "Notes"]}
           rows={[
             [
-              <strong key="c">Core engine</strong>,
-              "Rust (zcrypt-core, edition 2021)",
-              "Crypto, chunk pipeline, local ledger, platform adapters.",
+              <T key="docs.tech-stack.p28" k="docs.tech-stack.p28" />,
+              <T key="docs.tech-stack.p29" k="docs.tech-stack.p29" />,
             ],
             [
-              <strong key="a">Async / HTTP</strong>,
-              "tokio · reqwest",
-              "Concurrent chunk streaming, direct-to-platform uploads.",
+              <T key="docs.tech-stack.p30" k="docs.tech-stack.p30" />,
+              <T key="docs.tech-stack.p31" k="docs.tech-stack.p31" />,
             ],
             [
-              <strong key="s">Shell</strong>,
-              "Tauri v2",
-              "Native window + OS integration on macOS, Windows, Linux, Android.",
+              <T key="docs.tech-stack.p32" k="docs.tech-stack.p32" />,
+              <T key="docs.tech-stack.p33" k="docs.tech-stack.p33" />,
             ],
             [
-              <strong key="l">Local store</strong>,
-              "Embedded SQLite ledger",
-              "Offline resume, dedup lookups, sync cursor.",
-            ],
-          ]}
-        />
-        <DocP>
-          See{" "}
-          <Link
-            href="/docs/desktop-app"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Desktop app
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="/docs/android-app"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Android app
-          </Link>{" "}
-          for how the shared core reaches each platform.
-        </DocP>
-      </DocSection>
-
-      <DocSection id="crypto" title="Crypto & compression">
-        <DocP>
-          The cryptographic format is identical across every surface and pinned by conformance
-          vectors, so a file encrypted in one client decrypts in any other.
-        </DocP>
-        <DocTable
-          head={["Concern", "Primitive"]}
-          rows={[
-            [<strong key="e">Encryption</strong>, "AES-256-GCM (authenticated)"],
-            [<strong key="k">Key derivation</strong>, "PBKDF2-HMAC-SHA256, 600,000 iterations"],
-            [<strong key="h">Integrity</strong>, "SHA-256 per chunk + whole-file hash"],
-            [<strong key="d">Dedup MAC</strong>, "HMAC-SHA256"],
-            [
-              <strong key="c">Compression</strong>,
-              "zstd (per-chunk, skipped when it wouldn't help)",
+              <T key="docs.tech-stack.p34" k="docs.tech-stack.p34" />,
+              <T key="docs.tech-stack.p35" k="docs.tech-stack.p35" />,
             ],
             [
-              <strong key="s">Sharing</strong>,
-              "X25519 ECIES key-wrapping (keys move, never plaintext)",
+              <T key="docs.tech-stack.p36" k="docs.tech-stack.p36" />,
+              <T key="docs.tech-stack.p37" k="docs.tech-stack.p37" />,
+            ],
+            [
+              <T key="docs.tech-stack.p38" k="docs.tech-stack.p38" />,
+              <T key="docs.tech-stack.p39" k="docs.tech-stack.p39" />,
+            ],
+            [
+              <T key="docs.tech-stack.p40" k="docs.tech-stack.p40" />,
+              <T key="docs.tech-stack.p41" k="docs.tech-stack.p41" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="data" title="Data & storage">
+      <DocSection id="core" title={<T k="docs.tech-stack.a60" />}>
         <DocP>
-          A PostgreSQL database is the index that ties everything together, users, folders, per-file
-          salts, chunk references, encrypted platform tokens, and shares. It holds no readable file
-          contents and no passphrase. Your actual encrypted bytes never live on zcrypt&apos;s
-          infrastructure at all: they go to a storage platform <em>you</em> own.
+          <T k="docs.tech-stack.p43" />
         </DocP>
         <DocTable
-          head={["Layer", "Choice"]}
+          head={[
+            <T key="docs.tech-stack.p44" k="docs.tech-stack.p44" />,
+            <T key="docs.tech-stack.p45" k="docs.tech-stack.p45" />,
+            <T key="docs.tech-stack.p46" k="docs.tech-stack.p46" />,
+          ]}
           rows={[
-            [<strong key="d">Database</strong>, "PostgreSQL (Neon serverless)"],
             [
-              <strong key="a">Access</strong>,
-              <>
-                Raw SQL via <code>pgx</code> / pgxpool, no ORM
-              </>,
+              <T key="docs.tech-stack.p47" k="docs.tech-stack.p47" />,
+              <T key="docs.tech-stack.p48" k="docs.tech-stack.p48" />,
+              <T key="docs.tech-stack.p49" k="docs.tech-stack.p49" />,
             ],
             [
-              <strong key="s">Your storage backends</strong>,
-              "GitHub · GitLab · Hugging Face · Telegram (bring your own)",
+              <T key="docs.tech-stack.p50" k="docs.tech-stack.p50" />,
+              <T key="docs.tech-stack.p51" k="docs.tech-stack.p51" />,
+              <T key="docs.tech-stack.p52" k="docs.tech-stack.p52" />,
+            ],
+            [
+              <T key="docs.tech-stack.p53" k="docs.tech-stack.p53" />,
+              <T key="docs.tech-stack.p54" k="docs.tech-stack.p54" />,
+              <T key="docs.tech-stack.p55" k="docs.tech-stack.p55" />,
+            ],
+            [
+              <T key="docs.tech-stack.p56" k="docs.tech-stack.p56" />,
+              <T key="docs.tech-stack.p57" k="docs.tech-stack.p57" />,
+              <T key="docs.tech-stack.p58" k="docs.tech-stack.p58" />,
+            ],
+          ]}
+        />
+        <DocP>
+          <T
+            k="docs.tech-stack.p59"
+            links={{ l1: "/docs/desktop-app", l2: "/docs/android-app" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
+        </DocP>
+      </DocSection>
+
+      <DocSection id="crypto" title={<T k="docs.tech-stack.a75" />}>
+        <DocP>
+          <T k="docs.tech-stack.p61" />
+        </DocP>
+        <DocTable
+          head={[
+            <T key="docs.tech-stack.p62" k="docs.tech-stack.p62" />,
+            <T key="docs.tech-stack.p63" k="docs.tech-stack.p63" />,
+          ]}
+          rows={[
+            [
+              <T key="docs.tech-stack.p64" k="docs.tech-stack.p64" />,
+              <T key="docs.tech-stack.p65" k="docs.tech-stack.p65" />,
+            ],
+            [
+              <T key="docs.tech-stack.p66" k="docs.tech-stack.p66" />,
+              <T key="docs.tech-stack.p67" k="docs.tech-stack.p67" />,
+            ],
+            [
+              <T key="docs.tech-stack.p68" k="docs.tech-stack.p68" />,
+              <T key="docs.tech-stack.p69" k="docs.tech-stack.p69" />,
+            ],
+            [<T key="docs.tech-stack.p70" k="docs.tech-stack.p70" />, "HMAC-SHA256"],
+            [
+              <T key="docs.tech-stack.p71" k="docs.tech-stack.p71" />,
+              <T key="docs.tech-stack.p72" k="docs.tech-stack.p72" />,
+            ],
+            [
+              <T key="docs.tech-stack.p73" k="docs.tech-stack.p73" />,
+              <T key="docs.tech-stack.p74" k="docs.tech-stack.p74" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="infra" title="Infrastructure & hosting">
+      <DocSection id="data" title={<T k="docs.tech-stack.a85" />}>
         <DocP>
-          Deployment is intentionally boring and portable. The backend is a small distroless Docker
-          image that runs on any Linux host; nothing about it is tied to a specific provider, which
-          is the point. You can self-host the exact same image (see{" "}
-          <Link
-            href="/docs/self-hosting"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Self-hosting
-          </Link>
-          ).
+          <T k="docs.tech-stack.p76" />
         </DocP>
         <DocTable
-          head={["Component", "Where it runs"]}
+          head={[
+            <T key="docs.tech-stack.p77" k="docs.tech-stack.p77" />,
+            <T key="docs.tech-stack.p78" k="docs.tech-stack.p78" />,
+          ]}
           rows={[
-            [<strong key="f">Frontend</strong>, "Vercel (Next.js)"],
             [
-              <strong key="b">Backend</strong>,
-              "Distroless Docker image on a cloud Linux VM (provider-agnostic)",
+              <T key="docs.tech-stack.p79" k="docs.tech-stack.p79" />,
+              <T key="docs.tech-stack.p80" k="docs.tech-stack.p80" />,
             ],
-            [<strong key="d">Database</strong>, "Neon serverless PostgreSQL"],
             [
-              <strong key="s">Encrypted file storage</strong>,
-              "Your own GitHub / GitLab / Hugging Face / Telegram accounts",
+              <T key="docs.tech-stack.p81" k="docs.tech-stack.p81" />,
+              <T key="docs.tech-stack.p82" k="docs.tech-stack.p82" />,
+            ],
+            [
+              <T key="docs.tech-stack.p83" k="docs.tech-stack.p83" />,
+              <T key="docs.tech-stack.p84" k="docs.tech-stack.p84" />,
             ],
           ]}
         />
-        <DocNote type="security" title="What our infrastructure can and can't see">
-          Because encryption is client-side, our hosting only ever handles ciphertext and metadata.
-          Compromising the frontend, the backend VM, or the database would not expose your files:
-          the keys to decrypt them exist only on your devices.
+      </DocSection>
+
+      <DocSection id="infra" title={<T k="docs.tech-stack.a99" />}>
+        <DocP>
+          <T
+            k="docs.tech-stack.p86"
+            links={{ l1: "/docs/self-hosting" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
+        </DocP>
+        <DocTable
+          head={[
+            <T key="docs.tech-stack.p87" k="docs.tech-stack.p87" />,
+            <T key="docs.tech-stack.p88" k="docs.tech-stack.p88" />,
+          ]}
+          rows={[
+            [
+              <T key="docs.tech-stack.p89" k="docs.tech-stack.p89" />,
+              <T key="docs.tech-stack.p90" k="docs.tech-stack.p90" />,
+            ],
+            [
+              <T key="docs.tech-stack.p91" k="docs.tech-stack.p91" />,
+              <T key="docs.tech-stack.p92" k="docs.tech-stack.p92" />,
+            ],
+            [
+              <T key="docs.tech-stack.p93" k="docs.tech-stack.p93" />,
+              <T key="docs.tech-stack.p94" k="docs.tech-stack.p94" />,
+            ],
+            [
+              <T key="docs.tech-stack.p95" k="docs.tech-stack.p95" />,
+              <T key="docs.tech-stack.p96" k="docs.tech-stack.p96" />,
+            ],
+          ]}
+        />
+        <DocNote type="security" title={<T k="docs.tech-stack.a98" />}>
+          <T k="docs.tech-stack.p97" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.tech-stack.a101" />}>
         <DocP>
-          For how these pieces move data at runtime, read{" "}
-          <Link
-            href="/docs/architecture"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Architecture
-          </Link>
-          . To run the whole stack yourself, see{" "}
-          <Link
-            href="/docs/self-hosting"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Self-hosting
-          </Link>
-          , and to build on it,{" "}
-          <Link
-            href="/docs/contributing"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Contributing
-          </Link>
-          .
+          <T
+            k="docs.tech-stack.p100"
+            links={{ l1: "/docs/architecture", l2: "/docs/self-hosting", l3: "/docs/contributing" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

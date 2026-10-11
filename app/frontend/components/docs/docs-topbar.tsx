@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowRight } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/features", label: "Features" },
-  { href: "/download", label: "Download" },
-  { href: "/philosophy", label: "Why zcrypt" },
-  { href: "/about", label: "About" },
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
+  { href: "/", label: "home" },
+  { href: "/features", label: "features" },
+  { href: "/download", label: "download" },
+  { href: "/philosophy", label: "why" },
+  { href: "/about", label: "about" },
+  { href: "/privacy", label: "privacy" },
+  { href: "/terms", label: "terms" },
 ];
 
 /**
@@ -24,12 +25,17 @@ const LINKS = [
  * DocsSidebar sticks right below it rather than under a fixed header.
  */
 export function DocsTopBar() {
+  const t = useTranslations();
   const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-40 grid h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-4 backdrop-blur-md md:px-6">
       {/* Left: logo */}
-      <Link href="/" aria-label="zcrypt home" className="flex items-center justify-self-start">
+      <Link
+        href="/"
+        aria-label={t("docs.ui.topbar.homeAria")}
+        className="flex items-center justify-self-start"
+      >
         <Logo size="lg" />
       </Link>
 
@@ -46,7 +52,7 @@ export function DocsTopBar() {
                 : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]",
             )}
           >
-            {link.label}
+            {t(`docs.ui.topbar.${link.label}` as never)}
           </Link>
         ))}
       </nav>
@@ -58,13 +64,13 @@ export function DocsTopBar() {
           href="/login"
           className="hidden px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
         >
-          Sign in
+          {t("docs.ui.topbar.signIn")}
         </Link>
         <Link
           href="/register"
           className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-text)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
         >
-          Get started
+          {t("docs.ui.topbar.getStarted")}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

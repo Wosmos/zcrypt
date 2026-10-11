@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Zero-knowledge architecture | zcrypt Docs",
   description:
@@ -17,13 +18,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "meaning", title: "What zero-knowledge means here" },
-  { id: "stored", title: "What the server stores" },
-  { id: "never", title: "What the server never sees" },
-  { id: "sharing", title: "Sharing stays zero-knowledge" },
-  { id: "names", title: "The honest nuance: file names" },
-  { id: "tokens", title: "The one exception: storage tokens" },
-  { id: "next", title: "Where to go next" },
+  { id: "meaning", k: "docs.zero-knowledge.toc.meaning" },
+  { id: "stored", k: "docs.zero-knowledge.toc.stored" },
+  { id: "never", k: "docs.zero-knowledge.toc.never" },
+  { id: "sharing", k: "docs.zero-knowledge.toc.sharing" },
+  { id: "names", k: "docs.zero-knowledge.toc.names" },
+  { id: "tokens", k: "docs.zero-knowledge.toc.tokens" },
+  { id: "next", k: "docs.zero-knowledge.toc.next" },
 ];
 
 export default function ZeroKnowledgePage() {
@@ -34,285 +35,197 @@ export default function ZeroKnowledgePage() {
       description="Zero-knowledge is a strong claim, so we state it precisely. zcrypt cannot read your file contents or your folder names, and we are equally clear about the metadata it does keep and the single surface that is not zero-knowledge."
       toc={toc}
     >
-      <DocSection id="meaning" title="What zero-knowledge means here">
+      <DocSection id="meaning" title={<T k="docs.zero-knowledge.a3" />}>
         <DocP>
-          Zero-knowledge means the service can store and serve your data without ever being able to
-          read it. Your file contents are encrypted on your device with keys derived from a
-          passphrase we never receive. Even with full administrative access to the database and
-          storage, we cannot reconstruct your files, and neither can anyone who compels us to hand
-          over what we have.
+          <T k="docs.zero-knowledge.p1" />
         </DocP>
         <DocP>
-          It does <em>not</em> mean we store nothing. Running a usable drive requires some metadata
-          , sizes, chunk counts, timestamps. The honest version of the claim is: encrypted content
-          stays encrypted, and we are explicit about every piece of metadata that is not.
+          <T k="docs.zero-knowledge.p2" />
         </DocP>
       </DocSection>
 
-      <DocSection id="stored" title="What the server stores">
+      <DocSection id="stored" title={<T k="docs.zero-knowledge.a40" />}>
         <DocP>
-          Here is the full inventory of what lands in our database for a typical file and its
-          folder.
+          <T k="docs.zero-knowledge.p4" />
         </DocP>
         <DocTable
-          head={["Stored", "Readable by us?", "Notes"]}
+          head={[
+            <T key="docs.zero-knowledge.p5" k="docs.zero-knowledge.p5" />,
+            <T key="docs.zero-knowledge.p6" k="docs.zero-knowledge.p6" />,
+            <T key="docs.zero-knowledge.p7" k="docs.zero-knowledge.p7" />,
+          ]}
           rows={[
             [
-              "Encrypted file chunks",
-              "No",
-              "AES-256-GCM ciphertext; live on your storage backend, not our DB",
+              <T key="docs.zero-knowledge.p8" k="docs.zero-knowledge.p8" />,
+              <T key="docs.zero-knowledge.p9" k="docs.zero-knowledge.p9" />,
+              <T key="docs.zero-knowledge.p10" k="docs.zero-knowledge.p10" />,
             ],
             [
-              "Wrapped CEK + salt",
-              "No",
-              "The per-file key, encrypted under your passphrase-derived KEK",
+              <T key="docs.zero-knowledge.p11" k="docs.zero-knowledge.p11" />,
+              <T key="docs.zero-knowledge.p12" k="docs.zero-knowledge.p12" />,
+              <T key="docs.zero-knowledge.p13" k="docs.zero-knowledge.p13" />,
             ],
             [
-              "Encrypted folder names",
-              "No",
-              "Folder names are encrypted client-side; we store only ciphertext",
+              <T key="docs.zero-knowledge.p14" k="docs.zero-knowledge.p14" />,
+              <T key="docs.zero-knowledge.p15" k="docs.zero-knowledge.p15" />,
+              <T key="docs.zero-knowledge.p16" k="docs.zero-knowledge.p16" />,
             ],
             [
-              "Your public key + fingerprint",
-              "Yes",
-              "Published so others can share to you; a public key reveals nothing sensitive",
+              <T key="docs.zero-knowledge.p17" k="docs.zero-knowledge.p17" />,
+              <T key="docs.zero-knowledge.p18" k="docs.zero-knowledge.p18" />,
+              <T key="docs.zero-knowledge.p19" k="docs.zero-knowledge.p19" />,
             ],
             [
-              "Your wrapped private key",
-              "No",
-              "X25519 sharing key, encrypted under your passphrase-derived key",
+              <T key="docs.zero-knowledge.p20" k="docs.zero-knowledge.p20" />,
+              <T key="docs.zero-knowledge.p21" k="docs.zero-knowledge.p21" />,
+              <T key="docs.zero-knowledge.p22" k="docs.zero-knowledge.p22" />,
             ],
             [
-              "Sealed sharing grants",
-              "No",
-              "A shared-space key sealed to each member's public key; only they can open it",
+              <T key="docs.zero-knowledge.p23" k="docs.zero-knowledge.p23" />,
+              <T key="docs.zero-knowledge.p24" k="docs.zero-knowledge.p24" />,
+              <T key="docs.zero-knowledge.p25" k="docs.zero-knowledge.p25" />,
             ],
             [
-              "File sizes & chunk count",
-              "Yes",
-              "Original, compressed, and encrypted sizes; number of chunks",
-            ],
-            ["Per-chunk SHA-256", "Yes", "Integrity digests; reveal nothing about plaintext"],
-            [
-              "File name",
-              "Partially",
-              "New names are encrypted client-side; a legacy plaintext column persists for older files. See below",
+              <T key="docs.zero-knowledge.p26" k="docs.zero-knowledge.p26" />,
+              <T key="docs.zero-knowledge.p27" k="docs.zero-knowledge.p27" />,
+              <T key="docs.zero-knowledge.p28" k="docs.zero-knowledge.p28" />,
             ],
             [
-              "Account + audit data",
-              "Yes",
-              "Email, bcrypt password hash, and audit events (IP, user-agent, type)",
+              <T key="docs.zero-knowledge.p29" k="docs.zero-knowledge.p29" />,
+              <T key="docs.zero-knowledge.p30" k="docs.zero-knowledge.p30" />,
+              <T key="docs.zero-knowledge.p31" k="docs.zero-knowledge.p31" />,
+            ],
+            [
+              <T key="docs.zero-knowledge.p32" k="docs.zero-knowledge.p32" />,
+              <T key="docs.zero-knowledge.p33" k="docs.zero-knowledge.p33" />,
+              <T key="docs.zero-knowledge.p34" k="docs.zero-knowledge.p34" />,
+            ],
+            [
+              <T key="docs.zero-knowledge.p35" k="docs.zero-knowledge.p35" />,
+              <T key="docs.zero-knowledge.p36" k="docs.zero-knowledge.p36" />,
+              <T key="docs.zero-knowledge.p37" k="docs.zero-knowledge.p37" />,
             ],
           ]}
         />
-        <DocNote type="info" title="Audit metadata">
-          Security events (logins, folder deletions, key changes) are recorded with a coarsened IP
-          address (/24 for IPv4, /48 for IPv6), user-agent, and event type so you and we can spot
-          abuse. These records never contain key material, passphrases, or plaintext file contents.
+        <DocNote type="info" title={<T k="docs.zero-knowledge.a39" />}>
+          <T k="docs.zero-knowledge.p38" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="never" title="What the server never sees">
+      <DocSection id="never" title={<T k="docs.zero-knowledge.a50" />}>
         <DocList
           items={[
-            <>
-              <strong>Your passphrase.</strong> It is never transmitted and never stored, not even
-              as a hash. It exists only in your device&apos;s memory while your vault is unlocked.
-            </>,
-            <>
-              <strong>Your encryption keys.</strong> The CEK and the passphrase-derived KEK are
-              computed and used entirely client-side.
-            </>,
-            <>
-              <strong>Your plaintext file contents.</strong> The server only ever handles
-              already-encrypted chunks.
-            </>,
-            <>
-              <strong>Your folder names.</strong> These are encrypted on your device before upload.
-            </>,
-            <>
-              <strong>Your X25519 private key.</strong> The private half of your sharing keypair is
-              wrapped under your passphrase before it is stored; we hold only ciphertext we cannot
-              open.
-            </>,
-            <>
-              <strong>Shared-space keys.</strong> When you share, the key is <em>sealed</em> to the
-              recipient&apos;s public key; only their private key can open it, never the server. See{" "}
-              <Link href="#sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
-                below
-              </Link>
-              .
-            </>,
-            <>
-              <strong>Any per-folder password.</strong> A protected folder is verified locally; the
-              password never reaches us. See{" "}
-              <Link
-                href="/docs/folder-encryption"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                per-folder encryption
-              </Link>
-              .
-            </>,
+            <T key="docs.zero-knowledge.p41" k="docs.zero-knowledge.p41" />,
+            <T key="docs.zero-knowledge.p42" k="docs.zero-knowledge.p42" />,
+            <T key="docs.zero-knowledge.p43" k="docs.zero-knowledge.p43" />,
+            <T key="docs.zero-knowledge.p44" k="docs.zero-knowledge.p44" />,
+            <T key="docs.zero-knowledge.p45" k="docs.zero-knowledge.p45" />,
+            <T
+              key="docs.zero-knowledge.p46"
+              k="docs.zero-knowledge.p46"
+              links={{ l1: "#sharing" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.zero-knowledge.p47"
+              k="docs.zero-knowledge.p47"
+              links={{ l1: "/docs/folder-encryption" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
-        <DocNote type="security" title="What a database breach yields">
-          An attacker with our entire database walks away with ciphertext blobs, wrapped keys they
-          cannot unwrap, bcrypt password hashes, and size metadata. They cannot decrypt a single
-          file. A subpoena produces the same useless set: we cannot comply with a demand to read
-          your data because we have no means to.
+        <DocNote type="security" title={<T k="docs.zero-knowledge.a49" />}>
+          <T k="docs.zero-knowledge.p48" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="sharing" title="Sharing stays zero-knowledge">
+      <DocSection id="sharing" title={<T k="docs.zero-knowledge.a57" />}>
         <DocP>
-          Sharing with another zcrypt user does not open a back door. Every account publishes an{" "}
-          <strong>X25519 public key</strong> to a registry we keep in the clear, while the matching
-          private key is wrapped under that user&apos;s passphrase and is opaque to us. To share a{" "}
-          <Link
-            href="/docs/shared-vaults"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            space
-          </Link>{" "}
-          and its files, your device <em>seals</em> the space key to the recipient&apos;s public key
-          : an operation only their private key can reverse.
+          <T
+            k="docs.zero-knowledge.p51"
+            links={{ l1: "/docs/shared-vaults" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
         <DocList
           items={[
-            <>
-              We store the sealed grant and the space-wrapped file envelopes, and can read{" "}
-              <strong>neither</strong>. The plaintext space key exists only on members&apos;
-              devices.
-            </>,
-            <>
-              The server is a{" "}
-              <strong>directory of public keys and a courier for sealed blobs</strong>, never a
-              party to the key exchange itself.
-            </>,
-            <>
-              Removing a member <strong>rotates</strong> the space key and re-seals it to whoever
-              remains, so a revoked grant opens nothing.
-            </>,
+            <T key="docs.zero-knowledge.p52" k="docs.zero-knowledge.p52" />,
+            <T key="docs.zero-knowledge.p53" k="docs.zero-knowledge.p53" />,
+            <T key="docs.zero-knowledge.p54" k="docs.zero-knowledge.p54" />,
           ]}
         />
-        <DocNote type="security" title="Trust the fingerprint, not just the server">
-          Because we serve the public-key registry, a dishonest server could try to substitute a key
-          it controls. Each key carries a short SHA-256 fingerprint members can compare out of band
-          to catch that. The exact sealed-box construction is in the{" "}
-          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            encryption model
-          </Link>
-          .
+        <DocNote type="security" title={<T k="docs.zero-knowledge.a56" />}>
+          <T
+            k="docs.zero-knowledge.p55"
+            links={{ l1: "/docs/security" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="names" title="The honest nuance: file names">
+      <DocSection id="names" title={<T k="docs.zero-knowledge.a64" />}>
         <DocP>
-          We will not over-claim here. <strong>Folder names are fully encrypted client-side</strong>{" "}
-          : the database stores only an opaque <span className="font-mono">encrypted_name</span>{" "}
-          blob it cannot read.
-          <strong> New file names are encrypted the same way</strong>: a zero-knowledge upload sends
-          an opaque <span className="font-mono">encrypted_name</span> and leaves the legacy
-          plaintext <span className="font-mono">original_name</span> column empty. That legacy
-          column still exists and can hold plaintext for older files (and any upload made while the
-          vault was locked), so we are retiring it.
+          <T k="docs.zero-knowledge.p58" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Folder structure and folder names are private.</strong> A locked vault shows
-              folders as <span className="font-mono">[locked]</span>.
-            </>,
-            <>
-              <strong>Older files may still carry a plaintext name</strong> in the legacy metadata
-              column. New uploads do not; still, treat older file names as visible metadata until
-              that column is fully retired.
-            </>,
-            <>
-              <strong>File contents are unaffected.</strong> Names are metadata; the bytes inside
-              every file are encrypted regardless.
-            </>,
+            <T key="docs.zero-knowledge.p59" k="docs.zero-knowledge.p59" />,
+            <T key="docs.zero-knowledge.p60" k="docs.zero-knowledge.p60" />,
+            <T key="docs.zero-knowledge.p61" k="docs.zero-knowledge.p61" />,
           ]}
         />
-        <DocNote type="warning" title="Practical guidance">
-          If a file&apos;s <em>name</em> is itself sensitive (for example, it contains a
-          person&apos;s name or a case number), put it inside a folder whose name is encrypted, or
-          rename the file to something neutral. The contents are protected either way; the file name
-          is the part to be careful with today.
+        <DocNote type="warning" title={<T k="docs.zero-knowledge.a63" />}>
+          <T k="docs.zero-knowledge.p62" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="tokens" title="The one exception: storage tokens">
+      <DocSection id="tokens" title={<T k="docs.zero-knowledge.a71" />}>
         <DocP>
-          There is exactly one surface that is not zero-knowledge, and we would rather you hear it
-          from us. To push and pull encrypted chunks on your behalf, the server has to use{" "}
-          <em>your</em> storage-provider credentials (GitHub, GitLab, Hugging Face, Telegram). Those
-          tokens are encrypted at rest, but not with your passphrase. They are encrypted with a key
-          the server itself can derive.
+          <T k="docs.zero-knowledge.p65" />
         </DocP>
         <DocList
           items={[
-            <>
-              The server holds a single <span className="font-mono">MASTER_KEY</span> and derives a
-              per-user Key Encryption Key from it using HKDF-SHA256.
-            </>,
-            <>
-              That KEK encrypts your storage-provider tokens with AES-256-GCM before they touch the
-              database, never plaintext at rest.
-            </>,
-            <>
-              This lets zcrypt act on your storage account, but it does <strong>not</strong> give
-              the server any ability to read your files: the tokens unlock the <em>repository</em>,
-              and the repository holds only ciphertext.
-            </>,
+            <T key="docs.zero-knowledge.p66" k="docs.zero-knowledge.p66" />,
+            <T key="docs.zero-knowledge.p67" k="docs.zero-knowledge.p67" />,
+            <T key="docs.zero-knowledge.p68" k="docs.zero-knowledge.p68" />,
           ]}
         />
-        <DocNote type="security" title="Why this is acceptable">
-          The blast radius is your storage credentials, not your data. Even with your tokens, an
-          attacker reaches encrypted chunks they cannot decrypt without your passphrase. We document
-          this trade-off rather than paper over it. See the{" "}
-          <Link
-            href="/docs/threat-model"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            threat model
-          </Link>{" "}
-          for where it sits among the risks.
+        <DocNote type="security" title={<T k="docs.zero-knowledge.a70" />}>
+          <T
+            k="docs.zero-knowledge.p69"
+            links={{ l1: "/docs/threat-model" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.zero-knowledge.a76" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/security"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Encryption model: the algorithms and the upload pipeline
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/obfuscation"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Storage obfuscation: how stored chunks are made unremarkable
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/threat-model"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Threat model: the full list of what is and isn&apos;t covered
-            </Link>,
-            <Link
-              key="d"
-              href="/features/encryption"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge encryption, the feature tour
-            </Link>,
+            <T
+              key="docs.zero-knowledge.p72"
+              k="docs.zero-knowledge.p72"
+              links={{ l1: "/docs/security" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.zero-knowledge.p73"
+              k="docs.zero-knowledge.p73"
+              links={{ l1: "/docs/obfuscation" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.zero-knowledge.p74"
+              k="docs.zero-knowledge.p74"
+              links={{ l1: "/docs/threat-model" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.zero-knowledge.p75"
+              k="docs.zero-knowledge.p75"
+              links={{ l1: "/features/encryption" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

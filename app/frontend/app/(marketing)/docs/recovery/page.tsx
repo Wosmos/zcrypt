@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Account recovery | zcrypt Docs",
   description:
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "two-things", title: "Two very different things" },
-  { id: "recoverable", title: "What we can recover" },
-  { id: "not-recoverable", title: "What we cannot recover" },
-  { id: "protect", title: "How to protect your passphrase" },
-  { id: "next", title: "Where to go next" },
+  { id: "two-things", k: "docs.recovery.toc.two-things" },
+  { id: "recoverable", k: "docs.recovery.toc.recoverable" },
+  { id: "not-recoverable", k: "docs.recovery.toc.not-recoverable" },
+  { id: "protect", k: "docs.recovery.toc.protect" },
+  { id: "next", k: "docs.recovery.toc.next" },
 ];
 
 export default function RecoveryDocPage() {
@@ -32,158 +33,127 @@ export default function RecoveryDocPage() {
       description="zcrypt is zero-knowledge by design, which makes recovery a two-sided story: getting back into your account is routine, but getting back the secret that decrypts your files is impossible if you lose it."
       toc={toc}
     >
-      <DocSection id="two-things" title="Two very different things">
+      <DocSection id="two-things" title={<T k="docs.recovery.a13" />}>
         <DocP>
-          &ldquo;I&apos;m locked out&rdquo; can mean two completely different situations in zcrypt,
-          and they have opposite outcomes. Knowing which one you&apos;re in tells you immediately
-          whether recovery is possible.
+          <T k="docs.recovery.p1" />
         </DocP>
         <DocTable
-          head={["You lost…", "Recoverable?", "How"]}
+          head={[
+            <T key="docs.recovery.p2" k="docs.recovery.p2" />,
+            <T key="docs.recovery.p3" k="docs.recovery.p3" />,
+            <T key="docs.recovery.p4" k="docs.recovery.p4" />,
+          ]}
           rows={[
             [
-              <strong key="a">Account password</strong>,
+              <T key="docs.recovery.p5" k="docs.recovery.p5" />,
               <span key="a2" className="text-cyan-600 dark:text-cyan-400">
-                Yes
+                <T k="docs.recovery.yes" />
               </span>,
-              "Email password reset",
+              <T key="docs.recovery.p6" k="docs.recovery.p6" />,
             ],
             [
-              <strong key="b">Authenticator (2FA)</strong>,
+              <T key="docs.recovery.p7" k="docs.recovery.p7" />,
               <span key="b2" className="text-cyan-600 dark:text-cyan-400">
-                Yes, with care
+                <T k="docs.recovery.yesCare" />
               </span>,
-              "Your other sign-in methods / backups",
+              <T key="docs.recovery.p8" k="docs.recovery.p8" />,
             ],
             [
-              <strong key="c">Vault passphrase</strong>,
+              <T key="docs.recovery.p9" k="docs.recovery.p9" />,
               <span key="c2" className="text-amber-600 dark:text-amber-400">
-                No
+                <T k="docs.recovery.no" />
               </span>,
-              "Nothing, by design",
+              <T key="docs.recovery.p10" k="docs.recovery.p10" />,
             ],
             [
-              <strong key="d">Folder password</strong>,
+              <T key="docs.recovery.p11" k="docs.recovery.p11" />,
               <span key="d2" className="text-amber-600 dark:text-amber-400">
-                No
+                <T k="docs.recovery.no" />
               </span>,
-              "Nothing, by design",
+              <T key="docs.recovery.p12" k="docs.recovery.p12" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="recoverable" title="What we can recover: account access">
+      <DocSection id="recoverable" title={<T k="docs.recovery.a19" />}>
         <DocP>
-          Getting back <em>into your account</em> is a normal, supported flow, because your account
-          credentials live on the server (as hashes) where they can be reset or re-issued.
+          <T k="docs.recovery.p14" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Forgot your password?</strong> Request a reset link by email and choose a new
-              one. See{" "}
-              <Link
-                href="/docs/authentication"
-                className="text-cyan-600 hover:underline dark:text-cyan-400"
-              >
-                Authentication &amp; 2FA
-              </Link>
-              .
-            </>,
-            <>
-              <strong>Sign in with a provider.</strong> If you linked Google or GitHub, you can log
-              in through{" "}
-              <Link href="/docs/oauth" className="text-cyan-600 hover:underline dark:text-cyan-400">
-                OAuth
-              </Link>{" "}
-              even without your password.
-            </>,
-            <>
-              <strong>Lost your authenticator?</strong> If you can still sign in another way, you
-              can manage two-factor from settings. Keep a backup of your TOTP secret or a second
-              sign-in method so a lost phone doesn&apos;t become a lockout.
-            </>,
+            <T
+              key="docs.recovery.p15"
+              k="docs.recovery.p15"
+              links={{ l1: "/docs/authentication" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.recovery.p16"
+              k="docs.recovery.p16"
+              links={{ l1: "/docs/oauth" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T key="docs.recovery.p17" k="docs.recovery.p17" />,
           ]}
         />
         <DocP>
-          Recovering account access gets you back to your file list. It does <strong>not</strong>{" "}
-          unlock your files: for that you still need your vault passphrase.
+          <T k="docs.recovery.p18" />
         </DocP>
       </DocSection>
 
-      <DocSection id="not-recoverable" title="What we cannot recover: your data">
+      <DocSection id="not-recoverable" title={<T k="docs.recovery.a24" />}>
         <DocP>
-          This is the part to read twice. zcrypt is <strong>zero-knowledge</strong>: your files are
-          encrypted on your device with keys derived from your vault passphrase, and that passphrase
-          is <strong>never sent to the server</strong>. We hold only ciphertext.
+          <T k="docs.recovery.p20" />
         </DocP>
-        <DocNote type="warning" title="If you lose your vault passphrase, your files are gone">
+        <DocNote type="warning" title={<T k="docs.recovery.a23" />}>
           <p className="mb-2">
-            There is no reset link, no backdoor, and no support request that can recover a lost
-            vault passphrase, not for you, and not for us. Without it, the keys that decrypt your
-            files cannot be reconstructed, so the files (and their folder names) are permanently
-            unreadable. This is not a limitation we can lift; it is the whole point of
-            zero-knowledge encryption. The same protection that stops <em>us</em>
-            from reading your data stops <em>anyone</em> from restoring it once the passphrase is
-            lost.
+            <T k="docs.recovery.p21" />
           </p>
           <p>
-            <strong>Folder passwords are the same.</strong> Any folder you secure with its own
-            password is encrypted under a key derived from that password. Lose the folder password
-            and that folder&apos;s contents are unrecoverable, even while the rest of your vault
-            opens normally.
+            <T k="docs.recovery.p22" />
           </p>
         </DocNote>
       </DocSection>
 
-      <DocSection id="protect" title="How to protect your passphrase">
+      <DocSection id="protect" title={<T k="docs.recovery.a31" />}>
         <DocP>
-          Because the passphrase can never be recovered, protecting it is entirely on you, and
-          it&apos;s straightforward:
+          <T k="docs.recovery.p25" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Use a password manager.</strong> Store your vault passphrase (and any folder
-              passwords) in a reputable manager like 1Password, Bitwarden, or KeePass. This is the
-              single best thing you can do.
-            </>,
-            "Choose a long, memorable passphrase rather than a short complex one, length beats cleverness.",
-            "Keep at least one secure offline copy somewhere only you can reach, especially before storing anything important.",
-            "Never email it to yourself or paste it into a chat. That would defeat the zero-knowledge guarantee.",
+            <T key="docs.recovery.p26" k="docs.recovery.p26" />,
+            <T key="docs.recovery.p27" k="docs.recovery.p27" />,
+            <T key="docs.recovery.p28" k="docs.recovery.p28" />,
+            <T key="docs.recovery.p29" k="docs.recovery.p29" />,
           ]}
         />
         <DocNote type="info">
-          Treat your vault passphrase like the only key to a safe deposit box you own outright. The
-          bank can let you into the building, but if you lose the key, no one can open the box.
+          <T k="docs.recovery.p30" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.recovery.a35" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/key-management"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Key management: how your passphrase becomes your encryption keys
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/zero-knowledge"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge: what the server can and can&apos;t see
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/authentication"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Authentication & 2FA: resetting your password and managing two-factor
-            </Link>,
+            <T
+              key="docs.recovery.p32"
+              k="docs.recovery.p32"
+              links={{ l1: "/docs/key-management" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.recovery.p33"
+              k="docs.recovery.p33"
+              links={{ l1: "/docs/zero-knowledge" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.recovery.p34"
+              k="docs.recovery.p34"
+              links={{ l1: "/docs/authentication" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

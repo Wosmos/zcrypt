@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "License | zcrypt Docs",
   description:
@@ -17,10 +18,10 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "overview", title: "Overview" },
-  { id: "permits", title: "What MIT permits" },
-  { id: "warranty", title: "No warranty" },
-  { id: "text", title: "Full license text" },
+  { id: "overview", k: "docs.license.toc.overview" },
+  { id: "permits", k: "docs.license.toc.permits" },
+  { id: "warranty", k: "docs.license.toc.warranty" },
+  { id: "text", k: "docs.license.toc.text" },
 ];
 
 export default function LicenseDocPage() {
@@ -31,60 +32,42 @@ export default function LicenseDocPage() {
       description="zcrypt is open source under the MIT License: one of the most permissive licenses there is."
       toc={toc}
     >
-      <DocSection id="overview" title="Overview">
+      <DocSection id="overview" title={<T k="docs.license.a2" />}>
         <DocP>
-          The entire zcrypt codebase: backend, frontend, apps, and everything else in the repository
-          : is released under the <strong>MIT License</strong>. It&apos;s a short, permissive
-          license: you can do almost anything with the code as long as you keep the copyright notice
-          attached.
+          <T k="docs.license.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="permits" title="What MIT permits">
-        <DocP>In plain terms, the MIT License lets anyone:</DocP>
+      <DocSection id="permits" title={<T k="docs.license.a9" />}>
+        <DocP>
+          <T k="docs.license.p3" />
+        </DocP>
         <DocList
           items={[
-            <>
-              <strong>Use</strong> the software for any purpose, private or commercial.
-            </>,
-            <>
-              <strong>Modify</strong> the source code however they like.
-            </>,
-            <>
-              <strong>Distribute</strong> copies of the original or modified software.
-            </>,
-            <>
-              <strong>Sell</strong> it, bundle it into a paid product, or self-host it as part of a
-              commercial service.
-            </>,
+            <T key="docs.license.p4" k="docs.license.p4" />,
+            <T key="docs.license.p5" k="docs.license.p5" />,
+            <T key="docs.license.p6" k="docs.license.p6" />,
+            <T key="docs.license.p7" k="docs.license.p7" />,
           ]}
         />
         <DocP>
-          The only real condition is that the original copyright notice and the license text stay
-          included in any copy or substantial portion of the software you redistribute.
+          <T k="docs.license.p8" />
         </DocP>
       </DocSection>
 
-      <DocSection id="warranty" title="No warranty">
-        <DocNote type="info" title="Provided as-is">
-          The software is provided &quot;as is&quot;, without warranty of any kind. The authors are
-          not liable for any claim, damages, or other liability arising from its use. Run it, fork
-          it, ship it, but the risk is yours.
+      <DocSection id="warranty" title={<T k="docs.license.a12" />}>
+        <DocNote type="info" title={<T k="docs.license.a11" />}>
+          <T k="docs.license.p10" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="text" title="Full license text">
+      <DocSection id="text" title={<T k="docs.license.a14" />}>
         <DocP>
-          Read the complete, unmodified license in the repository:{" "}
-          <Link
-            href="https://github.com/Wosmos/zcrypt/blob/main/LICENSE"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            LICENSE on GitHub
-          </Link>
-          .
+          <T
+            k="docs.license.p13"
+            links={{ l1: "https://github.com/Wosmos/zcrypt/blob/main/LICENSE" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

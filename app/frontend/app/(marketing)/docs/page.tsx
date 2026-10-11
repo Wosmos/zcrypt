@@ -22,6 +22,8 @@ import { Accent } from "@/components/marketing/ui/page-hero";
 import { PillLink, pillClass } from "@/components/marketing/ui/pill-link";
 import { cardSurface } from "@/components/marketing/ui/card";
 import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
+import { T } from "@/components/i18n/t";
+import { groupSlug, navSlug } from "@/components/docs/nav-keys";
 
 export const metadata: Metadata = {
   title: "Documentation | zcrypt",
@@ -96,7 +98,9 @@ const FALLBACK_META: GroupMeta = {
 function GroupLinkRow({ link }: { link: DocsNavLink }) {
   const inner = (
     <>
-      <span className="min-w-0 truncate">{link.title}</span>
+      <span className="min-w-0 truncate">
+        <T k={`docs.nav.${navSlug(link.href)}.title`} />
+      </span>
       {link.badge && (
         <span
           className={cn(
@@ -104,7 +108,7 @@ function GroupLinkRow({ link }: { link: DocsNavLink }) {
             BADGE_STYLES[link.badge],
           )}
         >
-          {link.badge}
+          <T k={`docs.ui.badge.${link.badge.toLowerCase()}`} />
         </span>
       )}
       {link.external && (
@@ -146,10 +150,12 @@ function GroupBlock({ group }: { group: DocsNavGroup }) {
         >
           <Icon className={cn("h-4 w-4", meta.text)} />
         </div>
-        <h2 className="font-heading text-sm font-bold uppercase tracking-wide">{group.title}</h2>
+        <h2 className="font-heading text-sm font-bold uppercase tracking-wide">
+          <T k={`docs.navGroup.${groupSlug(group.title)}.title`} />
+        </h2>
       </div>
       <p className="mb-2 pl-[38px] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
-        {group.summary}
+        <T k={`docs.navGroup.${groupSlug(group.title)}.summary`} />
       </p>
       <ul className="ml-[13px] flex list-none flex-col border-l border-[var(--color-border)] pl-3">
         {group.links.map((link) => (
@@ -174,20 +180,22 @@ export default function DocsPage() {
 
       {/* Intro */}
       <header className="pv2-hero-left mb-12">
-        <p className="pv2-eyebrow">Documentation</p>
+        <p className="pv2-eyebrow">
+          <T k="docs.home.p1" />
+        </p>
         <h1 className="pv2-h1 mt-4">
-          How zcrypt works
+          <T k="docs.home.h1" />
           <Accent text="How zcrypt works" />
         </h1>
         <p className="pv2-sub max-w-2xl">
-          zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser
-          previews, and per-folder passwords, all encrypted on your device and stored in accounts
-          you already own. These guides cover every part of it.
+          <T k="docs.home.p2" />
         </p>
         <div className="pv2-ctas">
-          <PillLink href="/docs/getting-started">Start with the Quickstart</PillLink>
+          <PillLink href="/docs/getting-started">
+            <T k="docs.home.p3" />
+          </PillLink>
           <PillLink href="/register" variant="secondary">
-            Start free
+            <T k="docs.home.p4" />
           </PillLink>
         </div>
       </header>
@@ -202,10 +210,11 @@ export default function DocsPage() {
 
       {/* Help CTA */}
       <section className={cn(cardSurface, "mt-14 p-8 text-center sm:p-10")}>
-        <h2 className="pv2-h3 text-2xl">Can&apos;t find what you need?</h2>
+        <h2 className="pv2-h3 text-2xl">
+          <T k="docs.home.p5" />
+        </h2>
         <p className="pv2-body mx-auto mt-2 max-w-md">
-          The whole project is open source. Open an issue, read the code, or reach out and
-          we&apos;ll help directly.
+          <T k="docs.home.p6" />
         </p>
         <div className="pv2-ctas">
           <a
@@ -218,7 +227,7 @@ export default function DocsPage() {
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
           <a href={`mailto:${SUPPORT_EMAIL}`} className={pillClass("secondary")}>
-            Contact support
+            <T k="docs.home.p7" />
           </a>
         </div>
       </section>

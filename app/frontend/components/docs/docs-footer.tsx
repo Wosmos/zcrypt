@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Github, Heart } from "@/lib/icons";
 
 const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
@@ -10,6 +11,7 @@ const SPONSOR_URL = "https://github.com/sponsors/Wosmos";
  * you're scanning, not a landing page you're browsing.
  */
 export function DocsFooter() {
+  const t = useTranslations();
   return (
     <footer className="border-t border-[var(--color-border)]">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 sm:flex-row md:px-10">
@@ -25,13 +27,13 @@ export function DocsFooter() {
             GitHub
           </a>
           <Link href="/docs/license" className="transition-colors hover:text-[var(--color-text)]">
-            License
+            {t("docs.ui.footer.license")}
           </Link>
           <Link href="/privacy" className="transition-colors hover:text-[var(--color-text)]">
-            Privacy
+            {t("docs.ui.footer.privacy")}
           </Link>
           <Link href="/terms" className="transition-colors hover:text-[var(--color-text)]">
-            Terms
+            {t("docs.ui.footer.terms")}
           </Link>
           <a
             href={SPONSOR_URL}
@@ -40,7 +42,7 @@ export function DocsFooter() {
             className="flex items-center gap-1.5 transition-colors hover:text-cyan-600 dark:hover:text-cyan-400"
           >
             <Heart className="h-3.5 w-3.5" />
-            Sponsor
+            {t("docs.ui.sponsor")}
           </a>
         </div>
       </div>

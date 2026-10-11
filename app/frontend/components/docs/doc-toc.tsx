@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export interface TocItem {
   id: string;
-  title: string;
+  k: string;
 }
 
 /**
@@ -15,6 +16,7 @@ export interface TocItem {
  * and updates the hash without a jump.
  */
 export function DocToc({ toc }: { toc: TocItem[] }) {
+  const t = useTranslations();
   const [activeId, setActiveId] = useState<string | null>(null);
   const visibleIds = useRef(new Set<string>());
 
@@ -59,9 +61,9 @@ export function DocToc({ toc }: { toc: TocItem[] }) {
   if (toc.length === 0) return null;
 
   return (
-    <nav aria-label="On this page" className="card mt-8 p-5">
+    <nav aria-label={t("docs.ui.onThisPage")} className="card mt-8 p-5">
       <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-        On this page
+        {t("docs.ui.onThisPage")}
       </h2>
       <ul className="list-none space-y-0.5">
         {toc.map((item) => {
@@ -79,7 +81,7 @@ export function DocToc({ toc }: { toc: TocItem[] }) {
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]",
                 )}
               >
-                {item.title}
+                {t(item.k as never)}
               </a>
             </li>
           );

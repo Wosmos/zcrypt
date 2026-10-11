@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { groupSlug, navSlug } from "@/components/docs/nav-keys";
+import { docsNav } from "@/lib/data";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { Search, ArrowRight, FileText, X } from "@/lib/icons";
 import { searchDocs, type SearchEntry } from "@/lib/docs-search-index";
@@ -12,32 +15,51 @@ function termsOf(query: string): string[] {
 }
 
 /** Starting points shown in the modal before the user types anything. */
-const QUICK_LINKS: { title: string; href: string; section: string; desc: string }[] = [
-  {
-    title: "Quickstart",
-    href: "/docs/getting-started",
-    section: "Getting Started",
-    desc: "Create an account, connect storage, and upload your first file.",
-  },
-  {
-    title: "Encryption model",
-    href: "/docs/security",
-    section: "Security",
-    desc: "AES-256-GCM, key derivation, and per-file keys.",
-  },
-  {
-    title: "Connect your storage",
-    href: "/docs/connect-storage",
-    section: "Getting Started",
-    desc: "Link GitHub, GitLab, Hugging Face, or Telegram as your backend.",
-  },
-  {
-    title: "Self-hosting",
-    href: "/docs/self-hosting",
-    section: "Developers",
-    desc: "Run your own zcrypt instance with Docker.",
-  },
+const QUICK_LINKS: { href: string; section: string }[] = [
+  { href: "/docs/getting-started", section: "Getting Started" },
+  { href: "/docs/security", section: "Security" },
+  { href: "/docs/connect-storage", section: "Getting Started" },
+  { href: "/docs/self-hosting", section: "Developers" },
 ];
+
+type Translate = (key: string) => string;
+
+const DOC_ENTRIES = docsNav.flatMap((group) =>
+  group.links.map((link) => ({ href: link.href, section: group.title })),
+);
+
+function localizeEntry(item: SearchEntry, t: Translate): SearchEntry {
+  const doc = DOC_ENTRIES.find((d) => d.href === item.href && d.section === item.section);
+  if (!doc) return item;
+  const slug = navSlug(item.href);
+  return {
+    ...item,
+    title: t(`docs.nav.${slug}.title`),
+    content: t(`docs.nav.${slug}.desc`),
+  };
+}
+
+function useLocalizedSearch(query: string, limit: number): SearchEntry[] {
+  const t = useTranslations();
+  return useMemo(() => {
+    if (query.length < 2) return [];
+    const tr: Translate = (key) => t(key as never);
+    const base = searchDocs(query, limit).map((item) => localizeEntry(item, tr));
+    const needle = query.trim().toLowerCase();
+    const seen = new Set(base.map((r) => `${r.href}-${r.section}`));
+    const extra: SearchEntry[] = [];
+    for (const doc of DOC_ENTRIES) {
+      if (seen.has(`${doc.href}-${doc.section}`)) continue;
+      const slug = navSlug(doc.href);
+      const title = tr(`docs.nav.${slug}.title`);
+      const content = tr(`docs.nav.${slug}.desc`);
+      if (title.toLowerCase().includes(needle) || content.toLowerCase().includes(needle)) {
+        extra.push({ title, content, href: doc.href, section: doc.section, tags: [] });
+      }
+    }
+    return [...base, ...extra].slice(0, limit);
+  }, [query, limit, t]);
+}
 
 const sectionColors: Record<string, { text: string; bg: string }> = {
   Features: { text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
@@ -102,7 +124,12 @@ function ResultRow({
   onSelect: () => void;
   onHover: () => void;
 }) {
+  const t = useTranslations();
   const colors = sectionColors[item.section] ?? sectionColors["Getting Started"];
+  const sectionLabel =
+    item.section === "Features"
+      ? t("docs.ui.features")
+      : t(`docs.navGroup.${groupSlug(item.section)}.title` as never);
 
   return (
     <button
@@ -124,7 +151,7 @@ function ResultRow({
               colors.text,
             )}
           >
-            {item.section}
+            {sectionLabel}
           </span>
         </div>
         <p className="truncate text-sm font-semibold">{highlightTerms(item.title, terms)}</p>
@@ -144,25 +171,26 @@ function ResultRow({
 
 // ─── Shared footer hints ─────────────────────────────────────
 function KeyHints() {
+  const t = useTranslations();
   return (
     <div className="flex items-center gap-3 border-t border-[var(--color-border)] px-3 py-2 text-[10px] text-[var(--color-text-muted)]">
       <span>
         <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1 py-0.5 font-mono font-bold">
           ↑↓
         </kbd>{" "}
-        navigate
+        {t("docs.ui.hintNavigate")}
       </span>
       <span>
         <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1 py-0.5 font-mono font-bold">
           ↵
         </kbd>{" "}
-        open
+        {t("docs.ui.hintOpen")}
       </span>
       <span>
         <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1 py-0.5 font-mono font-bold">
           esc
         </kbd>{" "}
-        close
+        {t("docs.ui.hintClose")}
       </span>
     </div>
   );
@@ -175,8 +203,9 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const t = useTranslations();
 
-  const results = useMemo(() => (query.length < 2 ? [] : searchDocs(query, 8)), [query]);
+  const results = useLocalizedSearch(query, 8);
   const terms = useMemo(() => termsOf(query), [query]);
 
   const showingQuickLinks = query.length < 2;
@@ -192,11 +221,18 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
     [onClose, router],
   );
 
-  // Reset + focus on open; lock body scroll while open.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) {
+      setQuery("");
+      setActiveIndex(0);
+    }
+  }
+
+  // Focus on open; lock body scroll while open.
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setActiveIndex(0);
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -206,10 +242,11 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
     };
   }, [open]);
 
-  // Reset active row when results change.
-  useEffect(() => {
+  const [prevResults, setPrevResults] = useState(results);
+  if (prevResults !== results) {
+    setPrevResults(results);
     setActiveIndex(0);
-  }, [results]);
+  }
 
   // Keep the active row visible.
   useEffect(() => {
@@ -256,7 +293,7 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search documentation"
+        aria-label={t("docs.ui.searchDocumentation")}
         onKeyDown={handleKeyDown}
         className={cn(
           "absolute left-1/2 top-[12vh] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl shadow-black/20 transition-transform duration-150 dark:shadow-black/50",
@@ -271,14 +308,14 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search docs..."
-            aria-label="Search docs"
+            placeholder={t("docs.ui.searchPlaceholderShort")}
+            aria-label={t("docs.ui.searchDocs")}
             className="w-full bg-transparent py-3.5 pl-11 pr-12 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none"
           />
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close search"
+            aria-label={t("docs.ui.closeSearch")}
             className="absolute right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
           >
             <X className="h-3.5 w-3.5" />
@@ -290,7 +327,7 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
           {showingQuickLinks ? (
             <div className="py-2">
               <p className="px-4 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Start here
+                {t("docs.ui.startHere")}
               </p>
               {QUICK_LINKS.map((link, i) => {
                 const colors = sectionColors[link.section] ?? sectionColors["Getting Started"];
@@ -316,9 +353,11 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
                       <FileText className={cn("h-3.5 w-3.5", colors.text)} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{link.title}</span>
+                      <span className="block truncate text-sm font-semibold">
+                        {t(`docs.nav.${navSlug(link.href)}.title` as never)}
+                      </span>
                       <span className="block truncate text-xs text-[var(--color-text-secondary)]">
-                        {link.desc}
+                        {t(`docs.quick.${navSlug(link.href)}` as never)}
                       </span>
                     </span>
                     <ArrowRight
@@ -345,10 +384,10 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
           ) : (
             <div className="px-4 py-10 text-center">
               <p className="text-sm text-[var(--color-text-muted)]">
-                No results for &ldquo;{query}&rdquo;
+                {t("docs.ui.noResults", { query })}
               </p>
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                Try different keywords or check for typos
+                {t("docs.ui.noResultsHint")}
               </p>
             </div>
           )}
@@ -361,7 +400,8 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
 }
 
 // ─── Inline search (docs index page) ─────────────────────────
-export default function DocsSearch({ placeholder = "Search docs..." }: { placeholder?: string }) {
+export default function DocsSearch({ placeholder }: { placeholder?: string }) {
+  const t = useTranslations();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -370,15 +410,17 @@ export default function DocsSearch({ placeholder = "Search docs..." }: { placeho
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const results = useMemo(() => (query.length < 2 ? [] : searchDocs(query, 8)), [query]);
+  const results = useLocalizedSearch(query, 8);
   const terms = useMemo(() => termsOf(query), [query]);
 
   const showResults = open && query.length >= 2 && results.length > 0;
   const showEmpty = open && query.length >= 2 && results.length === 0;
 
-  useEffect(() => {
+  const [prevResults, setPrevResults] = useState(results);
+  if (prevResults !== results) {
+    setPrevResults(results);
     setActiveIndex(0);
-  }, [results]);
+  }
 
   useClickOutside(containerRef, () => setOpen(false));
 
@@ -440,7 +482,7 @@ export default function DocsSearch({ placeholder = "Search docs..." }: { placeho
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("docs.ui.searchPlaceholderShort")}
           className="w-full pl-11 pr-14 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
         />
         <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md">
@@ -453,7 +495,7 @@ export default function DocsSearch({ placeholder = "Search docs..." }: { placeho
         <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden z-50">
           <div className="px-3 py-2 border-b border-[var(--color-border)]">
             <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-              {results.length} result{results.length !== 1 ? "s" : ""}
+              {t("docs.ui.resultCount", { count: results.length })}
             </p>
           </div>
           <div ref={listRef} className="max-h-[360px] overflow-y-auto overscroll-contain">
@@ -477,10 +519,10 @@ export default function DocsSearch({ placeholder = "Search docs..." }: { placeho
         <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden z-50">
           <div className="px-4 py-8 text-center">
             <p className="text-sm text-[var(--color-text-muted)]">
-              No results for &ldquo;{query}&rdquo;
+              {t("docs.ui.noResults", { query })}
             </p>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Try different keywords or check for typos
+              {t("docs.ui.noResultsHint")}
             </p>
           </div>
         </div>

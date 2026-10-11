@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Downloading | zcrypt Docs",
   description:
@@ -17,13 +18,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "local", title: "Entirely on your device" },
-  { id: "steps", title: "How a download runs" },
-  { id: "streaming", title: "Large files stream to disk" },
-  { id: "resume", title: "Pause, resume, and retry" },
-  { id: "integrity", title: "Integrity verification" },
-  { id: "protected", title: "Protected folders" },
-  { id: "next", title: "Where to go next" },
+  { id: "local", k: "docs.downloading.toc.local" },
+  { id: "steps", k: "docs.downloading.toc.steps" },
+  { id: "streaming", k: "docs.downloading.toc.streaming" },
+  { id: "resume", k: "docs.downloading.toc.resume" },
+  { id: "integrity", k: "docs.downloading.toc.integrity" },
+  { id: "protected", k: "docs.downloading.toc.protected" },
+  { id: "next", k: "docs.downloading.toc.next" },
 ];
 
 export default function DownloadingDocPage() {
@@ -34,165 +35,99 @@ export default function DownloadingDocPage() {
       description="Getting a file back is the upload pipeline in reverse. Your browser pulls the encrypted chunks, decrypts them, and rebuilds the original, and the plaintext is reconstructed only on your device."
       toc={toc}
     >
-      <DocSection id="local" title="Entirely on your device">
+      <DocSection id="local" title={<T k="docs.downloading.a3" />}>
         <DocP>
-          The server&apos;s only role in a download is to hand back the encrypted chunks it stored
-          (or fetch them from your storage platform on your behalf). Every step that turns those
-          chunks back into a readable file (decryption, decompression, verification) runs locally.
-          The server never sees a decrypted byte and never sees your passphrase.
+          <T k="docs.downloading.p1" />
         </DocP>
         <DocP>
-          The heavy work runs in a pool of Web Workers, off the main thread, so the app stays
-          responsive while it decrypts: even on a multi-gigabyte file. The size of that pool is
-          chosen from your device&apos;s CPU and memory rather than being fixed.
+          <T k="docs.downloading.p2" />
         </DocP>
       </DocSection>
 
-      <DocSection id="steps" title="How a download runs">
+      <DocSection id="steps" title={<T k="docs.downloading.a8" />}>
         <DocList
           ordered
           items={[
-            <>
-              <strong>Fetch.</strong> The browser requests the file&apos;s encrypted chunks, pulling
-              several in parallel for speed. A dropped connection or slow chunk is retried on its
-              own, and the access token is refreshed mid-download so a long transfer doesn&apos;t
-              stall on an expired session.
-            </>,
-            <>
-              <strong>Decrypt &amp; decompress.</strong> Each chunk is decrypted with AES-256-GCM
-              using the per-file key unwrapped from your passphrase (or the folder password, for a
-              protected folder), then decompressed with zstd: both in the worker pool, off the main
-              thread.
-            </>,
-            <>
-              <strong>Verify.</strong> Once the chunks are reassembled, the file&apos;s SHA-256 is
-              compared against the hash recorded at upload. A mismatch fails the download rather
-              than saving a damaged file.
-            </>,
-            <>
-              <strong>Save.</strong> Small files are rebuilt in memory and downloaded the usual way;
-              large files are streamed straight to disk as they arrive (below).
-            </>,
+            <T key="docs.downloading.p4" k="docs.downloading.p4" />,
+            <T key="docs.downloading.p5" k="docs.downloading.p5" />,
+            <T key="docs.downloading.p6" k="docs.downloading.p6" />,
+            <T key="docs.downloading.p7" k="docs.downloading.p7" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="streaming" title="Large files stream to disk">
+      <DocSection id="streaming" title={<T k="docs.downloading.a13" />}>
         <DocP>
-          For most files the browser rebuilds the whole thing in memory and then saves it. That
-          approach breaks down once a file is larger than a browser tab can comfortably hold, so
-          past roughly a gigabyte, zcrypt streams the download <strong>straight to disk</strong>{" "}
-          instead. You choose where to save it up front (a Save-As prompt), and each chunk is
-          decrypted and written out in order as it arrives, so the whole file never has to sit in
-          RAM at once. This is what makes downloading very large files: on the order of tens of
-          gigabytes, a 25&nbsp;GB file, say, possible at all.
+          <T k="docs.downloading.p9" />
         </DocP>
-        <DocNote type="info" title="Roughly half the peak memory">
-          Even the integrity hash is computed <strong>incrementally</strong>, as each chunk is
-          written, so there&apos;s no second full-file copy made just to verify it. Dropping that
-          duplicate buffer roughly halves peak memory versus assembling the whole file and then
-          hashing it.
+        <DocNote type="info" title={<T k="docs.downloading.a11" />}>
+          <T k="docs.downloading.p10" />
         </DocNote>
         <DocP>
-          Streaming to disk uses the browser&apos;s File System Access API, which today means a
-          Chromium-based browser; where it isn&apos;t available, zcrypt falls back to the in-memory
-          path. If a streamed download fails its integrity check or you cancel it, the partial file
-          on disk is discarded: a corrupt or truncated file is never left committed.
+          <T k="docs.downloading.p12" />
         </DocP>
       </DocSection>
 
-      <DocSection id="resume" title="Pause, resume, and retry">
+      <DocSection id="resume" title={<T k="docs.downloading.a18" />}>
         <DocP>
-          A download can be <strong>paused</strong> and picked back up: pausing keeps everything
-          decrypted so far (and, for a large download streaming to disk, the open file on disk), and
-          resuming continues from there instead of restarting at chunk zero. A{" "}
-          <strong>retry</strong> after a failure does the same, it continues from what&apos;s
-          already done rather than re-fetching the whole file. Pausing is deliberately distinct from
-          stopping: a stop discards the in-progress work, a pause preserves it.
+          <T k="docs.downloading.p14" />
         </DocP>
         <DocP>
-          Transient blips are handled for you. A dropped connection, a stalled chunk, or a temporary
-          server error is retried automatically with backoff: on single-file downloads, on{" "}
-          <Link href="/docs/bulk" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            bulk ZIP downloads
-          </Link>
-          , and on shared-link downloads, so one hiccup over a long transfer doesn&apos;t sink the
-          whole file.
+          <T
+            k="docs.downloading.p15"
+            links={{ l1: "/docs/bulk" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
-        <DocNote type="warning" title="Download resume is in-session only">
-          A download&apos;s partly-decrypted data lives on your device, so closing the tab restarts
-          it from the beginning. This is the opposite of{" "}
-          <Link href="/docs/uploading" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            uploads
-          </Link>
-          , whose partial state is held on the server and survives a reload. See the{" "}
-          <Link
-            href="/docs/transfer-manager"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            transfer manager
-          </Link>{" "}
-          for the pause / resume / retry controls.
+        <DocNote type="warning" title={<T k="docs.downloading.a17" />}>
+          <T
+            k="docs.downloading.p16"
+            links={{ l1: "/docs/uploading", l2: "/docs/transfer-manager" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
       </DocSection>
 
-      <DocSection id="integrity" title="Integrity verification">
+      <DocSection id="integrity" title={<T k="docs.downloading.a22" />}>
         <DocP>
-          Two things guard integrity. First, AES-256-GCM is an <strong>authenticated</strong>{" "}
-          cipher, so a chunk that was altered in storage fails to decrypt rather than producing
-          garbage: a tampered piece is caught the moment it is opened. Second, once every chunk is
-          decrypted and reassembled, the file&apos;s <strong>SHA-256</strong> is checked against the
-          hash recorded at upload; a mismatch fails the download instead of saving a damaged file.
-          On a streamed download that hash is built up as chunks are written, so the check costs no
-          extra copy of the file.
+          <T k="docs.downloading.p19" />
         </DocP>
-        <DocNote type="security" title="Wrong key, clean failure">
-          If the wrong passphrase or folder password is used, decryption fails outright instead of
-          yielding a damaged file: the authenticated cipher simply will not open without the correct
-          key.
+        <DocNote type="security" title={<T k="docs.downloading.a21" />}>
+          <T k="docs.downloading.p20" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="protected" title="Protected folders">
+      <DocSection id="protected" title={<T k="docs.downloading.a24" />}>
         <DocP>
-          A file stored inside a{" "}
-          <Link
-            href="/docs/folder-encryption"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            password-protected folder
-          </Link>{" "}
-          is encrypted under that folder&apos;s password, not your vault passphrase. Downloading one
-          prompts for the folder password (if the folder isn&apos;t already unlocked in this
-          session), and that password is what unwraps the key locally. An unlocked vault alone is
-          not enough to open a protected folder&apos;s files.
+          <T
+            k="docs.downloading.p23"
+            links={{ l1: "/docs/folder-encryption" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.downloading.a28" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/transfer-manager"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Transfer manager: pause, resume, retry, and track downloads
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/bulk"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Bulk operations: download many files at once as a ZIP
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/viewing-files"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Viewing &amp; previewing. Open files without saving them
-            </Link>,
+            <T
+              key="docs.downloading.p25"
+              k="docs.downloading.p25"
+              links={{ l1: "/docs/transfer-manager" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.downloading.p26"
+              k="docs.downloading.p26"
+              links={{ l1: "/docs/bulk" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.downloading.p27"
+              k="docs.downloading.p27"
+              links={{ l1: "/docs/viewing-files" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

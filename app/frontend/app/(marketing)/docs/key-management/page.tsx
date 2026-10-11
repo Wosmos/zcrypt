@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
@@ -11,6 +11,7 @@ import {
   DocTable,
 } from "@/components/docs/doc-page";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Passphrase & key management | zcrypt Docs",
   description:
@@ -25,13 +26,13 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "two-secrets", title: "Two different secrets" },
-  { id: "passphrase", title: "The vault passphrase" },
-  { id: "sharing-keypair", title: "Your sharing keypair" },
-  { id: "account", title: "Account login security" },
-  { id: "sessions", title: "Tokens & sessions" },
-  { id: "revocation", title: "Revocation & recovery" },
-  { id: "next", title: "Where to go next" },
+  { id: "two-secrets", k: "docs.key-management.toc.two-secrets" },
+  { id: "passphrase", k: "docs.key-management.toc.passphrase" },
+  { id: "sharing-keypair", k: "docs.key-management.toc.sharing-keypair" },
+  { id: "account", k: "docs.key-management.toc.account" },
+  { id: "sessions", k: "docs.key-management.toc.sessions" },
+  { id: "revocation", k: "docs.key-management.toc.revocation" },
+  { id: "next", k: "docs.key-management.toc.next" },
 ];
 
 export default function KeyManagementPage() {
@@ -42,234 +43,165 @@ export default function KeyManagementPage() {
       description="zcrypt keeps two secrets cleanly separate: the passphrase that unlocks your encryption, and the password that authenticates your account. This page traces both, and the defenses around the sessions in between."
       toc={toc}
     >
-      <DocSection id="two-secrets" title="Two different secrets">
+      <DocSection id="two-secrets" title={<T k="docs.key-management.a18" />}>
         <DocP>
-          It is worth getting this distinction straight, because the two secrets do very different
-          jobs and are handled very differently.
+          <T k="docs.key-management.p1" />
         </DocP>
         <DocTable
-          head={["", "Vault passphrase", "Account password"]}
+          head={[
+            "",
+            <T key="docs.key-management.p2" k="docs.key-management.p2" />,
+            <T key="docs.key-management.p3" k="docs.key-management.p3" />,
+          ]}
           rows={[
-            ["Purpose", "Derives your encryption keys", "Authenticates login"],
-            ["Reaches the server?", "Never", "Verified, then only a hash is stored"],
-            ["Stored anywhere?", "No: device memory only", "As a bcrypt hash"],
-            ["If forgotten", "Data is unrecoverable", "Reset via email"],
+            [
+              <T key="docs.key-management.p4" k="docs.key-management.p4" />,
+              <T key="docs.key-management.p5" k="docs.key-management.p5" />,
+              <T key="docs.key-management.p6" k="docs.key-management.p6" />,
+            ],
+            [
+              <T key="docs.key-management.p7" k="docs.key-management.p7" />,
+              <T key="docs.key-management.p8" k="docs.key-management.p8" />,
+              <T key="docs.key-management.p9" k="docs.key-management.p9" />,
+            ],
+            [
+              <T key="docs.key-management.p10" k="docs.key-management.p10" />,
+              <T key="docs.key-management.p11" k="docs.key-management.p11" />,
+              <T key="docs.key-management.p12" k="docs.key-management.p12" />,
+            ],
+            [
+              <T key="docs.key-management.p13" k="docs.key-management.p13" />,
+              <T key="docs.key-management.p14" k="docs.key-management.p14" />,
+              <T key="docs.key-management.p15" k="docs.key-management.p15" />,
+            ],
           ]}
         />
-        <DocNote type="info" title="They can be the same string, but they are not the same secret">
-          Even if you choose to type the same value for both, they travel different paths: the
-          passphrase is consumed locally by key derivation, while the password is checked
-          server-side. One unlocks cryptography; the other unlocks an account session.
+        <DocNote type="info" title={<T k="docs.key-management.a17" />}>
+          <T k="docs.key-management.p16" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="passphrase" title="The vault passphrase">
+      <DocSection id="passphrase" title={<T k="docs.key-management.a25" />}>
         <DocP>
-          Your vault passphrase is the root of all encryption in zcrypt. It is fed through
-          PBKDF2-HMAC-SHA256 at 600,000 iterations with a per-file salt to derive the Key Encryption
-          Key that wraps each file&apos;s content key. The full mechanics are in the{" "}
-          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            encryption model
-          </Link>
-          .
+          <T
+            k="docs.key-management.p19"
+            links={{ l1: "/docs/security" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
         <DocList
           items={[
-            <>
-              It is <strong>never transmitted</strong> to the server and{" "}
-              <strong>never stored</strong>, not even hashed.
-            </>,
-            <>
-              It lives only in your device&apos;s memory while the vault is unlocked, and is
-              discarded when the session ends or the vault locks.
-            </>,
-            <>
-              Because the server holds nothing derived from it, a strong passphrase is the single
-              most important thing you control. Choose a long, unique one and keep it in a password
-              manager.
-            </>,
+            <T key="docs.key-management.p20" k="docs.key-management.p20" />,
+            <T key="docs.key-management.p21" k="docs.key-management.p21" />,
+            <T key="docs.key-management.p22" k="docs.key-management.p22" />,
           ]}
         />
-        <DocNote type="warning" title="There is no passphrase reset">
-          Recovery would require the server to hold a copy of your key, which would defeat
-          zero-knowledge. If you lose your passphrase, your encrypted data cannot be recovered by
-          anyone, including us. This is the deliberate cost of the guarantee.
+        <DocNote type="warning" title={<T k="docs.key-management.a24" />}>
+          <T k="docs.key-management.p23" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="sharing-keypair" title="Your sharing keypair">
+      <DocSection id="sharing-keypair" title={<T k="docs.key-management.a35" />}>
         <DocP>
-          To share with another zcrypt user without ever handing a usable key to the server, every
-          account is bootstrapped with its own <strong>X25519 keypair</strong>. It is not a third
-          secret for you to remember: it rides on your passphrase, the same way your file keys do.
-          The keypair is generated on your device the first time an unlocked session needs it.
+          <T k="docs.key-management.p26" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>The public key is published</strong> to a small registry the server keeps in
-              the clear, alongside a short fingerprint, so other members can wrap a shared key{" "}
-              <em>to</em> you. It reveals nothing sensitive. That is what public keys are for.
-            </>,
-            <>
-              <strong>The private key never leaves your device in the clear.</strong> It is wrapped
-              under your passphrase-derived key using the same PBKDF2 &rarr; AES-256-GCM envelope as
-              your file keys, and only that ciphertext is stored. The server cannot unwrap it.
-            </>,
-            <>
-              <strong>Unlocking rehydrates it locally.</strong> When you unlock, the client fetches
-              your wrapped private key and opens it with your passphrase in memory; if you have
-              never published one, it generates and publishes a keypair on the spot.
-            </>,
+            <T key="docs.key-management.p27" k="docs.key-management.p27" />,
+            <T key="docs.key-management.p28" k="docs.key-management.p28" />,
+            <T key="docs.key-management.p29" k="docs.key-management.p29" />,
           ]}
         />
         <DocP>
-          Because your private key is decrypted into the browser while you are unlocked, a
-          cross-site-scripting bug becomes the threat that matters most. As defense-in-depth against
-          it, the web app serves a strict <strong>Content-Security-Policy</strong> in production. It
-          is <strong>enforced</strong>: the browser blocks anything the policy does not allow. (A
-          self-hoster can downgrade it to report-only with <code>CSP_REPORT_ONLY=1</code>.) It is a
-          second line of defense, not a guarantee: the web app still runs the JavaScript the site
-          serves you, so the desktop app is the stronger option if that trust matters.
+          <T k="docs.key-management.p30" />
         </DocP>
-        <DocNote type="security" title="Fingerprints defend against a swapped key">
-          Because the registry is served by us, a dishonest server could in principle hand a
-          collaborator the wrong public key and interpose itself. Each key carries a short SHA-256
-          fingerprint you can compare out of band (in person, over a call) to catch exactly that.
-          Your browser computes the fingerprint itself from the key, pins it the first time you see
-          a collaborator&rsquo;s key (trust on first use), and asks you to confirm if that key later
-          changes. The sealing mechanics (an ephemeral-ECDH ECIES sealed-box) are in the{" "}
-          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            encryption model
-          </Link>
-          .
+        <DocNote type="security" title={<T k="docs.key-management.a32" />}>
+          <T
+            k="docs.key-management.p31"
+            links={{ l1: "/docs/security" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocNote>
-        <DocNote type="warning" title="It shares the passphrase's fate">
-          Since the private key is wrapped under your passphrase, losing the passphrase means it can
-          no longer be unwrapped either: consistent with the rest of zero-knowledge: nothing derived
-          from your passphrase is recoverable without it.
+        <DocNote type="warning" title={<T k="docs.key-management.a34" />}>
+          <T k="docs.key-management.p33" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="account" title="Account login security">
-        <DocSubsection title="Password hashing">
+      <DocSection id="account" title={<T k="docs.key-management.a42" />}>
+        <DocSubsection title={<T k="docs.key-management.a37" />}>
           <DocP>
-            Account passwords are hashed with <strong>bcrypt at cost factor 12</strong> before
-            storage. bcrypt is deliberately slow and salted per-hash, which blunts offline cracking
-            if the database is ever exposed.
+            <T k="docs.key-management.p36" />
           </DocP>
         </DocSubsection>
-        <DocSubsection title="Breach screening (HaveIBeenPwned)">
+        <DocSubsection title={<T k="docs.key-management.a39" />}>
           <DocP>
-            At registration, your chosen password is checked against the HaveIBeenPwned database
-            using <strong>k-anonymity</strong>: only the first five characters of its SHA-1 hash are
-            sent, never the password itself. If it appears in known breaches, you get a warning with
-            the count. This <strong>warns rather than blocks</strong>, and it <em>fails open</em>,
-            if the breach service is unreachable, signup is not held up.
+            <T k="docs.key-management.p38" />
           </DocP>
         </DocSubsection>
-        <DocSubsection title="Two-factor authentication (TOTP)">
+        <DocSubsection title={<T k="docs.key-management.a41" />}>
           <DocP>
-            You can enable time-based one-time passwords (TOTP, RFC 6238) with any standard
-            authenticator app. Once enabled, login issues only a short-lived intermediate token
-            until the correct code is supplied: the full session token is never minted on password
-            alone.
+            <T k="docs.key-management.p40" />
           </DocP>
         </DocSubsection>
       </DocSection>
 
-      <DocSection id="sessions" title="Tokens & sessions">
+      <DocSection id="sessions" title={<T k="docs.key-management.a48" />}>
         <DocP>
-          Sessions use signed JSON Web Tokens, with several deliberate hardening choices around
-          them.
+          <T k="docs.key-management.p43" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>HS256 with an explicit algorithm check.</strong> The verifier requires the
-              header algorithm to be exactly <span className="font-mono">HS256</span> and rejects
-              anything else, closing the classic algorithm-confusion (e.g.{" "}
-              <span className="font-mono">alg: none</span>) attack.
-            </>,
-            <>
-              <strong>Typed tokens.</strong> The short-lived token issued mid-login for the 2FA step
-              is a distinct type and is refused at authenticated endpoints, so it can never be
-              replayed past the second factor.
-            </>,
-            <>
-              <strong>Short-lived access tokens.</strong> Access tokens expire quickly and are
-              refreshed via a longer-lived refresh token.
-            </>,
-            <>
-              <strong>Refresh tokens are stored hashed.</strong> Only a SHA-256 hash of each refresh
-              token is kept, and the issuing IP address (coarsened to its /24 for IPv4 or /48 for
-              IPv6) and user-agent are recorded, and a change of network is flagged in the logs.
-            </>,
+            <T key="docs.key-management.p44" k="docs.key-management.p44" />,
+            <T key="docs.key-management.p45" k="docs.key-management.p45" />,
+            <T key="docs.key-management.p46" k="docs.key-management.p46" />,
+            <T key="docs.key-management.p47" k="docs.key-management.p47" />,
           ]}
         />
       </DocSection>
 
-      <DocSection id="revocation" title="Revocation & recovery">
+      <DocSection id="revocation" title={<T k="docs.key-management.a55" />}>
         <DocP>
-          Every account carries a <strong>token version</strong> embedded in its access tokens.
-          Bumping that version instantly invalidates every outstanding token for the account, a
-          single switch to sign out all sessions everywhere, used on password change and on demand.
+          <T k="docs.key-management.p49" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Account recovery</strong> (forgotten <em>password</em>) goes through an
-              emailed, single-use reset token: the hash of which is what we store, never the token
-              itself.
-            </>,
-            <>
-              <strong>Vault recovery</strong> (forgotten <em>passphrase</em>) does not exist by
-              design; see above. Account access and data access are separate problems.
-            </>,
-            <>
-              Refresh tokens can be revoked individually or wiped for an entire account, and all of
-              them expire on a fixed schedule regardless.
-            </>,
+            <T key="docs.key-management.p50" k="docs.key-management.p50" />,
+            <T key="docs.key-management.p51" k="docs.key-management.p51" />,
+            <T key="docs.key-management.p52" k="docs.key-management.p52" />,
           ]}
         />
-        <DocNote type="security" title="Login does not unlock your vault">
-          Authenticating proves who you are to the service; it does not hand the server your keys.
-          After login you still supply your passphrase locally to decrypt: which is why even a fully
-          compromised account session cannot read your files without it.
+        <DocNote type="security" title={<T k="docs.key-management.a54" />}>
+          <T k="docs.key-management.p53" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.key-management.a60" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/folder-encryption"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Per-folder encryption. Add a second password to a sensitive folder
-            </Link>,
-            <Link
-              key="d"
-              href="/docs/shared-vaults"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Shared vaults: how your keypair seals a space key to collaborators
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/threat-model"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Threat model: where a weak passphrase or compromised device leaves you
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/zero-knowledge"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Zero-knowledge architecture: what the server stores about your account
-            </Link>,
+            <T
+              key="docs.key-management.p56"
+              k="docs.key-management.p56"
+              links={{ l1: "/docs/folder-encryption" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.key-management.p57"
+              k="docs.key-management.p57"
+              links={{ l1: "/docs/shared-vaults" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.key-management.p58"
+              k="docs.key-management.p58"
+              links={{ l1: "/docs/threat-model" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.key-management.p59"
+              k="docs.key-management.p59"
+              links={{ l1: "/docs/zero-knowledge" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

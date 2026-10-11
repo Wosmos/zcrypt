@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Viewing & previewing files | zcrypt Docs",
   description:
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "thumbnails", title: "Thumbnails & type icons" },
-  { id: "overlay", title: "The full-screen viewer" },
-  { id: "types", title: "What it can preview" },
-  { id: "zero-knowledge", title: "Decrypted on the fly" },
-  { id: "navigate", title: "Paging & keyboard" },
+  { id: "thumbnails", k: "docs.viewing-files.toc.thumbnails" },
+  { id: "overlay", k: "docs.viewing-files.toc.overlay" },
+  { id: "types", k: "docs.viewing-files.toc.types" },
+  { id: "zero-knowledge", k: "docs.viewing-files.toc.zero-knowledge" },
+  { id: "navigate", k: "docs.viewing-files.toc.navigate" },
 ];
 
 export default function ViewingFilesDocPage() {
@@ -32,135 +33,96 @@ export default function ViewingFilesDocPage() {
       description="Open a file to read or watch it right in the browser, no download, no plaintext leaving your device."
       toc={toc}
     >
-      <DocSection id="thumbnails" title="Thumbnails & type icons">
+      <DocSection id="thumbnails" title={<T k="docs.viewing-files.a7" />}>
         <DocP>
-          Before you even open a file, the grid shows you what it is. Images and videos get a real{" "}
-          <strong>thumbnail</strong> (a small preview of the file itself) and everything else gets a
-          crisp, macOS-style <strong>type icon</strong>: a colored glyph and label (Document, Image,
-          Video, Audio, Spreadsheet, Code, Archive, and so on) on a little page tile.
+          <T k="docs.viewing-files.p1" />
         </DocP>
         <DocList
           items={[
-            <>
-              <strong>Generated on your device.</strong> A thumbnail is built by decrypting the file
-              in your browser, drawing it to a canvas, and encoding a tiny preview, the same
-              zero-knowledge path as the viewer. For a video, zcrypt grabs a frame a little way in
-              so you get a representative still rather than a black opening frame.
-            </>,
-            <>
-              <strong>Lazy and cached.</strong> Each preview is generated the first time its card
-              comes into view, then cached locally on your device, so it appears instantly next time
-              without decrypting the file again.
-            </>,
-            <>
-              <strong>Icons for the rest.</strong> Files that aren&rsquo;t images or video, and very
-              large files that aren&rsquo;t worth decrypting just for a preview, fall back to their
-              type icon instead.
-            </>,
+            <T key="docs.viewing-files.p2" k="docs.viewing-files.p2" />,
+            <T key="docs.viewing-files.p3" k="docs.viewing-files.p3" />,
+            <T key="docs.viewing-files.p4" k="docs.viewing-files.p4" />,
           ]}
         />
-        <DocNote type="security" title="Previews never leave your device">
-          Thumbnails are made from the decrypted file <strong>in your browser</strong> and kept only
-          in your browser&rsquo;s local cache. They are never uploaded, your storage platform and
-          our servers only ever hold the encrypted chunks.
+        <DocNote type="security" title={<T k="docs.viewing-files.a6" />}>
+          <T k="docs.viewing-files.p5" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="overlay" title="The full-screen viewer">
+      <DocSection id="overlay" title={<T k="docs.viewing-files.a9" />}>
         <DocP>
-          Click a file to open the <strong>full-screen viewer</strong>, an overlay that renders the
-          file in place. It is the quickest way to check a document, scrub a video, or skim a folder
-          of images without saving anything to disk.
+          <T k="docs.viewing-files.p8" />
         </DocP>
       </DocSection>
 
-      <DocSection id="types" title="What it can preview">
-        <DocP>The viewer handles a wide range of formats directly in the browser:</DocP>
+      <DocSection id="types" title={<T k="docs.viewing-files.a20" />}>
+        <DocP>
+          <T k="docs.viewing-files.p10" />
+        </DocP>
         <DocList
           items={[
-            <>
-              <strong>Images</strong>, <strong>video</strong>, and <strong>audio</strong> with
-              native playback controls.
-            </>,
-            <>
-              <strong>PDF</strong> documents, page by page.
-            </>,
-            <>
-              <strong>DOCX</strong> word-processing documents.
-            </>,
-            <>
-              <strong>HTML</strong>: rendered <strong>sanitized, with scripts disabled</strong>.
-            </>,
-            <>
-              <strong>Markdown</strong>, rendered to formatted text.
-            </>,
-            <>
-              <strong>CSV</strong> and <strong>TSV</strong> as tables.
-            </>,
-            <>
-              <strong>Text and code</strong> files.
-            </>,
+            <T key="docs.viewing-files.p11" k="docs.viewing-files.p11" />,
+            <T key="docs.viewing-files.p12" k="docs.viewing-files.p12" />,
+            <T key="docs.viewing-files.p13" k="docs.viewing-files.p13" />,
+            <T key="docs.viewing-files.p14" k="docs.viewing-files.p14" />,
+            <T key="docs.viewing-files.p15" k="docs.viewing-files.p15" />,
+            <T key="docs.viewing-files.p16" k="docs.viewing-files.p16" />,
+            <T key="docs.viewing-files.p17" k="docs.viewing-files.p17" />,
           ]}
         />
-        <DocNote type="security" title="HTML is rendered safely">
-          HTML previews are sanitized and have scripting disabled before they are shown, so opening
-          an HTML file can&apos;t run code or phone home from inside your vault.
+        <DocNote type="security" title={<T k="docs.viewing-files.a19" />}>
+          <T k="docs.viewing-files.p18" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="zero-knowledge" title="Decrypted on the fly">
+      <DocSection id="zero-knowledge" title={<T k="docs.viewing-files.a22" />}>
         <DocP>
-          Previewing is <strong>zero-knowledge</strong>. zcrypt fetches the encrypted chunks, then
-          decrypts and decompresses them <strong>in your browser</strong> just long enough to render
-          the preview. The plaintext <strong>stays local</strong>. It is never written to your
-          storage platform and never sent to our servers.
+          <T k="docs.viewing-files.p21" />
         </DocP>
       </DocSection>
 
-      <DocSection id="navigate" title="Paging & keyboard">
+      <DocSection id="navigate" title={<T k="docs.viewing-files.a31" />}>
         <DocP>
-          Once open, the viewer steps through the whole folder. Move <strong>prev/next</strong>{" "}
-          across files, watch the <strong>counter</strong> track your position, and go{" "}
-          <strong>fullscreen</strong> for media. Everything is reachable from the keyboard:
+          <T k="docs.viewing-files.p23" />
         </DocP>
         <DocTable
-          head={["Key", "Action"]}
+          head={[
+            <T key="docs.viewing-files.p24" k="docs.viewing-files.p24" />,
+            <T key="docs.viewing-files.p25" k="docs.viewing-files.p25" />,
+          ]}
           rows={[
             [
               <>
                 <kbd>Esc</kbd>
               </>,
-              "Close the viewer",
+              <T key="docs.viewing-files.p26" k="docs.viewing-files.p26" />,
             ],
             [
               <>
                 <kbd>&larr;</kbd>
               </>,
-              "Previous file in the folder",
+              <T key="docs.viewing-files.p27" k="docs.viewing-files.p27" />,
             ],
             [
               <>
                 <kbd>&rarr;</kbd>
               </>,
-              "Next file in the folder",
+              <T key="docs.viewing-files.p28" k="docs.viewing-files.p28" />,
             ],
             [
               <>
                 <kbd>f</kbd>
               </>,
-              "Toggle fullscreen",
+              <T key="docs.viewing-files.p29" k="docs.viewing-files.p29" />,
             ],
           ]}
         />
         <DocP>
-          For the complete list of supported formats and how each renderer works, see{" "}
-          <Link
-            href="/features/file-viewers"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            File viewers
-          </Link>
-          .
+          <T
+            k="docs.viewing-files.p30"
+            links={{ l1: "/features/file-viewers" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

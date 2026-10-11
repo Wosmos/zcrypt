@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Dead man's switch | zcrypt Docs",
   description:
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "what", title: "What it does" },
-  { id: "setup", title: "Setting it up" },
-  { id: "checkin", title: "Checking in" },
-  { id: "honest", title: "What it does (and doesn't) do" },
-  { id: "next", title: "Where to go next" },
+  { id: "what", k: "docs.dead-mans-switch.toc.what" },
+  { id: "setup", k: "docs.dead-mans-switch.toc.setup" },
+  { id: "checkin", k: "docs.dead-mans-switch.toc.checkin" },
+  { id: "honest", k: "docs.dead-mans-switch.toc.honest" },
+  { id: "next", k: "docs.dead-mans-switch.toc.next" },
 ];
 
 export default function DeadMansSwitchDocPage() {
@@ -32,88 +33,69 @@ export default function DeadMansSwitchDocPage() {
       description="A safeguard that watches for your absence. If you stop checking in for a period you choose, zcrypt sends a message to a contact you trust: a way to make sure someone is alerted if something happens to you."
       toc={toc}
     >
-      <DocSection id="what" title="What it does">
+      <DocSection id="what" title={<T k="docs.dead-mans-switch.a2" />}>
         <DocP>
-          A dead man&rsquo;s switch fires when you <em>stop</em> doing something. Here, that
-          something is signing in. You nominate a trusted contact and a timeout; if you don&rsquo;t
-          check in before the timeout elapses, zcrypt sends that contact an email.
+          <T k="docs.dead-mans-switch.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="setup" title="Setting it up">
-        <DocP>From settings, configure the switch with:</DocP>
+      <DocSection id="setup" title={<T k="docs.dead-mans-switch.a8" />}>
+        <DocP>
+          <T k="docs.dead-mans-switch.p3" />
+        </DocP>
         <DocList
           items={[
-            <>
-              <strong>Contact email</strong>, who gets notified. A contact name is optional.
-            </>,
-            <>
-              <strong>Timeout</strong>: anywhere from <strong>7 to 365 days</strong> of inactivity
-              before it fires.
-            </>,
-            <>
-              <strong>A message</strong>: optional text included in the email to your contact. It is{" "}
-              <strong>not end-to-end encrypted</strong>: the server and the email provider can read
-              it, so do not put secrets in it.
-            </>,
+            <T key="docs.dead-mans-switch.p4" k="docs.dead-mans-switch.p4" />,
+            <T key="docs.dead-mans-switch.p5" k="docs.dead-mans-switch.p5" />,
+            <T key="docs.dead-mans-switch.p6" k="docs.dead-mans-switch.p6" />,
           ]}
         />
-        <DocP>You can enable, disable, or delete the switch at any time.</DocP>
-      </DocSection>
-
-      <DocSection id="checkin" title="Checking in">
         <DocP>
-          <strong>Every login counts as a check-in and resets the timer.</strong> As long as you
-          keep signing in within your chosen window, the switch never fires. So the practical rule
-          is simple: log in at least once per timeout period to stay silent.
+          <T k="docs.dead-mans-switch.p7" />
         </DocP>
       </DocSection>
 
-      <DocSection id="honest" title="What it does (and doesn't) do">
-        <DocNote type="warning" title="Read this before you rely on it">
+      <DocSection id="checkin" title={<T k="docs.dead-mans-switch.a10" />}>
+        <DocP>
+          <T k="docs.dead-mans-switch.p9" />
+        </DocP>
+      </DocSection>
+
+      <DocSection id="honest" title={<T k="docs.dead-mans-switch.a15" />}>
+        <DocNote type="warning" title={<T k="docs.dead-mans-switch.a14" />}>
           <p className="mb-2">
-            The dead man&rsquo;s switch sends a <strong>notification email</strong> to your contact.
-            That is all it does.
+            <T k="docs.dead-mans-switch.p11" />
           </p>
           <p className="mb-2">
-            It does <strong>not</strong> deliver your files, and it does <strong>not</strong> hand
-            over any keys, because zcrypt is zero-knowledge, there are no keys on our side to give
-            anyone. We cannot decrypt your vault, so the switch cannot pass your data to your
-            contact.
+            <T k="docs.dead-mans-switch.p12" />
           </p>
           <p>
-            There is an &ldquo;include files&rdquo; option, but it only changes the{" "}
-            <strong>wording of the email</strong>. It does not attach, transfer, list, or unlock
-            anything. If you want a contact to be able to reach your actual files, you must arrange
-            that yourself (for example, by sharing a passphrase through your own trusted channel).
+            <T k="docs.dead-mans-switch.p13" />
           </p>
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.dead-mans-switch.a19" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/decoy-profile"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Decoy profile: a second password that opens a fake vault
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/recovery"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Account recovery: what is and isn&rsquo;t recoverable, and why
-            </Link>,
-            <Link
-              key="c"
-              href="/features/privacy"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Privacy tools, the feature tour
-            </Link>,
+            <T
+              key="docs.dead-mans-switch.p16"
+              k="docs.dead-mans-switch.p16"
+              links={{ l1: "/docs/decoy-profile" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.dead-mans-switch.p17"
+              k="docs.dead-mans-switch.p17"
+              links={{ l1: "/docs/recovery" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.dead-mans-switch.p18"
+              k="docs.dead-mans-switch.p18"
+              links={{ l1: "/features/privacy" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

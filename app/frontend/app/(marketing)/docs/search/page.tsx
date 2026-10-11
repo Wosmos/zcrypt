@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Search & filters | zcrypt Docs",
   description:
@@ -17,9 +18,9 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "box", title: "The search box" },
-  { id: "local", title: "Search stays on your device" },
-  { id: "filters", title: "Type-filter chips" },
+  { id: "box", k: "docs.search.toc.box" },
+  { id: "local", k: "docs.search.toc.local" },
+  { id: "filters", k: "docs.search.toc.filters" },
 ];
 
 export default function SearchDocPage() {
@@ -30,45 +31,37 @@ export default function SearchDocPage() {
       description="Find what you need inside a folder fast, without your search ever leaving your device."
       toc={toc}
     >
-      <DocSection id="box" title="The search box">
+      <DocSection id="box" title={<T k="docs.search.a2" />}>
         <DocP>
-          Each folder has a <strong>search box</strong> that filters the current location as you
-          type. It matches both <strong>file names</strong> and <strong>folder names</strong>, so
-          you can narrow a busy folder to just the items you mean in a few keystrokes.
+          <T k="docs.search.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="local" title="Search stays on your device">
+      <DocSection id="local" title={<T k="docs.search.a6" />}>
         <DocP>
-          zcrypt matches against the <strong>decrypted</strong> names held in your browser after the
-          vault is unlocked. The matching runs entirely <strong>locally</strong>; your query is
-          never sent anywhere. The server only ever stores encrypted names, so there is nothing for
-          it to search even if it wanted to.
+          <T k="docs.search.p3" />
         </DocP>
-        <DocNote type="security" title="Why this matters">
-          A search term can be as revealing as a file name. Keeping the match on your device means
-          neither your file names nor what you look for ever reach our servers.
+        <DocNote type="security" title={<T k="docs.search.a5" />}>
+          <T k="docs.search.p4" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="filters" title="Type-filter chips">
+      <DocSection id="filters" title={<T k="docs.search.a11" />}>
         <DocP>
-          Alongside the search box, <strong>type-filter chips</strong> narrow the view by category:
-          images, documents, and so on, and stack with whatever you have typed. Use them to sweep a
-          folder down to one kind of file, then refine by name.
+          <T k="docs.search.p7" />
         </DocP>
         <DocList
           items={[
-            "Filters apply to the current folder, on top of any active search text.",
-            "Clear the chips to return to the full listing.",
+            <T key="docs.search.p8" k="docs.search.p8" />,
+            <T key="docs.search.p9" k="docs.search.p9" />,
           ]}
         />
         <DocP>
-          Search and filtering also appear inside the file explorer. See{" "}
-          <Link href="/docs/folders" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Folders &amp; the file explorer
-          </Link>
-          .
+          <T
+            k="docs.search.p10"
+            links={{ l1: "/docs/folders" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

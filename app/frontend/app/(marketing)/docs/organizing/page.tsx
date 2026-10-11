@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Moving & organizing | zcrypt Docs",
   description:
@@ -17,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "drag", title: "Drag and drop to move" },
-  { id: "bulk-drag", title: "Dragging many items" },
-  { id: "drop-to-group", title: "Drop to create a folder" },
-  { id: "dialog", title: "The Move-to-folder dialog" },
-  { id: "select", title: "Selecting multiple items" },
-  { id: "bulk-actions", title: "Bulk download & delete" },
+  { id: "drag", k: "docs.organizing.toc.drag" },
+  { id: "bulk-drag", k: "docs.organizing.toc.bulk-drag" },
+  { id: "drop-to-group", k: "docs.organizing.toc.drop-to-group" },
+  { id: "dialog", k: "docs.organizing.toc.dialog" },
+  { id: "select", k: "docs.organizing.toc.select" },
+  { id: "bulk-actions", k: "docs.organizing.toc.bulk-actions" },
 ];
 
 export default function OrganizingDocPage() {
@@ -33,103 +34,92 @@ export default function OrganizingDocPage() {
       description="Rearrange your encrypted drive the way you would expect: drag things where they go, select in bulk, and act on many files at once: all from the unified explorer."
       toc={toc}
     >
-      <DocSection id="drag" title="Drag and drop to move">
+      <DocSection id="drag" title={<T k="docs.organizing.a2" />}>
         <DocP>
-          Drag any file or folder onto a <strong>folder</strong> to move it inside. You can also
-          drop it onto a <strong>breadcrumb crumb</strong> to move it to that level of the tree:
-          handy for popping an item back up several folders at once. Valid drop targets highlight as
-          you drag.
+          <T k="docs.organizing.p1" />
         </DocP>
       </DocSection>
 
-      <DocSection id="bulk-drag" title="Dragging many items">
+      <DocSection id="bulk-drag" title={<T k="docs.organizing.a4" />}>
         <DocP>
-          Select several items first, then drag any one of them, the whole selection moves together.
-          Drop the group onto a folder or a breadcrumb just like a single item.
+          <T k="docs.organizing.p3" />
         </DocP>
       </DocSection>
 
-      <DocSection id="drop-to-group" title="Drop one file onto another">
+      <DocSection id="drop-to-group" title={<T k="docs.organizing.a6" />}>
         <DocP>
-          Drop a file directly onto <strong>another file</strong> and zcrypt creates a{" "}
-          <strong>new folder containing both</strong>. It is the fastest way to start grouping
-          related files without making the folder first.
+          <T k="docs.organizing.p5" />
         </DocP>
       </DocSection>
 
-      <DocSection id="dialog" title="The Move-to-folder dialog">
+      <DocSection id="dialog" title={<T k="docs.organizing.a10" />}>
         <DocP>
-          Prefer a picker to dragging? Choose <strong>Move to folder</strong> on any item or
-          selection to open a nested folder browser. Drill into the tree, pick a destination, and
-          confirm.
+          <T k="docs.organizing.p7" />
         </DocP>
-        <DocNote type="info" title="Cycle protection">
-          The picker will not let you move a folder into itself or into one of its own descendants:
-          destinations that would create a loop are disabled, so you can&apos;t accidentally orphan
-          a branch of your tree.
+        <DocNote type="info" title={<T k="docs.organizing.a9" />}>
+          <T k="docs.organizing.p8" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="select" title="Selecting multiple items">
+      <DocSection id="select" title={<T k="docs.organizing.a22" />}>
         <DocP>
-          The explorer supports the selection gestures you already know, plus full keyboard control:
+          <T k="docs.organizing.p11" />
         </DocP>
         <DocTable
-          head={["Gesture", "What it does"]}
+          head={[
+            <T key="docs.organizing.p12" k="docs.organizing.p12" />,
+            <T key="docs.organizing.p13" k="docs.organizing.p13" />,
+          ]}
           rows={[
             [
-              <>
-                <kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + click
-              </>,
-              "Add or remove a single item from the selection",
+              <T key="docs.organizing.p14" k="docs.organizing.p14" />,
+              <T key="docs.organizing.p15" k="docs.organizing.p15" />,
             ],
             [
-              <>
-                <kbd>Shift</kbd> + click
-              </>,
-              "Select a contiguous range",
+              <T key="docs.organizing.p16" k="docs.organizing.p16" />,
+              <T key="docs.organizing.p17" k="docs.organizing.p17" />,
             ],
             [
               <>
                 <kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>A</kbd>
               </>,
-              "Select everything in the current folder",
+              <T key="docs.organizing.p18" k="docs.organizing.p18" />,
             ],
-            [<>Arrow keys</>, "Move the focus between items"],
+            [
+              <T key="docs.organizing.p19" k="docs.organizing.p19" />,
+              <T key="docs.organizing.p20" k="docs.organizing.p20" />,
+            ],
             [
               <>
                 <kbd>Space</kbd>
               </>,
-              "Toggle the focused item's selection",
+              <T key="docs.organizing.p21" k="docs.organizing.p21" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="bulk-actions" title="Bulk download & delete">
-        <DocP>With a selection active, you can act on all of it at once:</DocP>
+      <DocSection id="bulk-actions" title={<T k="docs.organizing.a27" />}>
+        <DocP>
+          <T k="docs.organizing.p23" />
+        </DocP>
         <DocList
           items={[
-            <>
-              <strong>Bulk download</strong> packages the selected files into a single{" "}
-              <strong>ZIP</strong>. Each file is fetched, decrypted, and decompressed on your device
-              as the archive is assembled, nothing is decrypted server-side.
-            </>,
-            <>
-              <strong>Bulk delete</strong> moves the whole selection to the Trash, where it can be{" "}
-              <Link href="/docs/trash" className="text-cyan-600 hover:underline dark:text-cyan-400">
-                restored or purged later
-              </Link>
-              .
-            </>,
+            <T key="docs.organizing.p24" k="docs.organizing.p24" />,
+            <T
+              key="docs.organizing.p25"
+              k="docs.organizing.p25"
+              links={{ l1: "/docs/trash" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
         <DocP>
-          For more on archives and large multi-file jobs, see{" "}
-          <Link href="/docs/bulk" className="text-cyan-600 hover:underline dark:text-cyan-400">
-            Bulk operations
-          </Link>
-          .
+          <T
+            k="docs.organizing.p26"
+            links={{ l1: "/docs/bulk" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

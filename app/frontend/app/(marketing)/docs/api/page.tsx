@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
@@ -11,6 +11,7 @@ import {
   DocTable,
 } from "@/components/docs/doc-page";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "API reference | zcrypt Docs",
   description:
@@ -25,23 +26,23 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "basics", title: "Basics" },
-  { id: "auth", title: "Authentication" },
-  { id: "files", title: "Files & folders" },
-  { id: "upload", title: "Upload (chunked)" },
-  { id: "download", title: "Download (chunked)" },
-  { id: "sharing", title: "Sharing" },
-  { id: "folder-shares", title: "Folder links" },
-  { id: "spaces", title: "Shared vaults (spaces)" },
-  { id: "keys", title: "User keys" },
-  { id: "send-pad", title: "Send & Pad" },
-  { id: "vaults", title: "Timed vaults" },
-  { id: "snapshots", title: "Snapshots & integrity" },
-  { id: "devices", title: "Offline & clipboard" },
-  { id: "sync", title: "Sync folders" },
-  { id: "events", title: "Events (SSE)" },
-  { id: "config", title: "Quota & config" },
-  { id: "admin", title: "Admin" },
+  { id: "basics", k: "docs.api.toc.basics" },
+  { id: "auth", k: "docs.api.toc.auth" },
+  { id: "files", k: "docs.api.toc.files" },
+  { id: "upload", k: "docs.api.toc.upload" },
+  { id: "download", k: "docs.api.toc.download" },
+  { id: "sharing", k: "docs.api.toc.sharing" },
+  { id: "folder-shares", k: "docs.api.toc.folder-shares" },
+  { id: "spaces", k: "docs.api.toc.spaces" },
+  { id: "keys", k: "docs.api.toc.keys" },
+  { id: "send-pad", k: "docs.api.toc.send-pad" },
+  { id: "vaults", k: "docs.api.toc.vaults" },
+  { id: "snapshots", k: "docs.api.toc.snapshots" },
+  { id: "devices", k: "docs.api.toc.devices" },
+  { id: "sync", k: "docs.api.toc.sync" },
+  { id: "events", k: "docs.api.toc.events" },
+  { id: "config", k: "docs.api.toc.config" },
+  { id: "admin", k: "docs.api.toc.admin" },
 ];
 
 export default function ApiDocPage() {
@@ -52,620 +53,768 @@ export default function ApiDocPage() {
       description="zcrypt exposes a JSON REST API. Encryption happens on the client, so the API only ever moves opaque ciphertext, metadata, and chunks, never plaintext or keys."
       toc={toc}
     >
-      <DocSection id="basics" title="Basics">
+      <DocSection id="basics" title={<T k="docs.api.a7" />}>
         <DocList
           items={[
-            <>
-              <strong>Base URL.</strong> Your backend origin, with every route under{" "}
-              <code>/api</code>. On a self-hosted instance this is whatever you set as{" "}
-              <code>BACKEND_URL</code>.
-            </>,
-            <>
-              <strong>Content type.</strong> Request and response bodies are JSON, except chunk
-              transfers, which send and receive raw bytes. JSON request bodies are capped at
-              1&nbsp;MB.
-            </>,
-            <>
-              <strong>Errors.</strong> Non-2xx responses return{" "}
-              <code>{`{ "error": "message" }`}</code> with a matching HTTP status.
-            </>,
-            <>
-              <strong>Rate limits.</strong> Requests are rate-limited per IP. Auth and public (share
-              / send / pad) routes have their own tighter limits; the SSE and WebSocket endpoints
-              are exempt.
-            </>,
+            <T key="docs.api.p1" k="docs.api.p1" />,
+            <T key="docs.api.p2" k="docs.api.p2" />,
+            <T key="docs.api.p3" k="docs.api.p3" />,
+            <T key="docs.api.p4" k="docs.api.p4" />,
           ]}
         />
-        <DocNote type="info" title="Stability">
-          This documents the routes the web, desktop, and Android apps use today. zcrypt is open
-          source and pre-1.0. Treat the surface as evolving, and read <code>RegisterRoutes</code> in{" "}
-          <code>app/backend/cmd/server.go</code> as the authoritative route table.
+        <DocNote type="info" title={<T k="docs.api.a6" />}>
+          <T k="docs.api.p5" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="auth" title="Authentication">
+      <DocSection id="auth" title={<T k="docs.api.a28" />}>
         <DocP>
-          Authenticate by sending a JSON Web Token in the <code>Authorization</code> header. Logging
-          in returns an access token (and a refresh token); send the access token on every protected
-          request.
+          <T k="docs.api.p8" />
         </DocP>
-        <DocCode label="Authorization header">{`Authorization: Bearer <access-token>`}</DocCode>
+        <DocCode label={<T k="docs.api.a10" />}>{`Authorization: Bearer <access-token>`}</DocCode>
         <DocP>
-          When an account has two-factor enabled, <code>login</code> returns a 2FA challenge instead
-          of tokens; complete it with <code>POST /api/auth/2fa/verify</code>. Access tokens are
-          short-lived. Use <code>POST /api/auth/refresh</code> to mint a new one.
+          <T k="docs.api.p11" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p12" k="docs.api.p12" />,
+            <T key="docs.api.p13" k="docs.api.p13" />,
+            <T key="docs.api.p14" k="docs.api.p14" />,
+          ]}
           rows={[
-            ["POST", <code key="p">/api/auth/register</code>, "Create an account."],
+            [
+              "POST",
+              <code key="p">/api/auth/register</code>,
+              <T key="docs.api.p15" k="docs.api.p15" />,
+            ],
             [
               "POST",
               <code key="p">/api/auth/login</code>,
-              "Sign in; returns tokens or a 2FA challenge.",
+              <T key="docs.api.p16" k="docs.api.p16" />,
             ],
             [
               "POST",
               <code key="p">/api/auth/refresh</code>,
-              "Exchange a refresh token for a new access token.",
+              <T key="docs.api.p17" k="docs.api.p17" />,
             ],
-            ["POST", <code key="p">/api/auth/logout</code>, "Invalidate the current session."],
+            [
+              "POST",
+              <code key="p">/api/auth/logout</code>,
+              <T key="docs.api.p18" k="docs.api.p18" />,
+            ],
             [
               "POST",
               <code key="p">/api/auth/2fa/verify</code>,
-              "Complete a TOTP challenge during login.",
+              <T key="docs.api.p19" k="docs.api.p19" />,
             ],
             [
               "POST",
               <code key="p">/api/auth/2fa/setup</code>,
-              "Generate a TOTP secret (authenticated).",
+              <T key="docs.api.p20" k="docs.api.p20" />,
             ],
             [
               "POST",
               <code key="p">/api/auth/2fa/enable</code>,
-              "Enable 2FA after verifying a code.",
+              <T key="docs.api.p21" k="docs.api.p21" />,
             ],
             [
               "POST",
               <code key="p">/api/auth/forgot-password</code>,
-              "Send a password-reset email.",
+              <T key="docs.api.p22" k="docs.api.p22" />,
             ],
             [
               "POST",
               <code key="p">/api/auth/reset-password</code>,
-              "Reset a password with a token.",
+              <T key="docs.api.p23" k="docs.api.p23" />,
             ],
-            ["POST", <code key="p">/api/auth/verify-email</code>, "Verify an email address."],
+            [
+              "POST",
+              <code key="p">/api/auth/verify-email</code>,
+              <T key="docs.api.p24" k="docs.api.p24" />,
+            ],
             [
               "POST",
               <code key="p">/api/auth/magic-link</code>,
-              "Request a passwordless sign-in link.",
+              <T key="docs.api.p25" k="docs.api.p25" />,
             ],
-            ["GET", <code key="p">/api/auth/me</code>, "Return the current user."],
+            ["GET", <code key="p">/api/auth/me</code>, <T key="docs.api.p26" k="docs.api.p26" />],
             [
               "GET",
               <code key="p">/api/auth/oauth/{`{provider}`}</code>,
-              "Begin a Google/GitHub OAuth flow.",
+              <T key="docs.api.p27" k="docs.api.p27" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="files" title="Files & folders">
+      <DocSection id="files" title={<T k="docs.api.a46" />}>
         <DocP>
-          Files and folders carry only encrypted metadata. Folders can be nested, renamed, moved,
-          and given their own password; deletes are soft (Trash) until purged. File names and folder
-          names are ciphertext on the server.
+          <T k="docs.api.p29" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p30" k="docs.api.p30" />,
+            <T key="docs.api.p31" k="docs.api.p31" />,
+            <T key="docs.api.p32" k="docs.api.p32" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/files</code>, "List files (filterable by folder)."],
-            ["GET", <code key="p">/api/files/trash</code>, "List soft-deleted files."],
-            ["DELETE", <code key="p">/api/files/{`{id}`}</code>, "Move a file to Trash."],
-            ["POST", <code key="p">/api/files/bulk-delete</code>, "Move many files to Trash."],
-            ["PATCH", <code key="p">/api/files/{`{id}`}/move</code>, "Move a file into a folder."],
-            ["POST", <code key="p">/api/files/{`{id}`}/restore</code>, "Restore from Trash."],
+            ["GET", <code key="p">/api/files</code>, <T key="docs.api.p33" k="docs.api.p33" />],
+            [
+              "GET",
+              <code key="p">/api/files/trash</code>,
+              <T key="docs.api.p34" k="docs.api.p34" />,
+            ],
+            [
+              "DELETE",
+              <code key="p">/api/files/{`{id}`}</code>,
+              <T key="docs.api.p35" k="docs.api.p35" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/files/bulk-delete</code>,
+              <T key="docs.api.p36" k="docs.api.p36" />,
+            ],
+            [
+              "PATCH",
+              <code key="p">/api/files/{`{id}`}/move</code>,
+              <T key="docs.api.p37" k="docs.api.p37" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/files/{`{id}`}/restore</code>,
+              <T key="docs.api.p38" k="docs.api.p38" />,
+            ],
             [
               "DELETE",
               <code key="p">/api/files/{`{id}`}/purge</code>,
-              "Permanently delete a file.",
+              <T key="docs.api.p39" k="docs.api.p39" />,
             ],
-            ["GET", <code key="p">/api/folders</code>, "List folders."],
-            ["POST", <code key="p">/api/folders</code>, "Create a folder."],
-            ["PATCH", <code key="p">/api/folders/{`{id}`}</code>, "Rename a folder."],
-            ["PATCH", <code key="p">/api/folders/{`{id}`}/move</code>, "Move a folder."],
-            ["POST", <code key="p">/api/folders/{`{id}`}/password</code>, "Set a folder password."],
-            ["DELETE", <code key="p">/api/folders/{`{id}`}</code>, "Delete a folder."],
+            ["GET", <code key="p">/api/folders</code>, <T key="docs.api.p40" k="docs.api.p40" />],
+            ["POST", <code key="p">/api/folders</code>, <T key="docs.api.p41" k="docs.api.p41" />],
+            [
+              "PATCH",
+              <code key="p">/api/folders/{`{id}`}</code>,
+              <T key="docs.api.p42" k="docs.api.p42" />,
+            ],
+            [
+              "PATCH",
+              <code key="p">/api/folders/{`{id}`}/move</code>,
+              <T key="docs.api.p43" k="docs.api.p43" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/folders/{`{id}`}/password</code>,
+              <T key="docs.api.p44" k="docs.api.p44" />,
+            ],
+            [
+              "DELETE",
+              <code key="p">/api/folders/{`{id}`}</code>,
+              <T key="docs.api.p45" k="docs.api.p45" />,
+            ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="upload" title="Upload (chunked)">
+      <DocSection id="upload" title={<T k="docs.api.a60" />}>
         <DocP>
-          Uploads are client-side encrypted and chunked. Initialise a session, push each encrypted
-          chunk (or upload it directly to the platform via a presigned URL where supported), then
-          complete the session. Sessions are resumable: query status and re-send only the chunks
-          that are missing.
+          <T k="docs.api.p47" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p48" k="docs.api.p48" />,
+            <T key="docs.api.p49" k="docs.api.p49" />,
+            <T key="docs.api.p50" k="docs.api.p50" />,
+          ]}
           rows={[
             [
               "POST",
               <code key="p">/api/upload/init</code>,
-              "Start an upload session; returns a session id.",
+              <T key="docs.api.p51" k="docs.api.p51" />,
             ],
             [
               "PUT",
               <code key="p">
                 /api/upload/{`{sid}`}/chunk/{`{idx}`}
               </code>,
-              "Upload one encrypted chunk through the server.",
+              <T key="docs.api.p52" k="docs.api.p52" />,
             ],
             [
               "POST",
               <code key="p">
                 /api/upload/{`{sid}`}/presign/{`{idx}`}
               </code>,
-              "Get a presigned URL to upload a chunk directly.",
+              <T key="docs.api.p53" k="docs.api.p53" />,
             ],
             [
               "POST",
               <code key="p">
                 /api/upload/{`{sid}`}/confirm/{`{idx}`}
               </code>,
-              "Confirm a directly-uploaded chunk.",
+              <T key="docs.api.p54" k="docs.api.p54" />,
             ],
             [
               "POST",
               <code key="p">/api/upload/{`{sid}`}/complete</code>,
-              "Finalise the file once all chunks are in.",
+              <T key="docs.api.p55" k="docs.api.p55" />,
             ],
             [
               "GET",
               <code key="p">/api/upload/{`{sid}`}/status</code>,
-              "Report which chunks are received (resume).",
+              <T key="docs.api.p56" k="docs.api.p56" />,
             ],
-            ["DELETE", <code key="p">/api/upload/{`{sid}`}</code>, "Cancel an in-flight upload."],
+            [
+              "DELETE",
+              <code key="p">/api/upload/{`{sid}`}</code>,
+              <T key="docs.api.p57" k="docs.api.p57" />,
+            ],
           ]}
         />
-        <DocNote type="info" title="Chunk integrity headers">
-          Chunk uploads carry an <code>X-Chunk-SHA256</code> hash and an{" "}
-          <code>X-Chunk-Compressed</code> flag so the server can verify each chunk and record how it
-          was packed, without ever decrypting it.
+        <DocNote type="info" title={<T k="docs.api.a59" />}>
+          <T k="docs.api.p58" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="download" title="Download (chunked)">
+      <DocSection id="download" title={<T k="docs.api.a68" />}>
         <DocP>
-          Downloads fetch metadata, then pull chunks by index. The client verifies each chunk,
-          reassembles, decrypts with your passphrase-derived key, and decompresses, all locally.
+          <T k="docs.api.p61" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p62" k="docs.api.p62" />,
+            <T key="docs.api.p63" k="docs.api.p63" />,
+            <T key="docs.api.p64" k="docs.api.p64" />,
+          ]}
           rows={[
             [
               "GET",
               <code key="p">/api/files/{`{id}`}/meta</code>,
-              "File metadata: size, chunk count, salt/IV.",
+              <T key="docs.api.p65" k="docs.api.p65" />,
             ],
             [
               "POST",
               <code key="p">/api/files/meta</code>,
-              "Batch metadata for up to 200 file ids in one request.",
+              <T key="docs.api.p66" k="docs.api.p66" />,
             ],
             [
               "GET",
               <code key="p">
                 /api/files/{`{id}`}/chunks/{`{idx}`}
               </code>,
-              "Fetch one encrypted chunk by index.",
+              <T key="docs.api.p67" k="docs.api.p67" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="sharing" title="Sharing">
+      <DocSection id="sharing" title={<T k="docs.api.a79" />}>
         <DocP>
-          Share links expose a single file to anyone with the token, optionally guarded by a
-          password and bounded by an expiry or download limit. The public read routes are
-          unauthenticated and rate-limited; a share password is supplied via the{" "}
-          <code>X-Share-Password</code> header.
+          <T k="docs.api.p69" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p70" k="docs.api.p70" />,
+            <T key="docs.api.p71" k="docs.api.p71" />,
+            <T key="docs.api.p72" k="docs.api.p72" />,
+          ]}
           rows={[
-            ["POST", <code key="p">/api/shares</code>, "Create a share link (authenticated)."],
-            ["GET", <code key="p">/api/shares</code>, "List your share links."],
-            ["DELETE", <code key="p">/api/shares/{`{id}`}</code>, "Revoke a share link."],
+            ["POST", <code key="p">/api/shares</code>, <T key="docs.api.p73" k="docs.api.p73" />],
+            ["GET", <code key="p">/api/shares</code>, <T key="docs.api.p74" k="docs.api.p74" />],
+            [
+              "DELETE",
+              <code key="p">/api/shares/{`{id}`}</code>,
+              <T key="docs.api.p75" k="docs.api.p75" />,
+            ],
             [
               "GET",
               <code key="p">/api/share/{`{token}`}</code>,
-              "Public: share info (name, size, flags).",
+              <T key="docs.api.p76" k="docs.api.p76" />,
             ],
             [
               "GET",
               <code key="p">/api/share/{`{token}`}/meta</code>,
-              "Public: file metadata for the share.",
+              <T key="docs.api.p77" k="docs.api.p77" />,
             ],
             [
               "GET",
               <code key="p">
                 /api/share/{`{token}`}/chunks/{`{idx}`}
               </code>,
-              "Public: fetch a shared chunk.",
+              <T key="docs.api.p78" k="docs.api.p78" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="folder-shares" title="Folder links">
+      <DocSection id="folder-shares" title={<T k="docs.api.a90" />}>
         <DocP>
-          A folder link publishes a set of files behind a single public token. The link key is
-          generated on the client and lives only in the URL fragment &mdash; it is never sent to the
-          server &mdash; and each file&rsquo;s content key is re-wrapped under it, so the public
-          routes only ever return opaque ciphertext. A link can carry a password (sent in the{" "}
-          <code>X-Share-Password</code> header), an expiry, and a download cap. The public read
-          routes are unauthenticated and rate-limited.
+          <T k="docs.api.p80" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p81" k="docs.api.p81" />,
+            <T key="docs.api.p82" k="docs.api.p82" />,
+            <T key="docs.api.p83" k="docs.api.p83" />,
+          ]}
           rows={[
             [
               "POST",
               <code key="p">/api/folder-shares</code>,
-              "Create a folder link (authenticated).",
+              <T key="docs.api.p84" k="docs.api.p84" />,
             ],
-            ["GET", <code key="p">/api/folder-shares</code>, "List your folder links."],
-            ["DELETE", <code key="p">/api/folder-shares/{`{id}`}</code>, "Revoke a folder link."],
+            [
+              "GET",
+              <code key="p">/api/folder-shares</code>,
+              <T key="docs.api.p85" k="docs.api.p85" />,
+            ],
+            [
+              "DELETE",
+              <code key="p">/api/folder-shares/{`{id}`}</code>,
+              <T key="docs.api.p86" k="docs.api.p86" />,
+            ],
             [
               "GET",
               <code key="p">/api/folder-share/{`{token}`}</code>,
-              "Public: link info and the file listing.",
+              <T key="docs.api.p87" k="docs.api.p87" />,
             ],
             [
               "GET",
               <code key="p">
                 /api/folder-share/{`{token}`}/files/{`{fid}`}/meta
               </code>,
-              "Public: one file's metadata + wrapped key.",
+              <T key="docs.api.p88" k="docs.api.p88" />,
             ],
             [
               "GET",
               <code key="p">
                 /api/folder-share/{`{token}`}/files/{`{fid}`}/chunks/{`{idx}`}
               </code>,
-              "Public: fetch a chunk of a linked file.",
+              <T key="docs.api.p89" k="docs.api.p89" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="spaces" title="Shared vaults (spaces)">
+      <DocSection id="spaces" title={<T k="docs.api.a107" />}>
         <DocP>
-          A shared vault (a &ldquo;space&rdquo;) lets several accounts share files under role-based
-          access. The space has its own random key that the client seals to each member&rsquo;s
-          public key (see <em>User keys</em> below), and every shared file&rsquo;s content key is
-          re-wrapped under the space key. The server only ever stores these opaque grants &mdash; it
-          can add, remove, and rotate them but never open them. Membership changes are owner-only;
-          adding or removing files is limited to editors and admins.
+          <T k="docs.api.p91" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p92" k="docs.api.p92" />,
+            <T key="docs.api.p93" k="docs.api.p93" />,
+            <T key="docs.api.p94" k="docs.api.p94" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/shared-vaults</code>, "List spaces you belong to."],
-            ["POST", <code key="p">/api/shared-vaults</code>, "Create a space."],
+            [
+              "GET",
+              <code key="p">/api/shared-vaults</code>,
+              <T key="docs.api.p95" k="docs.api.p95" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/shared-vaults</code>,
+              <T key="docs.api.p96" k="docs.api.p96" />,
+            ],
             [
               "GET",
               <code key="p">/api/shared-vaults/{`{id}`}</code>,
-              "Space detail with members and files.",
+              <T key="docs.api.p97" k="docs.api.p97" />,
             ],
-            ["DELETE", <code key="p">/api/shared-vaults/{`{id}`}</code>, "Delete a space (owner)."],
+            [
+              "DELETE",
+              <code key="p">/api/shared-vaults/{`{id}`}</code>,
+              <T key="docs.api.p98" k="docs.api.p98" />,
+            ],
             [
               "POST",
               <code key="p">/api/shared-vaults/{`{id}`}/members</code>,
-              "Add a member with a sealed grant (owner).",
+              <T key="docs.api.p99" k="docs.api.p99" />,
             ],
             [
               "DELETE",
               <code key="p">
                 /api/shared-vaults/{`{id}`}/members/{`{uid}`}
               </code>,
-              "Remove a member (owner).",
+              <T key="docs.api.p100" k="docs.api.p100" />,
             ],
             [
               "POST",
               <code key="p">/api/shared-vaults/{`{id}`}/files</code>,
-              "Share a file into the space (editor/admin).",
+              <T key="docs.api.p101" k="docs.api.p101" />,
             ],
             [
               "POST",
               <code key="p">/api/shared-vaults/{`{id}`}/files/batch</code>,
-              "Share many files into the space in one transaction (editor/admin). The free plan caps a batch at max_space_batch_files (default 200).",
+              <T key="docs.api.p102" k="docs.api.p102" />,
             ],
             [
               "DELETE",
               <code key="p">
                 /api/shared-vaults/{`{id}`}/files/{`{fid}`}
               </code>,
-              "Unshare a file (editor/admin).",
+              <T key="docs.api.p103" k="docs.api.p103" />,
             ],
             [
               "POST",
               <code key="p">/api/shared-vaults/{`{id}`}/rotate</code>,
-              "Rotate the space key after a change (owner).",
+              <T key="docs.api.p104" k="docs.api.p104" />,
             ],
           ]}
         />
-        <DocNote type="security" title="Rotation is what makes removal a revocation">
-          Rotating re-seals a fresh space key to the remaining members and re-wraps every
-          file&rsquo;s key under it, so a removed member&rsquo;s old grant &mdash; and any copy of
-          the old key &mdash; can no longer open the space&rsquo;s files.
+        <DocNote type="security" title={<T k="docs.api.a106" />}>
+          <T k="docs.api.p105" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="keys" title="User keys">
+      <DocSection id="keys" title={<T k="docs.api.a116" />}>
         <DocP>
-          To seal a space key to another account, every user gets an X25519 keypair generated on the
-          client. The private key is wrapped under your passphrase-derived key and stored only as
-          ciphertext the server can&rsquo;t read; the public key and a short fingerprint are stored
-          in the clear so others can seal grants to you. These routes never return anyone
-          else&rsquo;s private key.
+          <T k="docs.api.p108" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p109" k="docs.api.p109" />,
+            <T key="docs.api.p110" k="docs.api.p110" />,
+            <T key="docs.api.p111" k="docs.api.p111" />,
+          ]}
           rows={[
-            [
-              "GET",
-              <code key="p">/api/keys/me</code>,
-              "Your key record (incl. the wrapped private key), or null.",
-            ],
-            ["POST", <code key="p">/api/keys</code>, "Publish or rotate your keypair."],
+            ["GET", <code key="p">/api/keys/me</code>, <T key="docs.api.p112" k="docs.api.p112" />],
+            ["POST", <code key="p">/api/keys</code>, <T key="docs.api.p113" k="docs.api.p113" />],
             [
               "GET",
               <code key="p">/api/keys/lookup</code>,
-              "Resolve a user's public key by email or username (identifier query).",
+              <T key="docs.api.p114" k="docs.api.p114" />,
             ],
             [
               "GET",
               <code key="p">/api/keys/user/{`{id}`}</code>,
-              "Fetch another user's public key by id.",
+              <T key="docs.api.p115" k="docs.api.p115" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="send-pad" title="Send & Pad">
+      <DocSection id="send-pad" title={<T k="docs.api.a127" />}>
         <DocP>
-          <strong>Send</strong> lets anyone upload an encrypted file without an account and hand
-          over a token; <strong>Pad</strong> stores a one-time encrypted note. Both are
-          unauthenticated and rate-limited by IP.
+          <T k="docs.api.p117" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p118" k="docs.api.p118" />,
+            <T key="docs.api.p119" k="docs.api.p119" />,
+            <T key="docs.api.p120" k="docs.api.p120" />,
+          ]}
           rows={[
-            ["POST", <code key="p">/api/send/init</code>, "Start an anonymous send."],
+            [
+              "POST",
+              <code key="p">/api/send/init</code>,
+              <T key="docs.api.p121" k="docs.api.p121" />,
+            ],
             [
               "PUT",
               <code key="p">
                 /api/send/{`{sid}`}/chunk/{`{idx}`}
               </code>,
-              "Upload an encrypted chunk.",
+              <T key="docs.api.p122" k="docs.api.p122" />,
             ],
             [
               "POST",
               <code key="p">/api/send/{`{sid}`}/complete</code>,
-              "Finalise the send; returns a token.",
+              <T key="docs.api.p123" k="docs.api.p123" />,
             ],
             [
               "GET",
               <code key="p">/api/send/{`{token}`}</code>,
-              "Fetch send info / metadata / chunks.",
+              <T key="docs.api.p124" k="docs.api.p124" />,
             ],
-            ["POST", <code key="p">/api/pad</code>, "Create an encrypted one-time pad."],
-            ["GET", <code key="p">/api/pad/{`{token}`}</code>, "Read pad info, then its content."],
+            ["POST", <code key="p">/api/pad</code>, <T key="docs.api.p125" k="docs.api.p125" />],
+            [
+              "GET",
+              <code key="p">/api/pad/{`{token}`}</code>,
+              <T key="docs.api.p126" k="docs.api.p126" />,
+            ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="vaults" title="Timed vaults">
+      <DocSection id="vaults" title={<T k="docs.api.a136" />}>
         <DocP>
-          A timed vault groups files under a name and a countdown. The expiry is a label, not a
-          delete trigger &mdash; deleting a vault never deletes the files it references. The expiry
-          must be at least an hour out.
+          <T k="docs.api.p128" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p129" k="docs.api.p129" />,
+            <T key="docs.api.p130" k="docs.api.p130" />,
+            <T key="docs.api.p131" k="docs.api.p131" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/vaults</code>, "List your timed vaults."],
-            ["POST", <code key="p">/api/vaults</code>, "Create one (name, expires_at, file ids)."],
-            ["GET", <code key="p">/api/vaults/{`{id}`}</code>, "Get a timed vault."],
+            ["GET", <code key="p">/api/vaults</code>, <T key="docs.api.p132" k="docs.api.p132" />],
+            ["POST", <code key="p">/api/vaults</code>, <T key="docs.api.p133" k="docs.api.p133" />],
+            [
+              "GET",
+              <code key="p">/api/vaults/{`{id}`}</code>,
+              <T key="docs.api.p134" k="docs.api.p134" />,
+            ],
             [
               "DELETE",
               <code key="p">/api/vaults/{`{id}`}</code>,
-              "Delete the vault (not its files).",
+              <T key="docs.api.p135" k="docs.api.p135" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="snapshots" title="Snapshots & integrity">
+      <DocSection id="snapshots" title={<T k="docs.api.a149" />}>
         <DocP>
-          Snapshots capture a point-in-time manifest of your file list; the integrity monitor
-          records each file&rsquo;s SHA-256 and size so a later check can flag a hash that changed.
-          Both are metadata-only &mdash; no file contents are stored or restored. See{" "}
-          <Link
-            href="/docs/snapshots-integrity"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Snapshots &amp; integrity
-          </Link>
-          .
+          <T
+            k="docs.api.p137"
+            links={{ l1: "/docs/snapshots-integrity" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p138" k="docs.api.p138" />,
+            <T key="docs.api.p139" k="docs.api.p139" />,
+            <T key="docs.api.p140" k="docs.api.p140" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/snapshots</code>, "List vault snapshots."],
-            ["POST", <code key="p">/api/snapshots</code>, "Capture a new snapshot."],
-            ["GET", <code key="p">/api/snapshots/{`{id}`}</code>, "Get one snapshot."],
-            ["DELETE", <code key="p">/api/snapshots/{`{id}`}</code>, "Delete a snapshot."],
-            ["GET", <code key="p">/api/integrity</code>, "List integrity references."],
-            ["POST", <code key="p">/api/integrity</code>, "Record a file's hash + size reference."],
+            [
+              "GET",
+              <code key="p">/api/snapshots</code>,
+              <T key="docs.api.p141" k="docs.api.p141" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/snapshots</code>,
+              <T key="docs.api.p142" k="docs.api.p142" />,
+            ],
+            [
+              "GET",
+              <code key="p">/api/snapshots/{`{id}`}</code>,
+              <T key="docs.api.p143" k="docs.api.p143" />,
+            ],
+            [
+              "DELETE",
+              <code key="p">/api/snapshots/{`{id}`}</code>,
+              <T key="docs.api.p144" k="docs.api.p144" />,
+            ],
+            [
+              "GET",
+              <code key="p">/api/integrity</code>,
+              <T key="docs.api.p145" k="docs.api.p145" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/integrity</code>,
+              <T key="docs.api.p146" k="docs.api.p146" />,
+            ],
             [
               "POST",
               <code key="p">/api/integrity/check</code>,
-              "Check a file against its latest reference.",
+              <T key="docs.api.p147" k="docs.api.p147" />,
             ],
             [
               "GET",
               <code key="p">/api/integrity/changes</code>,
-              "List files whose hash no longer matches.",
+              <T key="docs.api.p148" k="docs.api.p148" />,
             ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="devices" title="Offline & clipboard">
+      <DocSection id="devices" title={<T k="docs.api.a161" />}>
         <DocP>
-          Offline pins mark files to keep available on a device; the encrypted clipboard syncs small
-          snippets between your own devices. Clipboard items are encrypted on the client (the server
-          stores only ciphertext, capped at 512&nbsp;KB per item) and a push notifies your other
-          devices over the event stream.
+          <T k="docs.api.p150" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p151" k="docs.api.p151" />,
+            <T key="docs.api.p152" k="docs.api.p152" />,
+            <T key="docs.api.p153" k="docs.api.p153" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/offline</code>, "List offline pins (optional device_id)."],
-            ["POST", <code key="p">/api/offline</code>, "Pin a file for offline access."],
-            ["DELETE", <code key="p">/api/offline/{`{fileId}`}</code>, "Unpin a file."],
+            ["GET", <code key="p">/api/offline</code>, <T key="docs.api.p154" k="docs.api.p154" />],
+            [
+              "POST",
+              <code key="p">/api/offline</code>,
+              <T key="docs.api.p155" k="docs.api.p155" />,
+            ],
+            [
+              "DELETE",
+              <code key="p">/api/offline/{`{fileId}`}</code>,
+              <T key="docs.api.p156" k="docs.api.p156" />,
+            ],
             [
               "POST",
               <code key="p">/api/clipboard</code>,
-              "Push an encrypted clipboard item (text / image / link).",
+              <T key="docs.api.p157" k="docs.api.p157" />,
             ],
-            ["GET", <code key="p">/api/clipboard</code>, "List recent clipboard items."],
+            [
+              "GET",
+              <code key="p">/api/clipboard</code>,
+              <T key="docs.api.p158" k="docs.api.p158" />,
+            ],
             [
               "GET",
               <code key="p">/api/clipboard/{`{id}`}</code>,
-              "Fetch an item's encrypted bytes.",
+              <T key="docs.api.p159" k="docs.api.p159" />,
             ],
-            ["DELETE", <code key="p">/api/clipboard/{`{id}`}</code>, "Delete a clipboard item."],
+            [
+              "DELETE",
+              <code key="p">/api/clipboard/{`{id}`}</code>,
+              <T key="docs.api.p160" k="docs.api.p160" />,
+            ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="sync" title="Sync folders">
+      <DocSection id="sync" title={<T k="docs.api.a171" />}>
         <DocP>
-          Sync folders are a per-device registry of local folders the desktop client keeps in sync.
-          The server stores only the configuration and the stats a client reports back &mdash; the
-          actual file syncing happens on your machine.
+          <T k="docs.api.p162" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p163" k="docs.api.p163" />,
+            <T key="docs.api.p164" k="docs.api.p164" />,
+            <T key="docs.api.p165" k="docs.api.p165" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/sync/folders</code>, "List sync-folder configs."],
-            ["POST", <code key="p">/api/sync/folders</code>, "Register a folder for sync."],
+            [
+              "GET",
+              <code key="p">/api/sync/folders</code>,
+              <T key="docs.api.p166" k="docs.api.p166" />,
+            ],
+            [
+              "POST",
+              <code key="p">/api/sync/folders</code>,
+              <T key="docs.api.p167" k="docs.api.p167" />,
+            ],
             [
               "PUT",
               <code key="p">/api/sync/folders/{`{id}`}</code>,
-              "Update a folder (enable/label).",
+              <T key="docs.api.p168" k="docs.api.p168" />,
             ],
             [
               "PUT",
               <code key="p">/api/sync/folders/{`{id}`}/stats</code>,
-              "Report sync results (file count, total size).",
+              <T key="docs.api.p169" k="docs.api.p169" />,
             ],
-            ["DELETE", <code key="p">/api/sync/folders/{`{id}`}</code>, "Remove a folder config."],
+            [
+              "DELETE",
+              <code key="p">/api/sync/folders/{`{id}`}</code>,
+              <T key="docs.api.p170" k="docs.api.p170" />,
+            ],
           ]}
         />
       </DocSection>
 
-      <DocSection id="events" title="Events (SSE)">
+      <DocSection id="events" title={<T k="docs.api.a176" />}>
         <DocP>
-          Real-time progress (uploads, syncs) streams over Server-Sent Events. Because{" "}
-          <code>EventSource</code> cannot set headers, first trade your access token for a
-          single-use ticket, then open the stream with it. The ticket is valid for 30 seconds, so
-          the token itself never appears in a URL or a proxy log.
+          <T k="docs.api.p172" />
         </DocP>
-        <DocCode label="text/event-stream">{`POST /api/sse/ticket            -> {"ticket": "..."}
+        <DocCode
+          label={<T k="docs.api.a174" />}
+        >{`POST /api/sse/ticket            -> {"ticket": "..."}
 GET  /api/events?ticket=<ticket>`}</DocCode>
         <DocP>
-          The stream carries upload and sync progress plus a <code>clipboard</code> event, emitted
-          to your other connections when a new clipboard item is pushed. It closes when the access
-          token it was opened with expires, or as soon as your sessions are revoked, so reconnect
-          with a fresh ticket. Each account can hold a limited number of open streams. A separate
-          WebSocket endpoint, <code>GET /api/transfer/ws</code>, backs live device-to-device
-          transfer. Both long-lived endpoints bypass the per-request rate limiter.
+          <T k="docs.api.p175" />
         </DocP>
       </DocSection>
 
-      <DocSection id="config" title="Quota & config">
+      <DocSection id="config" title={<T k="docs.api.a189" />}>
         <DocP>
-          These routes report account limits, connected storage, and instance settings. Most are
-          read-only for normal users; writing config requires admin.
+          <T k="docs.api.p177" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p178" k="docs.api.p178" />,
+            <T key="docs.api.p179" k="docs.api.p179" />,
+            <T key="docs.api.p180" k="docs.api.p180" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/quota</code>, "Storage quota and max concurrent uploads."],
-            ["GET", <code key="p">/api/config</code>, "Effective instance configuration."],
+            ["GET", <code key="p">/api/quota</code>, <T key="docs.api.p181" k="docs.api.p181" />],
+            ["GET", <code key="p">/api/config</code>, <T key="docs.api.p182" k="docs.api.p182" />],
             [
               "GET",
               <code key="p">/api/platforms/status</code>,
-              "Connection status per storage platform.",
+              <T key="docs.api.p183" k="docs.api.p183" />,
             ],
-            ["POST", <code key="p">/api/platforms/connect</code>, "Connect a platform token."],
-            ["DELETE", <code key="p">/api/platforms/disconnect</code>, "Disconnect a platform."],
-            ["GET", <code key="p">/api/repos</code>, "List repositories in your storage pool."],
-            ["GET", <code key="p">/api/plans</code>, "Public plan configs (no auth)."],
-            ["GET", <code key="p">/api/health</code>, "Health check (no auth)."],
+            [
+              "POST",
+              <code key="p">/api/platforms/connect</code>,
+              <T key="docs.api.p184" k="docs.api.p184" />,
+            ],
+            [
+              "DELETE",
+              <code key="p">/api/platforms/disconnect</code>,
+              <T key="docs.api.p185" k="docs.api.p185" />,
+            ],
+            ["GET", <code key="p">/api/repos</code>, <T key="docs.api.p186" k="docs.api.p186" />],
+            ["GET", <code key="p">/api/plans</code>, <T key="docs.api.p187" k="docs.api.p187" />],
+            ["GET", <code key="p">/api/health</code>, <T key="docs.api.p188" k="docs.api.p188" />],
           ]}
         />
       </DocSection>
 
-      <DocSection id="admin" title="Admin">
+      <DocSection id="admin" title={<T k="docs.api.a203" />}>
         <DocP>
-          Admin routes require an account with the admin role. They cover user management, quotas
-          and plans, global tokens, and audit data.
+          <T k="docs.api.p190" />
         </DocP>
         <DocTable
-          head={["Method", "Path", "Purpose"]}
+          head={[
+            <T key="docs.api.p191" k="docs.api.p191" />,
+            <T key="docs.api.p192" k="docs.api.p192" />,
+            <T key="docs.api.p193" k="docs.api.p193" />,
+          ]}
           rows={[
-            ["GET", <code key="p">/api/admin/users</code>, "List all users."],
-            ["GET", <code key="p">/api/admin/stats</code>, "System statistics."],
+            [
+              "GET",
+              <code key="p">/api/admin/users</code>,
+              <T key="docs.api.p194" k="docs.api.p194" />,
+            ],
+            [
+              "GET",
+              <code key="p">/api/admin/stats</code>,
+              <T key="docs.api.p195" k="docs.api.p195" />,
+            ],
             [
               "PUT",
               <code key="p">/api/admin/users/{`{id}`}/role</code>,
-              "Set a user's role. Send the acting admin's password, and a 2FA code if enabled.",
+              <T key="docs.api.p196" k="docs.api.p196" />,
             ],
-            ["PUT", <code key="p">/api/admin/users/{`{id}`}/plan</code>, "Set a user's plan."],
-            ["PUT", <code key="p">/api/admin/users/{`{id}`}/quota</code>, "Set a user's quota."],
+            [
+              "PUT",
+              <code key="p">/api/admin/users/{`{id}`}/plan</code>,
+              <T key="docs.api.p197" k="docs.api.p197" />,
+            ],
+            [
+              "PUT",
+              <code key="p">/api/admin/users/{`{id}`}/quota</code>,
+              <T key="docs.api.p198" k="docs.api.p198" />,
+            ],
             [
               "DELETE",
               <code key="p">/api/admin/users/{`{id}`}</code>,
-              "Delete a user. Needs the same re-authentication as a role change.",
+              <T key="docs.api.p199" k="docs.api.p199" />,
             ],
-            ["GET", <code key="p">/api/admin/tokens</code>, "List global storage tokens."],
-            ["GET", <code key="p">/api/admin/audit</code>, "Read the audit log."],
+            [
+              "GET",
+              <code key="p">/api/admin/tokens</code>,
+              <T key="docs.api.p200" k="docs.api.p200" />,
+            ],
+            [
+              "GET",
+              <code key="p">/api/admin/audit</code>,
+              <T key="docs.api.p201" k="docs.api.p201" />,
+            ],
           ]}
         />
         <DocP>
-          Looking to run your own instance? See{" "}
-          <Link
-            href="/docs/self-hosting"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Self-hosting
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="/docs/architecture"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Architecture
-          </Link>
-          .
+          <T
+            k="docs.api.p202"
+            links={{ l1: "/docs/self-hosting", l2: "/docs/architecture" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
     </DocPage>

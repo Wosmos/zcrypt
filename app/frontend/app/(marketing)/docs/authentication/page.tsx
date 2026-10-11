@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 import { SITE_URL } from "@/lib/site";
 
+import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Authentication & 2FA | zcrypt Docs",
   description:
@@ -17,14 +18,14 @@ export const metadata: Metadata = {
 };
 
 const toc = [
-  { id: "password-vs-passphrase", title: "Password vs. passphrase" },
-  { id: "sign-up", title: "Signing up" },
-  { id: "verification", title: "Email verification" },
-  { id: "magic-link", title: "Magic-link login" },
-  { id: "reset", title: "Resetting your password" },
-  { id: "sessions", title: "Sessions & tokens" },
-  { id: "totp", title: "Two-factor (TOTP)" },
-  { id: "next", title: "Where to go next" },
+  { id: "password-vs-passphrase", k: "docs.authentication.toc.password-vs-passphrase" },
+  { id: "sign-up", k: "docs.authentication.toc.sign-up" },
+  { id: "verification", k: "docs.authentication.toc.verification" },
+  { id: "magic-link", k: "docs.authentication.toc.magic-link" },
+  { id: "reset", k: "docs.authentication.toc.reset" },
+  { id: "sessions", k: "docs.authentication.toc.sessions" },
+  { id: "totp", k: "docs.authentication.toc.totp" },
+  { id: "next", k: "docs.authentication.toc.next" },
 ];
 
 export default function AuthenticationDocPage() {
@@ -35,202 +36,157 @@ export default function AuthenticationDocPage() {
       description="Signing in proves who you are to the service. It is deliberately separate from the passphrase that encrypts your files, so the server can authenticate you without ever being able to read your data."
       toc={toc}
     >
-      <DocSection id="password-vs-passphrase" title="Password vs. passphrase">
+      <DocSection id="password-vs-passphrase" title={<T k="docs.authentication.a6" />}>
         <DocP>
-          zcrypt uses <strong>two different secrets</strong>, and keeping them straight is the
-          single most important thing to understand about your account.
+          <T k="docs.authentication.p1" />
         </DocP>
-        <DocNote type="security" title="These are not the same secret">
+        <DocNote type="security" title={<T k="docs.authentication.a4" />}>
           <p className="mb-2">
-            Your <strong>account password</strong> authenticates you to the service. It is sent to
-            the server (over TLS), where it is verified against a bcrypt hash. Resetting it is
-            routine.
+            <T k="docs.authentication.p2" />
           </p>
           <p>
-            Your <strong>vault passphrase</strong> encrypts your files. It is used only on your
-            device to derive your encryption keys and is <strong>never sent to the server</strong>.
-            Because we never see it, we can never reset it for you. See{" "}
-            <Link
-              href="/docs/recovery"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Account recovery
-            </Link>
-            .
+            <T
+              k="docs.authentication.p3"
+              links={{ l1: "/docs/recovery" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />
           </p>
         </DocNote>
         <DocP>
-          Everything on this page is about the first secret: how you sign in. For how the second
-          secret protects your data, see{" "}
-          <Link
-            href="/docs/key-management"
-            className="text-cyan-600 hover:underline dark:text-cyan-400"
-          >
-            Key management
-          </Link>
-          .
+          <T
+            k="docs.authentication.p5"
+            links={{ l1: "/docs/key-management" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
         </DocP>
       </DocSection>
 
-      <DocSection id="sign-up" title="Signing up">
+      <DocSection id="sign-up" title={<T k="docs.authentication.a15" />}>
         <DocP>
-          Create an account with an email address, a username, and a password. Passwords are hashed
-          with <strong>bcrypt</strong> before storage: the server never keeps your password in
-          plaintext. To be accepted, a password must meet a basic complexity bar:
+          <T k="docs.authentication.p7" />
         </DocP>
         <DocList
           items={[
-            "At least 8 characters",
-            "At least one uppercase letter",
-            "At least one digit",
-            "At least one special character (anything that isn't a letter or number)",
-            "No longer than 72 bytes, bcrypt's input limit (72 plain letters, fewer with accents or emoji)",
+            <T key="docs.authentication.p8" k="docs.authentication.p8" />,
+            <T key="docs.authentication.p9" k="docs.authentication.p9" />,
+            <T key="docs.authentication.p10" k="docs.authentication.p10" />,
+            <T key="docs.authentication.p11" k="docs.authentication.p11" />,
+            <T key="docs.authentication.p12" k="docs.authentication.p12" />,
           ]}
         />
         <DocP>
-          zcrypt also checks your chosen password against the <strong>HaveIBeenPwned</strong> breach
-          corpus using a k-anonymity range query: only the first five characters of a SHA-1 hash
-          leave your session, never the password itself. If the password has appeared in a known
-          breach, you get a warning with the breach count and can choose a stronger one or proceed
-          anyway. The same check runs when you set a new password during a reset.
+          <T k="docs.authentication.p13" />
         </DocP>
         <DocNote type="info">
-          A breach warning never silently blocks you. It is advice. The check also fails open: if
-          the breach service is unreachable, sign-up is not held up.
+          <T k="docs.authentication.p14" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="verification" title="Email verification">
+      <DocSection id="verification" title={<T k="docs.authentication.a17" />}>
         <DocP>
-          When email is configured for your instance, signing up sends a verification link to your
-          address. Verifying your email protects you in one concrete way: a verified email is
-          required before an OAuth provider with the same address can be auto-linked to your
-          account, so nobody can attach their Google or GitHub identity to an email you have not
-          proven you control. You can request a fresh verification link if the first one expires.
+          <T k="docs.authentication.p16" />
         </DocP>
       </DocSection>
 
-      <DocSection id="magic-link" title="Magic-link login">
+      <DocSection id="magic-link" title={<T k="docs.authentication.a20" />}>
         <DocP>
-          Prefer not to type a password? Request a <strong>magic link</strong> and zcrypt emails you
-          a one-time sign-in link. Opening it logs you in and, if your email wasn&apos;t verified
-          yet, verifies it at the same time. Magic links are single-use and short-lived, so an old
-          link in your inbox can&apos;t be replayed later.
+          <T k="docs.authentication.p18" />
         </DocP>
         <DocNote type="info">
-          To resist account enumeration, the &ldquo;login link sent&rdquo; response looks identical
-          whether or not an account exists for that address. Only the real owner of the inbox ever
-          receives a working link.
+          <T k="docs.authentication.p19" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="reset" title="Resetting your password">
+      <DocSection id="reset" title={<T k="docs.authentication.a26" />}>
         <DocP>
-          Forgot your account password? Request a reset and follow the link emailed to you to choose
-          a new one. New passwords must pass the same complexity and breach checks as sign-up.
-          Completing a reset is a hard security boundary:
+          <T k="docs.authentication.p21" />
         </DocP>
         <DocList
           items={[
-            "Your token version is bumped, which invalidates every existing access token immediately.",
-            "All refresh tokens are deleted, so every signed-in device is forced to log in again.",
+            <T key="docs.authentication.p22" k="docs.authentication.p22" />,
+            <T key="docs.authentication.p23" k="docs.authentication.p23" />,
           ]}
         />
-        <DocNote type="warning" title="A password reset does not touch your files">
-          Resetting your account password restores <em>access to the service</em>. It does not, and
-          cannot, decrypt your vault. Your files stay sealed under your vault passphrase, which the
-          reset flow never sees.
+        <DocNote type="warning" title={<T k="docs.authentication.a25" />}>
+          <T k="docs.authentication.p24" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="sessions" title="Sessions & tokens">
+      <DocSection id="sessions" title={<T k="docs.authentication.a40" />}>
         <DocP>
-          After you sign in, zcrypt issues two tokens. A short-lived <strong>access token</strong>{" "}
-          (a signed JWT) authorizes your API requests, and a longer-lived{" "}
-          <strong>refresh token</strong> is exchanged silently in the background for a fresh access
-          token so you stay signed in without re-entering your password.
+          <T k="docs.authentication.p27" />
         </DocP>
         <DocTable
-          head={["Token", "Lifetime", "Purpose"]}
+          head={[
+            <T key="docs.authentication.p28" k="docs.authentication.p28" />,
+            <T key="docs.authentication.p29" k="docs.authentication.p29" />,
+            <T key="docs.authentication.p30" k="docs.authentication.p30" />,
+          ]}
           rows={[
             [
-              <strong key="a">Access token (JWT)</strong>,
-              "15 minutes",
-              "Authorizes each API request",
+              <T key="docs.authentication.p31" k="docs.authentication.p31" />,
+              <T key="docs.authentication.p32" k="docs.authentication.p32" />,
+              <T key="docs.authentication.p33" k="docs.authentication.p33" />,
             ],
-            [<strong key="b">Refresh token</strong>, "7 days", "Silently mints new access tokens"],
+            [
+              <T key="docs.authentication.p34" k="docs.authentication.p34" />,
+              <T key="docs.authentication.p35" k="docs.authentication.p35" />,
+              <T key="docs.authentication.p36" k="docs.authentication.p36" />,
+            ],
           ]}
         />
         <DocP>
-          Refresh tokens are stored only as hashes on the server and are <strong>rotated</strong> on
-          every use, so a captured refresh token has a short useful life. Access-token JWTs are
-          signed with HS256 and pin their type, so a token minted for one purpose (for example the
-          mid-login 2FA step) can never be replayed as a full session token.
+          <T k="docs.authentication.p37" />
         </DocP>
-        <DocNote type="security" title="Log out everywhere, instantly">
-          Each JWT carries a <strong>token version</strong>. Bumping your token version invalidates
-          every outstanding access token at once and clears your refresh tokens, an instant
-          &ldquo;sign out of all sessions&rdquo;. A password reset does exactly this for you.
+        <DocNote type="security" title={<T k="docs.authentication.a39" />}>
+          <T k="docs.authentication.p38" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="totp" title="Two-factor (TOTP)">
+      <DocSection id="totp" title={<T k="docs.authentication.a48" />}>
         <DocP>
-          For a second layer on sign-in, enable time-based one-time-password (TOTP) two-factor
-          authentication. It works with any standard authenticator app. Google Authenticator,
-          1Password, Aegis, Authy, and others: using the usual 6-digit, 30-second codes.
+          <T k="docs.authentication.p41" />
         </DocP>
         <DocList
           ordered
           items={[
-            "Start setup in your account settings. zcrypt generates a secret and an otpauth:// URI you scan as a QR code (or enter by hand).",
-            "Enter a current 6-digit code from your authenticator to confirm the secret synced correctly. Only then is 2FA switched on.",
-            "From then on, signing in asks for a code. Your password is checked first; only on success does the server hand back a short-lived temporary token to complete the 2FA step.",
+            <T key="docs.authentication.p42" k="docs.authentication.p42" />,
+            <T key="docs.authentication.p43" k="docs.authentication.p43" />,
+            <T key="docs.authentication.p44" k="docs.authentication.p44" />,
           ]}
         />
         <DocP>
-          When you enable 2FA, zcrypt also issues a set of <strong>one-time backup codes</strong>.
-          Save them somewhere safe, if you lose your authenticator, a backup code gets you back in.
-          Each code works once, and you can regenerate a fresh set at any time, which invalidates
-          the old ones.
+          <T k="docs.authentication.p45" />
         </DocP>
         <DocP>
-          To turn 2FA off, you must confirm <strong>both</strong> your current password and a valid
-          code, so a stranger who briefly has your unlocked session still can&apos;t strip the
-          second factor. Code validation allows a one-step time window on either side to tolerate
-          minor clock drift between your phone and the server.
+          <T k="docs.authentication.p46" />
         </DocP>
         <DocNote type="info">
-          TOTP guards the <em>front door</em> to your account. It is independent of your vault
-          passphrase: even with a valid code, your files remain encrypted until you unlock the vault
-          on your device.
+          <T k="docs.authentication.p47" />
         </DocNote>
       </DocSection>
 
-      <DocSection id="next" title="Where to go next">
+      <DocSection id="next" title={<T k="docs.authentication.a52" />}>
         <DocList
           items={[
-            <Link
-              key="a"
-              href="/docs/oauth"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Sign in with Google or GitHub. OAuth login, linking, and desktop sign-in
-            </Link>,
-            <Link
-              key="b"
-              href="/docs/recovery"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Account recovery: what is and isn&apos;t recoverable, and why
-            </Link>,
-            <Link
-              key="c"
-              href="/docs/key-management"
-              className="text-cyan-600 hover:underline dark:text-cyan-400"
-            >
-              Key management: how your passphrase derives your encryption keys
-            </Link>,
+            <T
+              key="docs.authentication.p49"
+              k="docs.authentication.p49"
+              links={{ l1: "/docs/oauth" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.authentication.p50"
+              k="docs.authentication.p50"
+              links={{ l1: "/docs/recovery" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
+            <T
+              key="docs.authentication.p51"
+              k="docs.authentication.p51"
+              links={{ l1: "/docs/key-management" }}
+              linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+            />,
           ]}
         />
       </DocSection>

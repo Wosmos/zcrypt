@@ -5,6 +5,8 @@ import { DocToc, type TocItem } from "@/components/docs/doc-toc";
 import { ArrowLeft, ArrowRight, ChevronRight, AlertTriangle, Info, Lock } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { SITE_URL as SITE } from "@/lib/site";
+import { T } from "@/components/i18n/t";
+import { groupSlug, navSlug } from "@/components/docs/nav-keys";
 
 // Flattened, ordered list of internal doc links: drives prev/next + section lookup.
 const flatDocs: { link: DocsNavLink; section: string }[] = docsNav.flatMap((group) =>
@@ -48,6 +50,7 @@ export function DocPage({
 }) {
   const { prev, next, section } = neighbors(href);
   const url = `${SITE}${href}`;
+  const ns = `docs.${navSlug(href)}`;
 
   return (
     <article className="min-w-0 pb-20">
@@ -69,7 +72,7 @@ export function DocPage({
               href="/docs"
               className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
             >
-              Docs
+              <T k="docs.ui.docs" />
             </Link>
           </li>
           {section && (
@@ -77,7 +80,9 @@ export function DocPage({
               <li aria-hidden>
                 <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
               </li>
-              <li className="text-[var(--color-text-muted)]">{section}</li>
+              <li className="text-[var(--color-text-muted)]">
+                <T k={`docs.navGroup.${groupSlug(section)}.title`} />
+              </li>
             </>
           )}
           <li aria-hidden>
@@ -87,7 +92,7 @@ export function DocPage({
             aria-current="page"
             className="min-w-0 max-w-[18rem] truncate font-medium text-[var(--color-text-secondary)]"
           >
-            {title}
+            <T k={`${ns}.title`} />
           </li>
         </ol>
       </nav>
@@ -96,11 +101,13 @@ export function DocPage({
       <header>
         {section && (
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            {section}
+            <T k={`docs.navGroup.${groupSlug(section)}.title`} />
           </p>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+            <T k={`${ns}.title`} />
+          </h1>
           {badge && (
             <span
               className={cn(
@@ -113,12 +120,12 @@ export function DocPage({
                   "border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
               )}
             >
-              {badge}
+              <T k={`docs.ui.badge.${badge.toLowerCase()}`} />
             </span>
           )}
         </div>
         <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
-          {description}
+          <T k={`${ns}.description`} />
         </p>
       </header>
 
@@ -143,10 +150,10 @@ export function DocPage({
               <ArrowLeft className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:-translate-x-0.5 group-hover:text-cyan-500" />
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Previous
+                  <T k="docs.ui.previous" />
                 </span>
                 <span className="mt-0.5 block truncate text-sm font-semibold transition-colors group-hover:text-cyan-700 dark:group-hover:text-cyan-300">
-                  {prev.link.title}
+                  <T k={`docs.nav.${navSlug(prev.link.href)}.title`} />
                 </span>
               </span>
             </Link>
@@ -161,10 +168,10 @@ export function DocPage({
             >
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Next
+                  <T k="docs.ui.next" />
                 </span>
                 <span className="mt-0.5 block truncate text-sm font-semibold transition-colors group-hover:text-cyan-700 dark:group-hover:text-cyan-300">
-                  {next.link.title}
+                  <T k={`docs.nav.${navSlug(next.link.href)}.title`} />
                 </span>
               </span>
               <ArrowRight className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:translate-x-0.5 group-hover:text-cyan-500" />
@@ -186,7 +193,7 @@ export function DocSection({
   children,
 }: {
   id?: string;
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -200,7 +207,13 @@ export function DocSection({
   );
 }
 
-export function DocSubsection({ title, children }: { title: string; children: React.ReactNode }) {
+export function DocSubsection({
+  title,
+  children,
+}: {
+  title: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="border-l-2 border-[var(--color-border)] pl-5">
       <h3 className="text-sm font-bold">{title}</h3>
@@ -234,7 +247,7 @@ export function DocList({ items, ordered }: { items: React.ReactNode[]; ordered?
   );
 }
 
-export function DocCode({ children, label }: { children: string; label?: string }) {
+export function DocCode({ children, label }: { children: string; label?: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[#09090b]">
       {label && (
@@ -265,7 +278,7 @@ export function DocNote({
   children,
 }: {
   type?: keyof typeof NOTE_STYLES;
-  title?: string;
+  title?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { wrap, icon, Icon } = NOTE_STYLES[type];
@@ -280,15 +293,15 @@ export function DocNote({
   );
 }
 
-export function DocTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
+export function DocTable({ head, rows }: { head: React.ReactNode[]; rows: React.ReactNode[][] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
       <table className="w-full text-left text-sm">
         <thead className="bg-[var(--color-surface)]">
           <tr>
-            {head.map((h) => (
+            {head.map((h, i) => (
               <th
-                key={h}
+                key={i}
                 className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]"
               >
                 {h}
