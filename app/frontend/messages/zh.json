@@ -369,6 +369,10 @@
         "api": {
           "title": "API 参考",
           "desc": "接口、认证与事件。"
+        },
+        "changelog": {
+          "title": "更新内容",
+          "desc": "每个版本，用大白话讲清楚。"
         }
       },
       "featuredTag": "精选",

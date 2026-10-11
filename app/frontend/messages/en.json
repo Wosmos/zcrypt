@@ -369,6 +369,10 @@
         "api": {
           "title": "API reference",
           "desc": "Endpoints, auth & events."
+        },
+        "changelog": {
+          "title": "What's new",
+          "desc": "Every version, in plain words."
         }
       },
       "featuredTag": "Featured",

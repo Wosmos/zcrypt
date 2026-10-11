@@ -369,6 +369,10 @@
         "api": {
           "title": "Référence de l'API",
           "desc": "Points d'accès, authentification et événements."
+        },
+        "changelog": {
+          "title": "Nouveautés",
+          "desc": "Chaque version, en mots simples."
         }
       },
       "featuredTag": "À la une",

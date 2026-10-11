@@ -369,6 +369,10 @@
         "api": {
           "title": "Referencia de la API",
           "desc": "Endpoints, autenticación y eventos."
+        },
+        "changelog": {
+          "title": "Novedades",
+          "desc": "Cada versión, en palabras sencillas."
         }
       },
       "featuredTag": "Destacado",

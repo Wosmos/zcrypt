@@ -369,6 +369,10 @@
         "api": {
           "title": "API-Referenz",
           "desc": "Endpunkte, Authentifizierung & Ereignisse."
+        },
+        "changelog": {
+          "title": "Was ist neu",
+          "desc": "Jede Version, in einfachen Worten."
         }
       },
       "featuredTag": "Empfohlen",

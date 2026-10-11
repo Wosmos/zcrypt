@@ -25,6 +25,7 @@ import {
   Server,
   Code,
   Download,
+  Sparkles,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -65,6 +66,7 @@ const docsStart: MenuItem[] = [
   { href: "/docs/getting-started", icon: Rocket, k: "quickstart" },
   { href: "/docs/concepts", icon: Key, k: "concepts" },
   { href: "/docs/connect-storage", icon: HardDrive, k: "connect" },
+  { href: "/changelog", icon: Sparkles, k: "changelog" },
 ];
 
 const docsPopular: MenuItem[] = [
