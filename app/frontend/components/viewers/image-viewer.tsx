@@ -199,7 +199,12 @@ export function ImageViewer({
             onClick={reset}
             iconClassName="h-4 w-4"
           />
-          <IconButton icon={RefreshCcw} label={t("reset")} onClick={reset} iconClassName="h-4 w-4" />
+          <IconButton
+            icon={RefreshCcw}
+            label={t("reset")}
+            onClick={reset}
+            iconClassName="h-4 w-4"
+          />
         </div>
       </div>
     </div>

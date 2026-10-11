@@ -23,11 +23,7 @@ export function MarkdownViewer({ blob }: { blob: Blob }) {
       FORBID_ATTR: ["style", "srcdoc"],
     });
   }, []);
-  const { value: html, error } = useDecodedBlob(
-    blob,
-    decode,
-    t("markdownFailed"),
-  );
+  const { value: html, error } = useDecodedBlob(blob, decode, t("markdownFailed"));
 
   if (error) return <ViewerError message={error} />;
   if (html === null) return <ViewerLoading />;

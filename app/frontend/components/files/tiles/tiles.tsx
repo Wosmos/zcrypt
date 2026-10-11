@@ -189,10 +189,7 @@ export function DocTile({
         {ext ? <span className="ft-doc-ext">{ext.slice(0, 4)}</span> : null}
       </span>
       {unavailable ? (
-        <span
-          className="ft-doc-warn"
-          title={t("previewUnavailable")}
-        >
+        <span className="ft-doc-warn" title={t("previewUnavailable")}>
           <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
         </span>
       ) : null}

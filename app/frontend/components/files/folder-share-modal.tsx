@@ -160,7 +160,9 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-[var(--color-accent)]" />
             <span className="truncate">
-              {t("title", { name: folder?.name ? midTrunc(folder.name, 18, 8) : (folder?.name ?? "") })}
+              {t("title", {
+                name: folder?.name ? midTrunc(folder.name, 18, 8) : (folder?.name ?? ""),
+              })}
             </span>
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
@@ -196,9 +198,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-[var(--color-text-secondary)]">
-              {subtreeIds === null
-                ? t("scanning")
-                : t("willShare", { count: folderFiles.length })}
+              {subtreeIds === null ? t("scanning") : t("willShare", { count: folderFiles.length })}
             </p>
 
             <label className="flex items-center gap-2.5 text-sm text-[var(--color-text)]">

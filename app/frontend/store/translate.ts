@@ -32,12 +32,14 @@ function ensureCatalog(locale: Locale) {
     .catch(() => {});
 }
 
-if (typeof document !== "undefined") {
-  ensureCatalog(documentLocale());
-  new MutationObserver(() => ensureCatalog(documentLocale())).observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["lang"],
-  });
+if (typeof window !== "undefined") {
+  setTimeout(() => {
+    ensureCatalog(documentLocale());
+    new MutationObserver(() => ensureCatalog(documentLocale())).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["lang"],
+    });
+  }, 0);
 }
 
 /**

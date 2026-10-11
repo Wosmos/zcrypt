@@ -26,10 +26,7 @@ export function FileHealthBadge({ file }: { file: FileMetadata }) {
 
   if (file.health === "damaged") {
     return (
-      <span
-        className={cn(PILL, "bg-red-500/10 text-red-500")}
-        title={t("damagedHint")}
-      >
+      <span className={cn(PILL, "bg-red-500/10 text-red-500")} title={t("damagedHint")}>
         <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
         {t("damaged")}
       </span>

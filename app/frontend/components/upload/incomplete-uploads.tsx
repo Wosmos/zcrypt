@@ -127,7 +127,10 @@ export function IncompleteUploads({
         resumeWithFile(toDesktopFile(known), u);
         return;
       }
-      const [p] = await pickFiles({ multiple: false, title: t("selectToResume", { name: u.filename }) });
+      const [p] = await pickFiles({
+        multiple: false,
+        title: t("selectToResume", { name: u.filename }),
+      });
       if (!p) return;
       resumeWithFile(toDesktopFile(p), u);
       return;
@@ -167,6 +170,7 @@ export function IncompleteUploads({
     for (const u of resumable) void onResumeClick(u);
   };
 
+  // oxlint-disable-next-line react/purity
   const now = Date.now();
 
   return (

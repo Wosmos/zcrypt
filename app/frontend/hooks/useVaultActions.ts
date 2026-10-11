@@ -297,7 +297,10 @@ export function useVaultActions({
         const names =
           dupes.length <= 3
             ? dupes.join(", ")
-            : tr("hooks.dupesMore", { names: dupes.slice(0, 3).join(", "), more: dupes.length - 3 });
+            : tr("hooks.dupesMore", {
+                names: dupes.slice(0, 3).join(", "),
+                more: dupes.length - 3,
+              });
         toast.warning(tr("hooks.skippedDupes", { count: dupes.length, names }));
       }
 
@@ -667,7 +670,9 @@ export function useVaultActions({
       try {
         const result = await bulkDeleteFiles(ids);
         if (result.failed > 0) {
-          toast.warning(tr("hooks.bulkPartial", { deleted: result.deleted, failed: result.failed }));
+          toast.warning(
+            tr("hooks.bulkPartial", { deleted: result.deleted, failed: result.failed }),
+          );
           void refresh(); // reconcile the partial failure against the server
         } else {
           toast.success(tr("hooks.bulkDeleted", { count: result.deleted }), {

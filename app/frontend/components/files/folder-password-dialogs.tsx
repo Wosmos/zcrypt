@@ -114,6 +114,7 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setPassword("");
       setVerifying(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -218,6 +219,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setPassword("");
       setConfirm("");
       setError(null);
@@ -262,9 +264,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
         <HeaderRow
           icon={<Key className="h-5 w-5" />}
           title={t("protectTitle")}
-          subtitle={
-            folderName ? t("protectNamed", { name: folderName }) : t("protectGeneric")
-          }
+          subtitle={folderName ? t("protectNamed", { name: folderName }) : t("protectGeneric")}
           onClose={onClose}
           closeDisabled={busy}
         />
@@ -377,6 +377,7 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setError(null);
       setBusy(false);
     }

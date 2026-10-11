@@ -97,7 +97,9 @@ export function AdvancedDetails({
             />
             <Row
               label={t("maxFileSize")}
-              value={quotaInfo?.max_file_size ? formatBytes(quotaInfo.max_file_size) : t("unlimited")}
+              value={
+                quotaInfo?.max_file_size ? formatBytes(quotaInfo.max_file_size) : t("unlimited")
+              }
             />
             <Row label={t("byos")} value={quotaInfo?.allows_byob ? t("yes") : t("no")} />
           </div>
@@ -180,7 +182,9 @@ export function AdvancedDetails({
           {PLATFORM_THRESHOLDS.map((p) => (
             <div key={p.platform} className="bg-[var(--color-surface)] px-5 py-4">
               <p className="text-sm font-medium text-[var(--color-text)]">{p.platform}</p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t(p.unit === "repo" ? "perRepo" : "perChannelVirtual", { limit: p.limit })}</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                {t(p.unit === "repo" ? "perRepo" : "perChannelVirtual", { limit: p.limit })}
+              </p>
             </div>
           ))}
         </div>

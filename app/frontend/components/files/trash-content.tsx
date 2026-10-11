@@ -85,6 +85,7 @@ export function TrashContent() {
 
   // Prune selection + clamp focus whenever the visible list changes.
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     setSelectedIds((prev) => {
       if (prev.size === 0) return prev;
       const present = new Set(files.map((f) => f.id));
@@ -101,6 +102,7 @@ export function TrashContent() {
 
   // Close the viewer if its target disappears (restored/purged/refreshed away).
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     if (viewerOpen && !files[viewerIndex]) setViewerOpen(false);
   }, [viewerOpen, viewerIndex, files]);
 
@@ -376,6 +378,7 @@ export function TrashContent() {
     ],
   );
 
+  // oxlint-disable-next-line react/refs
   rowRefs.current = [];
 
   return (
@@ -670,9 +673,7 @@ export function TrashContent() {
         title={t("purgeTitle")}
         description={
           <>
-            <span className="block">
-              {t("purgeBody")}
-            </span>
+            <span className="block">{t("purgeBody")}</span>
             {purgeTarget && (
               <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
                 {purgeTarget.original_name}
@@ -691,11 +692,7 @@ export function TrashContent() {
         onConfirm={handleBulkPurge}
         destructive
         title={t("bulkPurgeTitle", { count: selectedCount })}
-        description={
-          <span className="block">
-            {t("bulkPurgeBody", { count: selectedCount })}
-          </span>
-        }
+        description={<span className="block">{t("bulkPurgeBody", { count: selectedCount })}</span>}
         confirmLabel={t("purgeConfirm")}
         loading={bulkPurging}
       />

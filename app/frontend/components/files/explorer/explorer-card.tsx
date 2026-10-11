@@ -74,7 +74,9 @@ function FolderCard({
           data-entry-id={folder.id}
           data-folder-drop={folder.id}
           tabIndex={focused ? 0 : -1}
-          aria-label={t(folder.protected ? "openFolderProtectedHint" : "openFolderHint", { name: folder.name })}
+          aria-label={t(folder.protected ? "openFolderProtectedHint" : "openFolderHint", {
+            name: folder.name,
+          })}
           draggable={drag.draggable}
           onClick={() => onOpenFolder(folder)}
           onKeyDown={(e) => onEntryKeyDown(entry, e)}

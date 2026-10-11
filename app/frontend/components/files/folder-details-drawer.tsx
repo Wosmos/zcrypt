@@ -99,6 +99,7 @@ export function FolderDetailsDrawer({
   useEffect(() => {
     if (!open || !folderId) return;
     let cancelled = false;
+    // oxlint-disable-next-line react/set-state-in-effect
     setLoading(true);
     setSubtreeIds(null);
     collectSubtreeFolderIds(folderId)
@@ -206,7 +207,11 @@ export function FolderDetailsDrawer({
                     }
                     icon={Database}
                   />
-                  <MetaRow label={t("created")} value={formatDate(folder.created_at)} icon={Clock} />
+                  <MetaRow
+                    label={t("created")}
+                    value={formatDate(folder.created_at)}
+                    icon={Clock}
+                  />
                   <p className="pt-1 text-[11px] text-[var(--color-text-muted)]">
                     {t("includesAll")}
                   </p>
@@ -248,9 +253,7 @@ export function FolderDetailsDrawer({
                   <SkeletonText w="w-3/4" />
                 </div>
               ) : activeShares.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {t("noFolderLinks")}
-                </p>
+                <p className="text-sm text-[var(--color-text-secondary)]">{t("noFolderLinks")}</p>
               ) : (
                 <div className="space-y-1.5">
                   {activeShares.map((s) => (
@@ -272,10 +275,7 @@ export function FolderDetailsDrawer({
             </div>
 
             {/* Encryption assurance */}
-            <EncryptionAssuranceCard
-              title={t("folderEncTitle")}
-              description={t("folderEncBody")}
-            />
+            <EncryptionAssuranceCard title={t("folderEncTitle")} description={t("folderEncBody")} />
           </div>
         </SheetContent>
       </Sheet>

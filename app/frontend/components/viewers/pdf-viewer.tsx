@@ -74,6 +74,7 @@ export function PdfViewer({
   useEffect(() => {
     let cancelled = false;
     let loaded: PDFDocumentProxy | null = null;
+    // oxlint-disable-next-line react/set-state-in-effect
     setDoc(null);
     setNumPages(0);
     setError(false);

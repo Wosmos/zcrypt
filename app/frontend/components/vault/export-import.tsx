@@ -46,45 +46,46 @@ export function ExportImport({ files }: ExportImportProps) {
     fileInputRef.current?.click();
   }, []);
 
-  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    setImporting(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string) as VaultExport;
-        if (!data.version || !data.files || !Array.isArray(data.files)) {
-          toast.error(t("invalidFile"));
-          return;
+      setImporting(true);
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result as string) as VaultExport;
+          if (!data.version || !data.files || !Array.isArray(data.files)) {
+            toast.error(t("invalidFile"));
+            return;
+          }
+          // For now, just show the data: actual import would need backend support
+          toast.success(
+            t("found", {
+              count: data.files.length,
+              date: data.exported_at
+                ? new Date(data.exported_at).toLocaleDateString()
+                : t("unknownDate"),
+            }),
+          );
+        } catch {
+          toast.error(t("parseFailed"));
+        } finally {
+          setImporting(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
         }
-        // For now, just show the data: actual import would need backend support
-        toast.success(
-          t("found", {
-            count: data.files.length,
-            date: data.exported_at
-              ? new Date(data.exported_at).toLocaleDateString()
-              : t("unknownDate"),
-          }),
-        );
-      } catch {
-        toast.error(t("parseFailed"));
-      } finally {
-        setImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
-    reader.readAsText(file);
-  }, [t]);
+      };
+      reader.readAsText(file);
+    },
+    [t],
+  );
 
   return (
     <section className="card overflow-hidden">
       <div className="px-5 py-4 border-b border-[var(--color-border)]">
         <h2 className="text-sm font-semibold">{t("title")}</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-          {t("subtitle")}
-        </p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{t("subtitle")}</p>
       </div>
       <div className="p-5 flex flex-col sm:flex-row gap-3">
         <button

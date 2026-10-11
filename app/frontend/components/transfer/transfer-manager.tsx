@@ -260,6 +260,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // Bring the dock back whenever the number of transfers changes (e.g. a new
   // upload/download starts) so a dismissed dock isn't stuck hidden.
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     setDismissed(false);
   }, [entries.length]);
 
@@ -293,6 +294,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // dismissed dock must never hide an in-flight or failed transfer. (The
   // entries.length effect above misses failures, which don't change the count.)
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     if (activeCount > 0 || failedCount > 0) setDismissed(false);
   }, [activeCount, failedCount]);
 

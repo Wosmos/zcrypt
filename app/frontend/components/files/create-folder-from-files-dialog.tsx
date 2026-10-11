@@ -57,6 +57,7 @@ function FilePill({ file }: { file: FileMetadata }) {
       <span
         className={cn("flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md", info.bg)}
       >
+        {/* oxlint-disable-next-line react/static-components */}
         <Icon className={cn("h-4 w-4", info.color)} />
       </span>
       <span className="min-w-0 truncate text-xs font-medium text-[var(--color-text)]">
@@ -80,6 +81,7 @@ export function CreateFolderFromFilesDialog({
   // Seed a sensible default name from the dropped-on file each time we open.
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setName(
         target ? t("defaultName", { name: baseName(target.original_name) }) : t("fallbackName"),
       );

@@ -1639,7 +1639,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                       {keys}
                     </kbd>
                   </dt>
-                  <dd className="text-[var(--color-text-secondary)]">{ta(`shortcuts.${action}`)}</dd>
+                  <dd className="text-[var(--color-text-secondary)]">
+                    {ta(`shortcuts.${action}`)}
+                  </dd>
                 </div>
               ))}
             </dl>

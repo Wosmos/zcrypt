@@ -147,11 +147,13 @@ function downloadRemaining(startedAt: number, percent: number): number | undefin
 }
 
 function statusText(t: Translate, entry: TransferEntry, short = false): string {
-  if (entry.state === "failed") return entry.error ? localizeError(t, entry.error) : t("stage.failed");
+  if (entry.state === "failed")
+    return entry.error ? localizeError(t, entry.error) : t("stage.failed");
   if (entry.state === "cancelled") return t("stage.cancelled");
   if (entry.state === "done")
     return entry.direction === "upload" ? t("stage.uploaded") : t("stage.downloaded");
-  if (entry.state === "paused") return entry.stage ? localizeStage(t, entry.stage) : t("stage.paused");
+  if (entry.state === "paused")
+    return entry.stage ? localizeStage(t, entry.stage) : t("stage.paused");
   if (entry.state === "queued") return t("stage.queued");
   // active. Uploads: speed + ETA from the smoothed byte rate (accurate, stable).
   // Downloads: the old elapsed/percent extrapolation (no byte rate available).
@@ -205,6 +207,7 @@ function TransferItemBase({
     prevState.current = entry.state;
     if (entry.state === "done" && (was === "active" || was === "paused")) {
       if (reduceMotion) return;
+      // oxlint-disable-next-line react/set-state-in-effect
       setSettling(true);
       const timer = setTimeout(() => setSettling(false), 700);
       return () => clearTimeout(timer);
@@ -384,7 +387,11 @@ function TransferItemBase({
                   onClick={() => controls.onRetryUpload(entry.id)}
                 />
               )}
-              <ControlButton icon={X} label={t("dismiss")} onClick={() => controls.onDismiss(entry)} />
+              <ControlButton
+                icon={X}
+                label={t("dismiss")}
+                onClick={() => controls.onDismiss(entry)}
+              />
             </>
           )}
 
@@ -444,13 +451,21 @@ function TransferItemBase({
                   tone="accent"
                   onClick={() => controls.onRetryDownload(entry.id)}
                 />
-                <ControlButton icon={X} label={t("dismiss")} onClick={() => controls.onDismiss(entry)} />
+                <ControlButton
+                  icon={X}
+                  label={t("dismiss")}
+                  onClick={() => controls.onDismiss(entry)}
+                />
               </>
             )}
 
           {/* Done. Dismiss */}
           {entry.state === "done" && (
-            <ControlButton icon={X} label={t("dismiss")} onClick={() => controls.onDismiss(entry)} />
+            <ControlButton
+              icon={X}
+              label={t("dismiss")}
+              onClick={() => controls.onDismiss(entry)}
+            />
           )}
         </div>
       </div>

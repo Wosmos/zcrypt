@@ -332,9 +332,7 @@ export function MoveToFolderDialog({
                 : t("titleFile")}
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            {movingFolder
-              ? t("descriptionFolder")
-              : t("descriptionFile")}
+            {movingFolder ? t("descriptionFolder") : t("descriptionFile")}
           </DialogDescription>
         </DialogHeader>
 
@@ -363,19 +361,13 @@ export function MoveToFolderDialog({
               {t("unlockToSee")}
             </p>
           ) : (children.root?.length ?? 0) === 0 ? (
-            <p className="px-3 py-3 text-xs text-[var(--color-text-muted)]">
-              {t("noFolders")}
-            </p>
+            <p className="px-3 py-3 text-xs text-[var(--color-text-muted)]">{t("noFolders")}</p>
           ) : (
             renderNodes("root", 0)
           )}
         </div>
 
-        {invalidFolderTarget && (
-          <p className="px-1 text-xs text-red-500">
-            {t("cycle")}
-          </p>
-        )}
+        {invalidFolderTarget && <p className="px-1 text-xs text-red-500">{t("cycle")}</p>}
 
         <DialogFooter className="gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={moving}>

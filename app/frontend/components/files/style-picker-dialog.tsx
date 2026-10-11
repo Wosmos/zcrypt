@@ -67,6 +67,7 @@ export function StylePickerDialog({
   useEffect(() => {
     if (open) {
       const bg = allowBackgroundDesign ? initialStyle?.background : undefined;
+      // oxlint-disable-next-line react/set-state-in-effect
       setPendingIcon(initialStyle?.icon);
       setPendingColor(initialStyle?.color);
       setPendingBackground(bg);
@@ -79,6 +80,7 @@ export function StylePickerDialog({
   // (swatch color input, quick-pick, reset), without fighting the user's own
   // keystrokes while they're mid-edit (see handleHexInput below).
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     setHexDraft(pendingColor ?? "");
   }, [pendingColor]);
 
@@ -202,6 +204,7 @@ export function StylePickerDialog({
             className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-2)]"
             style={previewBackground ? { background: previewBackground } : undefined}
           >
+            {/* oxlint-disable-next-line react/static-components */}
             <PreviewIcon
               weight="fill"
               size={22}

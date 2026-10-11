@@ -43,6 +43,7 @@ export function VaultFirstTimeWarning({
   // over, and focus the re-type field.
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setReentry("");
       setAcknowledged(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -91,9 +92,7 @@ export function VaultFirstTimeWarning({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold">{t("title")}</h3>
-            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-              {t("subtitle")}
-            </p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{t("subtitle")}</p>
           </div>
           <button
             type="button"
@@ -136,9 +135,7 @@ export function VaultFirstTimeWarning({
             className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all"
           />
           {mismatch && (
-            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-              {t("mismatch")}
-            </p>
+            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">{t("mismatch")}</p>
           )}
 
           <label className="flex items-start gap-2.5 mt-4 cursor-pointer select-none">

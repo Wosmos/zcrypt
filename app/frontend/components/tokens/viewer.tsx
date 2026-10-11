@@ -239,9 +239,7 @@ export function MediaPreview({
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <CheckCircle2 className="h-8 w-8 text-cyan-500" />
           <p className="text-sm font-medium">{t("decrypted")}</p>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            {t("noPreview")}
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">{t("noPreview")}</p>
           <Button onClick={onSave} className="mt-2">
             <Download className="h-4 w-4 mr-2" />
             {t("saveToDevice")}

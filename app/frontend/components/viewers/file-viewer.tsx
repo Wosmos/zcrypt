@@ -675,7 +675,9 @@ function DecryptProgress({ done, total }: { done?: number; total?: number }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-        {determinate ? t("decryptingProgress", { done: done ?? 0, total: total ?? 0, percent: pct }) : t("decrypting")}
+        {determinate
+          ? t("decryptingProgress", { done: done ?? 0, total: total ?? 0, percent: pct })
+          : t("decrypting")}
       </p>
       <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
         {determinate ? (
@@ -713,9 +715,7 @@ function FallbackBody({ file, onDownload }: { file: FileMetadata; onDownload: ()
       </div>
       <div className="text-center">
         <p className="text-sm font-medium text-[var(--color-text)]">{file.original_name}</p>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          {t("noPreview")}
-        </p>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t("noPreview")}</p>
       </div>
       <Button variant="primary" size="md" onClick={onDownload}>
         <Download className="h-4 w-4" />

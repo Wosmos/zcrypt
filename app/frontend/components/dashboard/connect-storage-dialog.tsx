@@ -39,8 +39,14 @@ export function ConnectStorageDialog() {
           <DialogTitle>{full ? t("fullTitle") : t("title")}</DialogTitle>
           <DialogDescription>
             {full
-              ? t("fullIntro", { used: formatBytes(quota.used_bytes), total: formatBytes(quota.quota_bytes) })
-              : t("sharedIntro", { used: formatBytes(quota.used_bytes), total: formatBytes(quota.quota_bytes) })}{" "}
+              ? t("fullIntro", {
+                  used: formatBytes(quota.used_bytes),
+                  total: formatBytes(quota.quota_bytes),
+                })
+              : t("sharedIntro", {
+                  used: formatBytes(quota.used_bytes),
+                  total: formatBytes(quota.quota_bytes),
+                })}{" "}
             {t("pitch")}
           </DialogDescription>
         </DialogHeader>

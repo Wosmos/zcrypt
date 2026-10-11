@@ -39,7 +39,9 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">{t("platforms")}</span>
+        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
+          {t("platforms")}
+        </span>
         <Link
           href="/settings"
           className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
@@ -102,7 +104,10 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                 <div className="text-[10px] text-[var(--color-text-muted)]">
                   {t("repos", { count: platformRepos.length })}
                   {platformRepos.some((r) => !r.active) && (
-                    <span> ({t("activeRepos", { count: platformRepos.filter((r) => r.active).length })})</span>
+                    <span>
+                      {" "}
+                      ({t("activeRepos", { count: platformRepos.filter((r) => r.active).length })})
+                    </span>
                   )}
                 </div>
               )}

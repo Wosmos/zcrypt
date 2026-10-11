@@ -85,7 +85,14 @@ function resolveBounds(
     };
   }
   if (preset === "all") {
-    return { start: null, end, allTime: true, label: "All time", labelKey: "allTime", bucket: "month" };
+    return {
+      start: null,
+      end,
+      allTime: true,
+      label: "All time",
+      labelKey: "allTime",
+      bucket: "month",
+    };
   }
   if (preset === "custom" && customStart && customEnd) {
     const start = new Date(`${customStart}T00:00:00`);

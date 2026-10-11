@@ -30,16 +30,12 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
           {t("title")}
         </h3>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          {t("rotates")}
-        </span>
+        <span className="text-xs text-[var(--color-text-muted)]">{t("rotates")}</span>
       </div>
 
       <div className="space-y-3 p-5">
         {ranked.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">
-            {t("none")}
-          </p>
+          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">{t("none")}</p>
         ) : flagged.length === 0 ? (
           <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500" />
@@ -82,8 +78,8 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
                   />
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  {danger ? t("nearlyFull") : t("fillingUp")}{" "}
-                  {formatBytes(r.used_bytes)} / {formatBytes(r.max_bytes)}
+                  {danger ? t("nearlyFull") : t("fillingUp")} {formatBytes(r.used_bytes)} /{" "}
+                  {formatBytes(r.max_bytes)}
                 </p>
               </div>
             );

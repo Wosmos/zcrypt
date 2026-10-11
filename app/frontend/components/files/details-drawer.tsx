@@ -109,6 +109,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   // shares) is served from the cached queries above, no fetch here.
   useEffect(() => {
     if (!open || !fileId) return;
+    // oxlint-disable-next-line react/set-state-in-effect
     setTab("details");
     setShowCreate(false);
     setNewLink(null);
@@ -197,6 +198,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                   typeInfo.bg,
                 )}
               >
+                {/* oxlint-disable-next-line react/static-components */}
                 <Icon className={cn("h-5 w-5", typeInfo.color)} />
               </div>
               <div className="min-w-0">
@@ -336,10 +338,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                 </div>
 
                 {/* Encryption assurance */}
-                <EncryptionAssuranceCard
-                  title={t("fileEncTitle")}
-                  description={t("fileEncBody")}
-                />
+                <EncryptionAssuranceCard title={t("fileEncTitle")} description={t("fileEncBody")} />
               </div>
             </TabsContent>
 

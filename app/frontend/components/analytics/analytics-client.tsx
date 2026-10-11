@@ -132,11 +132,7 @@ export function AnalyticsClient() {
           <EmptyState
             icon={<BarChart3 className="h-7 w-7 text-[var(--color-text-muted)]" />}
             title={rateLimited ? t("rateLimitedTitle") : t("loadFailedTitle")}
-            description={
-              rateLimited
-                ? t("rateLimitedBody")
-                : t("loadFailedBody")
-            }
+            description={rateLimited ? t("rateLimitedBody") : t("loadFailedBody")}
           />
         </div>
       </div>

@@ -1079,9 +1079,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       return;
     }
     const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
-    const friendlyMsg = msg.includes("storage not available")
-      ? tr("hooks.noPlatform")
-      : msg;
+    const friendlyMsg = msg.includes("storage not available") ? tr("hooks.noPlatform") : msg;
     if (isCurrentRun()) setError(id, friendlyMsg);
     // Deliberately do NOT cancel the session here: keeping it lets the user
     // resume via Retry (skipping chunks already uploaded). The session is
@@ -1320,7 +1318,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         .slice(0, 3)
         .map((f) => `"${f.name}" (${formatBytes(f.size)})`)
         .join(", ");
-      const more = tooBig.length > 3 ? ` ${tr("toasts.andMore", { count: tooBig.length - 3 })}` : "";
+      const more =
+        tooBig.length > 3 ? ` ${tr("toasts.andMore", { count: tooBig.length - 3 })}` : "";
       toast.error(
         tr("toasts.tooBig", {
           count: tooBig.length,
@@ -1430,7 +1429,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       if (pausedCount === 0) {
         if (total === 1) {
           if (doneCount === 1) toast.success(tr("toasts.uploaded", { name: items[0].file.name }));
-          else if (failedCount === 1) toast.error(tr("toasts.failedName", { name: items[0].file.name }));
+          else if (failedCount === 1)
+            toast.error(tr("toasts.failedName", { name: items[0].file.name }));
         } else if (failedCount === 0) {
           toast.success(tr("toasts.allUploaded", { count: doneCount }));
         } else if (doneCount === 0) {

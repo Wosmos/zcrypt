@@ -28,7 +28,8 @@ export function formatShortExpiry(expiresAt: string): string {
   if (diff <= 0) return tr("tokens.expired");
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 24) return tr("tokens.daysHours", { days: Math.floor(hours / 24), hours: hours % 24 });
+  if (hours > 24)
+    return tr("tokens.daysHours", { days: Math.floor(hours / 24), hours: hours % 24 });
   if (hours > 0) return tr("tokens.hoursMinutes", { hours, minutes: mins });
   return tr("tokens.minutes", { minutes: mins });
 }

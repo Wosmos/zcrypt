@@ -120,7 +120,11 @@ export function FileTypeFilter({
             title={compact ? t(`categories.${cat.name}`) : undefined}
             className={chipClass(active)}
           >
-            {compact ? <CatIcon size={16} weight={active ? "fill" : "regular"} /> : t(`categories.${cat.name}`)}
+            {compact ? (
+              <CatIcon size={16} weight={active ? "fill" : "regular"} />
+            ) : (
+              t(`categories.${cat.name}`)
+            )}
             <span className="tabular-nums opacity-80">{cat.count}</span>
           </button>
         );

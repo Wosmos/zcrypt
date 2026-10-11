@@ -53,9 +53,7 @@ export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
       </div>
       <div className="space-y-4 p-5">
         {platforms.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">
-            {t("none")}
-          </p>
+          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">{t("none")}</p>
         ) : (
           platforms.map((platform) => {
             const data = usage.get(platform) || { used: 0, max: 0, repoCount: 0 };

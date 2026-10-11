@@ -92,7 +92,8 @@ export function DateRangeControl() {
         <PopoverContent align="end" className="w-[min(34rem,calc(100vw-2rem))] space-y-3 p-4">
           <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
             <span>
-              {start ? formatDateShort(start) : t("start")} – {end ? formatDateShort(end) : t("end")}
+              {start ? formatDateShort(start) : t("start")} –{" "}
+              {end ? formatDateShort(end) : t("end")}
             </span>
           </div>
           <CalendarPicker

@@ -384,13 +384,10 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           error: "Too large to download in this browser",
           stage: "Failed",
         });
-        toast.error(
-          tr("toasts.tooLargeDownload", { name: filename }),
-          {
-            label: tr("toasts.getApp"),
-            onClick: () => window.open("/download", "_blank", "noopener,noreferrer"),
-          },
-        );
+        toast.error(tr("toasts.tooLargeDownload", { name: filename }), {
+          label: tr("toasts.getApp"),
+          onClick: () => window.open("/download", "_blank", "noopener,noreferrer"),
+        });
         return;
       }
 

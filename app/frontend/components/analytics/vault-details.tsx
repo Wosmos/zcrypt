@@ -79,7 +79,8 @@ export function VaultDetails({ summary, items }: VaultDetailsProps) {
     const oldest = summary.oldest_upload ? new Date(summary.oldest_upload) : null;
     const newest = summary.newest_upload ? new Date(summary.newest_upload) : null;
     const spanDays = oldest
-      ? Math.max(1, Math.round((Date.now() - oldest.getTime()) / 86_400_000))
+      ? // oxlint-disable-next-line react/purity
+        Math.max(1, Math.round((Date.now() - oldest.getTime()) / 86_400_000))
       : 1;
     const compressionRatio =
       summary.original_bytes > 0 ? (summary.compressed_bytes / summary.original_bytes) * 100 : 100;
@@ -134,8 +135,7 @@ export function VaultDetails({ summary, items }: VaultDetailsProps) {
           {
             label: t("busiest"),
             value: busiestLabel,
-            hint:
-              busiestCount > 0 ? t("fileCount", { count: busiestCount }) : undefined,
+            hint: busiestCount > 0 ? t("fileCount", { count: busiestCount }) : undefined,
           },
         ],
       },

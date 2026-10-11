@@ -162,9 +162,7 @@ export function StorageHero({ totalOriginal, quotaInfo, items }: StorageHeroProp
             </span>
             <span className="text-sm text-[var(--color-text-muted)]">{t("hero.used")}</span>
           </div>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            {t("hero.bounded")}
-          </p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t("hero.bounded")}</p>
 
           {/* Distribution bar */}
           {totalOriginal > 0 && (

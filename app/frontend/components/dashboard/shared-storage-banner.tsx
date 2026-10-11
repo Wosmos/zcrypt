@@ -58,6 +58,7 @@ export function SharedStorageBanner() {
 
   useEffect(() => {
     if (!onShared) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setVisible(false);
       return;
     }
