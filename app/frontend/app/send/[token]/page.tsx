@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,8 @@ function getMimeType(filename: string): string | undefined {
   return map[ext];
 }
 
+const noopSubscribe = () => () => {};
+
 export default function SendDownloadPage() {
   const { token } = useParams<{ token: string }>();
   const [info, setInfo] = useState<SendInfo | null>(null);
@@ -66,13 +68,8 @@ export default function SendDownloadPage() {
   const [decryptedBlob, setDecryptedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
-  const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
+  const encryptionKey = useSyncExternalStore(noopSubscribe, keyFromFragment, () => null);
   const prevUrlRef = useRef<string | null>(null);
-
-  // Extract key from fragment on mount
-  useEffect(() => {
-    setEncryptionKey(keyFromFragment());
-  }, []);
 
   // Fetch send info
   useEffect(() => {

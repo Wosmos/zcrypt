@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
@@ -62,12 +62,11 @@ export function DeadManContent() {
   // Cached read; the form edits local state seeded once from it, and every
   // mutation writes its result back so a revisit opens instantly and current.
   const dmsQuery = useQuery({ queryKey: qk.deadman, queryFn: getDeadManSwitch });
-  const seeded = useRef(false);
+  const [seeded, setSeeded] = useState(false);
   const settled = !dmsQuery.isPending;
   const loaded = dmsQuery.data;
-  useEffect(() => {
-    if (seeded.current || !settled) return;
-    seeded.current = true;
+  if (!seeded && settled) {
+    setSeeded(true);
     if (loaded && loaded.id) {
       setDms(loaded);
       setContactEmail(loaded.contact_email);
@@ -79,7 +78,7 @@ export function DeadManContent() {
       setNotConfigured(true);
     }
     setLoading(false);
-  }, [settled, loaded]);
+  }
 
   const handleSave = async () => {
     setError("");
