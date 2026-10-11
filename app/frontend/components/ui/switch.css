@@ -1,67 +1,93 @@
+/* iOS 26 switch geometry (capsule track, pill thumb about 60% of the track,
+   2px inset), scaled down to the app's control height, in the theme accent.
+   Pressing turns the thumb into an enlarged clear glass lens; release springs
+   it across and back to solid white. */
 .zc-switch {
-  --zc-switch-w: 52px;
-  --zc-switch-h: 28px;
-  --zc-switch-pad: 2.5px;
-  --zc-thumb: calc(var(--zc-switch-h) - var(--zc-switch-pad) * 2);
-  --zc-thumb-w: calc(var(--zc-switch-w) * 0.62);
+  --zc-w: 44px;
+  --zc-h: 22px;
+  --zc-pad: 2px;
+  --zc-thumb-w: 26px;
+  --zc-thumb-h: calc(var(--zc-h) - var(--zc-pad) * 2);
+  --zc-off: rgb(120 120 128 / 0.16);
+  --zc-on: var(--color-accent);
+  --zc-spring: cubic-bezier(0.32, 1.52, 0.56, 1);
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
-  width: var(--zc-switch-w);
-  height: var(--zc-switch-h);
+  width: var(--zc-w);
+  height: var(--zc-h);
   cursor: pointer;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--color-text) 20%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-text) 8%, transparent);
-  transition:
-    background-color 260ms ease,
-    box-shadow 260ms ease;
+  corner-shape: round;
+  background: var(--zc-off);
+  transition: background-color 280ms ease;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+:root.dark .zc-switch {
+  --zc-off: rgb(120 120 128 / 0.32);
 }
 
 .zc-switch[data-state="checked"] {
-  background: var(--color-accent);
-  box-shadow: inset 0 0 0 1px transparent;
+  background: var(--zc-on);
 }
 
 .zc-switch:focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .zc-switch:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.zc-switch:active:not(:disabled) {
-  --zc-thumb-w: calc(var(--zc-switch-w) * 0.74);
+  opacity: 0.4;
 }
 
 .zc-switch-thumb {
   position: absolute;
-  top: var(--zc-switch-pad);
-  inset-inline-start: var(--zc-switch-pad);
+  top: var(--zc-pad);
+  inset-inline-start: var(--zc-pad);
   width: var(--zc-thumb-w);
-  height: var(--zc-thumb);
+  height: var(--zc-thumb-h);
   border-radius: 999px;
+  corner-shape: round;
   background: #fff;
   box-shadow:
-    0 2px 6px rgb(0 0 0 / 0.16),
-    0 1px 1px rgb(0 0 0 / 0.12),
-    inset 0 0 0 0.5px rgb(0 0 0 / 0.08);
+    0 3px 8px rgb(0 0 0 / 0.15),
+    0 3px 1px rgb(0 0 0 / 0.06),
+    0 0 0 0.5px rgb(0 0 0 / 0.04);
   pointer-events: none;
+  transform-origin: center;
   transition:
-    inset-inline-start 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    width 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    inset-inline-start 480ms var(--zc-spring),
+    transform 360ms var(--zc-spring),
+    background-color 220ms ease,
+    box-shadow 220ms ease,
+    backdrop-filter 220ms ease;
 }
 
 .zc-switch-thumb[data-state="checked"] {
-  inset-inline-start: calc(100% - var(--zc-switch-pad) - var(--zc-thumb-w));
+  inset-inline-start: calc(var(--zc-w) - var(--zc-pad) - var(--zc-thumb-w));
+}
+
+/* Press: the thumb lifts into a clear glass lens, bigger than the track. */
+.zc-switch:active:not(:disabled) .zc-switch-thumb {
+  transform: scale(1.3, 1.4);
+  background: rgb(255 255 255 / 0.22);
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.8) brightness(1.08);
+  backdrop-filter: blur(1.5px) saturate(1.8) brightness(1.08);
+  box-shadow:
+    inset 0 0 0 0.75px rgb(255 255 255 / 0.85),
+    inset 0 1px 2px rgb(255 255 255 / 0.7),
+    inset 0 -1px 3px rgb(0 0 0 / 0.08),
+    0 4px 14px rgb(0 0 0 / 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .zc-switch-thumb {
     transition-duration: 1ms;
+  }
+  .zc-switch:active:not(:disabled) .zc-switch-thumb {
+    transform: none;
   }
 }

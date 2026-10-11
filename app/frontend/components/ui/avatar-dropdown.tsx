@@ -28,24 +28,7 @@ import { ReviewDialog } from "@/components/feedback/review-dialog";
 import { UserAvatar, useCurrentUserAvatar } from "@/components/ui/user-avatar";
 import { Role } from "@/types";
 import Link from "next/link";
-
-function ToggleSwitch({ enabled }: { enabled: boolean }) {
-  return (
-    <div
-      className={cn(
-        "relative inline-flex h-[22px] w-[40px] flex-shrink-0 rounded-full transition-colors duration-200",
-        enabled ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]",
-      )}
-    >
-      <span
-        className={cn(
-          "pointer-events-none absolute top-[3px] start-[3px] inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-          enabled ? "translate-x-[18px] rtl:-translate-x-[18px]" : "translate-x-0",
-        )}
-      />
-    </div>
-  );
-}
+import { Switch } from "@/components/ui/switch";
 
 export function AvatarDropdown() {
   const t = useTranslations("shell");
@@ -155,10 +138,7 @@ export function AvatarDropdown() {
               </Link>
 
               {/* Dark mode toggle */}
-              <button
-                onClick={toggleTheme}
-                className="flex items-center justify-between w-full px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
-              >
+              <label className="flex cursor-pointer items-center justify-between w-full px-4 py-2 text-sm hover:bg-[var(--color-surface-1)] transition-colors">
                 <span className="flex items-center gap-3">
                   {isDark ? (
                     <Moon className="h-4 w-4 text-[var(--color-text-muted)]" />
@@ -167,20 +147,17 @@ export function AvatarDropdown() {
                   )}
                   {t("darkMode")}
                 </span>
-                <ToggleSwitch enabled={isDark} />
-              </button>
+                <Switch checked={isDark} onCheckedChange={toggleTheme} />
+              </label>
 
               {/* Advanced mode toggle */}
-              <button
-                onClick={() => setAdvancedMode(!advancedMode)}
-                className="flex items-center justify-between w-full px-4 py-2.5 text-sm hover:bg-[var(--color-surface-1)] transition-colors"
-              >
+              <label className="flex cursor-pointer items-center justify-between w-full px-4 py-2 text-sm hover:bg-[var(--color-surface-1)] transition-colors">
                 <span className="flex items-center gap-3">
                   <Cog className="h-4 w-4 text-[var(--color-text-muted)]" />
                   {t("advanced")}
                 </span>
-                <ToggleSwitch enabled={advancedMode} />
-              </button>
+                <Switch checked={advancedMode} onCheckedChange={setAdvancedMode} />
+              </label>
             </div>
 
             <div className="border-t border-[var(--color-border)] py-1">
