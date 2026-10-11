@@ -47,6 +47,8 @@ interface MoveToFolderDialogProps {
    * send the new envelope with the move. Resolves on success; rejects on failure.
    */
   onMoveFile?: (fileId: string, destFolderId: string | null) => Promise<void>;
+  /** Folder a file currently sits in; enables Undo on the success toast. */
+  originOf?: (fileId: string) => string | null;
 }
 
 interface TreeNode {
@@ -66,6 +68,7 @@ export function MoveToFolderDialog({
   onClose,
   onMoved,
   onMoveFile,
+  originOf,
 }: MoveToFolderDialogProps) {
   const t = useTranslations("app.move");
   const user = useAuthStore((s) => s.user);
@@ -196,6 +199,26 @@ export function MoveToFolderDialog({
   const invalidFolderTarget =
     movingFolder && selected !== undefined && isSelfOrDescendant(selected);
 
+  const undoMoveFor = (ids: string[]) => {
+    if (!originOf) return undefined;
+    const origins = ids.map((id) => [id, originOf(id)] as const);
+    return {
+      label: t("undo"),
+      onClick: async () => {
+        try {
+          for (const [id, folder] of origins) {
+            if (onMoveFile) await onMoveFile(id, folder);
+            else await moveFile(id, folder);
+          }
+        } catch {
+          toast.error(t("undoFailed"));
+        } finally {
+          onMoved?.();
+        }
+      },
+    };
+  };
+
   const handleMove = async () => {
     if (selected === undefined) return;
 
@@ -230,6 +253,7 @@ export function MoveToFolderDialog({
       let succeeded = 0;
       let failed = 0;
       let cancelled = false;
+      const undo = undoMoveFor(fileIds);
       for (const id of fileIds) {
         try {
           if (onMoveFile) await onMoveFile(id, selected);
@@ -251,7 +275,7 @@ export function MoveToFolderDialog({
       if (failed > 0) {
         toast.warning(t("partial", { succeeded, failed }));
       } else {
-        toast.success(t("movedCount", { count: succeeded }));
+        toast.success(t("movedCount", { count: succeeded }), undo);
       }
       onMoved?.();
       onClose();
@@ -260,13 +284,14 @@ export function MoveToFolderDialog({
 
     if (!fileId) return;
     setMoving(true);
+    const undo = undoMoveFor([fileId]);
     try {
       // The page-supplied override re-keys across a protection boundary (decrypt
       // under source pass → rewrap under dest pass) in the same request as the move; the
       // fallback is a plain move (unprotected → unprotected, byte-for-byte same).
       if (onMoveFile) await onMoveFile(fileId, selected);
       else await moveFile(fileId, selected);
-      toast.success(selected === null ? t("movedRoot") : t("fileMoved"));
+      toast.success(selected === null ? t("movedRoot") : t("fileMoved"), undo);
       onMoved?.();
       onClose();
     } catch (err) {

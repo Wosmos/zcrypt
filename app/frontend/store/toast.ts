@@ -16,6 +16,7 @@ interface Toast {
   type: ToastType;
   message: string;
   action?: ToastAction;
+  duration: number;
 }
 
 interface ToastStore {
@@ -29,18 +30,23 @@ interface ToastStore {
 // re-surface later and restart its countdown bar out of sync with its timer.
 const MAX_TOASTS = 5;
 
+export const TOAST_DURATION = 4000;
+// A toast carrying an action (Undo) needs enough time to read and reach for it.
+export const TOAST_ACTION_DURATION = 7000;
+
 export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
 
   add: (type, message, action) => {
     const id = genId("toast", { time: false });
+    const duration = action ? TOAST_ACTION_DURATION : TOAST_DURATION;
     set((s) => {
-      const next = [...s.toasts, { id, type, message, action }];
+      const next = [...s.toasts, { id, type, message, action, duration }];
       return { toasts: next.slice(-MAX_TOASTS) };
     });
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
-    }, 4000);
+    }, duration);
   },
 
   remove: (id) => {

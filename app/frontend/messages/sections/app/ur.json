@@ -488,7 +488,9 @@
       "moving": "منتقل ہو رہا ہے...",
       "moveHere": "یہاں منتقل کریں",
       "collapse": "{name} سمیٹیں",
-      "expand": "{name} کھولیں"
+      "expand": "{name} کھولیں",
+      "undo": "واپس کریں",
+      "undoFailed": "منتقلی واپس نہیں کی جا سکی"
     },
     "stylePicker": {
       "customColor": "حسب ضرورت رنگ",

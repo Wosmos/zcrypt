@@ -488,7 +488,9 @@
       "moving": "Moving...",
       "moveHere": "Move here",
       "collapse": "Collapse {name}",
-      "expand": "Expand {name}"
+      "expand": "Expand {name}",
+      "undo": "Undo",
+      "undoFailed": "Couldn't undo the move"
     },
     "stylePicker": {
       "customColor": "Custom color",

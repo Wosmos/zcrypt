@@ -488,7 +488,9 @@
       "moving": "جارٍ النقل...",
       "moveHere": "انقل إلى هنا",
       "collapse": "طيّ {name}",
-      "expand": "توسيع {name}"
+      "expand": "توسيع {name}",
+      "undo": "تراجع",
+      "undoFailed": "تعذّر التراجع عن النقل"
     },
     "stylePicker": {
       "customColor": "لون مخصص",

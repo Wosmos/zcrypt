@@ -488,7 +488,9 @@
       "moving": "Перемещение...",
       "moveHere": "Переместить сюда",
       "collapse": "Свернуть {name}",
-      "expand": "Развернуть {name}"
+      "expand": "Развернуть {name}",
+      "undo": "Отменить",
+      "undoFailed": "Не удалось отменить перемещение"
     },
     "stylePicker": {
       "customColor": "Свой цвет",

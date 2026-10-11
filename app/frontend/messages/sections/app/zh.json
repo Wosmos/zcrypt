@@ -488,7 +488,9 @@
       "moving": "正在移动...",
       "moveHere": "移到这里",
       "collapse": "收起 {name}",
-      "expand": "展开 {name}"
+      "expand": "展开 {name}",
+      "undo": "撤销",
+      "undoFailed": "无法撤销移动"
     },
     "stylePicker": {
       "customColor": "自定义颜色",

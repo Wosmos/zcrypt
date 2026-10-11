@@ -488,7 +488,9 @@
       "moving": "Déplacement...",
       "moveHere": "Déplacer ici",
       "collapse": "Réduire {name}",
-      "expand": "Développer {name}"
+      "expand": "Développer {name}",
+      "undo": "Annuler",
+      "undoFailed": "Impossible d'annuler le déplacement"
     },
     "stylePicker": {
       "customColor": "Couleur personnalisée",
