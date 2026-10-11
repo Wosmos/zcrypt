@@ -107,7 +107,7 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
   const confirm = page.getByPlaceholder("Type it again");
   if (await confirm.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await confirm.fill(PASSPHRASE);
-    await page.getByRole("checkbox").last().click();
+    await page.getByRole("checkbox", { name: /I understand my passphrase/ }).click();
     await page.getByRole("button", { name: "I understand, continue" }).click();
   }
 
