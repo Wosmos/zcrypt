@@ -26,9 +26,10 @@ function sync(root: HTMLElement) {
     li.toggleAttribute("data-active", i === active);
     li.toggleAttribute("data-passed", i <= active);
   });
-  const node = active >= 0 ? rows[active].querySelector<HTMLElement>(".cl-node") : null;
-  const top = node ? node.getBoundingClientRect().top - root.getBoundingClientRect().top : 0;
-  root.style.setProperty("--cl-progress", `${Math.max(0, top - 12)}px`);
+  const box = root.getBoundingClientRect();
+  const end = rows.length ? rows[rows.length - 1].getBoundingClientRect().top - box.top + 24 : 0;
+  const progress = Math.min(Math.max(line - box.top - 16, 0), Math.max(end, 0));
+  root.style.setProperty("--cl-progress", `${progress}px`);
 }
 
 export function TimelineControls({ targetId }: { targetId: string }) {

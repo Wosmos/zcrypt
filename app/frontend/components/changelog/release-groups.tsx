@@ -70,8 +70,8 @@ export function ReleaseGroups({
           <KindChip kind={group.kind} />
           <ul
             className={cn(
-              "mt-3 space-y-2.5 text-[var(--color-text-secondary)]",
-              compact ? "text-sm leading-relaxed" : "text-[15px] leading-relaxed",
+              "mt-3 text-[var(--color-text)]",
+              compact ? "space-y-2.5 text-sm leading-relaxed" : "space-y-3 text-base leading-7",
             )}
           >
             {group.items.map((item) => (
@@ -79,7 +79,7 @@ export function ReleaseGroups({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-[0.6em] h-1 w-1 flex-none rounded-full",
+                    "mt-[0.65em] h-1.5 w-1.5 flex-none rounded-full",
                     KIND_STYLES[group.kind].dot,
                   )}
                 />

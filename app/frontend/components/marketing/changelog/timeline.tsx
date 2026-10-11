@@ -79,46 +79,45 @@ function TimelineItem({ release }: { release: Release }) {
       data-release={release.version}
       data-kinds={release.groups.map((g) => g.kind).join(" ")}
       {...(upcoming ? { "data-upcoming": "" } : {})}
-      className="relative grid scroll-mt-28 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 md:grid-cols-[10.5rem_1.25rem_minmax(0,1fr)] md:gap-x-6"
+      className="relative scroll-mt-28 ps-10 pb-12 md:ps-14"
     >
       <span aria-hidden="true" className="cl-node" />
-
-      <div className="col-start-2 row-start-1 pb-4 md:col-start-1 md:pb-0 md:text-end">
-        <VersionBadge release={release} className="md:justify-end" />
-        <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">
-          <ReleaseDate date={release.date} relative />
-        </p>
-        <KindCounts release={release} className="mt-2 md:justify-end" />
-      </div>
-
-      <div className="col-start-2 row-start-2 pb-14 md:col-start-3 md:row-start-1">
-        <div
-          className={cn(
-            cardSurface,
-            "cl-card p-6 sm:p-8",
-            latest && "cl-latest",
-            upcoming &&
-              "cl-upcoming outline outline-1 -outline-offset-1 outline-dashed outline-amber-500/40",
-          )}
-        >
-          <ReleaseHeading release={release} />
-          {upcoming ? (
-            <p className="mt-1 text-[13px] font-medium text-amber-700 dark:text-amber-300">
-              <T k="changelog.page.upcomingNote" />
-            </p>
-          ) : null}
-          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-[var(--color-text-secondary)]">
-            <T k={`changelog.${release.key}.summary`} />
-          </p>
-          <ReleaseGroups release={release} className="mt-7" />
-          <Link
-            href={`/changelog/${release.version}`}
-            className="group mt-7 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--pv2-accent-ink)] hover:underline"
-          >
-            <T k="changelog.page.readMore" />
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5" />
-          </Link>
+      <div
+        className={cn(
+          cardSurface,
+          "cl-card p-6 sm:p-8",
+          latest && "cl-latest",
+          upcoming &&
+            "cl-upcoming outline outline-1 -outline-offset-1 outline-dashed outline-amber-500/40",
+        )}
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <VersionBadge release={release} />
+          <span className="text-[13px] text-[var(--color-text-muted)]">
+            <ReleaseDate date={release.date} relative />
+          </span>
+          <KindCounts release={release} className="ms-auto" />
         </div>
+        <ReleaseHeading release={release} />
+        {upcoming ? (
+          <p className="mt-1 text-[13px] font-medium text-amber-700 dark:text-amber-300">
+            <T k="changelog.page.upcomingNote" />
+          </p>
+        ) : null}
+        <p className="mt-3 max-w-[65ch] text-base leading-7 text-[var(--color-text-secondary)]">
+          <T k={`changelog.${release.key}.summary`} />
+        </p>
+        <ReleaseGroups
+          release={release}
+          className="mt-7 border-t border-[var(--color-border)] pt-6"
+        />
+        <Link
+          href={`/changelog/${release.version}`}
+          className="group mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] hover:underline"
+        >
+          <T k="changelog.page.readMore" />
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5" />
+        </Link>
       </div>
     </li>
   );
@@ -133,6 +132,7 @@ export function ChangelogTimeline({ releases }: { releases: Release[] }) {
       <div id={TIMELINE_ID} className="cl-timeline">
         <span aria-hidden="true" className="cl-spine" />
         <span aria-hidden="true" className="cl-spine-fill" />
+        <span aria-hidden="true" className="cl-spine-head" />
         <ol className="m-0 list-none p-0">
           {releases.map((r) => (
             <TimelineItem key={r.version} release={r} />
