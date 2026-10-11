@@ -91,6 +91,7 @@ export function MobileNav() {
   const isActive = (href: string) => {
     if (href === "/admin") return pathname.startsWith("/admin");
     if (href === "/tools") return pathname.startsWith("/tools");
+    if (href === "/spaces") return pathname.startsWith("/spaces");
     return pathname === href;
   };
 

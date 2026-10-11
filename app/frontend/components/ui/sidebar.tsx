@@ -90,6 +90,7 @@ export function Sidebar() {
   const isActive = (href: string) => {
     if (href === "/admin") return pathname.startsWith("/admin");
     if (href === "/tools") return pathname.startsWith("/tools");
+    if (href === "/spaces") return pathname.startsWith("/spaces");
     if (href === "/settings") return pathname.startsWith("/settings");
     return pathname === href;
   };

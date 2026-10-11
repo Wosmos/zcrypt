@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { HTMLAttributes } from "react";
 import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +39,7 @@ export function MemberAvatar({
   );
 }
 
-function AvatarStack({
+export function AvatarStack({
   members,
   total,
 }: {
@@ -113,60 +115,69 @@ export function StorageMeter({ used, limit }: { used: number; limit: number }) {
 
 export function SpaceCard({
   vault,
+  name,
+  description,
   userId,
-  onOpen,
   index,
+  itemProps,
 }: {
   vault: SharedVault;
+  name: string;
+  description: string;
   userId: string | undefined;
-  onOpen: () => void;
   index: number;
+  itemProps: HTMLAttributes<HTMLAnchorElement> & { "data-item-id": string };
 }) {
   const perms = spacePerms(vault, userId);
   const files = vault.file_count ?? vault.file_ids?.length ?? 0;
   const members = vault.member_count ?? 1;
   return (
-    <motion.button
-      type="button"
-      onClick={onOpen}
+    <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: Math.min(index, 8) * 0.03 }}
-      className="panel group flex h-full w-full flex-col gap-4 p-5 text-left outline-none transition-colors hover:border-[var(--color-border-hover)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+      className="h-full"
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
-          <Users className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-[var(--color-text)]">{vault.name}</p>
-            <RoleBadge role={perms.label} />
+      <Link
+        href={`/spaces/${vault.id}`}
+        role="option"
+        {...itemProps}
+        className="panel group flex h-full w-full flex-col gap-4 p-5 text-left outline-none transition-colors hover:border-[var(--color-border-hover)] focus-visible:border-[var(--color-accent)]/50 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
+            <Users className="h-5 w-5" />
           </div>
-          <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-[var(--color-text-secondary)]">
-            {vault.description || "No description"}
-          </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-semibold text-[var(--color-text)]">{name}</p>
+              <RoleBadge role={perms.label} />
+            </div>
+            <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-[var(--color-text-secondary)]">
+              {description || "No description"}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <StorageMeter used={vault.used_bytes ?? 0} limit={vault.size_limit_bytes} />
-        {vault.needs_rotation && perms.manage && (
-          <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-            Key rotation pending
-          </p>
-        )}
-      </div>
+        <div className="space-y-2">
+          <StorageMeter used={vault.used_bytes ?? 0} limit={vault.size_limit_bytes} />
+          {vault.needs_rotation && perms.rotate && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+              Key rotation pending
+            </p>
+          )}
+        </div>
 
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-3">
-        <AvatarStack members={vault.member_preview ?? []} total={members} />
-        <span className="flex items-center gap-1.5 text-xs tabular-nums text-[var(--color-text-muted)]">
-          <FileIcon className="h-3.5 w-3.5" />
-          {files} file{files === 1 ? "" : "s"}
-        </span>
-      </div>
-    </motion.button>
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-3">
+          <AvatarStack members={vault.member_preview ?? []} total={members} />
+          <span className="flex items-center gap-1.5 text-xs tabular-nums text-[var(--color-text-muted)]">
+            <FileIcon className="h-3.5 w-3.5" />
+            {files} file{files === 1 ? "" : "s"}
+          </span>
+        </div>
+      </Link>
+    </motion.div>
   );
 }
 
