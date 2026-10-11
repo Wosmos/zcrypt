@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { unshareFileFromSpace, downloadSpaceFile } from "@/lib/spaces";
 import { runPool } from "@/lib/pool";
@@ -30,7 +31,6 @@ import {
   ShortcutsHelp,
   SpaceBreadcrumb,
   SpaceGlyph,
-  plural,
   useGridColumns,
   useSlashToFocus,
   SelectTick,
@@ -57,20 +57,6 @@ import {
   X,
 } from "@/lib/icons";
 
-const SHORTCUTS: [string, string][] = [
-  ["Arrow keys", "Move between files"],
-  ["Shift + Arrow", "Extend the selection"],
-  ["Ctrl/Cmd + click", "Add or remove one file"],
-  ["Shift + click", "Select a range"],
-  ["Space", "Select or deselect"],
-  ["Ctrl/Cmd + A", "Select all files"],
-  ["Enter", "Download the focused file"],
-  ["Delete", "Remove from this Space"],
-  ["Esc", "Clear the selection"],
-  ["/", "Filter files"],
-  ["?", "Show these shortcuts"],
-];
-
 const REMOVE_CONCURRENCY = 4;
 const LONG_PRESS_MS = 450;
 type View = "list" | "grid";
@@ -88,6 +74,20 @@ function isCoarsePointer(): boolean {
 }
 
 export function SpaceHome() {
+  const t = useTranslations("spaces");
+  const shortcuts: [string, string][] = [
+    [t("shared.arrowKeys"), t("home.moveFiles")],
+    [t("shared.shiftArrow"), t("shared.extendSelection")],
+    [t("shared.ctrlClick"), t("home.ctrlClickDesc")],
+    [t("shared.shiftClick"), t("home.shiftClickDesc")],
+    ["Space", t("home.spaceDesc")],
+    ["Ctrl/Cmd + A", t("home.selectAllDesc")],
+    ["Enter", t("home.enterDesc")],
+    ["Delete", t("home.deleteDesc")],
+    ["Esc", t("shared.clearTheSelection")],
+    ["/", t("home.filterDesc")],
+    ["?", t("shared.showShortcuts")],
+  ];
   const { id } = useParams<{ id: string }>();
   const { query, detail, perms } = useSpaceDetail(id);
   const meta = useSpaceMeta(detail ?? undefined);
@@ -109,13 +109,20 @@ export function SpaceHome() {
   useSlashToFocus(filterRef);
 
   useEffect(() => {
-    if (meta.ready) document.title = `${meta.name} · Spaces`;
-  }, [meta.ready, meta.name]);
+    if (meta.ready) document.title = t("home.docTitle", { name: meta.name });
+  }, [meta.ready, meta.name, t]);
 
-  const setSelected = useCallback((next: Set<string>) => {
-    setSelectedRaw(next);
-    setAnnounce(next.size === 0 ? "Selection cleared" : `${plural(next.size, "file")} selected`);
-  }, []);
+  const setSelected = useCallback(
+    (next: Set<string>) => {
+      setSelectedRaw(next);
+      setAnnounce(
+        next.size === 0
+          ? t("shared.selectionCleared")
+          : t("shared.filesSelected", { count: next.size }),
+      );
+    },
+    [t],
+  );
 
   const canEdit = !!perms?.editFiles;
   const needsRotation = !!detail?.needs_rotation;
@@ -136,9 +143,9 @@ export function SpaceHome() {
     const q = filter.trim().toLowerCase();
     return job.fileIds
       .filter((fid) => !have.has(fid) && !failed.has(fid))
-      .map((fid) => ({ id: fid, name: names.get(fid) ?? "Encrypted file" }))
+      .map((fid) => ({ id: fid, name: names.get(fid) ?? t("shared.encryptedFile") }))
       .filter((r) => !q || r.name.toLowerCase().includes(q));
-  }, [job, rows, myFiles, filter]);
+  }, [job, rows, myFiles, filter, t]);
 
   const columns = useGridColumns(gridRef, view === "grid" && ids.length > 0);
 
@@ -155,7 +162,7 @@ export function SpaceHome() {
             await downloadSpaceFile(detail, fid, row.wrappedCek, row.name);
           } catch (err) {
             toast.error(
-              `${midTrunc(row.name, 24, 8)}: ${err instanceof Error ? err.message : "Download failed"}`,
+              `${midTrunc(row.name, 24, 8)}: ${err instanceof Error ? err.message : t("home.downloadFailed")}`,
             );
           } finally {
             setDownloading((prev) => {
@@ -167,7 +174,7 @@ export function SpaceHome() {
         }
       });
     },
-    [detail, rowById, ready],
+    [detail, rowById, ready, t],
   );
 
   const removeFiles = async () => {
@@ -192,9 +199,9 @@ export function SpaceHome() {
     void refreshSpaces();
     if (removed.length < targets.length) void refreshSpace(detail.id);
     setSelectedRaw((prev) => new Set([...prev].filter((x) => !gone.has(x))));
-    setAnnounce(`Removed ${plural(removed.length, "file")}`);
+    setAnnounce(t("home.removedAnnounce", { count: removed.length }));
     if (removed.length < targets.length) {
-      toast.error(`${plural(targets.length - removed.length, "file")} couldn't be removed`);
+      toast.error(t("home.removeFailed", { count: targets.length - removed.length }));
     }
     setRemoving(false);
     setConfirmIds(null);
@@ -237,18 +244,18 @@ export function SpaceHome() {
       query.error instanceof ApiError && (query.error.status === 404 || query.error.status === 403);
     return (
       <PageShell>
-        <SpaceBreadcrumb crumbs={[{ label: "Spaces", href: "/spaces" }, { label: "Space" }]} />
+        <SpaceBreadcrumb
+          crumbs={[{ label: t("shared.spaces"), href: "/spaces" }, { label: t("shared.space") }]}
+        />
         <Notice tone="error">
-          {gone
-            ? "This space doesn't exist, or you no longer have access to it."
-            : "Couldn't load this space."}{" "}
+          {gone ? t("home.gone") : t("shared.loadSpaceError")}{" "}
           {!gone && (
             <button
               type="button"
               className="font-medium underline"
               onClick={() => void query.refetch()}
             >
-              Try again
+              {t("common.retry")}
             </button>
           )}
         </Notice>
@@ -262,7 +269,7 @@ export function SpaceHome() {
   const addBlocked = needsRotation || overLimit;
   const members = (detail.members ?? []).map((m) => ({
     user_id: m.user_id,
-    username: m.username || m.email || "Member",
+    username: m.username || m.email || t("shared.member"),
   }));
   const allSelected = ids.length > 0 && ids.every((x) => selected.has(x));
   const selectMode = selected.size > 0;
@@ -271,7 +278,10 @@ export function SpaceHome() {
   return (
     <PageShell>
       <SpaceBreadcrumb
-        crumbs={[{ label: "Spaces", href: "/spaces" }, { label: meta.name || "Space" }]}
+        crumbs={[
+          { label: t("shared.spaces"), href: "/spaces" },
+          { label: meta.name || t("shared.space") },
+        ]}
       />
 
       <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -293,7 +303,7 @@ export function SpaceHome() {
               <Link
                 href={`/spaces/${id}/settings#members`}
                 className={cn("rounded-full", FOCUS_RING)}
-                aria-label={`${plural(members.length, "member")}. Manage members`}
+                aria-label={t("home.manageMembers", { count: members.length })}
               >
                 <AvatarStack members={members.slice(0, 5)} total={members.length} />
               </Link>
@@ -305,26 +315,26 @@ export function SpaceHome() {
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
-          <ShortcutsHelp items={SHORTCUTS} title="Space shortcuts" />
+          <ShortcutsHelp items={shortcuts} title={t("home.shortcutsTitle")} />
           {canEdit &&
             (addBlocked ? (
               <span
                 aria-disabled="true"
-                title={needsRotation ? "Rotate the space key first" : "Storage limit reached"}
+                title={needsRotation ? t("home.rotateFirst") : t("home.limitReached")}
                 className={buttonClass("primary", "md", "pointer-events-none opacity-40")}
               >
                 <Plus className="h-4 w-4" />
-                Add files
+                {t("home.addFiles")}
               </span>
             ) : (
               <Link href={`/spaces/${id}/add`} className={buttonClass("primary", "md")}>
                 <Plus className="h-4 w-4" />
-                Add files
+                {t("home.addFiles")}
               </Link>
             ))}
           <Link href={`/spaces/${id}/settings`} className={buttonClass("secondary", "md")}>
             <Settings className="h-4 w-4" />
-            Settings
+            {t("home.settings")}
           </Link>
         </div>
       </header>
@@ -336,12 +346,12 @@ export function SpaceHome() {
         >
           <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
           <p className="flex-1 text-sm text-[var(--color-text)]">
-            A member was removed. The space key must be rotated to lock out any copy they kept.
-            {!perms.rotate && " Ask the owner to rotate it; adding files is paused until then."}
+            {t("home.rotationBanner")}
+            {!perms.rotate && ` ${t("home.rotationAsk")}`}
           </p>
           {perms.rotate && (
             <Link href={`/spaces/${id}/settings#rotate`} className={buttonClass("primary", "sm")}>
-              Rotate key
+              {t("home.rotateKey")}
             </Link>
           )}
         </div>
@@ -354,12 +364,12 @@ export function SpaceHome() {
         >
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           {inFlight.status === "paused"
-            ? "Unlock your vault to finish adding files."
-            : `Adding ${inFlight.done} of ${inFlight.total} files…`}
+            ? t("home.unlockToFinish")
+            : t("home.addingProgress", { done: inFlight.done, total: inFlight.total })}
         </div>
       )}
 
-      <section className="space-y-3" aria-label="Files">
+      <section className="space-y-3" aria-label={t("home.filesSection")}>
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-0 flex-1 sm:max-w-sm">
             <Input
@@ -377,22 +387,22 @@ export function SpaceHome() {
                   nav.moveFocus(null, 0, false);
                 }
               }}
-              placeholder="Filter files  ( / )"
-              aria-label="Filter files"
+              placeholder={t("home.filterPlaceholder")}
+              aria-label={t("home.filterDesc")}
             />
           </div>
           <p className="hidden text-xs tabular-nums text-[var(--color-text-muted)] sm:block">
-            {plural(rows.length, "file")}
+            {t("shared.fileCount", { count: rows.length })}
           </p>
           <div
             role="group"
-            aria-label="Layout"
+            aria-label={t("home.layout")}
             className="ms-auto flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
           >
             {(
               [
-                ["list", Table, "List view"],
-                ["grid", LayoutGrid, "Grid view"],
+                ["list", Table, t("home.listView")],
+                ["grid", LayoutGrid, t("home.gridView")],
               ] as const
             ).map(([v, Icon, label]) => (
               <button
@@ -419,15 +429,15 @@ export function SpaceHome() {
           <div
             className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-md"
             role="toolbar"
-            aria-label="Selection actions"
+            aria-label={t("home.selectionActions")}
           >
             <Checkbox
               checked={allSelected}
               onCheckedChange={() => (allSelected ? nav.clear() : nav.selectAll())}
-              aria-label={allSelected ? "Deselect all" : "Select all"}
+              aria-label={allSelected ? t("home.deselectAll") : t("home.selectAll")}
             />
             <span className="text-sm font-medium tabular-nums text-[var(--color-text)]">
-              {selected.size} selected
+              {t("shared.selectedShort", { count: selected.size })}
             </span>
             <div className="ms-auto flex items-center gap-2">
               <Button
@@ -436,19 +446,19 @@ export function SpaceHome() {
                 onClick={() => void downloadFiles([...selected])}
               >
                 <Download className="h-3.5 w-3.5" />
-                Download
+                {t("home.download")}
               </Button>
               {canEdit && (
                 <Button size="sm" variant="danger" onClick={() => setConfirmIds([...selected])}>
                   <Trash2 className="h-3.5 w-3.5" />
-                  Remove from Space
+                  {t("home.removeFromSpace")}
                 </Button>
               )}
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => nav.clear()}
-                aria-label="Clear selection"
+                aria-label={t("home.clearSelection")}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -460,17 +470,13 @@ export function SpaceHome() {
           <div className="rounded-2xl border border-dashed border-[var(--color-border)]">
             <EmptyState
               icon={<FileIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
-              title="No files yet"
-              description={
-                canEdit
-                  ? "Add files from your vault to share them here. They stay end-to-end encrypted."
-                  : "Editors and admins can add files to this space."
-              }
+              title={t("home.emptyTitle")}
+              description={canEdit ? t("home.emptyEditor") : t("home.emptyViewer")}
               action={
                 canEdit && !addBlocked ? (
                   <Link href={`/spaces/${id}/add`} className={buttonClass("primary", "md")}>
                     <Plus className="h-4 w-4" />
-                    Add files
+                    {t("home.addFiles")}
                   </Link>
                 ) : undefined
               }
@@ -478,13 +484,13 @@ export function SpaceHome() {
           </div>
         ) : visibleRows.length === 0 && pendingRows.length === 0 ? (
           <p className="panel px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
-            No files match &ldquo;{filter.trim()}&rdquo;.
+            {t("home.noMatch", { query: filter.trim() })}
           </p>
         ) : (
           <div
             ref={gridRef}
             role="listbox"
-            aria-label={`Files in ${meta.name || "this space"}`}
+            aria-label={t("home.listAria", { name: meta.name || t("home.thisSpace") })}
             aria-multiselectable="true"
             onKeyDown={nav.onContainerKeyDown}
             className={cn(
@@ -542,9 +548,9 @@ export function SpaceHome() {
           if (!removing && !o) setConfirmIds(null);
         }}
         destructive
-        title={`Remove ${plural(confirmIds?.length ?? 0, "file")} from this Space?`}
-        description="Members lose access to these files here. Your original files in your vault are not deleted."
-        confirmLabel="Remove"
+        title={t("home.removeTitle", { count: confirmIds?.length ?? 0 })}
+        description={t("home.removeDesc")}
+        confirmLabel={t("home.remove")}
         loading={removing}
         onConfirm={() => void removeFiles()}
       />
@@ -675,6 +681,7 @@ function FileItem({
 }
 
 function PendingItem({ name, view }: { name: string; view: View }) {
+  const t = useTranslations("spaces");
   return (
     <div
       aria-hidden="true"
@@ -687,7 +694,7 @@ function PendingItem({ name, view }: { name: string; view: View }) {
     >
       <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
       <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
-      <span className="text-xs">adding&hellip;</span>
+      <span className="text-xs">{t("home.adding")}</span>
     </div>
   );
 }

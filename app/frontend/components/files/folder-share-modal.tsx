@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { EXPIRY_KEYS } from "@/components/share/expiry-keys";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +36,7 @@ import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 
 const DOWNLOAD_LIMIT_OPTIONS = [
-  { label: "Unlimited", value: 0 },
+  { value: 0 },
   { label: "10", value: 10 },
   { label: "50", value: 50 },
   { label: "100", value: 100 },
@@ -49,6 +51,7 @@ interface FolderShareModalProps {
 }
 
 export function FolderShareModal({ folder, open, onOpenChange, files }: FolderShareModalProps) {
+  const t = useTranslations("spaces.share");
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState("");
   const [expiryHours, setExpiryHours] = useState(0);
@@ -120,19 +123,17 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
       );
       setLink(url);
       if (nestingIncomplete) {
-        toast.error(
-          "Link created, but the folder layout couldn't be read: its download will be flat. Recreate the link to include the folder structure.",
-        );
+        toast.error(t("folder.nestingIncomplete"));
       } else {
         toast.success(
           skipped > 0
-            ? `Folder link created: ${shared} file${shared === 1 ? "" : "s"} shared, ${skipped} skipped`
-            : `Folder link created: ${shared} file${shared === 1 ? "" : "s"}`,
+            ? t("folder.createdSkipped", { shared, skipped })
+            : t("folder.created", { shared }),
         );
       }
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folder.id) });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create folder link");
+      setError(err instanceof Error ? err.message : t("folder.createFailed"));
     } finally {
       setCreating(false);
       setProgress(null);
@@ -144,7 +145,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } else {
-      toast.error("Failed to copy");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -153,9 +154,9 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
     try {
       await revokeFolderShare(id);
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folder.id) });
-      toast.success("Folder link revoked");
+      toast.success(t("folder.revoked"));
     } catch {
-      toast.error("Failed to revoke");
+      toast.error(t("revokeFailed"));
     }
   };
 
@@ -166,12 +167,13 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-[var(--color-accent)]" />
             <span className="truncate">
-              Share “{folder?.name ? midTrunc(folder.name, 18, 8) : folder?.name}”
+              {t("folder.title", {
+                name: folder?.name ? midTrunc(folder.name, 18, 8) : (folder?.name ?? ""),
+              })}
             </span>
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            Create a public link to this folder. Anyone with the link can open and download its
-            files: the decryption key stays in the link and never reaches the server.
+            {t("folder.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -187,7 +189,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
               />
               <IconButton
                 icon={copied ? Check : Copy}
-                label="Copy link"
+                label={t("folder.copyLink")}
                 variant="ghost"
                 onClick={() => handleCopy(link)}
                 className="h-7 w-7 flex-shrink-0"
@@ -195,16 +197,17 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
               />
             </div>
             <p className="text-xs text-[var(--color-text-muted)]">
-              Keep the whole link: the part after <span className="font-mono">#</span> is the
-              decryption key and is required to open the folder.
+              {t.rich("folder.keepLink", {
+                code: (chunks) => <span className="font-mono">{chunks}</span>,
+              })}
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-[var(--color-text-secondary)]">
               {subtreeIds === null
-                ? "Scanning folder…"
-                : `${folderFiles.length} file${folderFiles.length === 1 ? "" : "s"} will be shared (including sub-folders).`}
+                ? t("folder.scanning")
+                : t("folder.willShare", { count: folderFiles.length })}
             </p>
 
             <label className="flex items-center gap-2.5 text-sm text-[var(--color-text)]">
@@ -213,21 +216,21 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                 onCheckedChange={(checked) => setUsePassword(checked === true)}
               />
               <Lock className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-              Require a password
+              {t("folder.requirePassword")}
             </label>
             {usePassword && (
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Link password"
+                placeholder={t("folder.passwordPlaceholder")}
               />
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Expires
+                  {t("folder.expires")}
                 </label>
                 <Select
                   value={String(expiryHours)}
@@ -239,7 +242,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                   <SelectContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
                     {EXPIRY_OPTIONS.map((o) => (
                       <SelectItem key={o.value} value={String(o.value)}>
-                        {o.label}
+                        {t(`expiry.${EXPIRY_KEYS[o.value] ?? "never"}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -247,7 +250,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Max downloads
+                  {t("folder.maxDownloads")}
                 </label>
                 <Select
                   value={String(maxDownloads)}
@@ -259,7 +262,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                   <SelectContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
                     {DOWNLOAD_LIMIT_OPTIONS.map((o) => (
                       <SelectItem key={o.value} value={String(o.value)}>
-                        {o.label}
+                        {o.value === 0 ? t("unlimited") : o.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -279,7 +282,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
             {existing.length > 0 && (
               <div className="space-y-1 border-t border-[var(--color-border)] pt-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Active links ({existing.length})
+                  {t("folder.activeLinks", { count: existing.length })}
                 </p>
                 <ul className="space-y-1">
                   {existing.map((l: FolderShareLink) => (
@@ -288,14 +291,14 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                       className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--color-surface-1)]"
                     >
                       <span className="min-w-0 truncate text-xs text-[var(--color-text-secondary)]">
-                        {l.file_count} file{l.file_count === 1 ? "" : "s"}
-                        {l.has_password && " · password"}
+                        {t("folder.linkFiles", { count: l.file_count })}
+                        {l.has_password && ` · ${t("folder.password")}`}
                         {" · "}
                         {formatDate(l.created_at)}
                       </span>
                       <IconButton
                         icon={Trash2}
-                        label="Revoke link"
+                        label={t("folder.revokeLink")}
                         variant="ghost"
                         onClick={() => handleRevoke(l.id)}
                         className="h-7 w-7 flex-shrink-0 hover:text-red-500"
@@ -311,11 +314,11 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
 
         <DialogFooter>
           {link ? (
-            <Button onClick={() => onOpenChange(false)}>Done</Button>
+            <Button onClick={() => onOpenChange(false)}>{t("folder.done")}</Button>
           ) : (
             <>
               <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={creating}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 onClick={handleGenerate}
@@ -333,9 +336,9 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                 )}
                 {creating
                   ? progress && progress.total > 1
-                    ? `Preparing ${progress.done} of ${progress.total} files`
-                    : "Preparing link…"
-                  : "Create link"}
+                    ? t("folder.preparingN", { done: progress.done, total: progress.total })
+                    : t("preparing")
+                  : t("folder.create")}
               </Button>
             </>
           )}

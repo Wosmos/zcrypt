@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { HTMLAttributes } from "react";
 import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
@@ -46,9 +47,10 @@ export function AvatarStack({
   members: { user_id: string; username: string }[];
   total: number;
 }) {
+  const t = useTranslations("spaces");
   const extra = Math.max(0, total - members.length);
   return (
-    <div className="flex items-center" aria-label={`${total} member${total === 1 ? "" : "s"}`}>
+    <div className="flex items-center" aria-label={t("shared.memberCount", { count: total })}>
       <div className="flex -space-x-2">
         {members.map((m) => (
           <MemberAvatar
@@ -76,18 +78,20 @@ const ROLE_VARIANT = {
 } as const;
 
 export function RoleBadge({ role }: { role: "Owner" | "Admin" | "Editor" | "Viewer" }) {
+  const t = useTranslations("spaces");
   return (
     <Badge variant={ROLE_VARIANT[role]} className="flex-shrink-0 px-2 py-0 text-[11px]">
-      {role}
+      {t(`role.${role.toLowerCase()}`)}
     </Badge>
   );
 }
 
 export function StorageMeter({ used, limit }: { used: number; limit: number }) {
+  const t = useTranslations("spaces");
   if (limit <= 0) {
     return (
       <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-        {formatBytes(used)} used
+        {t("card.storageUsed", { used: formatBytes(used) })}
       </p>
     );
   }
@@ -107,7 +111,7 @@ export function StorageMeter({ used, limit }: { used: number; limit: number }) {
         />
       </div>
       <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-        {formatBytes(used)} of {formatBytes(limit)}
+        {t("card.storageOf", { used: formatBytes(used), limit: formatBytes(limit) })}
       </p>
     </div>
   );
@@ -128,6 +132,7 @@ export function SpaceCard({
   index: number;
   itemProps: HTMLAttributes<HTMLAnchorElement> & { "data-item-id": string };
 }) {
+  const t = useTranslations("spaces");
   const perms = spacePerms(vault, userId);
   const files = vault.file_count ?? vault.file_ids?.length ?? 0;
   const members = vault.member_count ?? 1;
@@ -154,7 +159,7 @@ export function SpaceCard({
               <RoleBadge role={perms.label} />
             </div>
             <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              {description || "No description"}
+              {description || t("card.noDescription")}
             </p>
           </div>
         </div>
@@ -164,7 +169,7 @@ export function SpaceCard({
           {vault.needs_rotation && perms.rotate && (
             <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
               <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-              Key rotation pending
+              {t("card.rotationPending")}
             </p>
           )}
         </div>
@@ -173,7 +178,7 @@ export function SpaceCard({
           <AvatarStack members={vault.member_preview ?? []} total={members} />
           <span className="flex items-center gap-1.5 text-xs tabular-nums text-[var(--color-text-muted)]">
             <FileIcon className="h-3.5 w-3.5" />
-            {files} file{files === 1 ? "" : "s"}
+            {t("shared.fileCount", { count: files })}
           </span>
         </div>
       </Link>

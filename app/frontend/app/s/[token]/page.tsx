@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { getShareInfo, getShareFileMeta, getShareChunk, completeShareDownload } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ type PageState =
 function reportDecryptError(
   err: unknown,
   fallbackMsg: string,
+  wrongPasswordMsg: string,
   setPageState: (s: PageState) => void,
   setErrorMsg: (s: string) => void,
   setSharePassword: (s: string) => void,
@@ -47,7 +49,7 @@ function reportDecryptError(
   const msg = err instanceof Error ? err.message : fallbackMsg;
   if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
     setPageState("ready");
-    setErrorMsg("Incorrect share password.");
+    setErrorMsg(wrongPasswordMsg);
     setSharePassword("");
   } else {
     setPageState("error");
@@ -101,6 +103,7 @@ function getMimeType(filename: string): string | undefined {
 }
 
 export default function SharePage() {
+  const t = useTranslations("tools");
   const { token } = useParams<{ token: string }>();
   const [info, setInfo] = useState<ShareInfo | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
@@ -121,6 +124,7 @@ export default function SharePage() {
     // The share key lives in the URL fragment; without it the file can't be
     // decrypted no matter what, so surface that immediately.
     const key = keyFromFragment();
+    // oxlint-disable-next-line react/set-state-in-effect
     setShareKey(key);
 
     getShareInfo(token)
@@ -129,21 +133,19 @@ export default function SharePage() {
         setInfo(data);
         if (!data.valid) {
           setPageState("error");
-          setErrorMsg(data.reason || "This share link is no longer valid");
+          setErrorMsg(data.reason || t("pub.share.invalid"));
         } else if (!key) {
           setPageState("error");
-          setErrorMsg(
-            "This link is missing its decryption key. Make sure you copied the full URL, including the part after #.",
-          );
+          setErrorMsg(t("pub.share.missingKey"));
         } else {
           setPageState("ready");
         }
       })
       .catch(() => {
         setPageState("error");
-        setErrorMsg("Share link not found");
+        setErrorMsg(t("pub.share.notFound"));
       });
-  }, [token]);
+  }, [token, t]);
 
   // Cleanup object URLs
   useEffect(() => {
@@ -163,13 +165,13 @@ export default function SharePage() {
     const { getDeviceProfile } = await import("@/lib/device-profile");
     const zstd = await getZstdCodec();
 
-    setProgress({ stage: "Fetching metadata...", percent: 0 });
+    setProgress({ stage: t("pub.fetching"), percent: 0 });
     const meta = await getShareFileMeta(token, sharePassword || undefined);
 
     // Unwrap the file's CEK using the share key from the URL fragment.
-    setProgress({ stage: "Unwrapping key...", percent: 1 });
+    setProgress({ stage: t("pub.share.unwrapping"), percent: 1 });
     if (!meta.wrapped_cek) {
-      throw new Error("This share is missing its encryption key and cannot be decrypted.");
+      throw new Error(t("pub.share.missingCek"));
     }
     let keyBytes: ArrayBuffer;
     try {
@@ -177,7 +179,7 @@ export default function SharePage() {
       const cek = await unwrapKey(sk.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
       keyBytes = cek.buffer.slice(0) as ArrayBuffer;
     } catch {
-      throw new Error("Invalid share key: the link may be incomplete or corrupt.");
+      throw new Error(t("pub.share.invalidKey"));
     }
 
     const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
@@ -197,7 +199,7 @@ export default function SharePage() {
       try {
         plaintext = await decryptChunk(keyBytes, encrypted);
       } catch {
-        throw new Error("Decryption failed: the share link may be incomplete.");
+        throw new Error(t("pub.share.decryptFailed"));
       }
 
       if (compressed && zstd) {
@@ -207,7 +209,10 @@ export default function SharePage() {
       decryptedChunks[index] = plaintext;
       chunksDone++;
       const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
-      setProgress({ stage: `Decrypting ${chunksDone}/${meta.chunk_count}`, percent });
+      setProgress({
+        stage: t("pub.decryptingN", { done: chunksDone, total: meta.chunk_count }),
+        percent,
+      });
     };
 
     const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
@@ -224,7 +229,7 @@ export default function SharePage() {
     }
     await Promise.all(workers);
 
-    setProgress({ stage: "Verifying integrity...", percent: 93 });
+    setProgress({ stage: t("pub.verifying"), percent: 93 });
     const fullFile = concatChunks(decryptedChunks);
 
     // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
@@ -234,7 +239,7 @@ export default function SharePage() {
     if (meta.sha256_scheme !== "hmac_v1") {
       const actualHash = await sha256Hex(fullFile);
       if (actualHash !== meta.sha256) {
-        throw new Error("File integrity check failed. SHA-256 mismatch");
+        throw new Error(t("pub.integrityMismatch"));
       }
     }
 
@@ -251,7 +256,7 @@ export default function SharePage() {
       getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
     const blob = new Blob([fullFile as BlobPart], { type: mime });
     return { blob, originalName };
-  }, [token, shareKey, sharePassword]);
+  }, [token, shareKey, sharePassword, t]);
 
   // Shared entry-point wrapper for both actions below: guard the key, flip to
   // the decrypting state, run decryptFile(), and route failures through
@@ -267,10 +272,17 @@ export default function SharePage() {
         if (!result) return;
         onSuccess(result.blob, result.originalName);
       } catch (err) {
-        reportDecryptError(err, fallbackMsg, setPageState, setErrorMsg, setSharePassword);
+        reportDecryptError(
+          err,
+          fallbackMsg,
+          t("pub.share.wrongPassword"),
+          setPageState,
+          setErrorMsg,
+          setSharePassword,
+        );
       }
     },
-    [token, shareKey, decryptFile],
+    [token, shareKey, decryptFile, t],
   );
 
   const handleDecryptAndPreview = useCallback(
@@ -289,8 +301,8 @@ export default function SharePage() {
         }
 
         setPageState("preview");
-      }, "Decryption failed"),
-    [runDecrypt],
+      }, t("pub.decryptFailed")),
+    [runDecrypt, t],
   );
 
   const handleSaveToDevice = useCallback(() => {
@@ -305,8 +317,8 @@ export default function SharePage() {
         saveBlob(originalName, blob);
         setPageState("done");
         setFileName(originalName);
-      }, "Download failed"),
-    [runDecrypt],
+      }, t("pub.downloadFailed")),
+    [runDecrypt, t],
   );
 
   const previewType = getPreviewType(fileName || info?.file_name || "");
@@ -323,9 +335,11 @@ export default function SharePage() {
       </div>
 
       <ViewerCard>
-        {pageState === "loading" && <ViewerLoading message="Loading share info..." />}
+        {pageState === "loading" && <ViewerLoading message={t("pub.share.loading")} />}
 
-        {pageState === "error" && <ViewerError title="Link Unavailable" message={errorMsg} />}
+        {pageState === "error" && (
+          <ViewerError title={t("pub.share.unavailable")} message={errorMsg} />
+        )}
 
         {pageState === "ready" && info && (
           <>
@@ -340,11 +354,11 @@ export default function SharePage() {
               {info.has_password && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                    Share Password
+                    {t("pub.share.password")}
                   </label>
                   <Input
                     type="password"
-                    placeholder="Enter share password"
+                    placeholder={t("pub.share.passwordPlaceholder")}
                     value={sharePassword}
                     onChange={(e) => {
                       setSharePassword(e.target.value);
@@ -369,7 +383,7 @@ export default function SharePage() {
                       className="flex-1"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      Decrypt &amp; Preview
+                      {t("pub.decryptPreview")}
                     </Button>
                     <Button
                       variant="secondary"
@@ -387,16 +401,13 @@ export default function SharePage() {
                     className="w-full"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Download &amp; Decrypt
+                    {t("pub.downloadDecrypt")}
                   </Button>
                 )}
               </div>
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-                <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This file is end-to-end encrypted. The decryption key is in this link and never
-                  reaches our servers: decryption happens entirely in your browser.
-                </p>
+                <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pub.share.info")}</p>
               </div>
             </div>
           </>
@@ -426,7 +437,7 @@ export default function SharePage() {
             {/* Bottom bar */}
             <div className="px-5 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
               <p className="text-[10px] text-[var(--color-text-muted)]">
-                {formatBytes(info.file_size)} &middot; Decrypted in browser
+                {t("pub.decryptedInBrowser", { size: formatBytes(info.file_size) })}
               </p>
               <button
                 onClick={() => {
@@ -440,7 +451,7 @@ export default function SharePage() {
                 }}
                 className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
               >
-                Close preview
+                {t("pub.share.closePreview")}
               </button>
             </div>
           </>
@@ -455,7 +466,7 @@ export default function SharePage() {
               }}
               className="mt-2"
             >
-              Download Again
+              {t("pub.share.downloadAgain")}
             </Button>
           </DownloadCompletePanel>
         )}
@@ -463,15 +474,15 @@ export default function SharePage() {
 
       {nameGuessed && (pageState === "done" || pageState === "preview") && (
         <p className="mt-4 text-center text-xs text-[var(--color-text-muted)]">
-          This link was created before zcrypt kept file names in links, so the name was guessed. Ask
-          the sender to create a new link to get the original name.
+          {t("pub.share.nameGuessed")}
         </p>
       )}
 
       {/* Footer */}
       <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-        Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted
-        storage
+        {t.rich("pub.share.footer", {
+          b: (chunks) => <span className="font-semibold">{chunks}</span>,
+        })}
       </p>
     </div>
   );

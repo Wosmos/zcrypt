@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { getSharedVault } from "@/lib/api";
 import { decryptSpaceFileName, spacePerms } from "@/lib/spaces";
 import { queryClient } from "@/lib/query-client";
@@ -41,6 +42,7 @@ export function refreshSpaces() {
 /** Rows for a space's files, with names opened from the space key (falling back
  *  to the owner-side name, then a generic label). */
 export function useSpaceFileRows(detail: SharedVaultDetail | null): SpaceFileRow[] {
+  const t = useTranslations("spaces");
   const { data: myFiles = [] } = useFilesQuery();
   const [opened, setOpened] = useState<Record<string, string>>({});
 
@@ -65,10 +67,10 @@ export function useSpaceFileRows(detail: SharedVaultDetail | null): SpaceFileRow
     const mine = new Map(myFiles.map((f) => [f.id, f.original_name]));
     return (detail?.files ?? []).map((f) => ({
       id: f.file_id,
-      name: opened[f.file_id] || f.name || mine.get(f.file_id) || "Encrypted file",
+      name: opened[f.file_id] || f.name || mine.get(f.file_id) || t("shared.encryptedFile"),
       size: f.size,
       addedAt: f.added_at,
       wrappedCek: f.wrapped_cek,
     }));
-  }, [detail, opened, myFiles]);
+  }, [detail, opened, myFiles, t]);
 }

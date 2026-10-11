@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { createElement, useState } from "react";
 import NextImage from "next/image";
+import { useTranslations } from "next-intl";
 import { FileMetadata } from "@/types";
 import {
   Download,
@@ -58,6 +59,7 @@ export function FileCard({
   selected,
   onSelect,
 }: FileCardProps) {
+  const t = useTranslations("tools");
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -142,7 +144,7 @@ export function FileCard({
             ) : isDone ? (
               <CheckCircle2 className="h-5 w-5 text-cyan-500" />
             ) : (
-              <Icon className={`h-5 w-5 ${typeInfo.color}`} />
+              createElement(Icon, { className: `h-5 w-5 ${typeInfo.color}` })
             )}
             {/* Locked indicator for images without thumbnail */}
             {isImage && !thumbnailUrl && !isDownloading && !isDone && (
@@ -162,9 +164,9 @@ export function FileCard({
             {formatBytes(file.original_size)}
           </span>
           {isDownloading ? (
-            <span className="text-xs text-cyan-400 font-medium">Downloading...</span>
+            <span className="text-xs text-cyan-400 font-medium">{t("demo.card.downloading")}</span>
           ) : isDone ? (
-            <span className="text-xs text-cyan-500 font-medium">Done</span>
+            <span className="text-xs text-cyan-500 font-medium">{t("demo.card.done")}</span>
           ) : (
             <>
               <span className="text-xs text-[var(--color-text-muted)]">&middot;</span>
@@ -230,7 +232,7 @@ export function FileCard({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
                   >
-                    <Eye className="h-4 w-4" /> Preview
+                    <Eye className="h-4 w-4" /> {t("demo.card.preview")}
                   </button>
                 )}
                 <button
@@ -241,7 +243,7 @@ export function FileCard({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
                 >
-                  <Download className="h-4 w-4" /> Download
+                  <Download className="h-4 w-4" /> {t("demo.card.download")}
                 </button>
                 {onShare && (
                   <button
@@ -252,7 +254,7 @@ export function FileCard({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
                   >
-                    <Share2 className="h-4 w-4" /> Share
+                    <Share2 className="h-4 w-4" /> {t("demo.card.share")}
                   </button>
                 )}
                 <button
@@ -263,7 +265,7 @@ export function FileCard({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 active:bg-red-500/5"
                 >
-                  <Trash2 className="h-4 w-4" /> Delete
+                  <Trash2 className="h-4 w-4" /> {t("demo.card.delete")}
                 </button>
               </div>
             </>
@@ -360,13 +362,15 @@ export function FileCard({
             ) : isDone ? (
               <CheckCircle2 className="h-7 w-7 text-cyan-500 animate-fade-in" />
             ) : (
-              <Icon className={`h-7 w-7 ${typeInfo.color}`} />
+              createElement(Icon, { className: `h-7 w-7 ${typeInfo.color}` })
             )}
             {/* Locked badge for images without thumbnail */}
             {isImage && !isDownloading && !isDone && (
               <div className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--color-surface)]/80 backdrop-blur-sm border border-[var(--color-border)]/50">
                 <Lock className="h-2.5 w-2.5 text-[var(--color-text-muted)]" />
-                <span className="text-[10px] text-[var(--color-text-muted)]">Encrypted</span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">
+                  {t("demo.card.encrypted")}
+                </span>
               </div>
             )}
           </div>
@@ -382,7 +386,7 @@ export function FileCard({
                 : "bg-[var(--color-surface)]/80 text-[var(--color-text-secondary)] backdrop-blur-sm",
             )}
           >
-            {typeInfo.label}
+            {t(`demo.cat.${typeInfo.label}`)}
           </span>
         )}
 
@@ -399,7 +403,7 @@ export function FileCard({
             {onPreview && (
               <IconButton
                 icon={Eye}
-                label="Preview"
+                label={t("demo.card.preview")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onPreview(file.original_name);
@@ -409,7 +413,7 @@ export function FileCard({
             )}
             <IconButton
               icon={Download}
-              label="Download"
+              label={t("demo.card.download")}
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload(file.original_name);
@@ -419,7 +423,7 @@ export function FileCard({
             {onShare && (
               <IconButton
                 icon={Share2}
-                label="Share"
+                label={t("demo.card.share")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onShare(file.id);
@@ -429,7 +433,7 @@ export function FileCard({
             )}
             <IconButton
               icon={Trash2}
-              label="Delete"
+              label={t("demo.card.delete")}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(file.id);
@@ -452,17 +456,21 @@ export function FileCard({
             </span>
             {isDownloading ? (
               <span className="text-xs text-cyan-400 font-medium animate-pulse-soft">
-                Downloading...
+                {t("demo.card.downloading")}
               </span>
             ) : isDone ? (
-              <span className="text-xs text-cyan-500 font-medium animate-fade-in">Done</span>
+              <span className="text-xs text-cyan-500 font-medium animate-fade-in">
+                {t("demo.card.done")}
+              </span>
             ) : (
               <>
                 <span className="text-xs text-[var(--color-text-muted)]">&middot;</span>
                 <span
                   className={`text-xs font-medium ${wasCompressed ? "text-cyan-500" : "text-[var(--color-text-muted)]"}`}
                 >
-                  {wasCompressed ? `${ratio}% saved` : "No compression"}
+                  {wasCompressed
+                    ? t("demo.stats.saved", { percent: ratio })
+                    : t("demo.card.noCompression")}
                 </span>
               </>
             )}
@@ -495,8 +503,8 @@ export function FileCard({
             <button
               onClick={copyHash}
               className="flex-shrink-0 rounded p-0.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-              title={copied ? "Copied" : "Copy SHA-256"}
-              aria-label={copied ? "SHA-256 copied" : "Copy SHA-256"}
+              title={copied ? t("demo.card.copied") : t("demo.card.copySha")}
+              aria-label={copied ? t("demo.card.shaCopied") : t("demo.card.copySha")}
             >
               {copied ? <Check className="h-3 w-3 text-cyan-500" /> : <Copy className="h-3 w-3" />}
             </button>

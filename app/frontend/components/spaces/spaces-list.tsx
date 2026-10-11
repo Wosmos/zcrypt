@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listSharedVaults } from "@/lib/api";
@@ -19,19 +20,11 @@ import {
   Notice,
   PageShell,
   ShortcutsHelp,
-  plural,
   useGridColumns,
   useSlashToFocus,
 } from "@/components/spaces/shared";
 import type { SharedVault } from "@/types";
 import { Plus, Search, Users } from "@/lib/icons";
-
-const SHORTCUTS: [string, string][] = [
-  ["Arrow keys", "Move between spaces"],
-  ["Enter", "Open the space"],
-  ["/", "Search spaces"],
-  ["?", "Show these shortcuts"],
-];
 
 interface Meta {
   name: string;
@@ -53,7 +46,14 @@ function MetaProbe({
 }
 
 export function SpacesList() {
+  const t = useTranslations("spaces");
   const router = useRouter();
+  const shortcuts: [string, string][] = [
+    [t("shared.arrowKeys"), t("list.moveBetween")],
+    ["Enter", t("list.open")],
+    ["/", t("list.search")],
+    ["?", t("shared.showShortcuts")],
+  ];
   const user = useAuthStore((s) => s.user);
   const vaultsQuery = useQuery({ queryKey: qk.spaces, queryFn: listSharedVaults });
   const vaults = useMemo(() => vaultsQuery.data ?? [], [vaultsQuery.data]);
@@ -95,20 +95,20 @@ export function SpacesList() {
     onOpen: (id) => router.push(`/spaces/${id}`),
   });
 
-  const announce = query.trim() ? `${plural(visible.length, "space")} match` : "";
+  const announce = query.trim() ? t("list.matchCount", { count: visible.length }) : "";
 
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Collaboration"
-        title="Spaces"
-        description="Share encrypted files with people you invite. The space key is sealed to each member's key: the server never sees it."
+        eyebrow={t("list.eyebrow")}
+        title={t("list.title")}
+        description={t("list.description")}
         actions={
           <>
-            <ShortcutsHelp items={SHORTCUTS} title="Spaces shortcuts" />
+            <ShortcutsHelp items={shortcuts} title={t("list.shortcutsTitle")} />
             <Link href="/spaces/new" data-tour="space-new" className={buttonClass("primary", "sm")}>
               <Plus className="h-3.5 w-3.5" />
-              New Space
+              {t("list.newSpace")}
             </Link>
           </>
         }
@@ -121,13 +121,13 @@ export function SpacesList() {
 
       {vaultsQuery.isError && !vaultsQuery.data ? (
         <Notice tone="error">
-          Couldn&apos;t load your spaces.{" "}
+          {t("list.loadError")}{" "}
           <button
             type="button"
             className="font-medium underline"
             onClick={() => void vaultsQuery.refetch()}
           >
-            Try again
+            {t("common.retry")}
           </button>
         </Notice>
       ) : loading ? (
@@ -145,15 +145,14 @@ export function SpacesList() {
             <Users className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-[var(--color-text)]">No spaces yet</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">{t("list.emptyTitle")}</p>
             <p className="mx-auto max-w-sm text-sm text-[var(--color-text-secondary)]">
-              A space is a shared, end-to-end encrypted folder. Invite people, pick who can edit,
-              and revoke access any time.
+              {t("list.emptyBody")}
             </p>
           </div>
           <Link href="/spaces/new" className={buttonClass("secondary", "sm")}>
             <Plus className="h-3.5 w-3.5" />
-            Create your first space
+            {t("list.createFirst")}
           </Link>
         </div>
       ) : (
@@ -175,20 +174,20 @@ export function SpacesList() {
                     nav.moveFocus(null, 0, false);
                   }
                 }}
-                placeholder="Search spaces  ( / )"
-                aria-label="Search spaces"
+                placeholder={t("list.searchPlaceholder")}
+                aria-label={t("list.search")}
               />
             </div>
           )}
           {visible.length === 0 ? (
             <p className="panel px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
-              No spaces match &ldquo;{query.trim()}&rdquo;.
+              {t("list.noMatch", { query: query.trim() })}
             </p>
           ) : (
             <div
               ref={gridRef}
               role="listbox"
-              aria-label="Spaces"
+              aria-label={t("list.title")}
               onKeyDown={nav.onContainerKeyDown}
               className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
             >

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   getFolderShareInfo,
   getFolderShareFileMeta,
@@ -88,6 +89,7 @@ function saveBlob(name: string, bytes: Uint8Array, mime: string) {
 const CHUNK_CONCURRENCY = 4;
 
 export default function FolderSharePage() {
+  const t = useTranslations("tools");
   const { token } = useParams<{ token: string }>();
   const [state, setState] = useState<PageState>("loading");
   const [info, setInfo] = useState<FolderShareInfo | null>(null);
@@ -104,7 +106,7 @@ export default function FolderSharePage() {
     const k = keyFromFragment();
     if (!k) {
       // oxlint-disable-next-line react/set-state-in-effect
-      setErrorMsg("This link is missing its decryption key. Make sure you copied the whole URL.");
+      setErrorMsg(t("pub.folder.missingKey"));
       setState("error");
       return;
     }
@@ -114,7 +116,7 @@ export default function FolderSharePage() {
       .then((data) => {
         setInfo(data);
         if (!data.valid) {
-          setErrorMsg(data.reason || "This link is no longer available.");
+          setErrorMsg(data.reason || t("pub.folder.unavailable"));
           setState("error");
         } else if (data.has_password && !data.files) {
           setState("password");
@@ -123,10 +125,10 @@ export default function FolderSharePage() {
         }
       })
       .catch(() => {
-        setErrorMsg("Folder link not found.");
+        setErrorMsg(t("pub.folder.notFound"));
         setState("error");
       });
-  }, [token]);
+  }, [token, t]);
 
   const submitPassword = useCallback(async () => {
     if (!token || !password) return;
@@ -137,23 +139,23 @@ export default function FolderSharePage() {
         setInfo(data);
         setState("ready");
       } else {
-        setErrorMsg("Incorrect password.");
+        setErrorMsg(t("pub.folder.wrongPassword"));
       }
     } catch {
-      setErrorMsg("Incorrect password.");
+      setErrorMsg(t("pub.folder.wrongPassword"));
     }
-  }, [token, password, folderKey]);
+  }, [token, password, folderKey, t]);
 
   /** Download + decrypt one file's bytes (no save). Returns the plaintext + its name. */
   const fetchDecryptFile = useCallback(
     async (file: FolderShareFileEntry): Promise<{ name: string; bytes: Uint8Array }> => {
-      if (!token || !folderKey) throw new Error("This link is missing its decryption key.");
+      if (!token || !folderKey) throw new Error(t("pub.folder.keyMissingShort"));
       const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
       const { getZstdCodec } = await import("@/lib/zstd");
       const zstd = await getZstdCodec();
 
       const meta = await getFolderShareFileMeta(token, file.file_id, password || undefined);
-      if (!meta.wrapped_cek) throw new Error("This file is missing its key.");
+      if (!meta.wrapped_cek) throw new Error(t("pub.folder.fileMissingKey"));
 
       // Unwrap this file's CEK with the folder-share key from the URL fragment.
       const fk = fromBase64(folderKey);
@@ -193,7 +195,7 @@ export default function FolderSharePage() {
       const opened = await openName(meta.original_name, await keyFromBytes(fk));
       const name = resolveDownloadName(opened || file.name || "", full, "file");
       if (meta.sha256_scheme !== "hmac_v1" && (await sha256Hex(full)) !== meta.sha256) {
-        throw new Error("Integrity check failed for " + name);
+        throw new Error(t("pub.folder.integrityFailed", { name }));
       }
       if (meta.download_ticket) {
         await completeFolderShareDownload(
@@ -205,7 +207,7 @@ export default function FolderSharePage() {
       }
       return { name, bytes: full };
     },
-    [token, folderKey, password],
+    [token, folderKey, password, t],
   );
 
   /** Decrypt one file and save it straight to disk. */
@@ -224,12 +226,12 @@ export default function FolderSharePage() {
       try {
         await downloadFile(file);
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Download failed");
+        setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
       } finally {
         setBusy(null);
       }
     },
-    [downloadFile],
+    [downloadFile, t],
   );
 
   const handleDownloadAll = useCallback(async () => {
@@ -298,9 +300,7 @@ export default function FolderSharePage() {
 
       const okCount = Object.keys(entries).length;
       if (okCount === 0) {
-        throw new Error(
-          `None of the ${info.files.length} files could be downloaded. They may be missing from storage.`,
-        );
+        throw new Error(t("pub.folder.noneDownloaded", { count: info.files.length }));
       }
 
       const zipped = zipSync(entries, { level: 0 });
@@ -309,18 +309,23 @@ export default function FolderSharePage() {
 
       if (failed.length > 0) {
         const shown = failed.slice(0, 4).join(", ");
-        const more = failed.length > 4 ? ` and ${failed.length - 4} more` : "";
+        const more =
+          failed.length > 4 ? ` ${t("pub.folder.andMore", { count: failed.length - 4 })}` : "";
         setNoticeMsg(
-          `Downloaded ${okCount} of ${info.files.length} files. Couldn't fetch ${shown}${more}: those files appear to be missing from storage (an incomplete upload).`,
+          t("pub.folder.partial", {
+            ok: okCount,
+            total: info.files.length,
+            names: `${shown}${more}`,
+          }),
         );
       }
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Download failed");
+      setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
     } finally {
       setBusy(null);
       setZipProgress(null);
     }
-  }, [info, fetchDecryptFile]);
+  }, [info, fetchDecryptFile, t]);
 
   return (
     <div className="w-full max-w-lg animate-fade-in">
@@ -337,7 +342,7 @@ export default function FolderSharePage() {
         {state === "loading" && (
           <div className="flex flex-col items-center gap-3 py-10">
             <LogoSpinner />
-            <p className="text-sm text-[var(--color-text-secondary)]">Loading shared folder…</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("pub.folder.loading")}</p>
           </div>
         )}
 
@@ -346,7 +351,9 @@ export default function FolderSharePage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-red-500">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <p className="text-sm font-medium text-[var(--color-text)]">Can’t open this folder</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">
+              {t("pub.folder.cantOpen")}
+            </p>
             <p className="text-sm text-[var(--color-text-secondary)]">{errorMsg}</p>
           </div>
         )}
@@ -358,7 +365,7 @@ export default function FolderSharePage() {
                 <Lock className="h-6 w-6" />
               </div>
               <p className="text-sm font-medium text-[var(--color-text)]">
-                This folder is password-protected
+                {t("pub.folder.protected")}
               </p>
             </div>
             <Input
@@ -366,12 +373,12 @@ export default function FolderSharePage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitPassword()}
-              placeholder="Enter password"
+              placeholder={t("pub.folder.passwordPlaceholder")}
               autoFocus
             />
             {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
             <Button onClick={submitPassword} disabled={!password} className="w-full">
-              Unlock
+              {t("pub.folder.unlock")}
             </Button>
           </div>
         )}
@@ -384,11 +391,10 @@ export default function FolderSharePage() {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold text-[var(--color-text)]">
-                  {info.name || "Shared folder"}
+                  {info.name || t("pub.folder.sharedFolder")}
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  {info.files?.length ?? 0} file{(info.files?.length ?? 0) === 1 ? "" : "s"} ·
-                  end-to-end encrypted
+                  {t("pub.folder.summary", { count: info.files?.length ?? 0 })}
                 </p>
               </div>
             </div>
@@ -402,7 +408,7 @@ export default function FolderSharePage() {
                   <div className="flex min-w-0 items-center gap-2">
                     <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                     <span className="truncate text-sm text-[var(--color-text)]">
-                      {f.name || "Unnamed file"}
+                      {f.name || t("pub.folder.unnamedFile")}
                     </span>
                     {typeof f.size === "number" && (
                       <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
@@ -415,6 +421,7 @@ export default function FolderSharePage() {
                     variant="ghost"
                     onClick={() => handleDownloadOne(f)}
                     disabled={busy !== null}
+                    aria-label={t("pub.folder.downloadFile")}
                   >
                     {busy === f.file_id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -435,8 +442,7 @@ export default function FolderSharePage() {
 
             {info.files?.some((f) => !f.name) && (
               <p className="text-xs text-[var(--color-text-muted)]">
-                This link was created before zcrypt kept file names in links, so some names are
-                guessed on download. Ask the sender to create a new link to get the original names.
+                {t("pub.folder.namesGuessed")}
               </p>
             )}
 
@@ -446,19 +452,22 @@ export default function FolderSharePage() {
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
                     {zipProgress
-                      ? `Preparing zip… ${zipProgress.done}/${zipProgress.total}`
-                      : "Preparing zip…"}
+                      ? t("pub.folder.preparingZipN", {
+                          done: zipProgress.done,
+                          total: zipProgress.total,
+                        })
+                      : t("pub.folder.preparingZip")}
                   </>
                 ) : (
                   <>
-                    <Download className="h-3.5 w-3.5" /> Download all (.zip)
+                    <Download className="h-3.5 w-3.5" /> {t("pub.folder.downloadAll")}
                   </>
                 )}
               </Button>
             )}
 
             <p className="text-center text-[11px] text-[var(--color-text-muted)]">
-              Decryption happens in your browser. The key never leaves this page.
+              {t("pub.folder.decryptNote")}
             </p>
           </div>
         )}

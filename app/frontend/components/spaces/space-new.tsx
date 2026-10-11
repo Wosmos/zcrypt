@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useEffect, useMemo, useState } from "react";
 import { createSpace, warmSpaceKeys } from "@/lib/spaces";
@@ -23,7 +24,7 @@ import {
   InviteForm,
 } from "@/components/spaces/invites";
 import { MemberAvatar } from "@/components/spaces/space-ui";
-import { Notice, PageShell, SpaceBreadcrumb, plural } from "@/components/spaces/shared";
+import { Notice, PageShell, SpaceBreadcrumb } from "@/components/spaces/shared";
 import type { SpaceRole } from "@/lib/spaces";
 import type { FileMetadata, SharedVault } from "@/types";
 import { Plus, X } from "@/lib/icons";
@@ -42,7 +43,9 @@ function SectionHeading({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-async function runInvites(vault: SharedVault, invites: PendingInvite[]) {
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+async function runInvites(vault: SharedVault, invites: PendingInvite[], t: Translate) {
   let ok = 0;
   const failed: string[] = [];
   for (const inv of invites) {
@@ -50,18 +53,19 @@ async function runInvites(vault: SharedVault, invites: PendingInvite[]) {
       await inviteMember(vault, inv.email, inv.role);
       ok++;
     } catch (err) {
-      failed.push(`${inv.email}: ${inviteErrorMessage(err)}`);
+      failed.push(`${inv.email}: ${inviteErrorMessage(err, t)}`);
     }
   }
   void queryClient.invalidateQueries({ queryKey: qk.space(vault.id) });
   void queryClient.invalidateQueries({ queryKey: qk.spaces });
-  if (ok > 0) toast.success(`Invited ${ok === 1 ? "1 person" : `${ok} people`}`);
+  if (ok > 0) toast.success(t("new.invited", { count: ok }));
   for (const msg of failed) toast.warning(msg);
 }
 
 const NO_FILES: FileMetadata[] = [];
 
 export function SpaceNew() {
+  const t = useTranslations("spaces");
   const router = useRouter();
   const { data: files = NO_FILES, isPending: filesLoading } = useFilesQuery();
   const batchLimit = useSpaceBatchLimit();
@@ -94,13 +98,13 @@ export function SpaceNew() {
   const submit = () => {
     setError("");
     if (!name.trim()) {
-      setError("Give the space a name.");
+      setError(t("new.errName"));
       return;
     }
     if (overLimit) return;
     const gb = parseFloat(sizeLimitGb);
     if (sizeLimitGb.trim() && !(gb > 0)) {
-      setError("Storage limit must be a positive number of GB, or left blank.");
+      setError(t("new.errLimit"));
       return;
     }
     const limitBytes = sizeLimitGb.trim() ? Math.round(gb * 1024 * 1024 * 1024) : 0;
@@ -111,11 +115,11 @@ export function SpaceNew() {
         queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) => [vault, ...(prev ?? [])]);
         void queryClient.invalidateQueries({ queryKey: qk.spaces });
         if (fileIds.length > 0) useSpaceAdds.getState().enqueue(vault, fileIds, name.trim());
-        if (invites.length > 0) void runInvites(vault, invites);
-        toast.success(`Space “${name.trim()}” created`);
+        if (invites.length > 0) void runInvites(vault, invites, t);
+        toast.success(t("new.created", { name: name.trim() }));
         router.push(`/spaces/${vault.id}`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create the space");
+        setError(err instanceof Error ? err.message : t("new.createFailed"));
         setCreating(false);
       }
     });
@@ -123,11 +127,10 @@ export function SpaceNew() {
 
   return (
     <PageShell>
-      <SpaceBreadcrumb crumbs={[{ label: "Spaces", href: "/spaces" }, { label: "New Space" }]} />
-      <PageHeader
-        title="New Space"
-        description="Group files and invite people to collaborate. Everything stays end-to-end encrypted: the server never sees the key."
+      <SpaceBreadcrumb
+        crumbs={[{ label: t("shared.spaces"), href: "/spaces" }, { label: t("list.newSpace") }]}
       />
+      <PageHeader title={t("list.newSpace")} description={t("new.description")} />
 
       <form
         className="mx-auto max-w-3xl space-y-8"
@@ -137,44 +140,41 @@ export function SpaceNew() {
         }}
       >
         <section className="space-y-4">
-          <SectionHeading title="Details" />
+          <SectionHeading title={t("new.details")} />
           <Input
-            label="Space name"
+            label={t("new.nameLabel")}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Project Atlas"
+            placeholder={t("new.namePlaceholder")}
             maxLength={80}
             autoFocus
             required
           />
           <Input
-            label="Description"
+            label={t("new.descriptionLabel")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional"
+            placeholder={t("new.optional")}
           />
           <Input
-            label="Storage limit (GB)"
+            label={t("new.limitLabel")}
             type="number"
             min="0"
             step="0.5"
             value={sizeLimitGb}
             onChange={(e) => setSizeLimitGb(e.target.value)}
-            placeholder="Optional. Leave blank for no limit"
+            placeholder={t("new.limitPlaceholder")}
           />
         </section>
 
         <section className="space-y-3 border-t border-[var(--color-border)] pt-6">
-          <SectionHeading
-            title="Invite people"
-            hint="Optional. They get the space key sealed to their own encryption key."
-          />
+          <SectionHeading title={t("new.inviteTitle")} hint={t("new.inviteHint")} />
           <InviteForm
             roles={inviteRoles(true)}
-            actionLabel="Add"
+            actionLabel={t("new.add")}
             onSubmit={(email, role) => {
               if (invites.some((i) => i.email.toLowerCase() === email.toLowerCase())) {
-                return "Already on the list.";
+                return t("new.alreadyListed");
               }
               setInvites((prev) => [...prev, { email, role }]);
               return null;
@@ -188,12 +188,12 @@ export function SpaceNew() {
                   <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
                     {inv.email}
                   </span>
-                  <span className="text-xs capitalize text-[var(--color-text-muted)]">
-                    {inv.role}
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {t(`role.${inv.role}`)}
                   </span>
                   <button
                     type="button"
-                    aria-label={`Remove ${inv.email}`}
+                    aria-label={t("new.remove", { email: inv.email })}
                     onClick={() => setInvites((prev) => prev.filter((i) => i !== inv))}
                     className="rounded-md p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                   >
@@ -207,10 +207,7 @@ export function SpaceNew() {
 
         <section className="space-y-3 border-t border-[var(--color-border)] pt-6">
           <div className="flex items-end justify-between gap-3">
-            <SectionHeading
-              title="Add files"
-              hint="Optional. They are added in the background after the space is created."
-            />
+            <SectionHeading title={t("new.filesTitle")} hint={t("new.filesHint")} />
             {!showPicker && (
               <Button
                 type="button"
@@ -219,7 +216,7 @@ export function SpaceNew() {
                 onClick={() => setShowPicker(true)}
               >
                 <Plus className="h-3.5 w-3.5" />
-                Choose files
+                {t("new.chooseFiles")}
               </Button>
             )}
           </div>
@@ -233,13 +230,15 @@ export function SpaceNew() {
                 listClassName="max-h-80"
               />
               <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-                {selected.size > 0 ? `${plural(selected.size, "file")} selected` : "None selected"}
-                {Number.isFinite(batchLimit) && ` · up to ${batchLimit} at a time on your plan`}
+                {selected.size > 0
+                  ? t("shared.filesSelected", { count: selected.size })
+                  : t("new.noneSelected")}
+                {Number.isFinite(batchLimit) &&
+                  ` · ${t("shared.batchHint", { limit: batchLimit })}`}
               </p>
               {overLimit && (
                 <Notice tone="warn">
-                  Your plan adds up to {batchLimit} files at a time. Deselect{" "}
-                  {selected.size - batchLimit} to continue.
+                  {t("new.overLimit", { limit: batchLimit, over: selected.size - batchLimit })}
                 </Notice>
               )}
             </>
@@ -250,10 +249,10 @@ export function SpaceNew() {
 
         <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-5">
           <Button type="button" variant="ghost" onClick={() => router.push("/spaces")}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={creating || !name.trim() || overLimit}>
-            {creating ? "Creating..." : "Create Space"}
+            {creating ? t("new.creating") : t("new.create")}
           </Button>
         </div>
       </form>

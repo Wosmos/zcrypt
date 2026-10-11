@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import {
   listIntegritySnapshots,
@@ -27,7 +28,15 @@ const STATUS_STYLES: Record<string, string> = {
 function statusClass(status: string): string {
   return STATUS_STYLES[status] ?? "bg-red-500/10 text-red-600 dark:text-red-400";
 }
+const KNOWN_STATUS: Record<string, string> = {
+  ok: "statusOk",
+  changed: "statusChanged",
+  missing: "statusMissing",
+};
+
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("tools");
+  const key = KNOWN_STATUS[status];
   return (
     <span
       className={cn(
@@ -35,7 +44,7 @@ function StatusBadge({ status }: { status: string }) {
         statusClass(status),
       )}
     >
-      {status}
+      {key ? t(`integrity.${key}`) : status}
     </span>
   );
 }
@@ -44,6 +53,7 @@ const NO_SNAPS: IntegritySnapshot[] = [];
 const NO_FILES: FileMetadata[] = [];
 
 export function IntegrityTab() {
+  const t = useTranslations("tools");
   const integrityQuery = useQuery({
     queryKey: qk.integrity,
     queryFn: async () => {
@@ -65,7 +75,7 @@ export function IntegrityTab() {
   // Snapshots no longer carry a plaintext filename (zero-knowledge); resolve the
   // name from the user's own decrypted file list instead.
   const nameOf = (s: IntegritySnapshot) =>
-    files.find((f) => f.id === s.file_id)?.original_name || s.file_name || "Deleted file";
+    files.find((f) => f.id === s.file_id)?.original_name || s.file_name || t("integrity.deleted");
   const filesQuery = useFilesQuery();
   const files = filesQuery.data ?? NO_FILES;
   const loading = integrityQuery.isPending || filesQuery.isPending;
@@ -111,8 +121,7 @@ export function IntegrityTab() {
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              <span className="tabular-nums">{changes.length}</span> file(s) with integrity changes
-              detected
+              {t("integrity.changesDetected", { count: changes.length })}
             </p>
             <div className="mt-2 space-y-1">
               {changes.map((c) => (
@@ -128,17 +137,14 @@ export function IntegrityTab() {
 
       {/* Create snapshot / check */}
       <div className="panel p-6">
-        <Section
-          title="Snapshot & verify"
-          description="Record a file's fingerprint, then check it later for tampering."
-        >
+        <Section title={t("integrity.sectionTitle")} description={t("integrity.sectionDesc")}>
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
               value={selectedFile}
               onChange={(e) => setSelectedFile(e.target.value)}
               className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
             >
-              <option value="">Select a file...</option>
+              <option value="">{t("integrity.selectFile")}</option>
               {files.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.original_name}
@@ -151,7 +157,7 @@ export function IntegrityTab() {
                 disabled={!selectedFile || creating}
                 className="flex-1 sm:flex-none"
               >
-                {creating ? "Snapshotting..." : "Snapshot"}
+                {creating ? t("integrity.snapshotting") : t("integrity.snapshot")}
               </Button>
               <Button
                 variant="secondary"
@@ -159,7 +165,7 @@ export function IntegrityTab() {
                 disabled={!selectedFile || checking}
                 className="flex-1 sm:flex-none"
               >
-                {checking ? "Checking..." : "Check"}
+                {checking ? t("integrity.checking") : t("integrity.check")}
               </Button>
             </div>
           </div>
@@ -167,7 +173,7 @@ export function IntegrityTab() {
       </div>
 
       {/* Snapshot history */}
-      <Section title="Snapshot history">
+      <Section title={t("integrity.history")}>
         {loading ? (
           <div className="panel divide-y divide-[var(--color-border)] px-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -178,8 +184,8 @@ export function IntegrityTab() {
           <div className="panel">
             <EmptyState
               icon={<ShieldCheck className="h-7 w-7 text-[var(--color-text-muted)]" />}
-              title="No snapshots yet"
-              description="Select a file above and take a snapshot to start tracking its integrity over time."
+              title={t("integrity.emptyTitle")}
+              description={t("integrity.emptyDesc")}
             />
           </div>
         ) : (

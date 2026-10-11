@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   listOfflinePins,
@@ -54,6 +55,7 @@ const NO_PINS: OfflinePin[] = [];
 const NO_FILES: FileMetadata[] = [];
 
 function OfflinePinsSection() {
+  const t = useTranslations("tools");
   const [pinning, setPinning] = useState<string | null>(null);
   const deviceId = typeof window !== "undefined" ? getDeviceId() : "";
   const pinsQuery = useQuery({
@@ -91,8 +93,8 @@ function OfflinePinsSection() {
 
   return (
     <Section
-      title="Offline pins"
-      description="Keep selected files available on this device without a connection."
+      title={t("devices.offlineTitle")}
+      description={t("devices.offlineDesc")}
       actions={
         deviceId ? (
           <span className="rounded-md bg-[var(--color-surface-1)] px-2 py-1 font-mono text-[11px] text-[var(--color-text-muted)]">
@@ -108,7 +110,7 @@ function OfflinePinsSection() {
           ))}
         </div>
       ) : files.length === 0 ? (
-        <p className="py-2 text-sm text-[var(--color-text-muted)]">No files uploaded yet.</p>
+        <p className="py-2 text-sm text-[var(--color-text-muted)]">{t("common.noFilesYet")}</p>
       ) : (
         <div className="space-y-3">
           {pinnedFiles.length > 0 && (
@@ -130,7 +132,8 @@ function OfflinePinsSection() {
                     onClick={() => handleTogglePin(file.id)}
                     disabled={pinning === file.id}
                   >
-                    <Unlock className="h-3.5 w-3.5" /> {pinning === file.id ? "..." : "Unpin"}
+                    <Unlock className="h-3.5 w-3.5" />{" "}
+                    {pinning === file.id ? "..." : t("devices.unpin")}
                   </Button>
                 </div>
               ))}
@@ -139,7 +142,7 @@ function OfflinePinsSection() {
           {unpinnedFiles.length > 0 && (
             <div className="space-y-1">
               <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                Available ({unpinnedFiles.length})
+                {t("devices.available", { count: unpinnedFiles.length })}
               </p>
               {unpinnedFiles.slice(0, 10).map((file) => (
                 <div
@@ -155,13 +158,13 @@ function OfflinePinsSection() {
                     onClick={() => handleTogglePin(file.id)}
                     disabled={pinning === file.id}
                   >
-                    {pinning === file.id ? "..." : "Pin"}
+                    {pinning === file.id ? "..." : t("devices.pin")}
                   </Button>
                 </div>
               ))}
               {unpinnedFiles.length > 10 && (
                 <p className="text-center text-xs tabular-nums text-[var(--color-text-muted)]">
-                  +{unpinnedFiles.length - 10} more files
+                  {t("devices.moreFiles", { count: unpinnedFiles.length - 10 })}
                 </p>
               )}
             </div>
@@ -175,6 +178,7 @@ function OfflinePinsSection() {
 // ── Clipboard Sync Section ────────────────────────────────────────────
 
 function ClipboardSyncSection() {
+  const t = useTranslations("tools");
   const reduceMotion = useReducedMotion();
   const [items, setItems] = useState<ClipboardItem[]>([]);
   const [input, setInput] = useState("");
@@ -231,7 +235,7 @@ function ClipboardSyncSection() {
       const keyBytes = await getKey();
       const encoded = new TextEncoder().encode(input);
       if (encoded.length > MAX_SIZE) {
-        setError("Content too large (max 512 KB)");
+        setError(t("devices.errTooLarge"));
         setSending(false);
         return;
       }
@@ -259,7 +263,7 @@ function ClipboardSyncSection() {
       setDecryptedCache((prev) => ({ ...prev, [result.id]: input }));
       setInput("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sync");
+      setError(err instanceof Error ? err.message : t("devices.errSync"));
     } finally {
       setSending(false);
     }
@@ -275,7 +279,7 @@ function ClipboardSyncSection() {
     } catch {
       setDecryptedCache((prev) => ({
         ...prev,
-        [item.id]: "[Decryption failed - different device key]",
+        [item.id]: t("devices.decryptFailed"),
       }));
     }
   };
@@ -299,15 +303,12 @@ function ClipboardSyncSection() {
   };
 
   return (
-    <Section
-      title="Clipboard sync"
-      description="End-to-end encrypted snippets that sync across your devices. Items auto-delete after 24h."
-    >
+    <Section title={t("devices.clipboardTitle")} description={t("devices.clipboardDesc")}>
       <div className="space-y-2">
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste or type content to sync across devices..."
+          placeholder={t("devices.clipboardPlaceholder")}
           className="h-24 resize-none font-mono"
           maxLength={MAX_SIZE}
           onKeyDown={(e) => {
@@ -319,11 +320,13 @@ function ClipboardSyncSection() {
         />
         <div className="flex items-center justify-between">
           <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
-            {new TextEncoder().encode(input).length.toLocaleString()} / {MAX_SIZE.toLocaleString()}{" "}
-            bytes
+            {t("devices.bytes", {
+              used: new TextEncoder().encode(input).length.toLocaleString(),
+              max: MAX_SIZE.toLocaleString(),
+            })}
           </span>
           <Button onClick={handlePush} disabled={sending || !input.trim()} size="sm">
-            {sending ? "Syncing..." : "Sync"}
+            {sending ? t("devices.syncing") : t("devices.sync")}
           </Button>
         </div>
         {error && (
@@ -355,7 +358,9 @@ function ClipboardSyncSection() {
                           : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]",
                       )}
                     >
-                      {item.content_type}
+                      {t(
+                        `devices.type${item.content_type === "link" ? "Link" : item.content_type === "image" ? "Image" : "Text"}`,
+                      )}
                     </span>
                     <span className="text-xs text-[var(--color-text-muted)]">
                       {formatRelativeTime(item.created_at)}
@@ -364,7 +369,7 @@ function ClipboardSyncSection() {
                   <div className="flex flex-shrink-0 items-center gap-1">
                     {decryptedCache[item.id] ? (
                       <Button variant="ghost" size="sm" onClick={() => handleCopy(item.id)}>
-                        {copiedId === item.id ? "Copied" : "Copy"}
+                        {copiedId === item.id ? t("common.copied") : t("common.copy")}
                       </Button>
                     ) : (
                       <Button
@@ -373,12 +378,12 @@ function ClipboardSyncSection() {
                         onClick={() => handleDecrypt(item)}
                         className="text-[var(--color-accent)] hover:text-[var(--color-accent)]"
                       >
-                        Decrypt
+                        {t("devices.decrypt")}
                       </Button>
                     )}
                     <IconButton
                       icon={Trash2}
-                      label="Delete item"
+                      label={t("devices.deleteItem")}
                       variant="danger"
                       iconClassName="h-3.5 w-3.5"
                       onClick={() => handleDelete(item.id)}
@@ -404,6 +409,7 @@ function ClipboardSyncSection() {
 const NO_SYNC: SyncFolder[] = [];
 
 function FolderSyncSection() {
+  const t = useTranslations("tools");
   const reduceMotion = useReducedMotion();
   const syncQuery = useQuery({ queryKey: qk.syncFolders, queryFn: listSyncFolders });
   const folders = syncQuery.data ?? NO_SYNC;
@@ -432,7 +438,7 @@ function FolderSyncSection() {
       setNewLabel("");
       setShowAdd(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create");
+      setError(err instanceof Error ? err.message : t("devices.folderCreateFailed"));
     } finally {
       setCreating(false);
     }
@@ -465,8 +471,8 @@ function FolderSyncSection() {
 
   return (
     <Section
-      title="Folder sync"
-      description="Folders a linked device backs up automatically."
+      title={t("devices.folderTitle")}
+      description={t("devices.folderDesc")}
       actions={
         <Button
           onClick={() => {
@@ -476,7 +482,7 @@ function FolderSyncSection() {
           size="sm"
           variant={showAdd ? "secondary" : "primary"}
         >
-          {showAdd ? "Cancel" : "Add folder"}
+          {showAdd ? t("common.cancel") : t("devices.addFolder")}
         </Button>
       }
     >
@@ -500,7 +506,7 @@ function FolderSyncSection() {
                 type="text"
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
-                placeholder="Label (optional)"
+                placeholder={t("devices.labelPlaceholder")}
                 className={inputClass}
               />
               {error && (
@@ -513,7 +519,7 @@ function FolderSyncSection() {
                 disabled={creating || !newPath.trim()}
                 className="w-full"
               >
-                {creating ? "Adding..." : "Add folder"}
+                {creating ? t("devices.adding") : t("devices.addFolder")}
               </Button>
             </div>
           </motion.div>
@@ -527,7 +533,7 @@ function FolderSyncSection() {
           ))}
         </div>
       ) : folders.length === 0 && !showAdd ? (
-        <p className="py-2 text-sm text-[var(--color-text-muted)]">No synced folders configured.</p>
+        <p className="py-2 text-sm text-[var(--color-text-muted)]">{t("devices.noFolders")}</p>
       ) : folders.length > 0 ? (
         <div className="space-y-1">
           {folders.map((folder) => (
@@ -548,7 +554,7 @@ function FolderSyncSection() {
                         : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
                     )}
                   >
-                    {folder.enabled ? "Active" : "Paused"}
+                    {folder.enabled ? t("devices.active") : t("devices.paused")}
                   </span>
                 </div>
                 <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">
@@ -557,11 +563,11 @@ function FolderSyncSection() {
               </div>
               <div className="flex flex-shrink-0 items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => handleToggle(folder)}>
-                  {folder.enabled ? "Pause" : "Resume"}
+                  {folder.enabled ? t("devices.pause") : t("devices.resume")}
                 </Button>
                 <IconButton
                   icon={Trash2}
-                  label="Remove folder"
+                  label={t("devices.removeFolder")}
                   variant="danger"
                   iconClassName="h-3.5 w-3.5"
                   onClick={() => setPendingDelete(folder)}
@@ -573,7 +579,7 @@ function FolderSyncSection() {
       ) : null}
 
       <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-        Keep the desktop app open on each device to keep these folders in sync.
+        {t("devices.folderNote")}
       </p>
 
       <ConfirmDialog
@@ -582,17 +588,15 @@ function FolderSyncSection() {
           if (!o) setPendingDelete(null);
         }}
         destructive
-        title="Remove synced folder?"
+        title={t("devices.confirmTitle")}
         description={
-          <>
-            This stops syncing
-            {pendingDelete ? (
-              <> &ldquo;{pendingDelete.label || pendingDelete.folder_path}&rdquo;</>
-            ) : null}
-            . Files already uploaded stay in your vault.
-          </>
+          pendingDelete
+            ? t("devices.confirmDescNamed", {
+                name: pendingDelete.label || pendingDelete.folder_path,
+              })
+            : t("devices.confirmDesc")
         }
-        confirmLabel="Remove"
+        confirmLabel={t("common.remove")}
         loading={deleting}
         onConfirm={handleDelete}
       />

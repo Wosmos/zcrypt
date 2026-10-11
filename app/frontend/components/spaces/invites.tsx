@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { loadSpaceKey, shareSpace, type SpaceRole } from "@/lib/spaces";
 import { withKeyConfirm, KeyChangeDeclinedError } from "@/components/spaces/key-change";
 import { Button } from "@/components/ui/button";
@@ -14,24 +15,26 @@ import {
 import { cn } from "@/lib/utils";
 import type { SharedVault, SharedVaultMember } from "@/types";
 
-export const ROLE_HELP: Record<SpaceRole, string> = {
-  viewer: "Can open and download files.",
-  editor: "Viewer, plus adds and removes files.",
-  admin: "Editor, plus manages members and renames the space.",
-};
-
 export function inviteRoles(isOwner: boolean): SpaceRole[] {
   return isOwner ? ["viewer", "editor", "admin"] : ["viewer", "editor"];
 }
 
-export function inviteErrorMessage(err: unknown): string {
-  if (err instanceof KeyChangeDeclinedError) return err.message;
-  const msg = err instanceof Error ? err.message : "";
-  if (/no user|not found|404|published key/i.test(msg)) {
-    return "That user hasn't set up sharing yet: they need to sign in and unlock their vault once.";
+export class NoSpaceKeyError extends Error {
+  constructor() {
+    super("This space has no key you can share (it predates encrypted sharing).");
+    this.name = "NoSpaceKeyError";
   }
+}
+
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+export function inviteErrorMessage(err: unknown, t: Translate): string {
+  if (err instanceof KeyChangeDeclinedError) return t("keyChange.declined");
+  if (err instanceof NoSpaceKeyError) return t("invites.errorNoKey");
+  const msg = err instanceof Error ? err.message : "";
+  if (/no user|not found|404|published key/i.test(msg)) return t("invites.errorNoSharing");
   if (/only the owner/i.test(msg)) return msg;
-  return "Failed to add member";
+  return t("invites.errorGeneric");
 }
 
 /** Seal the space key to one invitee, confirming a changed peer key if needed. */
@@ -42,7 +45,7 @@ export async function inviteMember(
 ): Promise<SharedVaultMember> {
   const spaceKey = await loadSpaceKey(vault);
   if (!spaceKey) {
-    throw new Error("This space has no key you can share (it predates encrypted sharing).");
+    throw new NoSpaceKeyError();
   }
   return withKeyConfirm(email, (acceptChangedKeys) =>
     shareSpace(vault.id, spaceKey, email, role, { acceptChangedKeys }),
@@ -54,7 +57,7 @@ export function RoleSelect({
   onChange,
   roles,
   className,
-  label = "Role",
+  label,
 }: {
   value: SpaceRole;
   onChange: (role: SpaceRole) => void;
@@ -62,12 +65,13 @@ export function RoleSelect({
   className?: string;
   label?: string;
 }) {
+  const t = useTranslations("spaces");
   return (
     <Select value={value} onValueChange={(v) => onChange(v as SpaceRole)}>
       <SelectTrigger
-        aria-label={label}
+        aria-label={label ?? t("role.label")}
         className={cn(
-          "h-10 rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] text-sm capitalize",
+          "h-10 rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] text-sm",
           className,
         )}
       >
@@ -75,8 +79,8 @@ export function RoleSelect({
       </SelectTrigger>
       <SelectContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
         {roles.map((r) => (
-          <SelectItem key={r} value={r} className="capitalize">
-            {r}
+          <SelectItem key={r} value={r}>
+            {t(`role.${r}`)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -89,7 +93,7 @@ export function InviteForm({
   roles,
   onSubmit,
   actionLabel,
-  busyLabel = "Adding...",
+  busyLabel,
   busy = false,
 }: {
   roles: SpaceRole[];
@@ -98,6 +102,7 @@ export function InviteForm({
   busyLabel?: string;
   busy?: boolean;
 }) {
+  const t = useTranslations("spaces");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<SpaceRole>("viewer");
   const [error, setError] = useState("");
@@ -130,8 +135,8 @@ export function InviteForm({
               void submit();
             }
           }}
-          placeholder="Email or username"
-          aria-label="Email or username"
+          placeholder={t("invites.placeholder")}
+          aria-label={t("invites.placeholder")}
           className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] outline-none transition-all placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
         />
         <RoleSelect value={role} onChange={setRole} roles={roles} className="w-full sm:w-32" />
@@ -141,12 +146,12 @@ export function InviteForm({
           onClick={() => void submit()}
           disabled={working || !email.trim()}
         >
-          {working ? busyLabel : actionLabel}
+          {working ? (busyLabel ?? t("invites.adding")) : actionLabel}
         </Button>
       </div>
       <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-        <span className="capitalize">{role}</span>: {ROLE_HELP[role]}
-        {!roles.includes("admin") && " Only the owner can grant admin."}
+        <span>{t(`role.${role}`)}</span>: {t(`role.${role}Help`)}
+        {!roles.includes("admin") && ` ${t("invites.adminOwnerOnly")}`}
       </p>
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

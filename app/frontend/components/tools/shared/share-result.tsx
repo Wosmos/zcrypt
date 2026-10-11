@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { QRShare } from "@/components/ui/qr-code";
@@ -39,6 +40,8 @@ export function ShareResult({
   resetLabel: string;
   onReset: () => void;
 }) {
+  const t = useTranslations("tools");
+  const expiry = EXPIRY_OPTIONS.find((o) => o.hours === expiryHours);
   return (
     <div className="p-6 space-y-5">
       <div className="flex flex-col items-center gap-3 text-center">
@@ -52,7 +55,7 @@ export function ShareResult({
       </div>
       <div className="space-y-2">
         <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-          <Link2 className="h-3.5 w-3.5" /> Share Link
+          <Link2 className="h-3.5 w-3.5" /> {t("shared.shareLink")}
         </label>
         <div className="flex gap-2">
           <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">
@@ -60,7 +63,7 @@ export function ShareResult({
           </div>
           <IconButton
             icon={copied ? Check : Copy}
-            label={copied ? "Copied" : "Copy link"}
+            label={copied ? t("common.copied") : t("common.copyLink")}
             variant="secondary"
             onClick={onCopy}
             className="flex-shrink-0 self-start"
@@ -71,16 +74,20 @@ export function ShareResult({
       <QRShare url={shareUrl} />
       <div className="flex gap-2 text-[10px] text-[var(--color-text-muted)]">
         <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-          <Clock className="h-3 w-3" /> Expires in{" "}
-          {EXPIRY_OPTIONS.find((o) => o.hours === expiryHours)?.label || `${expiryHours}h`}
+          <Clock className="h-3 w-3" />{" "}
+          {t("shared.expiresIn", {
+            when: expiry
+              ? t(`shared.expiry.${expiry.key}`)
+              : t("shared.expiry.fallback", { hours: expiryHours }),
+          })}
         </span>
         {burnAfterRead && (
           <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
-            <AlertTriangle className="h-3 w-3" /> Burns after read
+            <AlertTriangle className="h-3 w-3" /> {t("shared.burnsAfterRead")}
           </span>
         )}
         <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-          <Shield className="h-3 w-3" /> E2E encrypted
+          <Shield className="h-3 w-3" /> {t("shared.e2e")}
         </span>
       </div>
       <Button variant="secondary" onClick={onReset} className="w-full">

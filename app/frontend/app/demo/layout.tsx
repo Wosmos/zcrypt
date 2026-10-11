@@ -2,6 +2,7 @@
 
 import { useTheme } from "@/components/providers/theme-provider";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Shield, Sun, Moon, Database } from "@/lib/icons";
@@ -10,9 +11,10 @@ import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 // Only the Vault screen exists in the demo. Analytics and Settings were
 // href="#", which jumps to the top of the page and reads as a broken app on the
 // one surface meant to prove the product works.
-const LINKS = [{ href: "/demo", label: "Vault", icon: Shield }];
+const LINKS = [{ href: "/demo", labelKey: "demo.nav.vault", icon: Shield }];
 
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("tools");
   const pathname = usePathname();
   const { resolvedTheme, toggleTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -32,18 +34,18 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
                 zcrypt
               </p>
               <p className="text-[10px] text-[var(--color-sidebar-muted)] -mt-0.5">
-                encrypted vault
+                {t("demo.nav.tagline")}
               </p>
             </div>
           </div>
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-1">
-            {LINKS.map(({ href, label, icon: Icon }) => {
+            {LINKS.map(({ href, labelKey, icon: Icon }) => {
               const active = pathname === href;
               return (
                 <div
-                  key={label}
+                  key={labelKey}
                   className={cn(
                     "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 cursor-default",
                     active
@@ -52,7 +54,7 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
                   )}
                 >
                   <Icon className={cn("h-[18px] w-[18px]", active && "text-cyan-400")} />
-                  {label}
+                  {t(labelKey)}
                 </div>
               );
             })}
@@ -81,12 +83,13 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
               href="/register"
               className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-2 text-[12px] font-semibold text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
             >
-              Start free, no card
+              {t("demo.nav.cta")}
             </Link>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-[var(--color-sidebar-muted)]">zcrypt v0.2</span>
               <button
                 onClick={toggleTheme}
+                aria-label={t("demo.nav.theme")}
                 className="flex items-center justify-center h-7 w-7 rounded-lg text-[var(--color-sidebar-muted)] hover:text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] transition-colors"
               >
                 {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}

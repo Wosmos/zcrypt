@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { FileMetadata } from "@/types";
 import type { DownloadState } from "./file-card";
 import { formatBytes, formatDate, getFileTypeInfo, fileIconFor, savingsPercent } from "@/lib/utils";
@@ -110,13 +112,14 @@ function RowActions({
   onMove?: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const t = useTranslations("tools");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           onClick={(e) => e.stopPropagation()}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] data-[state=open]:bg-[var(--color-surface-2)] data-[state=open]:text-[var(--color-text)]"
-          aria-label={`Actions for ${file.original_name}`}
+          aria-label={t("demo.table.actionsFor", { name: file.original_name })}
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
@@ -124,20 +127,20 @@ function RowActions({
       <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
         {onPreview && (
           <DropdownMenuItem onClick={() => onPreview(file.original_name)}>
-            <Eye className="h-4 w-4" /> Preview
+            <Eye className="h-4 w-4" /> {t("demo.card.preview")}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => onDownload(file.original_name)}>
-          <Download className="h-4 w-4" /> Download
+          <Download className="h-4 w-4" /> {t("demo.card.download")}
         </DropdownMenuItem>
         {onShare && (
           <DropdownMenuItem onClick={() => onShare(file.id)}>
-            <Share2 className="h-4 w-4" /> Share
+            <Share2 className="h-4 w-4" /> {t("demo.card.share")}
           </DropdownMenuItem>
         )}
         {onMove && (
           <DropdownMenuItem onClick={() => onMove(file.id)}>
-            <FolderOpen className="h-4 w-4" /> Move to folder
+            <FolderOpen className="h-4 w-4" /> {t("demo.table.moveToFolder")}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
@@ -145,7 +148,7 @@ function RowActions({
           onClick={() => onDelete(file.id)}
           className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
         >
-          <Trash2 className="h-4 w-4" /> Delete
+          <Trash2 className="h-4 w-4" /> {t("demo.card.delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -170,6 +173,7 @@ export function FileTable({
   onSelectAll,
   draggable,
 }: FileTableProps) {
+  const t = useTranslations("tools");
   const allSelected =
     selectable && selectedIds && files.length > 0 && files.every((f) => selectedIds.has(f.id));
   const startDrag = useDragMove((s) => s.startDrag);
@@ -204,7 +208,7 @@ export function FileTable({
                   <button
                     onClick={onSelectAll}
                     className="flex items-center justify-center"
-                    aria-label="Select all"
+                    aria-label={t("demo.table.selectAll")}
                   >
                     {allSelected ? (
                       <CheckSquare className="h-4 w-4 text-[var(--color-accent)]" />
@@ -216,7 +220,7 @@ export function FileTable({
               )}
               <th className="px-4 py-3 text-left">
                 <HeaderButton
-                  label="Name"
+                  label={t("demo.table.name")}
                   field="name"
                   sortField={sortField}
                   sortDir={sortDir}
@@ -225,7 +229,7 @@ export function FileTable({
               </th>
               <th className="px-4 py-3 text-left">
                 <HeaderButton
-                  label="Type"
+                  label={t("demo.table.type")}
                   field="type"
                   sortField={sortField}
                   sortDir={sortDir}
@@ -234,7 +238,7 @@ export function FileTable({
               </th>
               <th className="px-4 py-3 text-right">
                 <HeaderButton
-                  label="Size"
+                  label={t("demo.table.size")}
                   field="size"
                   sortField={sortField}
                   sortDir={sortDir}
@@ -244,7 +248,7 @@ export function FileTable({
               </th>
               <th className="px-4 py-3 text-right">
                 <HeaderButton
-                  label="Saved"
+                  label={t("demo.table.saved")}
                   field="saved"
                   sortField={sortField}
                   sortDir={sortDir}
@@ -254,7 +258,7 @@ export function FileTable({
               </th>
               <th className="px-4 py-3 text-right">
                 <HeaderButton
-                  label="Modified"
+                  label={t("demo.table.modified")}
                   field="date"
                   sortField={sortField}
                   sortDir={sortDir}
@@ -263,7 +267,7 @@ export function FileTable({
                 />
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-[var(--color-text-muted)]">
-                Chunks
+                {t("demo.table.chunks")}
               </th>
               <th className="w-[56px] px-4 py-3 text-right" />
             </tr>
@@ -325,12 +329,14 @@ export function FileTable({
                       </span>
                       <Lock
                         className="h-3 w-3 flex-shrink-0 text-[var(--color-text-muted)]/50"
-                        aria-label="Encrypted"
+                        aria-label={t("demo.card.encrypted")}
                       />
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className="text-[var(--color-text-secondary)]">{typeInfo.label}</span>
+                    <span className="text-[var(--color-text-secondary)]">
+                      {t(`demo.cat.${typeInfo.label}`)}
+                    </span>
                   </td>
                   <td className="px-4 py-3.5 text-right tabular-nums text-[var(--color-text-secondary)]">
                     {formatBytes(file.original_size)}
@@ -399,7 +405,7 @@ export function FileTable({
                     onSelect?.(file.id);
                   }}
                   className="flex-shrink-0"
-                  aria-label="Select file"
+                  aria-label={t("demo.table.selectFile")}
                 >
                   {selectedIds?.has(file.id) ? (
                     <CheckSquare className="h-4 w-4 text-[var(--color-accent)]" />
@@ -421,7 +427,8 @@ export function FileTable({
                   {file.original_name}
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  {formatBytes(file.original_size)} &middot; {savings}% saved &middot;{" "}
+                  {formatBytes(file.original_size)} &middot;{" "}
+                  {t("demo.stats.saved", { percent: savings })} &middot;{" "}
                   {formatDate(file.created_at)}
                 </p>
               </div>

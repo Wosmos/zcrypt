@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { File } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ export function SelectedFileCard({
   size: number;
   onRemove: () => void;
 }) {
+  const t = useTranslations("tools");
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-surface-1)]">
       <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-[var(--color-accent)]/10 flex-shrink-0">
@@ -29,7 +31,7 @@ export function SelectedFileCard({
         onClick={onRemove}
         className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
       >
-        Change
+        {t("shared.change")}
       </button>
     </div>
   );

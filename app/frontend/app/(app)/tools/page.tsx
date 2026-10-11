@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Layers, ShieldCheck, Clock, MonitorSmartphone, Send, FileText, Wifi } from "@/lib/icons";
 import type { ComponentType } from "react";
 import { usePreferencesStore } from "@/store/preferences";
@@ -20,22 +21,22 @@ type IconComponent = ComponentType<{ className?: string; size?: number }>;
 
 interface TabDef {
   id: string;
-  label: string;
   icon: IconComponent;
   Content: ComponentType;
 }
 
 const tabs: TabDef[] = [
-  { id: "send", label: "Send File", icon: Send, Content: SendTool },
-  { id: "pad", label: "Text Pad", icon: FileText, Content: PadTool },
-  { id: "transfer", label: "Transfer", icon: Wifi, Content: TransferTool },
-  { id: "snapshots", label: "Inventory", icon: Layers, Content: SnapshotsTab },
-  { id: "integrity", label: "Verify Files", icon: ShieldCheck, Content: IntegrityTab },
-  { id: "expiring", label: "Timed Vaults", icon: Clock, Content: ExpiringTab },
-  { id: "devices", label: "Sync & Offline", icon: MonitorSmartphone, Content: DevicesTab },
+  { id: "send", icon: Send, Content: SendTool },
+  { id: "pad", icon: FileText, Content: PadTool },
+  { id: "transfer", icon: Wifi, Content: TransferTool },
+  { id: "snapshots", icon: Layers, Content: SnapshotsTab },
+  { id: "integrity", icon: ShieldCheck, Content: IntegrityTab },
+  { id: "expiring", icon: Clock, Content: ExpiringTab },
+  { id: "devices", icon: MonitorSmartphone, Content: DevicesTab },
 ];
 
 export default function ToolsPage() {
+  const t = useTranslations("tools");
   const router = useRouter();
   const searchParams = useSearchParams();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
@@ -66,22 +67,22 @@ export default function ToolsPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
-        eyebrow="Toolkit"
-        title="Tools"
-        description="Advanced utilities for sharing, syncing and verifying your encrypted vault. Everything runs end-to-end encrypted in your browser."
+        eyebrow={t("page.eyebrow")}
+        title={t("page.title")}
+        description={t("page.description")}
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <ScrollArea className="w-full">
           <TabsList className="inline-flex h-auto w-max gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-1">
-            {tabs.map(({ id, label, icon: Icon }) => (
+            {tabs.map(({ id, icon: Icon }) => (
               <TabsTrigger
                 key={id}
                 value={id}
                 className="gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)] data-[state=active]:shadow-sm"
               >
                 <Icon className="h-3.5 w-3.5" />
-                {label}
+                {t(`page.tabs.${id}`)}
               </TabsTrigger>
             ))}
           </TabsList>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { ensureUserKeypair } from "@/lib/keys";
 import { useKeysStore } from "@/store/keys";
@@ -21,6 +22,7 @@ export function spaceKeysReady(): boolean {
  */
 export function useVaultReady(): (action: () => Promise<void>) => void {
   const vault = useVaultLockContext();
+  const t = useTranslations("spaces");
   return useCallback(
     (action: () => Promise<void>) => {
       vault.withPassphrase((passphrase) => {
@@ -28,10 +30,10 @@ export function useVaultReady(): (action: () => Promise<void>) => void {
           ? Promise.resolve()
           : ensureUserKeypair(passphrase);
         keys.then(action).catch((err: unknown) => {
-          toast.error(err instanceof Error ? err.message : "Couldn't unlock your sharing keys");
+          toast.error(err instanceof Error ? err.message : t("shared.unlockKeysFailed"));
         });
       });
     },
-    [vault],
+    [vault, t],
   );
 }

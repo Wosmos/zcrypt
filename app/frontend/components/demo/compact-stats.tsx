@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes, formatDate } from "@/lib/utils";
 import { Layers, HardDrive, TrendingDown, Clock, Infinity } from "@/lib/icons";
 import type { QuotaInfo } from "@/types";
@@ -19,6 +20,7 @@ export function CompactStats({
   lastUploadDate,
   quotaInfo,
 }: CompactStatsProps) {
+  const t = useTranslations("tools");
   const savings = totalSize > 0 ? ((1 - totalEncrypted / totalSize) * 100).toFixed(0) : "0";
 
   if (fileCount === 0) return null;
@@ -31,7 +33,7 @@ export function CompactStats({
     <div className="flex items-center gap-4 text-xs text-[var(--color-text-secondary)] tabular-nums flex-wrap">
       <span className="flex items-center gap-1.5">
         <Layers className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-        {fileCount} file{fileCount !== 1 ? "s" : ""}
+        {t("common.fileCount", { count: fileCount })}
       </span>
       <span className="h-3 w-px bg-[var(--color-border)]" />
       <span className="flex items-center gap-1.5">
@@ -42,7 +44,7 @@ export function CompactStats({
       <span className="h-3 w-px bg-[var(--color-border)]" />
       <span className="flex items-center gap-1.5">
         <TrendingDown className="h-3.5 w-3.5 text-cyan-500" />
-        {savings}% saved
+        {t("demo.stats.saved", { percent: savings })}
       </span>
       {lastUploadDate && (
         <>

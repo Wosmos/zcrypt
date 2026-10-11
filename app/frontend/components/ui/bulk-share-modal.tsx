@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { X, Share2, Copy, Check, Link2, AlertTriangle } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { createFileShareLink } from "@/lib/file-share";
@@ -28,6 +29,7 @@ interface ShareResult {
 const DEFAULT_EXPIRY_HOURS = 0;
 
 export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
+  const t = useTranslations("spaces.share");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ShareResult[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -42,9 +44,7 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
 
     const passphrase = usePassphraseStore.getState().getPassphrase();
     if (!passphrase) {
-      toast.error(
-        "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
-      );
+      toast.error(t("passphraseLocked"));
       onClose();
       return;
     }
@@ -75,7 +75,7 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
           return {
             fileId: file.id,
             fileName: file.original_name,
-            error: r.reason instanceof Error ? r.reason.message : "Failed to create share",
+            error: r.reason instanceof Error ? r.reason.message : t("createFailed"),
           };
         }),
       );
@@ -90,7 +90,7 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
       setCopiedId(fileId);
       setTimeout(() => setCopiedId((cur) => (cur === fileId ? null : cur)), 2000);
     } else {
-      toast.error("Failed to copy");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -100,9 +100,9 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
       .map((r) => r.url)
       .join("\n");
     if (await copyToClipboard(urls)) {
-      toast.success("Copied all links");
+      toast.success(t("copiedAll"));
     } else {
-      toast.error("Failed to copy");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -125,16 +125,19 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
               <Share2 className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold">Share {files.length} files</h3>
+              <h3 className="truncate text-sm font-semibold">
+                {t("bulkTitle", { count: files.length })}
+              </h3>
               {!loading && (
                 <p className="truncate text-xs text-[var(--color-text-muted)]">
-                  {succeeded} of {files.length} link{files.length !== 1 ? "s" : ""} created
+                  {t("bulkProgress", { succeeded, total: files.length })}
                 </p>
               )}
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label={t("close")}
             className="p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
           >
             <X className="h-4 w-4" />
@@ -143,7 +146,7 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
 
         <div className="flex-1 space-y-2 overflow-auto p-5">
           {loading ? (
-            <p className="text-sm text-[var(--color-text-muted)]">Creating links…</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{t("creatingLinks")}</p>
           ) : (
             results.map((r) => (
               <div
@@ -168,7 +171,7 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
                       ) : (
                         <Copy className="h-3.5 w-3.5" />
                       )}
-                      {copiedId === r.fileId ? "Copied" : "Copy"}
+                      {copiedId === r.fileId ? t("copied") : t("copy")}
                     </button>
                   </>
                 ) : (
@@ -190,7 +193,7 @@ export function BulkShareModal({ open, onClose, files }: BulkShareModalProps) {
         {!loading && succeeded > 1 && (
           <div className="border-t border-[var(--color-border)] p-5 pt-3">
             <Button onClick={handleCopyAll} variant="secondary" className="w-full">
-              Copy all links
+              {t("copyAll")}
             </Button>
           </div>
         )}

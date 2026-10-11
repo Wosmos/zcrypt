@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -18,6 +19,7 @@ const MAX_PAD_SIZE = 1024 * 1024;
 type PadState = "editing" | "encrypting" | "done" | "error";
 
 export function PadTool() {
+  const t = useTranslations("tools");
   const [state, setState] = useState<PadState>("editing");
   const [text, setText] = useState("");
   const [burnAfterRead, setBurnAfterRead] = useState(false);
@@ -54,11 +56,11 @@ export function PadTool() {
       setShareUrl(url);
       setState("done");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to create pad";
+      const msg = err instanceof Error ? err.message : t("pad.createFailed");
       setErrorMsg(msg);
       setState("error");
     }
-  }, [text, isOverLimit, burnAfterRead, expiryHours]);
+  }, [text, isOverLimit, burnAfterRead, expiryHours, t]);
 
   const handleReset = useCallback(() => {
     setState("editing");
@@ -76,11 +78,11 @@ export function PadTool() {
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Type or paste your text here..."
+              placeholder={t("pad.placeholder")}
               className="h-56 p-4 bg-[var(--color-surface-1)]/50 font-mono resize-none focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/50"
             />
             <div className="flex items-center justify-between text-[10px] text-[var(--color-text-muted)]">
-              <span>{text.length} characters</span>
+              <span>{t("pad.characters", { count: text.length })}</span>
               <span className={isOverLimit ? "text-red-500 font-medium" : ""}>
                 {formatBytes(textSize)} / {formatBytes(MAX_PAD_SIZE)}
               </span>
@@ -91,7 +93,7 @@ export function PadTool() {
             <BurnAfterReadToggle
               checked={burnAfterRead}
               onCheckedChange={setBurnAfterRead}
-              description="Text is deleted after first view"
+              description={t("pad.burnDesc")}
             />
           </div>
           <Button
@@ -99,13 +101,10 @@ export function PadTool() {
             disabled={!text.trim() || isOverLimit}
             className="w-full"
           >
-            <Lock className="h-4 w-4 mr-2" /> Encrypt &amp; Share
+            <Lock className="h-4 w-4 mr-2" /> {t("pad.submit")}
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-            <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Your text is encrypted in your browser. The encryption key is embedded in the share
-              link: the server stores only encrypted data.
-            </p>
+            <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pad.info")}</p>
           </div>
         </div>
       )}
@@ -113,27 +112,32 @@ export function PadTool() {
       {state === "encrypting" && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <LogoSpinner size={32} speed="fast" />
-          <p className="text-sm text-[var(--color-text-muted)]">Encrypting...</p>
+          <p className="text-sm text-[var(--color-text-muted)]">{t("pad.encrypting")}</p>
         </div>
       )}
 
       {state === "done" && (
         <ShareResult
-          title="Pad Created"
-          subtitle="Share this link. Recipients can view the encrypted text in their browser."
+          title={t("pad.doneTitle")}
+          subtitle={t("pad.doneSubtitle")}
           shareUrl={shareUrl}
           copied={copied}
           onCopy={handleCopy}
           expiryHours={expiryHours}
           burnAfterRead={burnAfterRead}
           resetIcon={FileText}
-          resetLabel="Create Another Pad"
+          resetLabel={t("pad.another")}
           onReset={handleReset}
         />
       )}
 
       {state === "error" && (
-        <ToolErrorState title="Failed" message={errorMsg} onAction={handleReset} wrapped />
+        <ToolErrorState
+          title={t("pad.failedTitle")}
+          message={errorMsg}
+          onAction={handleReset}
+          wrapped
+        />
       )}
     </div>
   );
