@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { usePendingAction } from "@/store/pending-action";
-import { parseVaultCollection } from "@/store/vault-view";
 
 describe("usePendingAction", () => {
   beforeEach(() => usePendingAction.getState().clear());
@@ -19,11 +18,3 @@ describe("usePendingAction", () => {
   });
 });
 
-describe("parseVaultCollection", () => {
-  it("accepts only known collections", () => {
-    expect(parseVaultCollection("recents")).toBe("recents");
-    expect(parseVaultCollection("starred")).toBe("starred");
-    expect(parseVaultCollection("other")).toBeNull();
-    expect(parseVaultCollection(null)).toBeNull();
-  });
-});

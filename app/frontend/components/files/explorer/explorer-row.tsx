@@ -12,8 +12,6 @@ import {
   useFileEntryView,
 } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
-import { StarButton } from "./star-button";
-import { useStarredStore } from "@/store/starred";
 import { formatBytes, formatDate, cn, midTrunc, savingsPercent } from "@/lib/utils";
 import { folderLook } from "./folder-look";
 import {
@@ -33,7 +31,6 @@ import {
   Unlock,
   PaintBrush,
   AlertTriangle,
-  Star,
 } from "@/lib/icons";
 import {
   DropdownMenu,
@@ -231,16 +228,8 @@ function FileRow({
   drag,
 }: FileItemProps) {
   const t = useTranslations("app.explorerItem");
-  const {
-    displayName,
-    unavailable,
-    thumbnailUrl,
-    cardRef,
-    typeInfo,
-    Icon,
-    iconColorStyle,
-    starred,
-  } = useFileEntryView(file);
+  const { displayName, unavailable, thumbnailUrl, cardRef, typeInfo, Icon, iconColorStyle } =
+    useFileEntryView(file);
   const savings = savingsPercent(file.original_size, file.encrypted_size);
 
   return (
@@ -330,7 +319,6 @@ function FileRow({
       <span className="hidden w-[110px] flex-shrink-0 text-right text-sm text-[var(--color-text-secondary)] sm:block">
         {formatDate(file.created_at)}
       </span>
-      <StarButton fileId={file.id} name={displayName} />
       <DropdownMenu>
         <MenuTrigger label={t("actionsFor", { name: displayName })} />
         <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
@@ -342,9 +330,6 @@ function FileRow({
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem onClick={() => useStarredStore.getState().toggle(file.id)}>
-            <Star className="h-4 w-4" /> {t(starred ? "unstar" : "star")}
-          </DropdownMenuItem>
           {actions.onPreview && (
             <DropdownMenuItem onClick={() => actions.onPreview?.(displayName)}>
               <Eye className="h-4 w-4" /> {t("preview")}

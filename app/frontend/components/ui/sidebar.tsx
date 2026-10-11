@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { cn, formatBytes } from "@/lib/utils";
 import { Role } from "@/types";
 import { usePreferencesStore } from "@/store/preferences";
-import { useVaultView, type VaultCollection } from "@/store/vault-view";
 import {
   Settings,
   Shield,
@@ -19,8 +18,6 @@ import {
   Trash2,
   BarChart3,
   Layers,
-  Clock,
-  Star,
   ExternalLink,
   ArrowRight,
 } from "@/lib/icons";
@@ -73,13 +70,10 @@ interface PrimaryLink {
   href: string;
   labelKey: string;
   icon: typeof Shield;
-  view?: VaultCollection;
 }
 
 const primaryLinks: PrimaryLink[] = [
   { href: "/dashboard", labelKey: "vault", icon: Shield },
-  { href: "/dashboard?view=recents", labelKey: "recents", icon: Clock, view: "recents" },
-  { href: "/dashboard?view=starred", labelKey: "starred", icon: Star, view: "starred" },
   { href: "/analytics", labelKey: "insights", icon: BarChart3 },
   { href: "/spaces", labelKey: "spaces", icon: Layers },
 ];
@@ -127,12 +121,7 @@ export function Sidebar() {
   const { repos, statuses } = usePlatformHealth();
   const usageRows = useMemo(() => platformUsage(repos, statuses), [repos, statuses]);
 
-  const vaultView = useVaultView((s) => s.collection);
   const isActive = (href: string) => {
-    if (href.startsWith("/dashboard")) {
-      const view = new URL(href, "http://x").searchParams.get("view");
-      return pathname === "/dashboard" && (view ?? null) === vaultView;
-    }
     if (href === "/admin") return pathname.startsWith("/admin");
     if (href === "/tools") return pathname.startsWith("/tools");
     if (href === "/spaces") return pathname.startsWith("/spaces");

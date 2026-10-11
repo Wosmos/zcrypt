@@ -56,7 +56,6 @@
         "oldClients": "Very old versions of the app will be told to update before uploading once the server is updated, so they can't write unprotected names.",
         "quickSettings": "A quick settings panel behind the gear icon: theme, light or dark, language and advanced mode without leaving the page.",
         "getApps": "A Get the apps button: scan a QR code for the Android app, or download the desktop app for your system in one click.",
-        "recentsStarred": "Recents and Starred in the sidebar. Star any file and find it again in one place (stars stay on that device for now).",
         "paletteActions": "The command palette (Ctrl or Cmd + K) can now do things: upload, new folder, lock the vault, switch theme and more.",
         "customThemeModes": "Custom themes get a matching light and dark version worked out from your colors, so they stay readable in both.",
         "backgrounds": "Twelve new background designs for custom themes, all following your accent color.",

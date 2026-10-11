@@ -10,7 +10,6 @@ import { decryptNameSafe } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
-import { useIsStarred } from "@/store/starred";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import { getIconByKey } from "@/lib/folder-icons";
@@ -187,7 +186,7 @@ export function ExplorerEntryDispatch({
 }
 
 /** Everything a file card and a file row derive from one file: its resolved
- *  name, type, icon (custom or by extension), thumbnail state and star. */
+ *  name, type, icon (custom or by extension) and thumbnail state. */
 export function useFileEntryView(file: FileMetadata) {
   const displayName = useExplorerFileName(file);
   const thumb = useThumbnail(file.id, displayName, file.original_size);
@@ -199,7 +198,6 @@ export function useFileEntryView(file: FileMetadata) {
     typeInfo,
     Icon: customIcon ?? fileIconFor(displayName),
     iconColorStyle: file.style?.color ? { color: file.style.color } : undefined,
-    starred: useIsStarred(file.id),
   };
 }
 

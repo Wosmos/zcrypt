@@ -12,8 +12,6 @@ import {
   useFileEntryView,
 } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
-import { StarButton } from "./star-button";
-import { useStarredStore } from "@/store/starred";
 import { formatBytes, isVideoFile, cn, midTrunc, extOf } from "@/lib/utils";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
 import {
@@ -29,7 +27,6 @@ import {
   Key,
   Unlock,
   PaintBrush,
-  Star,
 } from "@/lib/icons";
 import {
   ContextMenu,
@@ -188,7 +185,6 @@ function FileCardInner({
     typeInfo,
     Icon,
     iconColorStyle,
-    starred,
   } = useFileEntryView(file);
   const iconColorClass = file.style?.color ? undefined : typeInfo.color;
   const isVideo = isVideoFile(displayName);
@@ -231,12 +227,6 @@ function FileCardInner({
               className="absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]"
             />
           )}
-
-          <StarButton
-            fileId={file.id}
-            name={displayName}
-            className="absolute right-1.5 top-1.5 z-10"
-          />
 
           {/* Preview: free-standing, sized to the file's own aspect ratio
               (landscape stays landscape, portrait stays portrait), macOS-icon
@@ -284,12 +274,6 @@ function FileCardInner({
             <ContextMenuSeparator />
           </>
         )}
-        <ContextMenuItem
-          className="gap-2"
-          onSelect={() => useStarredStore.getState().toggle(file.id)}
-        >
-          <Star className="h-4 w-4" /> {t(starred ? "unstar" : "star")}
-        </ContextMenuItem>
         {actions.onPreview && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(displayName)}>
             <Eye className="h-4 w-4" /> {t("preview")}

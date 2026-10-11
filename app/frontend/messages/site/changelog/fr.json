@@ -56,7 +56,6 @@
         "oldClients": "Les très anciennes versions de l'application devront se mettre à jour avant d'envoyer des fichiers, une fois le serveur mis à jour, pour ne pas écrire de noms non protégés.",
         "quickSettings": "Un panneau de réglages rapides derrière l'icône d'engrenage : thème, clair ou sombre, langue et mode avancé sans quitter la page.",
         "getApps": "Un bouton « Obtenir les applis » : scannez un QR code pour l'appli Android ou téléchargez l'appli de bureau pour votre système en un clic.",
-        "recentsStarred": "Récents et Favoris dans la barre latérale. Ajoutez une étoile à n'importe quel fichier et retrouvez-le au même endroit (les étoiles restent sur cet appareil pour l'instant).",
         "paletteActions": "La palette de commandes (Ctrl ou Cmd + K) agit désormais : envoyer, nouveau dossier, verrouiller le coffre, changer de thème et plus.",
         "customThemeModes": "Les thèmes personnalisés ont une version claire et une version sombre calculées à partir de vos couleurs, lisibles dans les deux modes.",
         "backgrounds": "Douze nouveaux fonds pour les thèmes personnalisés, tous dans votre couleur d'accent.",

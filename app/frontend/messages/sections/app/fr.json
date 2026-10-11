@@ -764,11 +764,7 @@
       "retrying": "Nouvelle tentative de sauvegarde de ce fichier",
       "retryFailed": "Impossible de relancer la sauvegarde",
       "notBackedUpHint": "Ce fichier n'a pas encore atteint votre stockage. Touchez pour réessayer.",
-      "notBackedUp": "Non sauvegardé",
-      "star": "Ajouter aux favoris",
-      "unstar": "Retirer des favoris",
-      "starFile": "Ajouter {name} aux favoris",
-      "unstarFile": "Retirer {name} des favoris"
+      "notBackedUp": "Non sauvegardé"
     },
     "vaultExplorer": {
       "duplicateFolder": "Un dossier nommé « {name} » existe déjà ici.",
@@ -791,8 +787,7 @@
         "trash": "Déplacer vers la corbeille",
         "rename": "Renommer",
         "clear": "Effacer la sélection",
-        "show": "Afficher ces raccourcis",
-        "star": "Ajouter un fichier aux favoris ou l'en retirer"
+        "show": "Afficher ces raccourcis"
       }
     },
     "hooks": {

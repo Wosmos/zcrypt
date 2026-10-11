@@ -68,9 +68,6 @@ import { useDragMove, canDrop, DRAG_MIME, setDragGhost, type DragItem } from "@/
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
-import { useRecentlyViewedStore } from "@/store/recently-viewed";
-import { useStarredStore, useStarredSync } from "@/store/starred";
-import type { VaultCollection } from "@/store/vault-view";
 import { moveFolder, createFolder as apiCreateFolder } from "@/lib/api";
 import { encryptName, type CustomStyle } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
@@ -119,13 +116,10 @@ import {
   Square,
   Edit,
   Share2,
-  Star,
-  Clock,
 } from "@/lib/icons";
 
 import { ExplorerToolbar } from "./explorer/explorer-toolbar";
 import { ExplorerBreadcrumb } from "./explorer/breadcrumb";
-import { CollectionBar } from "./explorer/collection-bar";
 import { ExplorerBackgroundMenu } from "./explorer/background-menu";
 import { ExplorerRow } from "./explorer/explorer-row";
 import { ExplorerCard } from "./explorer/explorer-card";
@@ -169,11 +163,6 @@ export interface VaultExplorerProps {
   onBulkShare?: (ids: string[]) => void;
 
   onUploadClick?: () => void;
-
-  /** Show a flat, cross-folder collection (recently viewed / starred files)
-   *  instead of the folder tree. The page owns the `?view=` param. */
-  collection?: VaultCollection | null;
-  onExitCollection?: () => void;
 
   /** Controlled search, lifted to the page header (the page renders the search
    *  input now). When provided, the explorer filters by these instead of its own
@@ -292,8 +281,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       onUploadClick,
       search: searchProp,
       onSearchChange,
-      collection = null,
-      onExitCollection,
       onOpenFolderRequest,
       onProtectFolder,
       onRemoveFolderPassword,
@@ -392,19 +379,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     };
 
     // ── Scope to current folder, then search + type-filter + sort the files ─────
-    useStarredSync();
-    const recents = useRecentlyViewedStore((s) => s.entries);
-    const starredIds = useStarredStore((s) => s.ids);
-    const viewedAt = useMemo(() => new Map(recents.map((e) => [e.fileId, e.viewedAt])), [recents]);
-
-    const folderFiles = useMemo(() => {
-      if (collection === "recents") return files.filter((f) => viewedAt.has(f.id));
-      if (collection === "starred") {
-        const starred = new Set(starredIds);
-        return files.filter((f) => starred.has(f.id));
-      }
-      return files.filter((f) => (f.folder_id ?? null) === currentFolderId);
-    }, [files, currentFolderId, collection, viewedAt, starredIds]);
+    const folderFiles = useMemo(
+      () => files.filter((f) => (f.folder_id ?? null) === currentFolderId),
+      [files, currentFolderId],
+    );
 
     const sortedFiles = useMemo(() => {
       const matched = (
@@ -419,8 +397,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         .filter((f) => matchesDateFacet(f.created_at, filters.date));
 
       const dir = sortDir === "asc" ? 1 : -1;
-      const when = (f: FileMetadata) =>
-        collection === "recents" ? (viewedAt.get(f.id) ?? 0) : new Date(f.created_at).getTime();
+      const when = (f: FileMetadata) => new Date(f.created_at).getTime();
       return matched.slice().sort((a, b) => {
         switch (sortField) {
           case "name":
@@ -442,7 +419,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             return 0;
         }
       });
-    }, [folderFiles, search, filters, sortField, sortDir, collection, viewedAt]);
+    }, [folderFiles, search, filters, sortField, sortDir]);
 
     // Folders are filtered by the same search term (their names are decrypted),
     // and always sorted by name. Folders render FIRST, then files.
@@ -451,9 +428,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         ? folders.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
         : folders;
       // Type/size/date filters apply to files only; when any is active, hide folders.
-      if (collection || hasActiveFilters(filters)) return [];
+      if (hasActiveFilters(filters)) return [];
       return matched.slice().sort((a, b) => a.name.localeCompare(b.name));
-    }, [folders, search, filters, collection]);
+    }, [folders, search, filters]);
 
     const entries: ExplorerEntry[] = useMemo(
       () => [
@@ -664,12 +641,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           if (isFile) startRenameFile(entry.file);
           else startRename(entry.folder);
           return;
-        case "s":
-        case "S":
-          if (!isFile || e.metaKey || e.ctrlKey || e.altKey) return;
-          e.preventDefault();
-          useStarredStore.getState().toggle(id);
-          return;
         default:
           return;
       }
@@ -795,7 +766,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const item = liveDragging();
       return (
         !locked &&
-        !collection &&
         item?.kind === "file" &&
         bulkDragIdsRef.current.length <= 1 &&
         item.id !== targetFile.id
@@ -1170,7 +1140,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           }
         : {};
 
-    const CollectionIcon = collection === "starred" ? Star : Clock;
     const isLoading = loading || foldersLoading;
     const folderCount = sortedFolders.length;
     const fileCount = sortedFiles.length;
@@ -1251,18 +1220,14 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         {/* Toolbar: breadcrumb + view + select (search now lives in the page header) */}
         <ExplorerToolbar
           breadcrumb={
-            collection ? (
-              <CollectionBar collection={collection} onExit={onExitCollection} />
-            ) : (
-              <ExplorerBreadcrumb
-                breadcrumb={breadcrumb}
-                onNavigate={navigateToCrumb}
-                dragging={dragging != null}
-                overTarget={overTarget}
-                acceptsDrag={acceptsDrag}
-                dropHandlers={dropHandlers}
-              />
-            )
+            <ExplorerBreadcrumb
+              breadcrumb={breadcrumb}
+              onNavigate={navigateToCrumb}
+              dragging={dragging != null}
+              overTarget={overTarget}
+              acceptsDrag={acceptsDrag}
+              dropHandlers={dropHandlers}
+            />
           }
           view={view}
           onViewChange={changeView}
@@ -1381,8 +1346,8 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           disabled={isMobile}
           view={view}
           onViewChange={changeView}
-          onNewFolder={collection ? undefined : startCreate}
-          onUpload={collection ? undefined : onUploadClick}
+          onNewFolder={startCreate}
+          onUpload={onUploadClick}
           onSelectAll={sortedFiles.length > 0 ? selectEverything : undefined}
         >
           <div className="sm:min-h-[32vh]">
@@ -1392,19 +1357,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               </div>
             ) : isLoading ? (
               <ExplorerSkeleton view={view} gridCols={gridCols} isMobile={isMobile} />
-            ) : isEmptyFolder && collection ? (
-              <EmptyState
-                icon={<CollectionIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
-                title={t(`collection.${collection}.emptyTitle`)}
-                description={t(`collection.${collection}.emptyDescription`)}
-                action={
-                  onExitCollection && (
-                    <Button variant="secondary" size="sm" onClick={onExitCollection}>
-                      {t("collection.backToVault")}
-                    </Button>
-                  )
-                }
-              />
             ) : isEmptyFolder ? (
               <EmptyState
                 icon={<FolderIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}

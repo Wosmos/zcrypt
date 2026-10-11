@@ -40,8 +40,6 @@
     "reportBug": "Fehler melden",
     "logOut": "Abmelden",
     "appVersion": "zcrypt-Version {version}",
-    "recents": "Zuletzt",
-    "starred": "Markiert",
     "openLink": "Öffnen",
     "openInNewTab": "In neuem Tab öffnen",
     "storageByPlatform": "Nach Plattform",
@@ -131,21 +129,7 @@
     "toastCustomizeFailed": "Anpassung konnte nicht aktualisiert werden",
     "toastDeleteFolderFailed": "Ordner konnte nicht gelöscht werden",
     "toastUnlockToCreate": "Entsperre deinen Tresor, um einen Ordner zu erstellen.",
-    "toastCreateFolderFailedShort": "Ordner konnte nicht erstellt werden",
-    "collection": {
-      "path": "Tresoransicht",
-      "backToVault": "Tresor",
-      "recents": {
-        "title": "Zuletzt",
-        "emptyTitle": "Zuletzt nichts geöffnet",
-        "emptyDescription": "Öffne eine Datei, und sie landet hier, die neueste zuerst. Diese Liste bleibt nur auf diesem Gerät, so neugierig sind wir nicht."
-      },
-      "starred": {
-        "title": "Markiert",
-        "emptyTitle": "Noch keine Markierungen",
-        "emptyDescription": "Markiere Dateien, zu denen du immer wieder zurückkehrst, und sie warten hier auf dich. Markierungen bleiben auf diesem Gerät, also erfahren nicht einmal wir deine Favoriten."
-      }
-    }
+    "toastCreateFolderFailedShort": "Ordner konnte nicht erstellt werden"
   },
   "dashboard": {
     "dropTitle": "Zum Verschlüsseln auf diesem Gerät ablegen",

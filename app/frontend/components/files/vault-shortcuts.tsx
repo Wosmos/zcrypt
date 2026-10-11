@@ -27,7 +27,6 @@ export function VaultShortcuts() {
     ["Enter", t("app.vaultExplorer.shortcuts.open")],
     ["Delete", t("app.vaultExplorer.shortcuts.trash")],
     ["F2", t("app.vaultExplorer.shortcuts.rename")],
-    ["S", t("app.vaultExplorer.shortcuts.star")],
     ["Esc", t("app.vaultExplorer.shortcuts.clear")],
     ["/", t("ui.globalSearch.placeholder")],
     ["?", t("app.vaultExplorer.shortcuts.show")],

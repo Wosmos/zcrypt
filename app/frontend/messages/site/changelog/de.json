@@ -56,7 +56,6 @@
         "oldClients": "Sehr alte App-Versionen werden nach dem Server-Update aufgefordert, sich vor dem Hochladen zu aktualisieren, damit sie keine ungeschützten Namen schreiben können.",
         "quickSettings": "Ein Schnelleinstellungs-Panel hinter dem Zahnrad: Design, hell oder dunkel, Sprache und Erweiterter Modus, ohne die Seite zu verlassen.",
         "getApps": "Ein Button „Apps holen“: QR-Code für die Android-App scannen oder die Desktop-App für dein System mit einem Klick laden.",
-        "recentsStarred": "Zuletzt verwendet und Markiert in der Seitenleiste. Markiere eine Datei mit einem Stern und finde sie an einem Ort wieder (Sterne bleiben vorerst auf diesem Gerät).",
         "paletteActions": "Die Befehlspalette (Strg oder Cmd + K) kann jetzt handeln: hochladen, neuer Ordner, Tresor sperren, Design wechseln und mehr.",
         "customThemeModes": "Eigene Designs bekommen eine passende helle und dunkle Version aus deinen Farben, damit sie in beiden lesbar bleiben.",
         "backgrounds": "Zwölf neue Hintergründe für eigene Designs, alle in deiner Akzentfarbe.",

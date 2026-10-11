@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
 import { usePreferencesStore } from "@/store/preferences";
 import { useAuthStore } from "@/store/auth";
-import { useVaultView } from "@/store/vault-view";
 import { logout as logoutApi } from "@/lib/auth-api";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import {
@@ -22,7 +21,6 @@ import {
   Trash2,
   AlertTriangle,
   Star,
-  Clock,
   Compass,
 } from "@/lib/icons";
 import { useTour } from "@/components/onboarding/tour-provider";
@@ -67,8 +65,6 @@ export function MobileNav() {
   // are always here; Tools/Admin appear when relevant.
   const drawerLinks = useMemo<DrawerLink[]>(() => {
     const items: DrawerLink[] = [
-      { href: "/dashboard?view=recents", labelKey: "recents", icon: Clock },
-      { href: "/dashboard?view=starred", labelKey: "starred", icon: Star },
       { href: "/settings", labelKey: "settings", icon: GearIcon },
       // Parity with the desktop sidebar's "Trash", without this, a
       // mobile user has no way to reach /trash at all.
@@ -98,12 +94,7 @@ export function MobileNav() {
     router.push("/login");
   };
 
-  const vaultView = useVaultView((s) => s.collection);
   const isActive = (href: string) => {
-    if (href.startsWith("/dashboard")) {
-      const view = new URL(href, "http://x").searchParams.get("view");
-      return pathname === "/dashboard" && (view ?? null) === vaultView;
-    }
     if (href === "/admin") return pathname.startsWith("/admin");
     if (href === "/tools") return pathname.startsWith("/tools");
     if (href === "/spaces") return pathname.startsWith("/spaces");

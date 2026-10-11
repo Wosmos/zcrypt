@@ -13,6 +13,18 @@ import { calibrateDeviceProfile } from "@/lib/device-profile";
  * the shell behind a spinner until mount, so setting this in an effect causes
  * no flash of the unthemed palette.
  */
+/** Starred files were briefly stored per user in localStorage before the feature
+ *  was dropped; remove what any browser picked up. */
+function clearRetiredStorage() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("zcrypt-starred:")) localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage unavailable: nothing to clean.
+  }
+}
+
 export function AppScope() {
   useEffect(() => {
     const el = document.documentElement;
@@ -22,6 +34,7 @@ export function AppScope() {
     // faster than the RAM/core heuristic guessed, matters most on iPhones,
     // where Safari hides navigator.deviceMemory so the heuristic under-rates them.
     void calibrateDeviceProfile();
+    clearRetiredStorage();
     return () => {
       delete el.dataset.app;
     };

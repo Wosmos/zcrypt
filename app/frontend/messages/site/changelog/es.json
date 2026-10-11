@@ -56,7 +56,6 @@
         "oldClients": "A las versiones muy antiguas de la app se les pedirá actualizar antes de subir, una vez actualizado el servidor, para que no escriban nombres sin proteger.",
         "quickSettings": "Un panel de ajustes rápidos tras el icono del engranaje: tema, claro u oscuro, idioma y modo avanzado sin salir de la página.",
         "getApps": "Un botón «Obtener las apps»: escanea un código QR para la app de Android o descarga la app de escritorio para tu sistema con un clic.",
-        "recentsStarred": "Recientes y Destacados en la barra lateral. Marca cualquier archivo con una estrella y encuéntralo en un solo lugar (por ahora las estrellas se guardan en ese dispositivo).",
         "paletteActions": "La paleta de comandos (Ctrl o Cmd + K) ahora hace cosas: subir, nueva carpeta, bloquear la bóveda, cambiar el tema y más.",
         "customThemeModes": "Los temas personalizados tienen una versión clara y otra oscura calculadas a partir de tus colores, para que se lean bien en ambos.",
         "backgrounds": "Doce fondos nuevos para los temas personalizados, todos siguen tu color de acento.",
