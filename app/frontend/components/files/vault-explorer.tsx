@@ -61,6 +61,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useKeyboardSelection } from "@/hooks/useKeyboardSelection";
 import { useTouchDragMove } from "@/hooks/useTouchDragMove";
 import { useTouchRangeSelect } from "@/hooks/useTouchRangeSelect";
 import { useDragMove, canDrop, DRAG_MIME, setDragGhost, type DragItem } from "@/hooks/useDragMove";
@@ -454,46 +455,34 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // ── Mouse + keyboard multi-select (OWNER 2) ─────────────────────────────────
     // Roving focus across ALL entries (folders + files) for keyboard nav; the
     // selection anchor (for Shift-range) is the last file the user clicked/focused.
-    const [focusedId, setFocusedId] = useState<string | null>(null);
-    const anchorRef = useRef<string | null>(null);
+    const listContainerRef = useRef<HTMLDivElement>(null);
 
-    // Flat ordered ids of every visible entry (folders first, then files), drives
-    // roving ↑/↓ + grid arrow movement. File-only ids drive Shift-range math.
     const entryIds = useMemo(
       () => entries.map((e) => (e.kind === "folder" ? e.folder.id : e.file.id)),
       [entries],
     );
     const fileIds = useMemo(() => sortedFiles.map((f) => f.id), [sortedFiles]);
 
-    // Keep the roving focus pointed at something real as the listing changes.
-    const [prevEntryIds, setPrevEntryIds] = useState(entryIds);
-    if (entryIds !== prevEntryIds) {
-      setPrevEntryIds(entryIds);
-      if (focusedId && !entryIds.includes(focusedId)) setFocusedId(entryIds[0] ?? null);
-    }
-
-    // The single roving tab-stop: the focused entry, or the first one when nothing
-    // is focused yet (so Tab lands on the list, then arrows move within it).
-    const rovingId = focusedId && entryIds.includes(focusedId) ? focusedId : (entryIds[0] ?? null);
-
-    // Select the inclusive range [anchor, id] in visible file order (Shift-click /
-    // Shift-arrow). Anchor falls back to the clicked id when none is set.
-    const selectRangeTo = (id: string, additive: boolean) => {
-      const anchor = anchorRef.current ?? id;
-      const a = fileIds.indexOf(anchor);
-      const b = fileIds.indexOf(id);
-      if (a === -1 || b === -1) {
-        // Target isn't a file (folder): just move focus, no selection change.
-        return;
-      }
-      const [lo, hi] = a <= b ? [a, b] : [b, a];
-      const range = fileIds.slice(lo, hi + 1);
-      setSelectedIds((prev) => {
-        const next = additive ? new Set(prev) : new Set<string>();
-        for (const rid of range) next.add(rid);
-        return next;
-      });
-    };
+    const {
+      setFocusedId,
+      rovingId,
+      anchorRef,
+      selectRangeTo,
+      moveFocus,
+      selectAll: selectEveryFile,
+    } = useKeyboardSelection<string>({
+      ids: entryIds,
+      selectableIds: fileIds,
+      selected: selectedIds,
+      onSelectedChange: setSelectedIds,
+      onSelectionStart: () => {
+        if (!selectMode) setSelectMode(true);
+      },
+      getItemElement: (id) =>
+        listContainerRef.current?.querySelector<HTMLElement>(
+          `[data-entry-id="${CSS.escape(id)}"]`,
+        ) ?? null,
+    });
 
     // A file was activated by the mouse. Modifiers drive selection; a plain click
     // (no modifier, not in select mode, nothing selected) OPENS the file (viewer).
@@ -569,32 +558,6 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       window.addEventListener("resize", compute);
       return () => window.removeEventListener("resize", compute);
     }, [view, gridCols]);
-
-    // Focus the DOM node for a given entry id (data-entry-id is set on each row/card).
-    const listContainerRef = useRef<HTMLDivElement>(null);
-    const focusEntry = (id: string) => {
-      setFocusedId(id);
-      requestAnimationFrame(() => {
-        listContainerRef.current
-          ?.querySelector<HTMLElement>(`[data-entry-id="${CSS.escape(id)}"]`)
-          ?.focus();
-      });
-    };
-
-    const moveFocus = (from: string | null, delta: number, extendRange: boolean) => {
-      if (entryIds.length === 0) return;
-      const curIdx = from ? entryIds.indexOf(from) : -1;
-      const nextIdx = Math.min(
-        entryIds.length - 1,
-        Math.max(0, (curIdx === -1 ? 0 : curIdx) + delta),
-      );
-      const nextId = entryIds[nextIdx];
-      focusEntry(nextId);
-      if (extendRange && fileIds.includes(nextId)) {
-        if (!selectMode) setSelectMode(true);
-        selectRangeTo(nextId, true);
-      }
-    };
 
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -686,8 +649,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         if (typing) return;
         if (sortedFiles.length === 0) return;
         e.preventDefault();
-        if (!selectMode) setSelectMode(true);
-        setSelectedIds(new Set(fileIds));
+        selectEveryFile();
       }
     };
 
