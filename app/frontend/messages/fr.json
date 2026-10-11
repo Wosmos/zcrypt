@@ -43,7 +43,10 @@
     "recents": "Récents",
     "starred": "Favoris",
     "openLink": "Ouvrir",
-    "openInNewTab": "Ouvrir dans un nouvel onglet"
+    "openInNewTab": "Ouvrir dans un nouvel onglet",
+    "storageByPlatform": "Par plateforme",
+    "storageDisconnected": "Déconnectée",
+    "storageStoredNote": "Tailles telles que stockées : compressées et chiffrées."
   },
   "vaultLock": {
     "locked": "Verrouillé",

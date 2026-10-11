@@ -43,7 +43,10 @@
     "recents": "Recientes",
     "starred": "Destacados",
     "openLink": "Abrir",
-    "openInNewTab": "Abrir en una pestaña nueva"
+    "openInNewTab": "Abrir en una pestaña nueva",
+    "storageByPlatform": "Por plataforma",
+    "storageDisconnected": "Desconectada",
+    "storageStoredNote": "Tamaños tal como se almacenan: comprimidos y cifrados."
   },
   "vaultLock": {
     "locked": "Bloqueada",

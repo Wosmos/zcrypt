@@ -25,6 +25,12 @@ import {
   ArrowRight,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
+import { HoverCard } from "@/components/ui/hover-card";
+import { StorageRing } from "@/components/ui/storage-ring";
+import { StorageBreakdown } from "@/components/ui/storage-breakdown";
+import { FOCUS_RING } from "@/components/files/explorer/types";
+import { clampPercent, platformUsage, ringTone } from "@/lib/storage-usage";
+import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -111,7 +117,15 @@ export function Sidebar() {
   const isUnlimited = quota?.is_unlimited ?? false;
   const totalUsed = quota?.used_bytes ?? 0;
   const totalMax = quota && !quota.is_unlimited && quota.quota_bytes > 0 ? quota.quota_bytes : 0;
-  const storagePercent = totalMax > 0 ? Math.min((totalUsed / totalMax) * 100, 100) : 0;
+  const storagePercent = clampPercent(totalUsed, totalMax);
+  const storageSummary = isUnlimited
+    ? t("storageUsed", { used: formatBytes(totalUsed) })
+    : totalMax > 0
+      ? t("storageOf", { used: formatBytes(totalUsed), total: formatBytes(totalMax) })
+      : t("noPlatformConnected");
+  const ringCenter = totalMax > 0 ? `${Math.round(storagePercent)}%` : "-";
+  const { repos, statuses } = usePlatformHealth();
+  const usageRows = useMemo(() => platformUsage(repos, statuses), [repos, statuses]);
 
   const vaultView = useVaultView((s) => s.collection);
   const isActive = (href: string) => {
@@ -240,70 +254,68 @@ export function Sidebar() {
 
         {/* Storage card */}
         <div className="pt-2">
-          {!collapsed ? (
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-                  <Database className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-                  {t("storage")}
-                </span>
-                <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                  {isUnlimited ? "∞" : totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "-"}
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-3)]">
-                {totalMax > 0 && (
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-500",
-                      storagePercent > 90
-                        ? "bg-red-500"
-                        : storagePercent > 70
-                          ? "bg-amber-500"
-                          : "bg-[var(--color-accent)]",
-                    )}
-                    style={{ width: `${storagePercent}%` }}
+          <HoverCard
+            side="right"
+            align="end"
+            className="w-80"
+            trigger={
+              collapsed ? (
+                <button
+                  type="button"
+                  aria-label={`${t("storage")}: ${storageSummary}`}
+                  className={cn(
+                    "mx-auto flex h-11 w-11 items-center justify-center rounded-xl",
+                    FOCUS_RING,
+                  )}
+                >
+                  <StorageRing
+                    size={38}
+                    percent={storagePercent}
+                    tone={ringTone(storagePercent)}
+                    unlimited={isUnlimited}
+                    center={ringCenter}
                   />
-                )}
-                {isUnlimited && (
-                  <div className="h-full w-full rounded-full bg-[var(--color-accent)]/60" />
-                )}
-              </div>
-              <div className="mt-2 flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                <p className="min-w-0 truncate">
-                  {isUnlimited
-                    ? t("storageUsed", { used: formatBytes(totalUsed) })
-                    : totalMax > 0
-                      ? t("storageOf", {
-                          used: formatBytes(totalUsed),
-                          total: formatBytes(totalMax),
-                        })
-                      : t("noPlatformConnected")}
-                </p>
-                {version ? (
-                  <span
-                    className="shrink-0 font-mono text-[10.5px] opacity-80"
-                    title={t("appVersion", { version })}
-                  >
-                    v{version}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`${t("storage")}: ${storageSummary}`}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 text-start",
+                    FOCUS_RING,
+                  )}
+                >
+                  <StorageRing
+                    percent={storagePercent}
+                    tone={ringTone(storagePercent)}
+                    unlimited={isUnlimited}
+                    center={ringCenter}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                        <Database className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                        {t("storage")}
+                      </span>
+                      {version ? (
+                        <span
+                          className="shrink-0 font-mono text-[10.5px] tabular-nums text-[var(--color-text-muted)] opacity-80"
+                          title={t("appVersion", { version })}
+                        >
+                          v{version}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="mt-1 block truncate text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                      {storageSummary}
+                    </span>
                   </span>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <div
-              className="flex flex-col items-center gap-1.5"
-              title={
-                isUnlimited
-                  ? t("storageUsed", { used: formatBytes(totalUsed) })
-                  : totalMax > 0
-                    ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
-                    : t("noPlatform")
-              }
-            >
-              <Database className="h-4 w-4 text-[var(--color-text-muted)]" />
-            </div>
-          )}
+                </button>
+              )
+            }
+          >
+            <StorageBreakdown rows={usageRows} summary={storageSummary} />
+          </HoverCard>
         </div>
 
         {/* Collapse toggle */}

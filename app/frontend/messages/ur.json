@@ -43,7 +43,10 @@
     "recents": "حالیہ",
     "starred": "ستارہ شدہ",
     "openLink": "کھولیں",
-    "openInNewTab": "نئے ٹیب میں کھولیں"
+    "openInNewTab": "نئے ٹیب میں کھولیں",
+    "storageByPlatform": "پلیٹ فارم کے لحاظ سے",
+    "storageDisconnected": "منقطع",
+    "storageStoredNote": "سائز محفوظ شدہ حالت کے ہیں: کمپریسڈ اور انکرپٹڈ۔"
   },
   "vaultLock": {
     "locked": "مقفل",

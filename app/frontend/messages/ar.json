@@ -43,7 +43,10 @@
     "recents": "الأخيرة",
     "starred": "المميّزة",
     "openLink": "فتح",
-    "openInNewTab": "فتح في علامة تبويب جديدة"
+    "openInNewTab": "فتح في علامة تبويب جديدة",
+    "storageByPlatform": "حسب المنصة",
+    "storageDisconnected": "غير متصلة",
+    "storageStoredNote": "الأحجام كما هي مخزنة: مضغوطة ومشفّرة."
   },
   "vaultLock": {
     "locked": "مقفلة",

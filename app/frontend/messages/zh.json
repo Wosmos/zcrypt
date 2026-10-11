@@ -43,7 +43,10 @@
     "recents": "最近",
     "starred": "已加星标",
     "openLink": "打开",
-    "openInNewTab": "在新标签页中打开"
+    "openInNewTab": "在新标签页中打开",
+    "storageByPlatform": "按平台",
+    "storageDisconnected": "已断开连接",
+    "storageStoredNote": "显示的是实际存储大小：已压缩并加密。"
   },
   "vaultLock": {
     "locked": "已锁定",

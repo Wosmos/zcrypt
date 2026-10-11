@@ -43,7 +43,10 @@
     "recents": "Недавние",
     "starred": "Избранное",
     "openLink": "Открыть",
-    "openInNewTab": "Открыть в новой вкладке"
+    "openInNewTab": "Открыть в новой вкладке",
+    "storageByPlatform": "По платформам",
+    "storageDisconnected": "Отключено",
+    "storageStoredNote": "Размеры указаны как есть в хранилище: сжатые и зашифрованные."
   },
   "vaultLock": {
     "locked": "Заблокировано",
