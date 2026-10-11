@@ -1,9 +1,9 @@
 .zc-switch {
-  --zc-switch-w: 46px;
+  --zc-switch-w: 52px;
   --zc-switch-h: 28px;
-  --zc-switch-pad: 2px;
+  --zc-switch-pad: 2.5px;
   --zc-thumb: calc(var(--zc-switch-h) - var(--zc-switch-pad) * 2);
-  --zc-thumb-w: var(--zc-thumb);
+  --zc-thumb-w: calc(var(--zc-switch-w) * 0.62);
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
@@ -35,7 +35,7 @@
 }
 
 .zc-switch:active:not(:disabled) {
-  --zc-thumb-w: calc(var(--zc-thumb) * 1.28);
+  --zc-thumb-w: calc(var(--zc-switch-w) * 0.74);
 }
 
 .zc-switch-thumb {
@@ -47,9 +47,9 @@
   border-radius: 999px;
   background: #fff;
   box-shadow:
-    0 3px 8px rgb(0 0 0 / 0.18),
-    0 1px 1px rgb(0 0 0 / 0.16),
-    0 0 0 0.5px rgb(0 0 0 / 0.04);
+    0 2px 6px rgb(0 0 0 / 0.16),
+    0 1px 1px rgb(0 0 0 / 0.12),
+    inset 0 0 0 0.5px rgb(0 0 0 / 0.08);
   pointer-events: none;
   transition:
     inset-inline-start 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
