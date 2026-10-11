@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
 import { LOCALES } from "@/lib/i18n";
 import en from "@/messages/en.json";
