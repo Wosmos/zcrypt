@@ -5,12 +5,13 @@ import { PageHero } from "@/components/marketing/ui/page-hero";
 import { T } from "@/components/i18n/t";
 import { ArrowLeft, ArrowRight } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
-import { cardSurface } from "@/components/marketing/ui/card";
+import { cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
+import "@/components/marketing/changelog/changelog.css";
 import { VersionBadge } from "@/components/marketing/changelog/timeline";
 import { ChangelogCta } from "@/components/marketing/changelog/changelog-cta";
 import { ReleaseDate } from "@/components/changelog/release-date";
-import { ReleaseGroups } from "@/components/changelog/release-groups";
-import { RELEASES, adjacentReleases, findRelease } from "@/lib/changelog";
+import { KindCounts, ReleaseGroups } from "@/components/changelog/release-groups";
+import { LATEST_RELEASED_VERSION, RELEASES, adjacentReleases, findRelease } from "@/lib/changelog";
 import enMessages from "@/messages/site/changelog/en.json";
 import { SITE_URL } from "@/lib/site";
 
@@ -73,8 +74,9 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
           <div className="mb-5 flex flex-wrap items-center justify-center gap-3">
             <VersionBadge release={release} />
             <span className="text-[13px] text-[var(--color-text-muted)]">
-              <ReleaseDate date={release.date} />
+              <ReleaseDate date={release.date} relative />
             </span>
+            <KindCounts release={release} />
           </div>
         }
         title={<T k={`changelog.${release.key}.title`} />}
@@ -87,24 +89,26 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
               <T k="changelog.page.upcomingNote" />
             </p>
           ) : null}
-          <div className={`${cardSurface} p-6 sm:p-10`}>
+          <div
+            className={`${cardSurface} cl-card p-6 sm:p-10 ${release.version === LATEST_RELEASED_VERSION ? "cl-latest" : ""} ${release.date === null ? "cl-upcoming outline outline-1 -outline-offset-1 outline-dashed outline-amber-500/40" : ""}`}
+          >
             <ReleaseGroups release={release} />
           </div>
 
-          <nav aria-label="Versions" className="mt-8 grid gap-4 sm:grid-cols-2">
+          <nav aria-label="Versions" className="mt-10 grid gap-4 sm:grid-cols-2">
             {older ? (
               <Link
                 href={`/changelog/${older.version}`}
-                className="group rounded-2xl border border-[var(--color-border)] p-4 transition-colors hover:border-[var(--color-border-hover)]"
+                className={`${cardSurfaceSm} pv2-card-link group block p-5`}
               >
                 <span className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                  <ArrowLeft className="h-3.5 w-3.5 rtl:-scale-x-100" />
+                  <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 rtl:-scale-x-100" />
                   <T k="changelog.page.previous" />
                 </span>
-                <span className="mt-1 block font-mono text-sm text-[var(--color-text)]">
+                <span className="mt-2 block font-mono text-sm font-semibold text-[var(--pv2-accent-ink)]">
                   v{older.version}
                 </span>
-                <span className="block text-[14px] text-[var(--color-text-secondary)]">
+                <span className="mt-0.5 block font-[family-name:var(--font-heading)] text-[1.05rem] font-bold leading-snug tracking-tight text-[var(--color-text)]">
                   <T k={`changelog.${older.key}.title`} />
                 </span>
               </Link>
@@ -114,16 +118,16 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
             {newer ? (
               <Link
                 href={`/changelog/${newer.version}`}
-                className="group rounded-2xl border border-[var(--color-border)] p-4 text-end transition-colors hover:border-[var(--color-border-hover)]"
+                className={`${cardSurfaceSm} pv2-card-link group block p-5 text-end`}
               >
                 <span className="flex items-center justify-end gap-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
                   <T k="changelog.page.next" />
-                  <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:-scale-x-100" />
                 </span>
-                <span className="mt-1 block font-mono text-sm text-[var(--color-text)]">
+                <span className="mt-2 block font-mono text-sm font-semibold text-[var(--pv2-accent-ink)]">
                   v{newer.version}
                 </span>
-                <span className="block text-[14px] text-[var(--color-text-secondary)]">
+                <span className="mt-0.5 block font-[family-name:var(--font-heading)] text-[1.05rem] font-bold leading-snug tracking-tight text-[var(--color-text)]">
                   <T k={`changelog.${newer.key}.title`} />
                 </span>
               </Link>

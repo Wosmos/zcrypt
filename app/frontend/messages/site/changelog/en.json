@@ -23,7 +23,11 @@
         "improved": "Improved",
         "fixed": "Fixed",
         "security": "Security"
-      }
+      },
+      "rss": "Subscribe via RSS",
+      "filterLabel": "Show only",
+      "filterAll": "Everything",
+      "permalink": "Link to this version"
     },
     "v0_1_8": {
       "title": "Everything in eight languages",

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
-import { ArrowRight } from "@/lib/icons";
+import { ArrowRight, Link2 } from "@/lib/icons";
 import { cardSurface } from "@/components/marketing/ui/card";
+import "@/components/marketing/changelog/changelog.css";
 import { ReleaseDate } from "@/components/changelog/release-date";
-import { ReleaseGroups } from "@/components/changelog/release-groups";
+import { KindCounts, ReleaseGroups } from "@/components/changelog/release-groups";
+import { TimelineControls } from "@/components/marketing/changelog/timeline-controls";
 import { LATEST_RELEASED_VERSION, type Release } from "@/lib/changelog";
 
 export function VersionBadge({ release, className }: { release: Release; className?: string }) {
@@ -40,62 +42,63 @@ export function ReleaseHeading({
 }) {
   const title = <T k={`changelog.${release.key}.title`} />;
   return (
-    <Tag className="font-[family-name:var(--font-heading)] text-2xl font-bold leading-tight tracking-[-0.02em] text-[var(--color-text)] sm:text-[1.75rem]">
+    <div className="cl-heading flex items-start gap-2">
+      <Tag className="font-[family-name:var(--font-heading)] text-2xl font-bold leading-tight tracking-[-0.02em] text-[var(--color-text)] sm:text-[1.75rem]">
+        {linked ? (
+          <Link
+            href={`/changelog/${release.version}`}
+            className="decoration-[var(--color-accent)]/60 underline-offset-4 hover:underline focus-visible:underline"
+          >
+            {title}
+          </Link>
+        ) : (
+          title
+        )}
+      </Tag>
       {linked ? (
-        <Link
-          href={`/changelog/${release.version}`}
-          className="decoration-[var(--color-accent)]/60 underline-offset-4 hover:underline focus-visible:underline"
+        <a
+          href={`#v${release.version}`}
+          className="cl-anchor mt-1.5 inline-flex text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
         >
-          {title}
-        </Link>
-      ) : (
-        title
-      )}
-    </Tag>
+          <Link2 className="h-4 w-4" />
+          <span className="sr-only">
+            <T k="changelog.page.permalink" />
+          </span>
+        </a>
+      ) : null}
+    </div>
   );
 }
 
-function TimelineItem({ release, last }: { release: Release; last: boolean }) {
+function TimelineItem({ release }: { release: Release }) {
   const upcoming = release.date === null;
+  const latest = release.version === LATEST_RELEASED_VERSION;
   return (
     <li
       id={`v${release.version}`}
-      className="relative grid scroll-mt-28 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 md:grid-cols-[9.5rem_1.25rem_minmax(0,1fr)] md:gap-x-6"
+      data-release={release.version}
+      data-kinds={release.groups.map((g) => g.kind).join(" ")}
+      {...(upcoming ? { "data-upcoming": "" } : {})}
+      className="relative grid scroll-mt-28 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 md:grid-cols-[10.5rem_1.25rem_minmax(0,1fr)] md:gap-x-6"
     >
-      <div className="relative col-start-1 row-span-2 md:col-start-2 md:row-span-1 md:row-start-1">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute start-1/2 top-[0.7rem] z-10 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-[var(--color-bg)] rtl:translate-x-1/2",
-            upcoming ? "bg-amber-500" : "bg-[var(--color-accent)]",
-          )}
-        />
-        {last ? null : (
-          <span
-            aria-hidden="true"
-            className="absolute inset-y-0 start-1/2 top-[1.1rem] w-px -translate-x-1/2 bg-gradient-to-b from-[var(--color-border-hover)] to-[var(--color-border)] rtl:translate-x-1/2"
-          />
-        )}
-      </div>
+      <span aria-hidden="true" className="cl-node" />
 
       <div className="col-start-2 row-start-1 pb-4 md:col-start-1 md:pb-0 md:text-end">
         <VersionBadge release={release} className="md:justify-end" />
         <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">
-          <ReleaseDate date={release.date} />
+          <ReleaseDate date={release.date} relative />
         </p>
+        <KindCounts release={release} className="mt-2 md:justify-end" />
       </div>
 
-      <div
-        className={cn(
-          "col-start-2 row-start-2 pb-14 md:col-start-3 md:row-start-1",
-          last && "pb-0",
-        )}
-      >
+      <div className="col-start-2 row-start-2 pb-14 md:col-start-3 md:row-start-1">
         <div
           className={cn(
             cardSurface,
-            "p-6 sm:p-8",
-            upcoming && "outline outline-1 -outline-offset-1 outline-dashed outline-amber-500/40",
+            "cl-card p-6 sm:p-8",
+            latest && "cl-latest",
+            upcoming &&
+              "cl-upcoming outline outline-1 -outline-offset-1 outline-dashed outline-amber-500/40",
           )}
         >
           <ReleaseHeading release={release} />
@@ -121,12 +124,21 @@ function TimelineItem({ release, last }: { release: Release; last: boolean }) {
   );
 }
 
+export const TIMELINE_ID = "changelog-timeline";
+
 export function ChangelogTimeline({ releases }: { releases: Release[] }) {
   return (
-    <ol className="m-0 list-none p-0">
-      {releases.map((r, i) => (
-        <TimelineItem key={r.version} release={r} last={i === releases.length - 1} />
-      ))}
-    </ol>
+    <>
+      <TimelineControls targetId={TIMELINE_ID} />
+      <div id={TIMELINE_ID} className="cl-timeline">
+        <span aria-hidden="true" className="cl-spine" />
+        <span aria-hidden="true" className="cl-spine-fill" />
+        <ol className="m-0 list-none p-0">
+          {releases.map((r) => (
+            <TimelineItem key={r.version} release={r} />
+          ))}
+        </ol>
+      </div>
+    </>
   );
 }

@@ -1,0 +1,43 @@
+.cl-timeline { position: relative; --cl-node-x: 0.625rem; --cl-progress: 0px; }
+@media (min-width: 768px) { .cl-timeline { --cl-node-x: calc(10.5rem + 1.5rem + 0.625rem); } }
+
+.cl-spine, .cl-spine-fill { position: absolute; inset-inline-start: var(--cl-node-x); top: 1rem; bottom: 0; width: 2px; translate: -50% 0; border-radius: 2px; pointer-events: none; }
+[dir="rtl"] .cl-spine, [dir="rtl"] .cl-spine-fill { translate: 50% 0; }
+.cl-spine { background: repeating-linear-gradient(180deg, var(--color-border-hover) 0 6px, transparent 6px 11px); opacity: 0.7; }
+.cl-spine-fill { bottom: auto; height: var(--cl-progress); background: linear-gradient(180deg, color-mix(in oklab, var(--color-accent) 30%, transparent), var(--color-accent)); box-shadow: 0 0 12px color-mix(in oklab, var(--color-accent) 55%, transparent); }
+@media (prefers-reduced-motion: no-preference) { .cl-spine-fill { transition: height 380ms cubic-bezier(0.22, 1, 0.36, 1); } }
+
+.cl-node { position: absolute; inset-inline-start: calc(var(--cl-node-x) - 0.5rem); top: 0.35rem; z-index: 10; display: grid; place-items: center; width: 1rem; height: 1rem; border-radius: 999px; background: var(--color-bg); box-shadow: 0 0 0 2px var(--color-border-hover); }
+.cl-node::after { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 999px; background: var(--color-border-hover); }
+[data-passed] .cl-node { box-shadow: 0 0 0 2px var(--color-accent); }
+[data-passed] .cl-node::after { background: var(--color-accent); }
+[data-active] .cl-node { box-shadow: 0 0 0 2px var(--color-accent), 0 0 0 6px color-mix(in oklab, var(--color-accent) 22%, transparent), 0 0 18px color-mix(in oklab, var(--color-accent) 70%, transparent); }
+[data-upcoming] .cl-node, [data-upcoming][data-active] .cl-node { box-shadow: 0 0 0 2px rgb(245 158 11 / 0.8), 0 0 16px rgb(245 158 11 / 0.45); }
+[data-upcoming] .cl-node::after { background: rgb(245 158 11); }
+@media (prefers-reduced-motion: no-preference) {
+  .cl-node, .cl-node::after { transition: box-shadow 300ms ease, background-color 300ms ease; }
+  [data-upcoming] .cl-node { animation: cl-pulse 2.6s ease-in-out infinite; }
+}
+@keyframes cl-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgb(245 158 11 / 0.7), 0 0 0 0 rgb(245 158 11 / 0.35); } 50% { box-shadow: 0 0 0 2px rgb(245 158 11 / 0.7), 0 0 0 8px rgb(245 158 11 / 0); } }
+
+.cl-card { transition: box-shadow 300ms ease, opacity 300ms ease; }
+.cl-latest::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--color-accent) 70%, transparent), 0 0 48px -8px color-mix(in oklab, var(--color-accent) 40%, transparent); }
+.cl-upcoming { background-image: repeating-linear-gradient(135deg, transparent 0 14px, rgb(245 158 11 / 0.05) 14px 15px), var(--pv2-card-glow), var(--pv2-card-bg); }
+li[data-release]:not([data-active]) .cl-card { opacity: 0.86; }
+li[data-release]:hover .cl-card, li[data-release]:focus-within .cl-card { opacity: 1; }
+
+.cl-anchor { opacity: 0; transition: opacity 150ms ease; }
+.cl-heading:hover .cl-anchor, .cl-anchor:focus-visible { opacity: 1; }
+@media (hover: none) { .cl-anchor { opacity: 0.55; } }
+
+.cl-filter button { position: relative; }
+.cl-filter button[aria-pressed="true"] { background: color-mix(in oklab, var(--color-accent) 16%, var(--color-surface)); border-color: color-mix(in oklab, var(--color-accent) 60%, transparent); color: var(--color-text); }
+
+.cl-timeline[data-filter="new"] [data-kind]:not([data-kind="new"]),
+.cl-timeline[data-filter="improved"] [data-kind]:not([data-kind="improved"]),
+.cl-timeline[data-filter="fixed"] [data-kind]:not([data-kind="fixed"]),
+.cl-timeline[data-filter="security"] [data-kind]:not([data-kind="security"]) { display: none; }
+.cl-timeline[data-filter="new"] li[data-release]:not([data-kinds~="new"]),
+.cl-timeline[data-filter="improved"] li[data-release]:not([data-kinds~="improved"]),
+.cl-timeline[data-filter="fixed"] li[data-release]:not([data-kinds~="fixed"]),
+.cl-timeline[data-filter="security"] li[data-release]:not([data-kinds~="security"]) { display: none; }

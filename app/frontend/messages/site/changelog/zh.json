@@ -23,7 +23,11 @@
         "improved": "改进",
         "fixed": "修复",
         "security": "安全"
-      }
+      },
+      "rss": "通过 RSS 订阅",
+      "filterLabel": "只看",
+      "filterAll": "全部",
+      "permalink": "指向此版本的链接"
     },
     "v0_1_8": {
       "title": "八种语言，全面覆盖",

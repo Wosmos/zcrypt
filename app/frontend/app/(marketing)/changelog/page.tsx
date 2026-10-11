@@ -4,6 +4,7 @@ import { T } from "@/components/i18n/t";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { ChangelogTimeline } from "@/components/marketing/changelog/timeline";
 import { ChangelogCta } from "@/components/marketing/changelog/changelog-cta";
+import { RssLink } from "@/components/marketing/changelog/rss-link";
 import { RELEASES } from "@/lib/changelog";
 import { SITE_URL } from "@/lib/site";
 
@@ -41,6 +42,7 @@ export default function ChangelogPage() {
         eyebrow={<T k="changelog.page.eyebrow" />}
         title={<T k="changelog.page.title" />}
         lede={<T k="changelog.page.lede" />}
+        actions={<RssLink />}
       />
       <section className="pv2-sec pv2-sec-join" aria-label="Releases">
         <div className="pv2-wrap pv2-wrap-narrow" style={{ maxWidth: "62rem" }}>

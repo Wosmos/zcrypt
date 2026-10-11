@@ -23,7 +23,11 @@
         "improved": "Verbessert",
         "fixed": "Behoben",
         "security": "Sicherheit"
-      }
+      },
+      "rss": "Per RSS abonnieren",
+      "filterLabel": "Nur anzeigen",
+      "filterAll": "Alles",
+      "permalink": "Link zu dieser Version"
     },
     "v0_1_8": {
       "title": "Alles in acht Sprachen",
