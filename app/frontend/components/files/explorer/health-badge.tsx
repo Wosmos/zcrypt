@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { retryFileSync } from "@/lib/api";
 import { invalidateFilesViews } from "@/lib/invalidate";
 import { AlertTriangle, RefreshCw } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 import type { FileMetadata } from "@/types";
 import { FOCUS_RING } from "./types";
 
@@ -19,16 +21,17 @@ const PILL =
  * retry, and tapping the pill queues it again.
  */
 export function FileHealthBadge({ file }: { file: FileMetadata }) {
+  const t = useTranslations("app.explorerItem");
   const [retrying, setRetrying] = useState(false);
 
   if (file.health === "damaged") {
     return (
       <span
         className={cn(PILL, "bg-red-500/10 text-red-500")}
-        title="Part of this file is missing from storage. Upload it again from your original copy."
+        title={t("damagedHint")}
       >
         <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
-        Damaged
+        {t("damaged")}
       </span>
     );
   }
@@ -40,10 +43,10 @@ export function FileHealthBadge({ file }: { file: FileMetadata }) {
     setRetrying(true);
     try {
       await retryFileSync(file.id);
-      toast.success("Retrying the backup of this file");
+      toast.success(tr("explorerItem.retrying"));
       await invalidateFilesViews();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not retry the backup");
+      toast.error(err instanceof Error ? err.message : tr("explorerItem.retryFailed"));
     } finally {
       setRetrying(false);
     }
@@ -55,10 +58,10 @@ export function FileHealthBadge({ file }: { file: FileMetadata }) {
       onClick={retry}
       disabled={retrying}
       className={cn(PILL, "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20", FOCUS_RING)}
-      title="This file hasn't reached your storage yet. Tap to retry."
+      title={t("notBackedUpHint")}
     >
       <RefreshCw className={cn("h-3 w-3", retrying && "animate-spin")} strokeWidth={2.25} />
-      Not backed up
+      {t("notBackedUp")}
     </button>
   );
 }

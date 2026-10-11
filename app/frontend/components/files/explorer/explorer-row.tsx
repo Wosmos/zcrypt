@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { memo, type ComponentType, type CSSProperties } from "react";
 import NextImage from "next/image";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
@@ -92,6 +93,7 @@ function FolderRow({
   onCustomizeFolder,
   drag,
 }: FolderItemProps) {
+  const t = useTranslations("app.explorerItem");
   const {
     Glyph: FolderGlyph,
     background: customBackground,
@@ -103,7 +105,7 @@ function FolderRow({
       role="button"
       data-entry-id={folder.id}
       tabIndex={focused ? 0 : -1}
-      aria-label={`Open folder ${folder.name}${folder.protected ? ", password protected" : ""}`}
+      aria-label={t(folder.protected ? "openFolderProtected" : "openFolder", { name: folder.name })}
       draggable={drag.draggable}
       onClick={() => onOpenFolder(folder)}
       onKeyDown={(e) => onEntryKeyDown(entry, e)}
@@ -148,7 +150,7 @@ function FolderRow({
       </span>
       {/* Type column placeholder for visual alignment */}
       <span className="hidden w-[110px] flex-shrink-0 text-sm text-[var(--color-text-secondary)] sm:block">
-        Folder
+        {t("folder")}
       </span>
       {/* Size / saved / modified columns are "-" for folders */}
       <span className="hidden w-[80px] flex-shrink-0 text-right text-sm tabular-nums text-[var(--color-text-secondary)] sm:block">
@@ -161,42 +163,42 @@ function FolderRow({
         {formatDate(folder.created_at)}
       </span>
       <DropdownMenu>
-        <MenuTrigger label={`Actions for folder ${folder.name}`} />
+        <MenuTrigger label={t("actionsForFolder", { name: folder.name })} />
         <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuItem onClick={() => onOpenFolder(folder)}>
-            <FolderOpen className="h-4 w-4" /> Open
+            <FolderOpen className="h-4 w-4" /> {t("open")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onRenameFolder(folder)}>
-            <Edit className="h-4 w-4" /> Rename
+            <Edit className="h-4 w-4" /> {t("rename")}
           </DropdownMenuItem>
           {onCustomizeFolder && (
             <DropdownMenuItem onClick={() => onCustomizeFolder(folder)}>
-              <PaintBrush className="h-4 w-4" /> Customize…
+              <PaintBrush className="h-4 w-4" /> {t("customize")}
             </DropdownMenuItem>
           )}
           {onMoveFolderRequest && (
             <DropdownMenuItem onClick={() => onMoveFolderRequest(folder)}>
-              <Folder className="h-4 w-4" /> Move to folder
+              <Folder className="h-4 w-4" /> {t("moveToFolder")}
             </DropdownMenuItem>
           )}
           {!folder.protected && onProtectFolder && (
             <DropdownMenuItem onClick={() => onProtectFolder(folder)}>
-              <Key className="h-4 w-4" /> Protect with password…
+              <Key className="h-4 w-4" /> {t("protect")}
             </DropdownMenuItem>
           )}
           {folder.protected && onRemoveFolderPassword && (
             <DropdownMenuItem onClick={() => onRemoveFolderPassword(folder)}>
-              <Unlock className="h-4 w-4" /> Remove password…
+              <Unlock className="h-4 w-4" /> {t("removePassword")}
             </DropdownMenuItem>
           )}
           {onShareFolder && (
             <DropdownMenuItem onClick={() => onShareFolder(folder)}>
-              <Share2 className="h-4 w-4" /> Share
+              <Share2 className="h-4 w-4" /> {t("share")}
             </DropdownMenuItem>
           )}
           {onOpenFolderDetails && (
             <DropdownMenuItem onClick={() => onOpenFolderDetails(folder)}>
-              <Info className="h-4 w-4" /> Get info
+              <Info className="h-4 w-4" /> {t("getInfo")}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -204,7 +206,7 @@ function FolderRow({
             onClick={() => onDeleteFolder(folder)}
             className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -231,6 +233,7 @@ function FileRow({
   onRenameFile,
   drag,
 }: FileItemProps) {
+  const t = useTranslations("app.explorerItem");
   // Defensive fallback: use the already-decrypted original_name when present,
   // else re-decrypt encrypted_name directly (see useExplorerFileName), so a
   // folder's contents never fall back to the raw file id while a real name is
@@ -254,7 +257,11 @@ function FileRow({
       data-entry-id={file.id}
       tabIndex={focused ? 0 : -1}
       aria-pressed={selected}
-      aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}`}
+      aria-label={t(unavailable ? "rowUnavailable" : "row", {
+        name: displayName,
+        type: typeInfo.label,
+        size: formatBytes(file.original_size),
+      })}
       draggable={drag.draggable}
       onClick={(e) => onFileClick(file, e)}
       onKeyDown={(e) => onEntryKeyDown(entry, e)}
@@ -307,7 +314,7 @@ function FileRow({
         {unavailable && !thumbnailUrl && (
           <span
             className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--color-surface)] text-amber-500 shadow-sm"
-            title="Preview unavailable: the original file data could not be retrieved"
+            title={t("previewUnavailable")}
             aria-hidden="true"
           >
             <AlertTriangle className="h-2.5 w-2.5" strokeWidth={2.25} />
@@ -341,47 +348,47 @@ function FileRow({
         {formatDate(file.created_at)}
       </span>
       <DropdownMenu>
-        <MenuTrigger label={`Actions for ${displayName}`} />
+        <MenuTrigger label={t("actionsFor", { name: displayName })} />
         <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
           {onRequestSelect && (
             <>
               <DropdownMenuItem onClick={() => onRequestSelect(file.id)}>
-                <CheckSquare className="h-4 w-4" /> Select
+                <CheckSquare className="h-4 w-4" /> {t("select")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
           {actions.onPreview && (
             <DropdownMenuItem onClick={() => actions.onPreview?.(displayName)}>
-              <Eye className="h-4 w-4" /> Preview
+              <Eye className="h-4 w-4" /> {t("preview")}
             </DropdownMenuItem>
           )}
           {onRenameFile && (
             <DropdownMenuItem onClick={() => onRenameFile(file)}>
-              <Edit className="h-4 w-4" /> Rename
+              <Edit className="h-4 w-4" /> {t("rename")}
             </DropdownMenuItem>
           )}
           {onCustomizeFile && (
             <DropdownMenuItem onClick={() => onCustomizeFile(file)}>
-              <PaintBrush className="h-4 w-4" /> Customize…
+              <PaintBrush className="h-4 w-4" /> {t("customize")}
             </DropdownMenuItem>
           )}
           {onOpenDetails && (
             <DropdownMenuItem onClick={() => onOpenDetails(file)}>
-              <Info className="h-4 w-4" /> Get info
+              <Info className="h-4 w-4" /> {t("getInfo")}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={() => actions.onDownload(displayName)}>
-            <Download className="h-4 w-4" /> Download
+            <Download className="h-4 w-4" /> {t("download")}
           </DropdownMenuItem>
           {actions.onShare && (
             <DropdownMenuItem onClick={() => actions.onShare?.(file.id)}>
-              <Share2 className="h-4 w-4" /> Share
+              <Share2 className="h-4 w-4" /> {t("share")}
             </DropdownMenuItem>
           )}
           {actions.onMoveRequest && (
             <DropdownMenuItem onClick={() => actions.onMoveRequest?.(file.id)}>
-              <FolderOpen className="h-4 w-4" /> Move to folder
+              <FolderOpen className="h-4 w-4" /> {t("moveToFolder")}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -389,7 +396,7 @@ function FileRow({
             onClick={() => actions.onDelete(file.id)}
             className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

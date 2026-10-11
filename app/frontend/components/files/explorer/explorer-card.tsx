@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { useTranslations } from "next-intl";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import { folderLook } from "./folder-look";
@@ -57,6 +58,7 @@ function FolderCard({
   onCustomizeFolder,
   drag,
 }: FolderItemProps) {
+  const t = useTranslations("app.explorerItem");
   const look = folderLook(folder);
   const isLocked = look.isLocked;
   const FolderGlyph = look.Glyph;
@@ -72,7 +74,7 @@ function FolderCard({
           data-entry-id={folder.id}
           data-folder-drop={folder.id}
           tabIndex={focused ? 0 : -1}
-          aria-label={`Open folder ${folder.name}${folder.protected ? ", password protected" : ""}. Right-click or long-press for actions.`}
+          aria-label={t(folder.protected ? "openFolderProtectedHint" : "openFolderHint", { name: folder.name })}
           draggable={drag.draggable}
           onClick={() => onOpenFolder(folder)}
           onKeyDown={(e) => onEntryKeyDown(entry, e)}
@@ -114,39 +116,39 @@ function FolderCard({
       {/* Options via right-click (desktop) / long-press (touch). */}
       <ContextMenuContent className="w-52">
         <ContextMenuItem className="gap-2" onSelect={() => onOpenFolder(folder)}>
-          <FolderOpen className="h-4 w-4" /> Open
+          <FolderOpen className="h-4 w-4" /> {t("open")}
         </ContextMenuItem>
         <ContextMenuItem className="gap-2" onSelect={() => onRenameFolder(folder)}>
-          <Edit className="h-4 w-4" /> Rename
+          <Edit className="h-4 w-4" /> {t("rename")}
         </ContextMenuItem>
         {onCustomizeFolder && (
           <ContextMenuItem className="gap-2" onSelect={() => onCustomizeFolder(folder)}>
-            <PaintBrush className="h-4 w-4" /> Customize…
+            <PaintBrush className="h-4 w-4" /> {t("customize")}
           </ContextMenuItem>
         )}
         {onMoveFolderRequest && (
           <ContextMenuItem className="gap-2" onSelect={() => onMoveFolderRequest(folder)}>
-            <Folder className="h-4 w-4" /> Move to folder
+            <Folder className="h-4 w-4" /> {t("moveToFolder")}
           </ContextMenuItem>
         )}
         {!folder.protected && onProtectFolder && (
           <ContextMenuItem className="gap-2" onSelect={() => onProtectFolder(folder)}>
-            <Key className="h-4 w-4" /> Protect with password…
+            <Key className="h-4 w-4" /> {t("protect")}
           </ContextMenuItem>
         )}
         {folder.protected && onRemoveFolderPassword && (
           <ContextMenuItem className="gap-2" onSelect={() => onRemoveFolderPassword(folder)}>
-            <Unlock className="h-4 w-4" /> Remove password…
+            <Unlock className="h-4 w-4" /> {t("removePassword")}
           </ContextMenuItem>
         )}
         {onShareFolder && (
           <ContextMenuItem className="gap-2" onSelect={() => onShareFolder(folder)}>
-            <Share2 className="h-4 w-4" /> Share
+            <Share2 className="h-4 w-4" /> {t("share")}
           </ContextMenuItem>
         )}
         {onOpenFolderDetails && (
           <ContextMenuItem className="gap-2" onSelect={() => onOpenFolderDetails(folder)}>
-            <Info className="h-4 w-4" /> Get info
+            <Info className="h-4 w-4" /> {t("getInfo")}
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -154,7 +156,7 @@ function FolderCard({
           className="gap-2 text-red-500 focus:bg-red-500/10 focus:text-red-500"
           onSelect={() => onDeleteFolder(folder)}
         >
-          <Trash2 className="h-4 w-4" /> Delete
+          <Trash2 className="h-4 w-4" /> {t("delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
@@ -177,6 +179,7 @@ function FileCardInner({
   onRenameFile,
   drag,
 }: FileItemProps) {
+  const t = useTranslations("app.explorerItem");
   // Defensive fallback: use the already-decrypted original_name when present,
   // else re-decrypt encrypted_name directly (see useExplorerFileName), so a
   // folder's contents never fall back to the raw file id while a real name is
@@ -206,7 +209,11 @@ function FileCardInner({
           data-tour="file-card"
           tabIndex={focused ? 0 : -1}
           aria-pressed={selected}
-          aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}. Right-click or long-press for actions.`}
+          aria-label={t(unavailable ? "fileHintUnavailable" : "fileHint", {
+            name: displayName,
+            type: typeInfo.label,
+            size: formatBytes(file.original_size),
+          })}
           draggable={drag.draggable}
           onClick={(e) => onFileClick(file, e)}
           onKeyDown={(e) => onEntryKeyDown(entry, e)}
@@ -281,42 +288,42 @@ function FileCardInner({
         {onRequestSelect && (
           <>
             <ContextMenuItem className="gap-2" onSelect={() => onRequestSelect(file.id)}>
-              <CheckSquare className="h-4 w-4" /> Select
+              <CheckSquare className="h-4 w-4" /> {t("select")}
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
         )}
         {actions.onPreview && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(displayName)}>
-            <Eye className="h-4 w-4" /> Preview
+            <Eye className="h-4 w-4" /> {t("preview")}
           </ContextMenuItem>
         )}
         {onRenameFile && (
           <ContextMenuItem className="gap-2" onSelect={() => onRenameFile(file)}>
-            <Edit className="h-4 w-4" /> Rename
+            <Edit className="h-4 w-4" /> {t("rename")}
           </ContextMenuItem>
         )}
         {onCustomizeFile && (
           <ContextMenuItem className="gap-2" onSelect={() => onCustomizeFile(file)}>
-            <PaintBrush className="h-4 w-4" /> Customize…
+            <PaintBrush className="h-4 w-4" /> {t("customize")}
           </ContextMenuItem>
         )}
         <ContextMenuItem className="gap-2" onSelect={() => actions.onDownload(displayName)}>
-          <Download className="h-4 w-4" /> Download
+          <Download className="h-4 w-4" /> {t("download")}
         </ContextMenuItem>
         {onOpenDetails && (
           <ContextMenuItem className="gap-2" onSelect={() => onOpenDetails(file)}>
-            <Info className="h-4 w-4" /> Get info
+            <Info className="h-4 w-4" /> {t("getInfo")}
           </ContextMenuItem>
         )}
         {actions.onShare && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onShare?.(file.id)}>
-            <Share2 className="h-4 w-4" /> Share
+            <Share2 className="h-4 w-4" /> {t("share")}
           </ContextMenuItem>
         )}
         {actions.onMoveRequest && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onMoveRequest?.(file.id)}>
-            <FolderOpen className="h-4 w-4" /> Move to folder
+            <FolderOpen className="h-4 w-4" /> {t("moveToFolder")}
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -324,7 +331,7 @@ function FileCardInner({
           className="gap-2 text-red-500 focus:bg-red-500/10 focus:text-red-500"
           onSelect={() => actions.onDelete(file.id)}
         >
-          <Trash2 className="h-4 w-4" /> Delete
+          <Trash2 className="h-4 w-4" /> {t("delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

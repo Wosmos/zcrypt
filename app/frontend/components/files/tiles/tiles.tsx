@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { useId, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { AlertTriangle, Play } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -173,6 +174,7 @@ export function DocTile({
   colorStyle?: CSSProperties;
   className?: string;
 }) {
+  const t = useTranslations("app.explorerItem");
   return (
     <span
       className={cn("ft-doc", colorClass, className)}
@@ -189,7 +191,7 @@ export function DocTile({
       {unavailable ? (
         <span
           className="ft-doc-warn"
-          title="Preview unavailable: the original file data could not be retrieved"
+          title={t("previewUnavailable")}
         >
           <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
         </span>
