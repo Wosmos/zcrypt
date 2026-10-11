@@ -11,12 +11,20 @@ export const metadata: Metadata = {
   title: "What's new in zcrypt: changelog",
   description:
     "Every zcrypt version in plain words: what is new, what got better, what we fixed and what changed for your security.",
-  alternates: { canonical: `${SITE_URL}/changelog` },
+  alternates: {
+    canonical: `${SITE_URL}/changelog`,
+    types: { "application/rss+xml": `${SITE_URL}/changelog/feed.xml` },
+  },
   openGraph: {
     title: "What's new in zcrypt",
     description: "Every zcrypt version in plain words, newest first.",
     url: `${SITE_URL}/changelog`,
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "What's new in zcrypt",
+    description: "Every zcrypt version in plain words, newest first.",
   },
 };
 

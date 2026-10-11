@@ -73,6 +73,11 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 - The **pre-push hook** is opt-in: it does nothing unless `PREPUSH_LOCAL=1`. Every gate, plus the diff-scoped hardening (new-code oxlint/jscpd, golangci `--new-from-rev`, repo-wide duplication ratchet against `.github/quality-baseline.env`), runs in CI on every branch push.
 - Current backlog lives in `docs/prepush-baseline.env` (gitignored, written by `--ratchet`/`--baseline`). Read it rather than trusting a number here: a hardcoded count goes stale silently and sends work at a backlog that no longer exists.
 
+## Releasing a new version
+- **Changelog first.** Before bumping versions or tagging, write the curated entry for the version: groups in `app/frontend/lib/changelog.json`, text in `app/frontend/messages/site/changelog/en.json` plus the other 7 locales, and set its `date`. Only list user-visible changes that are actually in `git log vPREV..HEAD`; every past version is public on GitHub, so be exact. The release workflow refuses a tag without a dated entry.
+- Then bump the version in `app/frontend/package.json`, `app/desktop/src-tauri/tauri.conf.json` and `app/desktop/src-tauri/Cargo.toml` (`scripts/check-versions.sh` checks they match), push, and tag `vX.Y.Z`.
+- The entry feeds `/changelog`, `/changelog/<version>`, the RSS feed, the in-app What's new dialog, the GitHub release notes and the desktop update dialog (`scripts/release-notes.sh`).
+
 ## Coding Conventions
 - **Backend:** Standard Go conventions. No frameworks: stdlib `net/http` with `HandleFunc`. Error wrapping with `fmt.Errorf("context: %w", err)`. UUID primary keys everywhere.
 - **Frontend:** `"use client"` for interactive components. Zustand for global state. Tailwind for styling. Hugeicons for icons (barrel at `lib/icons.tsx`). No emojis in code.

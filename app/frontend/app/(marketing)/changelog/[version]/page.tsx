@@ -33,12 +33,22 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return {
     title: `zcrypt ${release.version}: ${entry.title}`,
     description: entry.summary,
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      types: { "application/rss+xml": `${SITE_URL}/changelog/feed.xml` },
+    },
+    ...(release.date === null && { robots: { index: false, follow: true } }),
     openGraph: {
       title: `zcrypt ${release.version}: ${entry.title}`,
       description: entry.summary,
       url,
       type: "article",
+      ...(release.date && { publishedTime: release.date }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `zcrypt ${release.version}: ${entry.title}`,
+      description: entry.summary,
     },
   };
 }

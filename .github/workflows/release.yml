@@ -24,6 +24,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Require a changelog entry for this version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          date="$(jq -r --arg v "$version" 'map(select(.version == $v)) | first | .date // empty' app/frontend/lib/changelog.json)"
+          if [ -z "$date" ]; then
+            echo "::error::$TAG has no dated entry in app/frontend/lib/changelog.json. Write the changelog (all 8 languages) and set its date before releasing."
+            exit 1
+          fi
+          echo "changelog entry for $version dated $date"
+
       - name: Create the release for this tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
