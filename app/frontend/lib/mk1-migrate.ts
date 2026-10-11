@@ -104,7 +104,9 @@ export async function runMk1Migration(
           result.skipped++;
           return;
         }
-        const cek = new Uint8Array(await resolveFileKey(startPass, fromBase64(meta.salt), meta.wrapped_cek));
+        const cek = new Uint8Array(
+          await resolveFileKey(startPass, fromBase64(meta.salt), meta.wrapped_cek),
+        );
         const wrapped = await wrapCekWithMasterKey(mk, cek);
         const back = await unwrapCekWithMasterKey(mk, wrapped);
         if (back.length !== cek.length || back.some((b, i) => b !== cek[i])) {
