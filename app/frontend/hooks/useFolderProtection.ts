@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/store/translate";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getFileMeta, setFolderPassword, removeFolderPassword, type FileRekey } from "@/lib/api";
 import { resolveFileKey, generateSalt, fromBase64 } from "@/lib/crypto";
@@ -194,12 +195,12 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       const info = registryGet(folderId);
       if (!info || info.pwSalt == null || info.pwVerifier == null) {
         // Should not happen: only protected folders reach this modal.
-        setError("This folder is not password-protected.");
+        setError(tr("hooks.notProtected"));
         return;
       }
       const ok = await verifyFolderPassword(password, info.pwSalt, info.pwVerifier);
       if (!ok) {
-        setError("Incorrect folder password. Please try again.");
+        setError(tr("hooks.wrongFolderPassword"));
         return;
       }
       cacheSet(folderId, password);
@@ -482,7 +483,7 @@ export async function resolveFilePasswordGlobal(fileId: string): Promise<string>
 
   if (!protectedFolder) {
     const vaultPass = usePassphraseStore.getState().getPassphrase();
-    if (!vaultPass) throw new Error("Vault is locked");
+    if (!vaultPass) throw new Error(tr("hooks.vaultLocked"));
     return vaultPass;
   }
 

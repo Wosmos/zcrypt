@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/utils";
 import { FileText, Server, Download, Layers } from "@/lib/icons";
 
@@ -33,21 +34,22 @@ export function KpiSecondaryStrip({
   activeRepos,
   appDownloads,
 }: KpiSecondaryStripProps) {
+  const t = useTranslations("app.analytics.strip");
   const items: StripItem[] = [];
   if (largestFileSize != null) {
     items.push({
       key: "largest",
-      label: "Largest file",
+      label: t("largestFile"),
       value: formatBytes(largestFileSize),
       icon: FileText,
     });
   }
-  items.push({ key: "platforms", label: "Platforms", value: `${platformCount}`, icon: Server });
-  items.push({ key: "repos", label: "Active repos", value: `${activeRepos}`, icon: Layers });
+  items.push({ key: "platforms", label: t("platforms"), value: `${platformCount}`, icon: Server });
+  items.push({ key: "repos", label: t("activeRepos"), value: `${activeRepos}`, icon: Layers });
   if (appDownloads != null) {
     items.push({
       key: "downloads",
-      label: "App downloads (lifetime)",
+      label: t("appDownloads"),
       value: appDownloads.toLocaleString(),
       icon: Download,
     });

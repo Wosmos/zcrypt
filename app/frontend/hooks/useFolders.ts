@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/store/translate";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -96,7 +97,7 @@ export function useFolders() {
   const createFolder = useCallback(
     async (name: string) => {
       const key = await userNameKey();
-      if (!key) throw new Error("Unlock your vault to create folders");
+      if (!key) throw new Error(tr("hooks.unlockCreateFolders"));
       const trimmed = name.trim();
       // Block a duplicate sibling name (case-insensitive). Folder names are
       // E2E-encrypted so the server can't enforce this, the guard runs here
@@ -114,7 +115,7 @@ export function useFolders() {
   const renameFolder = useCallback(
     async (id: string, name: string) => {
       const key = await userNameKey();
-      if (!key) throw new Error("Unlock your vault to rename folders");
+      if (!key) throw new Error(tr("hooks.unlockRenameFolders"));
       const trimmed = name.trim();
       if (
         folders.some((f) => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())
@@ -130,7 +131,7 @@ export function useFolders() {
 
   const updateFolderStyle = useCallback(async (folderId: string, style: CustomStyle | null) => {
     const key = await userNameKey();
-    if (!key) throw new Error("Unlock your vault to customize folders");
+    if (!key) throw new Error(tr("hooks.unlockCustomizeFolders"));
     const encrypted_style = style ? await encryptStyle(style, key) : null;
     await apiUpdateFolderStyle(folderId, encrypted_style);
     await invalidateFolders();

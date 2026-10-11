@@ -73,6 +73,7 @@ import { encryptName, type CustomStyle } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
 import { updateFileStyle as apiUpdateFileStyle, renameFile as apiRenameFile } from "@/store/files";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 import { getFileCategory, cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
 import { CreateFolderFromFilesDialog } from "@/components/files/create-folder-from-files-dialog";
@@ -305,6 +306,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const t = useTranslations("explorer");
     const tc = useTranslations("common");
     const tp = useTranslations("passphrase");
+    const ta = useTranslations("app.vaultExplorer");
 
     // Opening a folder is gated by the page when `onOpenFolderRequest` is supplied
     // (a protected folder verifies its password before navigating in). Otherwise
@@ -1089,7 +1091,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         // directly (it needs the new folder's id to move files in), so it must
         // check siblings itself. Names are E2E-encrypted; the server can't.
         if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-          throw new Error(`A folder named "${trimmed}" already exists here.`);
+          throw new Error(tr("vaultExplorer.duplicateFolder", { name: trimmed }));
         }
         const key = await nameKeyFor(passphrase, user.id);
         const encrypted_name = await encryptName(trimmed, key);
@@ -1257,12 +1259,12 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         {locked && (
           <p className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
             <Lock className="h-3 w-3" />
-            Unlock your vault to read encrypted folder names, preview, and download.
+            {ta("unlockHint")}
           </p>
         )}
 
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {selectedIds.size > 0 ? `${selectedIds.size} selected` : ""}
+          {selectedIds.size > 0 ? ta("selected", { count: selectedIds.size }) : ""}
         </p>
 
         {/* Select-mode action bar */}
@@ -1280,9 +1282,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 <Square className="h-4 w-4 text-[var(--color-text-muted)]" />
               )}
               {selectedIds.size > 0 ? (
-                <span className="tabular-nums">{selectedIds.size} selected</span>
+                <span className="tabular-nums">{ta("selected", { count: selectedIds.size })}</span>
               ) : (
-                "Select all"
+                ta("selectAll")
               )}
             </button>
             <div className="flex items-center gap-2">
@@ -1293,7 +1295,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   disabled={selectedIds.size === 0}
                   onClick={() => onBulkDownload(Array.from(selectedIds))}
                 >
-                  <Download className="h-3.5 w-3.5" /> Download
+                  <Download className="h-3.5 w-3.5" /> {ta("download")}
                 </Button>
               )}
               {onBulkMove && (
@@ -1303,7 +1305,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   disabled={selectedIds.size === 0}
                   onClick={() => onBulkMove(Array.from(selectedIds))}
                 >
-                  <FolderOpen className="h-3.5 w-3.5" /> Move
+                  <FolderOpen className="h-3.5 w-3.5" /> {ta("move")}
                 </Button>
               )}
               {onBulkShare && (
@@ -1313,7 +1315,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   disabled={selectedIds.size === 0}
                   onClick={() => onBulkShare(Array.from(selectedIds))}
                 >
-                  <Share2 className="h-3.5 w-3.5" /> Share
+                  <Share2 className="h-3.5 w-3.5" /> {ta("share")}
                 </Button>
               )}
               {onBulkDelete && (
@@ -1323,11 +1325,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   disabled={selectedIds.size === 0}
                   onClick={() => onBulkDelete(Array.from(selectedIds))}
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                  <Trash2 className="h-3.5 w-3.5" /> {ta("delete")}
                 </Button>
               )}
               <Button variant="ghost" size="sm" onClick={exitSelectMode}>
-                <X className="h-3.5 w-3.5" /> Done
+                <X className="h-3.5 w-3.5" /> {ta("done")}
               </Button>
             </div>
           </div>
@@ -1626,8 +1628,8 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
           <DialogContent className={DIALOG_PANEL}>
             <DialogHeader>
-              <DialogTitle>Keyboard shortcuts</DialogTitle>
-              <DialogDescription>Focus a file or folder in the list, then:</DialogDescription>
+              <DialogTitle>{ta("shortcutsTitle")}</DialogTitle>
+              <DialogDescription>{ta("shortcutsIntro")}</DialogDescription>
             </DialogHeader>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
@@ -1637,7 +1639,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                       {keys}
                     </kbd>
                   </dt>
-                  <dd className="text-[var(--color-text-secondary)]">{action}</dd>
+                  <dd className="text-[var(--color-text-secondary)]">
+                    {ta(`shortcuts.${action}`)}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -1684,15 +1688,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
 );
 
 const KEYBOARD_SHORTCUTS: [string, string][] = [
-  ["Arrow keys", "Move between items"],
-  ["Shift + Arrow", "Extend the selection"],
-  ["Space", "Select a file, or open a folder"],
-  ["Enter", "Open"],
-  ["Ctrl/Cmd + A", "Select all files"],
-  ["Delete", "Move to Trash"],
-  ["F2", "Rename"],
-  ["Esc", "Clear the selection"],
-  ["?", "Show these shortcuts"],
+  ["Arrow keys", "move"],
+  ["Shift + Arrow", "extend"],
+  ["Space", "select"],
+  ["Enter", "open"],
+  ["Ctrl/Cmd + A", "selectAll"],
+  ["Delete", "trash"],
+  ["F2", "rename"],
+  ["Esc", "clear"],
+  ["?", "show"],
 ];
 
 /**

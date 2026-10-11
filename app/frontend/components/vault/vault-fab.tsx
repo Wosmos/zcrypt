@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { Plus, FolderAdd, FileUpload } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useTransferDockStore } from "@/store/transfer-dock";
@@ -19,6 +20,7 @@ interface VaultFabProps {
 }
 
 export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
+  const t = useTranslations("app.fab");
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
 
@@ -32,8 +34,8 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
     : "calc(var(--safe-bottom) + 84px)";
 
   const actions = [
-    { label: "Upload files", Icon: FileUpload, run: onUpload },
-    { label: "New folder", Icon: FolderAdd, run: onNewFolder },
+    { label: t("uploadFiles"), Icon: FileUpload, run: onUpload },
+    { label: t("newFolder"), Icon: FolderAdd, run: onNewFolder },
   ];
 
   const spring = reduce
@@ -47,7 +49,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
         {open && (
           <motion.button
             type="button"
-            aria-label="Close menu"
+            aria-label={t("closeMenu")}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -93,7 +95,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
           type="button"
           onClick={() => setOpen((o) => !o)}
           data-tour="upload-fab"
-          aria-label={open ? "Close actions" : "Add to vault"}
+          aria-label={open ? t("closeActions") : t("addToVault")}
           aria-expanded={open}
           className={cn(
             // Squircle (not rounded-full, which corner-shape forces back to a

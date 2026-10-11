@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { tr } from "@/store/translate";
 import type { Severity } from "@/lib/utils";
 import { genId } from "@/lib/id";
 
@@ -89,49 +90,49 @@ export const notifications = {
     useNotificationStore.getState().add({
       type: "success",
       category: "upload",
-      title: "Upload complete",
+      title: tr("notifications.uploadComplete"),
       message: filename,
     }),
   uploadFailed: (filename: string, error: string) =>
     useNotificationStore.getState().add({
       type: "error",
       category: "upload",
-      title: "Upload failed",
+      title: tr("notifications.uploadFailed"),
       message: `${filename}: ${error}`,
     }),
   downloadComplete: (filename: string) =>
     useNotificationStore.getState().add({
       type: "success",
       category: "download",
-      title: "Download complete",
+      title: tr("notifications.downloadComplete"),
       message: filename,
     }),
   downloadFailed: (filename: string, error: string) =>
     useNotificationStore.getState().add({
       type: "error",
       category: "download",
-      title: "Download failed",
+      title: tr("notifications.downloadFailed"),
       message: `${filename}: ${error}`,
     }),
   serverError: (message: string) =>
     useNotificationStore.getState().add({
       type: "error",
       category: "server",
-      title: "Server error",
+      title: tr("notifications.serverError"),
       message,
     }),
   serverReconnected: () =>
     useNotificationStore.getState().add({
       type: "success",
       category: "server",
-      title: "Connection restored",
-      message: "Server connection re-established",
+      title: tr("notifications.connectionRestored"),
+      message: tr("notifications.reconnectedBody"),
     }),
   systemWarning: (message: string) =>
     useNotificationStore.getState().add({
       type: "warning",
       category: "system",
-      title: "Warning",
+      title: tr("notifications.warning"),
       message,
     }),
 };

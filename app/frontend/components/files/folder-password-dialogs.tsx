@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { motion, useReducedMotion } from "motion/react";
 import { Lock, Key, Unlock, X } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
 import type { FolderUnlockModalState } from "@/hooks/useFolderProtection";
+import { tr } from "@/store/translate";
 
 /**
  * Folder-password dialogs (spec §3): a verify-on-open unlock modal, a
@@ -39,6 +41,7 @@ function HeaderRow({
   onClose: () => void;
   closeDisabled?: boolean;
 }) {
+  const t = useTranslations("app.folderPw");
   return (
     <div className="mb-5 flex items-start justify-between gap-3">
       <div className="flex items-center gap-3">
@@ -56,7 +59,7 @@ function HeaderRow({
         type="button"
         onClick={onClose}
         disabled={closeDisabled}
-        aria-label="Close"
+        aria-label={t("close")}
         className="p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] disabled:opacity-40"
       >
         <X className="h-4 w-4" />
@@ -75,6 +78,7 @@ function SweepProgress({
   progress: { done: number; total: number };
   prefersReducedMotion: boolean | null;
 }) {
+  const t = useTranslations("app.folderPw");
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   return (
     <div className="space-y-3 py-2">
@@ -88,7 +92,7 @@ function SweepProgress({
         />
       </div>
       <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-        {progress.done} / {progress.total} files
+        {t("filesProgress", { done: progress.done, total: progress.total })}
       </p>
     </div>
   );
@@ -102,6 +106,7 @@ function SweepProgress({
  * A wrong password sets `error` and keeps the modal open for a re-try.
  */
 export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) {
+  const t = useTranslations("app.folderPw");
   const { open, folderName, error, onConfirm, onClose } = state;
   const [password, setPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -109,6 +114,7 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setPassword("");
       setVerifying(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -131,11 +137,11 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
       <div className={PANEL} onClick={(e) => e.stopPropagation()}>
         <HeaderRow
           icon={<Lock className="h-5 w-5" />}
-          title="Unlock protected folder"
+          title={t("unlockTitle")}
           subtitle={
             folderName && folderName !== "this folder"
-              ? `Enter the password for "${folderName}"`
-              : "Enter this folder's password to view its files"
+              ? t("unlockNamed", { name: folderName })
+              : t("unlockGeneric")
           }
           onClose={onClose}
         />
@@ -153,7 +159,7 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
           <input
             ref={inputRef}
             type="password"
-            placeholder="Folder password"
+            placeholder={t("folderPassword")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={FIELD}
@@ -161,10 +167,10 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
           />
           <div className="mt-5 flex gap-3">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>
-              Cancel
+              {t("cancel")}
             </button>
             <button type="submit" disabled={!password || verifying} className={BTN_PRIMARY}>
-              {verifying ? "Verifying…" : "Unlock"}
+              {verifying ? t("verifying") : t("unlock")}
             </button>
           </div>
         </form>
@@ -203,6 +209,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
     onClose,
     onRequestVaultUnlock,
   } = state;
+  const t = useTranslations("app.folderPw");
   const prefersReducedMotion = useReducedMotion();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -212,6 +219,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setPassword("");
       setConfirm("");
       setError(null);
@@ -225,15 +233,15 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
   const submit = useCallback(async () => {
     if (busy) return;
     if (!password) {
-      setError("Enter a password.");
+      setError(tr("folderPw.enterPassword"));
       return;
     }
     if (password !== confirm) {
-      setError("Passwords don't match.");
+      setError(tr("folderPw.mismatch"));
       return;
     }
     if (needsVault) {
-      setError("Unlock your vault first to re-key the files in this folder.");
+      setError(tr("folderPw.unlockFirstProtect"));
       return;
     }
     setError(null);
@@ -241,7 +249,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
     try {
       await onSubmit(password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to protect folder.");
+      setError(err instanceof Error ? err.message : tr("folderPw.protectFailed"));
       setBusy(false);
     }
   }, [busy, password, confirm, needsVault, onSubmit]);
@@ -255,17 +263,15 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
       <div className={PANEL} onClick={(e) => e.stopPropagation()}>
         <HeaderRow
           icon={<Key className="h-5 w-5" />}
-          title="Protect folder with a password"
-          subtitle={
-            folderName ? `Set a password for "${folderName}"` : "Set a password for this folder"
-          }
+          title={t("protectTitle")}
+          subtitle={folderName ? t("protectNamed", { name: folderName }) : t("protectGeneric")}
           onClose={onClose}
           closeDisabled={busy}
         />
 
         {sweeping ? (
           <SweepProgress
-            message="Re-keying files to the folder password…"
+            message={t("rekeyingToFolder")}
             progress={progress!}
             prefersReducedMotion={prefersReducedMotion}
           />
@@ -274,9 +280,9 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
             {fileCount > 0 && (
               <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5">
                 <p className="text-xs text-[var(--color-text-secondary)]">
-                  This folder has {fileCount} file{fileCount === 1 ? "" : "s"}. They will be
-                  re-keyed to the new folder password{" "}
-                  {vaultUnlocked ? "now" : "once you unlock your vault"}.
+                  {vaultUnlocked
+                    ? t("rekeyNoticeNow", { count: fileCount })
+                    : t("rekeyNoticeLater", { count: fileCount })}
                 </p>
               </div>
             )}
@@ -296,7 +302,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
               <input
                 ref={inputRef}
                 type="password"
-                placeholder="New folder password"
+                placeholder={t("newPassword")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={FIELD}
@@ -305,7 +311,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
               <PassphraseStrength passphrase={password} />
               <input
                 type="password"
-                placeholder="Confirm password"
+                placeholder={t("confirmPassword")}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 className={FIELD}
@@ -313,11 +319,11 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
               />
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={busy}>
-                  Cancel
+                  {t("cancel")}
                 </button>
                 {needsVault ? (
                   <button type="button" onClick={onRequestVaultUnlock} className={BTN_PRIMARY}>
-                    Unlock vault
+                    {t("unlockVault")}
                   </button>
                 ) : (
                   <button
@@ -325,7 +331,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
                     disabled={!password || !confirm || busy}
                     className={BTN_PRIMARY}
                   >
-                    Protect folder
+                    {t("protect")}
                   </button>
                 )}
               </div>
@@ -364,12 +370,14 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
     onClose,
     onRequestVaultUnlock,
   } = state;
+  const t = useTranslations("app.folderPw");
   const prefersReducedMotion = useReducedMotion();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setError(null);
       setBusy(false);
     }
@@ -380,7 +388,7 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
   const confirm = useCallback(async () => {
     if (busy) return;
     if (needsVault) {
-      setError("Unlock your vault first to re-key the files back.");
+      setError(tr("folderPw.unlockFirstRemove"));
       return;
     }
     setError(null);
@@ -388,7 +396,7 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
     try {
       await onConfirm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove protection.");
+      setError(err instanceof Error ? err.message : tr("folderPw.removeFailed"));
       setBusy(false);
     }
   }, [busy, needsVault, onConfirm]);
@@ -402,24 +410,22 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
       <div className={PANEL} onClick={(e) => e.stopPropagation()}>
         <HeaderRow
           icon={<Unlock className="h-5 w-5" />}
-          title="Remove folder password"
-          subtitle={folderName ? `Stop protecting "${folderName}"` : "Stop protecting this folder"}
+          title={t("removeTitle")}
+          subtitle={folderName ? t("removeNamed", { name: folderName }) : t("removeGeneric")}
           onClose={onClose}
           closeDisabled={busy}
         />
 
         {sweeping ? (
           <SweepProgress
-            message="Re-keying files back to your vault passphrase…"
+            message={t("rekeyingBack")}
             progress={progress!}
             prefersReducedMotion={prefersReducedMotion}
           />
         ) : (
           <>
             <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
-              {fileCount > 0
-                ? `The ${fileCount} file${fileCount === 1 ? "" : "s"} in this folder will be re-keyed back to your vault passphrase, then the folder password is removed.`
-                : "This folder will no longer require a password."}
+              {fileCount > 0 ? t("removeBody", { count: fileCount }) : t("removeBodyEmpty")}
             </p>
             {error && (
               <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
@@ -428,11 +434,11 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
             )}
             <div className="flex gap-3">
               <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={busy}>
-                Cancel
+                {t("cancel")}
               </button>
               {needsVault ? (
                 <button type="button" onClick={onRequestVaultUnlock} className={BTN_PRIMARY}>
-                  Unlock vault
+                  {t("unlockVault")}
                 </button>
               ) : (
                 <button
@@ -441,7 +447,7 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
                   disabled={busy}
                   className={BTN_PRIMARY}
                 >
-                  Remove protection
+                  {t("removeProtection")}
                 </button>
               )}
             </div>

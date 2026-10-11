@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/utils";
 import { platformName } from "@/lib/platforms";
 import type { RepoInfo, QuotaInfo } from "@/types";
@@ -9,11 +10,11 @@ import type { AnalyticsSummary } from "@/lib/api";
 // These are zcrypt's auto-rotation thresholds (when the repo pool spins up a new
 // repo/channel), NOT the platforms' own hard caps. Telegram in particular has
 // no storage limit, so its value is a virtual housekeeping threshold.
-const PLATFORM_THRESHOLDS: { platform: string; limit: string }[] = [
-  { platform: "GitHub", limit: "850 MB / repo" },
-  { platform: "GitLab", limit: "9 GB / repo" },
-  { platform: "Hugging Face", limit: "280 GB / repo" },
-  { platform: "Telegram", limit: "~50 GB / channel (virtual)" },
+const PLATFORM_THRESHOLDS: { platform: string; limit: string; unit: "repo" | "channel" }[] = [
+  { platform: "GitHub", limit: "850 MB", unit: "repo" },
+  { platform: "GitLab", limit: "9 GB", unit: "repo" },
+  { platform: "Hugging Face", limit: "280 GB", unit: "repo" },
+  { platform: "Telegram", limit: "~50 GB", unit: "channel" },
 ];
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -39,6 +40,7 @@ export function AdvancedDetails({
   repos: RepoInfo[];
   quotaInfo: QuotaInfo | null;
 }) {
+  const t = useTranslations("app.analytics.advanced");
   const original = summary?.original_bytes ?? 0;
   const compressed = summary?.compressed_bytes ?? 0;
   const encrypted = summary?.encrypted_bytes ?? 0;
@@ -54,16 +56,16 @@ export function AdvancedDetails({
         <div className="panel overflow-hidden">
           <div className="border-b border-[var(--color-border)] px-5 py-4">
             <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-              Encryption &amp; compression
+              {t("encCompTitle")}
             </h3>
           </div>
           <div className="divide-y divide-[var(--color-border)] px-5 py-2">
-            <Row label="Original size" value={formatBytes(original)} />
-            <Row label="After compression" value={formatBytes(compressed)} />
-            <Row label="After encryption (stored)" value={formatBytes(encrypted)} />
-            <Row label="Total chunks" value={chunks.toLocaleString()} />
-            <Row label="Average chunk size" value={formatBytes(avgChunk)} />
-            <Row label="Average file size" value={formatBytes(avgFile)} />
+            <Row label={t("originalSize")} value={formatBytes(original)} />
+            <Row label={t("afterCompression")} value={formatBytes(compressed)} />
+            <Row label={t("afterEncryption")} value={formatBytes(encrypted)} />
+            <Row label={t("totalChunks")} value={chunks.toLocaleString()} />
+            <Row label={t("avgChunk")} value={formatBytes(avgChunk)} />
+            <Row label={t("avgFile")} value={formatBytes(avgFile)} />
           </div>
         </div>
 
@@ -71,33 +73,35 @@ export function AdvancedDetails({
         <div className="panel overflow-hidden">
           <div className="border-b border-[var(--color-border)] px-5 py-4">
             <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-              Account
+              {t("accountTitle")}
             </h3>
           </div>
           <div className="divide-y divide-[var(--color-border)] px-5 py-2">
-            <Row label="Plan" value={quotaInfo?.plan ? quotaInfo.plan : "-"} />
-            <Row label="Storage used" value={formatBytes(quotaInfo?.used_bytes ?? encrypted)} />
+            <Row label={t("plan")} value={quotaInfo?.plan ? quotaInfo.plan : "-"} />
+            <Row label={t("storageUsed")} value={formatBytes(quotaInfo?.used_bytes ?? encrypted)} />
             <Row
-              label="Storage quota"
+              label={t("storageQuota")}
               value={
                 quotaInfo?.is_unlimited || !quotaInfo?.quota_bytes
-                  ? "Unlimited"
+                  ? t("unlimited")
                   : formatBytes(quotaInfo.quota_bytes)
               }
             />
             <Row
-              label="Max concurrent uploads"
+              label={t("maxConcurrent")}
               value={
                 quotaInfo?.max_concurrent_uploads
                   ? String(quotaInfo.max_concurrent_uploads)
-                  : "Unlimited"
+                  : t("unlimited")
               }
             />
             <Row
-              label="Max file size"
-              value={quotaInfo?.max_file_size ? formatBytes(quotaInfo.max_file_size) : "Unlimited"}
+              label={t("maxFileSize")}
+              value={
+                quotaInfo?.max_file_size ? formatBytes(quotaInfo.max_file_size) : t("unlimited")
+              }
             />
-            <Row label="Bring your own storage" value={quotaInfo?.allows_byob ? "Yes" : "No"} />
+            <Row label={t("byos")} value={quotaInfo?.allows_byob ? t("yes") : t("no")} />
           </div>
         </div>
       </div>
@@ -106,25 +110,25 @@ export function AdvancedDetails({
       <div className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Storage pool ({repos.length} {repos.length === 1 ? "repository" : "repositories"})
+            {t("poolTitle", { count: repos.length })}
           </h3>
         </div>
         <div className="overflow-x-auto">
           {repos.length === 0 ? (
             <p className="px-5 py-6 text-center text-sm text-[var(--color-text-muted)]">
-              No repositories provisioned yet.
+              {t("noRepos")}
             </p>
           ) : (
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)] text-left text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-                  <th className="px-5 py-2.5 font-medium">Platform</th>
-                  <th className="px-3 py-2.5 font-medium">Account</th>
-                  <th className="px-3 py-2.5 font-medium">Repository</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Used</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Limit</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Fill</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Status</th>
+                  <th className="px-5 py-2.5 font-medium">{t("colPlatform")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("colAccount")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("colRepository")}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t("colUsed")}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t("colLimit")}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t("colFill")}</th>
+                  <th className="px-5 py-2.5 text-right font-medium">{t("colStatus")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">
@@ -155,7 +159,7 @@ export function AdvancedDetails({
                               : "rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]"
                           }
                         >
-                          {r.active ? "Active" : "Rotated"}
+                          {r.active ? t("active") : t("rotated")}
                         </span>
                       </td>
                     </tr>
@@ -171,14 +175,16 @@ export function AdvancedDetails({
       <div className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Repo rotation thresholds
+            {t("thresholdsTitle")}
           </h3>
         </div>
         <div className="grid grid-cols-2 gap-px bg-[var(--color-border)] sm:grid-cols-4">
-          {PLATFORM_THRESHOLDS.map((t) => (
-            <div key={t.platform} className="bg-[var(--color-surface)] px-5 py-4">
-              <p className="text-sm font-medium text-[var(--color-text)]">{t.platform}</p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t.limit}</p>
+          {PLATFORM_THRESHOLDS.map((p) => (
+            <div key={p.platform} className="bg-[var(--color-surface)] px-5 py-4">
+              <p className="text-sm font-medium text-[var(--color-text)]">{p.platform}</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                {t(p.unit === "repo" ? "perRepo" : "perChannelVirtual", { limit: p.limit })}
+              </p>
             </div>
           ))}
         </div>

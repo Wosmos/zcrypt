@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ComponentType } from "react";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ export function useExplorerFileName(file: FileMetadata): string {
 
   useEffect(() => {
     if (!needsDecrypt || !userId || !passphrase) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setDecrypted(null);
       return;
     }
@@ -83,6 +85,7 @@ export function SelectCheckbox({
   onSelect: (id: string) => void;
   className: string;
 }) {
+  const t = useTranslations("app.explorerItem");
   return (
     <button
       type="button"
@@ -91,7 +94,9 @@ export function SelectCheckbox({
         onSelect(file.id);
       }}
       className={cn(className, FOCUS_RING)}
-      aria-label={selected ? `Deselect ${displayName}` : `Select ${displayName}`}
+      aria-label={
+        selected ? t("deselect", { name: displayName }) : t("selectFile", { name: displayName })
+      }
       aria-pressed={selected}
     >
       {selected ? (

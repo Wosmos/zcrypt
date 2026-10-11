@@ -9,6 +9,8 @@ export interface RangeBounds {
   end: Date;
   allTime: boolean;
   label: string;
+  /** Message key (under "app.analytics.range") for presets; null for a custom range. */
+  labelKey: "today" | "last7" | "last30" | "last90" | "allTime" | null;
   bucket: Bucket;
   /** Stable cache identity: the preset (plus custom dates) and the local day.
    *  Never the millisecond bounds, which differ on every render. */
@@ -60,7 +62,7 @@ function resolveBounds(
   if (preset === "today") {
     const start = new Date(end);
     start.setHours(0, 0, 0, 0);
-    return { start, end, allTime: false, label: "Today", bucket: "hour" };
+    return { start, end, allTime: false, label: "Today", labelKey: "today", bucket: "hour" };
   }
   if (preset === "7d") {
     return {
@@ -68,6 +70,7 @@ function resolveBounds(
       end,
       allTime: false,
       label: "Last 7 days",
+      labelKey: "last7",
       bucket: "day",
     };
   }
@@ -77,11 +80,19 @@ function resolveBounds(
       end,
       allTime: false,
       label: "Last 90 days",
+      labelKey: "last90",
       bucket: "day",
     };
   }
   if (preset === "all") {
-    return { start: null, end, allTime: true, label: "All time", bucket: "month" };
+    return {
+      start: null,
+      end,
+      allTime: true,
+      label: "All time",
+      labelKey: "allTime",
+      bucket: "month",
+    };
   }
   if (preset === "custom" && customStart && customEnd) {
     const start = new Date(`${customStart}T00:00:00`);
@@ -92,6 +103,7 @@ function resolveBounds(
       end: customEndDate,
       allTime: false,
       label: `${formatDateShort(start)} – ${formatDateShort(customEndDate)}`,
+      labelKey: null,
       bucket: bucketForSpan(Math.max(days, 0)),
     };
   }
@@ -101,6 +113,7 @@ function resolveBounds(
     end,
     allTime: false,
     label: "Last 30 days",
+    labelKey: "last30",
     bucket: "day",
   };
 }

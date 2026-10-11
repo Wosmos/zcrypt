@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/utils";
 import type { RepoInfo } from "@/types";
 import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
@@ -12,6 +13,7 @@ import { platformName } from "@/lib/platforms";
  * each repo's used_bytes / max_bytes (max_bytes = the platform threshold).
  */
 export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
+  const t = useTranslations("app.analytics.health");
   const ranked = repos
     .map((r) => ({
       ...r,
@@ -26,32 +28,26 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
     <div className="panel overflow-hidden">
       <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          Storage health
+          {t("title")}
         </h3>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Rotates automatically when a repo fills up
-        </span>
+        <span className="text-xs text-[var(--color-text-muted)]">{t("rotates")}</span>
       </div>
 
       <div className="space-y-3 p-5">
         {ranked.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">
-            No storage repositories yet: upload a file to get started.
-          </p>
+          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">{t("none")}</p>
         ) : flagged.length === 0 ? (
           <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500" />
             <p className="text-sm text-[var(--color-text-secondary)]">
-              All storage is healthy.{" "}
-              {top && (
-                <>
-                  Your most-used repository is{" "}
-                  <span className="font-medium text-[var(--color-text)]">
-                    {Math.round(top.pct)}% full
-                  </span>
-                  .
-                </>
-              )}
+              {t("allHealthy")}{" "}
+              {top &&
+                t.rich("mostUsed", {
+                  percent: Math.round(top.pct),
+                  b: (chunks) => (
+                    <span className="font-medium text-[var(--color-text)]">{chunks}</span>
+                  ),
+                })}
             </p>
           </div>
         ) : (
@@ -82,10 +78,8 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
                   />
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  {danger
-                    ? "Nearly full: zcrypt will move new uploads to a fresh repository."
-                    : "Filling up: a new repository will be added automatically when needed."}{" "}
-                  {formatBytes(r.used_bytes)} / {formatBytes(r.max_bytes)}
+                  {danger ? t("nearlyFull") : t("fillingUp")} {formatBytes(r.used_bytes)} /{" "}
+                  {formatBytes(r.max_bytes)}
                 </p>
               </div>
             );

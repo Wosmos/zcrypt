@@ -252,6 +252,7 @@ describe("files store (TanStack Query)", () => {
     });
 
     it("installs no subscriptions without a window (SSR)", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
       vi.stubGlobal("window", undefined);
       vi.resetModules();
       const filesMod = await import("@/store/files");

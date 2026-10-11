@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Github } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
@@ -22,6 +23,7 @@ const platformIcons: Record<string, React.ReactNode> = {
 };
 
 export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelectorProps) {
+  const t = useTranslations("app.platformSelector");
   const connected = statuses.filter((s) => s.connected);
 
   if (connected.length === 0) return null;
@@ -32,7 +34,7 @@ export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelec
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-        Upload to
+        {t("uploadTo")}
       </p>
       <div className="flex flex-wrap gap-2">
         <button
@@ -44,7 +46,7 @@ export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelec
               : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]",
           )}
         >
-          Auto
+          {t("auto")}
         </button>
         {platforms.map((platform) => {
           const accounts = connected.filter((s) => s.platform === platform);

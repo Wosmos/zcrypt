@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Image,
   VideoCamera,
@@ -64,6 +65,7 @@ export function FileTypeFilter({
   onFilter,
   compact = false,
 }: FileTypeFilterProps) {
+  const t = useTranslations("app.fileTypeFilter");
   const categories = useMemo(() => {
     const counts = new Map<string, number>();
     for (const f of files) {
@@ -98,11 +100,11 @@ export function FileTypeFilter({
         type="button"
         onClick={() => onFilter(null)}
         aria-pressed={allActive}
-        aria-label={compact ? "All files" : undefined}
-        title={compact ? "All files" : undefined}
+        aria-label={compact ? t("allFiles") : undefined}
+        title={compact ? t("allFiles") : undefined}
         className={chipClass(allActive)}
       >
-        {compact ? <SquaresFour size={16} weight={allActive ? "fill" : "regular"} /> : "All"}
+        {compact ? <SquaresFour size={16} weight={allActive ? "fill" : "regular"} /> : t("all")}
         <span className="tabular-nums opacity-80">{files.length}</span>
       </button>
       {categories.map((cat) => {
@@ -114,11 +116,15 @@ export function FileTypeFilter({
             key={cat.name}
             onClick={() => onFilter(active ? null : cat.name)}
             aria-pressed={active}
-            aria-label={compact ? cat.name : undefined}
-            title={compact ? cat.name : undefined}
+            aria-label={compact ? t(`categories.${cat.name}`) : undefined}
+            title={compact ? t(`categories.${cat.name}`) : undefined}
             className={chipClass(active)}
           >
-            {compact ? <CatIcon size={16} weight={active ? "fill" : "regular"} /> : cat.name}
+            {compact ? (
+              <CatIcon size={16} weight={active ? "fill" : "regular"} />
+            ) : (
+              t(`categories.${cat.name}`)
+            )}
             <span className="tabular-nums opacity-80">{cat.count}</span>
           </button>
         );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Sheet,
   SheetContent,
@@ -48,6 +49,7 @@ import { createFileShareLink } from "@/lib/file-share";
 import { useSharesQuery, invalidateShares, useFileMetaQuery } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   formatBytes,
@@ -60,14 +62,7 @@ import {
 } from "@/lib/utils";
 import type { FileMetadata, ShareLink } from "@/types";
 
-const DOWNLOAD_LIMIT_OPTIONS = [
-  { label: "Unlimited", value: 0 },
-  { label: "1", value: 1 },
-  { label: "5", value: 5 },
-  { label: "10", value: 10 },
-  { label: "25", value: 25 },
-  { label: "100", value: 100 },
-];
+const DOWNLOAD_LIMIT_OPTIONS = [0, 1, 5, 10, 25, 100];
 
 interface DetailsDrawerProps {
   /** The file to inspect; `null` keeps the drawer closed. */
@@ -77,6 +72,8 @@ interface DetailsDrawerProps {
 }
 
 export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) {
+  const t = useTranslations("app.details");
+  const te = useTranslations("app.expiry");
   const [tab, setTab] = useState<"details" | "sharing">("details");
 
   const fileId = file?.id ?? "";
@@ -90,7 +87,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   const metaError = metaQuery.error
     ? metaQuery.error instanceof Error
       ? metaQuery.error.message
-      : "Failed to load file metadata"
+      : tr("details.metaFailed")
     : null;
   const sharesQuery = useSharesQuery(fileId, open);
   const shares: ShareLink[] = sharesQuery.data ?? [];
@@ -112,6 +109,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   // shares) is served from the cached queries above, no fetch here.
   useEffect(() => {
     if (!open || !fileId) return;
+    // oxlint-disable-next-line react/set-state-in-effect
     setTab("details");
     setShowCreate(false);
     setNewLink(null);
@@ -129,9 +127,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   const handleCreateShare = useCallback(async () => {
     const passphrase = usePassphraseStore.getState().getPassphrase();
     if (!passphrase) {
-      toast.error(
-        "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
-      );
+      toast.error(tr("details.passphraseLocked"));
       return;
     }
     setCreating(true);
@@ -144,9 +140,9 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
         maxDownloads,
       });
       setNewLink(url);
-      toast.success("Share link created");
+      toast.success(tr("details.shareCreated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create share");
+      toast.error(err instanceof Error ? err.message : tr("details.shareFailed"));
     } finally {
       setCreating(false);
     }
@@ -159,7 +155,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     } else {
-      toast.error("Failed to copy");
+      toast.error(tr("details.copyFailed"));
     }
   }, [newLink]);
 
@@ -169,9 +165,9 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
     try {
       await revokeShare(revokeTarget.id);
       void invalidateShares(fileId);
-      toast.success("Share link revoked");
+      toast.success(tr("details.shareRevoked"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to revoke");
+      toast.error(err instanceof Error ? err.message : tr("details.revokeFailed"));
     } finally {
       setRevoking(false);
       setRevokeTarget(null);
@@ -202,6 +198,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                   typeInfo.bg,
                 )}
               >
+                {/* oxlint-disable-next-line react/static-components */}
                 <Icon className={cn("h-5 w-5", typeInfo.color)} />
               </div>
               <div className="min-w-0">
@@ -231,13 +228,13 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                   value="details"
                   className="data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)]"
                 >
-                  Details
+                  {t("tabDetails")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="sharing"
                   className="data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)]"
                 >
-                  Sharing
+                  {t("tabSharing")}
                   {activeShares.length > 0 && (
                     <span className="ml-1.5 rounded-full bg-[var(--color-accent)]/15 px-1.5 text-[10px] font-semibold tabular-nums text-[var(--color-accent)]">
                       {activeShares.length}
@@ -253,17 +250,17 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                 {/* Core attributes */}
                 <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
                   <MetaRow
-                    label="Original size"
+                    label={t("originalSize")}
                     value={formatBytes(file.original_size)}
                     icon={HardDrive}
                   />
                   <MetaRow
-                    label="Encrypted size"
+                    label={t("encryptedSize")}
                     value={formatBytes(file.encrypted_size)}
                     icon={Lock}
                   />
                   <MetaRow
-                    label="Space saved"
+                    label={t("spaceSaved")}
                     value={
                       <span
                         className={
@@ -277,9 +274,9 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                     }
                     icon={Database}
                   />
-                  <MetaRow label="Chunks" value={file.chunk_count} icon={Layers} />
+                  <MetaRow label={t("chunks")} value={file.chunk_count} icon={Layers} />
                   <MetaRow
-                    label="Created"
+                    label={t("created")}
                     value={
                       <span title={new Date(file.created_at).toLocaleString()}>
                         {new Date(file.created_at).toLocaleString(undefined, {
@@ -292,7 +289,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                   />
                   {file.platform && (
                     <MetaRow
-                      label="Stored on"
+                      label={t("storedOn")}
                       value={
                         <span className="rounded-md bg-[var(--color-surface-2)] px-2 py-0.5 text-xs font-medium text-[var(--color-text)]">
                           {platformLabel(file.platform)}
@@ -306,7 +303,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                 {/* Lazy server meta */}
                 <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
                   <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    <Key className="h-3.5 w-3.5" /> Integrity
+                    <Key className="h-3.5 w-3.5" /> {t("integrity")}
                   </p>
                   {metaLoading ? (
                     <div className="space-y-2">
@@ -321,27 +318,27 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                       {meta && (
                         <>
                           <MetaRow
-                            label="Compressed size"
+                            label={t("compressedSize")}
                             value={formatBytes(meta.compressed_size)}
                           />
                           <MetaRow
-                            label="Status"
-                            value={<span className="capitalize">{meta.status || "stored"}</span>}
+                            label={t("status")}
+                            value={<span className="capitalize">{meta.status || t("stored")}</span>}
                           />
                         </>
                       )}
                       <p className="pt-1 text-[11px] text-[var(--color-text-muted)]">
-                        Showing <span className="font-mono">{shortSha}</span>
+                        {t.rich("showing", {
+                          code: (chunks) => <span className="font-mono">{chunks}</span>,
+                          sha: shortSha,
+                        })}
                       </p>
                     </>
                   )}
                 </div>
 
                 {/* Encryption assurance */}
-                <EncryptionAssuranceCard
-                  title="Encrypted · AES-256-GCM"
-                  description="The decryption key never leaves your device. We only ever store ciphertext."
-                />
+                <EncryptionAssuranceCard title={t("fileEncTitle")} description={t("fileEncBody")} />
               </div>
             </TabsContent>
 
@@ -361,7 +358,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                       />
                       <IconButton
                         icon={linkCopied ? Check : Copy}
-                        label={linkCopied ? "Copied" : "Copy link"}
+                        label={linkCopied ? t("copied") : t("copyLink")}
                         onClick={copyNewLink}
                         iconClassName={cn(
                           "h-3.5 w-3.5",
@@ -371,9 +368,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                       />
                     </div>
                     <p className="text-[11px] text-[var(--color-text-secondary)]">
-                      The link&apos;s <strong>#fragment</strong> holds the decryption key, anyone
-                      with the full link can download and decrypt without a passphrase. The key
-                      never reaches our servers.
+                      {t.rich("fragmentNote", { b: (chunks) => <strong>{chunks}</strong> })}
                     </p>
                   </div>
                 )}
@@ -386,12 +381,12 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                         checked={usePassword}
                         onCheckedChange={(checked) => setUsePassword(checked === true)}
                       />
-                      <span className="text-sm">Password protect</span>
+                      <span className="text-sm">{t("passwordProtect")}</span>
                     </label>
                     {usePassword && (
                       <Input
                         type="password"
-                        placeholder="Enter share password"
+                        placeholder={t("sharePassword")}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         icon={<Lock className="h-4 w-4" />}
@@ -400,7 +395,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-                        Link expiry
+                        {t("linkExpiry")}
                       </label>
                       <select
                         value={expiryHours}
@@ -409,7 +404,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                       >
                         {EXPIRY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                            {te.has(String(opt.value)) ? te(String(opt.value)) : opt.label}
                           </option>
                         ))}
                       </select>
@@ -417,7 +412,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-                        Download limit
+                        {t("downloadLimit")}
                       </label>
                       <select
                         value={maxDownloads}
@@ -425,8 +420,8 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                         className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
                       >
                         {DOWNLOAD_LIMIT_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                          <option key={opt} value={opt}>
+                            {opt === 0 ? t("unlimited") : opt}
                           </option>
                         ))}
                       </select>
@@ -441,10 +436,10 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                       >
                         {creating ? (
                           <span className="flex items-center justify-center gap-2">
-                            <LogoSpinner size={14} speed="fast" /> Generating…
+                            <LogoSpinner size={14} speed="fast" /> {t("generating")}
                           </span>
                         ) : (
-                          "Generate link"
+                          t("generateLink")
                         )}
                       </Button>
                       <Button
@@ -456,7 +451,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                         }}
                         disabled={creating}
                       >
-                        Cancel
+                        {t("cancel")}
                       </Button>
                     </div>
                   </div>
@@ -470,14 +465,14 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                     }}
                     className="w-full"
                   >
-                    <Plus className="h-4 w-4" /> Create share link
+                    <Plus className="h-4 w-4" /> {t("createShareLink")}
                   </Button>
                 )}
 
                 {/* Active shares list */}
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Active links
+                    {t("activeLinks")}
                   </p>
                   {sharesLoading ? (
                     <div className="space-y-2">
@@ -490,10 +485,10 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                         <Share2 className="h-4 w-4 text-[var(--color-text-muted)]" />
                       </div>
                       <p className="text-sm text-[var(--color-text-secondary)]">
-                        No active share links
+                        {t("noShareLinks")}
                       </p>
                       <p className="max-w-[220px] text-xs text-[var(--color-text-muted)]">
-                        Create a link to share this file without sharing your passphrase.
+                        {t("noShareLinksHint")}
                       </p>
                     </div>
                   ) : (
@@ -525,9 +520,9 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
           if (!o) setRevokeTarget(null);
         }}
         destructive
-        title="Revoke share link?"
-        description="Anyone holding this link will immediately lose access to the file. This cannot be undone."
-        confirmLabel="Revoke"
+        title={t("revokeTitle")}
+        description={t("revokeBody")}
+        confirmLabel={t("revoke")}
         loading={revoking}
         onConfirm={handleRevoke}
       />

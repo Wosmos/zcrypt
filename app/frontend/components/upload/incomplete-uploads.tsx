@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { getIncompleteUploads, type IncompleteUpload } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
@@ -18,17 +19,19 @@ import { startedOnThisDevice } from "@/lib/upload-origin";
 
 // Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
 // uploads for 7 days, so natural units run from minutes up to about a week.
-function expiresInLabel(expiresAt: string, now: number): string {
+type Translator = ReturnType<typeof useTranslations>;
+
+function expiresInLabel(t: Translator, expiresAt: string, now: number): string {
   const ms = new Date(expiresAt).getTime() - now;
-  if (ms <= 0) return "expiring now";
+  if (ms <= 0) return t("expiringNow");
   const mins = Math.round(ms / 60_000);
-  if (mins < 60) return `expires in ${mins} min`;
+  if (mins < 60) return t("expiresMinutes", { count: mins });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `expires in ${hours} hour${hours === 1 ? "" : "s"}`;
+  if (hours < 24) return t("expiresHours", { count: hours });
   const days = Math.round(hours / 24);
-  if (days < 14) return `expires in ${days} day${days === 1 ? "" : "s"}`;
+  if (days < 14) return t("expiresDays", { count: days });
   const weeks = Math.round(days / 7);
-  return `expires in ${weeks} week${weeks === 1 ? "" : "s"}`;
+  return t("expiresWeeks", { count: weeks });
 }
 
 /**
@@ -50,6 +53,7 @@ export function IncompleteUploads({
 }: {
   onResume: (file: File, upload: IncompleteUpload) => void;
 }) {
+  const t = useTranslations("app.incomplete");
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const resumeTargetRef = useRef<IncompleteUpload | null>(null);
@@ -101,15 +105,15 @@ export function IncompleteUploads({
       const isDesktopPick = "path" in file;
       if (file.name !== target.filename || (!isDesktopPick && file.size !== target.original_size)) {
         toast.warning(
-          `That's not the same file. Pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`,
+          t("wrongFile", { name: target.filename, size: formatBytes(target.original_size) }),
         );
         return;
       }
       onResume(file, target); // resumes the session on its ORIGINAL platform
       setUploads((prev) => prev.filter((u) => u.session_id !== target.session_id));
-      toast.info(`Resuming "${target.filename}"…`);
+      toast.info(t("resuming", { name: target.filename }));
     },
-    [onResume],
+    [onResume, t],
   );
 
   const onResumeClick = async (u: IncompleteUpload) => {
@@ -123,7 +127,10 @@ export function IncompleteUploads({
         resumeWithFile(toDesktopFile(known), u);
         return;
       }
-      const [p] = await pickFiles({ multiple: false, title: `Select "${u.filename}" to resume` });
+      const [p] = await pickFiles({
+        multiple: false,
+        title: t("selectToResume", { name: u.filename }),
+      });
       if (!p) return;
       resumeWithFile(toDesktopFile(p), u);
       return;
@@ -146,9 +153,9 @@ export function IncompleteUploads({
     try {
       await cancelUpload(u.session_id);
       setUploads((prev) => prev.filter((x) => x.session_id !== u.session_id));
-      toast.info(`Discarded "${u.filename}"`);
+      toast.info(t("discarded", { name: u.filename }));
     } catch {
-      toast.error("Couldn't discard that upload, try again.");
+      toast.error(t("discardFailed"));
     } finally {
       setBusy(null);
     }
@@ -163,6 +170,7 @@ export function IncompleteUploads({
     for (const u of resumable) void onResumeClick(u);
   };
 
+  // oxlint-disable-next-line react/purity
   const now = Date.now();
 
   return (
@@ -176,9 +184,9 @@ export function IncompleteUploads({
         >
           <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
           <span className="text-sm font-medium text-[var(--color-text)]">
-            {visible.length} unfinished upload{visible.length > 1 ? "s" : ""}
+            {t("unfinishedCount", { count: visible.length })}
           </span>
-          <span className="text-xs text-[var(--color-text-muted)]">resume or discard</span>
+          <span className="text-xs text-[var(--color-text-muted)]">{t("resumeOrDiscard")}</span>
           <ChevronDown
             className={`ml-auto h-4 w-4 text-[var(--color-text-muted)] transition-transform ${expanded ? "rotate-180" : ""}`}
           />
@@ -189,7 +197,7 @@ export function IncompleteUploads({
             className="mr-3 flex flex-shrink-0 items-center gap-1 rounded-lg bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
           >
             <Play className="h-3.5 w-3.5" />
-            Resume all
+            {t("resumeAll")}
           </button>
         )}
       </div>
@@ -198,7 +206,7 @@ export function IncompleteUploads({
         <div className="border-t border-amber-500/20">
           <div className="flex items-center gap-1.5 px-4 py-2 text-[11px] text-[var(--color-text-muted)]">
             <Clock className="h-3 w-3" />
-            Unfinished uploads are kept for 7 days, then automatically removed.
+            {t("retention")}
           </div>
 
           <ul className="divide-y divide-[var(--color-border)]">
@@ -225,7 +233,7 @@ export function IncompleteUploads({
                         <span className="tabular-nums">{pct}%</span>
                         <span className="text-[var(--color-text-muted)]">·</span>
                         <span className="text-amber-600 dark:text-amber-400">
-                          {expiresInLabel(u.expires_at, now)}
+                          {expiresInLabel(t, u.expires_at, now)}
                         </span>
                       </div>
                       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-surface)]">
@@ -240,16 +248,16 @@ export function IncompleteUploads({
                       <button
                         onClick={() => void onResumeClick(u)}
                         className="flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
-                        title="Continue the upload"
+                        title={t("continueUpload")}
                       >
                         <Play className="h-3.5 w-3.5" />
-                        Resume
+                        {t("resume")}
                       </button>
                       <button
                         onClick={() => onDiscard(u)}
                         disabled={busy === u.session_id}
                         className="flex items-center justify-center rounded-lg border border-[var(--color-border)] p-1.5 text-[var(--color-text-muted)] transition-colors hover:border-red-400/40 hover:text-red-400 disabled:opacity-50"
-                        title="Discard this unfinished upload"
+                        title={t("discardUpload")}
                       >
                         {busy === u.session_id ? (
                           <X className="h-3.5 w-3.5 animate-pulse" />

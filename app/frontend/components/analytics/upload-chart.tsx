@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import {
   AreaChart,
   Area,
@@ -24,15 +25,15 @@ interface UploadChartProps {
   isLoading?: boolean;
 }
 
-function formatBucketLabel(iso: string, bucket: Bucket): string {
+function formatBucketLabel(iso: string, bucket: Bucket, locale: string): string {
   const d = new Date(iso);
   if (bucket === "hour") {
-    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
   }
   if (bucket === "month") {
-    return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    return d.toLocaleDateString(locale, { month: "short", year: "2-digit" });
   }
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 /**
@@ -42,8 +43,10 @@ function formatBucketLabel(iso: string, bucket: Bucket): string {
  * does any client-side bucketing/sampling.
  */
 export function UploadChart({ points, bucket, isLoading }: UploadChartProps) {
+  const t = useTranslations("app.analytics.uploadChart");
+  const locale = useLocale();
   const data = points.map((p) => ({
-    date: formatBucketLabel(p.bucket, bucket),
+    date: formatBucketLabel(p.bucket, bucket, locale),
     uploads: p.uploads,
     size: p.bytes,
   }));
@@ -54,17 +57,16 @@ export function UploadChart({ points, bucket, isLoading }: UploadChartProps) {
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          Upload activity
+          {t("title")}
         </h3>
         <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-muted)]">
-          {totalUploads.toLocaleString()} upload{totalUploads !== 1 ? "s" : ""} &middot;{" "}
-          {formatBytes(totalSize)} in range
+          {t("summary", { count: totalUploads, size: formatBytes(totalSize) })}
         </p>
       </div>
       <div className="p-5 pt-4">
         {isLoading || data.length === 0 ? (
           <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
-            {isLoading ? "Loading…" : "No upload data yet"}
+            {isLoading ? t("loading") : t("none")}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
@@ -93,8 +95,8 @@ export function UploadChart({ points, bucket, isLoading }: UploadChartProps) {
                 contentStyle={CHART_TOOLTIP_STYLE}
                 labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                 formatter={(value, name) => {
-                  if (name === "size") return [formatBytes(Number(value)), "Size"];
-                  return [value, "Uploads"];
+                  if (name === "size") return [formatBytes(Number(value)), t("size")];
+                  return [value, t("uploads")];
                 }}
               />
               <Area

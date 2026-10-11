@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { Download, ExternalLink, Plus, ChevronDown, RefreshCcw, AlertCircle } from "@/lib/icons";
@@ -54,6 +55,7 @@ export function PdfViewer({
   filename: string;
   onDownload: () => void;
 }) {
+  const t = useTranslations("app.viewer");
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState(false);
@@ -72,6 +74,7 @@ export function PdfViewer({
   useEffect(() => {
     let cancelled = false;
     let loaded: PDFDocumentProxy | null = null;
+    // oxlint-disable-next-line react/set-state-in-effect
     setDoc(null);
     setNumPages(0);
     setError(false);
@@ -124,16 +127,16 @@ export function PdfViewer({
       <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--color-text-muted)]">
         <AlertCircle className="h-9 w-9 opacity-50 text-red-500" />
         <p className="max-w-sm text-center text-sm text-[var(--color-text-secondary)]">
-          Could not render this PDF.
+          {t("pdfFailed")}
         </p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => void openExternal(externalUrl)}>
             <ExternalLink className="h-3.5 w-3.5" />
-            Open in new tab
+            {t("openInNewTab")}
           </Button>
           <Button variant="ghost" size="sm" onClick={onDownload}>
             <Download className="h-3.5 w-3.5" />
-            Download
+            {t("download")}
           </Button>
         </div>
       </div>
@@ -152,7 +155,7 @@ export function PdfViewer({
         <div className="ml-auto flex items-center gap-1">
           <IconButton
             icon={ChevronDown}
-            label="Zoom out"
+            label={t("zoomOut")}
             onClick={() => zoomBy(-ZOOM_STEP)}
             disabled={zoom <= MIN_ZOOM}
             iconClassName="h-4 w-4"
@@ -162,27 +165,27 @@ export function PdfViewer({
           </span>
           <IconButton
             icon={Plus}
-            label="Zoom in"
+            label={t("zoomIn")}
             onClick={() => zoomBy(ZOOM_STEP)}
             disabled={zoom >= MAX_ZOOM}
             iconClassName="h-4 w-4"
           />
           <IconButton
             icon={RefreshCcw}
-            label="Reset zoom"
+            label={t("resetZoom")}
             onClick={() => setZoom(1)}
             iconClassName="h-4 w-4"
           />
           <span className="mx-1 h-5 w-px bg-[var(--color-border)]" aria-hidden />
           <IconButton
             icon={ExternalLink}
-            label="Open in new tab"
+            label={t("openInNewTab")}
             onClick={() => void openExternal(externalUrl)}
             iconClassName="h-4 w-4"
           />
           <IconButton
             icon={Download}
-            label="Download"
+            label={t("download")}
             onClick={onDownload}
             iconClassName="h-4 w-4"
           />
@@ -236,6 +239,7 @@ function PdfPage({
   rootRef: React.RefObject<HTMLDivElement | null>;
   onActive: (page: number) => void;
 }) {
+  const t = useTranslations("app.viewer");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageRef = useRef<PDFPageProxy | null>(null);
@@ -346,7 +350,7 @@ function PdfPage({
       <canvas
         ref={canvasRef}
         className="max-w-full rounded-md bg-white shadow-md"
-        aria-label={`Page ${pageNumber}`}
+        aria-label={t("pageAria", { page: pageNumber })}
       />
     </div>
   );

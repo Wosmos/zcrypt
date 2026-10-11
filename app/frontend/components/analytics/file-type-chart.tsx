@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatBytes } from "@/lib/utils";
 import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "./chart-theme";
@@ -13,27 +14,28 @@ interface FileTypeChartProps {
 
 const FILE_CATEGORIES: { label: string; color: string; extensions: string[] }[] = [
   {
-    label: "Documents",
+    label: "documents",
     color: "#3b82f6",
     extensions: ["pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ppt", "pptx"],
   },
   {
-    label: "Images",
+    label: "images",
     color: "#f59e0b",
     extensions: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"],
   },
-  { label: "Videos", color: "#8b5cf6", extensions: ["mp4", "mov", "avi", "mkv", "webm", "flv"] },
-  { label: "Audio", color: "#ec4899", extensions: ["mp3", "wav", "flac", "aac", "ogg", "m4a"] },
-  { label: "Archives", color: "#f97316", extensions: ["zip", "rar", "7z", "tar", "gz", "bz2"] },
+  { label: "videos", color: "#8b5cf6", extensions: ["mp4", "mov", "avi", "mkv", "webm", "flv"] },
+  { label: "audio", color: "#ec4899", extensions: ["mp3", "wav", "flac", "aac", "ogg", "m4a"] },
+  { label: "archives", color: "#f97316", extensions: ["zip", "rar", "7z", "tar", "gz", "bz2"] },
   {
-    label: "Code",
+    label: "code",
     color: "#06b6d4",
     extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"],
   },
-  { label: "Other", color: "#14b8a6", extensions: [] },
+  { label: "other", color: "#14b8a6", extensions: [] },
 ];
 
 export function FileTypeChart({ items }: FileTypeChartProps) {
+  const t = useTranslations("app.analytics");
   const data = useMemo(() => {
     const knownExts = new Set(FILE_CATEGORIES.flatMap((c) => c.extensions));
 
@@ -48,24 +50,24 @@ export function FileTypeChart({ items }: FileTypeChartProps) {
             );
 
       return {
-        name: cat.label,
+        name: t(`categories.${cat.label}`),
         value: matched.reduce((s, f) => s + f.original_size, 0),
         count: matched.length,
         color: cat.color,
       };
     }).filter((d) => d.value > 0);
-  }, [items]);
+  }, [items, t]);
 
   if (data.length === 0) {
     return (
       <div className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            By file type
+            {t("byFileType")}
           </h3>
         </div>
         <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
-          No files yet
+          {t("noFilesYet")}
         </div>
       </div>
     );
@@ -77,7 +79,7 @@ export function FileTypeChart({ items }: FileTypeChartProps) {
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          By file type
+          {t("byFileType")}
         </h3>
       </div>
       <div className="p-5 pt-4">
@@ -102,7 +104,7 @@ export function FileTypeChart({ items }: FileTypeChartProps) {
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
                   labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                  formatter={(value) => [formatBytes(Number(value)), "Size"]}
+                  formatter={(value) => [formatBytes(Number(value)), t("size")]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -111,7 +113,7 @@ export function FileTypeChart({ items }: FileTypeChartProps) {
                 {formatBytes(total)}
               </span>
               <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
-                total
+                {t("total")}
               </span>
             </div>
           </div>

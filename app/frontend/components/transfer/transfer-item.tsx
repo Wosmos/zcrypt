@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import {
   Upload,
   Download,
@@ -13,7 +14,10 @@ import {
   RotateCcw,
   X,
 } from "@/lib/icons";
-import { cn, formatBytes, formatEta, easeProgress } from "@/lib/utils";
+import { cn, formatBytes, easeProgress } from "@/lib/utils";
+import { localizeError, localizeStage } from "./stage-text";
+
+type Translate = ReturnType<typeof useTranslations>;
 
 // A single unified view-model the manager builds from the upload + download
 // stores. The manager owns store wiring; this component is presentational and
@@ -126,21 +130,31 @@ function StatusGlyph({ entry }: { entry: TransferEntry }) {
 
 // "~40s left" from a seconds estimate (rate-based, so it doesn't inherit the
 // queue-wait/pause time the old percent-extrapolation ETA did).
-function formatRemaining(seconds: number): string | undefined {
+function formatRemaining(t: Translate, seconds: number): string | undefined {
   if (!isFinite(seconds) || seconds <= 0) return undefined;
-  if (seconds < 60) return `~${Math.ceil(seconds)}s left`;
-  if (seconds < 3600) return `~${Math.ceil(seconds / 60)}m left`;
+  if (seconds < 60) return t("eta.seconds", { count: Math.ceil(seconds) });
+  if (seconds < 3600) return t("eta.minutes", { count: Math.ceil(seconds / 60) });
   const h = Math.floor(seconds / 3600);
   const m = Math.ceil((seconds % 3600) / 60);
-  return `~${h}h ${m}m left`;
+  return t("eta.hoursMinutes", { hours: h, minutes: m });
 }
 
-function statusText(entry: TransferEntry, short = false): string {
-  if (entry.state === "failed") return entry.error || "Failed";
-  if (entry.state === "cancelled") return "Cancelled";
-  if (entry.state === "done") return entry.direction === "upload" ? "Uploaded" : "Downloaded";
-  if (entry.state === "paused") return entry.stage || "Paused";
-  if (entry.state === "queued") return "Queued";
+function downloadRemaining(startedAt: number, percent: number): number | undefined {
+  if (percent <= 1 || percent >= 100) return undefined;
+  const elapsed = (Date.now() - startedAt) / 1000;
+  if (elapsed < 3) return undefined;
+  return Math.max(0, elapsed / (percent / 100) - elapsed);
+}
+
+function statusText(t: Translate, entry: TransferEntry, short = false): string {
+  if (entry.state === "failed")
+    return entry.error ? localizeError(t, entry.error) : t("stage.failed");
+  if (entry.state === "cancelled") return t("stage.cancelled");
+  if (entry.state === "done")
+    return entry.direction === "upload" ? t("stage.uploaded") : t("stage.downloaded");
+  if (entry.state === "paused")
+    return entry.stage ? localizeStage(t, entry.stage) : t("stage.paused");
+  if (entry.state === "queued") return t("stage.queued");
   // active. Uploads: speed + ETA from the smoothed byte rate (accurate, stable).
   // Downloads: the old elapsed/percent extrapolation (no byte rate available).
   let eta: string | undefined;
@@ -153,12 +167,17 @@ function statusText(entry: TransferEntry, short = false): string {
     entry.totalBytes > 0
   ) {
     const speed = `${formatBytes(entry.rateBps)}/s`;
-    const left = formatRemaining((entry.totalBytes - entry.bytesProcessed) / entry.rateBps);
+    const left = formatRemaining(t, (entry.totalBytes - entry.bytesProcessed) / entry.rateBps);
     eta = left ? `${speed} · ${left}` : speed;
   } else if (entry.direction === "download") {
-    eta = formatEta(entry.startedAt, entry.progress);
+    const remaining = downloadRemaining(entry.startedAt, entry.progress);
+    eta = remaining === undefined ? undefined : formatRemaining(t, remaining);
   }
-  const verb = entry.stage || (entry.direction === "upload" ? "Uploading" : "Downloading");
+  const verb = entry.stage
+    ? localizeStage(t, entry.stage)
+    : entry.direction === "upload"
+      ? t("stage.uploading")
+      : t("stage.downloading");
   // Mobile: the spinner + name already convey direction: show just the ETA when
   // we have one, so the line stays tight on narrow screens.
   if (short) return eta || verb;
@@ -174,6 +193,7 @@ function TransferItemBase({
   controls: TransferItemControls;
 }) {
   const reduceMotion = useReducedMotion();
+  const t = useTranslations("app.transfer");
 
   // A tiny file (a few hundred bytes) finishes in a couple of milliseconds, so
   // its "active" phase (and thus the progress bar) would flash in and vanish
@@ -187,9 +207,10 @@ function TransferItemBase({
     prevState.current = entry.state;
     if (entry.state === "done" && (was === "active" || was === "paused")) {
       if (reduceMotion) return;
+      // oxlint-disable-next-line react/set-state-in-effect
       setSettling(true);
-      const t = setTimeout(() => setSettling(false), 700);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setSettling(false), 700);
+      return () => clearTimeout(timer);
     }
   }, [entry.state, reduceMotion]);
 
@@ -289,8 +310,8 @@ function TransferItemBase({
               failedLike ? "text-rose-500 dark:text-rose-400" : "text-[var(--color-text-muted)]",
             )}
           >
-            <span className="sm:hidden">{statusText(entry, true)}</span>
-            <span className="hidden sm:inline">{statusText(entry, false)}</span>
+            <span className="sm:hidden">{statusText(t, entry, true)}</span>
+            <span className="hidden sm:inline">{statusText(t, entry, false)}</span>
           </p>
         </div>
 
@@ -303,14 +324,14 @@ function TransferItemBase({
               {!entry.desktop && (
                 <ControlButton
                   icon={Pause}
-                  label="Pause upload"
+                  label={t("pauseUpload")}
                   tone="accent"
                   onClick={() => controls.onPause(entry.id)}
                 />
               )}
               <ControlButton
                 icon={X}
-                label="Cancel upload"
+                label={t("cancelUpload")}
                 tone="danger"
                 onClick={() => controls.onCancelUpload(entry.id)}
               />
@@ -321,7 +342,7 @@ function TransferItemBase({
           {entry.direction === "upload" && entry.state === "queued" && (
             <ControlButton
               icon={X}
-              label="Cancel upload"
+              label={t("cancelUpload")}
               tone="danger"
               onClick={() => controls.onCancelUpload(entry.id)}
             />
@@ -332,13 +353,13 @@ function TransferItemBase({
             <>
               <ControlButton
                 icon={Play}
-                label="Resume upload"
+                label={t("resumeUpload")}
                 tone="accent"
                 onClick={() => controls.onResume(entry.id)}
               />
               <ControlButton
                 icon={X}
-                label="Cancel upload"
+                label={t("cancelUpload")}
                 tone="danger"
                 onClick={() => controls.onCancelUpload(entry.id)}
               />
@@ -354,19 +375,23 @@ function TransferItemBase({
               {entry.desktop ? (
                 <ControlButton
                   icon={Play}
-                  label="Resume upload"
+                  label={t("resumeUpload")}
                   tone="accent"
                   onClick={() => controls.onRetryUpload(entry.id)}
                 />
               ) : (
                 <ControlButton
                   icon={RotateCcw}
-                  label="Retry upload"
+                  label={t("retryUpload")}
                   tone="accent"
                   onClick={() => controls.onRetryUpload(entry.id)}
                 />
               )}
-              <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
+              <ControlButton
+                icon={X}
+                label={t("dismiss")}
+                onClick={() => controls.onDismiss(entry)}
+              />
             </>
           )}
 
@@ -375,13 +400,13 @@ function TransferItemBase({
             <>
               <ControlButton
                 icon={Pause}
-                label="Pause download"
+                label={t("pauseDownload")}
                 tone="accent"
                 onClick={() => controls.onPauseDownload(entry.id)}
               />
               <ControlButton
                 icon={StopCircle}
-                label="Stop download"
+                label={t("stopDownload")}
                 tone="danger"
                 onClick={() => controls.onStopDownload(entry.id)}
               />
@@ -392,7 +417,7 @@ function TransferItemBase({
           {entry.direction === "download" && entry.state === "queued" && (
             <ControlButton
               icon={StopCircle}
-              label="Stop download"
+              label={t("stopDownload")}
               tone="danger"
               onClick={() => controls.onStopDownload(entry.id)}
             />
@@ -403,13 +428,13 @@ function TransferItemBase({
             <>
               <ControlButton
                 icon={Play}
-                label="Resume download"
+                label={t("resumeDownload")}
                 tone="accent"
                 onClick={() => controls.onResumeDownload(entry.id)}
               />
               <ControlButton
                 icon={StopCircle}
-                label="Stop download"
+                label={t("stopDownload")}
                 tone="danger"
                 onClick={() => controls.onStopDownload(entry.id)}
               />
@@ -422,17 +447,25 @@ function TransferItemBase({
               <>
                 <ControlButton
                   icon={RotateCcw}
-                  label="Retry download"
+                  label={t("retryDownload")}
                   tone="accent"
                   onClick={() => controls.onRetryDownload(entry.id)}
                 />
-                <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
+                <ControlButton
+                  icon={X}
+                  label={t("dismiss")}
+                  onClick={() => controls.onDismiss(entry)}
+                />
               </>
             )}
 
           {/* Done. Dismiss */}
           {entry.state === "done" && (
-            <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
+            <ControlButton
+              icon={X}
+              label={t("dismiss")}
+              onClick={() => controls.onDismiss(entry)}
+            />
           )}
         </div>
       </div>

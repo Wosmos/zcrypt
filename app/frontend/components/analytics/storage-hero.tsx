@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/utils";
 import { Infinity } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +29,13 @@ interface CategoryInfo {
 
 function categorizeFiles(files: FileNameSize[]): CategoryInfo[] {
   const cats: Record<string, CategoryInfo> = {
-    documents: { label: "Docs", color: "#3b82f6", size: 0 },
-    images: { label: "Images", color: "#f59e0b", size: 0 },
-    videos: { label: "Videos", color: "#8b5cf6", size: 0 },
-    audio: { label: "Audio", color: "#ec4899", size: 0 },
-    archives: { label: "Archives", color: "#f97316", size: 0 },
-    code: { label: "Code", color: "#06b6d4", size: 0 },
-    other: { label: "Other", color: "#14b8a6", size: 0 },
+    documents: { label: "documents", color: "#3b82f6", size: 0 },
+    images: { label: "images", color: "#f59e0b", size: 0 },
+    videos: { label: "videos", color: "#8b5cf6", size: 0 },
+    audio: { label: "audio", color: "#ec4899", size: 0 },
+    archives: { label: "archives", color: "#f97316", size: 0 },
+    code: { label: "code", color: "#06b6d4", size: 0 },
+    other: { label: "other", color: "#14b8a6", size: 0 },
   };
 
   const extMap: Record<string, string> = {
@@ -102,6 +103,7 @@ function categorizeFiles(files: FileNameSize[]): CategoryInfo[] {
 }
 
 export function StorageHero({ totalOriginal, quotaInfo, items }: StorageHeroProps) {
+  const t = useTranslations("app.analytics");
   // Storage is unbounded (bounded only by the connected platform), show usage
   // as a total, never a fraction of a cap.
   const totalUsed = quotaInfo?.used_bytes ?? totalOriginal;
@@ -112,14 +114,14 @@ export function StorageHero({ totalOriginal, quotaInfo, items }: StorageHeroProp
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          Your storage
+          {t("hero.title")}
         </h2>
         <Badge
           variant="secondary"
           className="gap-1 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
         >
           <Infinity className="h-3 w-3" />
-          Unlimited
+          {t("advanced.unlimited")}
         </Badge>
       </div>
 
@@ -158,11 +160,9 @@ export function StorageHero({ totalOriginal, quotaInfo, items }: StorageHeroProp
             <span className="text-3xl font-semibold tracking-tight tabular-nums text-[var(--color-text)]">
               {formatBytes(totalUsed)}
             </span>
-            <span className="text-sm text-[var(--color-text-muted)]">used</span>
+            <span className="text-sm text-[var(--color-text-muted)]">{t("hero.used")}</span>
           </div>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Bounded only by your connected platform
-          </p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t("hero.bounded")}</p>
 
           {/* Distribution bar */}
           {totalOriginal > 0 && (
@@ -187,7 +187,7 @@ export function StorageHero({ totalOriginal, quotaInfo, items }: StorageHeroProp
                     className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]"
                   >
                     <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: cat.color }} />
-                    {cat.label}
+                    {t(`categories.${cat.label}`)}
                     <span className="tabular-nums text-[var(--color-text-muted)]">
                       {((cat.size / totalOriginal) * 100).toFixed(0)}%
                     </span>

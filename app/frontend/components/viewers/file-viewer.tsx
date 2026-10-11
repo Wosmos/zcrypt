@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import NextImage from "next/image";
 import {
   X,
@@ -21,6 +22,7 @@ import { getFileTypeInfo, cn } from "@/lib/utils";
 import { mimeForFilename, WrongPasswordError, IntegrityError } from "@/hooks/useFileDecryptor";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
 import { useThumbnail } from "@/hooks/useThumbnail";
+import { tr } from "@/store/translate";
 import { viewerKindFor, isMediaKind, type ViewerKind } from "@/components/viewers/viewer-kind";
 import { ImageViewer } from "@/components/viewers/image-viewer";
 import { PdfViewer } from "@/components/viewers/pdf-viewer";
@@ -129,6 +131,7 @@ export function FileViewer({
   prefetch,
   onWrongPassword,
 }: FileViewerProps) {
+  const t = useTranslations("app.viewer");
   const file = files[index];
   // Cached thumbnail (if any) for the current image, drives the instant blurred
   // placeholder while the full file decrypts (LQIP). Null for non-images.
@@ -225,7 +228,7 @@ export function FileViewer({
           setState({
             status: "error",
             kind: "wrong-password",
-            message: "Incorrect password. Click Retry to re-enter it.",
+            message: tr("viewer.wrongPassword"),
           });
           return;
         }
@@ -233,14 +236,14 @@ export function FileViewer({
           setState({
             status: "error",
             kind: "integrity",
-            message: "File integrity check failed: the file may be corrupted.",
+            message: tr("viewer.integrity"),
           });
           return;
         }
         setState({
           status: "error",
           kind: "generic",
-          message: err instanceof Error ? err.message : "Could not open this file.",
+          message: err instanceof Error ? err.message : tr("viewer.openFailed"),
         });
       }
     })();
@@ -408,7 +411,7 @@ export function FileViewer({
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
-      aria-label={`Preview: ${file.original_name}`}
+      aria-label={t("previewAria", { name: file.original_name })}
       tabIndex={-1}
       className="panel fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]/95 outline-none backdrop-blur-sm"
     >
@@ -439,17 +442,17 @@ export function FileViewer({
         <div className="flex items-center gap-1">
           <IconButton
             icon={Monitor}
-            label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
             onClick={toggleFullscreen}
             iconClassName="h-4 w-4"
           />
           <IconButton
             icon={Download}
-            label="Download"
+            label={t("download")}
             onClick={handleDownload}
             iconClassName="h-4 w-4"
           />
-          <IconButton icon={X} label="Close" onClick={onClose} iconClassName="h-4 w-4" />
+          <IconButton icon={X} label={t("close")} onClick={onClose} iconClassName="h-4 w-4" />
         </div>
       </header>
 
@@ -461,7 +464,7 @@ export function FileViewer({
             <div className="absolute left-3 top-1/2 z-10 -translate-y-1/2">
               <IconButton
                 icon={ChevronLeft}
-                label="Previous"
+                label={t("previous")}
                 onClick={goPrev}
                 variant="secondary"
                 className="h-10 w-10 rounded-full shadow-md"
@@ -471,7 +474,7 @@ export function FileViewer({
             <div className="absolute right-3 top-1/2 z-10 -translate-y-1/2">
               <IconButton
                 icon={ChevronRight}
-                label="Next"
+                label={t("next")}
                 onClick={goNext}
                 variant="secondary"
                 className="h-10 w-10 rounded-full shadow-md"
@@ -528,6 +531,7 @@ function ViewerBody({
   currentIndex: number;
   onSelectTrack: (index: number) => void;
 }) {
+  const t = useTranslations("app.viewer");
   // Non-previewable types are never decrypted (the viewer effect short-circuits
   // to "skipped"), so show the download card straight away rather than a spinner
   // that would never resolve.
@@ -571,10 +575,10 @@ function ViewerBody({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--color-text-muted)]">
         <AlertCircle className="h-9 w-9 opacity-40" />
-        <p className="text-sm">Unlock cancelled.</p>
+        <p className="text-sm">{t("unlockCancelled")}</p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
           <RefreshCcw className="h-3.5 w-3.5" />
-          Try again
+          {t("tryAgain")}
         </Button>
       </div>
     );
@@ -588,11 +592,11 @@ function ViewerBody({
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={onRetry}>
             <RefreshCcw className="h-3.5 w-3.5" />
-            Retry
+            {t("retry")}
           </Button>
           <Button variant="ghost" size="sm" onClick={onDownload}>
             <Download className="h-3.5 w-3.5" />
-            Download
+            {t("download")}
           </Button>
         </div>
       </div>
@@ -664,13 +668,16 @@ function ViewerBody({
  * indeterminate sweeping bar instead of a frozen 0%: the wait still feels alive.
  */
 function DecryptProgress({ done, total }: { done?: number; total?: number }) {
+  const t = useTranslations("app.viewer");
   const reduce = useReducedMotion() ?? false;
   const determinate = total !== undefined && total > 1;
   const pct = determinate ? Math.round(((done ?? 0) / (total as number)) * 100) : 0;
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-        {determinate ? `Decrypting… ${done ?? 0}/${total} · ${pct}%` : "Decrypting…"}
+        {determinate
+          ? t("decryptingProgress", { done: done ?? 0, total: total ?? 0, percent: pct })
+          : t("decrypting")}
       </p>
       <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
         {determinate ? (
@@ -693,6 +700,7 @@ function DecryptProgress({ done, total }: { done?: number; total?: number }) {
 }
 
 function FallbackBody({ file, onDownload }: { file: FileMetadata; onDownload: () => void }) {
+  const t = useTranslations("app.viewer");
   const info = getFileTypeInfo(file.original_name);
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4">
@@ -707,13 +715,11 @@ function FallbackBody({ file, onDownload }: { file: FileMetadata; onDownload: ()
       </div>
       <div className="text-center">
         <p className="text-sm font-medium text-[var(--color-text)]">{file.original_name}</p>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          No preview available for this file type.
-        </p>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t("noPreview")}</p>
       </div>
       <Button variant="primary" size="md" onClick={onDownload}>
         <Download className="h-4 w-4" />
-        Download
+        {t("download")}
       </Button>
     </div>
   );

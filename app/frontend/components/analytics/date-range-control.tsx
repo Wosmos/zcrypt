@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -9,11 +10,11 @@ import { Calendar } from "@/lib/icons";
 import { cn, formatDateShort, localDateKey } from "@/lib/utils";
 
 const PRESETS: { value: Exclude<DateRangePreset, "custom">; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "7d", label: "7d" },
-  { value: "30d", label: "30d" },
-  { value: "90d", label: "90d" },
-  { value: "all", label: "All time" },
+  { value: "today", label: "today" },
+  { value: "7d", label: "days7" },
+  { value: "30d", label: "days30" },
+  { value: "90d", label: "days90" },
+  { value: "all", label: "allTime" },
 ];
 
 /**
@@ -24,6 +25,7 @@ const PRESETS: { value: Exclude<DateRangePreset, "custom">; label: string }[] = 
  * no date library) - Popover already handles outside-click/Escape/positioning.
  */
 export function DateRangeControl() {
+  const t = useTranslations("app.analytics.dateRange");
   const { preset, customStart, customEnd, setPreset, setCustomRange } = useAnalyticsFiltersStore();
   const [customOpen, setCustomOpen] = useState(false);
 
@@ -34,7 +36,7 @@ export function DateRangeControl() {
   const customLabel =
     preset === "custom" && customStart && customEnd
       ? `${formatDateShort(customStart)} – ${formatDateShort(customEnd)}`
-      : "Custom";
+      : t("custom");
 
   function handleOpenChange(open: boolean) {
     if (open) {
@@ -61,22 +63,22 @@ export function DateRangeControl() {
             setPreset(v as DateRangePreset);
           }}
           className="flex-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5"
-          aria-label="Select date range"
+          aria-label={t("select")}
         >
           {PRESETS.map((p) => (
             <ToggleGroupItem
               key={p.value}
               value={p.value}
-              aria-label={p.label}
+              aria-label={t(p.label)}
               className="h-8 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm"
             >
-              {p.label}
+              {t(p.label)}
             </ToggleGroupItem>
           ))}
           <PopoverAnchor asChild>
             <ToggleGroupItem
               value="custom"
-              aria-label="Custom range"
+              aria-label={t("customRange")}
               className={cn(
                 "inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm",
               )}
@@ -90,7 +92,8 @@ export function DateRangeControl() {
         <PopoverContent align="end" className="w-[min(34rem,calc(100vw-2rem))] space-y-3 p-4">
           <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
             <span>
-              {start ? formatDateShort(start) : "Start"} – {end ? formatDateShort(end) : "End"}
+              {start ? formatDateShort(start) : t("start")} –{" "}
+              {end ? formatDateShort(end) : t("end")}
             </span>
           </div>
           <CalendarPicker
@@ -112,7 +115,7 @@ export function DateRangeControl() {
               onClick={() => handleOpenChange(false)}
               className="rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </PopoverContent>

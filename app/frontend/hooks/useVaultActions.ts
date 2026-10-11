@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/store/translate";
 import { useCallback, useEffect, useMemo } from "react";
 import { isTauri } from "@/lib/tauri";
 import { primeThumbnails } from "@/hooks/useThumbnail";
@@ -155,9 +156,7 @@ export function useVaultActions({
       if (!passphrase) return;
       ensureUserKeypair(passphrase).catch((err: unknown) => {
         if (err instanceof OwnKeyMismatchError) {
-          toast.error(
-            "Your sharing key on the server doesn't match this device. Sharing is paused for your safety; contact support.",
-          );
+          toast.error(tr("hooks.sharingKeyMismatch"));
         }
       });
     };
@@ -265,13 +264,11 @@ export function useVaultActions({
       // many seconds transcoding HEIC/HEVC before this callback even fires:
       // this toast is the first visible proof that the tap worked and the
       // batch is in hand, so users stop re-tapping the picker.
-      toast.info(
-        `Preparing ${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} for upload…`,
-      );
+      toast.info(tr("hooks.preparingFiles", { count: selectedFiles.length }));
 
       // Managed storage / personal tokens must be available.
       if (quotaInfo && !quotaInfo.can_upload) {
-        toast.warning("No storage platform connected. Go to Settings to connect one.");
+        toast.warning(tr("hooks.noPlatform"));
         useConnectStorage.getState().show();
         return;
       }
@@ -300,8 +297,11 @@ export function useVaultActions({
         const names =
           dupes.length <= 3
             ? dupes.join(", ")
-            : `${dupes.slice(0, 3).join(", ")} +${dupes.length - 3} more`;
-        toast.warning(`Skipped ${dupes.length} duplicate${dupes.length > 1 ? "s" : ""}: ${names}`);
+            : tr("hooks.dupesMore", {
+                names: dupes.slice(0, 3).join(", "),
+                more: dupes.length - 3,
+              });
+        toast.warning(tr("hooks.skippedDupes", { count: dupes.length, names }));
       }
 
       if (uniqueFiles.length === 0) return;
@@ -434,9 +434,7 @@ export function useVaultActions({
       // Desktop and Save-As-capable browsers stream the zip to disk, so the
       // cap only applies to a browser that must assemble it in memory.
       if (!isTauri && totalSize > ZIP_IN_MEMORY_MAX_BYTES && !canStreamToDisk()) {
-        toast.warning(
-          `Selected files total ${formatBytes(totalSize)}, too large for ZIP. Download individually instead.`,
-        );
+        toast.warning(tr("hooks.zipTooLarge", { size: formatBytes(totalSize) }));
         return;
       }
       vault.withPassphrase((passphrase) => {
@@ -498,7 +496,7 @@ export function useVaultActions({
             // Wrong VAULT passphrase → re-lock and re-prompt the single vault
             // modal with an inline error, then retry once unlocked.
             vault.lock();
-            vault.setError("Incorrect passphrase. Please try again.");
+            vault.setError(tr("hooks.wrongPassphrase"));
             vault.reopen(() => void startPreviewOf(filename));
           }
         } else {
@@ -547,7 +545,7 @@ export function useVaultActions({
   const moveFileWithRekey = useCallback(
     async (fileId: string, destFolderId: string | null) => {
       const file = fileById.get(fileId);
-      if (!file) throw new Error("File not found");
+      if (!file) throw new Error(tr("hooks.fileNotFound"));
       const srcFolderId = file.folder_id ?? null;
       if (srcFolderId === destFolderId) return; // no-op
 
@@ -603,9 +601,9 @@ export function useVaultActions({
       clearDecryptCacheForFile(fileId);
       toast.success(
         folderId === null
-          ? `Moved "${file.original_name}" to Root`
-          : `Moved "${file.original_name}"`,
-        { label: "Undo", onClick: () => moveFileTo(fileId, originalFolderId) },
+          ? tr("hooks.movedRoot", { name: file.original_name })
+          : tr("hooks.moved", { name: file.original_name }),
+        { label: tr("hooks.undo"), onClick: () => moveFileTo(fileId, originalFolderId) },
       );
       // Revert THIS file only (functionally) on failure, never a whole-list
       // snapshot, which would undo sibling moves still in flight from the same
@@ -620,10 +618,10 @@ export function useVaultActions({
         // (nothing changed server-side).
         if (err instanceof FolderUnlockCancelled) {
           revertThisFile();
-          toast.info("Move cancelled");
+          toast.info(tr("hooks.moveCancelled"));
           return;
         }
-        toast.error(err instanceof Error ? err.message : "Failed to move file");
+        toast.error(err instanceof Error ? err.message : tr("hooks.moveFailed"));
         revertThisFile();
         void refresh(); // reconcile the row's true folder/key state
       });
@@ -644,17 +642,17 @@ export function useVaultActions({
       deleteFile(target.id)
         .then(() => {
           void invalidateTrash();
-          toast.success("File deleted", {
-            label: "Undo",
+          toast.success(tr("hooks.fileDeleted"), {
+            label: tr("hooks.undo"),
             onClick: () => {
               restoreFile(target.id)
                 .then(() => invalidateFilesViews())
-                .catch(() => toast.error("Failed to undo delete"));
+                .catch(() => toast.error(tr("hooks.undoFailed")));
             },
           });
         })
         .catch((err) => {
-          toast.error(err instanceof Error ? err.message : "Delete failed");
+          toast.error(err instanceof Error ? err.message : tr("hooks.deleteFailed"));
           void refresh();
           void refreshQuota();
         });
@@ -672,22 +670,24 @@ export function useVaultActions({
       try {
         const result = await bulkDeleteFiles(ids);
         if (result.failed > 0) {
-          toast.warning(`${result.deleted} deleted, ${result.failed} failed`);
+          toast.warning(
+            tr("hooks.bulkPartial", { deleted: result.deleted, failed: result.failed }),
+          );
           void refresh(); // reconcile the partial failure against the server
         } else {
-          toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`, {
-            label: "Undo",
+          toast.success(tr("hooks.bulkDeleted", { count: result.deleted }), {
+            label: tr("hooks.undo"),
             onClick: () => {
               bulkRestoreFiles(ids)
                 .then(() => invalidateFilesViews())
-                .catch(() => toast.error("Failed to undo delete"));
+                .catch(() => toast.error(tr("hooks.undoFailed")));
             },
           });
         }
         // Deleted rows now live in Trash.
         void invalidateTrash();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Bulk delete failed");
+        toast.error(err instanceof Error ? err.message : tr("hooks.bulkDeleteFailed"));
         void refresh();
       } finally {
         void refreshQuota();

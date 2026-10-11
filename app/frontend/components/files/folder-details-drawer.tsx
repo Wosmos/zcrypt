@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   Sheet,
   SheetContent,
@@ -33,6 +34,7 @@ import { collectSubtreeFolderIds } from "@/lib/folder-tree";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 import { formatBytes, formatDate, savingsPercent } from "@/lib/utils";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
@@ -58,6 +60,7 @@ export function FolderDetailsDrawer({
   onOpenChange,
   files,
 }: FolderDetailsDrawerProps) {
+  const t = useTranslations("app.details");
   const [subtreeIds, setSubtreeIds] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -83,9 +86,9 @@ export function FolderDetailsDrawer({
     try {
       await revokeFolderShare(revokeTarget.id);
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folderId) });
-      toast.success("Folder link revoked");
+      toast.success(tr("details.folderRevoked"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to revoke");
+      toast.error(err instanceof Error ? err.message : tr("details.revokeFailed"));
     } finally {
       setRevoking(false);
       setRevokeTarget(null);
@@ -96,6 +99,7 @@ export function FolderDetailsDrawer({
   useEffect(() => {
     if (!open || !folderId) return;
     let cancelled = false;
+    // oxlint-disable-next-line react/set-state-in-effect
     setLoading(true);
     setSubtreeIds(null);
     collectSubtreeFolderIds(folderId)
@@ -151,12 +155,12 @@ export function FolderDetailsDrawer({
                   {folder.name}
                 </SheetTitle>
                 <SheetDescription className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-                  <span>Folder</span>
+                  <span>{t("folder")}</span>
                   {ready && stats && (
                     <>
                       <span aria-hidden>&middot;</span>
                       <span className="tabular-nums">
-                        {stats.fileCount} {stats.fileCount === 1 ? "file" : "files"}
+                        {t("fileCount", { count: stats.fileCount })}
                       </span>
                     </>
                   )}
@@ -176,20 +180,20 @@ export function FolderDetailsDrawer({
                 </div>
               ) : (
                 <>
-                  <MetaRow label="Files" value={stats.fileCount} icon={File} />
-                  <MetaRow label="Subfolders" value={stats.subfolderCount} icon={FolderOpen} />
+                  <MetaRow label={t("files")} value={stats.fileCount} icon={File} />
+                  <MetaRow label={t("subfolders")} value={stats.subfolderCount} icon={FolderOpen} />
                   <MetaRow
-                    label="Storage"
+                    label={t("storage")}
                     value={formatBytes(stats.originalBytes)}
                     icon={HardDrive}
                   />
                   <MetaRow
-                    label="Encrypted size"
+                    label={t("encryptedSize")}
                     value={formatBytes(stats.encryptedBytes)}
                     icon={Lock}
                   />
                   <MetaRow
-                    label="Space saved"
+                    label={t("spaceSaved")}
                     value={
                       <span
                         className={
@@ -203,9 +207,13 @@ export function FolderDetailsDrawer({
                     }
                     icon={Database}
                   />
-                  <MetaRow label="Created" value={formatDate(folder.created_at)} icon={Clock} />
+                  <MetaRow
+                    label={t("created")}
+                    value={formatDate(folder.created_at)}
+                    icon={Clock}
+                  />
                   <p className="pt-1 text-[11px] text-[var(--color-text-muted)]">
-                    Includes every file in this folder and all nested subfolders.
+                    {t("includesAll")}
                   </p>
                 </>
               )}
@@ -214,25 +222,25 @@ export function FolderDetailsDrawer({
             {/* Protection */}
             <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                <Key className="h-3.5 w-3.5" /> Protection
+                <Key className="h-3.5 w-3.5" /> {t("protection")}
               </p>
               <MetaRow
-                label="Password"
+                label={t("password")}
                 value={
                   folder.protected ? (
-                    <span className="text-[var(--color-accent)]">Protected</span>
+                    <span className="text-[var(--color-accent)]">{t("protected")}</span>
                   ) : (
-                    "Off"
+                    t("off")
                   )
                 }
               />
-              <CopyField label="Folder ID" value={folder.id} mono />
+              <CopyField label={t("folderId")} value={folder.id} mono />
             </div>
 
             {/* Share links: the same sharing history the file drawer shows */}
             <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                <Share2 className="h-3.5 w-3.5" /> Share links
+                <Share2 className="h-3.5 w-3.5" /> {t("shareLinks")}
                 {activeShares.length > 0 && (
                   <span className="ml-0.5 rounded-full bg-[var(--color-accent)]/15 px-1.5 text-[10px] font-semibold tabular-nums text-[var(--color-accent)]">
                     {activeShares.length}
@@ -245,9 +253,7 @@ export function FolderDetailsDrawer({
                   <SkeletonText w="w-3/4" />
                 </div>
               ) : activeShares.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  No active folder links. Use “Share” on this folder to create one.
-                </p>
+                <p className="text-sm text-[var(--color-text-secondary)]">{t("noFolderLinks")}</p>
               ) : (
                 <div className="space-y-1.5">
                   {activeShares.map((s) => (
@@ -269,10 +275,7 @@ export function FolderDetailsDrawer({
             </div>
 
             {/* Encryption assurance */}
-            <EncryptionAssuranceCard
-              title="Folder name encrypted · AES-256-GCM"
-              description="The folder name is encrypted on your device. We only ever store ciphertext."
-            />
+            <EncryptionAssuranceCard title={t("folderEncTitle")} description={t("folderEncBody")} />
           </div>
         </SheetContent>
       </Sheet>
@@ -283,9 +286,9 @@ export function FolderDetailsDrawer({
           if (!o) setRevokeTarget(null);
         }}
         destructive
-        title="Revoke folder link?"
-        description="Anyone holding this link will immediately lose access to this folder's files. This cannot be undone."
-        confirmLabel="Revoke"
+        title={t("revokeFolderTitle")}
+        description={t("revokeFolderBody")}
+        confirmLabel={t("revoke")}
         loading={revoking}
         onConfirm={handleRevoke}
       />

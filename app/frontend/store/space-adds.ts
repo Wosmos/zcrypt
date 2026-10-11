@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { tr } from "@/store/translate";
 import { del, get, set } from "idb-keyval";
 import { getSharedVault } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
@@ -125,7 +126,7 @@ async function runJob(vaultId: string): Promise<void> {
     invalidateSpace(vaultId);
     void queryClient.invalidateQueries({ queryKey: qk.spaces });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to add files";
+    const message = err instanceof Error ? err.message : tr("files.addFailed");
     const job = useSpaceAdds.getState().jobs[vaultId];
     if (!job) return;
     const unlockNeeded = !usePassphraseStore.getState().getPassphrase();

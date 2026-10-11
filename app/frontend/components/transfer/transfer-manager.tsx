@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -45,6 +46,7 @@ const STATE_RANK: Record<TransferState, number> = {
 };
 
 export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
+  const t = useTranslations("app.transfer");
   const reduceMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
   // Swipe-to-dismiss: hide the dock on a sideways flick; it returns when the
@@ -111,7 +113,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     // page. Tell the user to open the folder there (which caches its password),
     // then retry, never fall back to the vault pass (would produce undecryptable
     // chunks).
-    toast.info("Open the protected folder to unlock it, then retry this transfer.");
+    toast.info(t("openFolderRetryTransfer"));
   };
 
   // FIX-4: resolve the password a DOWNLOAD item must decrypt under. For an
@@ -132,7 +134,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         run(folderPw);
         return;
       }
-      toast.info("Open the protected folder to unlock it, then retry this download.");
+      toast.info(t("openFolderRetryDownload"));
       return;
     }
     withPassphrase(run);
@@ -258,6 +260,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // Bring the dock back whenever the number of transfers changes (e.g. a new
   // upload/download starts) so a dismissed dock isn't stuck hidden.
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     setDismissed(false);
   }, [entries.length]);
 
@@ -291,6 +294,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // dismissed dock must never hide an in-flight or failed transfer. (The
   // entries.length effect above misses failures, which don't change the count.)
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
     if (activeCount > 0 || failedCount > 0) setDismissed(false);
   }, [activeCount, failedCount]);
 
@@ -355,9 +359,9 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
 
   const headerLabel = allSettled
     ? failedCount > 0
-      ? `${failedCount} failed`
-      : "Transfers complete"
-    : `${activeCount} active`;
+      ? t("failedCount", { count: failedCount })
+      : t("complete")
+    : t("activeCount", { count: activeCount });
 
   // Publish the dock's live footprint so the mobile FAB can hop above it instead
   // of overlapping. Height is remeasured on collapse/expand and item changes.
@@ -402,7 +406,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           whileDrag={{ cursor: "grabbing" }}
           className="panel fixed bottom-[calc(5rem+var(--safe-bottom))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] touch-pan-y overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
           role="region"
-          aria-label="Transfers"
+          aria-label={t("title")}
         >
           {/* Header */}
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3.5 py-2.5">
@@ -419,7 +423,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[var(--color-text)]">Transfers</p>
+              <p className="text-sm font-semibold text-[var(--color-text)]">{t("title")}</p>
               <p
                 aria-live="polite"
                 className="truncate text-[11px] tabular-nums text-[var(--color-text-muted)]"
@@ -434,14 +438,14 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
                 onClick={clearCompleted}
                 className="rounded-md px-1.5 py-1 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
               >
-                Clear completed
+                {t("clearCompleted")}
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setCollapsed((c) => !c)}
-              aria-label={collapsed ? "Expand transfers" : "Collapse transfers"}
+              aria-label={collapsed ? t("expand") : t("collapse")}
               aria-expanded={!collapsed}
               className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             >
@@ -478,7 +482,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
                     />
                   </div>
                   <span className="flex-shrink-0 text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                    {allSettled ? "Done" : `${aggregateProgress}%`}
+                    {allSettled ? t("stage.done") : `${aggregateProgress}%`}
                   </span>
                 </div>
               </motion.div>

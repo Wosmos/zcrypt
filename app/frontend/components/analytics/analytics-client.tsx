@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useQuota } from "@/hooks/useQuota";
 import {
@@ -39,6 +40,7 @@ import { RefreshCw, BarChart3, Gauge } from "@/lib/icons";
 import AnalyticsLoading from "@/app/(app)/analytics/loading";
 
 export function AnalyticsClient() {
+  const t = useTranslations("app.analytics");
   const { preset, customStart, customEnd } = useAnalyticsFiltersStore();
   const range = useMemo(
     () => getRangeBounds(preset, customStart, customEnd),
@@ -82,16 +84,16 @@ export function AnalyticsClient() {
   }
 
   const refreshLabel = refreshing
-    ? "Refreshing…"
+    ? t("refreshing")
     : !canRefresh
-      ? `Refresh available in ${Math.ceil(remainingMs / 60_000)}m`
-      : "Refresh data";
+      ? t("refreshIn", { minutes: Math.ceil(remainingMs / 60_000) })
+      : t("refreshData");
 
   const header = (
     <PageHeader
-      eyebrow="Dashboard"
-      title="Insights"
-      description="Storage, compression, platforms and upload activity across your encrypted library."
+      eyebrow={t("eyebrow")}
+      title={t("title")}
+      description={t("description")}
       actions={
         <div className="flex items-center gap-2">
           <button
@@ -106,7 +108,7 @@ export function AnalyticsClient() {
             )}
           >
             <Gauge className="h-4 w-4" />
-            Advanced
+            {t("advancedToggle")}
           </button>
           <IconButton
             icon={RefreshCw}
@@ -129,12 +131,8 @@ export function AnalyticsClient() {
         <div className="panel p-6">
           <EmptyState
             icon={<BarChart3 className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={rateLimited ? "Slow down a little" : "Couldn't load insights"}
-            description={
-              rateLimited
-                ? "You've refreshed this a lot in a short time. Wait a few minutes and it'll load again."
-                : "We couldn't reach your library to build these insights. Check your connection and try again."
-            }
+            title={rateLimited ? t("rateLimitedTitle") : t("loadFailedTitle")}
+            description={rateLimited ? t("rateLimitedBody") : t("loadFailedBody")}
           />
         </div>
       </div>
@@ -148,8 +146,8 @@ export function AnalyticsClient() {
         <div className="panel p-6">
           <EmptyState
             icon={<BarChart3 className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No insights yet"
-            description="Upload your first file to start seeing storage, compression and upload insights here."
+            title={t("emptyTitle")}
+            description={t("emptyBody")}
           />
         </div>
       </div>
@@ -180,7 +178,10 @@ export function AnalyticsClient() {
       </motion.div>
 
       <motion.div variants={item}>
-        <Section title="This period" description={range.label}>
+        <Section
+          title={t("thisPeriod")}
+          description={range.labelKey ? t(`range.${range.labelKey}`) : range.label}
+        >
           <KpiHeroRow summary={summary} showTrend={!range.allTime} />
           <KpiSecondaryStrip
             largestFileSize={summary?.largest_file?.original_size ?? null}
@@ -198,7 +199,7 @@ export function AnalyticsClient() {
       </motion.div>
 
       <motion.div variants={item}>
-        <Section title="Your vault" description="Lifetime — not affected by the selected range">
+        <Section title={t("yourVault")} description={t("lifetimeNote")}>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <StorageHero
@@ -214,14 +215,14 @@ export function AnalyticsClient() {
       </motion.div>
 
       <motion.div variants={item}>
-        <Section title="Details">
+        <Section title={t("detailsSection")}>
           <VaultDetails summary={summary} items={rangeItems} />
           <RecentUploads files={recentFiles} />
         </Section>
       </motion.div>
 
       <motion.div variants={item}>
-        <Section title="Platforms">
+        <Section title={t("platforms")}>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <PlatformBreakdown statuses={statuses} repos={repos} />
             <StorageHealth repos={repos} />

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Database, ArrowRight } from "@/lib/icons";
@@ -41,6 +42,7 @@ function dismissedRecently(): boolean {
 }
 
 export function SharedStorageBanner() {
+  const t = useTranslations("app.sharedBanner");
   const { quota } = useQuota();
   // Start hidden and decide on the client. localStorage is not available during
   // SSR, so rendering it server-side would flash a banner the user dismissed.
@@ -56,6 +58,7 @@ export function SharedStorageBanner() {
 
   useEffect(() => {
     if (!onShared) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setVisible(false);
       return;
     }
@@ -106,11 +109,9 @@ export function SharedStorageBanner() {
 
             <div className="min-w-0 flex-1">
               <p className="text-sm text-[var(--color-text)]">
-                {nearlyFull
-                  ? "Shared storage is nearly full."
-                  : "You are using zcrypt's shared storage."}{" "}
+                {nearlyFull ? t("nearlyFull") : t("using")}{" "}
                 <span className="text-[var(--color-text-muted)]">
-                  {formatBytes(used)} of {formatBytes(total)}.
+                  {t("usedOf", { used: formatBytes(used), total: formatBytes(total) })}
                 </span>
               </p>
 
@@ -120,7 +121,7 @@ export function SharedStorageBanner() {
                 aria-valuenow={Math.round(pct)}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label="Shared storage used"
+                aria-label={t("usedAria")}
               >
                 <div
                   className={cn(
@@ -136,7 +137,7 @@ export function SharedStorageBanner() {
               href="/settings?tab=storage"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
             >
-              Connect your own
+              {t("connectOwn")}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
 
@@ -144,7 +145,7 @@ export function SharedStorageBanner() {
               <button
                 type="button"
                 onClick={dismiss}
-                aria-label="Dismiss for today"
+                aria-label={t("dismiss")}
                 className="shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 <X className="h-4 w-4" />

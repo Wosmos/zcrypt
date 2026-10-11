@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { listFolders, moveFile, moveFolder } from "@/lib/api";
 import { decryptNameSafe } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
@@ -65,6 +66,7 @@ export function MoveToFolderDialog({
   onMoved,
   onMoveFile,
 }: MoveToFolderDialogProps) {
+  const t = useTranslations("app.move");
   const user = useAuthStore((s) => s.user);
   const getPassphrase = usePassphraseStore((s) => s.getPassphrase);
 
@@ -199,13 +201,13 @@ export function MoveToFolderDialog({
     if (movingFolder) {
       // Fast client-side pre-check against KNOWN descendants (expanded tree).
       if (isSelfOrDescendant(selected)) {
-        toast.error("Can't move a folder into itself or one of its subfolders.");
+        toast.error(t("cycle"));
         return;
       }
       setMoving(true);
       try {
         await moveFolder(folderId!, selected);
-        toast.success(selected === null ? "Folder moved to Root" : "Folder moved");
+        toast.success(selected === null ? t("folderMovedRoot") : t("folderMoved"));
         onMoved?.();
         onClose();
       } catch (err) {
@@ -214,7 +216,7 @@ export function MoveToFolderDialog({
         // "cannot move a folder into its own subfolder". Surface it clearly and
         // reconcile (onMoved → refresh) so any stale tree state is reverted; the
         // dialog stays open so the user can pick a valid destination.
-        toast.error(err instanceof Error ? err.message : "Failed to move folder");
+        toast.error(err instanceof Error ? err.message : t("folderMoveFailed"));
         onMoved?.();
       } finally {
         setMoving(false);
@@ -246,9 +248,9 @@ export function MoveToFolderDialog({
         return;
       }
       if (failed > 0) {
-        toast.warning(`${succeeded} moved, ${failed} failed`);
+        toast.warning(t("partial", { succeeded, failed }));
       } else {
-        toast.success(`Moved ${succeeded} file${succeeded !== 1 ? "s" : ""}`);
+        toast.success(t("movedCount", { count: succeeded }));
       }
       onMoved?.();
       onClose();
@@ -263,7 +265,7 @@ export function MoveToFolderDialog({
       // fallback is a plain move (unprotected → unprotected, byte-for-byte same).
       if (onMoveFile) await onMoveFile(fileId, selected);
       else await moveFile(fileId, selected);
-      toast.success(selected === null ? "Moved to Root" : "File moved");
+      toast.success(selected === null ? t("movedRoot") : t("fileMoved"));
       onMoved?.();
       onClose();
     } catch (err) {
@@ -275,7 +277,7 @@ export function MoveToFolderDialog({
         onClose();
         return;
       }
-      toast.error(err instanceof Error ? err.message : "Failed to move file");
+      toast.error(err instanceof Error ? err.message : t("fileMoveFailed"));
     } finally {
       setMoving(false);
     }
@@ -310,7 +312,7 @@ export function MoveToFolderDialog({
               className="px-3 py-1.5 text-xs text-[var(--color-text-muted)]"
               style={{ paddingLeft: `${(depth + 1) * 20 + 12}px` }}
             >
-              No subfolders
+              {t("noSubfolders")}
             </p>
           )}
         </div>
@@ -324,15 +326,13 @@ export function MoveToFolderDialog({
         <DialogHeader>
           <DialogTitle>
             {movingFolder
-              ? "Move folder"
+              ? t("titleFolder")
               : fileIds && fileIds.length > 0
-                ? `Move ${fileIds.length} file${fileIds.length !== 1 ? "s" : ""}`
-                : "Move to folder"}
+                ? t("titleFiles", { count: fileIds.length })
+                : t("titleFile")}
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            {movingFolder
-              ? "Choose a destination. A folder can't move into itself or one of its subfolders."
-              : "Choose a destination folder. Expand a folder to pick a nested one."}
+            {movingFolder ? t("descriptionFolder") : t("descriptionFile")}
           </DialogDescription>
         </DialogHeader>
 
@@ -341,7 +341,7 @@ export function MoveToFolderDialog({
           <TreeRow
             depth={0}
             icon={<Home className="h-[18px] w-[18px]" />}
-            label="Root (My Vault)"
+            label={t("root")}
             active={selected === null}
             onSelect={() => setSelected(null)}
           />
@@ -358,33 +358,27 @@ export function MoveToFolderDialog({
           ) : locked ? (
             <p className="flex items-center gap-1.5 px-2 py-3 text-xs text-[var(--color-text-muted)]">
               <Lock className="h-3 w-3" />
-              Unlock your vault to see folder names
+              {t("unlockToSee")}
             </p>
           ) : (children.root?.length ?? 0) === 0 ? (
-            <p className="px-3 py-3 text-xs text-[var(--color-text-muted)]">
-              No folders yet: files can still move to Root.
-            </p>
+            <p className="px-3 py-3 text-xs text-[var(--color-text-muted)]">{t("noFolders")}</p>
           ) : (
             renderNodes("root", 0)
           )}
         </div>
 
-        {invalidFolderTarget && (
-          <p className="px-1 text-xs text-red-500">
-            Can&apos;t move a folder into itself or one of its subfolders.
-          </p>
-        )}
+        {invalidFolderTarget && <p className="px-1 text-xs text-red-500">{t("cycle")}</p>}
 
         <DialogFooter className="gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={moving}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             size="sm"
             onClick={handleMove}
             disabled={moving || selected === undefined || invalidFolderTarget}
           >
-            {moving ? "Moving..." : "Move here"}
+            {moving ? t("moving") : t("moveHere")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -414,6 +408,7 @@ function TreeRow({
   onToggle?: () => void;
   onSelect: () => void;
 }) {
+  const t = useTranslations("app.move");
   const canExpand = !!onToggle;
   return (
     <div
@@ -430,7 +425,7 @@ function TreeRow({
         <button
           type="button"
           onClick={onToggle}
-          aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
+          aria-label={expanded ? t("collapse", { name: label }) : t("expand", { name: label })}
           aria-expanded={expanded}
           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
         >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/utils";
 import type { PlatformStatus, RepoInfo } from "@/types";
 import { Github } from "@/lib/icons";
@@ -21,6 +22,7 @@ const platformIcons: Record<string, React.ReactNode> = {
 };
 
 export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
+  const t = useTranslations("app.analytics.platformBreakdown");
   // Usage is aggregated from the storage repos (a repo row is created on the
   // first upload to a platform).
   const usage = new Map<string, { used: number; max: number; repoCount: number }>();
@@ -46,14 +48,12 @@ export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          Storage by platform
+          {t("title")}
         </h3>
       </div>
       <div className="space-y-4 p-5">
         {platforms.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">
-            No platforms connected
-          </p>
+          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">{t("none")}</p>
         ) : (
           platforms.map((platform) => {
             const data = usage.get(platform) || { used: 0, max: 0, repoCount: 0 };
@@ -69,9 +69,7 @@ export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
                     {platformIcons[platform] || null}
                     <span className="text-sm font-medium text-[var(--color-text)]">{label}</span>
                     <span className="text-xs text-[var(--color-text-muted)]">
-                      {hasUploads
-                        ? `${data.repoCount} repo${data.repoCount !== 1 ? "s" : ""}`
-                        : "no uploads yet"}
+                      {hasUploads ? t("repos", { count: data.repoCount }) : t("noUploads")}
                     </span>
                   </div>
                   <span className="text-xs text-[var(--color-text-secondary)] tabular-nums">

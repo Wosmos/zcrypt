@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowRight } from "@/lib/icons";
 import {
   Dialog,
@@ -16,12 +17,13 @@ import { useConnectStorage } from "@/store/connect-storage";
 import { formatBytes } from "@/lib/utils";
 
 const OPTIONS = [
-  { name: "Telegram", hint: "Easiest. Create a bot, paste its token." },
-  { name: "GitHub", hint: "A fine-grained token limited to repositories." },
-  { name: "Hugging Face", hint: "A write token for a private dataset space." },
-];
+  { name: "Telegram", hint: "telegramHint" },
+  { name: "GitHub", hint: "githubHint" },
+  { name: "Hugging Face", hint: "huggingFaceHint" },
+] as const;
 
 export function ConnectStorageDialog() {
+  const t = useTranslations("app.connectStorage");
   const { quota } = useQuota();
   const { open, show, hide } = useConnectStorage();
   const onShared = Boolean(quota && !quota.has_personal_key && !quota.is_unlimited);
@@ -34,13 +36,18 @@ export function ConnectStorageDialog() {
     <Dialog open={open} onOpenChange={(next) => (next ? show() : hide())}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{full ? "Shared storage is full" : "Connect your own storage"}</DialogTitle>
+          <DialogTitle>{full ? t("fullTitle") : t("title")}</DialogTitle>
           <DialogDescription>
             {full
-              ? `You have used ${formatBytes(quota.used_bytes)} of the ${formatBytes(quota.quota_bytes)} shared allowance, so new uploads are paused.`
-              : `You are on zcrypt's shared storage (${formatBytes(quota.used_bytes)} of ${formatBytes(quota.quota_bytes)}).`}{" "}
-            Connect an account you own and your space becomes unlimited. Your files stay encrypted
-            on your device either way.
+              ? t("fullIntro", {
+                  used: formatBytes(quota.used_bytes),
+                  total: formatBytes(quota.quota_bytes),
+                })
+              : t("sharedIntro", {
+                  used: formatBytes(quota.used_bytes),
+                  total: formatBytes(quota.quota_bytes),
+                })}{" "}
+            {t("pitch")}
           </DialogDescription>
         </DialogHeader>
 
@@ -51,7 +58,7 @@ export function ConnectStorageDialog() {
               className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm"
             >
               <span className="font-medium text-[var(--color-text)]">{o.name}</span>
-              <span className="ml-2 text-[var(--color-text-muted)]">{o.hint}</span>
+              <span className="ml-2 text-[var(--color-text-muted)]">{t(o.hint)}</span>
             </li>
           ))}
         </ul>
@@ -59,11 +66,11 @@ export function ConnectStorageDialog() {
         <DialogFooter>
           {!full && (
             <Button variant="ghost" onClick={hide}>
-              Remind me later
+              {t("remindLater")}
             </Button>
           )}
           <Link href="/settings?tab=storage" onClick={hide} className={buttonVariants()}>
-            Connect now
+            {t("connectNow")}
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </DialogFooter>

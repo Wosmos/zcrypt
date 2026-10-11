@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Music, Video, Play, X } from "@/lib/icons";
 import { MediaPlayer } from "@/components/ui/media-player";
@@ -48,6 +49,7 @@ export function MediaViewer({
   const [playlistOpen, setPlaylistOpen] = useState(false);
 
   // Playlist filter: only offered when the folder actually mixes both kinds.
+  const t = useTranslations("app.viewer");
   const [filter, setFilter] = useState<"all" | "audio" | "video">("all");
   const kindOf = (t: MediaTrack): "audio" | "video" =>
     mediaKindFor(t.file.original_name) ?? "audio";
@@ -55,7 +57,7 @@ export function MediaViewer({
   const hasVideo = tracks.some((t) => kindOf(t) === "video");
   const canFilter = hasAudio && hasVideo;
   const shownTracks =
-    canFilter && filter !== "all" ? tracks.filter((t) => kindOf(t) === filter) : tracks;
+    canFilter && filter !== "all" ? tracks.filter((track) => kindOf(track) === filter) : tracks;
 
   // Previous / next TRACK navigation, walking the currently-shown (filtered)
   // list so next/prev stays within the Audio/Video choice. Falls back to the
@@ -99,7 +101,7 @@ export function MediaViewer({
               ) : (
                 <Music className="h-3.5 w-3.5" />
               )}
-              Playlist
+              {t("playlist")}
               <span className="tabular-nums text-[var(--color-text-muted)]">
                 {shownTracks.length}
               </span>
@@ -110,7 +112,7 @@ export function MediaViewer({
           {playlistOpen && (
             <button
               type="button"
-              aria-label="Close playlist"
+              aria-label={t("closePlaylist")}
               tabIndex={-1}
               onClick={() => setPlaylistOpen(false)}
               className="absolute inset-0 z-20 bg-black/40 lg:hidden"
@@ -121,7 +123,7 @@ export function MediaViewer({
               parent's overflow-hidden clips it off-screen when closed. */}
           <div
             role="dialog"
-            aria-label="Playlist"
+            aria-label={t("playlist")}
             className={cn(
               "absolute z-30 flex flex-col overflow-hidden bg-[var(--color-surface-1)] shadow-2xl transition-transform duration-300 ease-out",
               "inset-x-0 bottom-0 max-h-[70vh] rounded-t-2xl border-t border-[var(--color-border)]",
@@ -133,14 +135,14 @@ export function MediaViewer({
           >
             <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-3 text-xs font-semibold text-[var(--color-text-secondary)]">
               {kind === "video" ? <Video className="h-4 w-4" /> : <Music className="h-4 w-4" />}
-              Playlist
+              {t("playlist")}
               <span className="tabular-nums text-[var(--color-text-muted)]">
                 {shownTracks.length}
               </span>
               <button
                 type="button"
                 onClick={() => setPlaylistOpen(false)}
-                aria-label="Close playlist"
+                aria-label={t("closePlaylist")}
                 className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-muted)] outline-none transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
               >
                 <X className="h-4 w-4" />
@@ -162,7 +164,7 @@ export function MediaViewer({
                         : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]",
                     )}
                   >
-                    {f}
+                    {t(`filter.${f}`)}
                   </button>
                 ))}
               </div>

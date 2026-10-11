@@ -91,6 +91,7 @@ import { useAutoTour } from "@/components/onboarding/tour-provider";
  */
 export default function VaultPage() {
   const t = useTranslations("dashboard");
+  const ta = useTranslations("app");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -241,7 +242,7 @@ export default function VaultPage() {
       const vaultPass = usePassphraseStore.getState().getPassphrase();
       const inFolder = filesInFolder(protectTarget.id);
       if (inFolder.length > 0 && !vaultPass) {
-        throw new Error("Unlock your vault first to re-key the files in this folder.");
+        throw new Error(ta("dashboard.rekeyUnlockProtect"));
       }
       setRekeyProgress({ done: 0, total: inFolder.length });
       try {
@@ -259,7 +260,7 @@ export default function VaultPage() {
         setRekeyProgress(null);
       }
     },
-    [protectTarget, filesInFolder, folderProtection, refresh, t],
+    [protectTarget, filesInFolder, folderProtection, refresh, t, ta],
   );
 
   // Remove protection: needs the folder password (prompt if uncached) AND the
@@ -269,7 +270,7 @@ export default function VaultPage() {
     const vaultPass = usePassphraseStore.getState().getPassphrase();
     const inFolder = filesInFolder(removeTarget.id);
     if (inFolder.length > 0 && !vaultPass) {
-      throw new Error("Unlock your vault first to re-key the files back.");
+      throw new Error(ta("dashboard.rekeyUnlockRemove"));
     }
     const run = async (folderPw: string) => {
       setRekeyProgress({ done: 0, total: inFolder.length });
@@ -298,7 +299,7 @@ export default function VaultPage() {
         if (pw) void run(pw);
       });
     }
-  }, [removeTarget, filesInFolder, folderProtection, refresh, t]);
+  }, [removeTarget, filesInFolder, folderProtection, refresh, t, ta]);
 
   // ── Explorer callbacks that surface a page-owned modal ──────────────────────
   const handleDeleteRequest = useCallback(
@@ -622,7 +623,7 @@ export default function VaultPage() {
               <AccordionTrigger className="py-3.5 text-sm font-medium text-[var(--color-text-secondary)] hover:no-underline hover:text-[var(--color-text)] [&>svg]:text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-2">
                   <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
-                  Storage &amp; backup
+                  {ta("dashboard.storageBackup")}
                 </span>
               </AccordionTrigger>
               <AccordionContent className="space-y-3 pb-4">
