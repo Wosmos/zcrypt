@@ -839,6 +839,7 @@ CREATE TABLE IF NOT EXISTS user_keys (
 	created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE user_keys ADD COLUMN IF NOT EXISTS wrapped_master_key TEXT NOT NULL DEFAULT '';
 
 -- Insights analytics aggregation at scale: a covering index lets Postgres
 -- answer the summary/timeseries SUM() queries via an index-only scan (no heap

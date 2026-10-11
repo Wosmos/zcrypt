@@ -78,7 +78,7 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	}
 
 	prev, err := db.pool.Query(ctx, `
-		SELECT m.vault_id::text, m.user_id::text, u.username
+		SELECT m.vault_id::text, m.user_id::text, u.username, length(u.avatar_url) > 0, CASE WHEN u.avatar_url = '' THEN '' ELSE left(md5(u.avatar_url), 16) END
 		FROM shared_vault_members m JOIN users u ON u.id = m.user_id
 		WHERE m.vault_id::text = ANY($1)
 		ORDER BY m.joined_at`, ids)
@@ -90,7 +90,7 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	for prev.Next() {
 		var vid string
 		var p types.SharedVaultPreview
-		if err := prev.Scan(&vid, &p.UserID, &p.Username); err != nil {
+		if err := prev.Scan(&vid, &p.UserID, &p.Username, &p.HasAvatar, &p.AvatarVersion); err != nil {
 			return nil, err
 		}
 		if len(byVault[vid]) < 4 {
@@ -133,7 +133,8 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	// verification) rides along; empty when they've not set up a keypair yet.
 	rows, err := db.pool.Query(ctx, `
 		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at, svm.wrapped_space_key,
-		       COALESCE(uk.fingerprint, '')
+		       COALESCE(uk.fingerprint, ''),
+		       length(u.avatar_url) > 0, CASE WHEN u.avatar_url = '' THEN '' ELSE left(md5(u.avatar_url), 16) END
 		FROM shared_vault_members svm
 		JOIN users u ON svm.user_id = u.id
 		LEFT JOIN user_keys uk ON uk.user_id = svm.user_id
@@ -146,7 +147,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	for rows.Next() {
 		var m types.SharedVaultMember
-		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint); err != nil {
+		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint, &m.HasAvatar, &m.AvatarVersion); err != nil {
 			return nil, err
 		}
 		vault.Members = append(vault.Members, m)
