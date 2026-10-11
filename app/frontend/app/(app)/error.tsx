@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, RotateCcw } from "@/lib/icons";
 
 export default function AppError({
@@ -10,6 +11,7 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("app");
   useEffect(() => {
     console.error("App error:", error);
   }, [error]);
@@ -20,13 +22,13 @@ export default function AppError({
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
           <AlertTriangle className="h-6 w-6 text-red-500" />
         </div>
-        <h2 className="text-xl font-bold text-[var(--color-text)] mb-2">Something went wrong</h2>
+        <h2 className="text-xl font-bold text-[var(--color-text)] mb-2">{t("error.title")}</h2>
         <p className="text-[var(--color-text-secondary)] mb-1 text-sm">
-          {error.message || "An unexpected error occurred."}
+          {error.message || t("error.fallback")}
         </p>
         {error.digest && (
           <p className="text-[var(--color-text-muted)] mb-6 text-xs font-mono">
-            Error ID: {error.digest}
+            {t("error.id", { id: error.digest })}
           </p>
         )}
         <button
@@ -34,7 +36,7 @@ export default function AppError({
           className="inline-flex items-center gap-2 rounded-lg bg-[var(--btn-primary-bg)] px-4 py-2 text-sm font-medium text-[var(--btn-primary-text)] hover:bg-[var(--btn-primary-bg-hover)] transition-colors"
         >
           <RotateCcw className="h-4 w-4" />
-          Try again
+          {t("error.retry")}
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes, formatDate, getFileTypeInfo } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 import { File, FileText, Image, Video, Music, Archive, Code, Cog, Table } from "@/lib/icons";
@@ -21,6 +22,7 @@ const iconMap: Record<string, typeof File> = {
 };
 
 export function RecentUploads({ files }: RecentUploadsProps) {
+  const t = useTranslations("app.analytics.recent");
   const recent = [...files]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 8);
@@ -29,13 +31,13 @@ export function RecentUploads({ files }: RecentUploadsProps) {
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          Recent uploads
+          {t("title")}
         </h3>
       </div>
 
       {recent.length === 0 ? (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--color-text-muted)]">
-          No uploads yet
+          {t("none")}
         </div>
       ) : (
         <>
@@ -45,16 +47,16 @@ export function RecentUploads({ files }: RecentUploadsProps) {
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
                   <th className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Name
+                    {t("name")}
                   </th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Date
+                    {t("date")}
                   </th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Size
+                    {t("size")}
                   </th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Saved
+                    {t("saved")}
                   </th>
                 </tr>
               </thead>

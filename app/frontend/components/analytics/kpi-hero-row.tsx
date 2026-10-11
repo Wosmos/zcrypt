@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { KpiCard, type KpiCardTrend } from "@/components/ui/kpi-card";
 import { formatBytes } from "@/lib/utils";
 import { HardDrive, Layers, TrendingDown } from "@/lib/icons";
@@ -13,12 +14,17 @@ function pctDelta(current: number, previous: number): number | null {
 /** Monochrome up/down trend chip only (no red/green semantic colors, to keep
  *  the app's single-accent design language). Omitted entirely for "All time",
  *  where there's no meaningful previous period to compare against. */
-function trendFor(current: number, previous: number, showTrend: boolean): KpiCardTrend | null {
+function trendFor(
+  t: ReturnType<typeof useTranslations>,
+  current: number,
+  previous: number,
+  showTrend: boolean,
+): KpiCardTrend | null {
   if (!showTrend) return null;
   const delta = pctDelta(current, previous);
   if (delta == null) return null;
   const direction = delta > 0.5 ? "up" : delta < -0.5 ? "down" : "flat";
-  return { direction, label: `${Math.abs(delta).toFixed(0)}% vs prev.` };
+  return { direction, label: t("vsPrev", { percent: Math.abs(delta).toFixed(0) }) };
 }
 
 interface KpiHeroRowProps {
@@ -31,6 +37,7 @@ interface KpiHeroRowProps {
  *  (peek of next card), desktop 3-up grid — mirrors the exact pattern in
  *  components/settings/rate-limits.tsx. */
 export function KpiHeroRow({ summary, showTrend }: KpiHeroRowProps) {
+  const t = useTranslations("app.analytics.kpi");
   const original = summary?.original_bytes ?? 0;
   const prevOriginal = summary?.prev_original_bytes ?? 0;
   const encrypted = summary?.encrypted_bytes ?? 0;
@@ -44,27 +51,27 @@ export function KpiHeroRow({ summary, showTrend }: KpiHeroRowProps) {
   const cards = [
     {
       key: "storage",
-      label: "Storage added",
+      label: t("storageAdded"),
       value: formatBytes(original),
       icon: HardDrive,
-      hint: `${fileCount.toLocaleString()} file${fileCount !== 1 ? "s" : ""}`,
-      trend: trendFor(original, prevOriginal, showTrend),
+      hint: t("fileCount", { count: fileCount }),
+      trend: trendFor(t, original, prevOriginal, showTrend),
     },
     {
       key: "files",
-      label: "Files uploaded",
+      label: t("filesUploaded"),
       value: fileCount.toLocaleString(),
       icon: Layers,
-      hint: summary?.chunk_count ? `${summary.chunk_count.toLocaleString()} chunks` : undefined,
-      trend: trendFor(fileCount, prevFileCount, showTrend),
+      hint: summary?.chunk_count ? t("chunkCount", { count: summary.chunk_count }) : undefined,
+      trend: trendFor(t, fileCount, prevFileCount, showTrend),
     },
     {
       key: "saved",
-      label: "Space saved",
+      label: t("spaceSaved"),
       value: formatBytes(spaceSaved),
       icon: TrendingDown,
-      hint: `${savingsPct}% compression`,
-      trend: trendFor(spaceSaved, prevSpaceSaved, showTrend),
+      hint: t("compression", { percent: savingsPct }),
+      trend: trendFor(t, spaceSaved, prevSpaceSaved, showTrend),
     },
   ];
 

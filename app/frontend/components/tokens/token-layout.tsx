@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "@/components/marketing/landing/base.css";
+import { tr } from "@/store/translate";
 
 // Under `output: export` (the Tauri desktop build) Next 16 requires at least
 // one concrete param per dynamic segment; an empty array is rejected with
@@ -24,12 +25,12 @@ export function tokenMetadata(title: string): Metadata {
 /** "Expires in" countdown for a share/pad/send link: "Xd Xh", "Xh Xm", "Xm", or "Expired". */
 export function formatShortExpiry(expiresAt: string): string {
   const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return "Expired";
+  if (diff <= 0) return tr("tokens.expired");
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  if (hours > 24) return tr("tokens.daysHours", { days: Math.floor(hours / 24), hours: hours % 24 });
+  if (hours > 0) return tr("tokens.hoursMinutes", { hours, minutes: mins });
+  return tr("tokens.minutes", { minutes: mins });
 }
 
 export function TokenViewerMain({ children }: { children: ReactNode }) {

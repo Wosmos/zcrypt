@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import { useDecodedBlob } from "@/hooks/useDecodedBlob";
 import { ViewerLoading, ViewerError } from "./viewer-states";
@@ -60,6 +61,7 @@ function parseDelimited(text: string, delimiter: string): string[][] {
  * Handles quoting/commas/newlines; caps very large files with a notice.
  */
 export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) {
+  const t = useTranslations("app.viewer");
   const truncatedBytes = blob.size > MAX_BYTES;
 
   const decode = useCallback(
@@ -69,7 +71,7 @@ export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) 
     },
     [truncatedBytes],
   );
-  const { value: text, error } = useDecodedBlob(blob, decode, "Could not read this file.");
+  const { value: text, error } = useDecodedBlob(blob, decode, t("readFailed"));
 
   const delimiter = filename.toLowerCase().endsWith(".tsv") ? "\t" : ",";
   const rows = useMemo(

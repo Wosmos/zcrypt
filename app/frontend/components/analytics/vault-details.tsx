@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { formatBytes, localDateKey } from "@/lib/utils";
 import type { AnalyticsSummary, AnalyticsFileTypeItem } from "@/lib/api";
 
@@ -43,6 +44,8 @@ interface VaultDetailsProps {
  * unbounded file fetch.
  */
 export function VaultDetails({ summary, items }: VaultDetailsProps) {
+  const t = useTranslations("app.analytics.details");
+  const locale = useLocale();
   const groups = useMemo<{ title: string; metrics: Metric[] }[]>(() => {
     if (!summary || summary.file_count === 0) return [];
 
@@ -64,7 +67,7 @@ export function VaultDetails({ summary, items }: VaultDetailsProps) {
         }
       }
       if (busiestKey) {
-        busiestLabel = new Date(`${busiestKey}T00:00:00`).toLocaleDateString("en-US", {
+        busiestLabel = new Date(`${busiestKey}T00:00:00`).toLocaleDateString(locale, {
           month: "short",
           day: "numeric",
           year: "numeric",
@@ -83,61 +86,61 @@ export function VaultDetails({ summary, items }: VaultDetailsProps) {
 
     return [
       {
-        title: "Files",
+        title: t("files"),
         metrics: [
-          { label: "Total files", value: summary.file_count.toLocaleString() },
-          { label: "Total chunks", value: summary.chunk_count.toLocaleString() },
-          { label: "Avg chunks / file", value: summary.avg_chunks_per_file.toFixed(1) },
-          { label: "Most common type", value: topExtension(items) },
+          { label: t("totalFiles"), value: summary.file_count.toLocaleString() },
+          { label: t("totalChunks"), value: summary.chunk_count.toLocaleString() },
+          { label: t("avgChunks"), value: summary.avg_chunks_per_file.toFixed(1) },
+          { label: t("commonType"), value: topExtension(items) },
         ],
       },
       {
-        title: "Sizes",
+        title: t("sizes"),
         metrics: [
           {
-            label: "Largest file",
+            label: t("largest"),
             value: summary.largest_file ? formatBytes(summary.largest_file.original_size) : "-",
           },
-          { label: "Smallest file", value: smallest != null ? formatBytes(smallest) : "-" },
+          { label: t("smallest"), value: smallest != null ? formatBytes(smallest) : "-" },
           {
-            label: "Average file",
+            label: t("average"),
             value: formatBytes(summary.original_bytes / summary.file_count),
           },
-          { label: "Median file", value: formatBytes(summary.median_size) },
+          { label: t("median"), value: formatBytes(summary.median_size) },
           {
-            label: "Compressed to",
+            label: t("compressedTo"),
             value: `${compressionRatio.toFixed(0)}%`,
             hint: formatBytes(summary.compressed_bytes),
           },
-          { label: "Stored (encrypted)", value: formatBytes(summary.encrypted_bytes) },
+          { label: t("stored"), value: formatBytes(summary.encrypted_bytes) },
         ],
       },
       {
-        title: "Timeline",
+        title: t("timeline"),
         metrics: [
           {
-            label: "First in range",
-            value: oldest ? oldest.toLocaleDateString("en-US", dateFmt) : "-",
+            label: t("firstInRange"),
+            value: oldest ? oldest.toLocaleDateString(locale, dateFmt) : "-",
           },
           {
-            label: "Most recent",
-            value: newest ? newest.toLocaleDateString("en-US", dateFmt) : "-",
+            label: t("mostRecent"),
+            value: newest ? newest.toLocaleDateString(locale, dateFmt) : "-",
           },
           {
-            label: "Range span",
-            value: `${spanDays.toLocaleString()} day${spanDays !== 1 ? "s" : ""}`,
+            label: t("span"),
+            value: t("days", { count: spanDays }),
           },
-          { label: "Avg / day", value: (summary.file_count / spanDays).toFixed(1) },
+          { label: t("avgPerDay"), value: (summary.file_count / spanDays).toFixed(1) },
           {
-            label: "Busiest day",
+            label: t("busiest"),
             value: busiestLabel,
             hint:
-              busiestCount > 0 ? `${busiestCount} file${busiestCount !== 1 ? "s" : ""}` : undefined,
+              busiestCount > 0 ? t("fileCount", { count: busiestCount }) : undefined,
           },
         ],
       },
     ];
-  }, [summary, items]);
+  }, [summary, items, t, locale]);
 
   if (groups.length === 0) return null;
 
@@ -145,7 +148,7 @@ export function VaultDetails({ summary, items }: VaultDetailsProps) {
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-          The details
+          {t("title")}
         </h3>
       </div>
       <div className="grid grid-cols-1 divide-y divide-[var(--color-border)] md:grid-cols-3 md:divide-x md:divide-y-0">

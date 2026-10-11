@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import { useDecodedBlob } from "@/hooks/useDecodedBlob";
 import { ViewerLoading, ViewerError } from "./viewer-states";
@@ -10,6 +11,7 @@ import { ViewerLoading, ViewerError } from "./viewer-states";
  * a div (never executed).
  */
 export function MarkdownViewer({ blob }: { blob: Blob }) {
+  const t = useTranslations("app.viewer");
   const decode = useCallback(async (b: Blob) => {
     const text = await b.text();
     const { marked } = await import("marked");
@@ -24,7 +26,7 @@ export function MarkdownViewer({ blob }: { blob: Blob }) {
   const { value: html, error } = useDecodedBlob(
     blob,
     decode,
-    "Could not render this Markdown file.",
+    t("markdownFailed"),
   );
 
   if (error) return <ViewerError message={error} />;

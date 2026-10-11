@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, X } from "@/lib/icons";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -33,6 +34,7 @@ export function VaultFirstTimeWarning({
   onConfirm,
   onCancel,
 }: VaultFirstTimeWarningProps) {
+  const t = useTranslations("app.firstTime");
   const [reentry, setReentry] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -88,15 +90,15 @@ export function VaultFirstTimeWarning({
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold">This passphrase is your only key</h3>
+            <h3 className="text-base font-semibold">{t("title")}</h3>
             <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-              Read this before you continue. It only happens once.
+              {t("subtitle")}
             </p>
           </div>
           <button
             type="button"
             onClick={handleCancel}
-            aria-label="Cancel"
+            aria-label={t("cancel")}
             className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1 -mt-1 flex-shrink-0"
           >
             <X className="h-4 w-4" />
@@ -106,12 +108,10 @@ export function VaultFirstTimeWarning({
         {/* The warning itself */}
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3.5">
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Only you can unlock this vault. Your passphrase never leaves this device and is never
-            sent to us, so if you lose it, your files are gone for good. No reset, no recovery, no
-            back door. That&apos;s the point.
+            {t("warning")}
           </p>
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)] mt-2">
-            Write it down somewhere safe, or store it in a password manager, now.
+            {t("writeDown")}
           </p>
         </div>
 
@@ -123,21 +123,21 @@ export function VaultFirstTimeWarning({
           }}
         >
           <label className="mt-5 block text-xs font-medium text-[var(--color-text-secondary)]">
-            Re-enter your passphrase to confirm
+            {t("reenter")}
           </label>
           <input
             ref={inputRef}
             type="password"
             value={reentry}
             onChange={(e) => setReentry(e.target.value)}
-            placeholder="Type it again"
+            placeholder={t("typeAgain")}
             autoComplete="off"
             aria-invalid={mismatch}
             className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all"
           />
           {mismatch && (
             <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-              That doesn&apos;t match what you entered. Check it and try again.
+              {t("mismatch")}
             </p>
           )}
 
@@ -148,8 +148,7 @@ export function VaultFirstTimeWarning({
               onCheckedChange={(checked) => setAcknowledged(checked === true)}
             />
             <span className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              I understand my passphrase can&apos;t be recovered, and no one (not even zcrypt) can
-              unlock my files without it.
+              {t("acknowledge")}
             </span>
           </label>
 
@@ -159,14 +158,14 @@ export function VaultFirstTimeWarning({
               onClick={handleCancel}
               className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               disabled={!canConfirm}
               className="flex-1 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              I understand, continue
+              {t("continue")}
             </button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useRef,
@@ -32,6 +33,7 @@ export function ImageViewer({
   /** Cached thumbnail shown blurred until the full image decodes (LQIP/blur-up). */
   placeholderUrl?: string;
 }) {
+  const t = useTranslations("app.viewer");
   const reduce = useReducedMotion() ?? false;
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -169,7 +171,7 @@ export function ImageViewer({
         <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-2 py-1.5 shadow-lg backdrop-blur">
           <IconButton
             icon={ChevronDown}
-            label="Zoom out"
+            label={t("zoomOut")}
             onClick={() => zoomBy(-SCALE_STEP)}
             disabled={scale <= MIN_SCALE}
             iconClassName="h-4 w-4"
@@ -179,7 +181,7 @@ export function ImageViewer({
           </span>
           <IconButton
             icon={Plus}
-            label="Zoom in"
+            label={t("zoomIn")}
             onClick={() => zoomBy(SCALE_STEP)}
             disabled={scale >= MAX_SCALE}
             iconClassName="h-4 w-4"
@@ -187,17 +189,17 @@ export function ImageViewer({
           <span className="mx-1 h-5 w-px bg-[var(--color-border)]" aria-hidden />
           <IconButton
             icon={RotateCcw}
-            label="Rotate"
+            label={t("rotate")}
             onClick={() => setRotation((r) => (r - 90) % 360)}
             iconClassName="h-4 w-4"
           />
           <IconButton
             icon={ImageIcon}
-            label="Fit to screen"
+            label={t("fitToScreen")}
             onClick={reset}
             iconClassName="h-4 w-4"
           />
-          <IconButton icon={RefreshCcw} label="Reset" onClick={reset} iconClassName="h-4 w-4" />
+          <IconButton icon={RefreshCcw} label={t("reset")} onClick={reset} iconClassName="h-4 w-4" />
         </div>
       </div>
     </div>

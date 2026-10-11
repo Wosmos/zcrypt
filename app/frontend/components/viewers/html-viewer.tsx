@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import { ShieldCheck } from "@/lib/icons";
 import { useDecodedBlob } from "@/hooks/useDecodedBlob";
@@ -13,6 +14,7 @@ import { ViewerLoading, ViewerError } from "./viewer-states";
  * "scripts disabled for safety" guarantee explicit to the user.
  */
 export function HtmlViewer({ blob }: { blob: Blob }) {
+  const t = useTranslations("app.viewer");
   const decode = useCallback(async (b: Blob) => {
     const raw = await b.text();
     const { default: DOMPurify } = await import("dompurify");
@@ -25,7 +27,7 @@ export function HtmlViewer({ blob }: { blob: Blob }) {
       FORBID_ATTR: ["srcdoc"],
     });
   }, []);
-  const { value: html, error } = useDecodedBlob(blob, decode, "Could not render this HTML file.");
+  const { value: html, error } = useDecodedBlob(blob, decode, t("htmlFailed"));
 
   if (error) return <ViewerError message={error} />;
   if (html === null) return <ViewerLoading />;
@@ -34,10 +36,10 @@ export function HtmlViewer({ blob }: { blob: Blob }) {
     <div className="flex h-full w-full flex-col gap-2">
       <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
         <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" />
-        Rendered in an isolated sandbox. Scripts are disabled for your safety.
+        {t("sandboxNote")}
       </div>
       <iframe
-        title="HTML preview"
+        title={t("htmlPreview")}
         srcDoc={html}
         sandbox=""
         className="min-h-0 w-full flex-1 rounded-xl border border-[var(--color-border)] bg-white"

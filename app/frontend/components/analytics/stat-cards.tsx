@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatBytes } from "@/lib/utils";
 import type { AnalyticsFileTypeItem } from "@/lib/api";
 import { FileText, Image, Video, Archive, File } from "@/lib/icons";
@@ -18,28 +19,28 @@ interface CategoryStat {
 
 const categories: CategoryStat[] = [
   {
-    label: "Documents",
+    label: "documents",
     icon: FileText,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
     extensions: ["pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ppt", "pptx"],
   },
   {
-    label: "Images",
+    label: "images",
     icon: Image,
     color: "text-amber-500",
     bg: "bg-amber-500/10",
     extensions: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"],
   },
   {
-    label: "Videos",
+    label: "videos",
     icon: Video,
     color: "text-violet-500",
     bg: "bg-violet-500/10",
     extensions: ["mp4", "mov", "avi", "mkv", "webm", "flv"],
   },
   {
-    label: "Others",
+    label: "other",
     icon: Archive,
     color: "text-teal-500",
     bg: "bg-teal-500/10",
@@ -52,6 +53,7 @@ const categories: CategoryStat[] = [
  *  /api/analytics/file-types). Mobile: horizontal snap-carousel, one peek of
  *  the next card; desktop: a clean 4-up grid. */
 export function StatCards({ items }: StatCardsProps) {
+  const t = useTranslations("app.analytics");
   const knownExts = new Set(categories.flatMap((c) => c.extensions));
 
   const stats = categories.map((cat) => {
@@ -88,18 +90,18 @@ export function StatCards({ items }: StatCardsProps) {
               </div>
               {stat.count > 0 && (
                 <span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-xs font-medium tabular-nums text-[var(--color-accent)]">
-                  {stat.savings}% saved
+                  {t("savedPercent", { percent: stat.savings })}
                 </span>
               )}
             </div>
             <p className="truncate text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-              {stat.label}
+              {t(`categories.${stat.label}`)}
             </p>
             <p className="mt-0.5 truncate text-xl font-semibold tabular-nums tracking-tight text-[var(--color-text)]">
               {formatBytes(stat.totalSize)}
             </p>
             <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-secondary)]">
-              {stat.count} file{stat.count !== 1 ? "s" : ""}
+              {t("kpi.fileCount", { count: stat.count })}
             </p>
           </li>
         );

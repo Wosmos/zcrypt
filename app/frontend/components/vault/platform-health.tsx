@@ -7,6 +7,7 @@ import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { platformName } from "@/lib/platforms";
 
 interface PlatformHealthProps {
@@ -22,6 +23,7 @@ const platformIcons: Record<string, React.ReactNode> = {
 };
 
 export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
+  const t = useTranslations("app.platformHealth");
   // Show every platform the user has connected, personal and shared/global alike.
   const personalStatuses = statuses.filter((s) => s.connected);
   if (personalStatuses.length === 0) return null;
@@ -37,12 +39,12 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Platforms</span>
+        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">{t("platforms")}</span>
         <Link
           href="/settings"
           className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
         >
-          Manage
+          {t("manage")}
         </Link>
       </div>
       <div className="space-y-3">
@@ -64,7 +66,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                   <span className="text-xs font-medium">{platformName(platform)}</span>
                   {accounts.length > 1 && (
                     <span className="text-[10px] text-[var(--color-text-muted)]">
-                      ({accounts.length} accounts)
+                      ({t("accounts", { count: accounts.length })})
                     </span>
                   )}
                   <span
@@ -98,9 +100,9 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
 
               {platformRepos.length > 0 && (
                 <div className="text-[10px] text-[var(--color-text-muted)]">
-                  {platformRepos.length} repo{platformRepos.length !== 1 ? "s" : ""}
+                  {t("repos", { count: platformRepos.length })}
                   {platformRepos.some((r) => !r.active) && (
-                    <span> ({platformRepos.filter((r) => r.active).length} active)</span>
+                    <span> ({t("activeRepos", { count: platformRepos.filter((r) => r.active).length })})</span>
                   )}
                 </div>
               )}

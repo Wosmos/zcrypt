@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, DragEvent } from "react";
+import { useTranslations } from "next-intl";
 import { FileUpload, Cloud, Loader2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
@@ -12,6 +13,7 @@ interface UploadZoneProps {
 }
 
 export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
+  const t = useTranslations("app.uploadZone");
   const [dragOver, setDragOver] = useState(false);
 
   // "Preparing" covers the window between opening the native picker and the
@@ -79,7 +81,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     // once and threading the real paths through `onFiles` (as DesktopFiles)
     // means exactly one dialog opens per click.
     if (isTauri) {
-      void pickFiles({ multiple: true, title: "Select files to upload" })
+      void pickFiles({ multiple: true, title: t("pickTitle") })
         .then((paths) => {
           if (paths.length > 0) onFiles(paths.map(toDesktopFile));
         })
@@ -88,7 +90,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     }
 
     inputRef.current?.click();
-  }, [onFiles, clearPreparing]);
+  }, [onFiles, clearPreparing, t]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +138,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     <div
       role="button"
       tabIndex={0}
-      aria-label="Upload files. Drop files here or click to browse"
+      aria-label={t("aria")}
       aria-busy={preparing}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -184,16 +186,10 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
             dragOver ? "text-[var(--color-accent)]" : "",
           )}
         >
-          {preparing
-            ? "Preparing your files…"
-            : dragOver
-              ? "Drop to upload"
-              : "Drop files here or click to browse"}
+          {preparing ? t("preparing") : dragOver ? t("dropToUpload") : t("dropOrBrowse")}
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
-          {preparing
-            ? "Large videos can take a minute. Keep this page open"
-            : hint || "Files are compressed, encrypted, and chunked before upload"}
+          {preparing ? t("preparingHint") : hint || t("defaultHint")}
         </p>
       </div>
     </div>

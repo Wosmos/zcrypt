@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { hljsLanguageFor } from "@/components/viewers/viewer-kind";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ const MAX_BYTES = 2 * 1024 * 1024; // cap highlighting/render of huge files
  * text (no external markup), injected into a <code> block. Caps huge files.
  */
 export function TextViewer({ blob, filename }: { blob: Blob; filename: string }) {
+  const t = useTranslations("app.viewer");
   const [wrap, setWrap] = useState(true);
   const truncated = blob.size > MAX_BYTES;
 
@@ -39,7 +41,7 @@ export function TextViewer({ blob, filename }: { blob: Blob; filename: string })
     },
     [filename, truncated],
   );
-  const { value, error } = useDecodedBlob(blob, decode, "Could not read this file.");
+  const { value, error } = useDecodedBlob(blob, decode, t("readFailed"));
   const text = value?.raw ?? null;
   const highlighted = value?.highlighted ?? null;
 

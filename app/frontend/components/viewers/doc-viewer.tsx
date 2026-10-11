@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import { Download } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { ViewerLoading, ViewerError } from "./viewer-states";
  * markup into a div, not an iframe: mammoth output is structural, no scripts).
  */
 export function DocViewer({ blob, onDownload }: { blob: Blob; onDownload: () => void }) {
+  const t = useTranslations("app.viewer");
   const decode = useCallback(async (b: Blob) => {
     const arrayBuffer = await b.arrayBuffer();
     const mammoth = await import("mammoth");
@@ -23,14 +25,14 @@ export function DocViewer({ blob, onDownload }: { blob: Blob; onDownload: () => 
       FORBID_ATTR: ["style", "srcdoc"],
     });
   }, []);
-  const { value: html, error } = useDecodedBlob(blob, decode, "Could not render this document.");
+  const { value: html, error } = useDecodedBlob(blob, decode, t("docFailed"));
 
   if (error) {
     return (
       <ViewerError message={error} gap="gap-3">
         <Button variant="secondary" size="sm" onClick={onDownload}>
           <Download className="h-3.5 w-3.5" />
-          Download
+          {t("download")}
         </Button>
       </ViewerError>
     );

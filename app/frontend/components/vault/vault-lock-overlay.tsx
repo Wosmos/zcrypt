@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Lock } from "@/lib/icons";
 
 /**
@@ -22,6 +23,7 @@ import { Lock } from "@/lib/icons";
  * click opens on top of it.
  */
 export function VaultLockOverlay({ onUnlock }: { onUnlock: () => void }) {
+  const t = useTranslations("app.lockOverlay");
   // Freeze the vault panel's scroll while the mask is up: the mask is
   // `absolute inset-0` inside <main> (a scroll container), so without this it
   // would only span the first screenful and scroll with the content. Pinning
@@ -42,7 +44,7 @@ export function VaultLockOverlay({ onUnlock }: { onUnlock: () => void }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Vault locked"
+      aria-label={t("title")}
       onClick={onUnlock}
       className="absolute inset-0 z-40 flex items-center justify-center bg-[var(--color-bg)]/70 px-6 backdrop-blur-lg animate-fade-in"
     >
@@ -54,10 +56,9 @@ export function VaultLockOverlay({ onUnlock }: { onUnlock: () => void }) {
           <Lock className="h-8 w-8" />
         </div>
         <div className="space-y-1.5">
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">Vault locked</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text)]">{t("title")}</h2>
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Your files, folder names, and previews are encrypted on this device. Enter your
-            passphrase to unlock and view them.
+            {t("description")}
           </p>
         </div>
         <button
@@ -66,7 +67,7 @@ export function VaultLockOverlay({ onUnlock }: { onUnlock: () => void }) {
           className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
         >
           <Lock className="h-4 w-4" />
-          Unlock vault
+          {t("unlock")}
         </button>
       </div>
     </div>

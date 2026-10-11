@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import {
   AreaChart,
   Area,
@@ -28,8 +29,10 @@ export function StorageGrowth({
   points: AnalyticsGrowthPoint[];
   isLoading?: boolean;
 }) {
+  const t = useTranslations("app.analytics.growth");
+  const locale = useLocale();
   const data = points.map((p) => ({
-    date: new Date(`${p.bucket}T00:00:00`).toLocaleDateString("en-US", {
+    date: new Date(`${p.bucket}T00:00:00`).toLocaleDateString(locale, {
       month: "short",
       day: "numeric",
     }),
@@ -42,17 +45,17 @@ export function StorageGrowth({
       <div className="flex items-start justify-between border-b border-[var(--color-border)] px-5 py-4">
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Storage growth
+            {t("title")}
           </h3>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            Cumulative vault size, all time &middot; {formatBytes(peak)} total
+            {t("subtitle", { total: formatBytes(peak) })}
           </p>
         </div>
       </div>
       <div className="p-5 pt-4">
         {isLoading || data.length === 0 ? (
           <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
-            {isLoading ? "Loading…" : "No uploads yet"}
+            {isLoading ? t("loading") : t("none")}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
@@ -82,7 +85,7 @@ export function StorageGrowth({
                 cursor={CHART_TOOLTIP_CURSOR}
                 contentStyle={CHART_TOOLTIP_STYLE}
                 labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                formatter={(value) => [formatBytes(Number(value)), "Vault size"]}
+                formatter={(value) => [formatBytes(Number(value)), t("vaultSize")]}
               />
               <Area
                 type="monotone"
