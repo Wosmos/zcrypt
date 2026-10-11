@@ -1,0 +1,35 @@
+# zcrypt backend on any Linux server (Oracle Always Free A1, a VPS, a spare box).
+# The backend holds no data (Neon + the storage platforms do), so this box is
+# disposable: rebuild it from this file and the same .env at any time.
+#
+# cloudflared publishes the backend through a Cloudflare Tunnel, so no inbound
+# port, firewall rule or TLS certificate is needed on the server.
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: zcrypt-backend:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8080"
+      # The tunnel adds exactly one proxy hop in front of the backend.
+      ZCRYPT_TRUSTED_PROXY_COUNT: "1"
+      GOMEMLIMIT: "1536MiB"
+    expose:
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in deploy/server/.env}
+    depends_on:
+      - backend
