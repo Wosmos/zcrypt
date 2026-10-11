@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { tr } from "@/store/translate";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
 import {
@@ -279,7 +280,7 @@ function runSingleDownload(id: string): Promise<void> {
       updateProgress(id, "done", 100, "Done");
       sessions.delete(id);
       pausedIds.delete(id);
-      toast.success(`${session.filename} downloaded`);
+      toast.success(tr("toasts.downloaded", { name: session.filename }));
       notifications.downloadComplete(session.filename);
       if (
         typeof window !== "undefined" &&
@@ -287,7 +288,7 @@ function runSingleDownload(id: string): Promise<void> {
         Notification.permission === "granted" &&
         document.hidden
       ) {
-        const n = new Notification("Download complete", {
+        const n = new Notification(tr("notifications.downloadComplete"), {
           body: session.filename,
           icon: "/favicon.ico",
           tag: "download-done",
@@ -313,14 +314,14 @@ function runSingleDownload(id: string): Promise<void> {
         return;
       }
       if (!isCurrentRun()) return;
-      const msg = err instanceof Error ? err.message : "Download failed";
+      const msg = err instanceof Error ? err.message : tr("toasts.downloadFailed");
       // Keep the session so Retry continues from what's already decrypted.
       const recovered = recoverWrongFolderPassword(session.fileId, msg);
       setStatusNow(id, { status: "failed", error: msg, stage: "Failed" });
       if (recovered) {
-        toast.error(`Wrong folder password for ${session.filename}. Retry to re-enter it.`);
+        toast.error(tr("toasts.wrongFolderPassword", { name: session.filename }));
       } else {
-        toast.error(`Download failed: ${msg}`);
+        toast.error(tr("toasts.downloadFailedMsg", { msg }));
       }
       notifications.downloadFailed(session.filename, msg);
     }
@@ -384,9 +385,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           stage: "Failed",
         });
         toast.error(
-          `${filename} is too large to download in this browser. Use Chrome or Edge, or the zcrypt desktop app.`,
+          tr("toasts.tooLargeDownload", { name: filename }),
           {
-            label: "Get the app",
+            label: tr("toasts.getApp"),
             onClick: () => window.open("/download", "_blank", "noopener,noreferrer"),
           },
         );
@@ -489,13 +490,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           stage: "Failed",
         });
         if (isNetwork) {
-          toast.error(
-            `Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.`,
-          );
+          toast.error(tr("toasts.unreachable"));
         } else if (recovered) {
-          toast.error(`Wrong folder password for ${filename}. Retry to re-enter it.`);
+          toast.error(tr("toasts.wrongFolderPassword", { name: filename }));
         } else {
-          toast.error(`Download failed: ${msg}`);
+          toast.error(tr("toasts.downloadFailedMsg", { msg }));
         }
         notifications.downloadFailed(filename, isNetwork ? "Network/DNS: try a VPN" : msg);
       } finally {
@@ -542,7 +541,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
             error: "Choose where to save the ZIP",
             stage: "Failed",
           });
-          toast.error("This ZIP must be saved straight to disk. Retry to choose where to save.");
+          toast.error(tr("toasts.zipToDisk"));
           return;
         }
         zipSessions.delete(id);
@@ -551,9 +550,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           error: "Too large to ZIP in this browser",
           stage: "Failed",
         });
-        toast.error(
-          "These files are too large to ZIP in this browser. Download them individually, or use Chrome, Edge or the desktop app.",
-        );
+        toast.error(tr("toasts.zipTooLarge"));
         return;
       }
 
@@ -570,7 +567,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         zipSessions.delete(id);
         notifications.downloadComplete(`${report.added} files (ZIP)`);
         if (report.failed.length === 0) {
-          toast.success(`ZIP with ${files.length} files downloaded`);
+          toast.success(tr("toasts.zipDone", { count: files.length }));
           return;
         }
         for (const f of report.failed) {
@@ -578,7 +575,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         }
         const names = report.failed.map((f) => f.filename).join(", ");
         toast.warning(
-          `ZIP saved without ${report.failed.length} of ${files.length} files (${names}). Download those individually.`,
+          tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
         );
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -586,7 +583,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           updateProgress(id, "cancelled", undefined, "Cancelled");
           return;
         }
-        const msg = err instanceof Error ? err.message : "ZIP download failed";
+        const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
         let recovered = false;
         if (looksLikeWrongKey(msg)) {
           for (const f of files) {
@@ -595,9 +592,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         }
         setStatusNow(id, { status: "failed", error: msg, stage: "Failed" });
         if (recovered) {
-          toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
+          toast.error(tr("toasts.zipWrongPassword"));
         } else {
-          toast.error(`ZIP download failed: ${msg}`);
+          toast.error(tr("toasts.zipFailedMsg", { msg }));
         }
       }
     })();
@@ -675,10 +672,10 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
-        toast.success(`ZIP with ${files.length} files downloaded`);
+        toast.success(tr("toasts.zipDone", { count: files.length }));
         notifications.downloadComplete(`${files.length} files (ZIP)`);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "ZIP download failed";
+        const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
         const isNetwork =
           /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
             msg,
@@ -695,13 +692,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           stage: "Failed",
         });
         if (isNetwork) {
-          toast.error(
-            "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.",
-          );
+          toast.error(tr("toasts.unreachable"));
         } else if (recovered) {
-          toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
+          toast.error(tr("toasts.zipWrongPassword"));
         } else {
-          toast.error(`ZIP download failed: ${msg}`);
+          toast.error(tr("toasts.zipFailedMsg", { msg }));
         }
       } finally {
         unlisten();

@@ -78,7 +78,7 @@
     "exportImport": {
       "exported": "{count, plural, one {Se exportó # registro de archivo} other {Se exportaron # registros de archivos}}",
       "invalidFile": "Archivo de exportación de la bóveda no válido",
-      "found": "{count, plural, one {Se encontró # registro de archivo del {date}. La importación en el servidor llegará pronto.} other {Se encontraron # registros de archivos del {date}. La importación en el servidor llegará pronto.}}",
+      "found": "Se {count, plural, one {encontró # registro de archivo} other {encontraron # registros de archivos}} del {date}. La importación en el servidor llegará pronto.",
       "unknownDate": "fecha desconocida",
       "parseFailed": "No se pudo leer el archivo de exportación",
       "title": "Copia de seguridad de la bóveda",
@@ -165,7 +165,9 @@
         "tooLargeDownload": "Demasiado grande para descargarlo en este navegador",
         "tooLargeZip": "Demasiado grande para crear el ZIP en este navegador",
         "chooseZipSave": "Elige dónde guardar el ZIP",
-        "unreachable": "No se puede acceder a los servidores de zcrypt (red/DNS)"
+        "unreachable": "No se puede acceder a los servidores de zcrypt (red/DNS)",
+        "startingZip": "Iniciando el ZIP...",
+        "noPlatform": "No hay ninguna plataforma de almacenamiento conectada. Ve a Ajustes para conectar una."
       }
     },
     "tokens": {
@@ -637,7 +639,7 @@
     },
     "folderShare": {
       "nestingIncomplete": "Enlace creado, pero no se pudo leer la estructura de la carpeta: la descarga será plana. Vuelve a crear el enlace para incluir la estructura.",
-      "createdSkipped": "{shared, plural, one {Enlace de carpeta creado: # archivo compartido, {skipped} omitidos} other {Enlace de carpeta creado: # archivos compartidos, {skipped} omitidos}}",
+      "createdSkipped": "Enlace de carpeta creado: {shared, plural, one {# archivo compartido} other {# archivos compartidos}}, {skipped} omitidos",
       "created": "{shared, plural, one {Enlace de carpeta creado: # archivo} other {Enlace de carpeta creado: # archivos}}",
       "createFailed": "No se pudo crear el enlace de la carpeta",
       "copyFailed": "No se pudo copiar",
@@ -670,7 +672,7 @@
       "copyLabel": "Copiar {label}",
       "passwordProtected": "Protegido con contraseña",
       "fileCount": "{count, plural, one {# archivo} other {# archivos}}",
-      "downloadsCount": "{count, plural, one {{counter} descarga} other {{counter} descargas}}",
+      "downloadsCount": "{count, plural, one {# descarga} other {# descargas}}",
       "expiresOn": "caduca {date}",
       "revokeLink": "Revocar enlace",
       "folderRevoked": "Enlace de carpeta revocado",
@@ -727,7 +729,8 @@
       "noShareLinks": "No hay enlaces para compartir activos",
       "noShareLinksHint": "Crea un enlace para compartir este archivo sin compartir tu frase de contraseña.",
       "revokeTitle": "¿Revocar el enlace para compartir?",
-      "revokeBody": "Cualquiera que tenga este enlace perderá de inmediato el acceso al archivo. Esta acción no se puede deshacer."
+      "revokeBody": "Cualquiera que tenga este enlace perderá de inmediato el acceso al archivo. Esta acción no se puede deshacer.",
+      "downloadsOfMax": "{count}/{max} descargas"
     },
     "explorerItem": {
       "open": "Abrir",
@@ -762,6 +765,102 @@
       "retryFailed": "No se pudo reintentar la copia de seguridad",
       "notBackedUpHint": "Este archivo aún no ha llegado a tu almacenamiento. Toca para reintentar.",
       "notBackedUp": "Sin copia de seguridad"
+    },
+    "vaultExplorer": {
+      "duplicateFolder": "Ya existe aquí una carpeta llamada «{name}».",
+      "unlockHint": "Desbloquea tu bóveda para leer los nombres de carpeta cifrados, ver vistas previas y descargar.",
+      "selected": "{count} seleccionados",
+      "selectAll": "Seleccionar todo",
+      "download": "Descargar",
+      "move": "Mover",
+      "share": "Compartir",
+      "delete": "Eliminar",
+      "done": "Listo",
+      "shortcutsTitle": "Atajos de teclado",
+      "shortcutsIntro": "Enfoca un archivo o carpeta de la lista y luego:",
+      "shortcuts": {
+        "move": "Moverse entre elementos",
+        "extend": "Ampliar la selección",
+        "select": "Seleccionar un archivo o abrir una carpeta",
+        "open": "Abrir",
+        "selectAll": "Seleccionar todos los archivos",
+        "trash": "Mover a la papelera",
+        "rename": "Renombrar",
+        "clear": "Borrar la selección",
+        "show": "Mostrar estos atajos"
+      }
+    },
+    "hooks": {
+      "connectionRestored": "Conexión con el servidor restablecida",
+      "lostConnection": "Se perdió la conexión con el servidor. Reintentando...",
+      "reconnecting": "Reconectando con el servidor…",
+      "unlockCreateFolders": "Desbloquea tu bóveda para crear carpetas",
+      "unlockRenameFolders": "Desbloquea tu bóveda para renombrar carpetas",
+      "unlockCustomizeFolders": "Desbloquea tu bóveda para personalizar carpetas",
+      "notProtected": "Esta carpeta no está protegida con contraseña.",
+      "wrongFolderPassword": "Contraseña de la carpeta incorrecta. Inténtalo de nuevo.",
+      "vaultLocked": "La bóveda está bloqueada",
+      "decryptFailed": "Error al descifrar, ¿frase de contraseña incorrecta?",
+      "sharingKeyMismatch": "Tu clave para compartir en el servidor no coincide con este dispositivo. Compartir está en pausa por tu seguridad; contacta con soporte.",
+      "preparingFiles": "{count, plural, one {Preparando # archivo para subir…} other {Preparando # archivos para subir…}}",
+      "noPlatform": "No hay ninguna plataforma de almacenamiento conectada. Ve a Ajustes para conectar una.",
+      "dupesMore": "{names} +{more} más",
+      "skippedDupes": "{count, plural, one {Se omitió # duplicado} other {Se omitieron # duplicados}}: {names}",
+      "zipTooLarge": "Los archivos seleccionados suman {size}, demasiado para un ZIP. Descárgalos de uno en uno.",
+      "wrongPassphrase": "Frase de contraseña incorrecta. Inténtalo de nuevo.",
+      "fileNotFound": "Archivo no encontrado",
+      "movedRoot": "«{name}» movido a la raíz",
+      "moved": "«{name}» movido",
+      "undo": "Deshacer",
+      "moveCancelled": "Movimiento cancelado",
+      "moveFailed": "No se pudo mover el archivo",
+      "fileDeleted": "Archivo eliminado",
+      "undoFailed": "No se pudo deshacer la eliminación",
+      "deleteFailed": "Error al eliminar",
+      "bulkPartial": "{deleted} eliminados, {failed} fallidos",
+      "bulkDeleted": "{count, plural, one {Se eliminó # archivo} other {Se eliminaron # archivos}}",
+      "bulkDeleteFailed": "Error en la eliminación masiva"
+    },
+    "notifications": {
+      "uploadComplete": "Subida completada",
+      "uploadFailed": "Error al subir",
+      "downloadComplete": "Descarga completada",
+      "downloadFailed": "Error al descargar",
+      "serverError": "Error del servidor",
+      "connectionRestored": "Conexión restablecida",
+      "reconnectedBody": "Se restableció la conexión con el servidor",
+      "warning": "Advertencia"
+    },
+    "files": {
+      "unlockCustomize": "Desbloquea tu bóveda para personalizar archivos",
+      "unlockRename": "Desbloquea tu bóveda para renombrar archivos",
+      "emptyName": "El nombre no puede estar vacío",
+      "addFailed": "No se pudieron añadir los archivos"
+    },
+    "toasts": {
+      "restartUpload": "No se pudo continuar la subida anterior de «{name}», se reinicia en {platform}.",
+      "andMore": "y {count} más",
+      "tooBig": "{names} {count, plural, one {supera el límite de} other {superan el límite de}} {limit} por archivo.",
+      "uploaded": "{name} subido",
+      "failedName": "{name} falló",
+      "allUploaded": "{count, plural, one {El archivo se subió} other {Se subieron los # archivos}}",
+      "allFailed": "{count, plural, one {No se pudo subir el archivo} other {No se pudieron subir los # archivos}}",
+      "partialUpload": "{done} subidos, {failed} fallidos",
+      "uploadFailed": "Error al subir",
+      "downloaded": "{name} descargado",
+      "downloadFailed": "Error al descargar",
+      "wrongFolderPassword": "Contraseña de carpeta incorrecta para {name}. Reintenta para volver a introducirla.",
+      "downloadFailedMsg": "Error al descargar: {msg}",
+      "tooLargeDownload": "{name} es demasiado grande para descargarlo en este navegador. Usa Chrome o Edge, o la aplicación de escritorio de zcrypt.",
+      "getApp": "Obtener la app",
+      "unreachable": "No se puede acceder a los servidores de zcrypt. Revisa tu conexión a internet y, si estás en una red restringida o filtrada, conéctate a una VPN y reintenta.",
+      "zipToDisk": "Este ZIP debe guardarse directamente en el disco. Reintenta para elegir dónde guardarlo.",
+      "zipTooLarge": "Estos archivos son demasiado grandes para crear un ZIP en este navegador. Descárgalos individualmente o usa Chrome, Edge o la aplicación de escritorio.",
+      "zipDone": "{count, plural, one {ZIP con # archivo descargado} other {ZIP con # archivos descargado}}",
+      "zipPartial": "ZIP guardado sin {failed} de {total} archivos ({names}). Descárgalos individualmente.",
+      "zipFailed": "Error al descargar el ZIP",
+      "zipFailedMsg": "Error al descargar el ZIP: {msg}",
+      "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla."
     }
   }
 }

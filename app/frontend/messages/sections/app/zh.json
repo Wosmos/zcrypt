@@ -165,7 +165,9 @@
         "tooLargeDownload": "文件过大，无法在此浏览器中下载",
         "tooLargeZip": "内容过大，无法在此浏览器中打包为 ZIP",
         "chooseZipSave": "选择 ZIP 的保存位置",
-        "unreachable": "无法连接到 zcrypt 的服务器（网络/DNS）"
+        "unreachable": "无法连接到 zcrypt 的服务器（网络/DNS）",
+        "startingZip": "正在开始 ZIP...",
+        "noPlatform": "未连接存储平台。请前往设置进行连接。"
       }
     },
     "tokens": {
@@ -670,7 +672,7 @@
       "copyLabel": "复制 {label}",
       "passwordProtected": "受密码保护",
       "fileCount": "{count} 个文件",
-      "downloadsCount": "{count, plural, other {{counter} 次下载}}",
+      "downloadsCount": "{count} 次下载",
       "expiresOn": "{date} 到期",
       "revokeLink": "撤销链接",
       "folderRevoked": "文件夹链接已撤销",
@@ -727,7 +729,8 @@
       "noShareLinks": "没有有效的分享链接",
       "noShareLinksHint": "创建链接即可分享此文件，而无需分享你的口令。",
       "revokeTitle": "撤销分享链接？",
-      "revokeBody": "任何持有此链接的人将立即失去对该文件的访问权限。此操作无法撤销。"
+      "revokeBody": "任何持有此链接的人将立即失去对该文件的访问权限。此操作无法撤销。",
+      "downloadsOfMax": "{count}/{max} 次下载"
     },
     "explorerItem": {
       "open": "打开",
@@ -762,6 +765,102 @@
       "retryFailed": "无法重试备份",
       "notBackedUpHint": "此文件尚未到达你的存储。点击重试。",
       "notBackedUp": "未备份"
+    },
+    "vaultExplorer": {
+      "duplicateFolder": "此处已存在名为“{name}”的文件夹。",
+      "unlockHint": "解锁保险库以读取加密的文件夹名称、预览和下载。",
+      "selected": "已选择 {count} 项",
+      "selectAll": "全选",
+      "download": "下载",
+      "move": "移动",
+      "share": "分享",
+      "delete": "删除",
+      "done": "完成",
+      "shortcutsTitle": "键盘快捷键",
+      "shortcutsIntro": "在列表中聚焦一个文件或文件夹，然后：",
+      "shortcuts": {
+        "move": "在项目之间移动",
+        "extend": "扩展选择范围",
+        "select": "选择文件或打开文件夹",
+        "open": "打开",
+        "selectAll": "选择所有文件",
+        "trash": "移到回收站",
+        "rename": "重命名",
+        "clear": "清除选择",
+        "show": "显示这些快捷键"
+      }
+    },
+    "hooks": {
+      "connectionRestored": "与服务器的连接已恢复",
+      "lostConnection": "与服务器的连接已断开。正在重试...",
+      "reconnecting": "正在重新连接服务器…",
+      "unlockCreateFolders": "解锁保险库以创建文件夹",
+      "unlockRenameFolders": "解锁保险库以重命名文件夹",
+      "unlockCustomizeFolders": "解锁保险库以自定义文件夹",
+      "notProtected": "此文件夹未设置密码保护。",
+      "wrongFolderPassword": "文件夹密码不正确。请重试。",
+      "vaultLocked": "保险库已锁定",
+      "decryptFailed": "解密失败，口令是否有误？",
+      "sharingKeyMismatch": "服务器上的分享密钥与此设备不匹配。为了你的安全，分享已暂停；请联系支持团队。",
+      "preparingFiles": "正在准备上传 {count} 个文件…",
+      "noPlatform": "未连接存储平台。请前往设置进行连接。",
+      "dupesMore": "{names} 等另外 {more} 个",
+      "skippedDupes": "已跳过 {count} 个重复文件：{names}",
+      "zipTooLarge": "所选文件总计 {size}，对 ZIP 来说太大。请改为逐个下载。",
+      "wrongPassphrase": "口令不正确。请重试。",
+      "fileNotFound": "未找到文件",
+      "movedRoot": "已将“{name}”移到根目录",
+      "moved": "已移动“{name}”",
+      "undo": "撤销",
+      "moveCancelled": "已取消移动",
+      "moveFailed": "无法移动文件",
+      "fileDeleted": "文件已删除",
+      "undoFailed": "无法撤销删除",
+      "deleteFailed": "删除失败",
+      "bulkPartial": "已删除 {deleted} 个，{failed} 个失败",
+      "bulkDeleted": "已删除 {count} 个文件",
+      "bulkDeleteFailed": "批量删除失败"
+    },
+    "notifications": {
+      "uploadComplete": "上传完成",
+      "uploadFailed": "上传失败",
+      "downloadComplete": "下载完成",
+      "downloadFailed": "下载失败",
+      "serverError": "服务器错误",
+      "connectionRestored": "连接已恢复",
+      "reconnectedBody": "已重新连接到服务器",
+      "warning": "警告"
+    },
+    "files": {
+      "unlockCustomize": "解锁保险库以自定义文件",
+      "unlockRename": "解锁保险库以重命名文件",
+      "emptyName": "名称不能为空",
+      "addFailed": "无法添加文件"
+    },
+    "toasts": {
+      "restartUpload": "无法继续之前对“{name}”的上传，将在 {platform} 上重新开始。",
+      "andMore": "等另外 {count} 个",
+      "tooBig": "{names} 超过了单个文件 {limit} 的上限（{count} 个）。",
+      "uploaded": "{name} 已上传",
+      "failedName": "{name} 失败",
+      "allUploaded": "全部 {count} 个文件已上传",
+      "allFailed": "全部 {count} 个文件上传失败",
+      "partialUpload": "已上传 {done} 个，{failed} 个失败",
+      "uploadFailed": "上传失败",
+      "downloaded": "{name} 已下载",
+      "downloadFailed": "下载失败",
+      "wrongFolderPassword": "{name} 的文件夹密码错误。请重试并重新输入。",
+      "downloadFailedMsg": "下载失败：{msg}",
+      "tooLargeDownload": "{name} 太大，无法在此浏览器中下载。请使用 Chrome 或 Edge，或 zcrypt 桌面应用。",
+      "getApp": "获取应用",
+      "unreachable": "无法连接到 zcrypt 的服务器。请检查网络；如果你处于受限或被过滤的网络，请连接 VPN 后重试。",
+      "zipToDisk": "此 ZIP 必须直接保存到磁盘。请重试并选择保存位置。",
+      "zipTooLarge": "这些文件太大，无法在此浏览器中打包为 ZIP。请逐个下载，或使用 Chrome、Edge 或桌面应用。",
+      "zipDone": "已下载包含 {count} 个文件的 ZIP",
+      "zipPartial": "ZIP 已保存，但缺少 {total} 个文件中的 {failed} 个（{names}）。请单独下载这些文件。",
+      "zipFailed": "ZIP 下载失败",
+      "zipFailedMsg": "ZIP 下载失败：{msg}",
+      "zipWrongPassword": "此 ZIP 中的文件夹密码错误。请重试并重新输入。"
     }
   }
 }

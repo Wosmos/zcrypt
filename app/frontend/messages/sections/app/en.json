@@ -78,7 +78,7 @@
     "exportImport": {
       "exported": "{count, plural, one {Exported # file record} other {Exported # file records}}",
       "invalidFile": "Invalid vault export file",
-      "found": "{count, plural, one {Found # file record from {date}. Backend import coming soon.} other {Found # file records from {date}. Backend import coming soon.}}",
+      "found": "Found {count, plural, one {# file record} other {# file records}} from {date}. Backend import coming soon.",
       "unknownDate": "unknown date",
       "parseFailed": "Failed to parse export file",
       "title": "Vault Backup",
@@ -165,7 +165,9 @@
         "tooLargeDownload": "Too large to download in this browser",
         "tooLargeZip": "Too large to ZIP in this browser",
         "chooseZipSave": "Choose where to save the ZIP",
-        "unreachable": "Can't reach zcrypt's servers (network/DNS)"
+        "unreachable": "Can't reach zcrypt's servers (network/DNS)",
+        "startingZip": "Starting ZIP...",
+        "noPlatform": "No storage platform connected. Go to Settings to connect one."
       }
     },
     "tokens": {
@@ -637,7 +639,7 @@
     },
     "folderShare": {
       "nestingIncomplete": "Link created, but the folder layout couldn't be read: its download will be flat. Recreate the link to include the folder structure.",
-      "createdSkipped": "{shared, plural, one {Folder link created: # file shared, {skipped} skipped} other {Folder link created: # files shared, {skipped} skipped}}",
+      "createdSkipped": "Folder link created: {shared, plural, one {# file} other {# files}} shared, {skipped} skipped",
       "created": "{shared, plural, one {Folder link created: # file} other {Folder link created: # files}}",
       "createFailed": "Failed to create folder link",
       "copyFailed": "Failed to copy",
@@ -670,7 +672,7 @@
       "copyLabel": "Copy {label}",
       "passwordProtected": "Password protected",
       "fileCount": "{count, plural, one {# file} other {# files}}",
-      "downloadsCount": "{count, plural, one {{counter} download} other {{counter} downloads}}",
+      "downloadsCount": "{count, plural, one {# download} other {# downloads}}",
       "expiresOn": "expires {date}",
       "revokeLink": "Revoke link",
       "folderRevoked": "Folder link revoked",
@@ -727,7 +729,8 @@
       "noShareLinks": "No active share links",
       "noShareLinksHint": "Create a link to share this file without sharing your passphrase.",
       "revokeTitle": "Revoke share link?",
-      "revokeBody": "Anyone holding this link will immediately lose access to the file. This cannot be undone."
+      "revokeBody": "Anyone holding this link will immediately lose access to the file. This cannot be undone.",
+      "downloadsOfMax": "{count}/{max} downloads"
     },
     "explorerItem": {
       "open": "Open",
@@ -762,6 +765,102 @@
       "retryFailed": "Could not retry the backup",
       "notBackedUpHint": "This file hasn't reached your storage yet. Tap to retry.",
       "notBackedUp": "Not backed up"
+    },
+    "vaultExplorer": {
+      "duplicateFolder": "A folder named \"{name}\" already exists here.",
+      "unlockHint": "Unlock your vault to read encrypted folder names, preview, and download.",
+      "selected": "{count} selected",
+      "selectAll": "Select all",
+      "download": "Download",
+      "move": "Move",
+      "share": "Share",
+      "delete": "Delete",
+      "done": "Done",
+      "shortcutsTitle": "Keyboard shortcuts",
+      "shortcutsIntro": "Focus a file or folder in the list, then:",
+      "shortcuts": {
+        "move": "Move between items",
+        "extend": "Extend the selection",
+        "select": "Select a file, or open a folder",
+        "open": "Open",
+        "selectAll": "Select all files",
+        "trash": "Move to Trash",
+        "rename": "Rename",
+        "clear": "Clear the selection",
+        "show": "Show these shortcuts"
+      }
+    },
+    "hooks": {
+      "connectionRestored": "Server connection restored",
+      "lostConnection": "Lost connection to server. Retrying...",
+      "reconnecting": "Reconnecting to server…",
+      "unlockCreateFolders": "Unlock your vault to create folders",
+      "unlockRenameFolders": "Unlock your vault to rename folders",
+      "unlockCustomizeFolders": "Unlock your vault to customize folders",
+      "notProtected": "This folder is not password-protected.",
+      "wrongFolderPassword": "Incorrect folder password. Please try again.",
+      "vaultLocked": "Vault is locked",
+      "decryptFailed": "Decryption failed, wrong passphrase?",
+      "sharingKeyMismatch": "Your sharing key on the server doesn't match this device. Sharing is paused for your safety; contact support.",
+      "preparingFiles": "{count, plural, one {Preparing # file for upload…} other {Preparing # files for upload…}}",
+      "noPlatform": "No storage platform connected. Go to Settings to connect one.",
+      "dupesMore": "{names} +{more} more",
+      "skippedDupes": "Skipped {count, plural, one {# duplicate} other {# duplicates}}: {names}",
+      "zipTooLarge": "Selected files total {size}, too large for ZIP. Download individually instead.",
+      "wrongPassphrase": "Incorrect passphrase. Please try again.",
+      "fileNotFound": "File not found",
+      "movedRoot": "Moved \"{name}\" to Root",
+      "moved": "Moved \"{name}\"",
+      "undo": "Undo",
+      "moveCancelled": "Move cancelled",
+      "moveFailed": "Failed to move file",
+      "fileDeleted": "File deleted",
+      "undoFailed": "Failed to undo delete",
+      "deleteFailed": "Delete failed",
+      "bulkPartial": "{deleted} deleted, {failed} failed",
+      "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
+      "bulkDeleteFailed": "Bulk delete failed"
+    },
+    "notifications": {
+      "uploadComplete": "Upload complete",
+      "uploadFailed": "Upload failed",
+      "downloadComplete": "Download complete",
+      "downloadFailed": "Download failed",
+      "serverError": "Server error",
+      "connectionRestored": "Connection restored",
+      "reconnectedBody": "Server connection re-established",
+      "warning": "Warning"
+    },
+    "files": {
+      "unlockCustomize": "Unlock your vault to customize files",
+      "unlockRename": "Unlock your vault to rename files",
+      "emptyName": "Name cannot be empty",
+      "addFailed": "Failed to add files"
+    },
+    "toasts": {
+      "restartUpload": "Couldn't continue the previous upload of \"{name}\", restarting on {platform}.",
+      "andMore": "and {count} more",
+      "tooBig": "{names} {count, plural, one {exceeds the} other {exceed the}} {limit} per-file limit.",
+      "uploaded": "{name} uploaded",
+      "failedName": "{name} failed",
+      "allUploaded": "{count, plural, one {The file was uploaded} other {All # files uploaded}}",
+      "allFailed": "{count, plural, one {The file failed to upload} other {All # files failed to upload}}",
+      "partialUpload": "{done} uploaded, {failed} failed",
+      "uploadFailed": "Upload failed",
+      "downloaded": "{name} downloaded",
+      "downloadFailed": "Download failed",
+      "wrongFolderPassword": "Wrong folder password for {name}. Retry to re-enter it.",
+      "downloadFailedMsg": "Download failed: {msg}",
+      "tooLargeDownload": "{name} is too large to download in this browser. Use Chrome or Edge, or the zcrypt desktop app.",
+      "getApp": "Get the app",
+      "unreachable": "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.",
+      "zipToDisk": "This ZIP must be saved straight to disk. Retry to choose where to save.",
+      "zipTooLarge": "These files are too large to ZIP in this browser. Download them individually, or use Chrome, Edge or the desktop app.",
+      "zipDone": "{count, plural, one {ZIP with # file downloaded} other {ZIP with # files downloaded}}",
+      "zipPartial": "ZIP saved without {failed} of {total} files ({names}). Download those individually.",
+      "zipFailed": "ZIP download failed",
+      "zipFailedMsg": "ZIP download failed: {msg}",
+      "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it."
     }
   }
 }

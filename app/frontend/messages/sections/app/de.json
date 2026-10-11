@@ -78,7 +78,7 @@
     "exportImport": {
       "exported": "{count, plural, one {# Dateieintrag exportiert} other {# Dateieinträge exportiert}}",
       "invalidFile": "Ungültige Tresor-Exportdatei",
-      "found": "{count, plural, one {# Dateieintrag vom {date} gefunden. Der Backend-Import folgt bald.} other {# Dateieinträge vom {date} gefunden. Der Backend-Import folgt bald.}}",
+      "found": "{count, plural, one {# Dateieintrag} other {# Dateieinträge}} vom {date} gefunden. Der Backend-Import folgt bald.",
       "unknownDate": "unbekanntes Datum",
       "parseFailed": "Die Exportdatei konnte nicht gelesen werden",
       "title": "Tresor-Backup",
@@ -165,7 +165,9 @@
         "tooLargeDownload": "Zu groß für den Download in diesem Browser",
         "tooLargeZip": "Zu groß zum Zippen in diesem Browser",
         "chooseZipSave": "Speicherort für das ZIP auswählen",
-        "unreachable": "zcrypt-Server nicht erreichbar (Netzwerk/DNS)"
+        "unreachable": "zcrypt-Server nicht erreichbar (Netzwerk/DNS)",
+        "startingZip": "ZIP wird gestartet...",
+        "noPlatform": "Keine Speicherplattform verbunden. Verbinde in den Einstellungen eine."
       }
     },
     "tokens": {
@@ -637,7 +639,7 @@
     },
     "folderShare": {
       "nestingIncomplete": "Link erstellt, aber die Ordnerstruktur konnte nicht gelesen werden: Der Download wird flach sein. Erstelle den Link neu, um die Ordnerstruktur einzuschließen.",
-      "createdSkipped": "{shared, plural, one {Ordner-Link erstellt: # Datei geteilt, {skipped} übersprungen} other {Ordner-Link erstellt: # Dateien geteilt, {skipped} übersprungen}}",
+      "createdSkipped": "Ordner-Link erstellt: {shared, plural, one {# Datei} other {# Dateien}} geteilt, {skipped} übersprungen",
       "created": "{shared, plural, one {Ordner-Link erstellt: # Datei} other {Ordner-Link erstellt: # Dateien}}",
       "createFailed": "Ordner-Link konnte nicht erstellt werden",
       "copyFailed": "Kopieren fehlgeschlagen",
@@ -670,7 +672,7 @@
       "copyLabel": "{label} kopieren",
       "passwordProtected": "Passwortgeschützt",
       "fileCount": "{count, plural, one {# Datei} other {# Dateien}}",
-      "downloadsCount": "{count, plural, one {{counter} Download} other {{counter} Downloads}}",
+      "downloadsCount": "{count, plural, one {# Download} other {# Downloads}}",
       "expiresOn": "läuft ab {date}",
       "revokeLink": "Link widerrufen",
       "folderRevoked": "Ordner-Link widerrufen",
@@ -727,7 +729,8 @@
       "noShareLinks": "Keine aktiven Freigabelinks",
       "noShareLinksHint": "Erstelle einen Link, um diese Datei zu teilen, ohne deine Passphrase preiszugeben.",
       "revokeTitle": "Freigabelink widerrufen?",
-      "revokeBody": "Jeder, der diesen Link besitzt, verliert sofort den Zugriff auf die Datei. Das kann nicht rückgängig gemacht werden."
+      "revokeBody": "Jeder, der diesen Link besitzt, verliert sofort den Zugriff auf die Datei. Das kann nicht rückgängig gemacht werden.",
+      "downloadsOfMax": "{count}/{max} Downloads"
     },
     "explorerItem": {
       "open": "Öffnen",
@@ -762,6 +765,102 @@
       "retryFailed": "Die Sicherung konnte nicht erneut versucht werden",
       "notBackedUpHint": "Diese Datei hat deinen Speicher noch nicht erreicht. Tippe, um es erneut zu versuchen.",
       "notBackedUp": "Nicht gesichert"
+    },
+    "vaultExplorer": {
+      "duplicateFolder": "Ein Ordner mit dem Namen „{name}“ existiert hier bereits.",
+      "unlockHint": "Entsperre deinen Tresor, um verschlüsselte Ordnernamen zu lesen sowie Vorschau und Download zu nutzen.",
+      "selected": "{count} ausgewählt",
+      "selectAll": "Alle auswählen",
+      "download": "Herunterladen",
+      "move": "Verschieben",
+      "share": "Teilen",
+      "delete": "Löschen",
+      "done": "Fertig",
+      "shortcutsTitle": "Tastenkürzel",
+      "shortcutsIntro": "Fokussiere eine Datei oder einen Ordner in der Liste und dann:",
+      "shortcuts": {
+        "move": "Zwischen Elementen wechseln",
+        "extend": "Auswahl erweitern",
+        "select": "Datei auswählen oder Ordner öffnen",
+        "open": "Öffnen",
+        "selectAll": "Alle Dateien auswählen",
+        "trash": "In den Papierkorb verschieben",
+        "rename": "Umbenennen",
+        "clear": "Auswahl aufheben",
+        "show": "Diese Tastenkürzel anzeigen"
+      }
+    },
+    "hooks": {
+      "connectionRestored": "Serververbindung wiederhergestellt",
+      "lostConnection": "Verbindung zum Server verloren. Neuer Versuch...",
+      "reconnecting": "Verbindung zum Server wird neu aufgebaut…",
+      "unlockCreateFolders": "Entsperre deinen Tresor, um Ordner zu erstellen",
+      "unlockRenameFolders": "Entsperre deinen Tresor, um Ordner umzubenennen",
+      "unlockCustomizeFolders": "Entsperre deinen Tresor, um Ordner anzupassen",
+      "notProtected": "Dieser Ordner ist nicht passwortgeschützt.",
+      "wrongFolderPassword": "Falsches Ordnerpasswort. Bitte versuche es erneut.",
+      "vaultLocked": "Tresor ist gesperrt",
+      "decryptFailed": "Entschlüsselung fehlgeschlagen, falsche Passphrase?",
+      "sharingKeyMismatch": "Dein Freigabeschlüssel auf dem Server stimmt nicht mit diesem Gerät überein. Das Teilen ist zu deiner Sicherheit pausiert; wende dich an den Support.",
+      "preparingFiles": "{count, plural, one {# Datei wird für den Upload vorbereitet…} other {# Dateien werden für den Upload vorbereitet…}}",
+      "noPlatform": "Keine Speicherplattform verbunden. Verbinde in den Einstellungen eine.",
+      "dupesMore": "{names} +{more} weitere",
+      "skippedDupes": "{count, plural, one {# Duplikat} other {# Duplikate}} übersprungen: {names}",
+      "zipTooLarge": "Die ausgewählten Dateien haben zusammen {size}, zu groß für ein ZIP. Lade sie stattdessen einzeln herunter.",
+      "wrongPassphrase": "Falsche Passphrase. Bitte versuche es erneut.",
+      "fileNotFound": "Datei nicht gefunden",
+      "movedRoot": "„{name}“ in die Wurzel verschoben",
+      "moved": "„{name}“ verschoben",
+      "undo": "Rückgängig",
+      "moveCancelled": "Verschieben abgebrochen",
+      "moveFailed": "Datei konnte nicht verschoben werden",
+      "fileDeleted": "Datei gelöscht",
+      "undoFailed": "Löschen konnte nicht rückgängig gemacht werden",
+      "deleteFailed": "Löschen fehlgeschlagen",
+      "bulkPartial": "{deleted} gelöscht, {failed} fehlgeschlagen",
+      "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
+      "bulkDeleteFailed": "Massenlöschung fehlgeschlagen"
+    },
+    "notifications": {
+      "uploadComplete": "Upload abgeschlossen",
+      "uploadFailed": "Upload fehlgeschlagen",
+      "downloadComplete": "Download abgeschlossen",
+      "downloadFailed": "Download fehlgeschlagen",
+      "serverError": "Serverfehler",
+      "connectionRestored": "Verbindung wiederhergestellt",
+      "reconnectedBody": "Serververbindung wiederhergestellt",
+      "warning": "Warnung"
+    },
+    "files": {
+      "unlockCustomize": "Entsperre deinen Tresor, um Dateien anzupassen",
+      "unlockRename": "Entsperre deinen Tresor, um Dateien umzubenennen",
+      "emptyName": "Der Name darf nicht leer sein",
+      "addFailed": "Dateien konnten nicht hinzugefügt werden"
+    },
+    "toasts": {
+      "restartUpload": "Der vorherige Upload von „{name}“ konnte nicht fortgesetzt werden, Neustart auf {platform}.",
+      "andMore": "und {count} weitere",
+      "tooBig": "{names} {count, plural, one {überschreitet das Limit von} other {überschreiten das Limit von}} {limit} pro Datei.",
+      "uploaded": "{name} hochgeladen",
+      "failedName": "{name} fehlgeschlagen",
+      "allUploaded": "{count, plural, one {Die Datei wurde hochgeladen} other {Alle # Dateien hochgeladen}}",
+      "allFailed": "{count, plural, one {Die Datei konnte nicht hochgeladen werden} other {Alle # Dateien konnten nicht hochgeladen werden}}",
+      "partialUpload": "{done} hochgeladen, {failed} fehlgeschlagen",
+      "uploadFailed": "Upload fehlgeschlagen",
+      "downloaded": "{name} heruntergeladen",
+      "downloadFailed": "Download fehlgeschlagen",
+      "wrongFolderPassword": "Falsches Ordnerpasswort für {name}. Versuche es erneut, um es neu einzugeben.",
+      "downloadFailedMsg": "Download fehlgeschlagen: {msg}",
+      "tooLargeDownload": "{name} ist zu groß für den Download in diesem Browser. Nutze Chrome oder Edge oder die zcrypt-Desktop-App.",
+      "getApp": "App herunterladen",
+      "unreachable": "zcrypt-Server nicht erreichbar. Prüfe deine Internetverbindung; falls dein Netzwerk eingeschränkt oder gefiltert ist, verbinde dich mit einem VPN und versuche es erneut.",
+      "zipToDisk": "Dieses ZIP muss direkt auf die Festplatte gespeichert werden. Versuche es erneut, um den Speicherort zu wählen.",
+      "zipTooLarge": "Diese Dateien sind zu groß zum Zippen in diesem Browser. Lade sie einzeln herunter oder nutze Chrome, Edge oder die Desktop-App.",
+      "zipDone": "{count, plural, one {ZIP mit # Datei heruntergeladen} other {ZIP mit # Dateien heruntergeladen}}",
+      "zipPartial": "ZIP ohne {failed} von {total} Dateien gespeichert ({names}). Lade diese einzeln herunter.",
+      "zipFailed": "ZIP-Download fehlgeschlagen",
+      "zipFailedMsg": "ZIP-Download fehlgeschlagen: {msg}",
+      "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben."
     }
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { subscribeEvents } from "@/lib/event-stream";
 import { notifications } from "@/store/notifications";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 import type { ProgressEvent } from "@/types";
 import type { AuditEvent } from "@/lib/auth-api";
 
@@ -49,7 +50,7 @@ export function useOperationStatus(onProgress: ProgressCallback, onAudit?: Audit
         onOpen: () => {
           if (!errorNotified) return;
           notifications.serverReconnected();
-          toast.success("Server connection restored");
+          toast.success(tr("hooks.connectionRestored"));
           errorNotified = false;
         },
         onError: (failures) => {
@@ -58,8 +59,8 @@ export function useOperationStatus(onProgress: ProgressCallback, onAudit?: Audit
           // dismissible in-app notification is enough and it clears on reconnect.
           if (failures < ERROR_THRESHOLD || errorNotified) return;
           errorNotified = true;
-          notifications.serverError("Lost connection to server. Retrying...");
-          toast.error("Reconnecting to server…");
+          notifications.serverError(tr("hooks.lostConnection"));
+          toast.error(tr("hooks.reconnecting"));
         },
       },
     );

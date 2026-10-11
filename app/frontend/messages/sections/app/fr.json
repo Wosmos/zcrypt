@@ -78,7 +78,7 @@
     "exportImport": {
       "exported": "{count, plural, one {# enregistrement de fichier exporté} other {# enregistrements de fichiers exportés}}",
       "invalidFile": "Fichier d'export du coffre invalide",
-      "found": "{count, plural, one {# enregistrement de fichier trouvé du {date}. L'import côté serveur arrive bientôt.} other {# enregistrements de fichiers trouvés du {date}. L'import côté serveur arrive bientôt.}}",
+      "found": "{count, plural, one {# enregistrement de fichier trouvé} other {# enregistrements de fichiers trouvés}} du {date}. L'import côté serveur arrive bientôt.",
       "unknownDate": "date inconnue",
       "parseFailed": "Impossible de lire le fichier d'export",
       "title": "Sauvegarde du coffre",
@@ -165,7 +165,9 @@
         "tooLargeDownload": "Trop volumineux pour être téléchargé dans ce navigateur",
         "tooLargeZip": "Trop volumineux pour être compressé en ZIP dans ce navigateur",
         "chooseZipSave": "Choisissez où enregistrer le ZIP",
-        "unreachable": "Impossible de joindre les serveurs de zcrypt (réseau/DNS)"
+        "unreachable": "Impossible de joindre les serveurs de zcrypt (réseau/DNS)",
+        "startingZip": "Démarrage du ZIP...",
+        "noPlatform": "Aucune plateforme de stockage connectée. Rendez-vous dans les Paramètres pour en connecter une."
       }
     },
     "tokens": {
@@ -637,7 +639,7 @@
     },
     "folderShare": {
       "nestingIncomplete": "Lien créé, mais la structure du dossier n'a pas pu être lue : le téléchargement sera à plat. Recréez le lien pour inclure la structure du dossier.",
-      "createdSkipped": "{shared, plural, one {Lien de dossier créé : # fichier partagé, {skipped} ignorés} other {Lien de dossier créé : # fichiers partagés, {skipped} ignorés}}",
+      "createdSkipped": "Lien de dossier créé : {shared, plural, one {# fichier partagé} other {# fichiers partagés}}, {skipped} ignorés",
       "created": "{shared, plural, one {Lien de dossier créé : # fichier} other {Lien de dossier créé : # fichiers}}",
       "createFailed": "Impossible de créer le lien du dossier",
       "copyFailed": "Échec de la copie",
@@ -670,7 +672,7 @@
       "copyLabel": "Copier {label}",
       "passwordProtected": "Protégé par mot de passe",
       "fileCount": "{count, plural, one {# fichier} other {# fichiers}}",
-      "downloadsCount": "{count, plural, one {{counter} téléchargement} other {{counter} téléchargements}}",
+      "downloadsCount": "{count, plural, one {# téléchargement} other {# téléchargements}}",
       "expiresOn": "expire {date}",
       "revokeLink": "Révoquer le lien",
       "folderRevoked": "Lien de dossier révoqué",
@@ -727,7 +729,8 @@
       "noShareLinks": "Aucun lien de partage actif",
       "noShareLinksHint": "Créez un lien pour partager ce fichier sans partager votre phrase secrète.",
       "revokeTitle": "Révoquer le lien de partage ?",
-      "revokeBody": "Toute personne détenant ce lien perdra immédiatement l'accès au fichier. Cette action est irréversible."
+      "revokeBody": "Toute personne détenant ce lien perdra immédiatement l'accès au fichier. Cette action est irréversible.",
+      "downloadsOfMax": "{count}/{max} téléchargements"
     },
     "explorerItem": {
       "open": "Ouvrir",
@@ -762,6 +765,102 @@
       "retryFailed": "Impossible de relancer la sauvegarde",
       "notBackedUpHint": "Ce fichier n'a pas encore atteint votre stockage. Touchez pour réessayer.",
       "notBackedUp": "Non sauvegardé"
+    },
+    "vaultExplorer": {
+      "duplicateFolder": "Un dossier nommé « {name} » existe déjà ici.",
+      "unlockHint": "Déverrouillez votre coffre pour lire les noms de dossiers chiffrés, afficher les aperçus et télécharger.",
+      "selected": "{count} sélectionné(s)",
+      "selectAll": "Tout sélectionner",
+      "download": "Télécharger",
+      "move": "Déplacer",
+      "share": "Partager",
+      "delete": "Supprimer",
+      "done": "Terminé",
+      "shortcutsTitle": "Raccourcis clavier",
+      "shortcutsIntro": "Placez le focus sur un fichier ou un dossier de la liste, puis :",
+      "shortcuts": {
+        "move": "Passer d'un élément à l'autre",
+        "extend": "Étendre la sélection",
+        "select": "Sélectionner un fichier ou ouvrir un dossier",
+        "open": "Ouvrir",
+        "selectAll": "Sélectionner tous les fichiers",
+        "trash": "Déplacer vers la corbeille",
+        "rename": "Renommer",
+        "clear": "Effacer la sélection",
+        "show": "Afficher ces raccourcis"
+      }
+    },
+    "hooks": {
+      "connectionRestored": "Connexion au serveur rétablie",
+      "lostConnection": "Connexion au serveur perdue. Nouvelle tentative...",
+      "reconnecting": "Reconnexion au serveur…",
+      "unlockCreateFolders": "Déverrouillez votre coffre pour créer des dossiers",
+      "unlockRenameFolders": "Déverrouillez votre coffre pour renommer des dossiers",
+      "unlockCustomizeFolders": "Déverrouillez votre coffre pour personnaliser des dossiers",
+      "notProtected": "Ce dossier n'est pas protégé par mot de passe.",
+      "wrongFolderPassword": "Mot de passe du dossier incorrect. Veuillez réessayer.",
+      "vaultLocked": "Le coffre est verrouillé",
+      "decryptFailed": "Échec du déchiffrement, phrase secrète incorrecte ?",
+      "sharingKeyMismatch": "Votre clé de partage sur le serveur ne correspond pas à cet appareil. Le partage est suspendu pour votre sécurité ; contactez le support.",
+      "preparingFiles": "{count, plural, one {Préparation de # fichier pour l'envoi…} other {Préparation de # fichiers pour l'envoi…}}",
+      "noPlatform": "Aucune plateforme de stockage connectée. Rendez-vous dans les Paramètres pour en connecter une.",
+      "dupesMore": "{names} +{more} autres",
+      "skippedDupes": "{count, plural, one {# doublon ignoré} other {# doublons ignorés}} : {names}",
+      "zipTooLarge": "Les fichiers sélectionnés totalisent {size}, trop volumineux pour un ZIP. Téléchargez-les individuellement.",
+      "wrongPassphrase": "Phrase secrète incorrecte. Veuillez réessayer.",
+      "fileNotFound": "Fichier introuvable",
+      "movedRoot": "« {name} » déplacé à la racine",
+      "moved": "« {name} » déplacé",
+      "undo": "Annuler",
+      "moveCancelled": "Déplacement annulé",
+      "moveFailed": "Impossible de déplacer le fichier",
+      "fileDeleted": "Fichier supprimé",
+      "undoFailed": "Impossible d'annuler la suppression",
+      "deleteFailed": "Échec de la suppression",
+      "bulkPartial": "{deleted} supprimés, {failed} échoués",
+      "bulkDeleted": "{count, plural, one {# fichier supprimé} other {# fichiers supprimés}}",
+      "bulkDeleteFailed": "Échec de la suppression groupée"
+    },
+    "notifications": {
+      "uploadComplete": "Envoi terminé",
+      "uploadFailed": "Échec de l'envoi",
+      "downloadComplete": "Téléchargement terminé",
+      "downloadFailed": "Échec du téléchargement",
+      "serverError": "Erreur serveur",
+      "connectionRestored": "Connexion rétablie",
+      "reconnectedBody": "Connexion au serveur rétablie",
+      "warning": "Avertissement"
+    },
+    "files": {
+      "unlockCustomize": "Déverrouillez votre coffre pour personnaliser des fichiers",
+      "unlockRename": "Déverrouillez votre coffre pour renommer des fichiers",
+      "emptyName": "Le nom ne peut pas être vide",
+      "addFailed": "Impossible d'ajouter les fichiers"
+    },
+    "toasts": {
+      "restartUpload": "Impossible de poursuivre l'envoi précédent de « {name} », reprise depuis le début sur {platform}.",
+      "andMore": "et {count} autres",
+      "tooBig": "{names} {count, plural, one {dépasse la limite de} other {dépassent la limite de}} {limit} par fichier.",
+      "uploaded": "{name} envoyé",
+      "failedName": "{name} a échoué",
+      "allUploaded": "{count, plural, one {Le fichier a été envoyé} other {Les # fichiers ont été envoyés}}",
+      "allFailed": "{count, plural, one {Le fichier n'a pas pu être envoyé} other {Les # fichiers n'ont pas pu être envoyés}}",
+      "partialUpload": "{done} envoyés, {failed} échoués",
+      "uploadFailed": "Échec de l'envoi",
+      "downloaded": "{name} téléchargé",
+      "downloadFailed": "Échec du téléchargement",
+      "wrongFolderPassword": "Mot de passe de dossier incorrect pour {name}. Réessayez pour le saisir à nouveau.",
+      "downloadFailedMsg": "Échec du téléchargement : {msg}",
+      "tooLargeDownload": "{name} est trop volumineux pour être téléchargé dans ce navigateur. Utilisez Chrome ou Edge, ou l'application de bureau zcrypt.",
+      "getApp": "Obtenir l'application",
+      "unreachable": "Impossible de joindre les serveurs de zcrypt. Vérifiez votre connexion Internet et, si vous êtes sur un réseau restreint ou filtré, connectez un VPN puis réessayez.",
+      "zipToDisk": "Ce ZIP doit être enregistré directement sur le disque. Réessayez pour choisir l'emplacement.",
+      "zipTooLarge": "Ces fichiers sont trop volumineux pour être compressés en ZIP dans ce navigateur. Téléchargez-les individuellement, ou utilisez Chrome, Edge ou l'application de bureau.",
+      "zipDone": "{count, plural, one {ZIP contenant # fichier téléchargé} other {ZIP contenant # fichiers téléchargé}}",
+      "zipPartial": "ZIP enregistré sans {failed} fichiers sur {total} ({names}). Téléchargez-les individuellement.",
+      "zipFailed": "Échec du téléchargement du ZIP",
+      "zipFailedMsg": "Échec du téléchargement du ZIP : {msg}",
+      "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau."
     }
   }
 }

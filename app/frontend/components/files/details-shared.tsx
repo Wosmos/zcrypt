@@ -150,10 +150,9 @@ export function ShareLinkRow({
         </div>
         <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
           {fileCount !== undefined && `${t("fileCount", { count: fileCount })} · `}
-          {t("downloadsCount", {
-            count: downloadCount,
-            counter: maxDownloads > 0 ? `${downloadCount}/${maxDownloads}` : String(downloadCount),
-          })}
+          {maxDownloads > 0
+            ? t("downloadsOfMax", { count: downloadCount, max: maxDownloads })
+            : t("downloadsCount", { count: downloadCount })}
           {expiresAt && ` · ${t("expiresOn", { date: formatDate(expiresAt) })}`}
         </p>
       </div>

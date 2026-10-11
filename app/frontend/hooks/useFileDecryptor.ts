@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/store/translate";
 import { useCallback } from "react";
 import { IncorrectPassphraseError } from "@/lib/crypto";
 import {
@@ -333,7 +334,7 @@ export async function runDecryptPipeline(
         compressed,
       });
     } catch {
-      throw new Error("Decryption failed, wrong passphrase?");
+      throw new Error(tr("hooks.decryptFailed"));
     }
 
     decrypted[index] = new Uint8Array(out.plaintext);

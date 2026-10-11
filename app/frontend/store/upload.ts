@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { tr } from "@/store/translate";
 import type { FileMetadata, UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
@@ -703,7 +704,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           // passphrase, or its chunk size is unknown). Discard it and restart.
           // ON ITS PLATFORM, never a silently different one.
           toast.warning(
-            `Couldn't continue the previous upload of "${file.name}", restarting on ${session.platform}.`,
+            tr("toasts.restartUpload", { name: file.name, platform: session.platform }),
           );
           await cancelUpload(session.session_id).catch(() => {
             /* best-effort */
@@ -1077,9 +1078,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       /* v8 ignore stop */
       return;
     }
-    const msg = err instanceof Error ? err.message : "Upload failed";
+    const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
     const friendlyMsg = msg.includes("storage not available")
-      ? "No storage platform connected. Go to Settings to connect one."
+      ? tr("hooks.noPlatform")
       : msg;
     if (isCurrentRun()) setError(id, friendlyMsg);
     // Deliberately do NOT cancel the session here: keeping it lets the user
@@ -1319,9 +1320,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         .slice(0, 3)
         .map((f) => `"${f.name}" (${formatBytes(f.size)})`)
         .join(", ");
-      const more = tooBig.length > 3 ? ` and ${tooBig.length - 3} more` : "";
+      const more = tooBig.length > 3 ? ` ${tr("toasts.andMore", { count: tooBig.length - 3 })}` : "";
       toast.error(
-        `${names}${more} exceed${tooBig.length === 1 ? "s" : ""} the ${formatBytes(MAX_UPLOAD_BYTES)} per-file limit.`,
+        tr("toasts.tooBig", {
+          count: tooBig.length,
+          names: `${names}${more}`,
+          limit: formatBytes(MAX_UPLOAD_BYTES),
+        }),
       );
       if (files.length === 0) return;
     }
@@ -1424,14 +1429,14 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       // user will see the per-item completion in the transfer manager.
       if (pausedCount === 0) {
         if (total === 1) {
-          if (doneCount === 1) toast.success(`${items[0].file.name} uploaded`);
-          else if (failedCount === 1) toast.error(`${items[0].file.name} failed`);
+          if (doneCount === 1) toast.success(tr("toasts.uploaded", { name: items[0].file.name }));
+          else if (failedCount === 1) toast.error(tr("toasts.failedName", { name: items[0].file.name }));
         } else if (failedCount === 0) {
-          toast.success(`All ${doneCount} files uploaded`);
+          toast.success(tr("toasts.allUploaded", { count: doneCount }));
         } else if (doneCount === 0) {
-          toast.error(`All ${failedCount} files failed to upload`);
+          toast.error(tr("toasts.allFailed", { count: failedCount }));
         } else {
-          toast.warning(`${doneCount} uploaded, ${failedCount} failed`);
+          toast.warning(tr("toasts.partialUpload", { done: doneCount, failed: failedCount }));
         }
       }
 
@@ -1490,7 +1495,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           updateStatus(id, "done", 100, "Done");
           void meta.onRefresh?.();
         } catch (err) {
-          setError(id, err instanceof Error ? err.message : "Upload failed");
+          setError(id, err instanceof Error ? err.message : tr("toasts.uploadFailed"));
         } finally {
           unlistenRetry();
         }
@@ -1678,7 +1683,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
             releaseSharedFile(filePath);
             updateStatus(id, "done", 100, "Done");
           } catch (err) {
-            const msg = err instanceof Error ? err.message : "Upload failed";
+            const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
             setError(id, msg);
           } finally {
             sem.release();

@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/store/translate";
 import { useCallback, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FileMetadata } from "@/types";
@@ -81,7 +82,7 @@ export function invalidateFiles(): Promise<void> {
  *  mirrors useFolders' renameFolder (call, then invalidate; no manual patch). */
 export async function updateFileStyle(fileId: string, style: CustomStyle | null): Promise<void> {
   const key = await requireNameKey().catch(() => {
-    throw new Error("Unlock your vault to customize files");
+    throw new Error(tr("files.unlockCustomize"));
   });
   const encrypted_style = style ? await encryptStyle(style, key) : null;
   await apiUpdateFileStyle(fileId, encrypted_style);
@@ -95,10 +96,10 @@ export async function updateFileStyle(fileId: string, style: CustomStyle | null)
  *  useFolders' renameFolder guard. */
 export async function renameFile(fileId: string, name: string): Promise<void> {
   const key = await requireNameKey().catch(() => {
-    throw new Error("Unlock your vault to rename files");
+    throw new Error(tr("files.unlockRename"));
   });
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Name cannot be empty");
+  if (!trimmed) throw new Error(tr("files.emptyName"));
 
   const files = getFilesData();
   const target = files.find((f) => f.id === fileId);

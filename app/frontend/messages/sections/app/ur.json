@@ -165,7 +165,9 @@
         "tooLargeDownload": "اس براؤزر میں ڈاؤن لوڈ کے لیے بہت بڑا ہے",
         "tooLargeZip": "اس براؤزر میں ZIP بنانے کے لیے بہت بڑا ہے",
         "chooseZipSave": "ZIP محفوظ کرنے کی جگہ منتخب کریں",
-        "unreachable": "zcrypt کے سرورز تک رسائی نہیں ہو سکی (نیٹ ورک/DNS)"
+        "unreachable": "zcrypt کے سرورز تک رسائی نہیں ہو سکی (نیٹ ورک/DNS)",
+        "startingZip": "ZIP شروع ہو رہی ہے...",
+        "noPlatform": "کوئی اسٹوریج پلیٹ فارم منسلک نہیں۔ جوڑنے کے لیے سیٹنگز میں جائیں۔"
       }
     },
     "tokens": {
@@ -670,7 +672,7 @@
       "copyLabel": "{label} کاپی کریں",
       "passwordProtected": "پاس ورڈ سے محفوظ",
       "fileCount": "{count} فائلیں",
-      "downloadsCount": "{count, plural, other {{counter} ڈاؤن لوڈز}}",
+      "downloadsCount": "{count} ڈاؤن لوڈز",
       "expiresOn": "{date} کو ختم",
       "revokeLink": "لنک منسوخ کریں",
       "folderRevoked": "فولڈر کا لنک منسوخ کر دیا گیا",
@@ -727,7 +729,8 @@
       "noShareLinks": "کوئی فعال شیئر لنک نہیں",
       "noShareLinksHint": "اپنا پاس فریز بتائے بغیر یہ فائل شیئر کرنے کے لیے لنک بنائیں۔",
       "revokeTitle": "شیئر لنک منسوخ کریں؟",
-      "revokeBody": "اس لنک کے حامل تمام لوگ فوراً فائل تک رسائی کھو دیں گے۔ یہ عمل واپس نہیں ہو سکتا۔"
+      "revokeBody": "اس لنک کے حامل تمام لوگ فوراً فائل تک رسائی کھو دیں گے۔ یہ عمل واپس نہیں ہو سکتا۔",
+      "downloadsOfMax": "{count}/{max} ڈاؤن لوڈز"
     },
     "explorerItem": {
       "open": "کھولیں",
@@ -762,6 +765,102 @@
       "retryFailed": "بیک اپ دوبارہ آزمایا نہیں جا سکا",
       "notBackedUpHint": "یہ فائل ابھی آپ کے اسٹوریج تک نہیں پہنچی۔ دوبارہ آزمانے کے لیے تھپتھپائیں۔",
       "notBackedUp": "بیک اپ نہیں ہوا"
+    },
+    "vaultExplorer": {
+      "duplicateFolder": "یہاں \"{name}\" نام کا فولڈر پہلے سے موجود ہے۔",
+      "unlockHint": "خفیہ فولڈر کے نام پڑھنے، پیش منظر دیکھنے اور ڈاؤن لوڈ کرنے کے لیے اپنا والٹ کھولیں۔",
+      "selected": "{count} منتخب",
+      "selectAll": "سب منتخب کریں",
+      "download": "ڈاؤن لوڈ",
+      "move": "منتقل کریں",
+      "share": "شیئر کریں",
+      "delete": "حذف کریں",
+      "done": "ہو گیا",
+      "shortcutsTitle": "کی بورڈ شارٹ کٹس",
+      "shortcutsIntro": "فہرست میں کسی فائل یا فولڈر پر فوکس کریں، پھر:",
+      "shortcuts": {
+        "move": "آئٹمز کے درمیان جائیں",
+        "extend": "انتخاب بڑھائیں",
+        "select": "فائل منتخب کریں یا فولڈر کھولیں",
+        "open": "کھولیں",
+        "selectAll": "تمام فائلیں منتخب کریں",
+        "trash": "ردی میں منتقل کریں",
+        "rename": "نام تبدیل کریں",
+        "clear": "انتخاب صاف کریں",
+        "show": "یہ شارٹ کٹس دکھائیں"
+      }
+    },
+    "hooks": {
+      "connectionRestored": "سرور سے رابطہ بحال ہو گیا",
+      "lostConnection": "سرور سے رابطہ منقطع ہو گیا۔ دوبارہ کوشش ہو رہی ہے...",
+      "reconnecting": "سرور سے دوبارہ رابطہ ہو رہا ہے…",
+      "unlockCreateFolders": "فولڈر بنانے کے لیے اپنا والٹ کھولیں",
+      "unlockRenameFolders": "فولڈر کا نام بدلنے کے لیے اپنا والٹ کھولیں",
+      "unlockCustomizeFolders": "فولڈرز کو حسب ضرورت بنانے کے لیے اپنا والٹ کھولیں",
+      "notProtected": "یہ فولڈر پاس ورڈ سے محفوظ نہیں ہے۔",
+      "wrongFolderPassword": "فولڈر کا پاس ورڈ غلط ہے۔ براہ کرم دوبارہ کوشش کریں۔",
+      "vaultLocked": "والٹ مقفل ہے",
+      "decryptFailed": "ڈی کرپشن ناکام، کیا پاس فریز غلط ہے؟",
+      "sharingKeyMismatch": "سرور پر آپ کی شیئرنگ کلید اس آلے سے میل نہیں کھاتی۔ آپ کی حفاظت کے لیے شیئرنگ روک دی گئی ہے؛ سپورٹ سے رابطہ کریں۔",
+      "preparingFiles": "اپ لوڈ کے لیے {count} فائلیں تیار کی جا رہی ہیں…",
+      "noPlatform": "کوئی اسٹوریج پلیٹ فارم منسلک نہیں۔ جوڑنے کے لیے سیٹنگز میں جائیں۔",
+      "dupesMore": "{names} اور {more} مزید",
+      "skippedDupes": "{count} ڈپلیکیٹ چھوڑ دیے گئے: {names}",
+      "zipTooLarge": "منتخب فائلوں کا مجموعی سائز {size} ہے جو ZIP کے لیے بہت بڑا ہے۔ انہیں الگ الگ ڈاؤن لوڈ کریں۔",
+      "wrongPassphrase": "پاس فریز غلط ہے۔ براہ کرم دوبارہ کوشش کریں۔",
+      "fileNotFound": "فائل نہیں ملی",
+      "movedRoot": "\"{name}\" روٹ میں منتقل ہو گیا",
+      "moved": "\"{name}\" منتقل ہو گیا",
+      "undo": "واپس کریں",
+      "moveCancelled": "منتقلی منسوخ ہو گئی",
+      "moveFailed": "فائل منتقل نہیں ہو سکی",
+      "fileDeleted": "فائل حذف ہو گئی",
+      "undoFailed": "حذف واپس نہیں ہو سکا",
+      "deleteFailed": "حذف ناکام رہا",
+      "bulkPartial": "{deleted} حذف، {failed} ناکام",
+      "bulkDeleted": "{count} فائلیں حذف ہو گئیں",
+      "bulkDeleteFailed": "اجتماعی حذف ناکام رہا"
+    },
+    "notifications": {
+      "uploadComplete": "اپ لوڈ مکمل",
+      "uploadFailed": "اپ لوڈ ناکام",
+      "downloadComplete": "ڈاؤن لوڈ مکمل",
+      "downloadFailed": "ڈاؤن لوڈ ناکام",
+      "serverError": "سرور کی خرابی",
+      "connectionRestored": "رابطہ بحال ہو گیا",
+      "reconnectedBody": "سرور سے رابطہ دوبارہ قائم ہو گیا",
+      "warning": "انتباہ"
+    },
+    "files": {
+      "unlockCustomize": "فائلوں کو حسب ضرورت بنانے کے لیے اپنا والٹ کھولیں",
+      "unlockRename": "فائلوں کا نام بدلنے کے لیے اپنا والٹ کھولیں",
+      "emptyName": "نام خالی نہیں ہو سکتا",
+      "addFailed": "فائلیں شامل نہیں ہو سکیں"
+    },
+    "toasts": {
+      "restartUpload": "\"{name}\" کی پچھلی اپ لوڈ جاری نہیں رہ سکی، {platform} پر دوبارہ شروع ہو رہی ہے۔",
+      "andMore": "اور {count} مزید",
+      "tooBig": "{names} فی فائل {limit} کی حد سے تجاوز کرتی ہیں ({count})۔",
+      "uploaded": "{name} اپ لوڈ ہو گیا",
+      "failedName": "{name} ناکام رہا",
+      "allUploaded": "تمام {count} فائلیں اپ لوڈ ہو گئیں",
+      "allFailed": "تمام {count} فائلیں اپ لوڈ نہیں ہو سکیں",
+      "partialUpload": "{done} اپ لوڈ، {failed} ناکام",
+      "uploadFailed": "اپ لوڈ ناکام ہو گیا",
+      "downloaded": "{name} ڈاؤن لوڈ ہو گیا",
+      "downloadFailed": "ڈاؤن لوڈ ناکام ہو گیا",
+      "wrongFolderPassword": "{name} کے لیے فولڈر کا پاس ورڈ غلط ہے۔ دوبارہ درج کرنے کے لیے دوبارہ کوشش کریں۔",
+      "downloadFailedMsg": "ڈاؤن لوڈ ناکام: {msg}",
+      "tooLargeDownload": "{name} اس براؤزر میں ڈاؤن لوڈ کے لیے بہت بڑی ہے۔ Chrome یا Edge یا zcrypt ڈیسک ٹاپ ایپ استعمال کریں۔",
+      "getApp": "ایپ حاصل کریں",
+      "unreachable": "zcrypt کے سرورز تک رسائی نہیں ہو سکی۔ اپنا انٹرنیٹ جانچیں، اور اگر آپ محدود یا فلٹر شدہ نیٹ ورک پر ہیں تو VPN سے جڑ کر دوبارہ کوشش کریں۔",
+      "zipToDisk": "اس ZIP کو براہ راست ڈسک پر محفوظ کرنا ضروری ہے۔ محفوظ کرنے کی جگہ منتخب کرنے کے لیے دوبارہ کوشش کریں۔",
+      "zipTooLarge": "یہ فائلیں اس براؤزر میں ZIP بنانے کے لیے بہت بڑی ہیں۔ انہیں الگ الگ ڈاؤن لوڈ کریں، یا Chrome، Edge یا ڈیسک ٹاپ ایپ استعمال کریں۔",
+      "zipDone": "{count} فائلوں والی ZIP ڈاؤن لوڈ ہو گئی",
+      "zipPartial": "ZIP {total} میں سے {failed} فائلوں ({names}) کے بغیر محفوظ ہوئی۔ انہیں الگ الگ ڈاؤن لوڈ کریں۔",
+      "zipFailed": "ZIP ڈاؤن لوڈ ناکام ہو گیا",
+      "zipFailedMsg": "ZIP ڈاؤن لوڈ ناکام: {msg}",
+      "zipWrongPassword": "اس ZIP میں فولڈر کا پاس ورڈ غلط ہے۔ دوبارہ درج کرنے کے لیے دوبارہ کوشش کریں۔"
     }
   }
 }

@@ -22,6 +22,7 @@ const EXACT: Record<string, string> = {
   "Verifying integrity...": "stage.verifying",
   "Saving file...": "stage.savingFile",
   "Saving ZIP...": "stage.savingZip",
+  "Starting ZIP...": "stage.startingZip",
   hashing: "stage.hashing",
   deriving_key: "stage.derivingKey",
   processing: "stage.processing",
@@ -40,6 +41,7 @@ const ERRORS: Record<string, string> = {
   "Too large to ZIP in this browser": "stage.tooLargeZip",
   "Choose where to save the ZIP": "stage.chooseZipSave",
   "Can't reach zcrypt's servers (network/DNS)": "stage.unreachable",
+  "No storage platform connected. Go to Settings to connect one.": "stage.noPlatform",
 };
 
 export function localizeStage(t: Translate, stage: string): string {

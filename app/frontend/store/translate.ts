@@ -25,7 +25,7 @@ function documentLocale(): Locale {
 
 function ensureCatalog(locale: Locale) {
   if (locale === DEFAULT_LOCALE || catalogs.has(locale)) return;
-  void loaders[locale]()
+  void loaders[locale as Exclude<Locale, "en">]()
     .then((m) => {
       catalogs.set(locale, mergeMessages(appEn as Catalog, m.default));
     })
