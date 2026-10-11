@@ -36,6 +36,7 @@ function sync(root: HTMLElement) {
     li.toggleAttribute("data-active", i === active);
     li.toggleAttribute("data-passed", i <= active);
   });
+  root.toggleAttribute("data-on-upcoming", rows[active]?.hasAttribute("data-upcoming") ?? false);
   root.style.setProperty("--cl-progress", `${Math.max(head - box.top - 16, 0)}px`);
 }
 

@@ -1,11 +1,13 @@
-.cl-timeline { position: relative; --cl-node-x: 0.625rem; --cl-progress: 0px; }
+.cl-timeline { position: relative; --cl-node-x: 0.625rem; --cl-progress: 0px; --cl-glow: var(--color-accent); }
+.cl-timeline[data-on-upcoming] { --cl-glow: rgb(245 158 11); }
 @media (min-width: 768px) { .cl-timeline { --cl-node-x: 1.25rem; } }
 
 .cl-spine, .cl-spine-fill { position: absolute; inset-inline-start: var(--cl-node-x); top: 1rem; bottom: 0; width: 2px; translate: -50% 0; border-radius: 2px; pointer-events: none; }
 [dir="rtl"] .cl-spine, [dir="rtl"] .cl-spine-fill { translate: 50% 0; }
 .cl-spine { background: repeating-linear-gradient(180deg, var(--color-border-hover) 0 6px, transparent 6px 11px); opacity: 0.7; }
-.cl-spine-fill { bottom: auto; height: var(--cl-progress); background: linear-gradient(180deg, color-mix(in oklab, var(--color-accent) 30%, transparent), var(--color-accent)); box-shadow: 0 0 12px color-mix(in oklab, var(--color-accent) 55%, transparent); }
-.cl-spine-head { position: absolute; inset-inline-start: var(--cl-node-x); top: calc(1rem + var(--cl-progress)); width: 10px; height: 10px; translate: -50% -50%; border-radius: 999px; pointer-events: none; z-index: 11; background: var(--color-accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 22%, transparent), 0 0 22px 4px color-mix(in oklab, var(--color-accent) 70%, transparent); }
+.cl-spine-fill { bottom: auto; height: var(--cl-progress); background: linear-gradient(180deg, color-mix(in oklab, var(--cl-glow) 30%, transparent), var(--cl-glow)); box-shadow: 0 0 12px color-mix(in oklab, var(--cl-glow) 55%, transparent); }
+.cl-spine-head { position: absolute; inset-inline-start: var(--cl-node-x); top: calc(1rem + var(--cl-progress)); width: 10px; height: 10px; translate: -50% -50%; border-radius: 999px; pointer-events: none; z-index: 11; background: var(--cl-glow); box-shadow: 0 0 0 4px color-mix(in oklab, var(--cl-glow) 22%, transparent), 0 0 22px 4px color-mix(in oklab, var(--cl-glow) 70%, transparent); } 
+.cl-spine-head, .cl-spine-fill { transition: background-color 300ms ease, box-shadow 300ms ease; }
 [dir="rtl"] .cl-spine-head { translate: 50% -50%; }
 
 .cl-node { position: absolute; inset-inline-start: calc(var(--cl-node-x) - 0.5rem); top: 2rem; z-index: 10; display: grid; place-items: center; width: 1rem; height: 1rem; border-radius: 999px; background: var(--color-bg); box-shadow: 0 0 0 2px var(--color-border-hover); }
