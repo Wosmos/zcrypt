@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { useFilesQuery } from "@/store/files";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useRecentlyViewedStore } from "@/store/recently-viewed";
 import { Clock, Search, X } from "@/lib/icons";
 import { cn, fileIconFor, formatBytes, formatRelativeTime } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function GlobalSearch({ className }: { className?: string }) {
   const query = onVault ? vaultQuery : draft;
   const setQuery = onVault ? setVaultQuery : setDraft;
 
+  const narrow = useIsMobile("(max-width: 639px)");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const unlocked = useVaultLockContext().unlocked;
@@ -158,7 +160,7 @@ export function GlobalSearch({ className }: { className?: string }) {
           aria-autocomplete="list"
           aria-activedescendant={panelOpen && optionCount ? optionId(active) : undefined}
           aria-label={t("placeholder")}
-          placeholder={t("placeholder")}
+          placeholder={narrow ? t("placeholderShort") : t("placeholder")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

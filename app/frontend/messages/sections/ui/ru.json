@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "Поиск по хранилищу",
+      "placeholderShort": "Поиск файлов",
       "recents": "Недавние",
       "files": "Файлы",
       "noMatches": "Подходящих файлов нет",

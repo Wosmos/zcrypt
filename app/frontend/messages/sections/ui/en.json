@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "Search your vault",
+      "placeholderShort": "Search files",
       "recents": "Recents",
       "files": "Files",
       "noMatches": "No files match",

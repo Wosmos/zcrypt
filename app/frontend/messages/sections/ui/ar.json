@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "ابحث في خزنتك",
+      "placeholderShort": "ابحث في الملفات",
       "recents": "الأخيرة",
       "files": "الملفات",
       "noMatches": "لا توجد ملفات مطابقة",

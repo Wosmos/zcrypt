@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "Busca en tu bóveda",
+      "placeholderShort": "Buscar archivos",
       "recents": "Recientes",
       "files": "Archivos",
       "noMatches": "Ningún archivo coincide",

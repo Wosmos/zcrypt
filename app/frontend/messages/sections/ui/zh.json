@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "搜索你的保险库",
+      "placeholderShort": "搜索文件",
       "recents": "最近使用",
       "files": "文件",
       "noMatches": "没有匹配的文件",

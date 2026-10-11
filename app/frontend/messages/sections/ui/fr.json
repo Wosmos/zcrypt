@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "Rechercher dans votre coffre",
+      "placeholderShort": "Chercher des fichiers",
       "recents": "Récents",
       "files": "Fichiers",
       "noMatches": "Aucun fichier ne correspond",

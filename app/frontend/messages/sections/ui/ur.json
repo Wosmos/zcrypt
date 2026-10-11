@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "اپنے والٹ میں تلاش کریں",
+      "placeholderShort": "فائلیں تلاش کریں",
       "recents": "حالیہ",
       "files": "فائلیں",
       "noMatches": "کوئی فائل نہیں ملی",

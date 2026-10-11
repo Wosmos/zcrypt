@@ -252,6 +252,7 @@
     },
     "globalSearch": {
       "placeholder": "Tresor durchsuchen",
+      "placeholderShort": "Dateien suchen",
       "recents": "Zuletzt verwendet",
       "files": "Dateien",
       "noMatches": "Keine passenden Dateien",
