@@ -249,3 +249,27 @@ describe("saveBlob", () => {
     expect(passed.type).toBe("application/octet-stream");
   });
 });
+
+describe("localized formatters", () => {
+  afterEach(() => {
+    document.documentElement.lang = "";
+  });
+
+  it("formats relative time in German", () => {
+    document.documentElement.lang = "de";
+    const out = formatRelativeTime(Date.now() - 5 * 60_000);
+    expect(out).toMatch(/vor 5/);
+    expect(out).not.toMatch(/ago/);
+  });
+
+  it("formats dates in German", () => {
+    document.documentElement.lang = "de";
+    expect(formatDateShort("2026-03-08T12:00:00Z")).toMatch(/8\. M(ä|a)r/);
+  });
+
+  it("uses the active locale for worded labels", () => {
+    document.documentElement.lang = "en";
+    expect(EXPIRY_OPTIONS[1].label).toBe("1 hour");
+    expect(formatExpiry(new Date(Date.now() - 1000).toISOString())).toBe("Expired");
+  });
+});

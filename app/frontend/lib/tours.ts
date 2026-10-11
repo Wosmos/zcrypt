@@ -8,6 +8,7 @@ export interface TourStepDef {
 }
 
 export interface ResolvedTourStep {
+  index: number;
   title: string;
   content: string;
   selector?: string;
@@ -170,7 +171,7 @@ function findVisibleTarget(targets: string[], root: ParentNode): string | null {
 
 export function resolveTour(name: TourName, root: ParentNode = document): ResolvedTourStep[] {
   const out: ResolvedTourStep[] = [];
-  for (const def of TOUR_STEPS[name]) {
+  for (const [index, def] of TOUR_STEPS[name].entries()) {
     let selector: string | undefined;
     if (def.targets) {
       const found = findVisibleTarget(def.targets, root);
@@ -178,6 +179,7 @@ export function resolveTour(name: TourName, root: ParentNode = document): Resolv
       selector = found;
     }
     out.push({
+      index,
       title: def.title,
       content: def.content,
       selector,

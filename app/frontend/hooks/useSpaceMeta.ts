@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { loadSpaceKey, openSpaceText } from "@/lib/spaces";
 import { useKeysStore } from "@/store/keys";
+import { tr } from "@/store/translate";
 import type { SharedVault } from "@/types";
 
 const SEALED = "s1:";
-const FALLBACK = "Untitled space";
-const LOCKED = "Locked space";
 
 interface Opened {
   stamp: string;
@@ -40,11 +39,11 @@ export function useSpaceMeta(vault: SharedVault | undefined): {
         if (!key) throw new Error("no key");
         next = {
           stamp,
-          name: (await openSpaceText(key, rawName)) || FALLBACK,
+          name: (await openSpaceText(key, rawName)) || tr("l10n.untitledSpace"),
           description: await openSpaceText(key, rawDescription),
         };
       } catch {
-        next = { stamp, name: FALLBACK, description: "" };
+        next = { stamp, name: tr("l10n.untitledSpace"), description: "" };
       }
       if (!cancelled) setOpened(next);
     })();
@@ -56,9 +55,10 @@ export function useSpaceMeta(vault: SharedVault | undefined): {
   }, [stamp, sealed, keysReady, vault?.wrapped_space_key]);
 
   if (!vault) return { name: "", description: "", ready: false };
-  if (!sealed) return { name: rawName || FALLBACK, description: rawDescription, ready: true };
+  if (!sealed)
+    return { name: rawName || tr("l10n.untitledSpace"), description: rawDescription, ready: true };
   if (opened && opened.stamp === stamp) {
     return { name: opened.name, description: opened.description, ready: true };
   }
-  return { name: keysReady ? "" : LOCKED, description: "", ready: false };
+  return { name: keysReady ? "" : tr("l10n.lockedSpace"), description: "", ready: false };
 }

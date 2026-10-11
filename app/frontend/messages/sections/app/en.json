@@ -861,6 +861,87 @@
       "zipFailed": "ZIP download failed",
       "zipFailedMsg": "ZIP download failed: {msg}",
       "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it."
+    },
+    "l10n": {
+      "justNow": "just now",
+      "justNowCap": "Just now",
+      "expired": "Expired",
+      "expiryDH": "{d}d {h}h",
+      "expiryHM": "{h}h {m}m",
+      "expiry": {
+        "never": "Never",
+        "h1": "1 hour",
+        "h24": "24 hours",
+        "d7": "7 days",
+        "d30": "30 days"
+      },
+      "quota": {
+        "invalid": "Enter a valid quota in GB",
+        "unlimited": "Unlimited"
+      },
+      "unknown": "Unknown",
+      "untitledSpace": "Untitled space",
+      "lockedSpace": "Locked space",
+      "lockedName": "[locked]",
+      "zip": {
+        "tooMany": "A ZIP holds at most {max} files. Select fewer files.",
+        "tooLarge": "Files over 1 GB can't go in a ZIP. Download them individually.",
+        "tooBig": "A ZIP is limited to 4 GB. Select fewer files, or download them individually.",
+        "overLimit": "Over 1 GB, too large for a ZIP",
+        "stageDownloading": "Downloading {name}",
+        "stageSaving": "Saving ZIP...",
+        "stageDone": "Done",
+        "decryptFailed": "Decryption failed for {name}, wrong passphrase?",
+        "integritySignedOut": "Integrity check failed for {name}, not signed in",
+        "integrityFailed": "Integrity check failed for {name}"
+      },
+      "err": {
+        "unlockFolderShare": "Unlock your vault to share a folder.",
+        "folderEmpty": "This folder has no files to share.",
+        "folderNoneShareable": "None of this folder's files could be shared. They may be in a password-protected folder, or were uploaded before sharing was supported.",
+        "fileLegacy": "This file was uploaded before sharing was supported. Re-upload it to share.",
+        "passphraseLocked": "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
+        "keyNotReady": "Your encryption key isn't ready, unlock your vault first.",
+        "spaceKeyUnavailable": "This space's key isn't available, unlock your vault first.",
+        "unlockShareFiles": "Unlock your vault to share files.",
+        "fileNotFound": "File not found",
+        "addFilesFailed": "Failed to add files",
+        "prepareFileFailed": "Failed to prepare file"
+      },
+      "platform": {
+        "github": {
+          "tagline": "Large repos · 100 MiB per file",
+          "description": "Personal access token with repo scope",
+          "capacity": "10 GB / repo (recommended; no hard cap)",
+          "fileLimit": "100 MiB / file (50 MiB warning)",
+          "rateInfo": "5k req / hour (authenticated; ~500 writes/hr)",
+          "tokenLabel": "Generate token on GitHub"
+        },
+        "gitlab": {
+          "tagline": "10 GiB per project",
+          "description": "Personal access token with api scope",
+          "capacity": "10 GiB / project (then read-only)",
+          "fileLimit": "5 GiB / push (no per-file cap)",
+          "rateInfo": "2k req / min (authenticated)",
+          "tokenLabel": "Generate token on GitLab"
+        },
+        "huggingface": {
+          "tagline": "100 GB private per account",
+          "description": "Access token with write permission",
+          "capacity": "100 GB / account (shared, not per repo)",
+          "fileLimit": "500 GB / file (LFS; 200 GB rec.)",
+          "rateInfo": "~128 commits / hour (also 1k API req / 5 min)",
+          "tokenLabel": "Generate token on Hugging Face"
+        },
+        "telegram": {
+          "tagline": "Unlimited storage via channels",
+          "description": "Bot token + channel, guided setup, unlimited storage",
+          "capacity": "Unlimited",
+          "fileLimit": "Unlimited (chunked)",
+          "rateInfo": "~20 msgs/min per chat",
+          "tokenLabel": "Create bot via @BotFather"
+        }
+      }
     }
   }
 }

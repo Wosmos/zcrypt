@@ -14,6 +14,8 @@
  */
 
 /** The storage backends zcrypt can distribute encrypted chunks across. */
+import { tr } from "@/store/translate";
+
 export type PlatformId = "github" | "gitlab" | "huggingface" | "telegram";
 
 export interface PlatformMeta {
@@ -46,7 +48,26 @@ export interface PlatformMeta {
   tokenLabel: string;
 }
 
-export const PLATFORMS: PlatformMeta[] = [
+const PLATFORM_TEXT = [
+  "tagline",
+  "description",
+  "capacity",
+  "fileLimit",
+  "rateInfo",
+  "tokenLabel",
+] as const;
+
+function localized(meta: PlatformMeta): PlatformMeta {
+  for (const field of PLATFORM_TEXT) {
+    Object.defineProperty(meta, field, {
+      enumerable: true,
+      get: () => tr(`l10n.platform.${meta.id}.${field}`),
+    });
+  }
+  return meta;
+}
+
+const PLATFORM_DEFS: PlatformMeta[] = [
   {
     id: "github",
     name: "GitHub",
@@ -138,6 +159,8 @@ export const PLATFORMS: PlatformMeta[] = [
     tokenLabel: "Create bot via @BotFather",
   },
 ];
+
+export const PLATFORMS: PlatformMeta[] = PLATFORM_DEFS.map(localized);
 
 /** Lookup by id, e.g. `PLATFORM_BY_ID.github.tokenUrl`. */
 export const PLATFORM_BY_ID = Object.fromEntries(PLATFORMS.map((p) => [p.id, p])) as Record<

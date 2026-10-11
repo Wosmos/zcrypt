@@ -1,6 +1,6 @@
 import { createTranslator } from "next-intl";
 import appEn from "@/messages/sections/app/en.json";
-import { DEFAULT_LOCALE, isLocale, mergeMessages, type Locale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, documentLocale, mergeMessages, type Locale } from "@/lib/i18n";
 
 type Values = Record<string, string | number>;
 type Catalog = Record<string, unknown>;
@@ -15,13 +15,9 @@ const loaders: Record<Exclude<Locale, "en">, () => Promise<{ default: Catalog }>
   ur: () => import("@/messages/sections/app/ur.json"),
 };
 
+type Translator = (k: string, v?: Values) => string;
+const translators = new WeakMap<Catalog, Translator>();
 const catalogs = new Map<Locale, Catalog>([[DEFAULT_LOCALE, appEn as Catalog]]);
-
-function documentLocale(): Locale {
-  if (typeof document === "undefined") return DEFAULT_LOCALE;
-  const base = document.documentElement.lang.toLowerCase().split("-")[0];
-  return isLocale(base) ? base : DEFAULT_LOCALE;
-}
 
 function ensureCatalog(locale: Locale) {
   if (locale === DEFAULT_LOCALE || catalogs.has(locale)) return;
@@ -51,10 +47,15 @@ export function tr(key: string, values?: Values): string {
   const locale = documentLocale();
   ensureCatalog(locale);
   const ready = catalogs.has(locale);
-  const translator = createTranslator({
-    locale: ready ? locale : DEFAULT_LOCALE,
-    messages: (catalogs.get(locale) ?? appEn) as Catalog,
-    namespace: "app",
-  } as never) as unknown as (k: string, v?: Values) => string;
-  return translator(key, values);
+  const messages = (catalogs.get(locale) ?? appEn) as Catalog;
+  let cached = translators.get(messages);
+  if (!cached) {
+    cached = createTranslator({
+      locale: ready ? locale : DEFAULT_LOCALE,
+      messages,
+      namespace: "app",
+    } as never) as unknown as Translator;
+    translators.set(messages, cached);
+  }
+  return cached(key, values);
 }

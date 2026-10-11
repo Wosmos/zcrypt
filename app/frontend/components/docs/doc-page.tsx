@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, ChevronRight, AlertTriangle, Info, Lock } from "
 import { cn } from "@/lib/utils";
 import { SITE_URL as SITE } from "@/lib/site";
 import { T } from "@/components/i18n/t";
+import { LabeledNav } from "@/components/docs/labeled-nav";
 import { groupSlug, navSlug } from "@/components/docs/nav-keys";
 
 // Flattened, ordered list of internal doc links: drives prev/next + section lookup.
@@ -65,7 +66,7 @@ export function DocPage({
       <TechArticleJsonLd headline={title} description={description} url={url} section={section} />
 
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="mb-6">
+      <LabeledNav labelKey="breadcrumb" className="mb-6">
         <ol className="flex list-none flex-wrap items-center gap-1.5 text-[13px]">
           <li>
             <Link
@@ -95,7 +96,7 @@ export function DocPage({
             <T k={`${ns}.title`} />
           </li>
         </ol>
-      </nav>
+      </LabeledNav>
 
       {/* Header */}
       <header>
@@ -137,8 +138,8 @@ export function DocPage({
 
       {/* Prev / next pager */}
       {(prev || next) && (
-        <nav
-          aria-label="Pagination"
+        <LabeledNav
+          labelKey="pagination"
           className="mt-16 grid grid-cols-1 gap-4 border-t border-[var(--color-border)] pt-8 sm:grid-cols-2"
         >
           {prev ? (
@@ -177,7 +178,7 @@ export function DocPage({
               <ArrowRight className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:translate-x-0.5 group-hover:text-cyan-500" />
             </Link>
           )}
-        </nav>
+        </LabeledNav>
       )}
     </article>
   );

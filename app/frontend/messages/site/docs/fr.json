@@ -2673,7 +2673,9 @@
         "license": "Licence",
         "privacy": "Confidentialité",
         "terms": "Conditions"
-      }
+      },
+      "breadcrumb": "Fil d'Ariane",
+      "pagination": "Pagination"
     }
   }
 }

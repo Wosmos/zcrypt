@@ -23,6 +23,17 @@ export function localeDir(locale: Locale): "ltr" | "rtl" {
   return LOCALES.find((l) => l.code === locale)?.dir ?? "ltr";
 }
 
+export function documentLocale(): Locale {
+  if (typeof document === "undefined") return DEFAULT_LOCALE;
+  const base = document.documentElement.lang.toLowerCase().split("-")[0];
+  return isLocale(base) ? base : DEFAULT_LOCALE;
+}
+
+export function intlLocale(): string {
+  const locale = documentLocale();
+  return locale === "en" ? "en-US" : locale;
+}
+
 export function matchLocale(languages: readonly string[]): Locale {
   for (const tag of languages) {
     const base = tag.toLowerCase().split("-")[0];

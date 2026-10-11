@@ -40,6 +40,7 @@ import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
 import type { SharedVault, SharedVaultMember, SharedVaultFile } from "@/types";
+import { tr } from "@/store/translate";
 
 /** Create a shared space: generate its key, seal it to yourself, and create the
  *  vault carrying that grant. Caches the space key for the session. */
@@ -50,7 +51,7 @@ export async function createSpace(
   sizeLimitBytes = 0,
 ): Promise<SharedVault> {
   const { publicKey } = useKeysStore.getState();
-  if (!publicKey) throw new Error("Your encryption key isn't ready, unlock your vault first.");
+  if (!publicKey) throw new Error(tr("l10n.err.keyNotReady"));
   const spaceKey = generateSpaceKey();
   const wrapped = await sealTo(publicKey, spaceKey);
   const vault = await createSharedVault({
@@ -80,7 +81,7 @@ export async function loadSpaceKey(vault: SharedVault): Promise<Uint8Array | nul
  *  owner and any member, since it never touches the vault passphrase. */
 async function spaceFileKey(vault: SharedVault, spaceWrappedCek: string): Promise<ArrayBuffer> {
   const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error("This space's key isn't available, unlock your vault first.");
+  if (!spaceKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
   const cek = await unwrapKey(toArrayBuffer(spaceKey), fromBase64(spaceWrappedCek));
   return toArrayBuffer(cek);
 }
@@ -182,9 +183,9 @@ export async function shareFileIntoSpace(
   name = "",
 ): Promise<void> {
   const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error("This space's key isn't available, unlock your vault first.");
+  if (!spaceKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
   const passphrase = usePassphraseStore.getState().getPassphrase();
-  if (!passphrase) throw new Error("Unlock your vault to share files.");
+  if (!passphrase) throw new Error(tr("l10n.err.unlockShareFiles"));
 
   const meta = await getFileMeta(fileId);
   // The file key under the OWNER's protection (CEK for envelope files, or the
@@ -253,9 +254,9 @@ export async function shareFilesIntoSpace(
   } = {},
 ): Promise<ShareFilesResult> {
   const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error("This space's key isn't available, unlock your vault first.");
+  if (!spaceKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
   const passphrase = usePassphraseStore.getState().getPassphrase();
-  if (!passphrase) throw new Error("Unlock your vault to share files.");
+  if (!passphrase) throw new Error(tr("l10n.err.unlockShareFiles"));
 
   const ids = [...new Set(fileIds)];
   const total = ids.length;
@@ -285,7 +286,7 @@ export async function shareFilesIntoSpace(
         }
         opts.onChunk?.();
       } catch (err) {
-        const error = err instanceof Error ? err.message : "Failed to add files";
+        const error = err instanceof Error ? err.message : tr("l10n.err.addFilesFailed");
         for (const f of chunk) result.failed.push({ fileId: f.file_id, error });
       }
       report();
@@ -296,7 +297,7 @@ export async function shareFilesIntoSpace(
     if (opts.signal?.aborted) return;
     const meta = metaById.get(id);
     try {
-      if (!meta) throw new Error("File not found");
+      if (!meta) throw new Error(tr("l10n.err.fileNotFound"));
       const fileKey = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
       const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
       const wrappedName = await sealName(spaceKey, await plainFileName(meta, nameKey));
@@ -304,7 +305,7 @@ export async function shareFilesIntoSpace(
     } catch (err) {
       result.failed.push({
         fileId: id,
-        error: err instanceof Error ? err.message : "Failed to prepare file",
+        error: err instanceof Error ? err.message : tr("l10n.err.prepareFileFailed"),
       });
     }
     done++;
@@ -376,7 +377,7 @@ export async function rotateSpaceKey(
   opts?: SealOptions,
 ): Promise<void> {
   const oldKey = await loadSpaceKey(vault);
-  if (!oldKey) throw new Error("This space's key isn't available, unlock your vault first.");
+  if (!oldKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
   const newKey = generateSpaceKey();
 
   const memberGrants: { user_id: string; wrapped_space_key: string }[] = [];

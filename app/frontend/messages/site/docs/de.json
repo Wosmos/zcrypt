@@ -2673,7 +2673,9 @@
         "license": "Lizenz",
         "privacy": "Datenschutz",
         "terms": "Bedingungen"
-      }
+      },
+      "breadcrumb": "Brotkrümelnavigation",
+      "pagination": "Seitennavigation"
     }
   }
 }

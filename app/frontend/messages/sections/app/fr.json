@@ -861,6 +861,87 @@
       "zipFailed": "Échec du téléchargement du ZIP",
       "zipFailedMsg": "Échec du téléchargement du ZIP : {msg}",
       "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau."
+    },
+    "l10n": {
+      "justNow": "à l'instant",
+      "justNowCap": "À l'instant",
+      "expired": "Expiré",
+      "expiryDH": "{d} j {h} h",
+      "expiryHM": "{h} h {m} min",
+      "expiry": {
+        "never": "Jamais",
+        "h1": "1 heure",
+        "h24": "24 heures",
+        "d7": "7 jours",
+        "d30": "30 jours"
+      },
+      "quota": {
+        "invalid": "Saisissez un quota valide en Go",
+        "unlimited": "Illimité"
+      },
+      "unknown": "Inconnu",
+      "untitledSpace": "Espace sans titre",
+      "lockedSpace": "Espace verrouillé",
+      "lockedName": "[verrouillé]",
+      "zip": {
+        "tooMany": "Un ZIP contient au plus {max} fichiers. Sélectionnez moins de fichiers.",
+        "tooLarge": "Les fichiers de plus de 1 Go ne peuvent pas aller dans un ZIP. Téléchargez-les un par un.",
+        "tooBig": "Un ZIP est limité à 4 Go. Sélectionnez moins de fichiers ou téléchargez-les un par un.",
+        "overLimit": "Plus de 1 Go, trop volumineux pour un ZIP",
+        "stageDownloading": "Téléchargement de {name}",
+        "stageSaving": "Enregistrement du ZIP...",
+        "stageDone": "Terminé",
+        "decryptFailed": "Échec du déchiffrement de {name}, mauvaise phrase secrète ?",
+        "integritySignedOut": "Échec de la vérification d'intégrité de {name}, non connecté",
+        "integrityFailed": "Échec de la vérification d'intégrité de {name}"
+      },
+      "err": {
+        "unlockFolderShare": "Déverrouillez votre coffre pour partager un dossier.",
+        "folderEmpty": "Ce dossier ne contient aucun fichier à partager.",
+        "folderNoneShareable": "Aucun fichier de ce dossier n'a pu être partagé. Ils se trouvent peut-être dans un dossier protégé par mot de passe, ou ont été importés avant la prise en charge du partage.",
+        "fileLegacy": "Ce fichier a été importé avant la prise en charge du partage. Importez-le à nouveau pour le partager.",
+        "passphraseLocked": "Votre phrase secrète est verrouillée. Ouvrez ou téléchargez d'abord un fichier pour la déverrouiller, puis réessayez de partager.",
+        "keyNotReady": "Votre clé de chiffrement n'est pas prête, déverrouillez d'abord votre coffre.",
+        "spaceKeyUnavailable": "La clé de cet espace n'est pas disponible, déverrouillez d'abord votre coffre.",
+        "unlockShareFiles": "Déverrouillez votre coffre pour partager des fichiers.",
+        "fileNotFound": "Fichier introuvable",
+        "addFilesFailed": "Impossible d'ajouter les fichiers",
+        "prepareFileFailed": "Impossible de préparer le fichier"
+      },
+      "platform": {
+        "github": {
+          "tagline": "Grands dépôts · 100 MiB par fichier",
+          "description": "Jeton d'accès personnel avec la portée repo",
+          "capacity": "10 GB / dépôt (recommandé ; pas de plafond strict)",
+          "fileLimit": "100 MiB / fichier (avertissement dès 50 MiB)",
+          "rateInfo": "5k requêtes / heure (authentifié ; ~500 écritures/h)",
+          "tokenLabel": "Générer un jeton sur GitHub"
+        },
+        "gitlab": {
+          "tagline": "10 GiB par projet",
+          "description": "Jeton d'accès personnel avec la portée api",
+          "capacity": "10 GiB / projet (puis lecture seule)",
+          "fileLimit": "5 GiB / push (pas de plafond par fichier)",
+          "rateInfo": "2k requêtes / min (authentifié)",
+          "tokenLabel": "Générer un jeton sur GitLab"
+        },
+        "huggingface": {
+          "tagline": "100 Go privés par compte",
+          "description": "Jeton d'accès avec autorisation d'écriture",
+          "capacity": "100 Go / compte (partagé, pas par dépôt)",
+          "fileLimit": "500 Go / fichier (LFS ; 200 Go recommandés)",
+          "rateInfo": "~128 commits / heure (et 1k requêtes API / 5 min)",
+          "tokenLabel": "Générer un jeton sur Hugging Face"
+        },
+        "telegram": {
+          "tagline": "Stockage illimité via des canaux",
+          "description": "Jeton de bot + canal, configuration guidée, stockage illimité",
+          "capacity": "Illimité",
+          "fileLimit": "Illimité (par blocs)",
+          "rateInfo": "~20 messages/min par discussion",
+          "tokenLabel": "Créer un bot via @BotFather"
+        }
+      }
     }
   }
 }
