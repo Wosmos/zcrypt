@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,9 @@ export function StylePickerDialog({
   entityLabel,
   allowBackgroundDesign = true,
 }: StylePickerDialogProps) {
+  const t = useTranslations("app.stylePicker");
+  const label = (group: string, key: string, fallback: string) =>
+    t.has(`${group}.${key}`) ? t(`${group}.${key}`) : fallback;
   const initialBackground = allowBackgroundDesign ? initialStyle?.background : undefined;
   const [pendingIcon, setPendingIcon] = useState<string | undefined>(initialStyle?.icon);
   const [pendingColor, setPendingColor] = useState<string | undefined>(initialStyle?.color);
@@ -136,7 +140,7 @@ export function StylePickerDialog({
                 : DEFAULT_PICKER_COLOR
             }
             onChange={(e) => handleColorChange(e.target.value)}
-            aria-label="Custom color"
+            aria-label={t("customColor")}
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
         </label>
@@ -146,12 +150,12 @@ export function StylePickerDialog({
           placeholder="#3B82F6"
           maxLength={7}
           className="font-mono uppercase"
-          aria-label="Hex color"
+          aria-label={t("hexColor")}
         />
       </div>
       <div
         role="radiogroup"
-        aria-label="Quick pick color"
+        aria-label={t("quickPick")}
         className="grid grid-cols-6 gap-2 sm:grid-cols-10"
       >
         {STYLE_COLOR_PRESETS.map((preset) => {
@@ -162,8 +166,8 @@ export function StylePickerDialog({
               type="button"
               role="radio"
               aria-checked={active}
-              aria-label={preset.label}
-              title={preset.label}
+              aria-label={label("colors", preset.key, preset.label)}
+              title={label("colors", preset.key, preset.label)}
               onClick={() => handleColorChange(preset.value)}
               style={{ background: preset.value }}
               className={cn(
@@ -185,10 +189,10 @@ export function StylePickerDialog({
       <DialogContent className={cn(DIALOG_PANEL, "max-w-md")}>
         <DialogHeader>
           <DialogTitle>
-            {truncatedLabel ? `Customize "${truncatedLabel}"` : "Customize"}
+            {truncatedLabel ? t("titleNamed", { name: truncatedLabel }) : t("title")}
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            The icon and color are encrypted end-to-end, just like the name.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -209,20 +213,20 @@ export function StylePickerDialog({
               className="truncate text-sm font-medium text-[var(--color-text)]"
               title={entityLabel}
             >
-              {truncatedLabel || "Preview"}
+              {truncatedLabel || t("preview")}
             </p>
-            <p className="text-xs text-[var(--color-text-muted)]">Live preview</p>
+            <p className="text-xs text-[var(--color-text-muted)]">{t("livePreview")}</p>
           </div>
         </div>
 
         {/* Icon grid */}
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-            Icon
+            {t("icon")}
           </p>
           <div
             role="radiogroup"
-            aria-label="Icon"
+            aria-label={t("icon")}
             className="grid max-h-44 grid-cols-6 gap-2 overflow-y-auto pr-1 sm:grid-cols-8"
           >
             {FOLDER_ICON_OPTIONS.map((opt) => {
@@ -233,8 +237,8 @@ export function StylePickerDialog({
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  aria-label={opt.label}
-                  title={opt.label}
+                  aria-label={label("icons", opt.key, opt.label)}
+                  title={label("icons", opt.key, opt.label)}
                   onClick={() => setPendingIcon(opt.key)}
                   className={cn(
                     "squircle relative flex items-center justify-center rounded-lg border p-2 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
@@ -260,7 +264,7 @@ export function StylePickerDialog({
             `allowBackgroundDesign`). */}
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-            {allowBackgroundDesign ? "Background" : "Color"}
+            {allowBackgroundDesign ? t("background") : t("color")}
           </p>
           {allowBackgroundDesign ? (
             <Tabs value={mode} onValueChange={(v) => setMode(v as "solid" | "design")}>
@@ -269,13 +273,13 @@ export function StylePickerDialog({
                   value="solid"
                   className="data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)]"
                 >
-                  Solid
+                  {t("solid")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="design"
                   className="data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)]"
                 >
-                  Design
+                  {t("design")}
                 </TabsTrigger>
               </TabsList>
 
@@ -286,7 +290,7 @@ export function StylePickerDialog({
               <TabsContent value="design" className="mt-3">
                 <div
                   role="radiogroup"
-                  aria-label="Background design"
+                  aria-label={t("backgroundDesign")}
                   className="grid grid-cols-4 gap-2 sm:grid-cols-5"
                 >
                   {BACKGROUND_DESIGNS.map((design) => {
@@ -297,8 +301,8 @@ export function StylePickerDialog({
                         type="button"
                         role="radio"
                         aria-checked={active}
-                        aria-label={design.label}
-                        title={design.label}
+                        aria-label={label("designs", design.key, design.label)}
+                        title={label("designs", design.key, design.label)}
                         onClick={() => handleSelectDesign(design.key)}
                         style={{ background: design.css }}
                         className={cn(
@@ -331,7 +335,7 @@ export function StylePickerDialog({
             disabled={!isCustomized}
             className="gap-1.5"
           >
-            <RotateCcw className="h-3.5 w-3.5" /> Reset to default
+            <RotateCcw className="h-3.5 w-3.5" /> {t("reset")}
           </Button>
           <div className="flex gap-2">
             <Button
@@ -341,10 +345,10 @@ export function StylePickerDialog({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("saving") : t("save")}
             </Button>
           </div>
         </DialogFooter>

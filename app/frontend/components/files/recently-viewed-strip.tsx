@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useRecentlyViewedStore } from "@/store/recently-viewed";
 import { fileIconFor, formatBytes } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
@@ -13,6 +14,7 @@ interface RecentlyViewedStripProps {
 const MIN_ENTRIES_TO_SHOW = 2;
 
 export function RecentlyViewedStrip({ files, onOpen }: RecentlyViewedStripProps) {
+  const t = useTranslations("app.recentlyViewed");
   const entries = useRecentlyViewedStore((s) => s.entries);
 
   const recentFiles = useMemo(() => {
@@ -25,7 +27,7 @@ export function RecentlyViewedStrip({ files, onOpen }: RecentlyViewedStripProps)
   return (
     <div className="space-y-2">
       <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-        Recently viewed
+        {t("title")}
       </h3>
       <div
         style={{ scrollbarWidth: "none" }}

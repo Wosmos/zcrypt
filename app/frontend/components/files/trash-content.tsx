@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { restoreFile, purgeFile, bulkPurgeFiles, bulkRestoreFiles } from "@/lib/api";
 import { isTauri, sidecarDeleteFile } from "@/lib/tauri";
 import { useTrashQuery, setTrashData, invalidateTrash } from "@/store/trash";
@@ -8,6 +9,7 @@ import { invalidateFilesViews } from "@/lib/invalidate";
 import { invalidateQuota } from "@/store/quota";
 import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 import { formatBytes, formatDate, getFileTypeInfo, cn, fileIconFor } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,7 @@ const FOCUS_RING =
 const ROW_SELECTED = "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40";
 
 export function TrashContent() {
+  const t = useTranslations("app.trash");
   const trashQuery = useTrashQuery();
   // Stable ref per data change: many effects/callbacks below depend on `files`.
   const files = useMemo(() => trashQuery.data ?? [], [trashQuery.data]);
@@ -173,11 +176,11 @@ export function TrashContent() {
         // The file's plaintext was cached under its trashed identity; drop it so
         // it re-decrypts cleanly back in the vault.
         clearDecryptCacheForFile(file.id);
-        toast.success("File restored");
+        toast.success(tr("trash.restored"));
         // Cross-view: the file reappears in the vault and quota shifts back.
         void invalidateFilesViews();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Restore failed");
+        toast.error(err instanceof Error ? err.message : tr("trash.restoreFailed"));
         void refresh();
       } finally {
         setBusyId(null);
@@ -215,12 +218,12 @@ export function TrashContent() {
         next.delete(target.id);
         return next;
       });
-      toast.success("File permanently deleted");
+      toast.success(tr("trash.purged"));
       setPurgeTarget(null);
       // Chunks were removed from storage, quota frees up.
       void invalidateQuota();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Permanent delete failed");
+      toast.error(err instanceof Error ? err.message : tr("trash.purgeFailed"));
     } finally {
       setPurging(false);
     }
@@ -249,15 +252,15 @@ export function TrashContent() {
         failed += res.failed;
       }
       if (failed > 0) {
-        toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be restored`);
+        toast.error(tr("trash.bulkRestorePartial", { count: failed }));
         void refresh(); // reconcile: bring back the rows that didn't restore
       } else {
-        toast.success(`Restored ${targets.length} file${targets.length > 1 ? "s" : ""}`);
+        toast.success(tr("trash.bulkRestored", { count: targets.length }));
       }
       // Restored files reappear in the vault; quota shifts back.
       void invalidateFilesViews();
     } catch {
-      toast.error("Could not restore the selected files");
+      toast.error(tr("trash.bulkRestoreFailed"));
       void refresh();
     } finally {
       setBulkRestoring(false);
@@ -285,16 +288,16 @@ export function TrashContent() {
         failed += res.failed;
       }
       if (failed > 0) {
-        toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be deleted`);
+        toast.error(tr("trash.bulkPurgePartial", { count: failed }));
         void refresh(); // reconcile: restore the rows that didn't actually purge
       } else {
-        toast.success(`Permanently deleted ${targets.length} file${targets.length > 1 ? "s" : ""}`);
+        toast.success(tr("trash.bulkPurged", { count: targets.length }));
       }
       // Chunks removed from storage, quota frees up.
       void invalidateQuota();
     } catch {
       // The whole batch failed (network/auth), put the rows back.
-      toast.error("Could not delete the selected files");
+      toast.error(tr("trash.bulkPurgeFailed"));
       void refresh();
     } finally {
       setBulkPurging(false);
@@ -378,9 +381,9 @@ export function TrashContent() {
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHeader
-        eyebrow="Trash"
-        title="Deleted Files"
-        description="Restore files or delete them permanently to remove their chunks from storage."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <>
             {files.length > 0 && (
@@ -391,11 +394,11 @@ export function TrashContent() {
                   <Square className="h-3.5 w-3.5" />
                 )}
                 <span className="hidden sm:inline">
-                  {allSelected ? "Deselect all" : "Select all"}
+                  {allSelected ? t("deselectAll") : t("selectAll")}
                 </span>
               </Button>
             )}
-            <IconButton icon={RefreshCw} label="Refresh" onClick={() => refresh()} />
+            <IconButton icon={RefreshCw} label={t("refresh")} onClick={() => refresh()} />
           </>
         }
       />
@@ -406,12 +409,12 @@ export function TrashContent() {
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <IconButton
               icon={X}
-              label="Clear selection"
+              label={t("clearSelection")}
               onClick={clearSelection}
               iconClassName="h-3.5 w-3.5"
             />
             <span className="text-sm font-medium tabular-nums text-[var(--color-text)]">
-              {selectedCount} selected
+              {t("selected", { count: selectedCount })}
             </span>
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
@@ -422,8 +425,7 @@ export function TrashContent() {
               disabled={bulkRestoring || bulkPurging}
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Restore</span>
-              <span className="hidden sm:inline">selected</span>
+              <span className="hidden sm:inline">{t("restoreSelected")}</span>
             </Button>
             <Button
               variant="danger"
@@ -432,7 +434,7 @@ export function TrashContent() {
               disabled={bulkRestoring || bulkPurging}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Delete forever</span>
+              <span className="hidden sm:inline">{t("deleteForever")}</span>
             </Button>
           </div>
         </div>
@@ -457,13 +459,13 @@ export function TrashContent() {
       ) : files.length === 0 ? (
         <EmptyState
           icon={<Trash2 className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title="Trash is empty"
-          description="Deleted files land here. You can restore them, or delete them permanently to remove their chunks from storage."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
         />
       ) : (
         <div
           role="listbox"
-          aria-label="Deleted files"
+          aria-label={t("listAria")}
           aria-multiselectable="true"
           tabIndex={files.length > 0 ? 0 : -1}
           onKeyDown={handleListKeyDown}
@@ -517,7 +519,9 @@ export function TrashContent() {
                     FOCUS_RING,
                   )}
                   aria-label={
-                    selected ? `Deselect ${file.original_name}` : `Select ${file.original_name}`
+                    selected
+                      ? t("deselectFile", { name: file.original_name })
+                      : t("selectFile", { name: file.original_name })
                   }
                   aria-pressed={selected}
                 >
@@ -547,9 +551,9 @@ export function TrashContent() {
                         {" "}
                         &middot;{" "}
                         <span title={new Date(file.deleted_at).toLocaleString()}>
-                          deleted {formatDate(file.deleted_at)}
+                          {t("deletedOn", { date: formatDate(file.deleted_at) })}
                         </span>{" "}
-                        &middot; kept until you delete it
+                        &middot; {t("keptUntil")}
                       </>
                     )}
                   </p>
@@ -567,7 +571,7 @@ export function TrashContent() {
                     disabled={busy}
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    Preview
+                    {t("preview")}
                   </Button>
                   <Button
                     variant="secondary"
@@ -579,7 +583,7 @@ export function TrashContent() {
                     disabled={busy}
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
-                    Restore
+                    {t("restore")}
                   </Button>
                   <Button
                     variant="danger"
@@ -591,7 +595,7 @@ export function TrashContent() {
                     disabled={busy}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete
+                    {t("delete")}
                   </Button>
                 </div>
 
@@ -607,7 +611,7 @@ export function TrashContent() {
                           "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-all hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] data-[state=open]:bg-[var(--color-surface-2)] disabled:opacity-40",
                           FOCUS_RING,
                         )}
-                        aria-label={`Actions for ${file.original_name}`}
+                        aria-label={t("actionsFor", { name: file.original_name })}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
@@ -618,17 +622,17 @@ export function TrashContent() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <DropdownMenuItem onClick={() => openPreview(index)}>
-                        <Eye className="h-4 w-4" /> Preview
+                        <Eye className="h-4 w-4" /> {t("preview")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleRestore(file)}>
-                        <RotateCcw className="h-4 w-4" /> Restore
+                        <RotateCcw className="h-4 w-4" /> {t("restore")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => setPurgeTarget(file)}
                         className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
                       >
-                        <Trash2 className="h-4 w-4" /> Delete forever
+                        <Trash2 className="h-4 w-4" /> {t("deleteForever")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -663,12 +667,11 @@ export function TrashContent() {
         onOpenChange={(o) => !o && setPurgeTarget(null)}
         onConfirm={handlePurge}
         destructive
-        title="Delete permanently?"
+        title={t("purgeTitle")}
         description={
           <>
             <span className="block">
-              This file will be permanently deleted and its chunks removed from all storage
-              platforms. This action cannot be undone.
+              {t("purgeBody")}
             </span>
             {purgeTarget && (
               <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
@@ -677,7 +680,7 @@ export function TrashContent() {
             )}
           </>
         }
-        confirmLabel="Delete permanently"
+        confirmLabel={t("purgeConfirm")}
         loading={purging}
       />
 
@@ -687,14 +690,13 @@ export function TrashContent() {
         onOpenChange={(o) => !o && setBulkPurgeOpen(false)}
         onConfirm={handleBulkPurge}
         destructive
-        title={`Delete ${selectedCount} file${selectedCount > 1 ? "s" : ""} permanently?`}
+        title={t("bulkPurgeTitle", { count: selectedCount })}
         description={
           <span className="block">
-            These {selectedCount} file{selectedCount > 1 ? "s" : ""} will be permanently deleted and
-            their chunks removed from all storage platforms. This action cannot be undone.
+            {t("bulkPurgeBody", { count: selectedCount })}
           </span>
         }
-        confirmLabel="Delete permanently"
+        confirmLabel={t("purgeConfirm")}
         loading={bulkPurging}
       />
     </div>

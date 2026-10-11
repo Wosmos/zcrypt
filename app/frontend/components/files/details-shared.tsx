@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { IconButton } from "@/components/ui/icon-button";
 import { File, Copy, Check, ShieldCheck, Link2, Lock, Trash2 } from "@/lib/icons";
 import { cn, formatDate } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "@/store/toast";
+import { tr } from "@/store/translate";
 
 /**
  * Shared building blocks for the file + folder "Get info" drawers
@@ -47,6 +49,7 @@ export function CopyField({
   value: string;
   mono?: boolean;
 }) {
+  const t = useTranslations("app.details");
   const [copied, setCopied] = useState(false);
   const copy = useCallback(async () => {
     const ok = await copyToClipboard(value);
@@ -54,7 +57,7 @@ export function CopyField({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } else {
-      toast.error("Failed to copy");
+      toast.error(tr("details.copyFailed"));
     }
   }, [value]);
 
@@ -69,7 +72,7 @@ export function CopyField({
         </span>
         <IconButton
           icon={copied ? Check : Copy}
-          label={copied ? "Copied" : `Copy ${label.toLowerCase()}`}
+          label={copied ? t("copied") : t("copyLabel", { label })}
           onClick={copy}
           iconClassName={cn("h-3.5 w-3.5", copied && "text-[var(--color-accent)]")}
           className="h-7 w-7 flex-shrink-0"
@@ -124,6 +127,7 @@ export function ShareLinkRow({
   containerClassName?: string;
   onRevoke: () => void;
 }) {
+  const t = useTranslations("app.details");
   return (
     <div
       className={cn(
@@ -140,20 +144,22 @@ export function ShareLinkRow({
           {hasPassword && (
             <Lock
               className="h-3 w-3 flex-shrink-0 text-amber-500"
-              aria-label="Password protected"
+              aria-label={t("passwordProtected")}
             />
           )}
         </div>
         <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
-          {fileCount !== undefined && `${fileCount} file${fileCount === 1 ? "" : "s"} · `}
-          {downloadCount}
-          {maxDownloads > 0 ? `/${maxDownloads}` : ""} downloads
-          {expiresAt && ` · expires ${formatDate(expiresAt)}`}
+          {fileCount !== undefined && `${t("fileCount", { count: fileCount })} · `}
+          {t("downloadsCount", {
+            count: downloadCount,
+            counter: maxDownloads > 0 ? `${downloadCount}/${maxDownloads}` : String(downloadCount),
+          })}
+          {expiresAt && ` · ${t("expiresOn", { date: formatDate(expiresAt) })}`}
         </p>
       </div>
       <IconButton
         icon={Trash2}
-        label="Revoke link"
+        label={t("revokeLink")}
         variant="ghost"
         onClick={onRevoke}
         iconClassName="h-3.5 w-3.5 text-red-500"

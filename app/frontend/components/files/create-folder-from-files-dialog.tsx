@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,16 +73,19 @@ export function CreateFolderFromFilesDialog({
   onConfirm,
   onClose,
 }: CreateFolderFromFilesDialogProps) {
+  const t = useTranslations("app.createFromFiles");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
   // Seed a sensible default name from the dropped-on file each time we open.
   useEffect(() => {
     if (open) {
-      setName(target ? `${baseName(target.original_name)} folder` : "New folder");
+      setName(
+        target ? t("defaultName", { name: baseName(target.original_name) }) : t("fallbackName"),
+      );
       setBusy(false);
     }
-  }, [open, target]);
+  }, [open, target, t]);
 
   const submit = async () => {
     const trimmed = name.trim();
@@ -100,10 +104,9 @@ export function CreateFolderFromFilesDialog({
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className={DIALOG_PANEL}>
         <DialogHeader>
-          <DialogTitle>New folder from selection</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            Both files move into a new folder. The folder name is encrypted end-to-end before it
-            leaves your device.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -116,7 +119,7 @@ export function CreateFolderFromFilesDialog({
 
         <Input
           autoFocus
-          placeholder="Folder name"
+          placeholder={t("folderName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -126,15 +129,15 @@ export function CreateFolderFromFilesDialog({
             }
           }}
           icon={<FolderIcon className="h-4 w-4" />}
-          aria-label="New folder name"
+          aria-label={t("folderNameAria")}
         />
 
         <DialogFooter className="gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button size="sm" onClick={() => void submit()} disabled={busy || !name.trim()}>
-            {busy ? "Creating…" : "Create folder"}
+            {busy ? t("creating") : t("create")}
           </Button>
         </DialogFooter>
       </DialogContent>
