@@ -38,7 +38,8 @@
     "takeTour": "ابدأ الجولة التعريفية",
     "rate": "قيّم zcrypt",
     "reportBug": "الإبلاغ عن خطأ",
-    "logOut": "تسجيل الخروج"
+    "logOut": "تسجيل الخروج",
+    "appVersion": "إصدار zcrypt {version}"
   },
   "vaultLock": {
     "locked": "مقفلة",

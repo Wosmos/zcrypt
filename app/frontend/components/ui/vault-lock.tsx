@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { LockKey, LockKeyOpen } from "@phosphor-icons/react";
 import { Toggle } from "@/components/ui/toggle";
@@ -40,6 +40,7 @@ export interface VaultLockProps {
   onLock: () => void;
   className?: string;
   tour?: string;
+  iconOnly?: boolean;
 }
 
 const formatCountdown = (totalSeconds: number) =>
@@ -54,6 +55,7 @@ export function VaultLock({
   onLock,
   className,
   tour,
+  iconOnly = false,
 }: VaultLockProps) {
   const t = useTranslations("vaultLock");
   const tc = useTranslations("common");
@@ -62,22 +64,19 @@ export function VaultLock({
   const [pending, setPending] = useState(false);
   const on = unlocked || pending;
 
-  // Once genuinely unlocked, drop the optimistic flag.
-  useEffect(() => {
+  // Drop the optimistic flag once genuinely unlocked, or when the modal that
+  // opened for our press closes without unlocking (cancel). Adjusted during
+  // render from the previous props, so there's no effect round-trip.
+  const [prevUnlocked, setPrevUnlocked] = useState(unlocked);
+  const [prevModalOpen, setPrevModalOpen] = useState(modalOpen);
+  if (unlocked !== prevUnlocked) {
+    setPrevUnlocked(unlocked);
     if (unlocked) setPending(false);
-  }, [unlocked]);
-
-  // If the modal opened for our press and then closed without unlocking (cancel),
-  // revert the button to off.
-  const wasModalOpen = useRef(false);
-  useEffect(() => {
-    if (modalOpen) {
-      wasModalOpen.current = true;
-    } else if (wasModalOpen.current) {
-      wasModalOpen.current = false;
-      if (!unlocked) setPending(false);
-    }
-  }, [modalOpen, unlocked]);
+  }
+  if (modalOpen !== prevModalOpen) {
+    setPrevModalOpen(modalOpen);
+    if (!modalOpen && !unlocked) setPending(false);
+  }
 
   const handlePressedChange = (next: boolean) => {
     if (next) {
@@ -122,7 +121,7 @@ export function VaultLock({
       )}
 
       {/* Label: hidden on mobile (the icon + aria-label carry the state there). */}
-      <span className="hidden items-center sm:inline-flex">
+      <span className={cn("hidden items-center", !iconOnly && "sm:inline-flex")}>
         {unlocked ? (
           persistent ? (
             <span>{t("thisDevice")}</span>

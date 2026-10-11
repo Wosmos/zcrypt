@@ -258,6 +258,26 @@
       "noMatches": "Keine passenden Dateien",
       "showAll": "Alle Ergebnisse für „{query}“ anzeigen",
       "clear": "Suche löschen"
+    },
+    "quickSettings": {
+      "open": "Schnelleinstellungen",
+      "title": "Schnelleinstellungen",
+      "description": "Design, Sprache und Anzeigeoptionen",
+      "close": "Schließen",
+      "allSettings": "Alle Einstellungen",
+      "whatsNew": "Neuigkeiten"
+    },
+    "getApps": {
+      "open": "Apps holen",
+      "title": "Die zcrypt-Apps",
+      "subtitle": "Dein Tresor auf jedem Gerät, Ende-zu-Ende verschlüsselt.",
+      "androidTitle": "Android-App",
+      "androidHint": "Mit dem Handy scannen und herunterladen",
+      "androidDirect": "APK herunterladen",
+      "downloadFor": "Für {os} herunterladen",
+      "otherPlatforms": "Andere Plattformen",
+      "allDownloads": "Alle Downloads",
+      "iosNote": "Noch keine iPhone-App. Die Web-App läuft in Safari und lässt sich zum Home-Bildschirm hinzufügen."
     }
   }
 }

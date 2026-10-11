@@ -20,6 +20,8 @@ import {
   Layers,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
+import { VaultLock } from "@/components/ui/vault-lock";
+import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { MobileNav } from "@/components/ui/mobile-nav";
 import { useAuthStore } from "@/store/auth";
 import { useQuotaQuery } from "@/store/quota";
@@ -67,6 +69,8 @@ export function Sidebar() {
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const [collapsed, setCollapsed] = useState(false);
   const quota = useQuotaQuery().data ?? null;
+  const vault = useVaultLockContext();
+  const version = process.env.NEXT_PUBLIC_APP_VERSION;
 
   const isAdmin = user?.role === Role.Admin;
   const secondaryLinks = useMemo(() => {
@@ -172,8 +176,26 @@ export function Sidebar() {
           ))}
         </nav>
 
+        {/* Vault lock: app-wide, so it lives with the shell rather than one page. */}
+        <div className={cn("pt-3", collapsed && "flex justify-center")}>
+          <VaultLock
+            unlocked={vault.unlocked}
+            remainingSeconds={vault.remainingSeconds}
+            persistent={vault.persistent}
+            modalOpen={vault.modalProps.open}
+            onUnlock={() => vault.unlock()}
+            onLock={vault.lock}
+            iconOnly={collapsed}
+            tour="vault-lock"
+            className={cn(
+              "h-10 rounded-xl border border-[var(--color-border)] text-sm data-[state=on]:border-[var(--color-accent)]/25",
+              collapsed ? "w-10 justify-center px-0" : "w-full justify-start gap-2.5 px-3",
+            )}
+          />
+        </div>
+
         {/* Storage card */}
-        <div className="pt-3">
+        <div className="pt-2">
           {!collapsed ? (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
               <div className="mb-2 flex items-center justify-between">
@@ -203,13 +225,26 @@ export function Sidebar() {
                   <div className="h-full w-full rounded-full bg-[var(--color-accent)]/60" />
                 )}
               </div>
-              <p className="mt-2 text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                {isUnlimited
-                  ? t("storageUsed", { used: formatBytes(totalUsed) })
-                  : totalMax > 0
-                    ? t("storageOf", { used: formatBytes(totalUsed), total: formatBytes(totalMax) })
-                    : t("noPlatformConnected")}
-              </p>
+              <div className="mt-2 flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                <p className="min-w-0 truncate">
+                  {isUnlimited
+                    ? t("storageUsed", { used: formatBytes(totalUsed) })
+                    : totalMax > 0
+                      ? t("storageOf", {
+                          used: formatBytes(totalUsed),
+                          total: formatBytes(totalMax),
+                        })
+                      : t("noPlatformConnected")}
+                </p>
+                {version ? (
+                  <span
+                    className="shrink-0 font-mono text-[10.5px] opacity-80"
+                    title={t("appVersion", { version })}
+                  >
+                    v{version}
+                  </span>
+                ) : null}
+              </div>
             </div>
           ) : (
             <div

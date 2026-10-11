@@ -38,7 +38,8 @@
     "takeTour": "Пройти обзор",
     "rate": "Оценить zcrypt",
     "reportBug": "Сообщить об ошибке",
-    "logOut": "Выйти"
+    "logOut": "Выйти",
+    "appVersion": "Версия zcrypt {version}"
   },
   "vaultLock": {
     "locked": "Заблокировано",

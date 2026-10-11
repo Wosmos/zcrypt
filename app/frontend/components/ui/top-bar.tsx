@@ -6,6 +6,9 @@ import { Logo } from "@/components/ui/logo";
 import { UpdatePill } from "@/components/ui/update-pill";
 import { VaultLock } from "@/components/ui/vault-lock";
 import { GlobalSearch } from "@/components/ui/global-search";
+import { QuickSettings } from "@/components/ui/quick-settings";
+import { GetAppsButton } from "@/components/ui/get-apps-dialog";
+import { isTauri } from "@/lib/tauri";
 import { usePathname } from "next/navigation";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 
@@ -17,17 +20,19 @@ export function TopBar() {
   const onVault = usePathname() === "/dashboard";
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-lg px-2 pb-6 pt-[calc(1.5rem+var(--safe-top))] md:mt-0 md:py-0 md:pt-0">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-lg px-2 pb-6 pt-[calc(1.5rem+var(--safe-top))] md:mt-0 md:px-0 md:py-0 md:pt-0">
       {/* Left: logo on mobile, then the vault search on the vault page only. Other
           pages carry their own search (Spaces) or none (Insights, Settings). */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <Logo size="lg" iconOnly href="/dashboard" className="shrink-0 sm:hidden" />
+        <div className="shrink-0 sm:hidden">
+          <Logo size="lg" iconOnly href="/dashboard" />
+        </div>
         {onVault ? <GlobalSearch className="max-w-2xl" /> : null}
       </div>
 
       {/* Right: vault lock (mobile only), notification + avatar, pinned right */}
       <div className="flex flex-shrink-0 items-center gap-1.5">
-        <div className="sm:hidden">
+        <div className="md:hidden">
           <VaultLock
             unlocked={vault.unlocked}
             remainingSeconds={vault.remainingSeconds}
@@ -40,6 +45,10 @@ export function TopBar() {
           />
         </div>
         <UpdatePill />
+        {isTauri ? null : <GetAppsButton className="hidden sm:flex" />}
+        <div className="hidden sm:block">
+          <QuickSettings />
+        </div>
         <NotificationCenter />
         <AvatarDropdown />
       </div>

@@ -258,6 +258,26 @@
       "noMatches": "Ningún archivo coincide",
       "showAll": "Ver todos los resultados de «{query}»",
       "clear": "Borrar búsqueda"
+    },
+    "quickSettings": {
+      "open": "Ajustes rápidos",
+      "title": "Ajustes rápidos",
+      "description": "Tema, idioma y opciones de visualización",
+      "close": "Cerrar",
+      "allSettings": "Todos los ajustes",
+      "whatsNew": "Novedades"
+    },
+    "getApps": {
+      "open": "Obtener las apps",
+      "title": "Las apps de zcrypt",
+      "subtitle": "Tu bóveda en todos tus dispositivos, con cifrado de extremo a extremo.",
+      "androidTitle": "App para Android",
+      "androidHint": "Escanéalo con el móvil para descargar",
+      "androidDirect": "Descargar el APK",
+      "downloadFor": "Descargar para {os}",
+      "otherPlatforms": "Otras plataformas",
+      "allDownloads": "Todas las descargas",
+      "iosNote": "Aún no hay app para iPhone. La app web funciona en Safari y se puede añadir a la pantalla de inicio."
     }
   }
 }

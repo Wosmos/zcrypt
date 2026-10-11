@@ -38,7 +38,8 @@
     "takeTour": "ٹور شروع کریں",
     "rate": "zcrypt کو ریٹ کریں",
     "reportBug": "خرابی کی اطلاع دیں",
-    "logOut": "لاگ آؤٹ"
+    "logOut": "لاگ آؤٹ",
+    "appVersion": "zcrypt ورژن {version}"
   },
   "vaultLock": {
     "locked": "مقفل",

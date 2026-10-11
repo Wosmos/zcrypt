@@ -23,7 +23,6 @@ import { IncompleteUploads } from "@/components/upload/incomplete-uploads";
 import { SharedStorageBanner } from "@/components/dashboard/shared-storage-banner";
 import { ConnectStorageDialog } from "@/components/dashboard/connect-storage-dialog";
 
-import { VaultLock } from "@/components/ui/vault-lock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
@@ -420,22 +419,10 @@ export default function VaultPage() {
           </div>
         </div>
       )}
-      {/* Desktop actions row: vault lock, then [New folder, Upload, refresh]. Search
-          is the global bar in the TopBar; on mobile the lock lives in the TopBar and
-          New folder + Upload move beside the type filters. */}
-      <div className="hidden flex-row items-center justify-between gap-3 sm:flex">
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
-          <VaultLock
-            unlocked={vault.unlocked}
-            remainingSeconds={vault.remainingSeconds}
-            persistent={vault.persistent}
-            modalOpen={vault.modalProps.open}
-            onUnlock={() => vault.unlock()}
-            onLock={vault.lock}
-            className="hidden flex-shrink-0 sm:inline-flex"
-            tour="vault-lock"
-          />
-        </div>
+      {/* Desktop actions row: shortcuts, New folder, Upload, refresh. The vault lock
+          lives in the sidebar (TopBar below md); on phones New folder + Upload sit in
+          the floating button. */}
+      <div className="hidden flex-row items-center justify-end gap-3 sm:flex">
         {/* Desktop actions. New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
         <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
           <VaultShortcuts />

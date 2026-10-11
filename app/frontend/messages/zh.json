@@ -38,7 +38,8 @@
     "takeTour": "开始导览",
     "rate": "给 zcrypt 评分",
     "reportBug": "反馈问题",
-    "logOut": "退出登录"
+    "logOut": "退出登录",
+    "appVersion": "zcrypt 版本 {version}"
   },
   "vaultLock": {
     "locked": "已锁定",

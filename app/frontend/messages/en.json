@@ -38,7 +38,8 @@
     "takeTour": "Take the tour",
     "rate": "Rate zcrypt",
     "reportBug": "Report a bug",
-    "logOut": "Log out"
+    "logOut": "Log out",
+    "appVersion": "zcrypt version {version}"
   },
   "vaultLock": {
     "locked": "Locked",

@@ -258,6 +258,26 @@
       "noMatches": "No files match",
       "showAll": "Show all results for “{query}”",
       "clear": "Clear search"
+    },
+    "quickSettings": {
+      "open": "Quick settings",
+      "title": "Quick settings",
+      "description": "Theme, language and display options",
+      "close": "Close",
+      "allSettings": "All settings",
+      "whatsNew": "What's new"
+    },
+    "getApps": {
+      "open": "Get the apps",
+      "title": "Get the zcrypt apps",
+      "subtitle": "Your vault on every device, end-to-end encrypted.",
+      "androidTitle": "Android app",
+      "androidHint": "Scan with your phone to download",
+      "androidDirect": "Download the APK",
+      "downloadFor": "Download for {os}",
+      "otherPlatforms": "Other platforms",
+      "allDownloads": "All downloads",
+      "iosNote": "No iPhone app yet. The web app works in Safari and can be added to your Home Screen."
     }
   }
 }

@@ -258,6 +258,26 @@
       "noMatches": "Aucun fichier ne correspond",
       "showAll": "Voir tous les résultats pour « {query} »",
       "clear": "Effacer la recherche"
+    },
+    "quickSettings": {
+      "open": "Réglages rapides",
+      "title": "Réglages rapides",
+      "description": "Thème, langue et options d'affichage",
+      "close": "Fermer",
+      "allSettings": "Tous les réglages",
+      "whatsNew": "Nouveautés"
+    },
+    "getApps": {
+      "open": "Obtenir les applis",
+      "title": "Les applis zcrypt",
+      "subtitle": "Votre coffre sur tous vos appareils, chiffré de bout en bout.",
+      "androidTitle": "Appli Android",
+      "androidHint": "Scannez avec votre téléphone pour télécharger",
+      "androidDirect": "Télécharger l'APK",
+      "downloadFor": "Télécharger pour {os}",
+      "otherPlatforms": "Autres plateformes",
+      "allDownloads": "Tous les téléchargements",
+      "iosNote": "Pas encore d'appli iPhone. L'appli web fonctionne dans Safari et peut être ajoutée à l'écran d'accueil."
     }
   }
 }

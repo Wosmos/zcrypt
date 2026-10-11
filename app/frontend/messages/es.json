@@ -38,7 +38,8 @@
     "takeTour": "Hacer el recorrido",
     "rate": "Valorar zcrypt",
     "reportBug": "Informar de un error",
-    "logOut": "Cerrar sesión"
+    "logOut": "Cerrar sesión",
+    "appVersion": "Versión de zcrypt {version}"
   },
   "vaultLock": {
     "locked": "Bloqueada",
