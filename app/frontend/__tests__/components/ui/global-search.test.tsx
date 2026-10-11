@@ -17,6 +17,7 @@ vi.mock("@/components/providers/vault-lock-provider", () => ({
   useVaultLockContext: () => ({ unlocked: m.unlocked }),
 }));
 vi.mock("@/store/files", () => ({ useFilesQuery: () => ({ data: m.files }) }));
+vi.mock("@/hooks/useIsMobile", () => ({ useIsMobile: () => false }));
 
 import { GlobalSearch } from "@/components/ui/global-search";
 import { useVaultSearch } from "@/components/ui/command-palette";
