@@ -497,14 +497,14 @@ pub(super) async fn open_file(
     let salt = b64
         .decode(&meta.salt)
         .map_err(|e| EngineError::Integrity(format!("salt b64: {e}")))?;
-    let wrapped = if meta.wrapped_cek.is_empty() {
+    let wrapped = if is_space_mode {
         None
     } else {
-        Some(
-            b64.decode(&meta.wrapped_cek)
-                .map_err(|e| EngineError::Integrity(format!("cek b64: {e}")))?,
-        )
+        crypto::WrappedKey::parse(&meta.wrapped_cek)?
     };
+    if wrapped.as_ref().is_some_and(|w| w.is_mk1()) {
+        super::ensure_master_key(ctx, passphrase).await?;
+    }
 
     // 2. Key. `space_key` here is actually the file's ALREADY-RESOLVED content
     //    key, not the space's raw symmetric key: a shared file's CEK is wrapped
@@ -522,7 +522,7 @@ pub(super) async fn open_file(
         let pass = passphrase.to_string();
         let fid = file_id.to_string();
         tokio::task::spawn_blocking(move || {
-            crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
+            crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_ref())
         })
         .await
         .map_err(join_err)??

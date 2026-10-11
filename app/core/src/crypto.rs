@@ -32,6 +32,84 @@ pub enum CryptoError {
     /// AES-GCM authentication failed: wrong key/passphrase or tampered data.
     #[error("decryption failed: wrong passphrase or corrupt data")]
     AuthFailed,
+    #[error("file is wrapped under the account master key but no master key is available")]
+    MasterKeyMissing,
+    #[error("malformed wrapped key: {0}")]
+    BadWrappedKey(String),
+}
+
+pub const MK1_PREFIX: &str = "mk1:";
+
+/// A file's wrapped CEK, tagged by the key that wraps it so an account-master-key
+/// blob can never be fed to the per-file PBKDF2 unwrap (or vice versa).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WrappedKey {
+    Legacy(Vec<u8>),
+    Mk1(Vec<u8>),
+}
+
+impl WrappedKey {
+    /// Parse the API's `wrapped_cek` string. Empty means a pre-envelope file.
+    pub fn parse(s: &str) -> Result<Option<WrappedKey>, CryptoError> {
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD;
+        if s.is_empty() {
+            return Ok(None);
+        }
+        if let Some(rest) = s.strip_prefix(MK1_PREFIX) {
+            let bytes = b64
+                .decode(rest)
+                .map_err(|e| CryptoError::BadWrappedKey(e.to_string()))?;
+            return Ok(Some(WrappedKey::Mk1(bytes)));
+        }
+        let bytes = b64
+            .decode(s)
+            .map_err(|e| CryptoError::BadWrappedKey(e.to_string()))?;
+        Ok(Some(WrappedKey::Legacy(bytes)))
+    }
+
+    pub fn is_mk1(&self) -> bool {
+        matches!(self, WrappedKey::Mk1(_))
+    }
+}
+
+fn master_key_slot() -> &'static Mutex<Option<Vec<u8>>> {
+    static SLOT: OnceLock<Mutex<Option<Vec<u8>>>> = OnceLock::new();
+    SLOT.get_or_init(|| Mutex::new(None))
+}
+
+static MASTER_KEY_WRITES: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Server flag: new uploads may wrap CEKs under the account master key.
+pub fn set_master_key_writes(on: bool) {
+    MASTER_KEY_WRITES.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn master_key_writes() -> bool {
+    MASTER_KEY_WRITES.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Session-cached account master key (memory only, wiped by [`clear_key_cache`]).
+pub fn set_master_key(mk: Vec<u8>) {
+    if let Some(mut old) = master_key_slot().lock().unwrap().replace(mk) {
+        old.zeroize();
+    }
+}
+
+pub fn cached_master_key() -> Option<Vec<u8>> {
+    master_key_slot().lock().unwrap().clone()
+}
+
+/// Derive the account KEK from the passphrase and unwrap the master key.
+pub fn unwrap_master_key(
+    passphrase: &str,
+    kdf_salt: &[u8],
+    wrapped_master_key: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    let mut kek = derive_key(passphrase, kdf_salt);
+    let result = unwrap_cek(&kek, wrapped_master_key);
+    kek.zeroize();
+    result
 }
 
 /// PBKDF2-HMAC-SHA256, 600k iterations, 32-byte key. The salt is raw bytes:
@@ -111,24 +189,35 @@ pub fn unwrap_cek(kek: &[u8], wrapped: &[u8]) -> Result<Vec<u8>, CryptoError> {
     decrypt_chunk(kek, wrapped)
 }
 
-/// Resolve a file's content key from the passphrase: envelope files unwrap the
-/// CEK; legacy files (no wrapped CEK) used the passphrase-derived key directly.
+/// Resolve a file's content key: mk1 files unwrap under the account master key
+/// (`mk`), envelope files under the per-file PBKDF2 KEK, and legacy files (no
+/// wrapped CEK) used the passphrase-derived key directly.
+pub fn resolve_file_key_with(
+    passphrase: &str,
+    salt: &[u8],
+    wrapped_cek: Option<&WrappedKey>,
+    mk: Option<&[u8]>,
+) -> Result<Vec<u8>, CryptoError> {
+    match wrapped_cek {
+        Some(WrappedKey::Mk1(blob)) => unwrap_cek(mk.ok_or(CryptoError::MasterKeyMissing)?, blob),
+        Some(WrappedKey::Legacy(wrapped)) if !wrapped.is_empty() => {
+            let mut kek = derive_key(passphrase, salt);
+            let result = unwrap_cek(&kek, wrapped);
+            kek.zeroize();
+            result
+        }
+        _ => Ok(derive_key(passphrase, salt).to_vec()),
+    }
+}
+
+/// [`resolve_file_key_with`] using the session-cached master key.
 pub fn resolve_file_key(
     passphrase: &str,
     salt: &[u8],
-    wrapped_cek: Option<&[u8]>,
+    wrapped_cek: Option<&WrappedKey>,
 ) -> Result<Vec<u8>, CryptoError> {
-    let mut kek = derive_key(passphrase, salt);
-    let result = match wrapped_cek {
-        Some(wrapped) if !wrapped.is_empty() => unwrap_cek(&kek, wrapped),
-        _ => Ok(kek.to_vec()),
-    };
-    // Both branches above already copied whatever they needed out of `kek`
-    // (unwrap_cek's own AES-GCM key setup; to_vec()'s copy for the legacy
-    // no-envelope case, where kek itself IS the returned key), wiping it here
-    // can't affect the result either way.
-    kek.zeroize();
-    result
+    let mk = cached_master_key();
+    resolve_file_key_with(passphrase, salt, wrapped_cek, mk.as_deref())
 }
 
 /// Lowercase-hex SHA-256.
@@ -222,10 +311,16 @@ pub fn resolve_file_key_cached(
     file_id: &str,
     passphrase: &str,
     salt: &[u8],
-    wrapped_cek: Option<&[u8]>,
+    wrapped_cek: Option<&WrappedKey>,
 ) -> Result<Vec<u8>, CryptoError> {
     let cache_key = key_cache_key(file_id, passphrase);
     if let Some(key) = key_cache().lock().unwrap().get(&cache_key) {
+        return Ok(key);
+    }
+    if let Some(WrappedKey::Mk1(_)) = wrapped_cek {
+        let mk = cached_master_key();
+        let key = resolve_file_key_with(passphrase, salt, wrapped_cek, mk.as_deref())?;
+        key_cache().lock().unwrap().put(cache_key, key.clone());
         return Ok(key);
     }
     let kek_key = format!(
@@ -239,7 +334,7 @@ pub fn resolve_file_key_cached(
         None => derive_key(passphrase, salt).to_vec(),
     };
     let result = match wrapped_cek {
-        Some(wrapped) if !wrapped.is_empty() => unwrap_cek(&kek, wrapped),
+        Some(WrappedKey::Legacy(wrapped)) if !wrapped.is_empty() => unwrap_cek(&kek, wrapped),
         _ => Ok(kek.clone()),
     };
     if let Ok(resolved) = &result {
@@ -284,6 +379,10 @@ pub fn derive_dedup_key_cached(passphrase: &str, user_id: &str) -> [u8; KEY_SIZE
 /// Forget every cached key. Call on vault lock / logout, mirroring the
 /// frontend's own CEK cache eviction.
 pub fn clear_key_cache() {
+    if let Some(mut mk) = master_key_slot().lock().unwrap().take() {
+        mk.zeroize();
+    }
+    set_master_key_writes(false);
     key_cache().lock().unwrap().clear();
 }
 
@@ -503,17 +602,27 @@ mod key_cache_tests {
         let (cek_a, cek_b) = (generate_cek(), generate_cek());
         let wrapped_a = wrap_cek(&kek, &cek_a).unwrap();
         let wrapped_b = wrap_cek(&kek, &cek_b).unwrap();
-        let a =
-            resolve_file_key_cached("file-shared-salt-a", pass, &salt, Some(&wrapped_a)).unwrap();
-        let b =
-            resolve_file_key_cached("file-shared-salt-b", pass, &salt, Some(&wrapped_b)).unwrap();
+        let a = resolve_file_key_cached(
+            "file-shared-salt-a",
+            pass,
+            &salt,
+            Some(&WrappedKey::Legacy(wrapped_a.clone())),
+        )
+        .unwrap();
+        let b = resolve_file_key_cached(
+            "file-shared-salt-b",
+            pass,
+            &salt,
+            Some(&WrappedKey::Legacy(wrapped_b.clone())),
+        )
+        .unwrap();
         assert_eq!(a, cek_a.to_vec());
         assert_eq!(b, cek_b.to_vec());
         assert!(resolve_file_key_cached(
             "file-shared-salt-c",
             "wrong-pass",
             &salt,
-            Some(&wrapped_a)
+            Some(&WrappedKey::Legacy(wrapped_a.clone()))
         )
         .is_err());
     }
@@ -529,5 +638,71 @@ mod key_cache_tests {
             cache.put(format!("file-evict-test-{i}"), vec![0u8; 32]);
         }
         assert!(cache.map.len() <= KEY_CACHE_CAP);
+    }
+}
+
+#[cfg(test)]
+mod mk1_tests {
+    use super::*;
+    use base64::Engine;
+
+    fn wrap_with_iv(key: &[u8], iv: [u8; IV_SIZE], plain: &[u8]) -> Vec<u8> {
+        let ct = cipher(key)
+            .unwrap()
+            .encrypt(Nonce::from_slice(&iv), plain)
+            .unwrap();
+        [iv.as_slice(), ct.as_slice()].concat()
+    }
+
+    #[test]
+    fn mk1_chain_resolves_cek() {
+        let b64 = base64::engine::general_purpose::STANDARD;
+        let pass = "mk1-fixed-passphrase";
+        let kdf_salt = [7u8; SALT_SIZE];
+        let mk = [0x11u8; KEY_SIZE];
+        let cek = [0x22u8; KEY_SIZE];
+        let account_kek = derive_key(pass, &kdf_salt);
+        let wrapped_mk = wrap_with_iv(&account_kek, [1u8; IV_SIZE], &mk);
+        let wrapped_cek = wrap_with_iv(&mk, [2u8; IV_SIZE], &cek);
+
+        let unwrapped = unwrap_master_key(pass, &kdf_salt, &wrapped_mk).unwrap();
+        assert_eq!(unwrapped, mk.to_vec());
+
+        let wire = format!("mk1:{}", b64.encode(&wrapped_cek));
+        let parsed = WrappedKey::parse(&wire).unwrap().unwrap();
+        assert_eq!(parsed, WrappedKey::Mk1(wrapped_cek.clone()));
+
+        let file_salt = [9u8; SALT_SIZE];
+        let got = resolve_file_key_with(pass, &file_salt, Some(&parsed), Some(&unwrapped)).unwrap();
+        assert_eq!(got, cek.to_vec());
+
+        assert!(matches!(
+            resolve_file_key_with(pass, &file_salt, Some(&parsed), None),
+            Err(CryptoError::MasterKeyMissing)
+        ));
+        assert!(resolve_file_key_with(pass, &file_salt, Some(&parsed), Some(&[0u8; 32])).is_err());
+    }
+
+    #[test]
+    fn legacy_string_and_empty_parse() {
+        let b64 = base64::engine::general_purpose::STANDARD;
+        assert_eq!(WrappedKey::parse("").unwrap(), None);
+        let raw = vec![5u8; 60];
+        assert_eq!(
+            WrappedKey::parse(&b64.encode(&raw)).unwrap(),
+            Some(WrappedKey::Legacy(raw))
+        );
+        assert!(WrappedKey::parse("mk1:!!notb64").is_err());
+    }
+
+    #[test]
+    fn legacy_chain_still_resolves_without_mk() {
+        let pass = "legacy-chain-pass";
+        let salt = [3u8; SALT_SIZE];
+        let cek = [0x44u8; KEY_SIZE];
+        let kek = derive_key(pass, &salt);
+        let w = WrappedKey::Legacy(wrap_with_iv(&kek, [4u8; IV_SIZE], &cek));
+        let got = resolve_file_key_with(pass, &salt, Some(&w), None).unwrap();
+        assert_eq!(got, cek.to_vec());
     }
 }
