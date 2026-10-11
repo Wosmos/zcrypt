@@ -33,6 +33,8 @@ export interface Mk1MigrationResult {
   stopped: boolean;
 }
 
+type LegacyMeta = FileMetaResponse & { wrapped_cek: string };
+
 let activeRun: symbol | null = null;
 
 function vaultPassphrase(): string | null {
@@ -90,21 +92,19 @@ export async function runMk1Migration(
     });
     const folderOf = new Map(eligible.map((f) => [f.id, f.folder_id ?? null]));
 
-    const migrateOne = async (meta: FileMetaResponse): Promise<void> => {
+    const migrateOne = async (meta: LegacyMeta): Promise<void> => {
       await waitUntilVisible();
       if (stopped()) {
         result.stopped = true;
         return;
       }
       try {
-        const legacy = meta.wrapped_cek;
-        if (!legacy || isMk1(legacy)) return;
         const folderId = folderOf.get(meta.id) ?? null;
         if (folderId && useFolderRegistry.getState().isProtected(folderId)) {
           result.skipped++;
           return;
         }
-        const cek = new Uint8Array(await resolveFileKey(startPass, fromBase64(meta.salt), legacy));
+        const cek = new Uint8Array(await resolveFileKey(startPass, fromBase64(meta.salt), meta.wrapped_cek));
         const wrapped = await wrapCekWithMasterKey(mk, cek);
         const back = await unwrapCekWithMasterKey(mk, wrapped);
         if (back.length !== cek.length || back.some((b, i) => b !== cek[i])) {
@@ -125,7 +125,7 @@ export async function runMk1Migration(
     const ids = eligible.map((f) => f.id);
     for (let i = 0; i < ids.length && !stopped(); i += PAGE) {
       const metas = (await getFileMetas(ids.slice(i, i + PAGE))).filter(
-        (m) => !!m.wrapped_cek && !isMk1(m.wrapped_cek),
+        (m): m is LegacyMeta => !!m.wrapped_cek && !isMk1(m.wrapped_cek),
       );
       await runPool(metas, migrateOne, MK1_MIGRATION_CONCURRENCY);
     }

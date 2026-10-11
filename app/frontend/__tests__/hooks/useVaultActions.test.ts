@@ -199,6 +199,7 @@ vi.mock("@/hooks/useThumbnail", () => ({
 
 vi.mock("@/lib/keys", () => ({
   ensureUserKeypair: mockEnsureUserKeypair,
+  OwnKeyMismatchError: class OwnKeyMismatchError extends Error {},
 }));
 
 vi.mock("@/lib/tauri", () => tauriModuleMock);
@@ -222,6 +223,7 @@ vi.mock("@/hooks/useFolderProtection", () => ({
 }));
 
 // Imports AFTER the mocks so the module graph picks them up.
+import { OwnKeyMismatchError } from "@/lib/keys";
 import { useVaultActions } from "@/hooks/useVaultActions";
 import { IncorrectPassphraseError } from "@/lib/crypto";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
@@ -955,6 +957,27 @@ describe("moveFileWithRekey", () => {
     expect(mockMoveFile).toHaveBeenCalledWith("f1", null, { salt: "new-salt", wrapped_cek: "new-wrapped" });
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
   });
+
+  it("omits the folder hint when the destination itself is protected", async () => {
+    const file = makeFile({ id: "f1", folder_id: null });
+    mockFolderRegistryState.isProtected.mockImplementation((fid: string) => fid === "dest-protected");
+    const folderProtection = makeFolderProtection();
+    const args = makeArgs({ files: [file], folderProtection });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    await result.current.moveFileWithRekey("f1", "dest-protected");
+
+    expect(folderProtection.rekeyFileForMove).toHaveBeenCalledWith(
+      "f1",
+      expect.anything(),
+      expect.anything(),
+      undefined,
+    );
+    expect(mockMoveFile).toHaveBeenCalledWith("f1", "dest-protected", {
+      salt: "new-salt",
+      wrapped_cek: "new-wrapped",
+    });
+  });
 });
 
 describe("handleMoveFileTo", () => {
@@ -1455,6 +1478,31 @@ describe("thumbnail priming effect", () => {
     expect(cancel).toHaveBeenCalledWith(7);
     window.requestIdleCallback = ric;
     window.cancelIdleCallback = cic;
+  });
+
+  it("warns when the account's stored sharing key does not match, and stays quiet on other errors", async () => {
+    vi.useFakeTimers();
+    const ric = window.requestIdleCallback;
+    // @ts-expect-error: simulate a browser without requestIdleCallback
+    window.requestIdleCallback = undefined;
+    mockPassphraseGetPassphrase.mockReturnValue("cached-pass");
+    const args = makeArgs({ vault: makeVault({ unlocked: true }), files: [] });
+
+    mockEnsureUserKeypair.mockRejectedValueOnce(new OwnKeyMismatchError());
+    const first = renderHook(() => useVaultActions(args));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockToast.error).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    mockToast.error.mockClear();
+    mockEnsureUserKeypair.mockRejectedValueOnce(new Error("offline"));
+    const second = renderHook(() => useVaultActions(args));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockEnsureUserKeypair).toHaveBeenCalledTimes(2);
+    expect(mockToast.error).not.toHaveBeenCalled();
+    second.unmount();
+    window.requestIdleCallback = ric;
+    vi.useRealTimers();
   });
 
   it("does nothing when locked", () => {

@@ -148,6 +148,9 @@ const cases: Case[] = [
   // offline pins
   { name: "listOfflinePins", run: () => api.listOfflinePins(), path: "/api/offline" },
   { name: "pinFileOffline", run: () => api.pinFileOffline("f", "d"), path: "/api/offline", method: "POST" },
+  { name: "putMasterKey", run: () => api.putMasterKey("w"), path: "/api/keys/master", method: "PUT" },
+  { name: "rekeyFile", run: () => api.rekeyFile("id", { salt: "s", wrapped_cek: "w" }), path: "/api/files/id/rekey", method: "PUT" },
+  { name: "addFilesToSpaceBatch", run: () => api.addFilesToSpaceBatch("v1", []), path: "/api/shared-vaults/v1/files/batch", method: "POST" },
   { name: "unpinFileOffline", run: () => api.unpinFileOffline("f"), path: "/api/offline/f", method: "DELETE" },
 ];
 
@@ -178,6 +181,66 @@ describe("atomic re-key payloads", () => {
   it("an empty folder sends no re-keys", async () => {
     await api.removeFolderPassword("fid");
     expect(body()).toEqual({ rekeys: [] });
+  });
+});
+
+describe("payload shapes", () => {
+  const sent = (call = 0) => JSON.parse(String((fetchMock.mock.calls[call][1] as RequestInit).body));
+
+  it("putMasterKey and rekeyFile send their envelopes as JSON", async () => {
+    await api.putMasterKey("wrapped");
+    await api.rekeyFile("f1", { salt: "s", wrapped_cek: "mk1:w" });
+    expect(sent(0)).toEqual({ wrapped_master_key: "wrapped" });
+    expect(sent(1)).toEqual({ salt: "s", wrapped_cek: "mk1:w" });
+  });
+
+  it("rotateSpace adds the re-sealed name and description only when given", async () => {
+    const members = [{ user_id: "u", wrapped_space_key: "k" }];
+    const files = [{ file_id: "f", wrapped_cek: "c", wrapped_name: "n" }];
+    await api.rotateSpace("v1", members, files, { name: "s1:a", description: "s1:b" });
+    await api.rotateSpace("v1", members, files);
+    expect(sent(0)).toEqual({ members, files, name: "s1:a", description: "s1:b" });
+    expect(sent(1)).toEqual({ members, files });
+  });
+
+  it("addFilesToSpaceBatch wraps the files array", async () => {
+    const files = [{ file_id: "f", wrapped_cek: "c", wrapped_name: "n" }];
+    await api.addFilesToSpaceBatch("v1", files);
+    expect(sent()).toEqual({ files });
+  });
+
+  it("getUserAvatarBlob returns the response body as a blob", async () => {
+    const blob = new Blob(["png"]);
+    fetchMock.mockResolvedValue({ ok: true, status: 200, blob: async () => blob } as Response);
+    expect(await api.getUserAvatarBlob("u 1")).toBe(blob);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/users/u%201/avatar");
+  });
+});
+
+describe("getFileMetas", () => {
+  const post = (call: number) =>
+    JSON.parse(String((fetchMock.mock.calls[call][1] as RequestInit).body)).ids as string[];
+
+  it("splits ids into 200-id requests and joins the answers in order", async () => {
+    const ids = Array.from({ length: 450 }, (_, i) => `f${i}`);
+    fetchMock.mockImplementation(async (_url: string, init: RequestInit) => {
+      const asked = JSON.parse(String(init.body)).ids as string[];
+      const files = asked.map((id) => ({ id }));
+      return { ok: true, status: 200, json: async () => ({ files }) } as Response;
+    });
+    const metas = await api.getFileMetas(ids);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(post(0)).toHaveLength(200);
+    expect(post(2)).toHaveLength(50);
+    expect(metas.map((m) => m.id)).toEqual(ids);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/files/meta");
+  });
+
+  it("treats a response without a files list as empty and skips the network for no ids", async () => {
+    expect(await api.getFileMetas(["a"])).toEqual([]);
+    fetchMock.mockClear();
+    expect(await api.getFileMetas([])).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

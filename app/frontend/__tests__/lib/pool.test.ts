@@ -49,4 +49,27 @@ describe("runPool", () => {
   it("handles an empty list", async () => {
     expect(await runPool([], async () => 1)).toEqual([]);
   });
+
+  it("falls back to a single lane for a zero or non-numeric limit", async () => {
+    for (const limit of [0, Number.NaN]) {
+      let active = 0;
+      let peak = 0;
+      const out = await runPool(
+        [1, 2, 3],
+        async (n) => {
+          peak = Math.max(peak, ++active);
+          await new Promise((r) => setTimeout(r, 1));
+          active--;
+          return n * 2;
+        },
+        limit,
+      );
+      expect(out).toEqual([2, 4, 6]);
+      expect(peak).toBe(1);
+    }
+  });
+
+  it("resolves to an empty list for no items", async () => {
+    expect(await runPool([], async (n: number) => n)).toEqual([]);
+  });
 });

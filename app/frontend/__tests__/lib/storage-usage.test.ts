@@ -14,6 +14,18 @@ const repo = (platform: string, used_bytes: number): RepoInfo => ({
 
 const status = (platform: string, connected = true): PlatformStatus => ({ platform, connected });
 
+describe("platformUsage edge cases", () => {
+  it("reports a zero share for everyone when nothing is stored", () => {
+    const rows = platformUsage([repo("github", 0)], [status("github"), status("gitlab")]);
+    expect(rows.map((r) => r.share)).toEqual([0, 0]);
+  });
+
+  it("orders equal sizes by platform name", () => {
+    const rows = platformUsage([repo("telegram", 10), repo("github", 10)], []);
+    expect(rows.map((r) => r.platform)).toEqual(["github", "telegram"]);
+  });
+});
+
 describe("platformUsage", () => {
   it("sums repos per platform, sorts by size and computes shares", () => {
     const rows = platformUsage(

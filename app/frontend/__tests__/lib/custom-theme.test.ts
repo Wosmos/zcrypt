@@ -30,6 +30,7 @@ import {
   clearCustomThemeVars,
   designedMode,
   paletteFor,
+  currentMode,
 } from "@/lib/custom-theme";
 import { contrastRatio, hexToOklch, oklchToHex } from "@/lib/color";
 import { APP_BACKGROUNDS } from "@/lib/app-backgrounds";
@@ -205,5 +206,47 @@ describe("color helpers", () => {
   it("computes WCAG contrast", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 0);
     expect(contrastRatio("#777777", "#777777")).toBeCloseTo(1, 5);
+  });
+});
+
+describe("custom theme edge cases", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("keeps the adapt-off flag across a save and load", () => {
+    saveCustomTheme({ accent: "#111111", bg: "#222222", adapt: false });
+    expect(loadCustomTheme()).toEqual({
+      accent: "#111111",
+      bg: "#222222",
+      background: undefined,
+      adapt: false,
+    });
+  });
+
+  it("walks a washed-out accent lighter when mirroring a light palette into dark", () => {
+    const light = { accent: "#303030", bg: "#fafafa" };
+    expect(designedMode(light)).toBe("light");
+    const flipped = paletteFor(light, "dark");
+    expect(contrastRatio(flipped.accent, flipped.bg)).toBeGreaterThanOrEqual(3);
+    expect(hexToOklch(flipped.accent).l).toBeGreaterThan(hexToOklch(light.accent).l);
+  });
+
+  it("falls back to near-white when a black accent cannot be walked lighter", () => {
+    const flipped = paletteFor({ accent: "#000000", bg: "#fafafa" }, "dark");
+    expect(flipped.accent).toBe("#f5f5f5");
+  });
+
+  it("falls back to near-black when the accent is not a usable color", () => {
+    const flipped = paletteFor({ accent: "not-a-color", bg: "#101010" }, "light");
+    expect(flipped.accent).toBe("#1a1a1a");
+  });
+
+  it("reads the resolved mode from the document class", () => {
+    document.documentElement.classList.remove("light");
+    expect(currentMode()).toBe("dark");
+    document.documentElement.classList.add("light");
+    expect(currentMode()).toBe("light");
+    document.documentElement.classList.remove("light");
   });
 });

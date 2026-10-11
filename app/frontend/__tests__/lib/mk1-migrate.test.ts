@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   getMyKey: vi.fn(),
@@ -20,7 +20,7 @@ import {
   toBase64,
   wrapKey,
 } from "@/lib/crypto";
-import { runMk1Migration } from "@/lib/mk1-migrate";
+import { runMk1Migration, scheduleMk1Migration } from "@/lib/mk1-migrate";
 import { unwrapCekWithMasterKey, wrapCekWithMasterKey } from "@/lib/master-key";
 import { useKeysStore } from "@/store/keys";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -195,6 +195,10 @@ describe("runMk1Migration", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(api.rekeyFile).not.toHaveBeenCalled();
 
+    document.dispatchEvent(new Event("visibilitychange"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(api.rekeyFile).not.toHaveBeenCalled();
+
     state = "visible";
     document.dispatchEvent(new Event("visibilitychange"));
     const res = await run;
@@ -212,5 +216,173 @@ describe("runMk1Migration", () => {
     expect(res.migrated).toBe(0);
     expect(api.rekeyFile).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe("runMk1Migration edge cases", () => {
+  it("does nothing while the vault is locked", async () => {
+    usePassphraseStore.setState({ cachedPassphrase: null });
+    bind([await legacyFile("a")]);
+    expect(await runMk1Migration()).toEqual({ migrated: 0, skipped: 0, stopped: false });
+    expect(filesStore.ensureFiles).not.toHaveBeenCalled();
+  });
+
+  it("leaves trashed files alone", async () => {
+    const live = await legacyFile("live");
+    const trashed = await legacyFile("trashed");
+    bind([live, trashed]);
+    filesStore.ensureFiles.mockResolvedValue([
+      { id: "live", folder_id: null, deleted_at: null },
+      { id: "trashed", folder_id: null, deleted_at: "2026-01-01" },
+    ]);
+    const res = await runMk1Migration();
+    expect(res.migrated).toBe(1);
+    expect(api.rekeyFile.mock.calls.map((c) => c[0])).toEqual(["live"]);
+  });
+
+  it("stops before touching files when the switch flips while loading the master key", async () => {
+    bind([await legacyFile("a")]);
+    useKeysStore.setState({ masterKey: null });
+    api.getMyKey.mockImplementation(async () => {
+      useKeysStore.setState({ masterKeyWrites: false });
+      throw new Error("offline");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await runMk1Migration();
+    expect(res).toEqual({ migrated: 0, skipped: 0, stopped: true });
+    expect(warn).toHaveBeenCalledWith("mk1 migration: stopped", expect.any(Error));
+    warn.mockRestore();
+  });
+
+  it("stops after loading the master key if the vault locked meanwhile", async () => {
+    bind([await legacyFile("a")]);
+    useKeysStore.setState({ masterKey: null });
+    api.getMyKey.mockImplementation(async () => {
+      usePassphraseStore.setState({ cachedPassphrase: null });
+      throw new Error("offline");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect((await runMk1Migration()).stopped).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("does not migrate a file whose folder became protected after the scan", async () => {
+    useFolderRegistry.setState({ byId: { f: { pwSalt: null, pwVerifier: null } } });
+    const inFolder = await legacyFile("in-folder", "f");
+    const root = await legacyFile("root");
+    bind([inFolder, root]);
+    const original = api.getFileMetas.getMockImplementation()!;
+    api.getFileMetas.mockImplementation(async (ids: string[]) => {
+      useFolderRegistry.setState({ byId: { f: { pwSalt: "s", pwVerifier: "v" } } });
+      return original(ids);
+    });
+    const res = await runMk1Migration();
+    expect(res).toEqual({ migrated: 1, skipped: 1, stopped: false });
+    expect(api.rekeyFile.mock.calls.map((c) => c[0])).toEqual(["root"]);
+  });
+
+  it("stops handing out work once the vault locks and reports it", async () => {
+    const files = await Promise.all(["a", "b", "c", "d", "e", "f"].map((id) => legacyFile(id)));
+    bind(files);
+    api.rekeyFile.mockImplementation(async (id: string, body: { wrapped_cek: string }) => {
+      metas.find((x) => x.id === id)!.wrapped_cek = body.wrapped_cek;
+      usePassphraseStore.setState({ cachedPassphrase: null });
+      return { success: true };
+    });
+    const res = await runMk1Migration();
+    expect(res.stopped).toBe(true);
+    expect(res.migrated).toBeLessThan(files.length);
+  });
+
+  it("stops without sending when the vault locks while a file is being wrapped", async () => {
+    const a = await legacyFile("a");
+    bind([a]);
+    const original = api.getFileMetas.getMockImplementation()!;
+    api.getFileMetas.mockImplementation(async (ids: string[]) => {
+      const out = await original(ids);
+      setTimeout(() => usePassphraseStore.setState({ cachedPassphrase: null }), 0);
+      return out;
+    });
+    const res = await runMk1Migration();
+    expect(res.stopped).toBe(true);
+    expect(api.rekeyFile).not.toHaveBeenCalled();
+  });
+
+  it("a newer pass supersedes an older one", async () => {
+    const files = await Promise.all(["a", "b", "c", "d"].map((id) => legacyFile(id)));
+    bind(files);
+    const first = runMk1Migration();
+    const second = runMk1Migration();
+    const [r1, r2] = await Promise.all([first, second]);
+    expect(r1.stopped).toBe(true);
+    expect(r2.stopped).toBe(false);
+    expect(r1.migrated + r2.migrated).toBeGreaterThanOrEqual(1);
+  });
+
+  it("works through more files than one page", async () => {
+    const done = await Promise.all(
+      Array.from({ length: 200 }, async (_, i) => {
+        const cek = generateCEK();
+        return {
+          id: `m${i}`,
+          folder_id: null,
+          salt: toBase64(generateSalt()),
+          wrapped_cek: await wrapCekWithMasterKey(mk, cek),
+          cek,
+        } as Fx;
+      }),
+    );
+    const last = await legacyFile("last");
+    bind([...done, last]);
+    const res = await runMk1Migration();
+    expect(res).toEqual({ migrated: 1, skipped: 0, stopped: false });
+    expect(api.getFileMetas).toHaveBeenCalledTimes(2);
+    expect(api.rekeyFile.mock.calls.map((c) => c[0])).toEqual(["last"]);
+  });
+});
+
+describe("scheduleMk1Migration", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("runs a pass when the browser goes idle and can be cancelled", async () => {
+    const callbacks: Array<() => void> = [];
+    const cancel = vi.fn();
+    vi.stubGlobal("requestIdleCallback", (cb: () => void) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal("cancelIdleCallback", cancel);
+    bind([await legacyFile("a")]);
+
+    scheduleMk1Migration();
+    callbacks[0]();
+    await vi.waitFor(() => expect(api.rekeyFile).toHaveBeenCalledTimes(1));
+
+    api.rekeyFile.mockClear();
+    const stop = scheduleMk1Migration();
+    stop();
+    expect(cancel).toHaveBeenCalledWith(2);
+    callbacks[1]();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(api.rekeyFile).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a timer without requestIdleCallback", async () => {
+    vi.useFakeTimers();
+    // @ts-expect-error: simulate a browser without requestIdleCallback
+    delete window.requestIdleCallback;
+    bind([await legacyFile("a")]);
+
+    const stop = scheduleMk1Migration();
+    stop();
+    vi.advanceTimersByTime(3_000);
+    expect(filesStore.ensureFiles).not.toHaveBeenCalled();
+
+    scheduleMk1Migration();
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(filesStore.ensureFiles).toHaveBeenCalledTimes(1);
   });
 });

@@ -101,9 +101,11 @@ async function runJob(vaultId: string): Promise<void> {
     }
     const seen = attempted.get(vaultId) ?? new Set<string>();
     attempted.set(vaultId, seen);
+    let total = 0;
     for (;;) {
       const job = useSpaceAdds.getState().jobs[vaultId];
       if (!job) return;
+      total = job.total;
       const todo = job.fileIds.filter((id) => !seen.has(id));
       if (todo.length === 0) break;
       todo.forEach((id) => seen.add(id));
@@ -121,8 +123,7 @@ async function runJob(vaultId: string): Promise<void> {
       patch(vaultId, { failed: [...current.failed, ...res.failed], done: base + todo.length });
       await persist();
     }
-    const finished = useSpaceAdds.getState().jobs[vaultId];
-    if (finished) patch(vaultId, { status: "done", done: finished.total });
+    patch(vaultId, { status: "done", done: total });
     invalidateSpace(vaultId);
     void queryClient.invalidateQueries({ queryKey: qk.spaces });
   } catch (err) {
