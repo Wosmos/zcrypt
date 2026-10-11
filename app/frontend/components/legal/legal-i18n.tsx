@@ -38,17 +38,23 @@ export function LegalPage({
 export function ProseSection({
   id,
   eyebrowK,
+  eyebrowValues,
   titleK,
   children,
 }: {
   id: string;
   eyebrowK: string;
+  eyebrowValues?: Record<string, string | number>;
   titleK: string;
   children: ReactNode;
 }) {
   const t = useTranslations();
   return (
-    <BaseProseSection id={id} eyebrow={t(eyebrowK as never)} title={t(titleK as never)}>
+    <BaseProseSection
+      id={id}
+      eyebrow={t(eyebrowK as never, eyebrowValues as never)}
+      title={t(titleK as never)}
+    >
       {children}
     </BaseProseSection>
   );
