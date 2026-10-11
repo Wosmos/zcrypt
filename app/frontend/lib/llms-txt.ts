@@ -120,8 +120,8 @@ zcrypt (pronounced "z-crypt") is a privacy-first cloud drive. It is free and ope
 
 ## How it works
 
-- **Client-side encryption.** Each file is compressed with zstd, then encrypted with AES-256-GCM under a random per-file key. That key is wrapped by a key derived from your passphrase with PBKDF2-SHA256 (600,000 iterations). All of this happens in the browser.
-- **Chunked, resumable upload.** The encrypted file is split into device-tiered chunks (~4–16 MB, ~10 MB typical) and uploaded one chunk per request into a repository you own. A single file's chunks live in one repo on one platform; as repos fill, zcrypt rotates to fresh ones automatically.
+- **Client-side encryption.** Each file is first split into device-tiered chunks (4 to 32 MiB, ~10 MiB typical). Each chunk is compressed with zstd, then encrypted with AES-256-GCM under a random per-file key. That key is wrapped by a key derived from your passphrase with PBKDF2-SHA256 (600,000 iterations). All of this happens on your device.
+- **Chunked, resumable upload.** Encrypted chunks are uploaded one per request into a repository you own. A single file's chunks live in one repo on one platform; as repos fill, zcrypt rotates to fresh ones automatically.
 - **Zero-knowledge.** The passphrase is never transmitted, stored, or logged. File and folder names are encrypted client-side too. The server only ever handles opaque encrypted chunks with randomized, build-artifact-looking filenames.
 - **Download reverses it client-side.** Chunks are fetched, verified by SHA-256, decrypted, and decompressed on your device.
 
