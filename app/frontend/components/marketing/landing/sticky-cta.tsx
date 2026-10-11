@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, X } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -20,17 +20,17 @@ function readDismissed() {
   }
 }
 
+const noopSubscribe = () => () => {};
+
 /** Phone-only sign-up bar: appears once How it works is reached, hides at the closing CTA and footer. */
 export function StickyCta() {
   const t = useTranslations("site");
   const reduce = useReducedMotion();
   const [past, setPast] = useState(false);
   const [blocked, setBlocked] = useState(false);
-  const [dismissed, setDismissed] = useState(true);
-
-  useEffect(() => {
-    setDismissed(readDismissed());
-  }, []);
+  const [hidden, setHidden] = useState(false);
+  const stored = useSyncExternalStore(noopSubscribe, readDismissed, () => true);
+  const dismissed = hidden || stored;
 
   useEffect(() => {
     if (dismissed) return;
@@ -69,7 +69,7 @@ export function StickyCta() {
   }, [dismissed]);
 
   const dismiss = () => {
-    setDismissed(true);
+    setHidden(true);
     try {
       window.sessionStorage.setItem(KEY, "1");
     } catch {}

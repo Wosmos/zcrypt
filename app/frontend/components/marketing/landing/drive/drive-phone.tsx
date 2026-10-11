@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useDriveText } from "./drive-i18n";
 import { COMMIT, filterKeyOf, REPO, type FilterKey } from "./drive-data";
 import { TransfersDock } from "./transfers-dock";
-import { ExplorerCards, ExplorerOverlays, useRefocus } from "./explorer-shared";
+import { ExplorerCards, ExplorerOverlays } from "./explorer-shared";
 import { useExplorer } from "./use-explorer";
 
 const CHIP_ORDER: { key: FilterKey }[] = [
@@ -29,7 +29,7 @@ const TABS = [
 
 /** The phone layout of the app, as it renders at 428x926 inside the iPhone frame. */
 export function DrivePhone({ onPick }: { onPick: () => void }) {
-  const x = useExplorer();
+  const [x, gridRef, refocus] = useExplorer();
   const { t } = useDriveText();
   const { state, dispatch, gh, entries } = x;
   const hint = () => dispatch({ type: "hint" });
@@ -40,7 +40,6 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
   }
   const chips = CHIP_ORDER.filter((c) => counts.has(c.key));
   const total = entries.folders.length + entries.files.length;
-  const refocus = useRefocus(x);
 
   return (
     <div className="zh-ph">
@@ -121,7 +120,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
         </div>
 
         <div
-          ref={x.gridRef}
+          ref={gridRef}
           className={cn("zh-grid zh-grid-ph", state.extra && "zh-grid-extra")}
           role="group"
           aria-label={t("drive.desktop.sampleFiles")}

@@ -10,10 +10,7 @@ function useTimeline(play: boolean, holds: readonly number[]) {
   const last = holds.length - 1;
   const [step, setStep] = useState(last);
   useEffect(() => {
-    if (!play) {
-      setStep(last);
-      return;
-    }
+    if (!play) return;
     let i = 0;
     let timer: ReturnType<typeof setTimeout>;
     const tick = () => {
@@ -24,9 +21,12 @@ function useTimeline(play: boolean, holds: readonly number[]) {
       }, holds[i]);
     };
     tick();
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      setStep(last);
+    };
   }, [play, holds, last]);
-  return step;
+  return play ? step : last;
 }
 
 const on = (v: boolean) => (v ? "true" : undefined);

@@ -73,12 +73,15 @@ function Live() {
   const [msg, setMsg] = useState("");
   useEffect(() => {
     if (!state.live) return;
-    setMsg("");
+    const clear = window.setTimeout(() => setMsg(""), 0);
     const timer = window.setTimeout(
       () => setMsg(state.live?.key ? t(state.live.key) : (state.live?.msg ?? "")),
       30,
     );
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(clear);
+      window.clearTimeout(timer);
+    };
   }, [state.live, t]);
   return (
     <p className="sr-only" aria-live="polite">
