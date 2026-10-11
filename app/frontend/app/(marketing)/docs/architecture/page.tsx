@@ -7,7 +7,7 @@ import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Architecture | zcrypt Docs",
   description:
-    "How zcrypt fits together: a client-side compress-encrypt-chunk pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces: all behind a strict zero-knowledge boundary.",
+    "How zcrypt fits together: a client-side chunk, compress, and encrypt pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces: all behind a strict zero-knowledge boundary.",
   alternates: { canonical: `${SITE_URL}/docs/architecture` },
   openGraph: {
     title: "Architecture | zcrypt Docs",

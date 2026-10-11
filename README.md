@@ -4,7 +4,7 @@
 
 **Zero-knowledge, end-to-end encrypted cloud storage that lives inside _your own_ GitHub, GitLab, HuggingFace, and Telegram accounts.**
 
-Your files are compressed, encrypted, and split into chunks _on your device_ before they ever move. The server never sees your passphrase. The storage platforms never see your plaintext. zcrypt is free and open source. There are no paid tiers.
+Your files are split into chunks, and each chunk is compressed and encrypted, _on your device_ before anything moves. The server never sees your passphrase. The storage platforms never see your plaintext. zcrypt is free and open source. There are no paid tiers.
 
 [Report a vulnerability](docs/SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
 
@@ -35,7 +35,7 @@ Your files are compressed, encrypted, and split into chunks _on your device_ bef
 
 ## What zcrypt is
 
-zcrypt turns storage you already have (GitHub, GitLab, HuggingFace, and Telegram) into a single encrypted drive. Files are compressed with zstd, encrypted with AES-256-GCM under a key that never leaves your device, split into chunks, and stored across those platforms behind disguised repositories and innocuous filenames.
+zcrypt turns storage you already have (GitHub, GitLab, HuggingFace, and Telegram) into a single encrypted drive. Files are split into chunks, then each chunk is compressed with zstd and encrypted with AES-256-GCM under a key that never leaves your device, and stored across those platforms behind disguised repositories and innocuous filenames.
 
 Because encryption happens client-side, **zcrypt is zero-knowledge**: the server stores only ciphertext, encrypted filenames, a wrapped key, and a salt. It cannot read your files, recover your passphrase, or hand your plaintext to anyone, because it never has them.
 
@@ -45,15 +45,15 @@ Every file goes through the same client-side pipeline before a single byte leave
 
 ```mermaid
 flowchart LR
-    F["Your file"] --> C["zstd compress"]
+    F["Your file"] --> S["split into chunks<br/>(4 / 10 / 16 / 32 MiB)"]
+    S --> C["zstd compress<br/>(each chunk)"]
     C --> E["AES-256-GCM encrypt<br/>random per-file key (CEK)"]
-    E --> S["split into chunks"]
-    S --> U["upload chunks to<br/>your storage accounts"]
+    E --> U["upload chunks to<br/>your storage accounts"]
     E --> W["wrap the CEK with a key<br/>derived from your passphrase<br/>(PBKDF2-SHA256, 600k iters)"]
     W --> M["server stores only:<br/>wrapped CEK + salt +<br/>encrypted filename"]
 ```
 
-**Download** reverses it: chunks are fetched and verified (per-chunk integrity), reassembled, decrypted with your passphrase, and decompressed, all locally.
+**Download** reverses it: chunks are fetched and verified (per-chunk integrity), decrypted with your passphrase, decompressed, and reassembled, all locally.
 
 ### The zero-knowledge trust boundary
 

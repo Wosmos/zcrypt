@@ -426,9 +426,21 @@ export default function ApiDocPage() {
               <T key="docs.api.p98" k="docs.api.p98" />,
             ],
             [
+              "PATCH",
+              <code key="p">/api/shared-vaults/{`{id}`}</code>,
+              <T key="docs.api.p204" k="docs.api.p204" />,
+            ],
+            [
               "POST",
               <code key="p">/api/shared-vaults/{`{id}`}/members</code>,
               <T key="docs.api.p99" k="docs.api.p99" />,
+            ],
+            [
+              "PATCH",
+              <code key="p">
+                /api/shared-vaults/{`{id}`}/members/{`{uid}`}
+              </code>,
+              <T key="docs.api.p205" k="docs.api.p205" />,
             ],
             [
               "DELETE",
@@ -480,6 +492,11 @@ export default function ApiDocPage() {
             ["GET", <code key="p">/api/keys/me</code>, <T key="docs.api.p112" k="docs.api.p112" />],
             ["POST", <code key="p">/api/keys</code>, <T key="docs.api.p113" k="docs.api.p113" />],
             [
+              "PUT",
+              <code key="p">/api/keys/master</code>,
+              <T key="docs.api.p206" k="docs.api.p206" />,
+            ],
+            [
               "GET",
               <code key="p">/api/keys/lookup</code>,
               <T key="docs.api.p114" k="docs.api.p114" />,
@@ -488,6 +505,11 @@ export default function ApiDocPage() {
               "GET",
               <code key="p">/api/keys/user/{`{id}`}</code>,
               <T key="docs.api.p115" k="docs.api.p115" />,
+            ],
+            [
+              "GET",
+              <code key="p">/api/users/{`{id}`}/avatar</code>,
+              <T key="docs.api.p207" k="docs.api.p207" />,
             ],
           ]}
         />
@@ -752,6 +774,11 @@ GET  /api/events?ticket=<ticket>`}</DocCode>
             ["GET", <code key="p">/api/repos</code>, <T key="docs.api.p186" k="docs.api.p186" />],
             ["GET", <code key="p">/api/plans</code>, <T key="docs.api.p187" k="docs.api.p187" />],
             ["GET", <code key="p">/api/health</code>, <T key="docs.api.p188" k="docs.api.p188" />],
+            [
+              "GET",
+              <code key="p">/api/geo/country</code>,
+              <T key="docs.api.p208" k="docs.api.p208" />,
+            ],
           ]}
         />
       </DocSection>
@@ -806,6 +833,11 @@ GET  /api/events?ticket=<ticket>`}</DocCode>
               "GET",
               <code key="p">/api/admin/audit</code>,
               <T key="docs.api.p201" k="docs.api.p201" />,
+            ],
+            [
+              "PUT",
+              <code key="p">/api/admin/settings/master-key-writes</code>,
+              <T key="docs.api.p209" k="docs.api.p209" />,
             ],
           ]}
         />

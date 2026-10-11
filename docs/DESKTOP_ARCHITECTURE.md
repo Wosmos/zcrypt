@@ -10,7 +10,7 @@ The Go sidecar (shipping a separate subprocess in desktop builds) is **impossibl
 - **Desktop**: Tauri app directly calls the engine (no IPC, no subprocess).
 - **iOS/Android**: Same engine, same app, zero extra processes.
 
-The sidecar stays in the backend only (server-side crypto for re-encryption during space transitions).
+The sidecar no longer exists anywhere in the repository.
 
 ---
 
@@ -243,6 +243,8 @@ adb install app-release.apk
 ```
 
 ### iOS
+
+There is no iOS app yet. These steps are the plan, not a shipped build.
 
 ```bash
 # Prerequisites

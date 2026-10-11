@@ -455,7 +455,7 @@ export const docsNav: DocsNavGroup[] = [
       {
         title: "How it works",
         href: "/docs/how-it-works",
-        desc: "A file's journey: compress, encrypt, chunk, upload.",
+        desc: "A file's journey: chunk, compress, encrypt, upload.",
       },
       {
         title: "Uploading",

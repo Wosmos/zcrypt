@@ -7,7 +7,7 @@ import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Quickstart | zcrypt Docs",
   description:
-    "Create a free account, set your passphrase, connect a storage platform, and upload your first encrypted file to zcrypt in a few minutes. No plans, no credit card.",
+    "Create a free account, set your passphrase, connect a storage platform, and upload your first encrypted file to zcrypt in a few minutes. No credit card.",
   alternates: { canonical: `${SITE_URL}/docs/getting-started` },
   openGraph: {
     title: "Quickstart | zcrypt Docs",

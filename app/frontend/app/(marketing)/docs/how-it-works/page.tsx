@@ -7,21 +7,21 @@ import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "How it works | zcrypt Docs",
   description:
-    "Follow a file through zcrypt end to end: on your device it is compressed with zstd, encrypted with AES-256-GCM under a random per-file key, split into device-tiered chunks (~4–16 MB), and pushed to your own storage. Downloading reverses every step.",
+    "Follow a file through zcrypt end to end: on your device it is split into device-tiered chunks (4 to 32 MiB), each chunk is compressed with zstd and encrypted with AES-256-GCM under a random per-file key, and the result is pushed to your own storage. Downloading reverses every step.",
   alternates: { canonical: `${SITE_URL}/docs/how-it-works` },
   openGraph: {
     title: "How it works | zcrypt Docs",
     description:
-      "A file's journey through zcrypt: compress, encrypt, chunk, and upload, all client-side and zero-knowledge.",
+      "A file's journey through zcrypt: chunk, compress, encrypt, and upload, all client-side and zero-knowledge.",
     url: `${SITE_URL}/docs/how-it-works`,
   },
 };
 
 const toc = [
   { id: "short", k: "docs.how-it-works.toc.short" },
+  { id: "chunk", k: "docs.how-it-works.toc.chunk" },
   { id: "compress", k: "docs.how-it-works.toc.compress" },
   { id: "encrypt", k: "docs.how-it-works.toc.encrypt" },
-  { id: "chunk", k: "docs.how-it-works.toc.chunk" },
   { id: "upload", k: "docs.how-it-works.toc.upload" },
   { id: "download", k: "docs.how-it-works.toc.download" },
   { id: "next", k: "docs.how-it-works.toc.next" },
@@ -41,7 +41,16 @@ export default function HowItWorksDocPage() {
         </DocP>
         <DocCode
           label={<T k="docs.how-it-works.a3" />}
-        >{`compress (zstd)  →  encrypt (AES-256-GCM)  →  chunk (~4–16 MB)  →  upload to your storage`}</DocCode>
+        >{`chunk (4 to 32 MiB)  →  compress (zstd)  →  encrypt (AES-256-GCM)  →  upload to your storage`}</DocCode>
+      </DocSection>
+
+      <DocSection id="chunk" title={<T k="docs.how-it-works.a14" />}>
+        <DocP>
+          <T k="docs.how-it-works.p11" />
+        </DocP>
+        <DocNote type="info" title={<T k="docs.how-it-works.a13" />}>
+          <T k="docs.how-it-works.p12" />
+        </DocNote>
       </DocSection>
 
       <DocSection id="compress" title={<T k="docs.how-it-works.a6" />}>
@@ -56,15 +65,6 @@ export default function HowItWorksDocPage() {
         </DocP>
         <DocNote type="security" title={<T k="docs.how-it-works.a9" />}>
           <T k="docs.how-it-works.p8" />
-        </DocNote>
-      </DocSection>
-
-      <DocSection id="chunk" title={<T k="docs.how-it-works.a14" />}>
-        <DocP>
-          <T k="docs.how-it-works.p11" />
-        </DocP>
-        <DocNote type="info" title={<T k="docs.how-it-works.a13" />}>
-          <T k="docs.how-it-works.p12" />
         </DocNote>
       </DocSection>
 

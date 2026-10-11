@@ -174,6 +174,9 @@ export default function ZeroKnowledgePage() {
             <T key="docs.zero-knowledge.p61" k="docs.zero-knowledge.p61" />,
           ]}
         />
+        <DocP>
+          <T k="docs.zero-knowledge.p77" />
+        </DocP>
         <DocNote type="warning" title={<T k="docs.zero-knowledge.a63" />}>
           <T k="docs.zero-knowledge.p62" />
         </DocNote>

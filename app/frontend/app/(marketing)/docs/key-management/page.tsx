@@ -15,7 +15,7 @@ import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Passphrase & key management | zcrypt Docs",
   description:
-    "How keys flow through zcrypt: the vault passphrase that never leaves your device, a per-user X25519 sharing keypair whose private half is wrapped under that passphrase, account login secured with bcrypt and TOTP, JWTs with algorithm-confusion defenses and version-based revocation, and IP-bound refresh tokens.",
+    "How keys flow through zcrypt: the vault passphrase that never leaves your device, a per-user X25519 sharing keypair whose private half is wrapped under that passphrase, account login secured with bcrypt and TOTP, JWTs with algorithm-confusion defenses and version-based revocation, and hashed refresh tokens.",
   alternates: { canonical: `${SITE_URL}/docs/key-management` },
   openGraph: {
     title: "Passphrase & key management | zcrypt Docs",
@@ -96,6 +96,9 @@ export default function KeyManagementPage() {
             <T key="docs.key-management.p22" k="docs.key-management.p22" />,
           ]}
         />
+        <DocP>
+          <T k="docs.key-management.p62" />
+        </DocP>
         <DocNote type="warning" title={<T k="docs.key-management.a24" />}>
           <T k="docs.key-management.p23" />
         </DocNote>

@@ -7,7 +7,7 @@ import { T } from "@/components/i18n/t";
 export const metadata: Metadata = {
   title: "Bulk operations | zcrypt Docs",
   description:
-    "Select many files in zcrypt to download them as a single ZIP (decrypted on your device, up to a ~2 GB cap) or to delete them in bulk: with mouse and keyboard multi-select.",
+    "Select many files in zcrypt to download them as a single ZIP (decrypted on your device, with browser limits on archive size) or to delete them in bulk: with mouse and keyboard multi-select.",
   alternates: { canonical: `${SITE_URL}/docs/bulk` },
   openGraph: {
     title: "Bulk operations | zcrypt Docs",
