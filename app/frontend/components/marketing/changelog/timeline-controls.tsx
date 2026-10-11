@@ -14,22 +14,29 @@ function items(root: HTMLElement) {
   );
 }
 
+function nodeCenter(li: HTMLElement) {
+  const node = li.querySelector<HTMLElement>(".cl-node");
+  const r = (node ?? li).getBoundingClientRect();
+  return r.top + r.height / 2;
+}
+
 function sync(root: HTMLElement) {
   const line = window.innerHeight * 0.4;
   const rows = items(root);
-  let active = -1;
-  rows.forEach((li, i) => {
-    if (li.getBoundingClientRect().top <= line) active = i;
+  const box = root.getBoundingClientRect();
+  const centers = rows.map(nodeCenter);
+  const first = centers.length ? centers[0] : box.top;
+  const last = centers.length ? centers[centers.length - 1] : box.top;
+  const head = Math.min(Math.max(line, first), last);
+  let active = 0;
+  centers.forEach((c, i) => {
+    if (c <= head + 0.5) active = i;
   });
-  if (active < 0 && rows.length) active = 0;
   rows.forEach((li, i) => {
     li.toggleAttribute("data-active", i === active);
     li.toggleAttribute("data-passed", i <= active);
   });
-  const box = root.getBoundingClientRect();
-  const end = rows.length ? rows[rows.length - 1].getBoundingClientRect().top - box.top + 24 : 0;
-  const progress = Math.min(Math.max(line - box.top - 16, 0), Math.max(end, 0));
-  root.style.setProperty("--cl-progress", `${progress}px`);
+  root.style.setProperty("--cl-progress", `${Math.max(head - box.top - 16, 0)}px`);
 }
 
 export function TimelineControls({ targetId }: { targetId: string }) {
