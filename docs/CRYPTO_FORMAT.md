@@ -55,6 +55,42 @@ Derived sub-keys (same PBKDF2, text salts, UTF-8):
 - **Dedup/MAC key**: salt = `"zcrypt-dedup-" + userId`. Keys the `hmac_v1`
   content MAC (§5).
 
+### 2.1 Account master key (`mk1`)
+
+Deriving a KEK per file costs one 600k-iteration PBKDF2 for every file a
+device touches for the first time. The `mk1` scheme replaces that with one
+derivation per unlock.
+
+```
+passphrase ──PBKDF2(user_keys.kdf_salt, 600k)──► account KEK (32B)
+                                                   │ AES-256-GCM wrap
+                                                   ▼
+                              MK (32B, random, one per account)
+                                                   │ AES-256-GCM wrap
+                                                   ▼
+                              CEK (32B, random per file) ──► encrypts every chunk
+```
+
+- **Account KEK** = `PBKDF2-SHA256(passphrase_utf8, user_keys.kdf_salt, 600000, 32)`.
+  It is the same KEK that wraps the X25519 private key
+  (`user_keys.wrapped_private_key`), so one derivation unlocks both.
+- **MK** = 32 random bytes, generated once per account by the first client that
+  finds none. Stored as `user_keys.wrapped_master_key` = base64 of
+  `AESGCM_ENCRYPT(account KEK, MK)` in the §3 wire format.
+- **Set once.** The server stores `wrapped_master_key` only while it is empty and
+  never overwrites it. Losing MK makes every `mk1` file unreadable. A client that
+  loses the race re-reads the stored value and uses that MK.
+- **mk1 file wrap**: `files.wrapped_cek` = `"mk1:" + base64(AESGCM_ENCRYPT(MK, CEK))`.
+  `files.salt` stays 32 random bytes (the column is required) and is unused.
+- **Resolution**: a `wrapped_cek` starting with `mk1:` is unwrapped with MK;
+  anything else follows §2 exactly. Files inside a password-protected folder
+  stay on the §2 scheme keyed by the folder password.
+- **Rollout.** Clients may write `mk1` only when `GET /api/keys/me` reports
+  `master_key_writes: true`; every client that can read `mk1` ships first.
+  Existing vault files move to `mk1` in the background through
+  `PUT /api/files/{id}/rekey` (same salt, new `wrapped_cek`).
+- A passphrase change re-wraps only MK and the private key, not the files.
+
 ## 3. AES-GCM wire format
 
 All AES-GCM outputs (chunks, wrapped CEKs, encrypted names/styles) use ONE
