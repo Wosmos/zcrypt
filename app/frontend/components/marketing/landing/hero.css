@@ -2677,10 +2677,10 @@ html:not([data-zh-placed]) .zh-frame {
   background: var(--zh-s1);
 }
 .zh-pv-prev {
-  left: 12px;
+  inset-inline-start: 12px;
 }
 .zh-pv-next {
-  right: 12px;
+  inset-inline-end: 12px;
 }
 .zh-pv-body {
   flex: 1;

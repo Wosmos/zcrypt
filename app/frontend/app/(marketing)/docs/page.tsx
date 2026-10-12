@@ -150,10 +150,10 @@ function GroupBlock({ group }: { group: DocsNavGroup }) {
           <T k={`docs.navGroup.${groupSlug(group.title)}.title`} />
         </h2>
       </div>
-      <p className="mb-2 pl-[38px] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mb-2 ps-[38px] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
         <T k={`docs.navGroup.${groupSlug(group.title)}.summary`} />
       </p>
-      <ul className="ml-[13px] flex list-none flex-col border-l border-[var(--color-border)] pl-3">
+      <ul className="ms-[13px] flex list-none flex-col border-s border-[var(--color-border)] ps-3">
         {group.links.map((link) => (
           <li key={link.href + link.title}>
             <GroupLinkRow link={link} />

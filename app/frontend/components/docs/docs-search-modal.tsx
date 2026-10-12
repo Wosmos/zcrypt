@@ -84,7 +84,7 @@ function escapeRegExp(s: string): string {
 // "rust" highlights "Rust" in "Rust-powered" but not the middle of "trusted".
 function highlightTerms(text: string, terms: string[]) {
   if (terms.length === 0) return text;
-  const re = new RegExp(`\\b(${terms.map(escapeRegExp).join("|")})`, "gi");
+  const re = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])(${terms.map(escapeRegExp).join("|")})`, "giu");
   const parts: { text: string; highlight: boolean }[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -138,7 +138,7 @@ function ResultRow({
       onClick={onSelect}
       onMouseEnter={onHover}
       className={cn(
-        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
+        "flex w-full items-start gap-3 px-4 py-3 text-start transition-colors",
         active ? "bg-[var(--color-surface-1)]" : "hover:bg-[var(--color-surface-1)]",
       )}
     >
@@ -302,7 +302,7 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
       >
         {/* Input row */}
         <div className="relative border-b border-[var(--color-border)]">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <Search className="absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
           <input
             ref={inputRef}
             type="text"
@@ -310,13 +310,13 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("docs.ui.searchPlaceholderShort")}
             aria-label={t("docs.ui.searchDocs")}
-            className="w-full bg-transparent py-3.5 pl-11 pr-12 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none"
+            className="w-full bg-transparent py-3.5 ps-11 pe-12 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none"
           />
           <button
             type="button"
             onClick={onClose}
             aria-label={t("docs.ui.closeSearch")}
-            className="absolute right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+            className="absolute end-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -340,7 +340,7 @@ export function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () 
                     onClick={() => go(link.href)}
                     onMouseEnter={() => setActiveIndex(i)}
                     className={cn(
-                      "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                      "flex w-full items-center gap-3 px-4 py-2.5 text-start transition-colors",
                       active ? "bg-[var(--color-surface-1)]" : "hover:bg-[var(--color-surface-1)]",
                     )}
                   >
@@ -471,7 +471,7 @@ export default function DocsSearch({ placeholder }: { placeholder?: string }) {
     <div ref={containerRef} className="relative w-full max-w-xl mx-auto">
       {/* Search input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-muted)]" />
+        <Search className="absolute start-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-muted)]" />
         <input
           ref={inputRef}
           type="text"
@@ -483,9 +483,9 @@ export default function DocsSearch({ placeholder }: { placeholder?: string }) {
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder ?? t("docs.ui.searchPlaceholderShort")}
-          className="w-full pl-11 pr-14 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+          className="w-full ps-11 pe-14 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
         />
-        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md">
+        <kbd className="absolute end-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md">
           /
         </kbd>
       </div>

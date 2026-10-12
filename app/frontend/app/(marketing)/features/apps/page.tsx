@@ -168,7 +168,7 @@ export default function AppsPage() {
                   className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
                   {s.cta}
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
                 </Link>
               </li>
             ))}

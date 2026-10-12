@@ -35,11 +35,16 @@ export function StoryRail() {
     return rail ? Number.parseFloat(getComputedStyle(rail).scrollPaddingInlineStart) || 0 : 0;
   }, []);
 
+  const startOffset = useCallback((rail: HTMLElement, el: HTMLElement) => {
+    const rtl = getComputedStyle(rail).direction === "rtl";
+    return rtl ? rail.scrollWidth - el.offsetLeft - el.offsetWidth : el.offsetLeft;
+  }, []);
+
   const measure = useCallback(() => {
     const rail = railRef.current;
     if (!rail) return;
     const max = rail.scrollWidth - rail.clientWidth;
-    const x = rail.scrollLeft;
+    const x = Math.abs(rail.scrollLeft);
     setAtStart(x <= 2);
     setAtEnd(x >= max - 2);
     const list = cards();
@@ -51,14 +56,14 @@ export function StoryRail() {
     let best = 0;
     let bestDist = Number.POSITIVE_INFINITY;
     list.forEach((el, i) => {
-      const dist = Math.abs(el.offsetLeft - pad - x);
+      const dist = Math.abs(startOffset(rail, el) - pad - x);
       if (dist < bestDist) {
         bestDist = dist;
         best = i;
       }
     });
     setActive(best);
-  }, [cards, padStart]);
+  }, [cards, padStart, startOffset]);
 
   const goTo = useCallback(
     (i: number) => {
@@ -66,12 +71,13 @@ export function StoryRail() {
       const list = cards();
       const target = list[Math.max(0, Math.min(list.length - 1, i))];
       if (!rail || !target) return;
+      const offset = startOffset(rail, target) - padStart();
       rail.scrollTo({
-        left: target.offsetLeft - padStart(),
+        left: getComputedStyle(rail).direction === "rtl" ? -offset : offset,
         behavior: reduceMotion() ? "auto" : "smooth",
       });
     },
-    [cards, padStart],
+    [cards, padStart, startOffset],
   );
 
   useEffect(() => {
@@ -123,10 +129,13 @@ export function StoryRail() {
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    if (e.key === "ArrowRight") {
+    const rtl = getComputedStyle(e.currentTarget).direction === "rtl";
+    const forward = rtl ? "ArrowLeft" : "ArrowRight";
+    const back = rtl ? "ArrowRight" : "ArrowLeft";
+    if (e.key === forward) {
       e.preventDefault();
       goTo(active + 1);
-    } else if (e.key === "ArrowLeft") {
+    } else if (e.key === back) {
       e.preventDefault();
       goTo(active - 1);
     }
@@ -170,7 +179,7 @@ export function StoryRail() {
               disabled={atStart}
               onClick={() => goTo(active - 1)}
             >
-              <ChevronLeft className="size-5" />
+              <ChevronLeft className="size-5 rtl:-scale-x-100" />
             </button>
             <button
               type="button"
@@ -179,7 +188,7 @@ export function StoryRail() {
               disabled={atEnd}
               onClick={() => goTo(active + 1)}
             >
-              <ChevronRight className="size-5" />
+              <ChevronRight className="size-5 rtl:-scale-x-100" />
             </button>
           </div>
         </div>
@@ -229,7 +238,7 @@ export function StoryRail() {
             <span aria-hidden="true"> · </span>
             <Link href="/about" className="zs-link">
               {t("home.story.longer")}
-              <ArrowRight className="size-3.5" />
+              <ArrowRight className="size-3.5 rtl:-scale-x-100" />
             </Link>
           </p>
         </div>

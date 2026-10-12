@@ -79,7 +79,7 @@ export function DocPage({
           {section && (
             <>
               <li aria-hidden>
-                <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
+                <ChevronRight className="rtl:-scale-x-100 h-3 w-3 text-[var(--color-text-muted)]" />
               </li>
               <li className="text-[var(--color-text-muted)]">
                 <T k={`docs.navGroup.${groupSlug(section)}.title`} />
@@ -87,7 +87,7 @@ export function DocPage({
             </>
           )}
           <li aria-hidden>
-            <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
+            <ChevronRight className="rtl:-scale-x-100 h-3 w-3 text-[var(--color-text-muted)]" />
           </li>
           <li
             aria-current="page"
@@ -148,7 +148,7 @@ export function DocPage({
               rel="prev"
               className="card group flex items-center gap-3 p-4 transition-all hover:border-cyan-500/40 hover:shadow-md"
             >
-              <ArrowLeft className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:-translate-x-0.5 group-hover:text-cyan-500" />
+              <ArrowLeft className="rtl:-scale-x-100 h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0.5 group-hover:text-cyan-500" />
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   <T k="docs.ui.previous" />
@@ -165,7 +165,7 @@ export function DocPage({
             <Link
               href={next.link.href}
               rel="next"
-              className="card group flex items-center justify-end gap-3 p-4 text-right transition-all hover:border-cyan-500/40 hover:shadow-md"
+              className="card group flex items-center justify-end gap-3 p-4 text-end transition-all hover:border-cyan-500/40 hover:shadow-md"
             >
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -175,7 +175,7 @@ export function DocPage({
                   <T k={`docs.nav.${navSlug(next.link.href)}.title`} />
                 </span>
               </span>
-              <ArrowRight className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:translate-x-0.5 group-hover:text-cyan-500" />
+              <ArrowRight className="rtl:-scale-x-100 h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 group-hover:text-cyan-500" />
             </Link>
           )}
         </LabeledNav>
@@ -216,7 +216,7 @@ export function DocSubsection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-l-2 border-[var(--color-border)] pl-5">
+    <div className="border-s-2 border-[var(--color-border)] ps-5">
       <h3 className="text-sm font-bold">{title}</h3>
       <div className="mt-2 space-y-3">{children}</div>
     </div>
@@ -235,7 +235,7 @@ export function DocList({ items, ordered }: { items: React.ReactNode[]; ordered?
     <Tag
       className={cn(
         "space-y-2 text-[15px] leading-relaxed text-[var(--color-text-secondary)]",
-        ordered ? "list-decimal pl-5" : "",
+        ordered ? "list-decimal ps-5" : "",
       )}
     >
       {items.map((item, i) => (

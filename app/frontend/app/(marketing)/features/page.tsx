@@ -87,7 +87,7 @@ export default function FeaturesPage() {
                     <IconWell icon={ICONS[icon]} />
                     <h3 className="pv2-h3 mt-5 flex items-center gap-2 text-lg">
                       <T k={`site.chrome.featuresNav.${slug}.title`} />
-                      <ArrowRight className="ml-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5" />
+                      <ArrowRight className="rtl:-scale-x-100 ms-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
                     </h3>
                     <p className="pv2-body mt-2">
                       <T k={`site.chrome.featuresNav.${slug}.desc`} />
