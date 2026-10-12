@@ -103,9 +103,14 @@ export interface FileViewerProps {
    * passphrase would otherwise loop until the TTL).
    */
   onWrongPassword?: (folderId: string | null) => void;
+  /** Streams a file to disk without decrypting it into tab memory. Used for
+   *  files above VIEWER_MAX_BYTES, which are never previewed in-browser. */
+  onDownloadLarge?: (file: FileMetadata) => void;
   /** Reserved for trash/read-only contexts (no in-viewer mutation either way). */
   readOnly?: boolean;
 }
+
+const VIEWER_MAX_BYTES = 300 * 1024 * 1024;
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -119,7 +124,8 @@ type LoadState =
   | { status: "cancelled" }
   // Non-previewable type (archive, binary, …): intentionally NOT decrypted on
   // open: the download card is shown instead, and Download decrypts on demand.
-  | { status: "skipped" };
+  | { status: "skipped" }
+  | { status: "too-large" };
 
 export function FileViewer({
   open,
@@ -130,6 +136,7 @@ export function FileViewer({
   decrypt,
   prefetch,
   onWrongPassword,
+  onDownloadLarge,
 }: FileViewerProps) {
   const t = useTranslations("app.viewer");
   const file = files[index];
@@ -156,6 +163,8 @@ export function FileViewer({
   prefetchRef.current = prefetch;
   const onWrongPasswordRef = useRef(onWrongPassword);
   onWrongPasswordRef.current = onWrongPassword;
+  const onDownloadLargeRef = useRef(onDownloadLarge);
+  onDownloadLargeRef.current = onDownloadLarge;
 
   const kind: ViewerKind = file ? viewerKindFor(file.original_name) : "fallback";
 
@@ -180,6 +189,11 @@ export function FileViewer({
     // action decrypts on demand instead.
     if (viewerKindFor(file.original_name) === "fallback") {
       setState({ status: "skipped" });
+      return;
+    }
+
+    if (file.original_size > VIEWER_MAX_BYTES) {
+      setState({ status: "too-large" });
       return;
     }
 
@@ -267,6 +281,10 @@ export function FileViewer({
   // ── Download (reuse the already-decrypted blob when available) ───────────────
   const handleDownload = useCallback(async () => {
     if (!file) return;
+    if (state.status === "too-large" && onDownloadLargeRef.current) {
+      onDownloadLargeRef.current(file);
+      return;
+    }
     try {
       const blob = state.status === "ready" ? state.blob : await decrypt(file);
       const url = URL.createObjectURL(blob);
@@ -609,6 +627,10 @@ function ViewerBody({
     return <FallbackBody file={file} onDownload={onDownload} />;
   }
 
+  if (state.status === "too-large") {
+    return <FallbackBody file={file} onDownload={onDownload} note={t("tooLarge")} />;
+  }
+
   // state.status === "ready"
   const { blob } = state;
   const mime = mimeForFilename(file.original_name);
@@ -699,7 +721,15 @@ function DecryptProgress({ done, total }: { done?: number; total?: number }) {
   );
 }
 
-function FallbackBody({ file, onDownload }: { file: FileMetadata; onDownload: () => void }) {
+function FallbackBody({
+  file,
+  onDownload,
+  note,
+}: {
+  file: FileMetadata;
+  onDownload: () => void;
+  note?: string;
+}) {
   const t = useTranslations("app.viewer");
   const info = getFileTypeInfo(file.original_name);
   return (
@@ -715,7 +745,7 @@ function FallbackBody({ file, onDownload }: { file: FileMetadata; onDownload: ()
       </div>
       <div className="text-center">
         <p className="text-sm font-medium text-[var(--color-text)]">{file.original_name}</p>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t("noPreview")}</p>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{note ?? t("noPreview")}</p>
       </div>
       <Button variant="primary" size="md" onClick={onDownload}>
         <Download className="h-4 w-4" />

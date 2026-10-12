@@ -371,6 +371,7 @@
       "retry": "Reintentar",
       "decrypting": "Descifrando…",
       "decryptingProgress": "Descifrando… {done}/{total} · {percent}%",
+      "tooLarge": "Este archivo es demasiado grande para previsualizarlo aquí. Descárgalo en su lugar.",
       "noPreview": "No hay vista previa disponible para este tipo de archivo.",
       "readFailed": "No se pudo leer este archivo.",
       "docFailed": "No se pudo mostrar este documento.",

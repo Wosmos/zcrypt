@@ -477,11 +477,7 @@ export function useVaultActions({
       } catch (err) {
         closePreview();
         const msg = err instanceof Error ? err.message : "Preview failed";
-        const looksLikeWrongKey =
-          msg.toLowerCase().includes("decrypt") ||
-          msg.toLowerCase().includes("passphrase") ||
-          msg.toLowerCase().includes("cipher") ||
-          err instanceof IncorrectPassphraseError;
+        const looksLikeWrongKey = err instanceof IncorrectPassphraseError;
 
         if (looksLikeWrongKey) {
           const fid = file.folder_id ?? null;

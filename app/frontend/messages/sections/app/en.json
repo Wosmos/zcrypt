@@ -371,6 +371,7 @@
       "retry": "Retry",
       "decrypting": "Decrypting…",
       "decryptingProgress": "Decrypting… {done}/{total} · {percent}%",
+      "tooLarge": "This file is too large to preview here. Download it instead.",
       "noPreview": "No preview available for this file type.",
       "readFailed": "Could not read this file.",
       "docFailed": "Could not render this document.",
