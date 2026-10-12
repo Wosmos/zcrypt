@@ -788,7 +788,10 @@
         "rename": "Renombrar",
         "clear": "Borrar la selección",
         "show": "Mostrar estos atajos"
-      }
+      },
+      "folderCount": "{count, plural, one {# carpeta} other {# carpetas}}",
+      "fileCount": "{count, plural, one {# archivo} other {# archivos}}",
+      "itemCount": "{count, plural, one {# elemento} other {# elementos}}"
     },
     "hooks": {
       "connectionRestored": "Conexión con el servidor restablecida",
@@ -819,7 +822,8 @@
       "deleteFailed": "Error al eliminar",
       "bulkPartial": "{deleted} eliminados, {failed} fallidos",
       "bulkDeleted": "{count, plural, one {Se eliminó # archivo} other {Se eliminaron # archivos}}",
-      "bulkDeleteFailed": "Error en la eliminación masiva"
+      "bulkDeleteFailed": "Error en la eliminación masiva",
+      "emptyFilesSkipped": "No se pueden subir archivos vacíos: {names}"
     },
     "notifications": {
       "uploadComplete": "Subida completada",
@@ -835,7 +839,8 @@
       "unlockCustomize": "Desbloquea tu bóveda para personalizar archivos",
       "unlockRename": "Desbloquea tu bóveda para renombrar archivos",
       "emptyName": "El nombre no puede estar vacío",
-      "addFailed": "No se pudieron añadir los archivos"
+      "addFailed": "No se pudieron añadir los archivos",
+      "duplicateName": "Ya existe un archivo llamado \"{name}\" aquí."
     },
     "toasts": {
       "restartUpload": "No se pudo continuar la subida anterior de «{name}», se reinicia en {platform}.",

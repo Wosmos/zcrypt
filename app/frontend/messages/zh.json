@@ -90,6 +90,7 @@
     "gridView": "网格视图",
     "select": "选择",
     "folderPath": "文件夹路径",
+    "myVault": "我的保险库",
     "sortBy": "按{label}排序",
     "sortByCurrent": "按{label}排序，当前为{direction}",
     "ascending": "升序",

@@ -21,8 +21,8 @@
  *     error: string | null;
  *
  *     // Per-file actions (need the page's crypto/upload/preview context):
- *     onPreview?: (filename: string) => void;        // optional → no Preview item if omitted
- *     onDownload: (filename: string) => void;
+ *     onPreview?: (fileId: string) => void;        // optional → no Preview item if omitted
+ *     onDownload: (fileId: string) => void;
  *     onShare?: (id: string) => void;                // optional → no Share item if omitted
  *     onOpenDetails?: (file: FileMetadata) => void;  // row/card click when NOT in select mode
  *     onDelete: (id: string) => void;                // single delete (optimistic soft-delete in page)
@@ -142,8 +142,8 @@ export interface VaultExplorerProps {
   loading: boolean;
   error: string | null;
 
-  onPreview?: (filename: string) => void;
-  onDownload: (filename: string) => void;
+  onPreview?: (fileId: string) => void;
+  onDownload: (fileId: string) => void;
   onShare?: (id: string) => void;
   onOpenDetails?: (file: FileMetadata) => void;
   onDelete: (id: string) => void;
@@ -577,6 +577,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // arrows, Space toggle, Shift+arrow range extend, Enter open, Delete/F2,
     // Esc clear.
     const handleEntryKeyDown = (entry: ExplorerEntry, e: React.KeyboardEvent) => {
+      if (e.target !== e.currentTarget) return;
       const isFile = entry.kind === "file";
       const id = isFile ? entry.file.id : entry.folder.id;
       const step = view === "grid" ? gridColsRef.current : 1;
@@ -1157,11 +1158,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
 
     // Uniform count footer (H3-footer): show both groups when both are present;
     // collapse to "N items" when one group is empty (never drop a present group).
-    const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
     const countLabel =
       folderCount > 0 && fileCount > 0
-        ? `${plural(folderCount, "folder", "folders")} · ${plural(fileCount, "file", "files")}`
-        : plural(folderCount + fileCount, "item", "items");
+        ? `${ta("folderCount", { count: folderCount })} · ${ta("fileCount", { count: fileCount })}`
+        : ta("itemCount", { count: folderCount + fileCount });
 
     // ExplorerRow and ExplorerCard share the exact same prop contract (list vs
     // grid is purely a layout choice): one map, dispatching on which renders.

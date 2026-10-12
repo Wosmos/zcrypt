@@ -90,6 +90,7 @@
     "gridView": "Vista de cuadrícula",
     "select": "Seleccionar",
     "folderPath": "Ruta de la carpeta",
+    "myVault": "Mi bóveda",
     "sortBy": "Ordenar por {label}",
     "sortByCurrent": "Ordenar por {label}, actualmente {direction}",
     "ascending": "ascendente",

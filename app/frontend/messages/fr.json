@@ -90,6 +90,7 @@
     "gridView": "Vue en grille",
     "select": "Sélectionner",
     "folderPath": "Chemin du dossier",
+    "myVault": "Mon coffre",
     "sortBy": "Trier par {label}",
     "sortByCurrent": "Trier par {label}, actuellement {direction}",
     "ascending": "croissant",

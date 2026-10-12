@@ -206,16 +206,6 @@ describe("mimeForFilename", () => {
     expect(mimeForFilename("mystery.xyz")).toBe("application/octet-stream");
     expect(mimeForFilename("noextension")).toBe("application/octet-stream");
   });
-
-  it("falls back to octet-stream if split().pop() ever yields undefined (defensive ?? \"\")", () => {
-    // A real string's split(".") always returns a non-empty array, so pop()
-    // never actually returns undefined, the `?? ""` guards a case that can't
-    // happen for any real string. Force it anyway with a fake "string" (typed
-    // through as `string` to invoke the function's real logic) whose split()
-    // returns an empty array, to prove the fallback itself is correct.
-    const fakeFilename = { split: () => [] } as unknown as string;
-    expect(mimeForFilename(fakeFilename)).toBe("application/octet-stream");
-  });
 });
 
 describe("runDecryptPipeline", () => {

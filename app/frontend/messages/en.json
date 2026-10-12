@@ -90,6 +90,7 @@
     "gridView": "Grid view",
     "select": "Select",
     "folderPath": "Folder path",
+    "myVault": "My Vault",
     "sortBy": "Sort by {label}",
     "sortByCurrent": "Sort by {label}, currently {direction}",
     "ascending": "ascending",
