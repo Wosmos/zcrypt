@@ -492,6 +492,11 @@ describe("decryptSpaceFileName", () => {
     await expect(decryptSpaceFileName(vault("locked"), "abc")).resolves.toBeNull();
   });
 
+  it("returns null instead of rejecting when opening the space key throws", async () => {
+    const locked = { ...vault("needs-open"), wrapped_space_key: "not-a-sealed-key" };
+    await expect(decryptSpaceFileName(locked, "abc")).resolves.toBeNull();
+  });
+
   it("returns null when the sealed name fails to unwrap under the space key", async () => {
     const spaceKey = generateSpaceKey();
     useSpacesStore.getState().setSpaceKey("v", spaceKey);

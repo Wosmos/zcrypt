@@ -97,6 +97,17 @@ describe("public share access", () => {
 
     fetchMock.mockResolvedValueOnce(mk(500, {}));
     await expect(api.getShareChunk("tok", 3)).rejects.toThrow("Failed to download chunk");
+
+    fetchMock.mockResolvedValueOnce(mk(403, {}));
+    await expect(api.getShareChunk("tok", 3)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("share meta failures carry the HTTP status", async () => {
+    fetchMock.mockResolvedValueOnce(mk(401, { jsonThrows: true }));
+    await expect(api.getShareFileMeta("t", "bad")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+    });
   });
 
   it("chunk fetches carry the download ticket and completion posts it", async () => {

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export function useNotifications() {
-  const permissionRef = useRef<NotificationPermission>("default");
+  const [permission, setPermission] = useState<NotificationPermission>("default");
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    permissionRef.current = Notification.permission;
+    // oxlint-disable-next-line react/set-state-in-effect
+    setPermission(Notification.permission);
   }, []);
 
   const requestPermission = useCallback(async () => {
@@ -16,7 +17,7 @@ export function useNotifications() {
     if (Notification.permission === "denied") return false;
 
     const result = await Notification.requestPermission();
-    permissionRef.current = result;
+    setPermission(result);
     return result === "granted";
   }, []);
 
@@ -48,10 +49,7 @@ export function useNotifications() {
   );
 
   const isSupported = typeof window !== "undefined" && "Notification" in window;
-  const isGranted =
-    typeof window !== "undefined" &&
-    "Notification" in window &&
-    Notification.permission === "granted";
+  const isGranted = permission === "granted";
 
   return { notify, requestPermission, isSupported, isGranted };
 }

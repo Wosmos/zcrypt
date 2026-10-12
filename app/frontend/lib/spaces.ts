@@ -162,9 +162,9 @@ export async function decryptSpaceFileName(
   wrappedName?: string,
 ): Promise<string | null> {
   if (!wrappedName) return null;
-  const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) return null;
   try {
+    const spaceKey = await loadSpaceKey(vault);
+    if (!spaceKey) return null;
     const bytes = await unwrapKey(toArrayBuffer(spaceKey), fromBase64(wrappedName));
     return new TextDecoder().decode(bytes);
   } catch {
