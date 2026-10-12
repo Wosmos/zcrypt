@@ -1,121 +1,166 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getShareInfo, getShareFileMeta, getShareChunk, completeShareDownload } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield, Lock, Download, Eye } from "@/lib/icons";
-import { formatBytes, saveBlob, concatChunks, extOf } from "@/lib/utils";
+import { Shield, Lock } from "@/lib/icons";
+import { concatChunks } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
 import { keyFromBytes } from "@/lib/sealed";
 import { openLinkName } from "@/components/tokens/link-name";
 import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
 import { fromBase64 } from "@/lib/crypto";
 import { ApiError } from "@/lib/http-error";
+import { ViewerCard, ViewerError, TokenFileHeader } from "@/components/tokens/viewer";
 import {
-  ViewerCard,
-  ViewerLoading,
-  ViewerError,
-  TokenFileHeader,
-  ViewerDecryptProgress,
-  PreviewHeader,
-  MediaPreview,
-  DownloadCompletePanel,
-} from "@/components/tokens/viewer";
+  TokenPageShell,
+  TokenActions,
+  TokenInfoNote,
+  TokenProgressStates,
+} from "@/components/tokens/page-kit";
+import { getPreviewType, getMimeType } from "@/components/tokens/preview-types";
+import { downloadChunks } from "@/components/tokens/chunk-download";
+import { useTokenViewer } from "@/components/tokens/use-token-viewer";
+import type { Progress, ViewerSetters } from "@/components/tokens/use-token-viewer";
 import type { ShareInfo } from "@/types";
-
-type PageState =
-  | "loading"
-  | "ready" // show credential form
-  | "decrypting" // decrypting the file
-  | "preview" // showing preview + download button
-  | "downloading" // saving to disk (already decrypted)
-  | "done"
-  | "error";
-
-/**
- * Shared catch-block handling for both decrypt entry points below: a 401/403
- * bounces back to the credential form for a retry, anything else is an error
- * panel that offers a retry.
- */
-function reportDecryptError(
-  err: unknown,
-  fallbackMsg: string,
-  wrongPasswordMsg: string,
-  setPageState: (s: PageState) => void,
-  setErrorMsg: (s: string) => void,
-  setSharePassword: (s: string) => void,
-  setRetryable: (b: boolean) => void,
-) {
-  if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-    setPageState("ready");
-    setErrorMsg(wrongPasswordMsg);
-    setSharePassword("");
-  } else {
-    setPageState("error");
-    setErrorMsg(err instanceof Error ? err.message : fallbackMsg);
-    setRetryable(true);
-  }
-}
 
 function openShareName(raw: string | undefined, key: string | null): Promise<string> {
   return openLinkName(raw, key ? () => keyFromBytes(fromBase64(key)) : null);
-}
-
-function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
-  const ext = extOf(filename);
-  if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
-  if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
-  if (["mp3", "wav", "aac", "flac", "m4a"].includes(ext)) return "audio";
-  return "none";
-}
-
-function getMimeType(filename: string): string | undefined {
-  const ext = extOf(filename);
-  const map: Record<string, string> = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    gif: "image/gif",
-    webp: "image/webp",
-    bmp: "image/bmp",
-    svg: "image/svg+xml",
-    ico: "image/x-icon",
-    mp4: "video/mp4",
-    webm: "video/webm",
-    ogg: "video/ogg",
-    mov: "video/quicktime",
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    aac: "audio/aac",
-    flac: "audio/flac",
-    m4a: "audio/mp4",
-    pdf: "application/pdf",
-    zip: "application/zip",
-    txt: "text/plain",
-  };
-  return map[ext];
 }
 
 export default function SharePage() {
   const t = useTranslations("tools");
   const { token } = useParams<{ token: string }>();
   const [info, setInfo] = useState<ShareInfo | null>(null);
-  const [pageState, setPageState] = useState<PageState>("loading");
-  const [errorMsg, setErrorMsg] = useState("");
   const [sharePassword, setSharePassword] = useState("");
   const [retryable, setRetryable] = useState(false);
   // The decryption key comes from the URL fragment, never typed by the user.
   const [shareKey, setShareKey] = useState<string | null>(null);
-  const [progress, setProgress] = useState({ stage: "", percent: 0 });
-  const [decryptedBlob, setDecryptedBlob] = useState<Blob | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
   // Older links carry no name; the saved name is then guessed from the bytes.
   const [nameGuessed, setNameGuessed] = useState(false);
-  const prevUrlRef = useRef<string | null>(null);
+
+  const decryptFile = useCallback(
+    async (setProgress: (p: Progress) => void) => {
+      if (!token || !shareKey) return null;
+
+      const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+      const { getZstdCodec } = await import("@/lib/zstd");
+      const { getDeviceProfile } = await import("@/lib/device-profile");
+      const zstd = await getZstdCodec();
+
+      setProgress({ stage: t("pub.fetching"), percent: 0 });
+      const meta = await getShareFileMeta(token, sharePassword || undefined);
+
+      // Unwrap the file's CEK using the share key from the URL fragment.
+      setProgress({ stage: t("pub.share.unwrapping"), percent: 1 });
+      if (!meta.wrapped_cek) {
+        throw new Error(t("pub.share.missingCek"));
+      }
+      let keyBytes: ArrayBuffer;
+      try {
+        const sk = fromBase64(shareKey);
+        const cek = await unwrapKey(
+          sk.buffer.slice(0) as ArrayBuffer,
+          fromBase64(meta.wrapped_cek),
+        );
+        keyBytes = cek.buffer.slice(0) as ArrayBuffer;
+      } catch {
+        throw new Error(t("pub.share.invalidKey"));
+      }
+
+      const decryptedChunks = await downloadChunks({
+        count: meta.chunk_count,
+        concurrency: getDeviceProfile().maxConcurrentDownloads,
+        setProgress,
+        stageLabel: (done, total) => t("pub.decryptingN", { done, total }),
+        fetchChunk: async (index) => {
+          const { data, compressed } = await getShareChunk(
+            token,
+            index,
+            sharePassword || undefined,
+            meta.download_ticket,
+          );
+          let plaintext: Uint8Array;
+          try {
+            plaintext = await decryptChunk(keyBytes, new Uint8Array(data));
+          } catch {
+            throw new Error(t("pub.share.decryptFailed"));
+          }
+          return compressed && zstd ? zstd.ZstdStream.decompress(plaintext) : plaintext;
+        },
+      });
+
+      setProgress({ stage: t("pub.verifying"), percent: 93 });
+      const fullFile = concatChunks(decryptedChunks);
+
+      // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
+      // the vault passphrase) can recompute. A public share recipient has no
+      // passphrase, so the file-level compare is impossible: skip it and rely on
+      // the per-chunk AES-GCM auth tags. Legacy 'plain'/undefined files still verify.
+      if (meta.sha256_scheme !== "hmac_v1") {
+        const actualHash = await sha256Hex(fullFile);
+        if (actualHash !== meta.sha256) {
+          throw new Error(t("pub.integrityMismatch"));
+        }
+      }
+
+      if (meta.download_ticket) {
+        await completeShareDownload(token, meta.download_ticket, sharePassword || undefined).catch(
+          () => {},
+        );
+      }
+
+      const openedName = await openShareName(meta.original_name, shareKey);
+      setNameGuessed(!openedName);
+      const originalName = resolveDownloadName(openedName, fullFile);
+      const mime =
+        getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
+      const blob = new Blob([fullFile as BlobPart], { type: mime });
+      return { blob, originalName };
+    },
+    [token, shareKey, sharePassword, t],
+  );
+
+  // A 401/403 bounces back to the credential form for a retry; anything else is
+  // an error panel that offers a retry.
+  const reportDecryptError = useCallback(
+    (err: unknown, fallbackMsg: string, { setPageState, setErrorMsg }: ViewerSetters) => {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        setPageState("ready");
+        setErrorMsg(t("pub.share.wrongPassword"));
+        setSharePassword("");
+      } else {
+        setPageState("error");
+        setErrorMsg(err instanceof Error ? err.message : fallbackMsg);
+        setRetryable(true);
+      }
+    },
+    [t],
+  );
+
+  const {
+    pageState,
+    setPageState,
+    errorMsg,
+    setErrorMsg,
+    progress,
+    previewUrl,
+    fileName,
+    handlePreview,
+    handleDownload,
+    handleSave,
+    closePreview,
+  } = useTokenViewer({
+    enabled: !!token && !!shareKey,
+    decrypt: decryptFile,
+    previewFallback: t("pub.decryptFailed"),
+    downloadFallback: t("pub.downloadFailed"),
+    fallbackSaveName: info?.file_name ?? "",
+    onError: reportDecryptError,
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -143,199 +188,20 @@ export default function SharePage() {
         setPageState("error");
         setErrorMsg(t("pub.share.notFound"));
       });
-  }, [token, t]);
-
-  // Cleanup object URLs
-  useEffect(() => {
-    return () => {
-      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-    };
-  }, []);
-
-  const decryptFile = useCallback(async (): Promise<{
-    blob: Blob;
-    originalName: string;
-  } | null> => {
-    if (!token || !shareKey) return null;
-
-    const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-    const { getZstdCodec } = await import("@/lib/zstd");
-    const { getDeviceProfile } = await import("@/lib/device-profile");
-    const zstd = await getZstdCodec();
-
-    setProgress({ stage: t("pub.fetching"), percent: 0 });
-    const meta = await getShareFileMeta(token, sharePassword || undefined);
-
-    // Unwrap the file's CEK using the share key from the URL fragment.
-    setProgress({ stage: t("pub.share.unwrapping"), percent: 1 });
-    if (!meta.wrapped_cek) {
-      throw new Error(t("pub.share.missingCek"));
-    }
-    let keyBytes: ArrayBuffer;
-    try {
-      const sk = fromBase64(shareKey);
-      const cek = await unwrapKey(sk.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
-      keyBytes = cek.buffer.slice(0) as ArrayBuffer;
-    } catch {
-      throw new Error(t("pub.share.invalidKey"));
-    }
-
-    const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
-    let chunksDone = 0;
-    const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
-
-    const processChunk = async (index: number) => {
-      const { data, compressed } = await getShareChunk(
-        token,
-        index,
-        sharePassword || undefined,
-        meta.download_ticket,
-      );
-      const encrypted = new Uint8Array(data);
-
-      let plaintext: Uint8Array;
-      try {
-        plaintext = await decryptChunk(keyBytes, encrypted);
-      } catch {
-        throw new Error(t("pub.share.decryptFailed"));
-      }
-
-      if (compressed && zstd) {
-        plaintext = zstd.ZstdStream.decompress(plaintext);
-      }
-
-      decryptedChunks[index] = plaintext;
-      chunksDone++;
-      const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
-      setProgress({
-        stage: t("pub.decryptingN", { done: chunksDone, total: meta.chunk_count }),
-        percent,
-      });
-    };
-
-    const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
-    const workers: Promise<void>[] = [];
-    for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
-      workers.push(
-        (async () => {
-          while (queue.length > 0) {
-            const idx = queue.shift()!;
-            await processChunk(idx);
-          }
-        })(),
-      );
-    }
-    await Promise.all(workers);
-
-    setProgress({ stage: t("pub.verifying"), percent: 93 });
-    const fullFile = concatChunks(decryptedChunks);
-
-    // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
-    // the vault passphrase) can recompute. A public share recipient has no
-    // passphrase, so the file-level compare is impossible: skip it and rely on
-    // the per-chunk AES-GCM auth tags. Legacy 'plain'/undefined files still verify.
-    if (meta.sha256_scheme !== "hmac_v1") {
-      const actualHash = await sha256Hex(fullFile);
-      if (actualHash !== meta.sha256) {
-        throw new Error(t("pub.integrityMismatch"));
-      }
-    }
-
-    if (meta.download_ticket) {
-      await completeShareDownload(token, meta.download_ticket, sharePassword || undefined).catch(
-        () => {},
-      );
-    }
-
-    const openedName = await openShareName(meta.original_name, shareKey);
-    setNameGuessed(!openedName);
-    const originalName = resolveDownloadName(openedName, fullFile);
-    const mime =
-      getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
-    const blob = new Blob([fullFile as BlobPart], { type: mime });
-    return { blob, originalName };
-  }, [token, shareKey, sharePassword, t]);
-
-  // Shared entry-point wrapper for both actions below: guard the key, flip to
-  // the decrypting state, run decryptFile(), and route failures through
-  // reportDecryptError. Only what happens with a successful result differs.
-  const runDecrypt = useCallback(
-    async (onSuccess: (blob: Blob, originalName: string) => void, fallbackMsg: string) => {
-      if (!token || !shareKey) return;
-      setPageState("decrypting");
-      setErrorMsg("");
-
-      try {
-        const result = await decryptFile();
-        if (!result) return;
-        onSuccess(result.blob, result.originalName);
-      } catch (err) {
-        reportDecryptError(
-          err,
-          fallbackMsg,
-          t("pub.share.wrongPassword"),
-          setPageState,
-          setErrorMsg,
-          setSharePassword,
-          setRetryable,
-        );
-      }
-    },
-    [token, shareKey, decryptFile, t],
-  );
-
-  const handleDecryptAndPreview = useCallback(
-    () =>
-      runDecrypt((blob, originalName) => {
-        setDecryptedBlob(blob);
-        setFileName(originalName);
-
-        // Create preview URL for previewable types
-        const pType = getPreviewType(originalName);
-        if (pType !== "none") {
-          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-          const url = URL.createObjectURL(blob);
-          prevUrlRef.current = url;
-          setPreviewUrl(url);
-        }
-
-        setPageState("preview");
-      }, t("pub.decryptFailed")),
-    [runDecrypt, t],
-  );
-
-  const handleSaveToDevice = useCallback(() => {
-    if (!decryptedBlob) return;
-    saveBlob(fileName || info?.file_name || "download", decryptedBlob);
-  }, [decryptedBlob, fileName, info]);
-
-  // Direct download (for non-previewable files, or from the ready state)
-  const handleDirectDownload = useCallback(
-    () =>
-      runDecrypt((blob, originalName) => {
-        saveBlob(originalName, blob);
-        setPageState("done");
-        setFileName(originalName);
-      }, t("pub.downloadFailed")),
-    [runDecrypt, t],
-  );
+  }, [token, t, setPageState, setErrorMsg]);
 
   const previewType = getPreviewType(fileName || info?.file_name || "");
   const isPreviewable = previewType !== "none";
 
   return (
-    <div className="w-full max-w-lg animate-fade-in">
-      {/* Logo */}
-      <div className="flex items-center justify-center gap-2 mb-8">
-        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10">
-          <Shield className="h-5 w-5 text-[var(--color-accent)]" />
-        </div>
-        <span className="text-xl font-bold font-heading tracking-tight">zcrypt</span>
-      </div>
-
+    <TokenPageShell
+      icon={Shield}
+      brand="zcrypt"
+      footer={t.rich("pub.share.footer", {
+        b: (chunks) => <span className="font-semibold">{chunks}</span>,
+      })}
+    >
       <ViewerCard>
-        {pageState === "loading" && <ViewerLoading message={t("pub.share.loading")} />}
-
         {pageState === "error" && (
           <>
             <ViewerError title={t("pub.share.unavailable")} message={errorMsg} />
@@ -369,10 +235,9 @@ export default function SharePage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (info.has_password && !sharePassword) return;
-                void (isPreviewable ? handleDecryptAndPreview() : handleDirectDownload());
+                void (isPreviewable ? handlePreview() : handleDownload());
               }}
             >
-              {/* Share password (only if required) */}
               {info.has_password && (
                 <Input
                   label={t("pub.share.password")}
@@ -394,95 +259,40 @@ export default function SharePage() {
                 </p>
               )}
 
-              {/* Action buttons. The decryption key comes from the link
-                  fragment, so no passphrase is needed, only the optional
-                  share password gates these. */}
-              <div className="flex gap-2">
-                {isPreviewable ? (
-                  <>
-                    <Button
-                      type="submit"
-                      disabled={info.has_password && !sharePassword}
-                      className="flex-1"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      {t("pub.decryptPreview")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleDirectDownload}
-                      disabled={info.has_password && !sharePassword}
-                      className="flex-shrink-0"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={info.has_password && !sharePassword}
-                    className="w-full"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {t("pub.downloadDecrypt")}
-                  </Button>
-                )}
-              </div>
+              {/* The decryption key comes from the link fragment, so no
+                  passphrase is needed, only the optional share password gates
+                  these. */}
+              <TokenActions
+                submit
+                previewable={isPreviewable}
+                disabled={info.has_password && !sharePassword}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+              />
 
-              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-                <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pub.share.info")}</p>
-              </div>
+              <TokenInfoNote>{t("pub.share.info")}</TokenInfoNote>
             </form>
           </>
         )}
 
-        {pageState === "decrypting" && info && (
-          <ViewerDecryptProgress
-            fileName={info.file_name}
-            fileSize={info.file_size}
-            stage={progress.stage}
-            percent={progress.percent}
-          />
-        )}
-
-        {pageState === "preview" && info && (
-          <>
-            <PreviewHeader name={fileName || info.file_name} onSave={handleSaveToDevice} />
-
-            {/* Preview content */}
-            <MediaPreview
-              previewType={previewType}
-              previewUrl={previewUrl}
-              name={fileName || info.file_name}
-              onSave={handleSaveToDevice}
-            />
-
-            {/* Bottom bar */}
-            <div className="px-5 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
-              <p className="text-[10px] text-[var(--color-text-muted)]">
-                {t("pub.decryptedInBrowser", { size: formatBytes(info.file_size) })}
-              </p>
-              <button
-                onClick={() => {
-                  if (prevUrlRef.current) {
-                    URL.revokeObjectURL(prevUrlRef.current);
-                    prevUrlRef.current = null;
-                  }
-                  setPreviewUrl(null);
-                  setDecryptedBlob(null);
-                  setPageState("ready");
-                }}
-                className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-              >
-                {t("pub.share.closePreview")}
-              </button>
-            </div>
-          </>
-        )}
-
-        {pageState === "done" && (
-          <DownloadCompletePanel fileName={fileName}>
+        <TokenProgressStates
+          pageState={pageState}
+          loadingMessage={t("pub.share.loading")}
+          info={info}
+          progress={progress}
+          fileName={fileName}
+          previewType={previewType}
+          previewUrl={previewUrl}
+          onSave={handleSave}
+          previewExtras={
+            <button
+              onClick={closePreview}
+              className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            >
+              {t("pub.share.closePreview")}
+            </button>
+          }
+          doneExtras={
             <Button
               variant="secondary"
               onClick={() => {
@@ -492,8 +302,8 @@ export default function SharePage() {
             >
               {t("pub.share.downloadAgain")}
             </Button>
-          </DownloadCompletePanel>
-        )}
+          }
+        />
       </ViewerCard>
 
       {nameGuessed && (pageState === "done" || pageState === "preview") && (
@@ -501,13 +311,6 @@ export default function SharePage() {
           {t("pub.share.nameGuessed")}
         </p>
       )}
-
-      {/* Footer */}
-      <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-        {t.rich("pub.share.footer", {
-          b: (chunks) => <span className="font-semibold">{chunks}</span>,
-        })}
-      </p>
-    </div>
+    </TokenPageShell>
   );
 }
