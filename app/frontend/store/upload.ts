@@ -40,7 +40,7 @@ import { releaseSharedFile } from "@/lib/android";
 import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
-import { ApiError, isRetryableStatus } from "@/lib/http-error";
+import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
 import { createFrameBatch } from "@/lib/frame-batch";
 
@@ -441,7 +441,8 @@ async function withRetry<T>(
       const transient =
         err instanceof ApiError
           ? isRetryableStatus(err.status)
-          : msg.includes("too many requests") ||
+          : isNetworkFailure(err) ||
+            msg.includes("too many requests") ||
             msg.includes("slow down") ||
             msg.includes("network request failed") ||
             msg.includes("timed out") ||

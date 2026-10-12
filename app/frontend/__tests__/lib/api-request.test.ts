@@ -265,12 +265,48 @@ describe("getFileChunk (custom download path)", () => {
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer access-tok");
   });
 
-  it("forwards a caller-provided signal instead of creating its own timeout controller", async () => {
+  it("forwards a caller's abort into the fetch signal", async () => {
     fetchMock.mockResolvedValueOnce(chunkResp(200, {}));
     const controller = new AbortController();
     await getFileChunk("f", 0, controller.signal);
     const init = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(init.signal).toBe(controller.signal);
+    expect(init.signal?.aborted).toBe(false);
+  });
+
+  it("aborts the fetch when the caller's signal fires mid-flight and keeps it an AbortError", async () => {
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }),
+    );
+    const controller = new AbortController();
+    const pending = getFileChunk("f", 0, controller.signal);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("aborts a stalled chunk even when a caller signal is present", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }),
+    );
+    const controller = new AbortController();
+    const assertion = expect(getFileChunk("f", 3, controller.signal)).rejects.toThrow("chunk 3 download timed out");
+    await vi.advanceTimersByTimeAsync(90_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+
+  it("starts already aborted when the caller's signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
+    await expect(getFileChunk("f", 0, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect((fetchMock.mock.calls.at(-1)![1] as RequestInit).signal?.aborted).toBe(true);
   });
 
   it("maps an aborted chunk fetch to a chunk-specific timeout error", async () => {

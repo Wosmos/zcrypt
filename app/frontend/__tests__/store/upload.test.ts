@@ -1002,6 +1002,17 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("done");
     });
 
+    it("retries an offline fetch failure (TypeError) before eventually succeeding", async () => {
+      (uploadChunk as Mock).mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValue(undefined);
+      const file = makeFile("a.txt", 10);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(uploadChunk).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
     it("retries a 5xx by status even when its JSON body has no number in it", async () => {
       (uploadChunk as Mock)
         .mockRejectedValueOnce(new ApiError("failed to store chunk", 500))

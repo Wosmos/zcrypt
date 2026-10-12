@@ -22,6 +22,10 @@ describe("isTransientError", () => {
     expect(isTransientError(new Error(message))).toBe(true);
   });
 
+  it("treats an offline fetch failure (TypeError) as transient", () => {
+    expect(isTransientError(new TypeError("Failed to fetch"))).toBe(true);
+  });
+
   it("does not treat an unrelated error as transient", () => {
     expect(isTransientError(new Error("invalid credentials"))).toBe(false);
   });
