@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { T } from "@/components/i18n/t";
+import { Labelled } from "@/components/i18n/labelled";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { ChangelogTimeline } from "@/components/marketing/changelog/timeline";
 import { ChangelogCta } from "@/components/marketing/changelog/changelog-cta";
@@ -8,26 +9,15 @@ import { RssLink } from "@/components/marketing/changelog/rss-link";
 import { RELEASES } from "@/lib/changelog";
 import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "What's new in zcrypt: changelog",
   description:
     "Every zcrypt version in plain words: what is new, what got better, what we fixed and what changed for your security.",
-  alternates: {
-    canonical: `${SITE_URL}/changelog`,
-    types: { "application/rss+xml": `${SITE_URL}/changelog/feed.xml` },
-  },
-  openGraph: {
-    title: "What's new in zcrypt",
-    description: "Every zcrypt version in plain words, newest first.",
-    url: `${SITE_URL}/changelog`,
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "What's new in zcrypt",
-    description: "Every zcrypt version in plain words, newest first.",
-  },
-};
+  path: "/changelog",
+  feedPath: "/changelog/feed.xml",
+  ogTitle: "What's new in zcrypt",
+  ogDescription: "Every zcrypt version in plain words, newest first.",
+});
 
 export default function ChangelogPage() {
   return (
@@ -44,14 +34,14 @@ export default function ChangelogPage() {
         lede={<T k="changelog.page.lede" />}
         actions={<RssLink />}
       />
-      <section className="pv2-sec pv2-sec-join" aria-label="Releases">
+      <Labelled as="section" k="changelog.page.releasesLabel" className="pv2-sec pv2-sec-join">
         <div className="pv2-wrap pv2-wrap-narrow" style={{ maxWidth: "62rem" }}>
           <ChangelogTimeline releases={RELEASES} />
           <div className="mt-16">
             <ChangelogCta />
           </div>
         </div>
-      </section>
+      </Labelled>
     </>
   );
 }
