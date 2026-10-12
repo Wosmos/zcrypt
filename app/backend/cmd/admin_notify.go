@@ -140,13 +140,8 @@ func (s *Server) dispatchNotifications(msgs []auth.OutgoingEmail) {
 	if cfg == nil || len(msgs) == 0 {
 		return
 	}
-	select {
-	case s.notifySem <- struct{}{}:
-	default:
-		log.Printf("admin notify: dropped %d notification(s), sender busy", len(msgs))
-		return
-	}
 	s.goBackground(func() {
+		s.notifySem <- struct{}{}
 		defer func() { <-s.notifySem }()
 		ctx, cancel := context.WithTimeout(context.Background(), notifySendWindow)
 		defer cancel()
