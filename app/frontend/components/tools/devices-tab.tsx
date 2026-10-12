@@ -33,6 +33,8 @@ import { SkeletonRow } from "@/components/ui/skeletons";
 import { Trash2, Lock, Unlock } from "@/lib/icons";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import { useActionError } from "./shared/use-action-error";
+import { ToolLoadError } from "./shared/tool-states";
 
 const MAX_SIZE = 512 * 1024;
 
@@ -56,6 +58,7 @@ const NO_FILES: FileMetadata[] = [];
 
 function OfflinePinsSection() {
   const t = useTranslations("tools");
+  const reportError = useActionError();
   const [pinning, setPinning] = useState<string | null>(null);
   const deviceId = typeof window !== "undefined" ? getDeviceId() : "";
   const pinsQuery = useQuery({
@@ -81,8 +84,8 @@ function OfflinePinsSection() {
         const pin = await pinFileOffline(fileId, deviceId);
         setPins((prev) => [pin, ...prev]);
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setPinning(null);
     }
@@ -109,6 +112,8 @@ function OfflinePinsSection() {
             <SkeletonRow key={i} />
           ))}
         </div>
+      ) : pinsQuery.isError ? (
+        <ToolLoadError error={pinsQuery.error} onRetry={() => void pinsQuery.refetch()} />
       ) : files.length === 0 ? (
         <p className="py-2 text-sm text-[var(--color-text-muted)]">{t("common.noFilesYet")}</p>
       ) : (
@@ -179,6 +184,7 @@ function OfflinePinsSection() {
 
 function ClipboardSyncSection() {
   const t = useTranslations("tools");
+  const reportError = useActionError();
   const reduceMotion = useReducedMotion();
   const [items, setItems] = useState<ClipboardItem[]>([]);
   const [input, setInput] = useState("");
@@ -297,8 +303,8 @@ function ClipboardSyncSection() {
     try {
       await deleteClipboardItem(id);
       setItems((prev) => prev.filter((i) => i.id !== id));
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     }
   };
 
@@ -410,6 +416,7 @@ const NO_SYNC: SyncFolder[] = [];
 
 function FolderSyncSection() {
   const t = useTranslations("tools");
+  const reportError = useActionError();
   const reduceMotion = useReducedMotion();
   const syncQuery = useQuery({ queryKey: qk.syncFolders, queryFn: listSyncFolders });
   const folders = syncQuery.data ?? NO_SYNC;
@@ -450,8 +457,8 @@ function FolderSyncSection() {
       setFolders((prev) =>
         prev.map((f) => (f.id === folder.id ? { ...f, enabled: !f.enabled } : f)),
       );
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     }
   };
 
@@ -462,8 +469,8 @@ function FolderSyncSection() {
       await deleteSyncFolder(pendingDelete.id);
       setFolders((prev) => prev.filter((f) => f.id !== pendingDelete.id));
       setPendingDelete(null);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setDeleting(false);
     }
@@ -532,6 +539,8 @@ function FolderSyncSection() {
             <SkeletonRow key={i} />
           ))}
         </div>
+      ) : syncQuery.isError ? (
+        <ToolLoadError error={syncQuery.error} onRetry={() => void syncQuery.refetch()} />
       ) : folders.length === 0 && !showAdd ? (
         <p className="py-2 text-sm text-[var(--color-text-muted)]">{t("devices.noFolders")}</p>
       ) : folders.length > 0 ? (

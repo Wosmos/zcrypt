@@ -9,7 +9,9 @@ import { Shield, Send, Download, AlertTriangle, Eye, Clock } from "@/lib/icons";
 import { formatBytes, saveBlob } from "@/lib/utils";
 import { openSendHash } from "@/lib/send-hash";
 import { keyFromFragment } from "@/lib/share-link";
-import { isSealed, openText, keyFromBytes } from "@/lib/sealed";
+import { isSealed, keyFromBytes } from "@/lib/sealed";
+import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
+import { openLinkName } from "@/components/tokens/link-name";
 import {
   ViewerCard,
   ViewerLoading,
@@ -96,14 +98,22 @@ export default function SendDownloadPage() {
   // The filename may be sealed under the link key (enc1:). Open it once both the
   // key (fragment) and the KDF salt (public, in the info response) are known.
   useEffect(() => {
-    if (!info || !encryptionKey || !info.salt || !isSealed(info.file_name)) return;
+    if (!info || !encryptionKey || !isSealed(info.file_name)) return;
     const sealed = info.file_name;
-    (async () => {
-      const { deriveKeyBytes, fromBase64 } = await import("@/lib/crypto");
-      const keyBytes = await deriveKeyBytes(encryptionKey, fromBase64(info.salt!));
-      const name = await openText(sealed, await keyFromBytes(keyBytes));
+    const salt = info.salt;
+    const apply = (name: string) =>
       setInfo((cur) => (cur && cur.file_name === sealed ? { ...cur, file_name: name } : cur));
-    })().catch(() => {});
+    openLinkName(
+      sealed,
+      salt
+        ? async () => {
+            const { deriveKeyBytes, fromBase64 } = await import("@/lib/crypto");
+            return keyFromBytes(await deriveKeyBytes(encryptionKey, fromBase64(salt)));
+          }
+        : null,
+    )
+      .then(apply)
+      .catch(() => apply(""));
   }, [info, encryptionKey]);
 
   // Cleanup
@@ -182,8 +192,9 @@ export default function SendDownloadPage() {
       throw new Error(t("pub.integrityMismatch"));
     }
 
-    const originalName = info?.file_name || "download";
-    const mime = getMimeType(originalName) || "application/octet-stream";
+    const originalName = resolveDownloadName(info?.file_name ?? "", fullFile);
+    const mime =
+      getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
     const blob = new Blob([fullFile], { type: mime });
     return { blob, originalName };
   }, [token, encryptionKey, info, t]);
@@ -246,6 +257,7 @@ export default function SendDownloadPage() {
   const previewType = info ? getPreviewType(info.file_name) : "none";
   const isPreviewable = previewType !== "none";
   const noKey = pageState === "ready" && !encryptionKey;
+  const namePending = !!info && !!encryptionKey && isSealed(info.file_name);
 
   return (
     <div className="w-full max-w-lg animate-fade-in">
@@ -295,20 +307,25 @@ export default function SendDownloadPage() {
               <div className="flex gap-2">
                 {isPreviewable ? (
                   <>
-                    <Button onClick={handleDecryptAndPreview} className="flex-1">
+                    <Button
+                      onClick={handleDecryptAndPreview}
+                      disabled={namePending}
+                      className="flex-1"
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       {t("pub.decryptPreview")}
                     </Button>
                     <Button
                       variant="secondary"
                       onClick={handleDirectDownload}
+                      disabled={namePending}
                       className="flex-shrink-0"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={handleDirectDownload} className="w-full">
+                  <Button onClick={handleDirectDownload} disabled={namePending} className="w-full">
                     <Download className="h-4 w-4 mr-2" />
                     {t("pub.downloadDecrypt")}
                   </Button>

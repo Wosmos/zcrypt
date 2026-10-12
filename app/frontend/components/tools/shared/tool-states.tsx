@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
+import { useFriendlyError } from "@/hooks/useConnectivity";
 
 /**
  * Terminal status cards shared by the anonymous tool composers (pad / send /
@@ -57,6 +58,18 @@ export function ToolErrorState({
   );
 
   return wrapped ? <div className="p-6">{card}</div> : card;
+}
+
+export function ToolLoadError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const t = useTranslations("tools");
+  const friendly = useFriendlyError();
+  return (
+    <ToolErrorState
+      title={t("common.loadFailedTitle")}
+      message={friendly(error, t("common.loadFailed"))}
+      onAction={onRetry}
+    />
+  );
 }
 
 /**

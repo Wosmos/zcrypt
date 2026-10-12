@@ -159,6 +159,13 @@ export function SendTool() {
     reset();
   }, [reset]);
 
+  const handleRetry = useCallback(() => {
+    setState("idle");
+    setErrorMsg("");
+    setLoginRequired(false);
+    setProgress({ stage: "", percent: 0 });
+  }, []);
+
   return (
     <div className="panel overflow-hidden">
       {state === "idle" && !selectedFile && (
@@ -252,7 +259,7 @@ export function SendTool() {
               errorMsg
             )
           }
-          onAction={handleReset}
+          onAction={handleRetry}
           wrapped
         />
       )}
