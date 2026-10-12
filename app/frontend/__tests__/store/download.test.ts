@@ -714,6 +714,25 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.status).toBe("failed");
     });
 
+    it.each([
+      ["404 chunk not found", false],
+      ["410 gone", false],
+      ["429 too many requests", true],
+      ["408 request timeout", true],
+    ])("auto-resume decision for %j is resume=%s", async (message, resumes) => {
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new Error(message));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("failed");
+
+      (downloadAndDecryptFile as Mock).mockClear();
+      (downloadAndDecryptFile as Mock).mockResolvedValue(undefined);
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+      expect(downloadAndDecryptFile).toHaveBeenCalledTimes(resumes ? 1 : 0);
+    });
+
     it("does NOT auto-resume a wrong-password failure", async () => {
       (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new Error("wrong passphrase"));
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
@@ -828,6 +847,137 @@ describe("useDownloadStore", () => {
       useDownloadStore.getState().cancelDownload(id);
       await flush();
       expect(getItem(id)?.status).toBe("cancelled");
+    });
+
+    it("cancelDownload on a paused download cancels it and aborts the open disk writable", async () => {
+      const { writable } = stubPicker();
+      (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) => {
+        opts.resume!.saveToDisk = writable;
+        return new Promise((_res, rej) => {
+          opts.signal!.addEventListener("abort", () =>
+            rej(opts.pausing!() ? new FakeDownloadPausedError() : new DOMException("cancelled", "AbortError")),
+          );
+        });
+      });
+      useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("paused");
+
+      useDownloadStore.getState().cancelDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("cancelled");
+      expect(writable.abort).toHaveBeenCalled();
+    });
+
+    it("cancelDownload on a paused download swallows a failing writable abort", async () => {
+      const { writable } = stubPicker();
+      writable.abort.mockRejectedValue(new Error("already closed"));
+      (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) => {
+        opts.resume!.saveToDisk = writable;
+        return new Promise((_res, rej) => {
+          opts.signal!.addEventListener("abort", () => rej(new FakeDownloadPausedError()));
+        });
+      });
+      useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      useDownloadStore.getState().cancelDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("cancelled");
+      expect(writable.abort).toHaveBeenCalled();
+    });
+
+    it("cancelDownload while the picker is open swallows a failing writable abort", async () => {
+      const writable = makeDiskWritable();
+      writable.abort.mockRejectedValue(new Error("already closed"));
+      let release!: () => void;
+      vi.stubGlobal(
+        "showSaveFilePicker",
+        vi.fn(
+          () =>
+            new Promise((res) => {
+              release = () => res({ createWritable: async () => writable });
+            }),
+        ),
+      );
+      useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().cancelDownload(id);
+      release();
+      await flush();
+      expect(writable.abort).toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("cancelled");
+    });
+
+    it("cancelDownload on a paused in-memory download needs no writable", async () => {
+      (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) =>
+        new Promise((_res, rej) => {
+          opts.signal!.addEventListener("abort", () => rej(new FakeDownloadPausedError()));
+        }),
+      );
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      useDownloadStore.getState().cancelDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("cancelled");
+    });
+
+    it("cancelDownload while the Save-As picker is open cancels once the picker returns", async () => {
+      const writable = makeDiskWritable();
+      let release!: () => void;
+      const picker = vi.fn(
+        () =>
+          new Promise((res) => {
+            release = () => res({ createWritable: async () => writable });
+          }),
+      );
+      vi.stubGlobal("showSaveFilePicker", picker);
+      useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("queued");
+
+      useDownloadStore.getState().cancelDownload(id);
+      expect(getItem(id)?.status).toBe("cancelled");
+      release();
+      await flush();
+      expect(writable.abort).toHaveBeenCalled();
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("cancelled");
+    });
+
+    it("a still-draining paused run does not overwrite a cancel", async () => {
+      let rejectRun!: (e: unknown) => void;
+      (downloadAndDecryptFile as Mock).mockImplementation(
+        () => new Promise((_res, rej) => { rejectRun = rej; }),
+      );
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      useDownloadStore.getState().cancelDownload(id);
+      rejectRun(new FakeDownloadPausedError());
+      await flush();
+      expect(getItem(id)?.status).toBe("cancelled");
+    });
+
+    it("cancelDownload on an unknown or finished id is a no-op", async () => {
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("done");
+      useDownloadStore.getState().cancelDownload(id);
+      useDownloadStore.getState().cancelDownload("missing");
+      expect(getItem(id)?.status).toBe("done");
     });
 
     it("removeFromQueue aborts an open disk writable left by a paused/failed streaming download", async () => {

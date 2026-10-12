@@ -149,6 +149,7 @@ const sessions = new Map<string, SingleSession>();
 // Ids the user has paused: the pipeline's `pausing()` reads this to preserve
 // state (keep the disk writable open) instead of discarding on abort.
 const pausedIds = new Set<string>();
+const cancelledIds = new Set<string>();
 
 // A ZIP download has no resume pipeline; it keeps just an abort controller and
 // its params so a retry can restart it.
@@ -228,6 +229,8 @@ interface DownloadStore {
 // transient (network is the overwhelmingly common interruption cause).
 function isTransientDownloadFailure(error?: string): boolean {
   if (!error) return true;
+  const status = /\b(4\d\d)\b/.exec(error);
+  if (status && status[1] !== "408" && status[1] !== "429") return false;
   return !/integrity|corrupt|hash|password|passphrase|decrypt|wrong key/i.test(error);
 }
 
@@ -301,6 +304,7 @@ function runSingleDownload(id: string): Promise<void> {
       }
     } catch (err) {
       if (err instanceof DownloadPausedError) {
+        if (!sessions.has(id)) return;
         // Keep the session (resume state intact); the row shows "paused".
         const item = useDownloadStore.getState().queue.find((i) => i.id === id);
         updateProgress(id, "paused", item?.progress, "Paused");
@@ -372,6 +376,12 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           }
           // unsupported / gesture lost → handled below
         }
+      }
+
+      if (cancelledIds.delete(id)) {
+        await resume.saveToDisk?.abort?.().catch(() => {});
+        updateProgress(id, "cancelled", undefined, "Cancelled");
+        return;
       }
 
       // Without a disk stream (Firefox, Safari, or a lost gesture) the whole
@@ -770,9 +780,23 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   cancelDownload: (id) => {
     // Explicit stop. Not a pause (pausedIds stays clear), so the pipeline aborts
     // the disk file and the run lands "cancelled".
-    pausedIds.delete(id);
-    sessions.get(id)?.abort.abort();
+    const wasPaused = pausedIds.delete(id);
+    const session = sessions.get(id);
+    if (session && wasPaused) {
+      sessions.delete(id);
+      void session.resume.saveToDisk?.abort?.().catch(() => {});
+      updateProgress(id, "cancelled", undefined, "Cancelled");
+      return;
+    }
+    session?.abort.abort();
     zipSessions.get(id)?.abort.abort();
+    if (!session && !zipSessions.has(id)) {
+      const item = get().queue.find((i) => i.id === id);
+      if (item?.status === "queued") {
+        cancelledIds.add(id);
+        updateProgress(id, "cancelled", undefined, "Cancelled");
+      }
+    }
   },
 
   retryDownload: (id, passphrase, resolvePassword) => {
