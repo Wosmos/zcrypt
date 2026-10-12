@@ -161,6 +161,19 @@ describe("api request core", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("gives up after the 5xx retries and surfaces the server error", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockResolvedValue(resp(502, { error: "bad gateway" }));
+      const assertion = expect(getConfig()).rejects.toThrow("bad gateway");
+      await vi.advanceTimersByTimeAsync(5_000);
+      await assertion;
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("maps an aborted fetch to a timeout error", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(getConfig()).rejects.toThrow("Request timed out");

@@ -65,7 +65,9 @@
         "vaultPolish": "A tidier vault: one slim storage notice, clearer list and grid icons, a storage ring in the sidebar, friendlier empty states, right-click menus and smoother loading.",
         "mobileLayout": "Phones and tablets get a cleaner layout: the lock is always reachable, filters stick to the top and nothing spills off the screen.",
         "toolPages": "The Pad, Send and Transfer pages show their steps and closing text again.",
-        "systemTheme": "With the theme set to System, the app now follows your device's light or dark switch straight away."
+        "systemTheme": "With the theme set to System, the app now follows your device's light or dark switch straight away.",
+        "connectionStatus": "zcrypt now tells you right away when your internet is down or slow, or when our servers can't be reached, and retries on its own.",
+        "signInRedesign": "A redesigned sign-in page that shows your vault the way our servers see it (unreadable), with a live server status under the form."
       }
     },
     "v0_1_7": {

@@ -42,6 +42,7 @@ import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
 import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
+import { reportConnectivityFailure } from "@/store/connectivity";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -91,6 +92,7 @@ async function requestResponse(
       signal,
     });
   } catch (err) {
+    reportConnectivityFailure();
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error("Request timed out");
     }
@@ -117,6 +119,7 @@ async function requestResponse(
     return requestResponse(path, options, retries - 1);
   }
 
+  if (res.status >= 500) reportConnectivityFailure();
   if (!res.ok) await throwResponseError(res);
 
   return res;

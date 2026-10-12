@@ -125,6 +125,10 @@ import {
   Volume2 as Volume2Data,
   Wand as WandData,
   Wifi as WifiData,
+  WifiOff01Icon as WifiOff01IconData,
+  CloudOffIcon as CloudOffIconData,
+  Wrench01Icon as Wrench01IconData,
+  SignalLow02Icon as SignalLow02IconData,
   X as XData,
   XCircle as XCircleData,
   Zap as ZapData,
@@ -275,6 +279,10 @@ export const Smartphone = makeIcon(SmartphoneData, "Smartphone");
 export const Share2 = makeIcon(Share01IconData, "Share01Icon");
 export const Server = makeIcon(ServerData, "Server");
 export const Wifi = makeIcon(WifiData, "Wifi");
+export const WifiOff = makeIcon(WifiOff01IconData, "WifiOff01Icon");
+export const CloudOff = makeIcon(CloudOffIconData, "CloudOffIcon");
+export const Wrench = makeIcon(Wrench01IconData, "Wrench01Icon");
+export const SignalLow = makeIcon(SignalLow02IconData, "SignalLow02Icon");
 export const PaintBrush = makeIcon(PaintBrush01IconData, "PaintBrush01Icon");
 export const Fingerprint = makeIcon(FingerPrintIconData, "FingerPrintIcon");
 export const GitCommit = makeIcon(GitCommitIconData, "GitCommit");

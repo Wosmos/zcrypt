@@ -291,6 +291,30 @@
       "otherPlatforms": "其他平台",
       "allDownloads": "全部下载",
       "iosNote": "暂无 iPhone 应用。网页版可在 Safari 中使用，并可添加到主屏幕。"
+    },
+    "connection": {
+      "offlineTitle": "你已离线",
+      "offlineBody": "请检查 Wi-Fi 或移动数据。恢复后我们会自动重新连接。",
+      "downTitle": "无法连接 zcrypt 服务器",
+      "downBody": "你的文件安全无虞，依然保持加密。我们会持续重试。",
+      "maintenanceTitle": "短暂维护中",
+      "maintenanceBody": "我们正在后台做些整理，马上回来。",
+      "slowTitle": "网络较慢",
+      "slowBody": "操作可能比平时稍慢。",
+      "recoveredTitle": "已恢复连接",
+      "recoveredBody": "一切已重新连接。",
+      "retryNow": "立即重试",
+      "checking": "正在检查…",
+      "retryIn": "{seconds} 秒后重试",
+      "requestFailed": "无法连接 zcrypt。请检查网络后重试。",
+      "pillChecking": "正在检查连接…",
+      "pill": {
+        "ok": "所有系统正常",
+        "slow": "网络较慢",
+        "maintenance": "维护中",
+        "down": "服务器无法访问",
+        "offline": "你已离线"
+      }
     }
   }
 }

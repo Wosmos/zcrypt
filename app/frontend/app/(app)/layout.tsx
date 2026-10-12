@@ -13,6 +13,7 @@ import { ReviewPrompt } from "@/components/feedback/review-prompt";
 import { TourProvider } from "@/components/onboarding/tour-provider";
 import { WhatsNewHost } from "@/components/ui/whats-new-host";
 import { AccountDeletionBanner } from "@/components/auth/account-deletion-banner";
+import { ConnectionBanner } from "@/components/ui/connection-banner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           outside AuthGuard so data-app is set during the auth spinner,
           before the shell ever paints, avoiding any unthemed flash. */}
       <AppScope />
+      <ConnectionBanner />
       <AuthGuard>
         {/* One vault-unlock instance + one PassphraseModal for the whole app, so the
           Vault page (header pill + decrypt actions) and the docked transfer

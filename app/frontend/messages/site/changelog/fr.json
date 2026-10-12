@@ -65,7 +65,9 @@
         "vaultPolish": "Un coffre plus soigné : une seule notice de stockage discrète, des icônes liste et grille plus claires, un anneau de stockage dans la barre latérale, des états vides plus sympathiques, des menus au clic droit et un chargement plus fluide.",
         "mobileLayout": "Une mise en page plus propre sur téléphones et tablettes : le cadenas toujours accessible, les filtres fixés en haut et rien ne dépasse de l'écran.",
         "toolPages": "Les pages Pad, Send et Transfer affichent à nouveau leurs étapes et leur texte de fin.",
-        "systemTheme": "Avec le thème sur Système, l'appli suit désormais tout de suite le passage clair ou sombre de votre appareil."
+        "systemTheme": "Avec le thème sur Système, l'appli suit désormais tout de suite le passage clair ou sombre de votre appareil.",
+        "connectionStatus": "zcrypt vous prévient désormais tout de suite quand votre internet est coupé ou lent, ou quand nos serveurs sont injoignables, et réessaie tout seul.",
+        "signInRedesign": "Une page de connexion repensée qui montre votre coffre tel que nos serveurs le voient (illisible), avec l'état des serveurs en direct sous le formulaire."
       }
     },
     "v0_1_7": {

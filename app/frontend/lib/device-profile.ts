@@ -77,6 +77,14 @@ function isConstrainedNetwork(): boolean {
   return type === "slow-2g" || type === "2g" || type === "3g";
 }
 
+/** A link slow enough to warn the user about: 2g/slow-2g or data saver on.
+ *  Stricter than isConstrainedNetwork (which also tunes 3g down). */
+export function isVerySlowLink(): boolean {
+  const conn = (navigator as NavigatorExtended).connection;
+  if (!conn) return false;
+  return !!conn.saveData || conn.effectiveType === "slow-2g" || conn.effectiveType === "2g";
+}
+
 /**
  * Get the estimated network bandwidth in Mbps, if available.
  * Returns undefined on browsers that don't support Network Information API.

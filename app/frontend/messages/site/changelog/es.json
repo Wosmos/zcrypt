@@ -65,7 +65,9 @@
         "vaultPolish": "Una bóveda más ordenada: un aviso de almacenamiento discreto, iconos de lista y cuadrícula más claros, un anillo de almacenamiento en la barra lateral, estados vacíos más amables, menús con clic derecho y carga más fluida.",
         "mobileLayout": "Diseño más limpio en móviles y tabletas: el candado siempre a mano, los filtros fijos arriba y nada se sale de la pantalla.",
         "toolPages": "Las páginas de Pad, Send y Transfer vuelven a mostrar sus pasos y el texto final.",
-        "systemTheme": "Con el tema en Sistema, la app ahora sigue al instante el cambio entre claro y oscuro de tu dispositivo."
+        "systemTheme": "Con el tema en Sistema, la app ahora sigue al instante el cambio entre claro y oscuro de tu dispositivo.",
+        "connectionStatus": "zcrypt ahora te avisa al momento cuando tu internet se cae o va lento, o cuando no podemos llegar a nuestros servidores, y vuelve a intentarlo solo.",
+        "signInRedesign": "Una página de inicio de sesión rediseñada que muestra tu bóveda tal como la ven nuestros servidores (ilegible), con el estado de los servidores en directo bajo el formulario."
       }
     },
     "v0_1_7": {

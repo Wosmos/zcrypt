@@ -96,6 +96,15 @@
         "huggingface": "在 Hugging Face 生成令牌",
         "telegram": "通过 @BotFather 创建机器人"
       }
+    },
+    "showcase": {
+      "caption": "这是我们服务器眼中的你的保险库。",
+      "note": "看起来像乱码？这正是重点。"
+    },
+    "login": {
+      "approveCode": "登录后，浏览器会请你确认。仅当显示此代码时才确认",
+      "useMagic": "改为给我发送登录链接",
+      "usePassword": "改用密码登录"
     }
   }
 }

@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { verify2FA, getMe } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
+import { useFriendlyError } from "@/hooks/useConnectivity";
 import { ArrowLeft } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function TwoFactorVerifyPage() {
   const t = useTranslations("auth");
+  const friendlyError = useFriendlyError();
   const router = useRouter();
   const { setUser, setTokens } = useAuthStore();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -94,7 +96,7 @@ export default function TwoFactorVerifyPage() {
         router.push("/dashboard");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("twoFa.invalid"));
+      toast.error(friendlyError(err, t("twoFa.invalid")));
       setCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {

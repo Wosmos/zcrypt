@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { useConnectionBlocked } from "@/hooks/useConnectivity";
 
 /** Type of any icon component exported from `@/lib/icons`. */
 type SubmitIcon = typeof import("@/lib/icons")["File"];
@@ -31,8 +32,17 @@ export function SubmitButton({
   type,
   onClick,
 }: SubmitButtonProps) {
+  // Nothing can reach the server while offline or down, so don't invite a
+  // click that can only fail; the connection banner explains why.
+  const blocked = useConnectionBlocked();
   return (
-    <Button type={type} onClick={onClick} className="w-full" size="lg" disabled={disabled}>
+    <Button
+      type={type}
+      onClick={onClick}
+      className="w-full"
+      size="lg"
+      disabled={disabled || blocked}
+    >
       {loading ? (
         <span className="flex items-center gap-2">
           <LogoSpinner size={16} speed="fast" />

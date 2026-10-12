@@ -291,6 +291,30 @@
       "otherPlatforms": "Other platforms",
       "allDownloads": "All downloads",
       "iosNote": "No iPhone app yet. The web app works in Safari and can be added to your Home Screen."
+    },
+    "connection": {
+      "offlineTitle": "You're offline",
+      "offlineBody": "Check your Wi-Fi or mobile data. We'll reconnect on our own.",
+      "downTitle": "Can't reach zcrypt's servers",
+      "downBody": "Your files are safe and still encrypted. We'll keep trying.",
+      "maintenanceTitle": "Quick maintenance",
+      "maintenanceBody": "We're tidying up behind the scenes. Back in a moment.",
+      "slowTitle": "Slow connection",
+      "slowBody": "Things may take a little longer than usual.",
+      "recoveredTitle": "Back online",
+      "recoveredBody": "Everything is connected again.",
+      "retryNow": "Retry now",
+      "checking": "Checking…",
+      "retryIn": "Retrying in {seconds}s",
+      "requestFailed": "Couldn't reach zcrypt. Check your connection and try again.",
+      "pillChecking": "Checking connection…",
+      "pill": {
+        "ok": "All systems normal",
+        "slow": "Slow connection",
+        "maintenance": "Under maintenance",
+        "down": "Servers unreachable",
+        "offline": "You're offline"
+      }
     }
   }
 }

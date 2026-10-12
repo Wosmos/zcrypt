@@ -291,6 +291,30 @@
       "otherPlatforms": "Autres plateformes",
       "allDownloads": "Tous les téléchargements",
       "iosNote": "Pas encore d'appli iPhone. L'appli web fonctionne dans Safari et peut être ajoutée à l'écran d'accueil."
+    },
+    "connection": {
+      "offlineTitle": "Vous êtes hors ligne",
+      "offlineBody": "Vérifiez votre Wi-Fi ou vos données mobiles. Nous nous reconnecterons automatiquement.",
+      "downTitle": "Impossible de joindre les serveurs de zcrypt",
+      "downBody": "Vos fichiers sont en sécurité et toujours chiffrés. Nous réessayons.",
+      "maintenanceTitle": "Maintenance rapide",
+      "maintenanceBody": "Nous faisons un peu de rangement en coulisses. De retour dans un instant.",
+      "slowTitle": "Connexion lente",
+      "slowBody": "Les choses peuvent prendre un peu plus de temps que d'habitude.",
+      "recoveredTitle": "De nouveau en ligne",
+      "recoveredBody": "Tout est de nouveau connecté.",
+      "retryNow": "Réessayer maintenant",
+      "checking": "Vérification…",
+      "retryIn": "Nouvel essai dans {seconds} s",
+      "requestFailed": "Impossible de joindre zcrypt. Vérifiez votre connexion et réessayez.",
+      "pillChecking": "Vérification de la connexion…",
+      "pill": {
+        "ok": "Tous les systèmes fonctionnent",
+        "slow": "Connexion lente",
+        "maintenance": "En maintenance",
+        "down": "Serveurs injoignables",
+        "offline": "Hors ligne"
+      }
     }
   }
 }

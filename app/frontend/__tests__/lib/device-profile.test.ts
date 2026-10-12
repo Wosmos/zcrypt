@@ -325,3 +325,18 @@ describe("getChunkSize", () => {
     expect(getChunkSize()).toBe(16 * 1024 * 1024);
   });
 });
+
+describe("isVerySlowLink", () => {
+  it("is false without connection info or on 3g/4g", async () => {
+    expect((await loadProfile({})).isVerySlowLink()).toBe(false);
+    vi.resetModules();
+    expect((await loadProfile({ connection: { effectiveType: "3g" } })).isVerySlowLink()).toBe(false);
+  });
+
+  it.each([{ effectiveType: "2g" }, { effectiveType: "slow-2g" }, { saveData: true }] as const)(
+    "is true for %o",
+    async (connection) => {
+      expect((await loadProfile({ connection })).isVerySlowLink()).toBe(true);
+    },
+  );
+});

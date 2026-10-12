@@ -96,6 +96,15 @@
         "huggingface": "Token auf Hugging Face erzeugen",
         "telegram": "Bot über @BotFather erstellen"
       }
+    },
+    "showcase": {
+      "caption": "Dein Tresor, so wie unsere Server ihn sehen.",
+      "note": "Sieht aus wie Unsinn. Genau darum geht es."
+    },
+    "login": {
+      "approveCode": "Nach der Anmeldung bittet dich dein Browser um Bestätigung. Bestätige nur, wenn dieser Code angezeigt wird",
+      "useMagic": "Schick mir stattdessen einen Anmeldelink",
+      "usePassword": "Doch lieber mit Passwort"
     }
   }
 }

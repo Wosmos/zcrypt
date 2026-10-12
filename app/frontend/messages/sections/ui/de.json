@@ -291,6 +291,30 @@
       "otherPlatforms": "Andere Plattformen",
       "allDownloads": "Alle Downloads",
       "iosNote": "Noch keine iPhone-App. Die Web-App läuft in Safari und lässt sich zum Home-Bildschirm hinzufügen."
+    },
+    "connection": {
+      "offlineTitle": "Du bist offline",
+      "offlineBody": "Prüfe dein WLAN oder deine mobilen Daten. Wir verbinden uns automatisch neu.",
+      "downTitle": "zcrypt-Server nicht erreichbar",
+      "downBody": "Deine Dateien sind sicher und weiterhin verschlüsselt. Wir versuchen es weiter.",
+      "maintenanceTitle": "Kurze Wartung",
+      "maintenanceBody": "Wir räumen hinter den Kulissen auf. Gleich wieder da.",
+      "slowTitle": "Langsame Verbindung",
+      "slowBody": "Es kann etwas länger dauern als sonst.",
+      "recoveredTitle": "Wieder online",
+      "recoveredBody": "Alles ist wieder verbunden.",
+      "retryNow": "Jetzt erneut versuchen",
+      "checking": "Wird geprüft…",
+      "retryIn": "Neuer Versuch in {seconds} s",
+      "requestFailed": "zcrypt ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
+      "pillChecking": "Verbindung wird geprüft…",
+      "pill": {
+        "ok": "Alle Systeme normal",
+        "slow": "Langsame Verbindung",
+        "maintenance": "Wartung läuft",
+        "down": "Server nicht erreichbar",
+        "offline": "Du bist offline"
+      }
     }
   }
 }

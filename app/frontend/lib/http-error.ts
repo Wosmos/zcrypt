@@ -52,3 +52,14 @@ export async function parseErrorJson(res: Response, fallback: string): Promise<s
   const body = await res.json().catch(() => ({}) as unknown);
   return (body as { error?: string })?.error || fallback;
 }
+
+/** True when a request never got an HTTP answer: offline, DNS/CORS failure,
+ *  server unreachable, or our own timeout. Callers show a connection message
+ *  instead of the browser's raw "Failed to fetch". */
+export function isNetworkFailure(err: unknown): boolean {
+  if (err instanceof TypeError) return true;
+  if (!(err instanceof Error)) return false;
+  // A lazy-loaded page or module failing to download is the same problem.
+  if (err.name === "ChunkLoadError") return true;
+  return /timed out|loading chunk|dynamically imported module/i.test(err.message);
+}

@@ -7,6 +7,7 @@ import { getOAuthURL } from "@/lib/auth-api";
 import { isTauri } from "@/lib/tauri";
 import { bytesToHex, sha256Hex } from "@/lib/crypto";
 import { toast } from "@/store/toast";
+import { useConnectionBlocked } from "@/hooks/useConnectivity";
 
 function randomHex(bytes: number) {
   return bytesToHex(crypto.getRandomValues(new Uint8Array(bytes)));
@@ -46,19 +47,22 @@ async function startOAuth(provider: string, failedMessage: string) {
 
 export function OAuthButtons() {
   const t = useTranslations("auth");
+  const blocked = useConnectionBlocked();
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={() => startOAuth("google", t("oauthFailed"))}
-          className="flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
+          disabled={blocked}
+          className="disabled:pointer-events-none disabled:opacity-50 flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
         >
           <GoogleIcon className="h-4 w-4" />
           Google
         </button>
         <button
           onClick={() => startOAuth("github", t("oauthFailed"))}
-          className="flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
+          disabled={blocked}
+          className="disabled:pointer-events-none disabled:opacity-50 flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
         >
           <Github className="h-4 w-4" />
           GitHub
@@ -69,7 +73,7 @@ export function OAuthButtons() {
           <div className="w-full border-t border-[var(--color-border)]" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-[var(--color-surface)] px-3 text-[var(--color-text-muted)]">
+          <span className="bg-[var(--color-bg)] px-3 text-[var(--color-text-muted)]">
             {t("orContinueWithEmail")}
           </span>
         </div>

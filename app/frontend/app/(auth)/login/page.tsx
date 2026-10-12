@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
 import { isTauri } from "@/lib/tauri";
+import { useFriendlyError } from "@/hooks/useConnectivity";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function LoginPage() {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [approvalCode, setApprovalCode] = useState("");
+  const friendlyError = useFriendlyError();
 
   // Desktop OAuth: poll backend for tokens after user completes login in browser
   useEffect(() => {
@@ -132,7 +134,7 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : tl("failed"));
+      toast.error(friendlyError(err, tl("failed")));
     } finally {
       setLoading(false);
     }
@@ -150,7 +152,7 @@ export default function LoginPage() {
       setMagicLinkSent(true);
       toast.success(tl("linkSent"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : tl("linkFailed"));
+      toast.error(friendlyError(err, tl("linkFailed")));
     } finally {
       setMagicLinkLoading(false);
     }
@@ -202,41 +204,10 @@ export default function LoginPage() {
         <OAuthButtons />
         {approvalCode && (
           <div className="rounded-xl border border-[var(--color-border)] p-3 text-center">
-            <p className="text-xs text-[var(--color-text-muted)]">
-              After you sign in, your browser asks you to approve. Approve only if it shows this
-              code
-            </p>
+            <p className="text-xs text-[var(--color-text-muted)]">{tl("approveCode")}</p>
             <p className="mt-1 font-mono text-xl tracking-[0.2em]">{approvalCode}</p>
           </div>
         )}
-
-        {/* Mode toggle */}
-        <div className="flex gap-1 p-1 rounded-xl bg-[var(--color-surface-1)]">
-          <button
-            type="button"
-            onClick={() => setMode("password")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-              mode === "password"
-                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-            }`}
-          >
-            <Lock className="h-3 w-3" />
-            {tl("modePassword")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("magic")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-              mode === "magic"
-                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-            }`}
-          >
-            <Wand2 className="h-3 w-3" />
-            {tl("modeMagic")}
-          </button>
-        </div>
 
         {mode === "password" ? (
           <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in">
@@ -292,9 +263,22 @@ export default function LoginPage() {
             </SubmitButton>
           </form>
         )}
+
+        <button
+          type="button"
+          onClick={() => setMode(mode === "password" ? "magic" : "password")}
+          className="mx-auto flex items-center gap-1.5 rounded-md text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        >
+          {mode === "password" ? (
+            <Wand2 className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <Lock className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {mode === "password" ? tl("useMagic") : tl("usePassword")}
+        </button>
       </div>
 
-      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
+      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-8">
         {tl.rich("noAccount", {
           link: (chunks) => <AuthLink href="/register">{chunks}</AuthLink>,
         })}

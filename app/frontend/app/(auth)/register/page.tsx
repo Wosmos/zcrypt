@@ -14,12 +14,14 @@ import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
+import { useFriendlyError } from "@/hooks/useConnectivity";
 import { Lock, User, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 
 export default function RegisterPage() {
   const router = useRouter();
   const t = useTranslations("auth");
   const tr = useTranslations("auth.register");
+  const friendlyError = useFriendlyError();
   const { setUser, setTokens } = useAuthStore();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -63,7 +65,7 @@ export default function RegisterPage() {
         setSuccess("pending");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : tr("failed"));
+      toast.error(friendlyError(err, tr("failed")));
     } finally {
       setLoading(false);
     }

@@ -10,11 +10,13 @@ import { resetPassword } from "@/lib/auth-api";
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { toast } from "@/store/toast";
+import { useFriendlyError } from "@/hooks/useConnectivity";
 import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 function ResetPasswordForm() {
   const t = useTranslations("auth");
+  const friendlyError = useFriendlyError();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [password, setPassword] = useState("");
@@ -72,7 +74,7 @@ function ResetPasswordForm() {
       await resetPassword(token, password);
       setSuccess(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("reset.failed"));
+      toast.error(friendlyError(err, t("reset.failed")));
     } finally {
       setLoading(false);
     }

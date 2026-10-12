@@ -65,7 +65,9 @@
         "vaultPolish": "Ein aufgeräumterer Tresor: ein schmaler Speicherhinweis, klarere Listen- und Rastersymbole, ein Speicherring in der Seitenleiste, freundlichere leere Zustände, Rechtsklick-Menüs und flüssigeres Laden.",
         "mobileLayout": "Sauberes Layout auf Handys und Tablets: das Schloss ist immer erreichbar, Filter bleiben oben und nichts ragt über den Rand.",
         "toolPages": "Die Seiten Pad, Send und Transfer zeigen wieder ihre Schritte und den Abschlusstext.",
-        "systemTheme": "Steht das Design auf System, folgt die App jetzt sofort dem Hell-Dunkel-Wechsel deines Geräts."
+        "systemTheme": "Steht das Design auf System, folgt die App jetzt sofort dem Hell-Dunkel-Wechsel deines Geräts.",
+        "connectionStatus": "zcrypt sagt dir jetzt sofort, wenn dein Internet weg oder langsam ist oder unsere Server nicht erreichbar sind, und versucht es selbst erneut.",
+        "signInRedesign": "Eine neu gestaltete Anmeldeseite, die deinen Tresor so zeigt, wie unsere Server ihn sehen (unlesbar), mit Live-Serverstatus unter dem Formular."
       }
     },
     "v0_1_7": {

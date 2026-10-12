@@ -1,6 +1,7 @@
 import type { AuthUser, AuditEvent } from "@/types";
 import { isTauri } from "@/lib/tauri";
 import { useAuthStore } from "@/store/auth";
+import { reportConnectivityFailure } from "@/store/connectivity";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
 // types→lib inversion): re-exported here so its existing consumers keep
@@ -28,6 +29,7 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
     });
 
     if (!res.ok) {
+      if (res.status >= 500) reportConnectivityFailure();
       const body = await res.text();
       let message: string;
       try {
@@ -45,6 +47,7 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
 
     return res.json() as Promise<T>;
   } catch (err) {
+    if (!(err instanceof Error && "status" in err)) reportConnectivityFailure();
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error("Request timed out. Is the backend running?");
     }
