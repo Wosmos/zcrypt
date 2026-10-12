@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AuthUser } from "@/types";
-import { clearDecryptCache } from "@/lib/decrypt-cache";
+import { wipeDecryptedPlaintext } from "@/lib/decrypt-cache";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     // Logout is stronger than a vault lock: also drop all decrypted plaintext
     // and forget the vault passphrase (incl. the device-persisted copy) so a
     // different user on the same tab can't inherit the prior session's data.
-    clearDecryptCache();
+    wipeDecryptedPlaintext();
     usePassphraseStore.getState().clear();
     useKeysStore.getState().reset(); // drop the in-memory private key
     useSpacesStore.getState().reset(); // drop cached space keys

@@ -946,7 +946,7 @@ describe("handlePreview / startPreview", () => {
     // construction, and confirms the preview eventually opens.
     mockCachedDecrypt
       .mockImplementationOnce(async () => {
-        throw new Error("Decryption failed, wrong passphrase?");
+        throw new IncorrectPassphraseError();
       })
       .mockImplementation((_id: string, _folderId: string | null, decrypt: () => Promise<Blob>) => decrypt());
     const blob = new Blob(["retried"]);

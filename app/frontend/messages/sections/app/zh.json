@@ -371,6 +371,7 @@
       "retry": "重试",
       "decrypting": "正在解密…",
       "decryptingProgress": "正在解密… {done}/{total} · {percent}%",
+      "tooLarge": "此文件太大，无法在此预览。请改为下载。",
       "noPreview": "此文件类型无法预览。",
       "readFailed": "无法读取此文件。",
       "docFailed": "无法渲染此文档。",

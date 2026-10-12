@@ -551,6 +551,7 @@ export default function VaultPage() {
         onClose={closeViewer}
         decrypt={decryptToBlob}
         prefetch={prefetch}
+        onDownloadLarge={(f) => actions.handleDownload(f.original_name)}
         onWrongPassword={(folderId) =>
           folderId == null ? vault.lock() : folderProtection.clearFolderPassword(folderId)
         }

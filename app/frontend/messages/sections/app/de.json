@@ -371,6 +371,7 @@
       "retry": "Wiederholen",
       "decrypting": "Wird entschlüsselt…",
       "decryptingProgress": "Wird entschlüsselt… {done}/{total} · {percent}%",
+      "tooLarge": "Diese Datei ist zu groß für die Vorschau hier. Lade sie stattdessen herunter.",
       "noPreview": "Für diesen Dateityp ist keine Vorschau verfügbar.",
       "readFailed": "Diese Datei konnte nicht gelesen werden.",
       "docFailed": "Dieses Dokument konnte nicht dargestellt werden.",

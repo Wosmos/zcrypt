@@ -10,6 +10,9 @@ import {
   clearDecryptCacheForFolder,
   clearDecryptCacheForFile,
   onDecryptCacheClear,
+  onDecryptWipe,
+  onDecryptFolderClear,
+  wipeDecryptedPlaintext,
 } from "@/lib/decrypt-cache";
 
 const MB = 1024 * 1024;
@@ -420,5 +423,24 @@ describe("decrypt-cache", () => {
     onDecryptCacheClear(cb);
     clearDecryptCache();
     expect(cb).toHaveBeenCalled();
+  });
+
+  it("wipeDecryptedPlaintext clears the cache and fans out to wipe listeners", () => {
+    const clearCb = vi.fn();
+    const wipeCb = vi.fn();
+    onDecryptCacheClear(clearCb);
+    onDecryptWipe(wipeCb);
+    clearDecryptCache();
+    expect(wipeCb).not.toHaveBeenCalled();
+    wipeDecryptedPlaintext();
+    expect(clearCb).toHaveBeenCalled();
+    expect(wipeCb).toHaveBeenCalledTimes(1);
+  });
+
+  it("clearDecryptCacheForFolder notifies folder listeners with the folder id", () => {
+    const cb = vi.fn();
+    onDecryptFolderClear(cb);
+    clearDecryptCacheForFolder("fold-1");
+    expect(cb).toHaveBeenCalledWith("fold-1");
   });
 });
