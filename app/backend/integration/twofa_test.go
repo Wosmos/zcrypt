@@ -29,7 +29,7 @@ func setup2FA(ts *testServer, t *testing.T, email, password string) (token, secr
 
 	token = ts.registerAndLogin(email, password)
 
-	resp := ts.POST("/api/auth/2fa/setup", map[string]string{}, token)
+	resp := ts.POST("/api/auth/2fa/setup", map[string]string{"password": password}, token)
 	body := requireStatus(t, resp, http.StatusOK)
 	var setup struct {
 		Secret string `json:"secret"`
@@ -40,7 +40,8 @@ func setup2FA(ts *testServer, t *testing.T, email, password string) (token, secr
 	require.Contains(t, setup.URI, "otpauth://totp/")
 
 	resp = ts.POST("/api/auth/2fa/enable", map[string]string{
-		"code": auth.TOTPCodeAt(setup.Secret, time.Now()),
+		"code":     auth.TOTPCodeAt(setup.Secret, time.Now()),
+		"password": password,
 	}, token)
 	body = requireStatus(t, resp, http.StatusOK)
 	// Enable mints one-time recovery codes; every backup-code test needs them, and
@@ -168,9 +169,30 @@ func TestTwoFASetupGuard(t *testing.T) {
 
 	// With 2FA already enabled, a (possibly stolen) access token must not be
 	// able to rotate the secret out from under the account owner.
-	resp := ts.POST("/api/auth/2fa/setup", map[string]string{}, token)
+	resp := ts.POST("/api/auth/2fa/setup", map[string]string{"password": "SecurePass@123!"}, token)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	resp.Body.Close()
+}
+
+func TestTwoFASetupAndEnableRequirePassword(t *testing.T) {
+	ts := setupTestServer(t)
+	const email = "twofa-reauth@example.com"
+	const password = "SecurePass@123!"
+	_, err := ts.db.Pool().Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email)
+	require.NoError(t, err)
+	token := ts.registerAndLogin(email, password)
+
+	requireStatus(t, ts.POST("/api/auth/2fa/setup", map[string]string{}, token), http.StatusUnauthorized)
+	requireStatus(t, ts.POST("/api/auth/2fa/setup", map[string]string{"password": "wrong"}, token), http.StatusUnauthorized)
+
+	body := requireStatus(t, ts.POST("/api/auth/2fa/setup", map[string]string{"password": password}, token), http.StatusOK)
+	var setup struct {
+		Secret string `json:"secret"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &setup))
+	code := auth.TOTPCodeAt(setup.Secret, time.Now())
+	requireStatus(t, ts.POST("/api/auth/2fa/enable", map[string]string{"code": code}, token), http.StatusUnauthorized)
+	requireStatus(t, ts.POST("/api/auth/2fa/enable", map[string]string{"code": code, "password": "wrong"}, token), http.StatusUnauthorized)
 }
 
 func TestTwoFAEnableRejectsReusedCode(t *testing.T) {
@@ -179,7 +201,7 @@ func TestTwoFAEnableRejectsReusedCode(t *testing.T) {
 	require.NoError(t, err)
 	token := ts.registerAndLogin("twofa-reuse@example.com", "SecurePass@123!")
 
-	resp := ts.POST("/api/auth/2fa/setup", map[string]string{}, token)
+	resp := ts.POST("/api/auth/2fa/setup", map[string]string{"password": "SecurePass@123!"}, token)
 	body := requireStatus(t, resp, http.StatusOK)
 	var setup struct {
 		Secret string `json:"secret"`
@@ -187,7 +209,7 @@ func TestTwoFAEnableRejectsReusedCode(t *testing.T) {
 	require.NoError(t, jsonUnmarshal(body, &setup))
 
 	code := auth.TOTPCodeAt(setup.Secret, time.Now())
-	resp = ts.POST("/api/auth/2fa/enable", map[string]string{"code": code}, token)
+	resp = ts.POST("/api/auth/2fa/enable", map[string]string{"code": code, "password": "SecurePass@123!"}, token)
 	body = requireStatus(t, resp, http.StatusOK)
 	var enabled struct {
 		AccessToken string `json:"access_token"`

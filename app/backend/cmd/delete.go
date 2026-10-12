@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/zcrypt/zcrypt/index"
 )
 
 // HandleDeleteFile soft-deletes a file (moves it to Trash) so it stays recoverable.
@@ -54,17 +56,36 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 	// from the user's OWN storage (it holds the token), so the server only drops
 	// the metadata, no pending_deletions queue, no deletion-worker load. This is
 	// the delete counterpart to byos-direct upload: bytes never transit us.
+	if _, err := uuid.Parse(fileID); err != nil {
+		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+		return
+	}
 	if r.URL.Query().Get("client_deleted") == "true" {
-		if err := s.db.PurgeFileMetadata(ctx, userID, fileID); err != nil {
-			log.Printf("files: metadata purge failed: %v", err)
-			http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
+		personal, err := s.db.ChunksOnPersonalAccounts(ctx, userID, fileID)
+		if errors.Is(err, index.ErrFileNotFound) {
+			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
 			return
 		}
-		s.emitFileChange(ctx, userID, fileID, "deleted")
-		s.audit(r, &userID, "file_purge_client", map[string]interface{}{"file_id": fileID})
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"success":true}`))
-		return
+		if err != nil {
+			internalError(w, "files: check chunk ownership", err)
+			return
+		}
+		if personal {
+			if err := s.db.PurgeFileMetadata(ctx, userID, fileID); err != nil {
+				if errors.Is(err, index.ErrFileNotFound) {
+					http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+					return
+				}
+				log.Printf("files: metadata purge failed: %v", err)
+				http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
+				return
+			}
+			s.emitFileChange(ctx, userID, fileID, "deleted")
+			s.audit(r, &userID, "file_purge_client", map[string]interface{}{"file_id": fileID})
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"success":true}`))
+			return
+		}
 	}
 
 	staged, err := s.db.DeleteFile(ctx, userID, fileID)

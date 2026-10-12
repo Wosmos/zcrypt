@@ -817,7 +817,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/send/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetSendChunk))
 
 	// Encrypted pads (no auth, rate-limited by IP)
-	mux.HandleFunc("POST /api/pad", maxJSON(s.PadRateLimitMiddleware(s.HandleCreatePad)))
+	mux.HandleFunc("POST /api/pad", MaxBodyMiddleware(2<<20, s.PadRateLimitMiddleware(s.HandleCreatePad)))
 	mux.HandleFunc("GET /api/pad/{token}", s.ShareRateLimitMiddleware(s.HandleGetPadInfo))
 	mux.HandleFunc("GET /api/pad/{token}/content", s.ShareRateLimitMiddleware(s.HandleGetPadContent))
 

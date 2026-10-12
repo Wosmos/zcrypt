@@ -86,7 +86,18 @@ func (s *Server) HandleCreateFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.ParentID != nil {
+		if _, err := uuid.Parse(*req.ParentID); err != nil {
+			http.Error(w, `{"error":"invalid parent_id"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
 	folder, err := s.db.CreateFolder(ctx, userID, req)
+	if errors.Is(err, index.ErrMoveNotFound) {
+		http.Error(w, `{"error":"parent folder not found"}`, http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		log.Printf("folders: create: %v", err)
 		http.Error(w, `{"error":"failed to create folder"}`, http.StatusInternalServerError)

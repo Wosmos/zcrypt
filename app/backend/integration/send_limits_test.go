@@ -192,6 +192,27 @@ func TestBurnAfterReadDeletesChunksOnceFullyRead(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, ts.sendGet("/api/send/"+token+"/chunks/0"))
 }
 
+func TestSendRejectsMoreBytesThanDeclared(t *testing.T) {
+	ts := setupTestServer(t)
+	ts.srv.InjectGlobalTestAdapter("mock:acct", newKeepAdapter())
+
+	status, body := ts.sendInitFrom(uniqueTestIP(), "", 64, 1, false)
+	require.Equal(t, http.StatusOK, status)
+	sid := body["session_id"].(string)
+
+	payload := bytes.Repeat([]byte{9}, 4096)
+	sum := sha256.Sum256(payload)
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/api/send/%s/chunk/0", ts.URL, sid), bytes.NewReader(payload))
+	require.NoError(t, err)
+	req.Header.Set("X-Chunk-SHA256", hex.EncodeToString(sum[:]))
+	req.Header.Set("X-Forwarded-For", uniqueTestIP())
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode, "a chunk far over the declared size is refused")
+	assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM send_chunks WHERE transfer_id = $1`, sid))
+}
+
 func TestNonBurnSendIsKeptAfterDownload(t *testing.T) {
 	ts := setupTestServer(t)
 	ts.srv.InjectGlobalTestAdapter("mock:acct", newKeepAdapter())

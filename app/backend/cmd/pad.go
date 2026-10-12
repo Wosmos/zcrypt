@@ -1,14 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/auth"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -120,26 +123,21 @@ func (s *Server) HandleGetPadContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pad, err := s.db.GetPadByToken(r.Context(), token)
+	pad, err := s.db.ClaimPadRead(r.Context(), token)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, `{"error":"This pad has expired, was already viewed, or does not exist"}`, http.StatusGone)
+		return
+	}
 	if err != nil {
-		http.Error(w, `{"error":"pad not found"}`, http.StatusNotFound)
+		internalError(w, "pad: claim read", err)
 		return
 	}
 
-	if reason := validatePad(pad); reason != "" {
-		http.Error(w, `{"error":"`+reason+`"}`, http.StatusGone)
-		return
-	}
-
-	// Increment view count
-	if err := s.db.IncrementPadViews(r.Context(), pad.ID); err != nil {
-		log.Printf("pad: increment views: %v", err)
-	}
-
-	// If burn-after-read, delete after serving
 	if pad.BurnAfterRead {
 		defer func() {
-			if err := s.db.DeletePad(r.Context(), pad.ID); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := s.db.DeletePad(ctx, pad.ID); err != nil {
 				log.Printf("pad: burn delete: %v", err)
 			}
 		}()
