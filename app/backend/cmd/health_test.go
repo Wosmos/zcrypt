@@ -61,3 +61,25 @@ func TestHandleHealthReportsCommit(t *testing.T) {
 		})
 	}
 }
+
+// TestHandleHealthReportsMaintenance lets the web app tell "servers down" from
+// "brief maintenance": the body flips to status=maintenance while the freeze is
+// on, but the endpoint still answers 200 so load balancers keep routing.
+func TestHandleHealthReportsMaintenance(t *testing.T) {
+	s := &Server{}
+	s.maintenanceMode.Store(true)
+
+	rec := httptest.NewRecorder()
+	s.HandleHealth(rec, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("body is not valid JSON (%v): %s", err, rec.Body.String())
+	}
+	if body["status"] != "maintenance" {
+		t.Errorf("status = %q, want maintenance", body["status"])
+	}
+}

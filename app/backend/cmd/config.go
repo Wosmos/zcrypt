@@ -73,13 +73,19 @@ var deployedCommit = os.Getenv("RAILWAY_GIT_COMMIT_SHA")
 // and CI compares it to the SHA it just pushed.
 func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	body := []byte(`{"status":"ok"}`)
+	status := "ok"
+	if s.InMaintenanceMode() {
+		status = "maintenance"
+	}
+	fields := map[string]string{"status": status}
 	if deployedCommit != "" {
-		// Marshal cannot realistically fail for a map of strings; if it ever
-		// did, the plain liveness body is still a correct answer.
-		if b, err := json.Marshal(map[string]string{"status": "ok", "commit": deployedCommit}); err == nil {
-			body = b
-		}
+		fields["commit"] = deployedCommit
+	}
+	// Marshal cannot realistically fail for a map of strings; if it ever did,
+	// the plain liveness body is still a correct answer.
+	body := []byte(`{"status":"ok"}`)
+	if b, err := json.Marshal(fields); err == nil {
+		body = b
 	}
 	_, _ = w.Write(body)
 }
