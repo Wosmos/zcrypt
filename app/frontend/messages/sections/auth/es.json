@@ -103,14 +103,7 @@
       "usePassword": "Mejor uso mi contraseña"
     },
     "panel": {
-      "login": {
-        "headline": "Tus archivos viven como piezas selladas, repartidas por internet.",
-        "sub": "Inicia sesión y tu frase de contraseña las vuelve a unir en archivos. Sin ella son confeti. También para nosotros."
-      },
-      "register": {
-        "headline": "Tu primer archivo se corta, se sella y se reparte.",
-        "sub": "Cada pieza se cifra en tu dispositivo y se guarda en el almacenamiento gratuito que conectes. Nosotros guardamos el mapa, nunca las llaves."
-      }
+      "encrypted": "Cifrado en este dispositivo. Solo vemos la copia ilegible."
     },
     "orContinueWith": "O continúa con"
   }

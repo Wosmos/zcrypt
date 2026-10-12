@@ -103,14 +103,7 @@
       "usePassword": "Utiliser mon mot de passe"
     },
     "panel": {
-      "login": {
-        "headline": "Vos fichiers vivent en morceaux scellés, dispersés sur internet.",
-        "sub": "Connectez-vous et votre phrase secrète les rassemble en fichiers. Sans elle, ce sont des confettis. Pour nous aussi."
-      },
-      "register": {
-        "headline": "Votre premier fichier est découpé, scellé et dispersé.",
-        "sub": "Chaque morceau est chiffré sur votre appareil et déposé sur le stockage gratuit que vous connectez. Nous gardons la carte, jamais les clés."
-      }
+      "encrypted": "Chiffré sur cet appareil. Nous ne voyons que la copie brouillée."
     },
     "orContinueWith": "Ou continuer avec"
   }

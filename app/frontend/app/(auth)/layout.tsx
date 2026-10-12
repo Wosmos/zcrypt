@@ -43,8 +43,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <GuestGuard>
-      <div className="grid min-h-dvh bg-[var(--color-bg)] pt-safe pb-safe px-safe lg:h-dvh lg:grid-cols-2 lg:overflow-hidden">
-        <AuthPanel mode={pathname === "/register" ? "register" : "login"} />
+      <div className="grid min-h-dvh bg-[var(--color-bg)] pt-safe pb-safe px-safe lg:h-dvh lg:grid-cols-[minmax(0,44fr)_minmax(0,56fr)] lg:overflow-hidden">
+        <AuthPanel heading={t(`taglines.${tk}Heading`)} sub={t(`taglines.${tk}Sub`)} />
 
         <main className="relative flex min-h-dvh flex-col items-center px-5 py-12 sm:px-10 lg:min-h-0 lg:overflow-y-auto lg:py-10">
           <div className="my-auto w-full max-w-[23.5rem]">
@@ -54,7 +54,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             >
               <LogoIcon size={36} hover={false} />
             </span>
-            <div className="mb-7 text-center lg:text-start">
+            <div className="mb-7 text-center lg:hidden">
               <h1 className="font-heading text-[1.85rem] font-bold leading-tight tracking-[-0.025em] text-[var(--color-text)] lg:text-[2.1rem]">
                 {t(`taglines.${tk}Heading`)}
               </h1>

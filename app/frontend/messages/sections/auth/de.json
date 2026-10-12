@@ -103,14 +103,7 @@
       "usePassword": "Doch lieber mit Passwort"
     },
     "panel": {
-      "login": {
-        "headline": "Deine Dateien liegen als versiegelte Teile verstreut im Internet.",
-        "sub": "Melde dich an, und deine Passphrase setzt sie wieder zu Dateien zusammen. Ohne sie sind sie Konfetti. Auch für uns."
-      },
-      "register": {
-        "headline": "Deine erste Datei wird zerteilt, versiegelt und verstreut.",
-        "sub": "Jedes Teil wird auf deinem Gerät verschlüsselt und auf kostenlosem Speicher abgelegt, den du verbindest. Wir behalten die Karte, nie die Schlüssel."
-      }
+      "encrypted": "Auf diesem Gerät verschlüsselt. Wir sehen nur die verschlüsselte Kopie."
     },
     "orContinueWith": "Oder weiter mit"
   }
