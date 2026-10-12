@@ -8,6 +8,7 @@ import { decryptSpaceFileName, spacePerms } from "@/lib/spaces";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { useAuthStore } from "@/store/auth";
+import { useKeysStore } from "@/store/keys";
 import { useFilesQuery } from "@/store/files";
 import type { SharedVaultDetail } from "@/types";
 
@@ -44,6 +45,7 @@ export function refreshSpaces() {
 export function useSpaceFileRows(detail: SharedVaultDetail | null): SpaceFileRow[] {
   const t = useTranslations("spaces");
   const { data: myFiles = [] } = useFilesQuery();
+  const keysReady = useKeysStore((s) => s.ready);
   const [opened, setOpened] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -57,11 +59,11 @@ export function useSpaceFileRows(detail: SharedVaultDetail | null): SpaceFileRow
         ),
       );
       if (!cancelled) setOpened(Object.fromEntries(entries.filter(([, n]) => n)));
-    })();
+    })().catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [detail]);
+  }, [detail, keysReady]);
 
   return useMemo(() => {
     const mine = new Map(myFiles.map((f) => [f.id, f.original_name]));

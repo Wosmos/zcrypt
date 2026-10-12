@@ -104,6 +104,19 @@ describe("useNotifications", () => {
       expect(ctor.requestPermission).toHaveBeenCalledTimes(1);
     });
 
+    it("isGranted flips to true after the prompt is accepted", async () => {
+      const ctor = makeFakeNotificationCtor("default");
+      ctor.requestPermission.mockResolvedValueOnce("granted");
+      vi.stubGlobal("Notification", ctor);
+      const { result } = renderHook(() => useNotifications());
+      expect(result.current.isGranted).toBe(false);
+
+      await act(async () => {
+        await result.current.requestPermission();
+      });
+      expect(result.current.isGranted).toBe(true);
+    });
+
     it("requestPermission returns false when the browser prompt is declined", async () => {
       const ctor = makeFakeNotificationCtor("default");
       ctor.requestPermission.mockResolvedValueOnce("denied");

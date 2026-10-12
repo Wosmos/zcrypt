@@ -1285,7 +1285,9 @@ export async function getShareFileMeta(
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
   const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
+  if (!res.ok) {
+    throw new ApiError(await parseErrorJson(res, "Failed to get file metadata"), res.status);
+  }
   return res.json();
 }
 
@@ -1322,7 +1324,7 @@ export async function getShareChunk(
 }> {
   const headers = publicLinkHeaders(password, ticket);
   const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
-  if (!res.ok) throw new Error("Failed to download chunk");
+  if (!res.ok) throw new ApiError("Failed to download chunk", res.status);
   return readChunkResponse(res);
 }
 

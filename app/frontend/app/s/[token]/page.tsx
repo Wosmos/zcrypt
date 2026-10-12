@@ -13,6 +13,7 @@ import { keyFromBytes } from "@/lib/sealed";
 import { openLinkName } from "@/components/tokens/link-name";
 import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
 import { fromBase64 } from "@/lib/crypto";
+import { ApiError } from "@/lib/http-error";
 import {
   ViewerCard,
   ViewerLoading,
@@ -35,9 +36,9 @@ type PageState =
   | "error";
 
 /**
- * Shared catch-block handling for both decrypt entry points below: a
- * password/unauthorized failure bounces back to the credential form for a
- * retry, anything else is terminal.
+ * Shared catch-block handling for both decrypt entry points below: a 401/403
+ * bounces back to the credential form for a retry, anything else is an error
+ * panel that offers a retry.
  */
 function reportDecryptError(
   err: unknown,
@@ -46,15 +47,16 @@ function reportDecryptError(
   setPageState: (s: PageState) => void,
   setErrorMsg: (s: string) => void,
   setSharePassword: (s: string) => void,
+  setRetryable: (b: boolean) => void,
 ) {
-  const msg = err instanceof Error ? err.message : fallbackMsg;
-  if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
+  if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
     setPageState("ready");
     setErrorMsg(wrongPasswordMsg);
     setSharePassword("");
   } else {
     setPageState("error");
-    setErrorMsg(msg);
+    setErrorMsg(err instanceof Error ? err.message : fallbackMsg);
+    setRetryable(true);
   }
 }
 
@@ -104,6 +106,7 @@ export default function SharePage() {
   const [pageState, setPageState] = useState<PageState>("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [sharePassword, setSharePassword] = useState("");
+  const [retryable, setRetryable] = useState(false);
   // The decryption key comes from the URL fragment, never typed by the user.
   const [shareKey, setShareKey] = useState<string | null>(null);
   const [progress, setProgress] = useState({ stage: "", percent: 0 });
@@ -274,6 +277,7 @@ export default function SharePage() {
           setPageState,
           setErrorMsg,
           setSharePassword,
+          setRetryable,
         );
       }
     },
@@ -333,7 +337,23 @@ export default function SharePage() {
         {pageState === "loading" && <ViewerLoading message={t("pub.share.loading")} />}
 
         {pageState === "error" && (
-          <ViewerError title={t("pub.share.unavailable")} message={errorMsg} />
+          <>
+            <ViewerError title={t("pub.share.unavailable")} message={errorMsg} />
+            {retryable && (
+              <div className="flex justify-center pb-6">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setRetryable(false);
+                    setErrorMsg("");
+                    setPageState("ready");
+                  }}
+                >
+                  {t("common.tryAgain")}
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {pageState === "ready" && info && (
@@ -344,27 +364,35 @@ export default function SharePage() {
               previewType={previewType}
             />
 
-            <div className="p-6 space-y-4">
+            <form
+              className="p-6 space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (info.has_password && !sharePassword) return;
+                void (isPreviewable ? handleDecryptAndPreview() : handleDirectDownload());
+              }}
+            >
               {/* Share password (only if required) */}
               {info.has_password && (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                    {t("pub.share.password")}
-                  </label>
-                  <Input
-                    type="password"
-                    placeholder={t("pub.share.passwordPlaceholder")}
-                    value={sharePassword}
-                    onChange={(e) => {
-                      setSharePassword(e.target.value);
-                      setErrorMsg("");
-                    }}
-                    icon={<Lock className="h-4 w-4" />}
-                  />
-                </div>
+                <Input
+                  label={t("pub.share.password")}
+                  type="password"
+                  autoComplete="off"
+                  placeholder={t("pub.share.passwordPlaceholder")}
+                  value={sharePassword}
+                  onChange={(e) => {
+                    setSharePassword(e.target.value);
+                    setErrorMsg("");
+                  }}
+                  icon={<Lock className="h-4 w-4" />}
+                />
               )}
 
-              {errorMsg && <p className="text-xs text-red-500 font-medium">{errorMsg}</p>}
+              {errorMsg && (
+                <p role="alert" className="text-xs text-red-500 font-medium">
+                  {errorMsg}
+                </p>
+              )}
 
               {/* Action buttons. The decryption key comes from the link
                   fragment, so no passphrase is needed, only the optional
@@ -373,7 +401,7 @@ export default function SharePage() {
                 {isPreviewable ? (
                   <>
                     <Button
-                      onClick={handleDecryptAndPreview}
+                      type="submit"
                       disabled={info.has_password && !sharePassword}
                       className="flex-1"
                     >
@@ -381,6 +409,7 @@ export default function SharePage() {
                       {t("pub.decryptPreview")}
                     </Button>
                     <Button
+                      type="button"
                       variant="secondary"
                       onClick={handleDirectDownload}
                       disabled={info.has_password && !sharePassword}
@@ -391,7 +420,7 @@ export default function SharePage() {
                   </>
                 ) : (
                   <Button
-                    onClick={handleDirectDownload}
+                    type="submit"
                     disabled={info.has_password && !sharePassword}
                     className="w-full"
                   >
@@ -404,7 +433,7 @@ export default function SharePage() {
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
                 <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pub.share.info")}</p>
               </div>
-            </div>
+            </form>
           </>
         )}
 

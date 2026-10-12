@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import {
@@ -53,6 +53,15 @@ export function NotificationCenter() {
   // Close on outside click
   useClickOutside(dropdownRef, () => setOpen(false), open);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const hasErrors = notifications.some((n) => n.type === "error" && !n.read);
 
   return (
@@ -69,6 +78,9 @@ export function NotificationCenter() {
               : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]",
         )}
         title={unreadCount > 0 ? t("unread", { count: unreadCount }) : t("title")}
+        aria-label={unreadCount > 0 ? t("unread", { count: unreadCount }) : t("title")}
+        aria-expanded={open}
+        aria-haspopup="true"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -101,6 +113,7 @@ export function NotificationCenter() {
                       : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]",
                   )}
                   title={isGranted ? t("pushEnabled") : t("enablePush")}
+                  aria-label={isGranted ? t("pushEnabled") : t("enablePush")}
                 >
                   {isGranted ? (
                     <Bell className="h-3.5 w-3.5" />
@@ -151,40 +164,46 @@ export function NotificationCenter() {
                   <div
                     key={n.id}
                     className={cn(
-                      "flex items-start gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 transition-colors cursor-pointer hover:bg-[var(--color-surface-1)]",
+                      "group flex items-start gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 transition-colors hover:bg-[var(--color-surface-1)]",
                       !n.read && "bg-[var(--color-accent)]/[0.03]",
                     )}
-                    onClick={() => markRead(n.id)}
                   >
-                    <Icon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", typeColors[n.type])} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p
-                          className={cn(
-                            "text-sm font-medium truncate",
-                            !n.read && "text-[var(--color-text)]",
-                          )}
-                        >
-                          {n.title}
-                        </p>
-                        {!n.read && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] flex-shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">
-                        {n.message}
-                      </p>
-                      <p className="text-[10px] text-[var(--color-text-muted)] opacity-60 mt-1">
-                        {timeAgo(n.timestamp, t)}
-                      </p>
-                    </div>
                     <button
+                      type="button"
+                      onClick={() => markRead(n.id)}
+                      className="flex flex-1 min-w-0 items-start gap-3 text-start cursor-pointer"
+                    >
+                      <Icon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", typeColors[n.type])} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p
+                            className={cn(
+                              "text-sm font-medium truncate",
+                              !n.read && "text-[var(--color-text)]",
+                            )}
+                          >
+                            {n.title}
+                          </p>
+                          {!n.read && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">
+                          {n.message}
+                        </p>
+                        <p className="text-[10px] text-[var(--color-text-muted)] opacity-60 mt-1">
+                          {timeAgo(n.timestamp, t)}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
                       aria-label={t("dismiss")}
                       onClick={(e) => {
                         e.stopPropagation();
                         remove(n.id);
                       }}
-                      className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text)] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+                      className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity mt-0.5"
                     >
                       <X className="h-3 w-3" />
                     </button>
