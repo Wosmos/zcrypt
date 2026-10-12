@@ -95,14 +95,15 @@ func TestTwoFAToggleSignsOutOtherSessions(t *testing.T) {
 	first := freshUser(ts, t, email, password)
 	other := ts.loginToken(email, password)
 
-	body := requireStatus(t, ts.POST("/api/auth/2fa/setup", map[string]string{}, first), http.StatusOK)
+	body := requireStatus(t, ts.POST("/api/auth/2fa/setup", map[string]string{"password": password}, first), http.StatusOK)
 	var setup struct {
 		Secret string `json:"secret"`
 	}
 	require.NoError(t, jsonUnmarshal(body, &setup))
 	secret := setup.Secret
 	body = requireStatus(t, ts.POST("/api/auth/2fa/enable", map[string]string{
-		"code": auth.TOTPCodeAt(secret, time.Now()),
+		"code":     auth.TOTPCodeAt(secret, time.Now()),
+		"password": password,
 	}, first), http.StatusOK)
 	var enabled struct {
 		AccessToken string `json:"access_token"`

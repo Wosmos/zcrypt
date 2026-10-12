@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -43,10 +44,15 @@ func (db *DB) CreateFolder(ctx context.Context, userID string, req types.FolderR
 	)
 	err := db.pool.QueryRow(ctx, `
 		INSERT INTO folders (user_id, parent_id, encrypted_name)
-		VALUES ($1, $2, $3)
+		SELECT $1::uuid, $2::uuid, $3
+		WHERE $2::uuid IS NULL OR EXISTS (
+			SELECT 1 FROM folders WHERE id = $2::uuid AND user_id = $1::uuid AND deleted_at IS NULL)
 		RETURNING id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style`,
 		userID, req.ParentID, req.EncryptedName,
 	).Scan(&id, &parentID, &req.EncryptedName, &createdAt, &deletedAt, &pwSalt, &pwVerifier, &encryptedStyle)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrMoveNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create folder: %w", err)
 	}

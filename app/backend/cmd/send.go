@@ -261,7 +261,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to verify size"}`, http.StatusInternalServerError)
 		return
 	}
-	if priorBytes+int64(len(data)) > maxSendEncryptedSize {
+	if priorBytes+int64(len(data)) > min(maxSendEncryptedSize, maxEncryptedTotal(transfer.OriginalSize, transfer.ChunkCount)) {
 		http.Error(w, `{"error":"send exceeds maximum size"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -395,7 +395,7 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 	// Get total encrypted size and reconcile against the hard cap (defends against
 	// any concurrency that slipped past the per-chunk check).
 	totalSize, _ := s.db.GetTotalSendChunkSize(ctx, transfer.ID)
-	if totalSize > maxSendEncryptedSize {
+	if totalSize > min(maxSendEncryptedSize, maxEncryptedTotal(transfer.OriginalSize, transfer.ChunkCount)) {
 		http.Error(w, `{"error":"send exceeds maximum size"}`, http.StatusRequestEntityTooLarge)
 		return
 	}

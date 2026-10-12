@@ -200,6 +200,34 @@ func (db *DB) BumpUserFileRev(ctx context.Context, userID, fileID string) (int64
 	return seq, nil
 }
 
+// ErrFileNotFound means the file does not exist or is not the caller's.
+var ErrFileNotFound = errors.New("file not found")
+
+// ChunksOnPersonalAccounts reports whether every chunk of the user's file is
+// synced and lives on a platform account the user owns personally, i.e. whether
+// the owner's device could have deleted the ciphertext itself. A file with a
+// chunk in the shared pool or still staged on the server is not eligible.
+func (db *DB) ChunksOnPersonalAccounts(ctx context.Context, userID, fileID string) (bool, error) {
+	var ok bool
+	err := db.pool.QueryRow(ctx,
+		`SELECT NOT EXISTS (
+		   SELECT 1 FROM chunks c
+		   WHERE c.file_id = f.id
+		     AND (c.remote_path = '' OR NOT EXISTS (
+		       SELECT 1 FROM platform_tokens t
+		       WHERE t.user_id = $1 AND t.platform = c.platform AND t.username = c.account AND t.is_global = FALSE)))
+		 FROM files f WHERE f.id = $2 AND f.user_id = $1`,
+		userID, fileID,
+	).Scan(&ok)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ErrFileNotFound
+	}
+	if err != nil {
+		return false, fmt.Errorf("check chunk ownership: %w", err)
+	}
+	return ok, nil
+}
+
 // PurgeFileMetadata permanently removes a file and its chunk rows WITHOUT
 // queuing any platform deletion: for byos-direct files whose owner's device
 // already deleted the ciphertext from the user's own storage directly. This is
@@ -215,7 +243,7 @@ func (db *DB) PurgeFileMetadata(ctx context.Context, userID, fileID string) erro
 		return fmt.Errorf("purge file metadata: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("file not found")
+		return ErrFileNotFound
 	}
 	return nil
 }
