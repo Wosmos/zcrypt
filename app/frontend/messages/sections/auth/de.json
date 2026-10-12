@@ -103,7 +103,8 @@
       "usePassword": "Doch lieber mit Passwort"
     },
     "panel": {
-      "encrypted": "Auf diesem Gerät verschlüsselt. Wir sehen nur die verschlüsselte Kopie."
+      "encrypted": "Auf diesem Gerät verschlüsselt. Wir sehen nur die verschlüsselte Kopie.",
+      "encrypting": "Verschlüssele"
     },
     "orContinueWith": "Oder weiter mit"
   }

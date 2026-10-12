@@ -103,7 +103,8 @@
       "usePassword": "Mejor uso mi contraseña"
     },
     "panel": {
-      "encrypted": "Cifrado en este dispositivo. Solo vemos la copia ilegible."
+      "encrypted": "Cifrado en este dispositivo. Solo vemos la copia ilegible.",
+      "encrypting": "Cifrando"
     },
     "orContinueWith": "O continúa con"
   }

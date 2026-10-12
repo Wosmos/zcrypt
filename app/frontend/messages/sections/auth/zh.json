@@ -103,7 +103,8 @@
       "usePassword": "改用密码登录"
     },
     "panel": {
-      "encrypted": "已在本设备上加密。我们只能看到加密后的副本。"
+      "encrypted": "已在本设备上加密。我们只能看到加密后的副本。",
+      "encrypting": "正在加密"
     },
     "orContinueWith": "或通过以下方式继续"
   }

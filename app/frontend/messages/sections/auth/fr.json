@@ -103,7 +103,8 @@
       "usePassword": "Utiliser mon mot de passe"
     },
     "panel": {
-      "encrypted": "Chiffré sur cet appareil. Nous ne voyons que la copie brouillée."
+      "encrypted": "Chiffré sur cet appareil. Nous ne voyons que la copie brouillée.",
+      "encrypting": "Chiffrement de"
     },
     "orContinueWith": "Ou continuer avec"
   }

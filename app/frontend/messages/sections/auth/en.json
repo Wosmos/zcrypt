@@ -103,7 +103,8 @@
       "usePassword": "Use my password instead"
     },
     "panel": {
-      "encrypted": "Encrypted on this device. We only ever see the scrambled copy."
+      "encrypted": "Encrypted on this device. We only ever see the scrambled copy.",
+      "encrypting": "Encrypting"
     },
     "orContinueWith": "Or continue with"
   }
