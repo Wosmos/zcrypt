@@ -146,7 +146,7 @@ interface RawAsset {
 }
 
 const BLURB: Record<PlatformId, string> = {
-  macos: "Apple Silicon, macOS 11 Big Sur or later.",
+  macos: "Apple Silicon and Intel, macOS 10.15 Catalina or later.",
   windows: "Windows 10 and 11, 64-bit.",
   linux: "64-bit. Pick your distro's package, or the portable build for anything else.",
 };
