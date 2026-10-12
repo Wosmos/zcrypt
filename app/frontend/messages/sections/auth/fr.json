@@ -97,14 +97,21 @@
         "telegram": "Créer un bot via @BotFather"
       }
     },
-    "showcase": {
-      "caption": "Votre coffre, tel que nos serveurs le voient.",
-      "note": "Ça ressemble à du charabia. C'est tout l'intérêt."
-    },
     "login": {
       "approveCode": "Après la connexion, votre navigateur vous demande d'approuver. N'approuvez que s'il affiche ce code",
       "useMagic": "Envoyez-moi plutôt un lien de connexion",
       "usePassword": "Utiliser mon mot de passe"
-    }
+    },
+    "panel": {
+      "login": {
+        "headline": "Vos fichiers vivent en morceaux scellés, dispersés sur internet.",
+        "sub": "Connectez-vous et votre phrase secrète les rassemble en fichiers. Sans elle, ce sont des confettis. Pour nous aussi."
+      },
+      "register": {
+        "headline": "Votre premier fichier est découpé, scellé et dispersé.",
+        "sub": "Chaque morceau est chiffré sur votre appareil et déposé sur le stockage gratuit que vous connectez. Nous gardons la carte, jamais les clés."
+      }
+    },
+    "orContinueWith": "Ou continuer avec"
   }
 }

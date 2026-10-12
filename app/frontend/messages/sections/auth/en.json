@@ -97,14 +97,21 @@
         "telegram": "Create bot via @BotFather"
       }
     },
-    "showcase": {
-      "caption": "Your vault, as our servers see it.",
-      "note": "Looks like nonsense. That's the whole point."
-    },
     "login": {
       "approveCode": "After you sign in, your browser asks you to approve. Approve only if it shows this code",
       "useMagic": "Email me a sign-in link instead",
       "usePassword": "Use my password instead"
-    }
+    },
+    "panel": {
+      "login": {
+        "headline": "Your files live as sealed pieces, scattered across the internet.",
+        "sub": "Sign in and your passphrase pulls them back into files. Without it they are confetti. To us too."
+      },
+      "register": {
+        "headline": "Your first file gets cut, sealed and scattered.",
+        "sub": "Every piece is encrypted on your device and parked on free storage you connect. We keep the map, never the keys."
+      }
+    },
+    "orContinueWith": "Or continue with"
   }
 }
