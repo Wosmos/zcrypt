@@ -139,13 +139,7 @@ function HeroInner() {
   const { state } = useDrive();
   const section = useRef<HTMLElement>(null);
   return (
-    <section
-      ref={section}
-      id="top"
-      className="zh"
-      data-view={state.view}
-      aria-labelledby="h-top"
-    >
+    <section ref={section} id="top" className="zh" data-view={state.view} aria-labelledby="h-top">
       <DriveStage head={<Head />} section={section} />
       <After />
     </section>
