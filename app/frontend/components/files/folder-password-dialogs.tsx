@@ -28,6 +28,17 @@ const BTN_PRIMARY =
 const BTN_SECONDARY =
   "flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-2)] disabled:opacity-40";
 
+function dialogPortal(onClose: (() => void) | undefined, body: React.ReactNode) {
+  return createPortal(
+    <div className={OVERLAY} onClick={onClose}>
+      <div className={PANEL} onClick={(e) => e.stopPropagation()}>
+        {body}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function HeaderRow({
   icon,
   title,
@@ -132,51 +143,49 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
 
   if (!open) return null;
 
-  return createPortal(
-    <div className={OVERLAY} onClick={onClose}>
-      <div className={PANEL} onClick={(e) => e.stopPropagation()}>
-        <HeaderRow
-          icon={<Lock className="h-5 w-5" />}
-          title={t("unlockTitle")}
-          subtitle={
-            folderName && folderName !== "this folder"
-              ? t("unlockNamed", { name: folderName })
-              : t("unlockGeneric")
-          }
-          onClose={onClose}
+  return dialogPortal(
+    onClose,
+    <>
+      <HeaderRow
+        icon={<Lock className="h-5 w-5" />}
+        title={t("unlockTitle")}
+        subtitle={
+          folderName && folderName !== "this folder"
+            ? t("unlockNamed", { name: folderName })
+            : t("unlockGeneric")
+        }
+        onClose={onClose}
+      />
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="password"
+          placeholder={t("folderPassword")}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className={FIELD}
+          autoComplete="off"
         />
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <input
-            ref={inputRef}
-            type="password"
-            placeholder={t("folderPassword")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={FIELD}
-            autoComplete="off"
-          />
-          <div className="mt-5 flex gap-3">
-            <button type="button" onClick={onClose} className={BTN_SECONDARY}>
-              {t("cancel")}
-            </button>
-            <button type="submit" disabled={!password || verifying} className={BTN_PRIMARY}>
-              {verifying ? t("verifying") : t("unlock")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={onClose} className={BTN_SECONDARY}>
+            {t("cancel")}
+          </button>
+          <button type="submit" disabled={!password || verifying} className={BTN_PRIMARY}>
+            {verifying ? t("verifying") : t("unlock")}
+          </button>
+        </div>
+      </form>
+    </>,
   );
 }
 
@@ -258,89 +267,87 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
 
   const sweeping = progress != null;
 
-  return createPortal(
-    <div className={OVERLAY} onClick={busy ? undefined : onClose}>
-      <div className={PANEL} onClick={(e) => e.stopPropagation()}>
-        <HeaderRow
-          icon={<Key className="h-5 w-5" />}
-          title={t("protectTitle")}
-          subtitle={folderName ? t("protectNamed", { name: folderName }) : t("protectGeneric")}
-          onClose={onClose}
-          closeDisabled={busy}
-        />
+  return dialogPortal(
+    busy ? undefined : onClose,
+    <>
+      <HeaderRow
+        icon={<Key className="h-5 w-5" />}
+        title={t("protectTitle")}
+        subtitle={folderName ? t("protectNamed", { name: folderName }) : t("protectGeneric")}
+        onClose={onClose}
+        closeDisabled={busy}
+      />
 
-        {sweeping ? (
-          <SweepProgress
-            message={t("rekeyingToFolder")}
-            progress={progress!}
-            prefersReducedMotion={prefersReducedMotion}
-          />
-        ) : (
-          <>
-            {fileCount > 0 && (
-              <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5">
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  {vaultUnlocked
-                    ? t("rekeyNoticeNow", { count: fileCount })
-                    : t("rekeyNoticeLater", { count: fileCount })}
-                </p>
-              </div>
-            )}
-            {error && (
-              <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (needsVault) onRequestVaultUnlock();
-                else void submit();
-              }}
-              className="space-y-3"
-            >
-              <input
-                ref={inputRef}
-                type="password"
-                placeholder={t("newPassword")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={FIELD}
-                autoComplete="new-password"
-              />
-              <PassphraseStrength passphrase={password} />
-              <input
-                type="password"
-                placeholder={t("confirmPassword")}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className={FIELD}
-                autoComplete="new-password"
-              />
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={busy}>
-                  {t("cancel")}
+      {sweeping ? (
+        <SweepProgress
+          message={t("rekeyingToFolder")}
+          progress={progress!}
+          prefersReducedMotion={prefersReducedMotion}
+        />
+      ) : (
+        <>
+          {fileCount > 0 && (
+            <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5">
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                {vaultUnlocked
+                  ? t("rekeyNoticeNow", { count: fileCount })
+                  : t("rekeyNoticeLater", { count: fileCount })}
+              </p>
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (needsVault) onRequestVaultUnlock();
+              else void submit();
+            }}
+            className="space-y-3"
+          >
+            <input
+              ref={inputRef}
+              type="password"
+              placeholder={t("newPassword")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={FIELD}
+              autoComplete="new-password"
+            />
+            <PassphraseStrength passphrase={password} />
+            <input
+              type="password"
+              placeholder={t("confirmPassword")}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={FIELD}
+              autoComplete="new-password"
+            />
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={busy}>
+                {t("cancel")}
+              </button>
+              {needsVault ? (
+                <button type="button" onClick={onRequestVaultUnlock} className={BTN_PRIMARY}>
+                  {t("unlockVault")}
                 </button>
-                {needsVault ? (
-                  <button type="button" onClick={onRequestVaultUnlock} className={BTN_PRIMARY}>
-                    {t("unlockVault")}
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={!password || !confirm || busy}
-                    className={BTN_PRIMARY}
-                  >
-                    {t("protect")}
-                  </button>
-                )}
-              </div>
-            </form>
-          </>
-        )}
-      </div>
-    </div>,
-    document.body,
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!password || !confirm || busy}
+                  className={BTN_PRIMARY}
+                >
+                  {t("protect")}
+                </button>
+              )}
+            </div>
+          </form>
+        </>
+      )}
+    </>,
   );
 }
 
@@ -405,56 +412,54 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
 
   const sweeping = progress != null;
 
-  return createPortal(
-    <div className={OVERLAY} onClick={busy ? undefined : onClose}>
-      <div className={PANEL} onClick={(e) => e.stopPropagation()}>
-        <HeaderRow
-          icon={<Unlock className="h-5 w-5" />}
-          title={t("removeTitle")}
-          subtitle={folderName ? t("removeNamed", { name: folderName }) : t("removeGeneric")}
-          onClose={onClose}
-          closeDisabled={busy}
-        />
+  return dialogPortal(
+    busy ? undefined : onClose,
+    <>
+      <HeaderRow
+        icon={<Unlock className="h-5 w-5" />}
+        title={t("removeTitle")}
+        subtitle={folderName ? t("removeNamed", { name: folderName }) : t("removeGeneric")}
+        onClose={onClose}
+        closeDisabled={busy}
+      />
 
-        {sweeping ? (
-          <SweepProgress
-            message={t("rekeyingBack")}
-            progress={progress!}
-            prefersReducedMotion={prefersReducedMotion}
-          />
-        ) : (
-          <>
-            <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
-              {fileCount > 0 ? t("removeBody", { count: fileCount }) : t("removeBodyEmpty")}
-            </p>
-            {error && (
-              <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={busy}>
-                {t("cancel")}
-              </button>
-              {needsVault ? (
-                <button type="button" onClick={onRequestVaultUnlock} className={BTN_PRIMARY}>
-                  {t("unlockVault")}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void confirm()}
-                  disabled={busy}
-                  className={BTN_PRIMARY}
-                >
-                  {t("removeProtection")}
-                </button>
-              )}
+      {sweeping ? (
+        <SweepProgress
+          message={t("rekeyingBack")}
+          progress={progress!}
+          prefersReducedMotion={prefersReducedMotion}
+        />
+      ) : (
+        <>
+          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
+            {fileCount > 0 ? t("removeBody", { count: fileCount }) : t("removeBodyEmpty")}
+          </p>
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
             </div>
-          </>
-        )}
-      </div>
-    </div>,
-    document.body,
+          )}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={busy}>
+              {t("cancel")}
+            </button>
+            {needsVault ? (
+              <button type="button" onClick={onRequestVaultUnlock} className={BTN_PRIMARY}>
+                {t("unlockVault")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void confirm()}
+                disabled={busy}
+                className={BTN_PRIMARY}
+              >
+                {t("removeProtection")}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </>,
   );
 }

@@ -43,10 +43,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <GuestGuard>
-      <div className="grid min-h-dvh bg-[var(--color-bg)] pt-safe pb-safe px-safe lg:grid-cols-2">
+      <div className="grid min-h-dvh bg-[var(--color-bg)] pt-safe pb-safe px-safe lg:h-dvh lg:grid-cols-2 lg:overflow-hidden">
         <AuthPanel mode={pathname === "/register" ? "register" : "login"} />
 
-        <main className="relative flex min-h-dvh flex-col items-center px-5 py-12 sm:px-10">
+        <main className="relative flex min-h-dvh flex-col items-center px-5 py-12 sm:px-10 lg:min-h-0 lg:overflow-y-auto lg:py-10">
           <div className="my-auto w-full max-w-[23.5rem]">
             <span
               aria-hidden
