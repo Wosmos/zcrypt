@@ -450,9 +450,11 @@ jobs:
       # naming the commit we just pushed is proof the new code is live, not
       # merely that the host is up.
       - name: Wait for production to report this commit
+        env:
+          BACKEND_HEALTH_URL: ${{ vars.BACKEND_HEALTH_URL }}
         run: |
           set -uo pipefail
-          HEALTH=https://zcrypt-production-ff56.up.railway.app/api/health
+          HEALTH="${BACKEND_HEALTH_URL:-https://zcrypt-production-ff56.up.railway.app/api/health}"
           echo "expecting commit $GITHUB_SHA"
           for i in $(seq 1 60); do
             body=$(curl -sf --max-time 10 "$HEALTH" || echo '{}')

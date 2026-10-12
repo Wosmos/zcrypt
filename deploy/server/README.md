@@ -70,3 +70,11 @@ cd zcrypt/deploy/server
 docker compose logs -f backend
 docker compose restart backend
 ```
+
+## Flipping the backend to a new Railway account
+
+1. CI publishes `ghcr.io/<owner>/zcrypt-backend:latest` on every backend push (`backend-image.yml`); make that GHCR package public once.
+2. `railway login` on the new account, then fill `deploy/railway.env` from `deploy/railway.env.example` (copy DATABASE_URL, MASTER_KEY, ZCRYPT_JWT_SECRET unchanged).
+3. Run `bash scripts/railway-flip.sh`: it creates the project and service from the image, sets variables, adds a domain on port 8080 and waits for `/api/health`.
+4. It prints the follow-ups (Vercel `NEXT_PUBLIC_API_URL` + `vercel redeploy --prod`, `gh variable set BACKEND_HEALTH_URL`, `gh secret set RAILWAY_TOKEN`); `--apply` runs the Vercel and variable steps for you.
+5. Update the OAuth callback URLs only if you use the Railway host directly; web and desktop go through www.zcrypt.cloud and need nothing else.
