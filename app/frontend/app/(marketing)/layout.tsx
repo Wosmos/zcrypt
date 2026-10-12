@@ -1,5 +1,5 @@
 import "@/components/marketing/landing/base.css";
-import { CircuitBackground } from "@/components/ui/circuit-background";
+import { GrainBackground } from "@/components/ui/grain-background";
 import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 import { DocsSearchProvider } from "@/components/docs/docs-search";
 import { SiteChrome } from "@/components/layout/site-chrome";
@@ -11,7 +11,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <DesktopRedirect>
         {/* Cmd+K search palette works everywhere, docs and features alike. */}
         <DocsSearchProvider>
-          <CircuitBackground />
+          <GrainBackground />
           <SiteChrome>{children}</SiteChrome>
         </DocsSearchProvider>
       </DesktopRedirect>

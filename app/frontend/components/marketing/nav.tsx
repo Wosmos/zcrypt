@@ -31,6 +31,7 @@ import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { LiquidGlassFilter } from "@/components/marketing/liquid-glass-filter";
+import { LiquidGlassAuto } from "@/components/marketing/liquid-glass-auto";
 import { useAuthStore, readCachedUser } from "@/store/auth";
 import "@/components/marketing/landing/chrome.css";
 
@@ -425,33 +426,6 @@ export function MarketingNav() {
   }, []);
 
   useEffect(() => {
-    const header = headerRef.current;
-    if (!header || pathname === null) return;
-    const busy = new Set<Element>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting && e.target.getAttribute("data-nav-tone") === "busy") {
-            busy.add(e.target);
-          } else {
-            busy.delete(e.target);
-          }
-        }
-        header.dataset.tone = busy.size > 0 ? "busy" : "calm";
-      },
-      { rootMargin: "-8px 0px -92% 0px" },
-    );
-    const raf = requestAnimationFrame(() => {
-      for (const n of document.querySelectorAll("[data-nav-tone]")) io.observe(n);
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      io.disconnect();
-      header.dataset.tone = "calm";
-    };
-  }, [pathname]);
-
-  useEffect(() => {
     const pill = pillRef.current;
     const glass = glassRef.current;
     if (!pill || !glass) return;
@@ -542,11 +516,11 @@ export function MarketingNav() {
       <header
         ref={headerRef}
         data-scrolled="false"
-        data-tone="calm"
         data-menu={openMenu ?? (mobileOpen ? "mobile" : "")}
         className="fixed inset-x-0 top-0 z-50 pointer-events-none pt-3 px-4 sm:px-6 lg:px-8"
       >
         <LiquidGlassFilter targetRef={glassRef} />
+        <LiquidGlassAuto />
         <div className="relative mx-auto max-w-6xl">
           <motion.div
             ref={pillRef}

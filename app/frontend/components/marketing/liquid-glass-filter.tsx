@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useEffect, useRef } from "react";
+import { Fragment, type RefObject, useEffect, useRef } from "react";
 
 const BEZEL = 18;
 const SCALE = -30;
@@ -9,7 +9,7 @@ const IDLE_MS = 160;
 
 type UAData = { brands?: { brand: string }[] };
 
-function isChromium() {
+export function isChromium() {
   const data = (navigator as Navigator & { userAgentData?: UAData }).userAgentData;
   if (!data) return false;
   const brands = data.brands ?? [];
@@ -19,7 +19,7 @@ function isChromium() {
   );
 }
 
-function buildMap(w: number, h: number, radius: number, dpr: number) {
+export function buildMap(w: number, h: number, radius: number, dpr: number, bezel = BEZEL) {
   const cw = Math.max(1, Math.round(w * dpr));
   const ch = Math.max(1, Math.round(h * dpr));
   const canvas = document.createElement("canvas");
@@ -60,8 +60,8 @@ function buildMap(w: number, h: number, radius: number, dpr: number) {
       const o = (j * cw + i) * 4;
       let red = 128;
       let green = 128;
-      if (d >= 0 && d < BEZEL) {
-        const t = d / BEZEL;
+      if (d >= 0 && d < bezel) {
+        const t = d / bezel;
         const m = (1 - t) ** 2;
         red = 128 - Math.sign(x) * nx * m * 127;
         green = 128 - Math.sign(y) * ny * m * 127;
@@ -76,18 +76,54 @@ function buildMap(w: number, h: number, radius: number, dpr: number) {
   return canvas.toDataURL("image/png");
 }
 
+/** Red, green and blue bend by slightly different amounts at the rim, the
+ *  colour fringe that makes glass read as glass rather than frosted plastic. */
+export const DISPERSION = [1, 1.09, 1.18] as const;
+const CHANNEL = [
+  "1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0",
+  "0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0",
+  "0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0",
+];
+
+export function Dispersion({ source, scale = 0 }: { source: string; scale?: number }) {
+  return (
+    <>
+      {DISPERSION.map((k, i) => (
+        <Fragment key={k}>
+          <feDisplacementMap
+            in={source}
+            in2="map"
+            scale={scale * k}
+            xChannelSelector="R"
+            yChannelSelector="G"
+            data-k={k}
+            result={`d${i}`}
+          />
+          <feColorMatrix in={`d${i}`} type="matrix" values={CHANNEL[i]} result={`c${i}`} />
+        </Fragment>
+      ))}
+      <feBlend in="c0" in2="c1" mode="screen" result="c01" />
+      <feBlend in="c01" in2="c2" mode="screen" />
+    </>
+  );
+}
+
+export function setDispersion(root: Element, scale: number) {
+  for (const node of root.querySelectorAll("feDisplacementMap")) {
+    node.setAttribute("scale", String(scale * Number(node.getAttribute("data-k") ?? 1)));
+  }
+}
+
 /** Chromium-only edge refraction for the nav glass; other engines keep the base blur stack. */
 export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElement | null> }) {
   const filterRef = useRef<SVGFilterElement>(null);
   const imageRef = useRef<SVGFEImageElement>(null);
-  const dispRef = useRef<SVGFEDisplacementMapElement>(null);
 
   useEffect(() => {
     const el = targetRef.current;
     const filter = filterRef.current;
     const feImage = imageRef.current;
-    const disp = dispRef.current;
-    if (!el || !filter || !feImage || !disp || !isChromium()) return;
+    if (!el || !filter || !feImage || !isChromium()) return;
 
     const root = document.documentElement;
     const header = el.closest("header");
@@ -125,17 +161,14 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
       probe.src = url;
     };
 
-    const shown = () =>
-      header?.dataset.scrolled === "true" || (!!header?.dataset.menu && header.dataset.menu !== "");
-
     const tween = () => {
-      if (tweened || !enabled || !shown()) return;
+      if (tweened || !enabled) return;
       tweened = true;
       const start = performance.now();
       const step = (now: number) => {
         const p = Math.min(1, (now - start) / TWEEN_MS);
         const eased = 1 - (1 - p) ** 3;
-        disp.setAttribute("scale", String(SCALE * eased));
+        setDispersion(filter, SCALE * eased);
         if (p < 1) tweenRaf = requestAnimationFrame(step);
       };
       tweenRaf = requestAnimationFrame(step);
@@ -228,14 +261,7 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
           result="map"
         />
         <feGaussianBlur in="SourceGraphic" stdDeviation="0.6" result="src" />
-        <feDisplacementMap
-          ref={dispRef}
-          in="src"
-          in2="map"
-          scale="0"
-          xChannelSelector="R"
-          yChannelSelector="G"
-        />
+        <Dispersion source="src" />
       </filter>
     </svg>
   );
