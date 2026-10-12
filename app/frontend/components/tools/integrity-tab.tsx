@@ -19,6 +19,8 @@ import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { AlertTriangle, ShieldCheck } from "@/lib/icons";
+import { useActionError } from "./shared/use-action-error";
+import { ToolLoadError } from "./shared/tool-states";
 import { cn, formatDateTime } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -54,6 +56,7 @@ const NO_FILES: FileMetadata[] = [];
 
 export function IntegrityTab() {
   const t = useTranslations("tools");
+  const reportError = useActionError();
   const integrityQuery = useQuery({
     queryKey: qk.integrity,
     queryFn: async () => {
@@ -89,8 +92,8 @@ export function IntegrityTab() {
     try {
       const snap = await createIntegritySnapshot(selectedFile);
       setSnapshots((prev) => [snap, ...prev]);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setCreating(false);
     }
@@ -106,8 +109,8 @@ export function IntegrityTab() {
       } else {
         setChanges((prev) => prev.filter((c) => c.file_id !== fileId));
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setChecking(false);
     }
@@ -179,6 +182,13 @@ export function IntegrityTab() {
             {Array.from({ length: 3 }).map((_, i) => (
               <SkeletonRow key={i} />
             ))}
+          </div>
+        ) : integrityQuery.isError ? (
+          <div className="panel">
+            <ToolLoadError
+              error={integrityQuery.error}
+              onRetry={() => void integrityQuery.refetch()}
+            />
           </div>
         ) : snapshots.length === 0 ? (
           <div className="panel">

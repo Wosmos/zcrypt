@@ -70,6 +70,11 @@ export function PadTool() {
     reset();
   }, [reset]);
 
+  const handleRetry = useCallback(() => {
+    setState("editing");
+    setErrorMsg("");
+  }, []);
+
   return (
     <div className="panel overflow-hidden">
       {state === "editing" && (
@@ -135,7 +140,7 @@ export function PadTool() {
         <ToolErrorState
           title={t("pad.failedTitle")}
           message={errorMsg}
-          onAction={handleReset}
+          onAction={handleRetry}
           wrapped
         />
       )}

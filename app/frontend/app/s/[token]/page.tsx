@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Shield, Lock, Download, Eye } from "@/lib/icons";
 import { formatBytes, saveBlob, concatChunks, extOf } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
-import { isSealed, openText, keyFromBytes, LOCKED } from "@/lib/sealed";
+import { keyFromBytes } from "@/lib/sealed";
+import { openLinkName } from "@/components/tokens/link-name";
 import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
 import { fromBase64 } from "@/lib/crypto";
 import {
@@ -57,14 +58,8 @@ function reportDecryptError(
   }
 }
 
-// The name is sealed (enc1:) under the share key from the URL fragment. An
-// unopenable name reads as empty so the download falls back to a sniffed one.
-async function openLinkName(raw: string | undefined, key: string | null): Promise<string> {
-  if (!raw) return "";
-  if (!isSealed(raw)) return raw;
-  if (!key) return "";
-  const name = await openText(raw, await keyFromBytes(fromBase64(key)));
-  return name === LOCKED ? "" : name;
+function openShareName(raw: string | undefined, key: string | null): Promise<string> {
+  return openLinkName(raw, key ? () => keyFromBytes(fromBase64(key)) : null);
 }
 
 function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
@@ -128,7 +123,7 @@ export default function SharePage() {
     setShareKey(key);
 
     getShareInfo(token)
-      .then(async (data) => ({ ...data, file_name: await openLinkName(data.file_name, key) }))
+      .then(async (data) => ({ ...data, file_name: await openShareName(data.file_name, key) }))
       .then((data) => {
         setInfo(data);
         if (!data.valid) {
@@ -249,7 +244,7 @@ export default function SharePage() {
       );
     }
 
-    const openedName = await openLinkName(meta.original_name, shareKey);
+    const openedName = await openShareName(meta.original_name, shareKey);
     setNameGuessed(!openedName);
     const originalName = resolveDownloadName(openedName, fullFile);
     const mime =

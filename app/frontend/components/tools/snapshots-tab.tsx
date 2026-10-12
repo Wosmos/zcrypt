@@ -16,6 +16,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Layers, Trash2, ChevronDown } from "@/lib/icons";
+import { useActionError } from "./shared/use-action-error";
+import { ToolLoadError } from "./shared/tool-states";
 import { cn, formatBytes, formatDateTime, fileNameById } from "@/lib/utils";
 
 const NO_SNAPSHOTS: VaultSnapshot[] = [];
@@ -23,6 +25,7 @@ const NO_FILES: FileMetadata[] = [];
 
 export function SnapshotsTab() {
   const t = useTranslations("tools");
+  const reportError = useActionError();
   const snapsQuery = useQuery({ queryKey: qk.snapshots, queryFn: listVaultSnapshots });
   const snapshots = snapsQuery.data ?? NO_SNAPSHOTS;
   const setSnapshots = (fn: (prev: VaultSnapshot[]) => VaultSnapshot[]) =>
@@ -42,8 +45,8 @@ export function SnapshotsTab() {
       const snap = await createVaultSnapshot(label || t("snapshots.defaultLabel"));
       setSnapshots((prev) => [snap, ...prev]);
       setLabel("");
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setCreating(false);
     }
@@ -56,8 +59,8 @@ export function SnapshotsTab() {
       await deleteVaultSnapshot(pendingDelete.id);
       setSnapshots((prev) => prev.filter((s) => s.id !== pendingDelete.id));
       setPendingDelete(null);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setDeleting(false);
     }
@@ -92,6 +95,10 @@ export function SnapshotsTab() {
           {Array.from({ length: 3 }).map((_, i) => (
             <SkeletonRow key={i} />
           ))}
+        </div>
+      ) : snapsQuery.isError ? (
+        <div className="panel">
+          <ToolLoadError error={snapsQuery.error} onRetry={() => void snapsQuery.refetch()} />
         </div>
       ) : snapshots.length === 0 ? (
         <div className="panel">

@@ -31,6 +31,16 @@ import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
 
 const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/^http/, "ws") + "/api/transfer/ws";
 
+const MAX_BUFFERED_BYTES = 4 * 1024 * 1024;
+
+async function waitForBuffer(ws: WebSocket, limit: number, connLost: string) {
+  while (ws.bufferedAmount > limit) {
+    if (ws.readyState !== WebSocket.OPEN) throw new Error(connLost);
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  if (ws.readyState !== WebSocket.OPEN) throw new Error(connLost);
+}
+
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 type Mode = "choose" | "send" | "receive";
@@ -152,11 +162,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
         );
 
         for (let i = 0; i < totalChunks; i++) {
+          if (stateRef.current === "error") return;
+          await waitForBuffer(ws, MAX_BUFFERED_BYTES, t("transfer.connLost"));
           const start = i * CHUNK;
           const end = Math.min(start + CHUNK, file.size);
           const slice = file.slice(start, end);
           const plaintext = new Uint8Array(await slice.arrayBuffer());
           const payload = await sealChunk(key, i, totalChunks, plaintext);
+          if (ws.readyState !== WebSocket.OPEN) throw new Error(t("transfer.connLost"));
 
           ws.send(
             JSON.stringify({
@@ -172,7 +185,12 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
           if (i % 5 === 0) await new Promise((r) => setTimeout(r, 0));
         }
 
+        await waitForBuffer(ws, 0, t("transfer.connLost"));
         ws.send(JSON.stringify({ type: "done" }));
+        while (ws.bufferedAmount > 0) {
+          if (ws.readyState !== WebSocket.OPEN) throw new Error(t("transfer.connLost"));
+          await new Promise((r) => setTimeout(r, 25));
+        }
         setState("done");
       } catch (err) {
         setState("error");
