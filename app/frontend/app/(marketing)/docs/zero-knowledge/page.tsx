@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Zero-knowledge architecture | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Zero-knowledge architecture · Docs",
   description:
     "What zcrypt can and cannot see. An honest, line-by-line account of what the server stores: encrypted file contents, encrypted folder names, file metadata, a registry of public keys for sharing, and the single non-zero-knowledge surface: your storage-provider tokens.",
-  alternates: { canonical: `${SITE_URL}/docs/zero-knowledge` },
-  openGraph: {
-    title: "Zero-knowledge architecture | zcrypt Docs",
-    description:
-      "Exactly what the zcrypt server stores and what it can never read: including how sharing stays zero-knowledge and the one honest exception involving storage-provider tokens.",
-    url: `${SITE_URL}/docs/zero-knowledge`,
-  },
-};
+  path: "/docs/zero-knowledge",
+  ogDescription:
+    "Exactly what the zcrypt server stores and what it can never read: including how sharing stays zero-knowledge and the one honest exception involving storage-provider tokens.",
+});
 
 const toc = [
   { id: "meaning", k: "docs.zero-knowledge.toc.meaning" },

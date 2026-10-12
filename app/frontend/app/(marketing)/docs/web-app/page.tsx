@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Web app | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Web app · Docs",
   description:
     "zcrypt runs in any modern browser. How the vault lock works (one passphrase per session), the optional 'keep me unlocked on this device' that stores your passphrase encrypted in IndexedDB under a non-extractable key, and background notifications for uploads and downloads.",
-  alternates: { canonical: `${SITE_URL}/docs/web-app` },
-  openGraph: {
-    title: "Web app | zcrypt Docs",
-    description:
-      "The zcrypt web app: the session vault lock, an encrypted-at-rest 'keep me unlocked on this device' option, and background transfer notifications, all in your browser.",
-    url: `${SITE_URL}/docs/web-app`,
-  },
-};
+  path: "/docs/web-app",
+  ogDescription:
+    "The zcrypt web app: the session vault lock, an encrypted-at-rest 'keep me unlocked on this device' option, and background transfer notifications, all in your browser.",
+});
 
 const toc = [
   { id: "browser", k: "docs.web-app.toc.browser" },

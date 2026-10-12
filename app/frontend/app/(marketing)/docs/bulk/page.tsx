@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Bulk operations | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Bulk operations · Docs",
   description:
     "Select many files in zcrypt to download them as a single ZIP (decrypted on your device, with browser limits on archive size) or to delete them in bulk: with mouse and keyboard multi-select.",
-  alternates: { canonical: `${SITE_URL}/docs/bulk` },
-  openGraph: {
-    title: "Bulk operations | zcrypt Docs",
-    description:
-      "Multi-select files in zcrypt to download as a ZIP or delete in bulk, with mouse and keyboard selection.",
-    url: `${SITE_URL}/docs/bulk`,
-  },
-};
+  path: "/docs/bulk",
+  ogDescription:
+    "Multi-select files in zcrypt to download as a ZIP or delete in bulk, with mouse and keyboard selection.",
+});
 
 const toc = [
   { id: "select", k: "docs.bulk.toc.select" },

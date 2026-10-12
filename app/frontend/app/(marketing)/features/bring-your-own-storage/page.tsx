@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Box, Lock, Server } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
@@ -9,12 +9,12 @@ import { CodePanel } from "@/components/marketing/features/code-panel";
 import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
 import { bringYourOwnStorage } from "../_data/bring-your-own-storage";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Bring Your Own Storage. Your Data, Your Infrastructure",
   description:
     "zcrypt never sells you storage. Connect accounts you already own (GitHub, GitLab, Hugging Face, Telegram) and your encrypted files are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so your space grows on its own. No lock-in.",
+  path: "/features/bring-your-own-storage",
   keywords: [
     "bring your own storage",
     "BYO storage",
@@ -24,15 +24,10 @@ export const metadata: Metadata = {
     "decentralized file storage",
     "encrypted storage backend",
   ],
-  alternates: { canonical: `${SITE_URL}/features/bring-your-own-storage` },
-  openGraph: {
-    title: "Bring Your Own Storage | zcrypt",
-    description:
-      "Connect GitHub, GitLab, Hugging Face, and Telegram accounts you already own. Encrypted files are stored as disguised chunks across repos you own, and repos rotate automatically as they fill. Your data, your infrastructure, no lock-in.",
-    url: `${SITE_URL}/features/bring-your-own-storage`,
-    type: "website",
-  },
-};
+  ogTitle: "Bring Your Own Storage | zcrypt",
+  ogDescription:
+    "Connect GitHub, GitLab, Hugging Face, and Telegram accounts you already own. Encrypted files are stored as disguised chunks across repos you own, and repos rotate automatically as they fill. Your data, your infrastructure, no lock-in.",
+});
 
 const adapters = STORAGE_PLATFORMS;
 

@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Per-folder encryption | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Per-folder encryption · Docs",
   description:
     "Give a folder its own password, distinct from your vault passphrase. zcrypt verifies it locally with no server round-trip, re-wraps each file's content key under a folder-derived key, and re-keys files automatically when they cross the boundary.",
-  alternates: { canonical: `${SITE_URL}/docs/folder-encryption` },
-  openGraph: {
-    title: "Per-folder encryption | zcrypt Docs",
-    description:
-      "A second password layer for sensitive folders: verified on-device, never sent to the server, with automatic re-keying across the boundary.",
-    url: `${SITE_URL}/docs/folder-encryption`,
-  },
-};
+  path: "/docs/folder-encryption",
+  ogDescription:
+    "A second password layer for sensitive folders: verified on-device, never sent to the server, with automatic re-keying across the boundary.",
+});
 
 const toc = [
   { id: "what", k: "docs.folder-encryption.toc.what" },

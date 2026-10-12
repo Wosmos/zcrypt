@@ -177,7 +177,7 @@
         "heading": "桌面应用",
         "subheading": "基于 Tauri 构建的原生应用，运行 {engine}（进程内的 {language} 引擎），因此你的文件在离开设备之前就已在本地加密。",
         "blurb": {
-          "macos": "Apple Silicon，macOS 11 Big Sur 或更高版本。",
+          "macos": "Apple Silicon 和 Intel，macOS 10.15 Catalina 或更高版本。",
           "windows": "Windows 10 和 11，64 位。",
           "linux": "64 位。选择适合你发行版的安装包，其他系统可使用便携版。"
         },

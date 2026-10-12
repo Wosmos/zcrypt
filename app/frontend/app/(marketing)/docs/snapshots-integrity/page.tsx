@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Snapshots & integrity | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Snapshots & integrity · Docs",
   description:
     "Two zcrypt tools for keeping tabs on your vault: snapshots capture a point-in-time manifest of your file list, and the integrity monitor records each file's SHA-256 and size to flag when a file's hash changes. Both are in beta.",
-  alternates: { canonical: `${SITE_URL}/docs/snapshots-integrity` },
-  openGraph: {
-    title: "Snapshots & integrity | zcrypt Docs",
-    description:
-      "Point-in-time file-list manifests and SHA-256 tamper detection: maturing features, not a version-history or rollback system.",
-    url: `${SITE_URL}/docs/snapshots-integrity`,
-  },
-};
+  path: "/docs/snapshots-integrity",
+  ogDescription:
+    "Point-in-time file-list manifests and SHA-256 tamper detection: maturing features, not a version-history or rollback system.",
+});
 
 const toc = [
   { id: "snapshots", k: "docs.snapshots-integrity.toc.snapshots" },

@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Downloading | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Downloading · Docs",
   description:
     "How zcrypt downloads: your browser fetches encrypted chunks, decrypts and decompresses them in a Web Worker pool, verifies the file's SHA-256, and (for very large files) streams straight to disk. Every step runs on your device; the server never sees plaintext or your passphrase.",
-  alternates: { canonical: `${SITE_URL}/docs/downloading` },
-  openGraph: {
-    title: "Downloading | zcrypt Docs",
-    description:
-      "Fetching, decrypting, and verifying your files locally in zcrypt: with a worker pool, streaming-to-disk for large files, and pause/resume.",
-    url: `${SITE_URL}/docs/downloading`,
-  },
-};
+  path: "/docs/downloading",
+  ogDescription:
+    "Fetching, decrypting, and verifying your files locally in zcrypt: with a worker pool, streaming-to-disk for large files, and pause/resume.",
+});
 
 const toc = [
   { id: "local", k: "docs.downloading.toc.local" },

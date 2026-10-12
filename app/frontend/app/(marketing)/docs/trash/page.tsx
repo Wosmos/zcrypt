@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Trash & restore | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Trash & restore · Docs",
   description:
     "Deleting a file in zcrypt moves it to Trash as a soft delete. Restore it, preview it, or delete it forever to purge its chunks from every connected storage platform. Bulk selection supported.",
-  alternates: { canonical: `${SITE_URL}/docs/trash` },
-  openGraph: {
-    title: "Trash & restore | zcrypt Docs",
-    description:
-      "Soft-delete, restore, preview, and permanently purge files in zcrypt, including bulk actions.",
-    url: `${SITE_URL}/docs/trash`,
-  },
-};
+  path: "/docs/trash",
+  ogDescription:
+    "Soft-delete, restore, preview, and permanently purge files in zcrypt, including bulk actions.",
+});
 
 const toc = [
   { id: "soft-delete", k: "docs.trash.toc.soft-delete" },

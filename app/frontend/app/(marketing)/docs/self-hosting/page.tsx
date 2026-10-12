@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   DocPage,
   DocSection,
@@ -12,18 +10,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Self-hosting | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Self-hosting · Docs",
   description:
     "Run your own zcrypt instance with Docker. Configure the database, master key, JWT secret, allowed origins, optional Google/GitHub OAuth and Resend email, and point the Next.js frontend at your backend.",
-  alternates: { canonical: `${SITE_URL}/docs/self-hosting` },
-  openGraph: {
-    title: "Self-hosting | zcrypt Docs",
-    description:
-      "Run your own zcrypt instance with Docker: real required and optional environment variables, OAuth setup, and the frontend env.",
-    url: `${SITE_URL}/docs/self-hosting`,
-  },
-};
+  path: "/docs/self-hosting",
+  ogDescription:
+    "Run your own zcrypt instance with Docker: real required and optional environment variables, OAuth setup, and the frontend env.",
+});
 
 const toc = [
   { id: "overview", k: "docs.self-hosting.toc.overview" },

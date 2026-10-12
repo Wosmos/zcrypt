@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Anonymous Send | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Anonymous Send · Docs",
   description:
     "Send an encrypted file with no account using zcrypt's Anonymous Send: up to about 50 MB, an expiry of 1 to 24 hours, and optional burn-after-read. Files are stored encrypted under a disguised name.",
-  alternates: { canonical: `${SITE_URL}/docs/send` },
-  openGraph: {
-    title: "Anonymous Send | zcrypt Docs",
-    description:
-      "Send an encrypted file without an account: short-lived, optionally one-time, and encrypted in your browser before upload.",
-    url: `${SITE_URL}/docs/send`,
-  },
-};
+  path: "/docs/send",
+  ogDescription:
+    "Send an encrypted file without an account: short-lived, optionally one-time, and encrypted in your browser before upload.",
+});
 
 const toc = [
   { id: "what", k: "docs.send.toc.what" },

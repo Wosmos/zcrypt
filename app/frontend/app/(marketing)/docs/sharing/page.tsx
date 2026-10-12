@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-
 import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
@@ -12,18 +10,15 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Share links | zcrypt Docs",
+import { pageMetadata } from "@/lib/page-metadata";
+export const metadata = pageMetadata({
+  title: "Share links · Docs",
   description:
     "Create a share link for any file in zcrypt. The decryption key lives only in the URL fragment, so the server never sees it. Add an optional password, expiry, and download limit, and revoke anytime.",
-  alternates: { canonical: `${SITE_URL}/docs/sharing` },
-  openGraph: {
-    title: "Share links | zcrypt Docs",
-    description:
-      "Share a file with an optional password, expiry, and download limit: the decryption key stays in the link fragment, never on the server.",
-    url: `${SITE_URL}/docs/sharing`,
-  },
-};
+  path: "/docs/sharing",
+  ogDescription:
+    "Share a file with an optional password, expiry, and download limit: the decryption key stays in the link fragment, never on the server.",
+});
 
 const toc = [
   { id: "create", k: "docs.sharing.toc.create" },

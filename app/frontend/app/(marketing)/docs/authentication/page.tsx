@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Authentication & 2FA | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Authentication & 2FA · Docs",
   description:
     "How you sign in to zcrypt: email and password sign-up with breach checks, email verification, password reset, passwordless magic links, JWT sessions, and TOTP two-factor, and why your account password is not your vault passphrase.",
-  alternates: { canonical: `${SITE_URL}/docs/authentication` },
-  openGraph: {
-    title: "Authentication & 2FA | zcrypt Docs",
-    description:
-      "Email/password sign-up, magic links, JWT sessions, and TOTP two-factor in zcrypt: plus the difference between your account password and your vault passphrase.",
-    url: `${SITE_URL}/docs/authentication`,
-  },
-};
+  path: "/docs/authentication",
+  ogDescription:
+    "Email/password sign-up, magic links, JWT sessions, and TOTP two-factor in zcrypt: plus the difference between your account password and your vault passphrase.",
+});
 
 const toc = [
   { id: "password-vs-passphrase", k: "docs.authentication.toc.password-vs-passphrase" },

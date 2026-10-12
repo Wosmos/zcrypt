@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Account recovery | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Account recovery · Docs",
   description:
     "What zcrypt can and cannot recover. Account access can be restored through email password reset and two-factor. Your vault passphrase and folder passwords are zero-knowledge: lose them and no one (including us) can decrypt your files.",
-  alternates: { canonical: `${SITE_URL}/docs/recovery` },
-  openGraph: {
-    title: "Account recovery | zcrypt Docs",
-    description:
-      "Account access is recoverable; your vault passphrase and folder passwords are not. The exact line between the two, and how to protect what can't be recovered.",
-    url: `${SITE_URL}/docs/recovery`,
-  },
-};
+  path: "/docs/recovery",
+  ogDescription:
+    "Account access is recoverable; your vault passphrase and folder passwords are not. The exact line between the two, and how to protect what can't be recovered.",
+});
 
 const toc = [
   { id: "two-things", k: "docs.recovery.toc.two-things" },

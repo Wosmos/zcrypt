@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Search & filters | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Search & filters · Docs",
   description:
     "Search the current folder in zcrypt against file and folder names (entirely on your device, so your query never reaches the server) and narrow results with type-filter chips.",
-  alternates: { canonical: `${SITE_URL}/docs/search` },
-  openGraph: {
-    title: "Search & filters | zcrypt Docs",
-    description:
-      "Find files fast with a per-folder search box that runs locally on decrypted names, plus type-filter chips.",
-    url: `${SITE_URL}/docs/search`,
-  },
-};
+  path: "/docs/search",
+  ogDescription:
+    "Find files fast with a per-folder search box that runs locally on decrypted names, plus type-filter chips.",
+});
 
 const toc = [
   { id: "box", k: "docs.search.toc.box" },

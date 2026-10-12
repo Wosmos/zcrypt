@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   DocPage,
   DocSection,
@@ -12,18 +10,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Bring your own storage | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Bring your own storage · Docs",
   description:
     "zcrypt has no storage farm of its own. Connect a GitHub, GitLab, Hugging Face, or Telegram account as your encrypted backend: tokens, scopes, and capacities, all explained.",
-  alternates: { canonical: `${SITE_URL}/docs/platform-adapters` },
-  openGraph: {
-    title: "Bring your own storage | zcrypt Docs",
-    description:
-      "Connect GitHub, GitLab, Hugging Face, or Telegram as your encrypted storage backend: with the tokens, scopes, and capacities for each.",
-    url: `${SITE_URL}/docs/platform-adapters`,
-  },
-};
+  path: "/docs/platform-adapters",
+  ogDescription:
+    "Connect GitHub, GitLab, Hugging Face, or Telegram as your encrypted storage backend: with the tokens, scopes, and capacities for each.",
+});
 
 const toc = [
   { id: "byo", k: "docs.platform-adapters.toc.byo" },

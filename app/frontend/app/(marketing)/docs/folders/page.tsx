@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Folders & the File Explorer | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Folders & the File Explorer · Docs",
   description:
     "How folders work in zcrypt: create and nest them, navigate with breadcrumbs, switch between grid and list views, sort, and search: with macOS-style folder icons and folder names encrypted on your device.",
-  alternates: { canonical: `${SITE_URL}/docs/folders` },
-  openGraph: {
-    title: "Folders & the File Explorer | zcrypt Docs",
-    description:
-      "Create, nest, navigate, sort, and search folders in the zcrypt encrypted drive, with encrypted folder names.",
-    url: `${SITE_URL}/docs/folders`,
-  },
-};
+  path: "/docs/folders",
+  ogDescription:
+    "Create, nest, navigate, sort, and search folders in the zcrypt encrypted drive, with encrypted folder names.",
+});
 
 const toc = [
   { id: "creating", k: "docs.folders.toc.creating" },

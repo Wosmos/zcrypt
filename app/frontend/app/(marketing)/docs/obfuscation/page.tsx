@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Storage obfuscation | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Storage obfuscation · Docs",
   description:
     "Encryption hides file contents; obfuscation hides that there is anything interesting to look at. zcrypt stores chunks under random hex .bin names in repos with plausible dev-project names, rotating commit messages, and a generic build-artifacts README.",
-  alternates: { canonical: `${SITE_URL}/docs/obfuscation` },
-  openGraph: {
-    title: "Storage obfuscation | zcrypt Docs",
-    description:
-      "How zcrypt makes its storage repositories look like unremarkable build-cache projects: a second layer beneath the encryption.",
-    url: `${SITE_URL}/docs/obfuscation`,
-  },
-};
+  path: "/docs/obfuscation",
+  ogDescription:
+    "How zcrypt makes its storage repositories look like unremarkable build-cache projects: a second layer beneath the encryption.",
+});
 
 const toc = [
   { id: "why", k: "docs.obfuscation.toc.why" },

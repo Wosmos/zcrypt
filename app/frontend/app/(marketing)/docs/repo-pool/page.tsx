@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   DocPage,
   DocSection,
@@ -12,18 +10,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Repo pool & rotation | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Repo pool & rotation · Docs",
   description:
     "How zcrypt grows your storage across many repositories automatically: an active repo per account, a size threshold, and a disguised new repo created the moment one fills up.",
-  alternates: { canonical: `${SITE_URL}/docs/repo-pool` },
-  openGraph: {
-    title: "Repo pool & rotation | zcrypt Docs",
-    description:
-      "How zcrypt grows your storage across many repositories automatically, with per-repo usage tracking and transparent rotation.",
-    url: `${SITE_URL}/docs/repo-pool`,
-  },
-};
+  path: "/docs/repo-pool",
+  ogDescription:
+    "How zcrypt grows your storage across many repositories automatically, with per-repo usage tracking and transparent rotation.",
+});
 
 const toc = [
   { id: "why", k: "docs.repo-pool.toc.why" },
