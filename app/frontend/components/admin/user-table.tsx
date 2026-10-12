@@ -389,6 +389,7 @@ export function UserTable({
   planConfigs?: PlanConfig[];
 }) {
   const t = useTranslations("admin.userTable");
+  const tRoles = useTranslations("admin.roles");
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [editingQuota, setEditingQuota] = useState<string | null>(null);
@@ -478,9 +479,9 @@ export function UserTable({
         ]),
       )
     : {
-        free: { label: "Free", uploads: 2, storage: "10 GB", fileSize: "500 MB" },
-        plus: { label: "Plus", uploads: 5, storage: "200 GB", fileSize: "5 GB" },
-        pro: { label: "Pro", uploads: 10, storage: "2 TB", fileSize: "25 GB" },
+        free: { label: t("planFree"), uploads: 2, storage: "10 GB", fileSize: "500 MB" },
+        plus: { label: t("planPlus"), uploads: 5, storage: "200 GB", fileSize: "5 GB" },
+        pro: { label: t("planPro"), uploads: 10, storage: "2 TB", fileSize: "25 GB" },
       };
 
   const handlePlanChange = (userId: string, username: string, newPlan: string) => {
@@ -515,7 +516,9 @@ export function UserTable({
         toast.success(t("userDeleted"));
       } else if (confirmAction.type === "role") {
         await adminSetUserRole(confirmAction.userId, confirmAction.newValue!, reauth);
-        toast.success(t("roleUpdated", { role: confirmAction.newValue ?? "" }));
+        toast.success(
+          t("roleUpdated", { role: tRoles(confirmAction.newValue === "admin" ? "admin" : "user") }),
+        );
       } else if (confirmAction.type === "plan") {
         await adminSetUserPlan(confirmAction.userId, confirmAction.newValue!);
         toast.success(t("planUpdated", { plan: confirmAction.newValue ?? "" }));

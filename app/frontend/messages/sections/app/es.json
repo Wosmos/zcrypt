@@ -860,7 +860,8 @@
       "zipPartial": "ZIP guardado sin {failed} de {total} archivos ({names}). Descárgalos individualmente.",
       "zipFailed": "Error al descargar el ZIP",
       "zipFailedMsg": "Error al descargar el ZIP: {msg}",
-      "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla."
+      "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla.",
+      "zipFilesLabel": "{count, plural, one {# archivo (ZIP)} other {# archivos (ZIP)}}"
     },
     "l10n": {
       "justNow": "ahora mismo",

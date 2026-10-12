@@ -313,7 +313,10 @@
       "colUser": "Usuario",
       "colRole": "Rol",
       "colPlan": "Plan",
-      "colActions": "Acciones"
+      "colActions": "Acciones",
+      "planFree": "Gratis",
+      "planPlus": "Plus",
+      "planPro": "Pro"
     },
     "userDetail": {
       "back": "Volver a usuarios",
@@ -342,7 +345,8 @@
       "used": "Usado",
       "recentActivity": "Actividad reciente",
       "noActivityTitle": "Sin actividad reciente",
-      "noActivityDesc": "Este usuario aún no ha generado actividad auditada."
+      "noActivityDesc": "Este usuario aún no ha generado actividad auditada.",
+      "parallel": "{count} en paralelo"
     },
     "pricing": {
       "loadFailed": "No se pudieron cargar los planes",
@@ -390,7 +394,8 @@
       "applyLower": "Reducir el almacenamiento, el tamaño máximo de archivo o las subidas paralelas bloquea nuevas subidas a los usuarios que ya superan el nuevo límite. No se elimina nada de lo almacenado.",
       "applyPublic": "La página pública de precios muestra al instante los nuevos nombres, precios y funciones.",
       "applyRemoved": "Los planes eliminados dejan de existir; los usuarios que sigan asignados a uno deben moverse antes.",
-      "applyConfirm": "Aplicar a todos los usuarios"
+      "applyConfirm": "Aplicar a todos los usuarios",
+      "newPlan": "Nuevo plan"
     }
   }
 }

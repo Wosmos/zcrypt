@@ -18,7 +18,8 @@ import { usePreferencesStore } from "@/store/preferences";
 import { useKeysStore } from "@/store/keys";
 import { localFingerprint } from "@/lib/keys";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
-import { isTauri, keychainSet, keychainDelete } from "@/lib/tauri";
+import { isTauri } from "@/lib/tauri";
+import { storeDesktopPlatformCreds, clearDesktopPlatformCreds } from "@/lib/desktop-creds";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
 import { ThemeModeControl } from "@/components/settings/theme-mode-control";
@@ -65,41 +66,9 @@ import {
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { PLATFORMS, platformName, parseTelegramToken } from "@/lib/platforms";
+import { PLATFORMS, platformName } from "@/lib/platforms";
 import { useOverridesFor } from "@/hooks/useOverridesFor";
-
-/**
- * Desktop-only: mirror a freshly connected platform token into the OS keychain
- * so the Tauri core can route uploads byos-direct. Never runs outside Tauri:
- * raw platform tokens must never be persisted in the browser. Best-effort.
- */
-async function storeDesktopPlatformCreds(
-  platform: string,
-  rawToken: string,
-  username?: string,
-): Promise<void> {
-  if (!isTauri) return;
-  try {
-    const parsed = platform === "telegram" ? parseTelegramToken(rawToken) : null;
-    const keychainToken = parsed?.token ?? rawToken;
-    const keychainAccount = parsed?.account ?? username;
-    await keychainSet(`platform.${platform}.token`, keychainToken);
-    if (keychainAccount) await keychainSet(`platform.${platform}.account`, keychainAccount);
-  } catch (err) {
-    console.error(`Failed to store ${platform} credentials in the desktop keychain`, err);
-  }
-}
-
-/** Desktop-only: forget a platform's keychain creds on disconnect. Best-effort. */
-async function clearDesktopPlatformCreds(platform: string): Promise<void> {
-  if (!isTauri) return;
-  try {
-    await keychainDelete(`platform.${platform}.token`);
-    await keychainDelete(`platform.${platform}.account`);
-  } catch (err) {
-    console.error(`Failed to clear ${platform} credentials from the desktop keychain`, err);
-  }
-}
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type SectionId =
   | "appearance"
@@ -202,12 +171,21 @@ export function SettingsContent() {
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
   const isAdmin = user?.role === "admin";
 
+  const visibleSections = SECTIONS.filter(
+    (s) => (!s.adminOnly || isAdmin) && (!s.desktopOnly || isTauri),
+  );
+  const isMobile = useIsMobile();
+
   // active === null → mobile shows the grouped index. Desktop always shows a
   // section (defaults to the first) in the right pane.
   const requested = useSearchParams().get("section");
-  const [active, setActive] = useState<SectionId | null>(() =>
-    SECTIONS.some((s) => s.id === requested) ? (requested as SectionId) : null,
-  );
+  const requestedId = visibleSections.find((s) => s.id === requested)?.id ?? null;
+  const [active, setActive] = useState<SectionId | null>(requestedId);
+  const [syncedId, setSyncedId] = useState(requestedId);
+  if (syncedId !== requestedId) {
+    setSyncedId(requestedId);
+    if (requestedId) setActive(requestedId);
+  }
 
   // Optimistic scope flips; they clear when fresh statuses arrive.
   const [scopeOverrides, setScopeOverrides] = useOverridesFor<boolean>(statuses);
@@ -254,7 +232,9 @@ export function SettingsContent() {
     setDisconnecting(`${platform}:${username}`);
     try {
       await disconnectPlatform(platform, username);
-      await clearDesktopPlatformCreds(platform);
+      if (accountsFor(platform).every((a) => a.username === username)) {
+        await clearDesktopPlatformCreds(platform);
+      }
       toast.success(tc("disconnected", { platform: platformName(platform), username }));
       setDisconnectTarget(null);
       void refresh();
@@ -300,9 +280,6 @@ export function SettingsContent() {
     }
   };
 
-  const visibleSections = SECTIONS.filter(
-    (s) => (!s.adminOnly || isAdmin) && (!s.desktopOnly || isTauri),
-  );
   const groups = Array.from(new Set(visibleSections.map((s) => s.group)));
 
   const renderSection = (id: SectionId) => {
@@ -443,7 +420,7 @@ export function SettingsContent() {
                 {t(`${active}Desc`)}
               </p>
             </div>
-            {renderSection(active)}
+            {isMobile && renderSection(active)}
           </div>
         )}
       </div>
@@ -494,7 +471,7 @@ export function SettingsContent() {
               {t(`${active ?? "appearance"}Desc`)}
             </p>
           </div>
-          {renderSection(active ?? "appearance")}
+          {!isMobile && renderSection(active ?? "appearance")}
         </div>
       </div>
 

@@ -860,7 +860,8 @@
       "zipPartial": "ZIP saved without {failed} of {total} files ({names}). Download those individually.",
       "zipFailed": "ZIP download failed",
       "zipFailedMsg": "ZIP download failed: {msg}",
-      "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it."
+      "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it.",
+      "zipFilesLabel": "{count, plural, one {# file (ZIP)} other {# files (ZIP)}}"
     },
     "l10n": {
       "justNow": "just now",

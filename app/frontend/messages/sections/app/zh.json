@@ -860,7 +860,8 @@
       "zipPartial": "ZIP 已保存，但缺少 {total} 个文件中的 {failed} 个（{names}）。请单独下载这些文件。",
       "zipFailed": "ZIP 下载失败",
       "zipFailedMsg": "ZIP 下载失败：{msg}",
-      "zipWrongPassword": "此 ZIP 中的文件夹密码错误。请重试并重新输入。"
+      "zipWrongPassword": "此 ZIP 中的文件夹密码错误。请重试并重新输入。",
+      "zipFilesLabel": "{count} 个文件 (ZIP)"
     },
     "l10n": {
       "justNow": "刚刚",
