@@ -63,6 +63,10 @@ func TestClientDeletedPurgeNeedsOwnPlatformAccount(t *testing.T) {
 	user, err := ts.db.GetUserByEmail(context.Background(), email)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		_, _ = ts.db.Pool().Exec(context.Background(), `DELETE FROM pending_deletions WHERE user_id = $1`, user.ID)
+	})
+
 	fileID := ts.insertOwnedFile(email)
 	_, err = ts.db.Pool().Exec(context.Background(),
 		`INSERT INTO chunks (file_id, user_id, idx, size, sha256, platform, account, repo, remote_path)
