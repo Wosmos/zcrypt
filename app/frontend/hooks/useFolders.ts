@@ -103,7 +103,7 @@ export function useFolders() {
       // E2E-encrypted so the server can't enforce this, the guard runs here
       // against the decrypted listing of the current folder.
       if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-        throw new Error(`A folder named "${trimmed}" already exists here.`);
+        throw new Error(tr("vaultExplorer.duplicateFolder", { name: trimmed }));
       }
       const encrypted_name = await encryptName(trimmed, key);
       await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
@@ -120,7 +120,7 @@ export function useFolders() {
       if (
         folders.some((f) => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())
       ) {
-        throw new Error(`A folder named "${trimmed}" already exists here.`);
+        throw new Error(tr("vaultExplorer.duplicateFolder", { name: trimmed }));
       }
       const encrypted_name = await encryptName(trimmed, key);
       await apiRenameFolder(id, encrypted_name);

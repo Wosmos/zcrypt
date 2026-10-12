@@ -90,6 +90,7 @@
     "gridView": "Сетка",
     "select": "Выбрать",
     "folderPath": "Путь к папке",
+    "myVault": "Моё хранилище",
     "sortBy": "Сортировать по: {label}",
     "sortByCurrent": "Сортировать по: {label}, сейчас {direction}",
     "ascending": "по возрастанию",

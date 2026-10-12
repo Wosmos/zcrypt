@@ -788,7 +788,10 @@
         "rename": "重命名",
         "clear": "清除选择",
         "show": "显示这些快捷键"
-      }
+      },
+      "folderCount": "{count, plural, other {# 个文件夹}}",
+      "fileCount": "{count, plural, other {# 个文件}}",
+      "itemCount": "{count, plural, other {# 项}}"
     },
     "hooks": {
       "connectionRestored": "与服务器的连接已恢复",
@@ -819,7 +822,8 @@
       "deleteFailed": "删除失败",
       "bulkPartial": "已删除 {deleted} 个，{failed} 个失败",
       "bulkDeleted": "已删除 {count} 个文件",
-      "bulkDeleteFailed": "批量删除失败"
+      "bulkDeleteFailed": "批量删除失败",
+      "emptyFilesSkipped": "无法上传空文件：{names}"
     },
     "notifications": {
       "uploadComplete": "上传完成",
@@ -835,7 +839,8 @@
       "unlockCustomize": "解锁保险库以自定义文件",
       "unlockRename": "解锁保险库以重命名文件",
       "emptyName": "名称不能为空",
-      "addFailed": "无法添加文件"
+      "addFailed": "无法添加文件",
+      "duplicateName": "此处已存在名为 \"{name}\" 的文件。"
     },
     "toasts": {
       "restartUpload": "无法继续之前对“{name}”的上传，将在 {platform} 上重新开始。",

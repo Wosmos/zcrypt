@@ -308,11 +308,11 @@ export default function VaultPage() {
     [vault, logRecentlyViewed],
   );
 
-  // Kebab "Preview" (filename-keyed) routes to the SAME full viewer, scoped to
+  // Kebab "Preview" (id-keyed) routes to the SAME full viewer, scoped to
   // the file's folder so prev/next still walks that folder.
   const handlePreviewInViewer = useCallback(
-    (filename: string) => {
-      const file = files.find((f) => f.original_name === filename);
+    (fileId: string) => {
+      const file = files.find((f) => f.id === fileId);
       if (!file) return;
       const fid = file.folder_id ?? null;
       const folderFiles = files.filter((f) => (f.folder_id ?? null) === fid);

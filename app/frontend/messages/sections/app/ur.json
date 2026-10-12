@@ -788,7 +788,10 @@
         "rename": "نام تبدیل کریں",
         "clear": "انتخاب صاف کریں",
         "show": "یہ شارٹ کٹس دکھائیں"
-      }
+      },
+      "folderCount": "{count, plural, one {# فولڈر} other {# فولڈرز}}",
+      "fileCount": "{count, plural, one {# فائل} other {# فائلیں}}",
+      "itemCount": "{count, plural, one {# آئٹم} other {# آئٹمز}}"
     },
     "hooks": {
       "connectionRestored": "سرور سے رابطہ بحال ہو گیا",
@@ -819,7 +822,8 @@
       "deleteFailed": "حذف ناکام رہا",
       "bulkPartial": "{deleted} حذف، {failed} ناکام",
       "bulkDeleted": "{count} فائلیں حذف ہو گئیں",
-      "bulkDeleteFailed": "اجتماعی حذف ناکام رہا"
+      "bulkDeleteFailed": "اجتماعی حذف ناکام رہا",
+      "emptyFilesSkipped": "خالی فائلیں اپ لوڈ نہیں کی جا سکتیں: {names}"
     },
     "notifications": {
       "uploadComplete": "اپ لوڈ مکمل",
@@ -835,7 +839,8 @@
       "unlockCustomize": "فائلوں کو حسب ضرورت بنانے کے لیے اپنا والٹ کھولیں",
       "unlockRename": "فائلوں کا نام بدلنے کے لیے اپنا والٹ کھولیں",
       "emptyName": "نام خالی نہیں ہو سکتا",
-      "addFailed": "فائلیں شامل نہیں ہو سکیں"
+      "addFailed": "فائلیں شامل نہیں ہو سکیں",
+      "duplicateName": "یہاں \"{name}\" نام کی فائل پہلے سے موجود ہے۔"
     },
     "toasts": {
       "restartUpload": "\"{name}\" کی پچھلی اپ لوڈ جاری نہیں رہ سکی، {platform} پر دوبارہ شروع ہو رہی ہے۔",

@@ -90,6 +90,7 @@
     "gridView": "عرض الشبكة",
     "select": "تحديد",
     "folderPath": "مسار المجلد",
+    "myVault": "خزنتي",
     "sortBy": "الترتيب حسب {label}",
     "sortByCurrent": "الترتيب حسب {label}، الحالي: {direction}",
     "ascending": "تصاعديًا",

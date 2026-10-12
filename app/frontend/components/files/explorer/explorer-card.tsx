@@ -12,6 +12,7 @@ import {
   useFileEntryView,
 } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
+import { FileActionsMenu } from "./file-actions-menu";
 import { formatBytes, isVideoFile, cn, midTrunc, extOf } from "@/lib/utils";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
 import {
@@ -261,6 +262,16 @@ function FileCardInner({
             {displayName}
           </p>
           <FileHealthBadge file={file} />
+          <FileActionsMenu
+            file={file}
+            displayName={displayName}
+            actions={actions}
+            onRequestSelect={onRequestSelect}
+            onOpenDetails={onOpenDetails}
+            onCustomizeFile={onCustomizeFile}
+            onRenameFile={onRenameFile}
+            triggerClassName="absolute right-1.5 top-1.5 z-10 bg-[var(--color-surface)]/80 backdrop-blur"
+          />
         </div>
       </ContextMenuTrigger>
 
@@ -275,7 +286,7 @@ function FileCardInner({
           </>
         )}
         {actions.onPreview && (
-          <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(displayName)}>
+          <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(file.id)}>
             <Eye className="h-4 w-4" /> {t("preview")}
           </ContextMenuItem>
         )}
@@ -289,7 +300,7 @@ function FileCardInner({
             <PaintBrush className="h-4 w-4" /> {t("customize")}
           </ContextMenuItem>
         )}
-        <ContextMenuItem className="gap-2" onSelect={() => actions.onDownload(displayName)}>
+        <ContextMenuItem className="gap-2" onSelect={() => actions.onDownload(file.id)}>
           <Download className="h-4 w-4" /> {t("download")}
         </ContextMenuItem>
         {onOpenDetails && (
