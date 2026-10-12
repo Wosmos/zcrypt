@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   DocPage,
   DocSection,
@@ -12,18 +10,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Encryption model | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Encryption model · Docs",
   description:
     "The exact cryptography behind zcrypt: AES-256-GCM with envelope encryption, PBKDF2-HMAC-SHA256 at 600,000 iterations, a random per-file content key, X25519 ECIES sealed-boxes for zero-knowledge sharing, and client-side zstd compression: all performed on your device before anything leaves it.",
-  alternates: { canonical: `${SITE_URL}/docs/security` },
-  openGraph: {
-    title: "Encryption model | zcrypt Docs",
-    description:
-      "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, per-file content keys, and X25519 sealed-boxes for sharing: the precise cryptography zcrypt runs on your device.",
-    url: `${SITE_URL}/docs/security`,
-  },
-};
+  path: "/docs/security",
+  ogDescription:
+    "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, per-file content keys, and X25519 sealed-boxes for sharing: the precise cryptography zcrypt runs on your device.",
+});
 
 const toc = [
   { id: "primitives", k: "docs.security.toc.primitives" },

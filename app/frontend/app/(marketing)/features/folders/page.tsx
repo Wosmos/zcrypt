@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Folder, FolderOpen, Lock, Unlock } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
@@ -8,12 +8,12 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { folders } from "../_data/folders";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Encrypted, Password-Protected Folders",
   description:
     "Real nestable folders with encrypted names, and any folder can have its own password, separate from your vault passphrase. Files inside are re-encrypted under a folder-specific key, verified locally, and stay sealed even when the rest of your vault is unlocked.",
+  path: "/features/folders",
   keywords: [
     "password protected folders",
     "encrypted folders",
@@ -23,15 +23,9 @@ export const metadata: Metadata = {
     "zero-knowledge folders",
     "encrypted folder names",
   ],
-  alternates: { canonical: `${SITE_URL}/features/folders` },
-  openGraph: {
-    title: "Encrypted, Password-Protected Folders | zcrypt",
-    description:
-      "Nestable folders with encrypted names, where any folder can have its own password: files re-encrypted under a folder key that never reaches the server.",
-    url: `${SITE_URL}/features/folders`,
-    type: "website",
-  },
-};
+  ogDescription:
+    "Nestable folders with encrypted names, where any folder can have its own password: files re-encrypted under a folder key that never reaches the server.",
+});
 
 const treeLines = [
   {

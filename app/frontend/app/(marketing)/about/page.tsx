@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Github, MapPin, ShieldCheck } from "@/lib/icons";
 import {
@@ -22,20 +22,15 @@ import { aboutProjects, aboutStack } from "./_data/about";
 import { SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "About. The person behind zcrypt",
   description:
     "zcrypt is built by Wasif Malik (Wosmo), a full-stack engineer from Karachi. A privacy tool should tell you who's behind it, so here I am. My story, the other things I've built, and how to reach me.",
-  alternates: {
-    canonical: `${SITE_URL}/about`,
-  },
-  openGraph: {
-    title: "About. The person behind zcrypt",
-    description:
-      "zcrypt isn't a faceless company. It's built by one engineer, in the open. Meet Wasif Malik (Wosmo).",
-    url: `${SITE_URL}/about`,
-  },
-};
+  path: "/about",
+  ogTitle: "About. The person behind zcrypt",
+  ogDescription:
+    "zcrypt isn't a faceless company. It's built by one engineer, in the open. Meet Wasif Malik (Wosmo).",
+});
 
 const chip =
   "inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--color-text-secondary)]";

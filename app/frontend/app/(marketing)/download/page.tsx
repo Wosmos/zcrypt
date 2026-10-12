@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import { Check, Github, ShieldCheck } from "@/lib/icons";
 import { GITHUB_REPO, desktopEngine } from "@/lib/data";
@@ -17,10 +17,11 @@ import { T } from "@/components/i18n/t";
 import { getLatestRelease } from "@/lib/releases";
 import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Download zcrypt. Desktop Apps for macOS, Windows & Linux",
   description:
     "Get the zcrypt encrypted drive on every device. Native desktop apps for macOS, Windows, and Linux, an Android app, and a web app that needs no install. Free, open source, zero-knowledge.",
+  path: "/download",
   keywords: [
     "download zcrypt",
     "encrypted cloud storage download",
@@ -34,21 +35,13 @@ export const metadata: Metadata = {
     "dmg",
     "open source",
   ],
-  alternates: { canonical: `${SITE_URL}/download` },
-  openGraph: {
-    title: "Download zcrypt. Apps for macOS, Windows, Linux & Android",
-    description:
-      "Native desktop apps, an Android app, and a no-install web app. Free, open source, zero-knowledge encrypted storage on every device.",
-    url: `${SITE_URL}/download`,
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Download zcrypt. Encrypted storage for every device",
-    description:
-      "Desktop apps for macOS, Windows, Linux, Android, and a web app. Free and open source.",
-  },
-};
+  ogTitle: "Download zcrypt. Apps for macOS, Windows, Linux & Android",
+  ogDescription:
+    "Native desktop apps, an Android app, and a no-install web app. Free, open source, zero-knowledge encrypted storage on every device.",
+  twitterTitle: "Download zcrypt. Encrypted storage for every device",
+  twitterDescription:
+    "Desktop apps for macOS, Windows, Linux, Android, and a web app. Free and open source.",
+});
 
 export default async function DownloadPage() {
   const release = await getLatestRelease();

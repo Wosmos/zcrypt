@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Image as ImageIcon, Video, Music, FileText, Code, Lock, Shield } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
@@ -8,12 +8,12 @@ import { IconWell, cardSurfaceSm } from "@/components/marketing/ui/card";
 import { cn } from "@/lib/utils";
 import { fileViewers } from "../_data/file-viewers";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "In-Browser File Viewers. Preview Encrypted Files Without Downloading",
   description:
     "Open images, video, audio, PDFs, DOCX, HTML, Markdown, CSV, and source code straight from your encrypted vault. Files are decrypted on the fly in your browser (plaintext never touches the server) then the preview is gone.",
+  path: "/features/file-viewers",
   keywords: [
     "in-browser file viewer",
     "preview encrypted files",
@@ -25,21 +25,13 @@ export const metadata: Metadata = {
     "encrypted document viewer",
     "in-browser media player",
   ],
-  alternates: { canonical: `${SITE_URL}/features/file-viewers` },
-  openGraph: {
-    title: "In-Browser File Viewers. Preview Without Downloading | zcrypt",
-    description:
-      "Preview images, video, audio, PDFs, documents, and code from your encrypted vault: decrypted on the fly in your browser, never on a server.",
-    url: `${SITE_URL}/features/file-viewers`,
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "In-Browser File Viewers. Preview Encrypted Files | zcrypt",
-    description:
-      "See your files without downloading or trusting a server. Decryption happens in your browser; plaintext never leaves your device.",
-  },
-};
+  ogTitle: "In-Browser File Viewers. Preview Without Downloading | zcrypt",
+  ogDescription:
+    "Preview images, video, audio, PDFs, documents, and code from your encrypted vault: decrypted on the fly in your browser, never on a server.",
+  twitterTitle: "In-Browser File Viewers. Preview Encrypted Files | zcrypt",
+  twitterDescription:
+    "See your files without downloading or trusting a server. Decryption happens in your browser; plaintext never leaves your device.",
+});
 
 export default function FileViewersPage() {
   const {

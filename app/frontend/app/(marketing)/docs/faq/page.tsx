@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "FAQ | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "FAQ · Docs",
   description:
     "Common questions about zcrypt: what it costs, how much storage you get, how the AES-256-GCM zero-knowledge encryption works, multi-device access, real folders, previewing files, password-protected folders, and what happens if you forget your passphrase.",
-  alternates: { canonical: `${SITE_URL}/docs/faq` },
-  openGraph: {
-    title: "FAQ | zcrypt Docs",
-    description:
-      "Cost, storage, encryption, multi-device, folders, previews, and passphrase recovery, answered plainly.",
-    url: `${SITE_URL}/docs/faq`,
-  },
-};
+  path: "/docs/faq",
+  ogDescription:
+    "Cost, storage, encryption, multi-device, folders, previews, and passphrase recovery, answered plainly.",
+});
 
 const toc = [
   { id: "cost", k: "docs.faq.toc.cost" },

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   Upload,
   Download,
@@ -22,12 +22,12 @@ import { cn } from "@/lib/utils";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { transfers } from "../_data/transfers";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Transfer Manager. Pause, Resume & Track Every Upload",
   description:
     "A unified, docked transfer manager that survives navigation. Live progress and ETA, pause and resume without re-encrypting, retry on failure, and bulk ZIP downloads: plus encrypted device-to-device transfer with a 6-digit code.",
+  path: "/features/transfers",
   keywords: [
     "upload manager",
     "resumable uploads",
@@ -38,15 +38,10 @@ export const metadata: Metadata = {
     "device to device transfer",
     "transfer progress",
   ],
-  alternates: { canonical: `${SITE_URL}/features/transfers` },
-  openGraph: {
-    title: "Transfer Manager. Pause, Resume & Track Every Transfer | zcrypt",
-    description:
-      "A docked manager that survives navigation: live progress, pause/resume without re-encrypting, retry, and bulk ZIP downloads. Plus encrypted device-to-device transfer.",
-    url: `${SITE_URL}/features/transfers`,
-    type: "website",
-  },
-};
+  ogTitle: "Transfer Manager. Pause, Resume & Track Every Transfer | zcrypt",
+  ogDescription:
+    "A docked manager that survives navigation: live progress, pause/resume without re-encrypting, retry, and bulk ZIP downloads. Plus encrypted device-to-device transfer.",
+});
 
 const queue = [
   {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import {
@@ -25,18 +25,14 @@ import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
 import { T } from "@/components/i18n/t";
 import { groupSlug, navSlug } from "@/components/docs/nav-keys";
 
-export const metadata: Metadata = {
-  title: "Documentation | zcrypt",
+export const metadata = pageMetadata({
+  title: "Documentation",
   description:
     "Learn how to use zcrypt: the zero-knowledge encrypted cloud drive. Guides for folders, file previews, per-folder encryption, sharing, storage backends, the API, and self-hosting.",
-  alternates: { canonical: `${SITE_URL}/docs` },
-  openGraph: {
-    title: "Documentation | zcrypt",
-    description:
-      "Guides for the zcrypt encrypted cloud drive: folders, previews, per-folder encryption, sharing, storage backends, API, and self-hosting.",
-    url: `${SITE_URL}/docs`,
-  },
-};
+  path: "/docs",
+  ogDescription:
+    "Guides for the zcrypt encrypted cloud drive: folders, previews, per-folder encryption, sharing, storage backends, API, and self-hosting.",
+});
 
 const BADGE_STYLES: Record<NonNullable<DocsNavLink["badge"]>, string> = {
   Beta: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",

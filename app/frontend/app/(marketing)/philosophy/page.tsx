@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import { ArrowUpRight } from "@/lib/icons";
 import { ProseSection, PullQuote, ReadingPage, proseBody } from "@/components/marketing/prose";
@@ -7,22 +7,16 @@ import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { MarketingCard, cardSurface } from "@/components/marketing/ui/card";
 import { WosmoWordmark } from "@/components/marketing/wosmo";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Our Philosophy. Why We Built zcrypt",
   description:
     "The zcrypt manifesto. Why cloud storage is overpriced, why zero-knowledge encryption matters, and why your data should belong to you. Open source, free, and private.",
-  alternates: {
-    canonical: `${SITE_URL}/philosophy`,
-  },
-  openGraph: {
-    title: "Our Philosophy. Why We Built zcrypt",
-    description:
-      "The zcrypt manifesto. Cloud storage is overpriced. Your data should belong to you.",
-    url: `${SITE_URL}/philosophy`,
-  },
-};
+  path: "/philosophy",
+  ogTitle: "Our Philosophy. Why We Built zcrypt",
+  ogDescription:
+    "The zcrypt manifesto. Cloud storage is overpriced. Your data should belong to you.",
+});
 
 export default function PhilosophyPage() {
   return (

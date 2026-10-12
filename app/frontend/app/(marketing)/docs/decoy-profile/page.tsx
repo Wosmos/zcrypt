@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Decoy profile | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Decoy profile · Docs",
   description:
     "Set a second decoy password in zcrypt that, at login, opens an innocent-looking vault of fake files instead of your real one: for coercion or border situations where you may be forced to unlock.",
-  alternates: { canonical: `${SITE_URL}/docs/decoy-profile` },
-  openGraph: {
-    title: "Decoy profile | zcrypt Docs",
-    description:
-      "A second password that opens a believable decoy vault of fake files: plausible deniability for high-pressure situations.",
-    url: `${SITE_URL}/docs/decoy-profile`,
-  },
-};
+  path: "/docs/decoy-profile",
+  ogDescription:
+    "A second password that opens a believable decoy vault of fake files: plausible deniability for high-pressure situations.",
+});
 
 const toc = [
   { id: "what", k: "docs.decoy-profile.toc.what" },

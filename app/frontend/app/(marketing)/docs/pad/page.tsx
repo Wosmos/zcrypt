@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Encrypted Pad | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Encrypted Pad · Docs",
   description:
     "Share a one-time encrypted note or paste with zcrypt's Encrypted Pad: up to about 1 MB of text, an expiry of 1 hour, 24 hours, or 7 days, and optional burn-after-read. The server stores only ciphertext.",
-  alternates: { canonical: `${SITE_URL}/docs/pad` },
-  openGraph: {
-    title: "Encrypted Pad | zcrypt Docs",
-    description:
-      "Share a one-time encrypted note: encrypted in your browser, expiring on a schedule, optionally readable only once.",
-    url: `${SITE_URL}/docs/pad`,
-  },
-};
+  path: "/docs/pad",
+  ogDescription:
+    "Share a one-time encrypted note: encrypted in your browser, expiring on a schedule, optionally readable only once.",
+});
 
 const toc = [
   { id: "what", k: "docs.pad.toc.what" },
