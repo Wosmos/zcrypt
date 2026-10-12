@@ -407,7 +407,11 @@
       "enable": "Activar interruptor de hombre muerto",
       "delete": "Eliminar",
       "confirmTitle": "¿Eliminar el interruptor de hombre muerto?",
-      "confirmDesc": "Esto elimina permanentemente la configuración de tu interruptor de hombre muerto. Tu contacto de confianza ya no recibirá aviso si dejas de dar señales."
+      "confirmDesc": "Esto elimina permanentemente la configuración de tu interruptor de hombre muerto. Tu contacto de confianza ya no recibirá aviso si dejas de dar señales.",
+      "loadFailed": "No se pudo cargar tu interruptor de hombre muerto. No se ha cambiado nada.",
+      "retry": "Intentar de nuevo",
+      "contactEmailPlaceholder": "contacto-de-confianza@ejemplo.com",
+      "contactNamePlaceholder": "María Pérez"
     },
     "decoy": {
       "passwordShort": "La contraseña debe tener al menos 6 caracteres",
@@ -453,7 +457,9 @@
       "removeVaultDesc": "Esto elimina permanentemente tu contraseña señuelo y todos los archivos señuelo. Tu bóveda real no se ve afectada.",
       "remove": "Quitar",
       "removeFileTitle": "¿Quitar el archivo señuelo?",
-      "removeFileDesc": "¿Quitar «{name}» de la bóveda señuelo?"
+      "removeFileDesc": "¿Quitar «{name}» de la bóveda señuelo?",
+      "loadFailed": "No se pudo cargar la configuración de tu bóveda señuelo. No se ha cambiado nada.",
+      "retry": "Intentar de nuevo"
     }
   }
 }

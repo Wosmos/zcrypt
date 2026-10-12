@@ -313,7 +313,10 @@
       "colUser": "User",
       "colRole": "Role",
       "colPlan": "Plan",
-      "colActions": "Actions"
+      "colActions": "Actions",
+      "planFree": "Free",
+      "planPlus": "Plus",
+      "planPro": "Pro"
     },
     "userDetail": {
       "back": "Back to users",
@@ -342,7 +345,8 @@
       "used": "Used",
       "recentActivity": "Recent activity",
       "noActivityTitle": "No recent activity",
-      "noActivityDesc": "This user hasn't generated any audited activity yet."
+      "noActivityDesc": "This user hasn't generated any audited activity yet.",
+      "parallel": "{count} parallel"
     },
     "pricing": {
       "loadFailed": "Failed to load plans",
@@ -390,7 +394,8 @@
       "applyLower": "Lowering storage, max file size, or parallel uploads blocks new uploads for users already above the new limit. Nothing they have stored is deleted.",
       "applyPublic": "The public pricing page shows the new names, prices, and features right away.",
       "applyRemoved": "Removed plans stop existing; users still assigned to one must be moved first.",
-      "applyConfirm": "Apply to all users"
+      "applyConfirm": "Apply to all users",
+      "newPlan": "New Plan"
     }
   }
 }

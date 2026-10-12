@@ -860,7 +860,8 @@
       "zipPartial": "ZIP ohne {failed} von {total} Dateien gespeichert ({names}). Lade diese einzeln herunter.",
       "zipFailed": "ZIP-Download fehlgeschlagen",
       "zipFailedMsg": "ZIP-Download fehlgeschlagen: {msg}",
-      "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben."
+      "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben.",
+      "zipFilesLabel": "{count, plural, one {# Datei (ZIP)} other {# Dateien (ZIP)}}"
     },
     "l10n": {
       "justNow": "gerade eben",

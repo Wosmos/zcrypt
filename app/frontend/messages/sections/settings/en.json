@@ -407,7 +407,11 @@
       "enable": "Enable dead man's switch",
       "delete": "Delete",
       "confirmTitle": "Delete dead man's switch?",
-      "confirmDesc": "This permanently removes your dead man's switch configuration. Your trusted contact will no longer be notified if you go silent."
+      "confirmDesc": "This permanently removes your dead man's switch configuration. Your trusted contact will no longer be notified if you go silent.",
+      "loadFailed": "Could not load your dead man's switch. Nothing has been changed.",
+      "retry": "Try again",
+      "contactEmailPlaceholder": "trusted-contact@example.com",
+      "contactNamePlaceholder": "Jane Doe"
     },
     "decoy": {
       "passwordShort": "Password must be at least 6 characters",
@@ -453,7 +457,9 @@
       "removeVaultDesc": "This permanently deletes your decoy password and all decoy files. Your real vault is unaffected.",
       "remove": "Remove",
       "removeFileTitle": "Remove decoy file?",
-      "removeFileDesc": "Remove \"{name}\" from the decoy vault?"
+      "removeFileDesc": "Remove \"{name}\" from the decoy vault?",
+      "loadFailed": "Could not load your decoy vault settings. Nothing has been changed.",
+      "retry": "Try again"
     }
   }
 }

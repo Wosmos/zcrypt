@@ -1077,7 +1077,7 @@ describe("useDownloadStore", () => {
       );
       expect(notifications.downloadFailed).toHaveBeenCalledWith(
         "a.bin",
-        "Network/DNS: try a VPN"
+        "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry."
       );
     });
 

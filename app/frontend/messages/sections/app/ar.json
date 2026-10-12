@@ -860,7 +860,8 @@
       "zipPartial": "تم حفظ ملف ZIP بدون {failed} من أصل {total} ملفات ({names}). نزّل تلك الملفات كل على حدة.",
       "zipFailed": "فشل تنزيل ملف ZIP",
       "zipFailedMsg": "فشل تنزيل ملف ZIP: {msg}",
-      "zipWrongPassword": "كلمة مرور مجلد غير صحيحة في ملف ZIP هذا. أعد المحاولة لإدخالها من جديد."
+      "zipWrongPassword": "كلمة مرور مجلد غير صحيحة في ملف ZIP هذا. أعد المحاولة لإدخالها من جديد.",
+      "zipFilesLabel": "ZIP، عدد الملفات: {count}"
     },
     "l10n": {
       "justNow": "الآن",

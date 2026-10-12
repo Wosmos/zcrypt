@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { motion } from "motion/react";
-import Link from "next/link";
 import {
   getDeadManSwitch,
   setupDeadManSwitch,
@@ -19,14 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { LoadFailed, SafeguardHeader } from "@/components/settings/settings-primitives";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
-  ArrowLeft,
   ShieldAlert,
   Clock,
   AlertTriangle,
@@ -65,7 +63,7 @@ export function DeadManContent() {
   // mutation writes its result back so a revisit opens instantly and current.
   const dmsQuery = useQuery({ queryKey: qk.deadman, queryFn: getDeadManSwitch });
   const [seeded, setSeeded] = useState(false);
-  const settled = !dmsQuery.isPending;
+  const settled = dmsQuery.isSuccess;
   const loaded = dmsQuery.data;
   if (!seeded && settled) {
     setSeeded(true);
@@ -153,6 +151,18 @@ export function DeadManContent() {
     }
   };
 
+  if (!seeded && dmsQuery.isError) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+        <LoadFailed
+          message={t("loadFailed")}
+          retryLabel={t("retry")}
+          onRetry={() => dmsQuery.refetch()}
+        />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -170,14 +180,7 @@ export function DeadManContent() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-      <Link
-        href="/settings"
-        className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-      >
-        <ArrowLeft className="h-3 w-3" /> {t("back")}
-      </Link>
-
-      <PageHeader title={t("title")} description={t("description")} />
+      <SafeguardHeader back={t("back")} title={t("title")} description={t("description")} />
 
       {error && (
         <div
@@ -297,14 +300,14 @@ export function DeadManContent() {
               label={t("contactEmail")}
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              placeholder="trusted-contact@example.com"
+              placeholder={t("contactEmailPlaceholder")}
             />
             <Input
               type="text"
               label={t("contactName")}
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              placeholder="Jane Doe"
+              placeholder={t("contactNamePlaceholder")}
             />
             <div className="flex flex-col gap-1.5">
               <label

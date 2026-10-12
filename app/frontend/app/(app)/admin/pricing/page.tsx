@@ -162,7 +162,7 @@ export default function AdminPricingPage() {
   };
 
   const updateConcurrentForPlan = (id: string, value: number) => {
-    updatePlan(id, { max_concurrent_uploads: value, concurrent_display: `${value} parallel` });
+    updatePlan(id, { max_concurrent_uploads: value, concurrent_display: String(value) });
   };
 
   const updateFeature = (planId: string, index: number, updates: Partial<PlanFeature>) => {
@@ -197,7 +197,7 @@ export default function AdminPricingPage() {
     const id = `plan-${Date.now()}`;
     const newPlan: PlanConfig = {
       id,
-      name: "New Plan",
+      name: t("newPlan"),
       monthly_price: 0,
       annual_price: 0,
       description: "",
@@ -206,7 +206,7 @@ export default function AdminPricingPage() {
       max_concurrent_uploads: 2,
       storage_display: "10 GB",
       max_file_display: "500 MB",
-      concurrent_display: "2 parallel",
+      concurrent_display: "2",
       features: [],
       highlight: false,
       badge: null,

@@ -860,7 +860,8 @@
       "zipPartial": "ZIP enregistré sans {failed} fichiers sur {total} ({names}). Téléchargez-les individuellement.",
       "zipFailed": "Échec du téléchargement du ZIP",
       "zipFailedMsg": "Échec du téléchargement du ZIP : {msg}",
-      "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau."
+      "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau.",
+      "zipFilesLabel": "{count, plural, one {# fichier (ZIP)} other {# fichiers (ZIP)}}"
     },
     "l10n": {
       "justNow": "à l'instant",

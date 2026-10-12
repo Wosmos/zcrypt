@@ -860,7 +860,8 @@
       "zipPartial": "ZIP сохранён без {failed} из {total} файлов ({names}). Скачайте их по отдельности.",
       "zipFailed": "Не удалось скачать ZIP",
       "zipFailedMsg": "Не удалось скачать ZIP: {msg}",
-      "zipWrongPassword": "Неверный пароль папки в этом ZIP. Повторите, чтобы ввести его снова."
+      "zipWrongPassword": "Неверный пароль папки в этом ZIP. Повторите, чтобы ввести его снова.",
+      "zipFilesLabel": "ZIP, файлов: {count}"
     },
     "l10n": {
       "justNow": "только что",

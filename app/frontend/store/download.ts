@@ -493,7 +493,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         } else {
           toast.error(tr("toasts.downloadFailedMsg", { msg }));
         }
-        notifications.downloadFailed(filename, isNetwork ? "Network/DNS: try a VPN" : msg);
+        notifications.downloadFailed(filename, isNetwork ? tr("toasts.unreachable") : msg);
       } finally {
         unlisten();
       }
@@ -562,7 +562,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
-        notifications.downloadComplete(`${report.added} files (ZIP)`);
+        notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
         if (report.failed.length === 0) {
           toast.success(tr("toasts.zipDone", { count: files.length }));
           return;
@@ -670,7 +670,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
         toast.success(tr("toasts.zipDone", { count: files.length }));
-        notifications.downloadComplete(`${files.length} files (ZIP)`);
+        notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: files.length }));
       } catch (err) {
         const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
         const isNetwork =
