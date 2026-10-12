@@ -6,8 +6,18 @@ const fetchMock = vi.fn();
 let onLine = true;
 let connection: Record<string, unknown> | undefined;
 
+/** A fetch Response stand-in whose body resolves in a microtask, so the
+ *  probe settles deterministically (a real Response body reads on an I/O tick). */
+function res(status = 200, body?: unknown) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => (body === undefined ? Promise.reject(new SyntaxError("not json")) : Promise.resolve(body)),
+  };
+}
+
 function jsonRes(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status });
+  return res(status, body);
 }
 
 async function load(): Promise<Mod> {
@@ -74,15 +84,15 @@ describe("probing the backend", () => {
     await m.useConnectivityStore.getState().check();
     expect(m.useConnectivityStore.getState().backend).toBe("maintenance");
 
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 503 }));
+    fetchMock.mockResolvedValueOnce(res(503));
     await m.useConnectivityStore.getState().check();
     expect(m.useConnectivityStore.getState().backend).toBe("maintenance");
 
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 502 })).mockResolvedValueOnce(new Response(""));
+    fetchMock.mockResolvedValueOnce(res(502)).mockResolvedValueOnce(res(200));
     await m.useConnectivityStore.getState().check();
     expect(m.useConnectivityStore.getState().backend).toBe("down");
 
-    fetchMock.mockResolvedValueOnce(new Response("not json"));
+    fetchMock.mockResolvedValueOnce(res(200));
     await m.useConnectivityStore.getState().check();
     expect(m.useConnectivityStore.getState().backend).toBe("up");
   });
@@ -90,7 +100,7 @@ describe("probing the backend", () => {
   it("blames the servers when only the API fails, and backs off", async () => {
     const m = await load();
     fetchMock.mockImplementation((url: string) =>
-      url.startsWith("/favicon.svg") ? Promise.resolve(new Response("")) : Promise.reject(new TypeError("x")),
+      url.startsWith("/favicon.svg") ? Promise.resolve(res(200)) : Promise.reject(new TypeError("x")),
     );
     const stop = m.startConnectivity();
     await settle();
@@ -108,7 +118,7 @@ describe("probing the backend", () => {
 
   it("caps the backoff at the last step", async () => {
     const m = await load();
-    fetchMock.mockResolvedValue(new Response("", { status: 500 }));
+    fetchMock.mockResolvedValue(res(500));
     m.useConnectivityStore.setState({ failures: 20 });
     const stop = m.startConnectivity();
     await settle();
