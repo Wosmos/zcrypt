@@ -66,6 +66,7 @@ pub struct LocalFile {
     /// time from available creds and persisted so resume keeps the same plane.
     pub mode: String,
     pub error_msg: String,
+    pub user_id: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -162,9 +163,15 @@ impl LocalDb {
             "ALTER TABLE files ADD COLUMN mode TEXT NOT NULL DEFAULT 'relay'",
             [],
         );
-        for col in ["sha256_scheme", "encrypted_name"] {
+        for col in ["sha256_scheme", "encrypted_name", "user_id"] {
             let _ = conn.execute(
                 &format!("ALTER TABLE files ADD COLUMN {col} TEXT NOT NULL DEFAULT ''"),
+                [],
+            );
+        }
+        for col in ["attempts", "last_attempt"] {
+            let _ = conn.execute(
+                &format!("ALTER TABLE files ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"),
                 [],
             );
         }
@@ -196,9 +203,9 @@ impl LocalDb {
         };
         self.with(|c| {
             c.execute(
-                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status, platform, mode, sha256_scheme, encrypted_name)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
-                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, sync_status, f.platform, mode_or_default(&f.mode), f.sha256_scheme, f.encrypted_name],
+                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status, platform, mode, sha256_scheme, encrypted_name, user_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, sync_status, f.platform, mode_or_default(&f.mode), f.sha256_scheme, f.encrypted_name, f.user_id],
             )
             .map(|_| ())
         })
@@ -234,24 +241,40 @@ impl LocalDb {
         })
     }
 
+    /// Record a failed pass. The row stays retryable ('error') with backoff
+    /// until `MAX_SYNC_ATTEMPTS`, then becomes the terminal 'failed'.
     pub fn update_file_sync_error(&self, file_id: &str, err_msg: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
-                "UPDATE files SET sync_status='error', error_msg=?1 WHERE id=?2",
-                params![err_msg, file_id],
+                "UPDATE files SET attempts=attempts+1, last_attempt=?1, error_msg=?2,
+                        sync_status=CASE WHEN attempts+1 >= ?3 THEN 'failed' ELSE 'error' END
+                 WHERE id=?4",
+                params![unix_now(), err_msg, MAX_SYNC_ATTEMPTS, file_id],
             )
             .map(|_| ())
         })
     }
 
-    pub fn get_pending_files(&self) -> Result<Vec<LocalFile>, DbError> {
+    /// Files the sync loop should drive now for `user_id`: in-flight states,
+    /// plus 'error' rows whose backoff window has elapsed.
+    pub fn get_pending_files(&self, user_id: &str) -> Result<Vec<LocalFile>, DbError> {
+        self.pending_files_at(user_id, unix_now())
+    }
+
+    fn pending_files_at(&self, user_id: &str, now: i64) -> Result<Vec<LocalFile>, DbError> {
         self.with(|c| {
             let mut stmt = c.prepare(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
                         backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
-                 FROM files WHERE sync_status IN ('pending','init_done','uploading') ORDER BY created_at",
+                 FROM files WHERE user_id=?1 AND (
+                        sync_status IN ('pending','init_done','uploading')
+                     OR (sync_status='error' AND last_attempt + min(?2, ?3 << min(attempts, 10)) <= ?4))
+                 ORDER BY created_at",
             )?;
-            let rows = stmt.query_map([], row_to_file)?;
+            let rows = stmt.query_map(
+                params![user_id, MAX_BACKOFF_SECS, BASE_BACKOFF_SECS, now],
+                row_to_file,
+            )?;
             rows.collect()
         })
     }
@@ -331,6 +354,7 @@ impl LocalDb {
     /// 'active' sessions), never a silently-deduped one.
     pub fn find_active_sibling(
         &self,
+        user_id: &str,
         sha256: &str,
         size: i64,
     ) -> Result<Option<LocalFile>, DbError> {
@@ -338,10 +362,10 @@ impl LocalDb {
             c.query_row(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
                         backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
-                 FROM files WHERE sha256=?1 AND original_size=?2
+                 FROM files WHERE user_id=?3 AND sha256=?1 AND original_size=?2
                    AND sync_status IN ('staging','pending','init_done','uploading')
                  ORDER BY created_at DESC LIMIT 1",
-                params![sha256, size],
+                params![sha256, size, user_id],
                 row_to_file,
             )
             .optional()
@@ -466,13 +490,24 @@ impl LocalDb {
                     "pending" | "init_done" => s.pending_files += count,
                     "uploading" => s.syncing_files += count,
                     "synced" => s.synced_files += count,
-                    "error" => s.error_files += count,
+                    "error" | "failed" => s.error_files += count,
                     _ => {}
                 }
             }
             Ok(s)
         })
     }
+}
+
+const MAX_SYNC_ATTEMPTS: i64 = 8;
+const BASE_BACKOFF_SECS: i64 = 15;
+const MAX_BACKOFF_SECS: i64 = 30 * 60;
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 fn row_to_file(r: &rusqlite::Row<'_>) -> Result<LocalFile, rusqlite::Error> {
@@ -493,6 +528,7 @@ fn row_to_file(r: &rusqlite::Row<'_>) -> Result<LocalFile, rusqlite::Error> {
         direct_upload: r.get(13)?,
         mode: r.get(14)?,
         error_msg: r.get(15)?,
+        user_id: String::new(),
         sha256_scheme: r.get(16)?,
         encrypted_name: r.get(17)?,
     })
@@ -545,6 +581,7 @@ mod tests {
             wrapped_cek: vec![2; 60],
             chunk_count: 2,
             status: "complete".into(),
+            user_id: "u1".into(),
             ..Default::default()
         };
         db.insert_file(&f).unwrap();
@@ -566,7 +603,7 @@ mod tests {
         }
 
         // pending → init_done → uploading → synced
-        let pending = db.get_pending_files().unwrap();
+        let pending = db.get_pending_files("u1").unwrap();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].sync_status, "pending");
 
@@ -603,6 +640,55 @@ mod tests {
         assert_eq!(db.get_sync_stats().unwrap().error_files, 1);
         db.update_chunk_error("c0", "bad").unwrap();
 
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn errored_files_retry_with_backoff_then_fail_terminally() {
+        let (db, dir) = temp_db();
+        db.insert_file(&LocalFile {
+            id: "f1".into(),
+            original_name: "a".into(),
+            salt: vec![1; 32],
+            chunk_count: 1,
+            user_id: "u1".into(),
+            ..Default::default()
+        })
+        .unwrap();
+
+        db.update_file_sync_error("f1", "net").unwrap();
+        let now = unix_now();
+        assert!(db.pending_files_at("u1", now).unwrap().is_empty());
+        assert_eq!(db.pending_files_at("u1", now + 31).unwrap().len(), 1);
+        assert!(db.pending_files_at("u2", now + 31).unwrap().is_empty());
+
+        for _ in 0..MAX_SYNC_ATTEMPTS {
+            db.update_file_sync_error("f1", "net").unwrap();
+        }
+        let f = db.get_file_by_id("f1").unwrap().unwrap();
+        assert_eq!(f.sync_status, "failed");
+        assert!(db.pending_files_at("u1", now + 86_400).unwrap().is_empty());
+        assert_eq!(db.get_sync_stats().unwrap().error_files, 1);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn sibling_lookup_is_scoped_to_the_user() {
+        let (db, dir) = temp_db();
+        db.insert_file(&LocalFile {
+            id: "f1".into(),
+            original_name: "a".into(),
+            original_size: 5,
+            sha256: "h".into(),
+            salt: vec![1; 32],
+            chunk_count: 1,
+            user_id: "u1".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(db.find_active_sibling("u1", "h", 5).unwrap().is_some());
+        assert!(db.find_active_sibling("u2", "h", 5).unwrap().is_none());
         let _ = std::fs::remove_dir_all(dir);
     }
 }

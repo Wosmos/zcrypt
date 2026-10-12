@@ -49,6 +49,34 @@ impl Drop for StagingLive {
     }
 }
 
+/// Size + mtime of a source file, taken before it is hashed so a write that
+/// lands during hashing or encryption is detected afterwards.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct SourceStamp {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+}
+
+impl SourceStamp {
+    pub(super) async fn of(path: &Path) -> Result<Self, EngineError> {
+        let m = tokio::fs::metadata(path).await?;
+        Ok(Self {
+            len: m.len(),
+            modified: m.modified().ok(),
+        })
+    }
+
+    pub(super) async fn ensure_unchanged(self, path: &Path) -> Result<(), EngineError> {
+        if Self::of(path).await? == self {
+            return Ok(());
+        }
+        Err(EngineError::Io(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            "source file changed during upload, retry once it stops changing",
+        )))
+    }
+}
+
 pub async fn run(
     ctx: &EngineContext,
     file_path: &Path,
@@ -58,8 +86,8 @@ pub async fn run(
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".to_string());
-    let meta = tokio::fs::metadata(file_path).await?;
-    let file_size = meta.len() as i64;
+    let stamp = SourceStamp::of(file_path).await?;
+    let file_size = tokio::fs::metadata(file_path).await?.len() as i64;
 
     let emit = |stage: Stage, done: u32, total: u32, bytes: i64| {
         (ctx.progress)(Progress {
@@ -78,6 +106,7 @@ pub async fn run(
     // and the sealed name: the only forms of either the server ever sees.
     emit(Stage::Hashing, 0, 0, 0);
     let keys = super::upload_keys(ctx, passphrase).await?;
+    let user_id = ctx.client.user_id().await?;
     let file_sha256 = hash_file_progress(file_path, keys.hasher(), |_| {}).await?;
     let encrypted_name = keys.seal_name(&file_name)?;
 
@@ -88,7 +117,10 @@ pub async fn run(
     // single session: the loser dies with "upload session is not active"
     // after the winner completes it, showing a false failure for a file that
     // actually uploaded.
-    if let Some(existing) = ctx.db.find_active_sibling(&file_sha256, file_size)? {
+    if let Some(existing) = ctx
+        .db
+        .find_active_sibling(&user_id, &file_sha256, file_size)?
+    {
         eprintln!(
             "zcrypt upload: {} already in flight as {} ({}), reusing, not re-encrypting",
             file_name, existing.id, existing.sync_status
@@ -132,6 +164,7 @@ pub async fn run(
         sha256: file_sha256,
         sha256_scheme: crypto::CONTENT_MAC_SCHEME.to_string(),
         encrypted_name,
+        user_id,
         salt: salt.to_vec(),
         wrapped_cek: wrapped_cek.clone(),
         chunk_count,
@@ -229,7 +262,7 @@ pub async fn run(
                 started,
             );
         }
-        Ok(())
+        stamp.ensure_unchanged(file_path).await
     }
     .await;
 
