@@ -75,7 +75,7 @@ export function DocToc({ toc }: { toc: TocItem[] }) {
                 onClick={(e) => handleClick(e, item.id)}
                 aria-current={active ? "location" : undefined}
                 className={cn(
-                  "block border-l-2 py-1 pl-4 text-sm transition-colors",
+                  "block border-s-2 py-1 ps-4 text-sm transition-colors",
                   active
                     ? "border-cyan-500 font-medium text-cyan-700 dark:text-cyan-300"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]",

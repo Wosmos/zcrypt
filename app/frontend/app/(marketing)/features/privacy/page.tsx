@@ -150,7 +150,7 @@ export default function PrivacyToolsPage() {
             <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
               <Clock className="h-3.5 w-3.5 text-cyan-500" />
               <T k="site.features.privacy.dms.window" />
-              <span className="ml-auto font-mono text-[var(--color-text-muted)]">
+              <span className="ms-auto font-mono text-[var(--color-text-muted)]">
                 <T k="site.features.privacy.dms.windowRange" />
               </span>
             </div>
@@ -253,7 +253,7 @@ export default function PrivacyToolsPage() {
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
                   <T k="site.features.common.readDocs" />
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
                 </Link>
               </article>
             ))}
@@ -277,7 +277,7 @@ export default function PrivacyToolsPage() {
               className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
             >
               <T k="site.features.privacy.core.linkLabel" />
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
             </Link>
           </div>
         </div>

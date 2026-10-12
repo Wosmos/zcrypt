@@ -108,7 +108,7 @@ export function StickyCta() {
             )}
           >
             {t("home.sticky.cta")}
-            <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            <ArrowRight aria-hidden="true" className="rtl:-scale-x-100 h-4 w-4" />
           </Link>
           <button
             type="button"

@@ -34,7 +34,7 @@ function TreeLink({
 }) {
   const t = useTranslations();
   const className = cn(
-    "group/link relative flex w-full items-center gap-2 rounded-md py-1.5 pl-5 pr-2 text-[13px] transition-colors",
+    "group/link relative flex w-full items-center gap-2 rounded-md py-1.5 ps-5 pe-2 text-[13px] transition-colors",
     active
       ? "bg-cyan-500/10 font-medium text-cyan-700 dark:text-cyan-300"
       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]",
@@ -46,7 +46,7 @@ function TreeLink({
       <span
         aria-hidden
         className={cn(
-          "absolute left-0 top-0 w-px bg-[var(--color-border)]",
+          "absolute start-0 top-0 w-px bg-[var(--color-border)]",
           isLast ? "h-1/2" : "h-full",
         )}
       />
@@ -54,7 +54,7 @@ function TreeLink({
       <span
         aria-hidden
         className={cn(
-          "absolute left-0 top-1/2 h-px w-3 -translate-y-1/2 transition-colors",
+          "absolute start-0 top-1/2 h-px w-3 -translate-y-1/2 transition-colors",
           active
             ? "bg-cyan-500"
             : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]",
@@ -64,7 +64,7 @@ function TreeLink({
       <span
         aria-hidden
         className={cn(
-          "absolute left-3 top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full transition-colors",
+          "absolute start-3 top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full transition-colors",
           active
             ? "bg-cyan-500"
             : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]",
@@ -163,7 +163,7 @@ function NavGroup({
         <div className="min-h-0 overflow-hidden">
           {/* Branches hang off a trunk aligned under the chevron; each link
               draws its own trunk segment so the last one closes as └ */}
-          <ul className="ml-[13px] flex list-none flex-col py-1">
+          <ul className="ms-[13px] flex list-none flex-col py-1">
             {group.links.map((link, i) => (
               <li key={link.href + link.title} className="relative">
                 <TreeLink
@@ -298,7 +298,7 @@ export function DocsMobileNav() {
           type="button"
           onClick={openSearch}
           aria-label={t("docs.ui.searchDocs")}
-          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          className="ms-auto flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
         >
           <Search className="h-4 w-4" />
         </button>

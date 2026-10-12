@@ -114,7 +114,7 @@ export default function TransfersPage() {
               <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
                 <T k="site.features.transfers.mock.summary" />
               </span>
-              <ChevronDown className="ml-auto h-4 w-4 text-[var(--color-text-muted)]" />
+              <ChevronDown className="ms-auto h-4 w-4 text-[var(--color-text-muted)]" />
             </>
           }
         >
