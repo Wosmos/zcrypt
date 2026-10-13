@@ -153,11 +153,12 @@ func main() {
 	}
 
 	srv = &http.Server{
-		Addr:         ":" + port,
-		Handler:      handler,
-		ReadTimeout:  5 * time.Minute,
-		WriteTimeout: 10 * time.Minute,
-		IdleTimeout:  120 * time.Second,
+		Addr:              ":" + port,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      10 * time.Minute,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	slog.Info("server starting", "port", port)

@@ -26,10 +26,12 @@ func (db *DB) GetUserKey(ctx context.Context, userID string) (*types.UserKey, er
 	return k, nil
 }
 
-// UpsertUserKey publishes (or rotates) a user's keypair. The server stores the
-// public key and the client-encrypted private key verbatim.
-func (db *DB) UpsertUserKey(ctx context.Context, userID, publicKey, wrappedPrivateKey, kdfSalt, fingerprint string) error {
-	_, err := db.pool.Exec(ctx, `
+// PublishUserKey stores a user's keypair. The first publish is insert-only;
+// replacing an existing keypair is a compare-and-set against the fingerprint
+// the caller believes is current. It reports false, leaving the stored key
+// untouched, when a key exists and currentFingerprint does not match it.
+func (db *DB) PublishUserKey(ctx context.Context, userID, publicKey, wrappedPrivateKey, kdfSalt, fingerprint, currentFingerprint string) (bool, error) {
+	tag, err := db.pool.Exec(ctx, `
 		INSERT INTO user_keys (user_id, public_key, wrapped_private_key, kdf_salt, fingerprint)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (user_id) DO UPDATE SET
@@ -37,9 +39,13 @@ func (db *DB) UpsertUserKey(ctx context.Context, userID, publicKey, wrappedPriva
 			wrapped_private_key = EXCLUDED.wrapped_private_key,
 			kdf_salt = EXCLUDED.kdf_salt,
 			fingerprint = EXCLUDED.fingerprint,
-			updated_at = NOW()`,
-		userID, publicKey, wrappedPrivateKey, kdfSalt, fingerprint)
-	return err
+			updated_at = NOW()
+		WHERE user_keys.fingerprint = $6`,
+		userID, publicKey, wrappedPrivateKey, kdfSalt, fingerprint, currentFingerprint)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
 }
 
 // SetWrappedMasterKey stores the account master key envelope exactly once. It

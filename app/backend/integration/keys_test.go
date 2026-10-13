@@ -72,9 +72,26 @@ func TestUserKeys(t *testing.T) {
 		assert.Equal(t, body["fingerprint"], key.Fingerprint)
 	})
 
-	t.Run("publishing again rotates the key (upsert)", func(t *testing.T) {
+	t.Run("replacing an existing key without the current fingerprint is a 409", func(t *testing.T) {
+		updated := publishKeyBody()
+		updated["fingerprint"] = "7777-7777-7777-7777"
+		resp := ts.POST("/api/keys", updated, token)
+		assert.Equal(t, http.StatusConflict, resp.StatusCode)
+		resp.Body.Close()
+
+		updated["current_fingerprint"] = "0000-0000-0000-0000"
+		resp = ts.POST("/api/keys", updated, token)
+		assert.Equal(t, http.StatusConflict, resp.StatusCode)
+		resp.Body.Close()
+
+		me := requireStatus(t, ts.GET("/api/keys/me", token), http.StatusOK)
+		assert.Contains(t, string(me), "ABCD-1234-EF56-7890", "stored key untouched")
+	})
+
+	t.Run("publishing with the current fingerprint replaces the key", func(t *testing.T) {
 		updated := publishKeyBody()
 		updated["fingerprint"] = "9999-9999-9999-9999"
+		updated["current_fingerprint"] = "ABCD-1234-EF56-7890"
 		requireStatus(t, ts.POST("/api/keys", updated, token), http.StatusOK)
 
 		resp := ts.GET("/api/keys/me", token)

@@ -666,3 +666,18 @@ func (db *DB) MarkUserOnboarded(ctx context.Context, userID string) error {
 	}
 	return nil
 }
+
+// SessionExists reports whether a sign-in session of the user still has a
+// refresh token row. Revoking a session deletes its rows, so this is what
+// survives a server restart where the in-memory revocation set does not.
+func (db *DB) SessionExists(ctx context.Context, userID, sessionID string) (bool, error) {
+	var ok bool
+	err := db.pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM refresh_tokens WHERE user_id = $1 AND COALESCE(session_id, id) = $2::uuid)`,
+		userID, sessionID,
+	).Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("session exists: %w", err)
+	}
+	return ok, nil
+}

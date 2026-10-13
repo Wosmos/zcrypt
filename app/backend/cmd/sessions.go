@@ -103,7 +103,7 @@ func (s *Server) HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"session not found"}`, http.StatusNotFound)
 		return
 	}
-	s.revokedSessions.add(sessionID)
+	s.revokeSessionIDs(userID, sessionID)
 	s.audit(r, &userID, "session_revoke", map[string]interface{}{"session_id": sessionID})
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -127,7 +127,7 @@ func (s *Server) HandleRevokeOtherSessions(w http.ResponseWriter, r *http.Reques
 		internalError(w, "revoke other sessions", err)
 		return
 	}
-	s.revokedSessions.add(ids...)
+	s.revokeSessionIDs(userID, ids...)
 	s.audit(r, &userID, "sessions_revoke_others", map[string]interface{}{"count": len(ids)})
 	writeJSON(w, http.StatusOK, map[string]int{"revoked": len(ids)})
 }

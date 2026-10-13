@@ -1645,7 +1645,7 @@ func (s *Server) revokeSessions(ctx context.Context, userID string) error {
 	if err != nil {
 		return fmt.Errorf("delete refresh tokens: %w", err)
 	}
-	s.revokedSessions.add(sessionIDs...)
+	s.revokeSessionIDs(userID, sessionIDs...)
 	return nil
 }
 
