@@ -110,7 +110,7 @@ export async function renameFile(fileId: string, name: string): Promise<void> {
       (f.folder_id ?? null) === folderId &&
       f.original_name.trim().toLowerCase() === trimmed.toLowerCase(),
   );
-  if (dup) throw new Error(`A file named "${trimmed}" already exists here.`);
+  if (dup) throw new Error(tr("files.duplicateName", { name: trimmed }));
 
   const encrypted_name = await encryptName(trimmed, key);
   await apiSetFileName(fileId, encrypted_name);

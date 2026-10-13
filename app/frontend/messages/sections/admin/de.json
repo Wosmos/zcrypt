@@ -313,7 +313,10 @@
       "colUser": "Nutzer",
       "colRole": "Rolle",
       "colPlan": "Tarif",
-      "colActions": "Aktionen"
+      "colActions": "Aktionen",
+      "planFree": "Kostenlos",
+      "planPlus": "Plus",
+      "planPro": "Pro"
     },
     "userDetail": {
       "back": "Zurück zu den Nutzern",
@@ -342,7 +345,8 @@
       "used": "Belegt",
       "recentActivity": "Letzte Aktivität",
       "noActivityTitle": "Keine aktuelle Aktivität",
-      "noActivityDesc": "Dieser Nutzer hat noch keine auditierte Aktivität erzeugt."
+      "noActivityDesc": "Dieser Nutzer hat noch keine auditierte Aktivität erzeugt.",
+      "parallel": "{count} parallel"
     },
     "pricing": {
       "loadFailed": "Tarife konnten nicht geladen werden",
@@ -390,7 +394,8 @@
       "applyLower": "Wenn Speicher, maximale Dateigröße oder parallele Uploads gesenkt werden, werden neue Uploads für Nutzer blockiert, die bereits über dem neuen Limit liegen. Gespeicherte Daten werden nicht gelöscht.",
       "applyPublic": "Die öffentliche Preisseite zeigt die neuen Namen, Preise und Funktionen sofort an.",
       "applyRemoved": "Entfernte Tarife existieren nicht mehr; ihnen noch zugeordnete Nutzer müssen zuerst umgestellt werden.",
-      "applyConfirm": "Für alle Nutzer übernehmen"
+      "applyConfirm": "Für alle Nutzer übernehmen",
+      "newPlan": "Neuer Tarif"
     }
   }
 }

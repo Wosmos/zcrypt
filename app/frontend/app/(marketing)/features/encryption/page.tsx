@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Lock, Shield, Cpu, Server, Eye, X } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
@@ -11,12 +11,12 @@ import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/
 import { cn } from "@/lib/utils";
 import { encryption } from "../_data/encryption";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Zero-Knowledge Encryption. AES-256-GCM, Encrypted on Your Device",
   description:
     "Your files are encrypted on your own device with AES-256-GCM before they ever leave. Your key is derived from your passphrase with PBKDF2-SHA256 (600,000 iterations) and never transmitted. The server only ever sees ciphertext, no keys, no plaintext, not even your folder names.",
+  path: "/features/encryption",
   keywords: [
     "zero-knowledge encryption",
     "client-side encryption",
@@ -27,15 +27,10 @@ export const metadata: Metadata = {
     "encrypted cloud storage",
     "private cloud",
   ],
-  alternates: { canonical: `${SITE_URL}/features/encryption` },
-  openGraph: {
-    title: "Zero-Knowledge Encryption. Encrypted on Your Device | zcrypt",
-    description:
-      "AES-256-GCM, on your device, before anything leaves. Your passphrase never travels. The server only ever holds ciphertext, no keys, no plaintext, no folder names.",
-    url: `${SITE_URL}/features/encryption`,
-    type: "website",
-  },
-};
+  ogTitle: "Zero-Knowledge Encryption. Encrypted on Your Device | zcrypt",
+  ogDescription:
+    "AES-256-GCM, on your device, before anything leaves. Your passphrase never travels. The server only ever holds ciphertext, no keys, no plaintext, no folder names.",
+});
 
 export default function EncryptionPage() {
   const { hero, boundary, guarantees, pipelineSection, pipeline, tieIn, related, cta } = encryption;

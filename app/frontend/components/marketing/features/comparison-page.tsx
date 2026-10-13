@@ -153,7 +153,7 @@ export function ComparisonPage({
                   <IconWell icon={Icon} />
                   <h3 className="pv2-h3 vs-link-title">
                     <T k={c(`related.${id}.title`)} />
-                    <ArrowRight className="vs-link-arrow" aria-hidden="true" />
+                    <ArrowRight className="vs-link-arrow rtl:-scale-x-100" aria-hidden="true" />
                   </h3>
                   <p className="pv2-body">
                     <T k={c(`related.${id}.desc`)} />

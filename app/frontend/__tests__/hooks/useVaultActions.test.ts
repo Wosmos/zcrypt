@@ -422,7 +422,7 @@ describe("handleFilesSelected", () => {
     const newFile = new File(["y"], "new.png");
     Object.defineProperty(newFile, "size", { value: 200 });
 
-    const args = makeArgs({ files: [existing] });
+    const args = makeArgs({ files: [existing], vault: makeVault({ unlocked: true }) });
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
@@ -447,7 +447,7 @@ describe("handleFilesSelected", () => {
       return f;
     });
 
-    const args = makeArgs({ files: existingFiles });
+    const args = makeArgs({ files: existingFiles, vault: makeVault({ unlocked: true }) });
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
@@ -464,7 +464,7 @@ describe("handleFilesSelected", () => {
     const dupFile = new File(["x"], "dup.png");
     Object.defineProperty(dupFile, "size", { value: 100 });
 
-    const vault = makeVault();
+    const vault = makeVault({ unlocked: true });
     const args = makeArgs({ files: [existing], vault });
     const { result } = renderHook(() => useVaultActions(args));
 
@@ -474,6 +474,106 @@ describe("handleFilesSelected", () => {
 
     expect(vault.withPassphrase).not.toHaveBeenCalled();
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("refuses zero-byte files with a toast and uploads the rest", () => {
+    const empty = new File([], "empty.txt");
+    const ok = new File(["y"], "ok.txt");
+
+    const args = makeArgs();
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected([empty, ok]);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalledWith("Empty files can't be uploaded: empty.txt");
+    const uploaded = mockUploadStoreState.startUpload.mock.calls[0][0] as File[];
+    expect(uploaded.map((f) => f.name)).toEqual(["ok.txt"]);
+  });
+
+  it("summarises more than three zero-byte files and stops when nothing is left", () => {
+    const empties = ["a", "b", "c", "d", "e"].map((n) => new File([], n));
+
+    const args = makeArgs();
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected(empties);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalledWith("Empty files can't be uploaded: a, b, c +2");
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("keeps a desktop placeholder that is 0 bytes but carries a real path", () => {
+    const placeholder = Object.assign(new File([], "big.mov"), { path: "/tmp/big.mov" });
+
+    const args = makeArgs();
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected([placeholder]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockUploadStoreState.startUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("only treats a same-name file in the destination folder as a duplicate", () => {
+    const elsewhere = makeFile({
+      id: "e1",
+      original_name: "dup.png",
+      original_size: 100,
+      folder_id: "other",
+    });
+    const dupFile = new File(["x"], "dup.png");
+    Object.defineProperty(dupFile, "size", { value: 100 });
+
+    const args = makeArgs({
+      files: [elsewhere],
+      vault: makeVault({ unlocked: true }),
+      currentFolderId: null,
+    });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected([dupFile]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockUploadStoreState.startUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("compares names after NFC normalization", () => {
+    const existing = makeFile({ id: "e1", original_name: "caf\u00e9.png", original_size: 100 });
+    const dupFile = new File(["x"], "cafe\u0301.png");
+    Object.defineProperty(dupFile, "size", { value: 100 });
+
+    const args = makeArgs({ files: [existing], vault: makeVault({ unlocked: true }) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected([dupFile]);
+    });
+
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("skips the duplicate check while the vault is locked", () => {
+    const existing = makeFile({ id: "e1", original_name: "[locked]", original_size: 100 });
+    const file = new File(["x"], "[locked]");
+    Object.defineProperty(file, "size", { value: 100 });
+
+    const args = makeArgs({ files: [existing], vault: makeVault({ unlocked: false }) });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleFilesSelected([file]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockUploadStoreState.startUpload).toHaveBeenCalledTimes(1);
   });
 
   it("wraps a protected-folder upload with the folder password", () => {
@@ -582,7 +682,7 @@ describe("handleDownload", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleDownload("missing.png");
+      result.current.handleDownload("missing");
     });
 
     expect(vault.withPassphrase).not.toHaveBeenCalled();
@@ -597,7 +697,7 @@ describe("handleDownload", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleDownload("a.png");
+      result.current.handleDownload("f1");
     });
 
     expect(vault.withPassphrase).not.toHaveBeenCalled();
@@ -614,7 +714,7 @@ describe("handleDownload", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleDownload("a.png");
+      result.current.handleDownload("f1");
     });
 
     expect(vault.withPassphrase).not.toHaveBeenCalled();
@@ -629,7 +729,7 @@ describe("handleDownload", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleDownload("a.png");
+      result.current.handleDownload("f1");
     });
 
     expect(mockDownloadStoreState.startDownload).toHaveBeenCalled();
@@ -642,7 +742,7 @@ describe("handleDownload", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleDownload("a.png");
+      result.current.handleDownload("f1");
     });
 
     expect(mockDownloadStoreState.startDownload).toHaveBeenCalledWith(
@@ -666,7 +766,7 @@ describe("handleDownload", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handleDownload("a.png");
+      result.current.handleDownload("f1");
     });
 
     const resolver = mockDownloadStoreState.startDownload.mock.calls[0][4] as (
@@ -776,7 +876,7 @@ describe("handlePreview / startPreview", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     await act(async () => {
-      result.current.handlePreview("missing.png");
+      result.current.handlePreview("missing");
       await flush();
     });
 
@@ -794,7 +894,7 @@ describe("handlePreview / startPreview", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handlePreview("a.png");
+      result.current.handlePreview("f1");
     });
     expect(args.openPreview).toHaveBeenNthCalledWith(1, null, "a.png", 42); // synchronous, before any decrypt work starts
 
@@ -825,7 +925,7 @@ describe("handlePreview / startPreview", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handlePreview("a.png");
+      result.current.handlePreview("f1");
     });
 
     // Same non-deterministic tick count as the success test above, wait for
@@ -846,7 +946,7 @@ describe("handlePreview / startPreview", () => {
     // construction, and confirms the preview eventually opens.
     mockCachedDecrypt
       .mockImplementationOnce(async () => {
-        throw new Error("Decryption failed, wrong passphrase?");
+        throw new IncorrectPassphraseError();
       })
       .mockImplementation((_id: string, _folderId: string | null, decrypt: () => Promise<Blob>) => decrypt());
     const blob = new Blob(["retried"]);
@@ -857,7 +957,7 @@ describe("handlePreview / startPreview", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handlePreview("a.png");
+      result.current.handlePreview("f1");
     });
 
     await waitFor(() => {
@@ -881,7 +981,7 @@ describe("handlePreview / startPreview", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handlePreview("a.png");
+      result.current.handlePreview("f1");
     });
 
     await waitFor(() => {
@@ -899,7 +999,7 @@ describe("handlePreview / startPreview", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     act(() => {
-      result.current.handlePreview("a.png");
+      result.current.handlePreview("f1");
     });
 
     await waitFor(() => {
@@ -1026,15 +1126,19 @@ describe("handleMoveFileTo", () => {
     expect(args.refresh).not.toHaveBeenCalled();
   });
 
-  it("Undo re-invokes the move back to the file's original folder", async () => {
+  it("Undo moves the file back to its original folder once the list reflects the move", async () => {
     const file = makeFile({ id: "f1", original_name: "a.png", folder_id: "some-folder" });
-    const args = makeArgs({ files: [file] });
-    const { result } = renderHook(() => useVaultActions(args));
+    const { result, rerender } = renderHook((a: ReturnType<typeof makeArgs>) => useVaultActions(a), {
+      initialProps: makeArgs({ files: [file] }),
+    });
 
     await act(async () => {
       result.current.handleMoveFileTo("f1", null);
       await flush();
     });
+    expect(mockMoveFile).toHaveBeenLastCalledWith("f1", null);
+
+    rerender(makeArgs({ files: [{ ...file, folder_id: null }] }));
 
     const [, action] = mockToast.success.mock.calls[0];
     await act(async () => {
@@ -1042,7 +1146,7 @@ describe("handleMoveFileTo", () => {
       await flush();
     });
 
-    expect(mockMoveFile).toHaveBeenCalledWith("f1", null);
+    expect(mockMoveFile).toHaveBeenLastCalledWith("f1", "some-folder");
   });
 
   it("shows a plain 'Moved' toast when moving into a folder (not Root)", async () => {
@@ -1638,7 +1742,7 @@ describe("Tauri desktop upload routing", () => {
     const { result } = renderHook(() => fresh(args));
 
     act(() => {
-      result.current.handleDownload("big.mp4");
+      result.current.handleDownload("f1");
     });
 
     // The browser pipeline buffers the whole file in the webview, which OOMs on
@@ -1663,7 +1767,7 @@ describe("Tauri desktop upload routing", () => {
     const { result } = renderHook(() => fresh(args));
 
     act(() => {
-      result.current.handleDownload("a.png");
+      result.current.handleDownload("f1");
     });
     expect(mockDownloadStoreState.startDesktopDownload).toHaveBeenCalledWith(
       "f1",

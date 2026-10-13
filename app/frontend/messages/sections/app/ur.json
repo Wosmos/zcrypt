@@ -371,6 +371,7 @@
       "retry": "دوبارہ آزمائیں",
       "decrypting": "ڈی کرپٹ ہو رہا ہے…",
       "decryptingProgress": "ڈی کرپٹ ہو رہا ہے… {done}/{total} · {percent}%",
+      "tooLarge": "یہ فائل یہاں پیش منظر کے لیے بہت بڑی ہے۔ اس کے بجائے اسے ڈاؤن لوڈ کریں۔",
       "noPreview": "اس قسم کی فائل کا پیش منظر دستیاب نہیں ہے۔",
       "readFailed": "یہ فائل پڑھی نہیں جا سکی۔",
       "docFailed": "یہ دستاویز دکھائی نہیں جا سکی۔",
@@ -788,7 +789,10 @@
         "rename": "نام تبدیل کریں",
         "clear": "انتخاب صاف کریں",
         "show": "یہ شارٹ کٹس دکھائیں"
-      }
+      },
+      "folderCount": "{count, plural, one {# فولڈر} other {# فولڈرز}}",
+      "fileCount": "{count, plural, one {# فائل} other {# فائلیں}}",
+      "itemCount": "{count, plural, one {# آئٹم} other {# آئٹمز}}"
     },
     "hooks": {
       "connectionRestored": "سرور سے رابطہ بحال ہو گیا",
@@ -819,7 +823,8 @@
       "deleteFailed": "حذف ناکام رہا",
       "bulkPartial": "{deleted} حذف، {failed} ناکام",
       "bulkDeleted": "{count} فائلیں حذف ہو گئیں",
-      "bulkDeleteFailed": "اجتماعی حذف ناکام رہا"
+      "bulkDeleteFailed": "اجتماعی حذف ناکام رہا",
+      "emptyFilesSkipped": "خالی فائلیں اپ لوڈ نہیں کی جا سکتیں: {names}"
     },
     "notifications": {
       "uploadComplete": "اپ لوڈ مکمل",
@@ -835,7 +840,8 @@
       "unlockCustomize": "فائلوں کو حسب ضرورت بنانے کے لیے اپنا والٹ کھولیں",
       "unlockRename": "فائلوں کا نام بدلنے کے لیے اپنا والٹ کھولیں",
       "emptyName": "نام خالی نہیں ہو سکتا",
-      "addFailed": "فائلیں شامل نہیں ہو سکیں"
+      "addFailed": "فائلیں شامل نہیں ہو سکیں",
+      "duplicateName": "یہاں \"{name}\" نام کی فائل پہلے سے موجود ہے۔"
     },
     "toasts": {
       "restartUpload": "\"{name}\" کی پچھلی اپ لوڈ جاری نہیں رہ سکی، {platform} پر دوبارہ شروع ہو رہی ہے۔",
@@ -860,7 +866,8 @@
       "zipPartial": "ZIP {total} میں سے {failed} فائلوں ({names}) کے بغیر محفوظ ہوئی۔ انہیں الگ الگ ڈاؤن لوڈ کریں۔",
       "zipFailed": "ZIP ڈاؤن لوڈ ناکام ہو گیا",
       "zipFailedMsg": "ZIP ڈاؤن لوڈ ناکام: {msg}",
-      "zipWrongPassword": "اس ZIP میں فولڈر کا پاس ورڈ غلط ہے۔ دوبارہ درج کرنے کے لیے دوبارہ کوشش کریں۔"
+      "zipWrongPassword": "اس ZIP میں فولڈر کا پاس ورڈ غلط ہے۔ دوبارہ درج کرنے کے لیے دوبارہ کوشش کریں۔",
+      "zipFilesLabel": "ZIP، فائلوں کی تعداد: {count}"
     },
     "l10n": {
       "justNow": "ابھی ابھی",

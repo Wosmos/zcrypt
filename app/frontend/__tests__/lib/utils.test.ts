@@ -283,6 +283,11 @@ describe("midTrunc", () => {
     expect(out).toContain("…");
     expect(out).not.toContain(".");
   });
+  it("never splits a surrogate pair when truncating", () => {
+    const name = "\u{1F600}".repeat(30) + ".png";
+    const out = midTrunc(name, 3, 2);
+    expect(out).toBe("\u{1F600}".repeat(3) + "…" + "\u{1F600}".repeat(2) + ".png");
+  });
   it("respects custom start/end lengths", () => {
     expect(midTrunc("abcdefghijklmnop.txt", 3, 2)).toBe("abc…op.txt");
   });

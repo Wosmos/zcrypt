@@ -177,7 +177,7 @@
         "heading": "Desktop apps",
         "subheading": "A native app built with Tauri, running {engine}, the in-process {language} engine, so your files are encrypted on your device before they ever leave it.",
         "blurb": {
-          "macos": "Apple Silicon, macOS 11 Big Sur or later.",
+          "macos": "Apple Silicon and Intel, macOS 10.15 Catalina or later.",
           "windows": "Windows 10 and 11, 64-bit.",
           "linux": "64-bit. Pick your distro's package, or the portable build for anything else."
         },

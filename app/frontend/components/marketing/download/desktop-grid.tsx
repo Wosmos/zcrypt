@@ -115,7 +115,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
           className={cn("mt-5", pillClass("secondary"))}
         >
           <T k="site.download.desktop.viewAll" />
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="rtl:-scale-x-100 h-4 w-4" />
         </a>
       </div>
     );

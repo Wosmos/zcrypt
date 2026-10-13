@@ -57,6 +57,7 @@ export function ExplorerBreadcrumb({
               onClick={() => onNavigate(i)}
               disabled={isLast}
               aria-current={isLast ? "page" : undefined}
+              aria-label={isRoot ? t("myVault") : undefined}
               {...(isDropTarget ? dropHandlers(crumb.id) : {})}
               className={cn(
                 "flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
@@ -73,8 +74,11 @@ export function ExplorerBreadcrumb({
               {isRoot && <Home className="h-3.5 w-3.5 flex-shrink-0" />}
               {/* Root crumb ("My Vault"): on mobile the home icon alone is the
                   back-to-root target, hide the redundant label. Desktop keeps it. */}
-              <span title={crumb.name} className={isRoot ? "hidden sm:inline" : undefined}>
-                {crumb.name ? midTrunc(crumb.name, 10, 4) : crumb.name}
+              <span
+                title={isRoot ? t("myVault") : crumb.name}
+                className={isRoot ? "hidden sm:inline" : undefined}
+              >
+                {isRoot ? t("myVault") : crumb.name ? midTrunc(crumb.name, 10, 4) : crumb.name}
               </span>
             </button>
           </div>

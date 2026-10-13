@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Threat model | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Threat model · Docs",
   description:
     "An honest account of what zcrypt defends against (server breaches, storage-provider access, MITM, insider access, metadata leakage) and what it cannot protect: a compromised device, a weak passphrase, and frontend supply-chain risk.",
-  alternates: { canonical: `${SITE_URL}/docs/threat-model` },
-  openGraph: {
-    title: "Threat model | zcrypt Docs",
-    description:
-      "What zcrypt protects against and what it does not: stated plainly, with the reasoning and the mitigations for each gap.",
-    url: `${SITE_URL}/docs/threat-model`,
-  },
-};
+  path: "/docs/threat-model",
+  ogDescription:
+    "What zcrypt protects against and what it does not: stated plainly, with the reasoning and the mitigations for each gap.",
+});
 
 const toc = [
   { id: "protected", k: "docs.threat-model.toc.protected" },

@@ -1,21 +1,13 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Contributing | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Contributing · Docs",
   description:
     "How to build zcrypt locally, the coding conventions, the pre-push quality gate, and how to open a pull request.",
-  alternates: { canonical: `${SITE_URL}/docs/contributing` },
-  openGraph: {
-    title: "Contributing | zcrypt Docs",
-    description:
-      "How to build zcrypt locally, the coding conventions, the pre-push quality gate, and how to open a pull request.",
-    url: `${SITE_URL}/docs/contributing`,
-  },
-};
+  path: "/docs/contributing",
+});
 
 const toc = [
   { id: "overview", k: "docs.contributing.toc.overview" },

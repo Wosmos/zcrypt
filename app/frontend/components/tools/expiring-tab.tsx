@@ -16,6 +16,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Plus, Trash2, Clock } from "@/lib/icons";
+import { useActionError } from "./shared/use-action-error";
+import { ToolLoadError } from "./shared/tool-states";
 import { cn, formatDateTime, formatExpiry, fileNameById } from "@/lib/utils";
 
 const EXPIRY_CHOICES = [
@@ -36,6 +38,7 @@ const NO_FILES: FileMetadata[] = [];
 
 export function ExpiringTab() {
   const t = useTranslations("tools");
+  const reportError = useActionError();
   const reduceMotion = useReducedMotion();
   const vaultsQuery = useQuery({ queryKey: qk.expiring, queryFn: listExpiringVaults });
   const vaults = vaultsQuery.data ?? NO_VAULTS;
@@ -92,8 +95,8 @@ export function ExpiringTab() {
       await deleteExpiringVault(pendingDelete.id);
       setVaults((prev) => prev.filter((v) => v.id !== pendingDelete.id));
       setPendingDelete(null);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      reportError(err);
     } finally {
       setDeleting(false);
     }
@@ -222,6 +225,10 @@ export function ExpiringTab() {
           {Array.from({ length: 3 }).map((_, i) => (
             <SkeletonRow key={i} />
           ))}
+        </div>
+      ) : vaultsQuery.isError ? (
+        <div className="panel">
+          <ToolLoadError error={vaultsQuery.error} onRetry={() => void vaultsQuery.refetch()} />
         </div>
       ) : vaults.length === 0 && !showCreate ? (
         <div className="panel">

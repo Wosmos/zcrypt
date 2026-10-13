@@ -18,9 +18,8 @@ describe("extOf", () => {
     expect(extOf("archive.tar.gz")).toBe("gz");
   });
 
-  it("returns the whole (lowercased) name when there is no extension", () => {
-    // split(".").pop() yields the full string when no dot is present.
-    expect(extOf("README")).toBe("readme");
+  it("returns an empty string when there is no extension", () => {
+    expect(extOf("README")).toBe("");
   });
 });
 

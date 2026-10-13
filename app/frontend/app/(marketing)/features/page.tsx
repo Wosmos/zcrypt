@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -22,10 +22,11 @@ import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Features. The Encrypted Cloud Drive",
   description:
     "Everything zcrypt does: a real encrypted file explorer with folders, in-browser previews, per-folder passwords, sharing, bring-your-own-storage, a transfer manager, and apps for web, desktop, and Android.",
+  path: "/features",
   keywords: [
     "encrypted drive features",
     "encrypted file manager",
@@ -33,15 +34,10 @@ export const metadata: Metadata = {
     "encrypted file viewer",
     "zero-knowledge storage features",
   ],
-  alternates: { canonical: `${SITE_URL}/features` },
-  openGraph: {
-    title: "zcrypt Features. The Encrypted Cloud Drive",
-    description:
-      "A real encrypted file explorer: folders, previews, per-folder passwords, sharing, bring-your-own-storage, and apps for every surface.",
-    url: `${SITE_URL}/features`,
-    type: "website",
-  },
-};
+  ogTitle: "zcrypt Features. The Encrypted Cloud Drive",
+  ogDescription:
+    "A real encrypted file explorer: folders, previews, per-folder passwords, sharing, bring-your-own-storage, and apps for every surface.",
+});
 
 // icon is a string key on featuresNav (lib/data.ts): map it to the actual
 // component here, same convention used across the rest of lib/data.ts.
@@ -91,7 +87,7 @@ export default function FeaturesPage() {
                     <IconWell icon={ICONS[icon]} />
                     <h3 className="pv2-h3 mt-5 flex items-center gap-2 text-lg">
                       <T k={`site.chrome.featuresNav.${slug}.title`} />
-                      <ArrowRight className="ml-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5" />
+                      <ArrowRight className="rtl:-scale-x-100 ms-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
                     </h3>
                     <p className="pv2-body mt-2">
                       <T k={`site.chrome.featuresNav.${slug}.desc`} />

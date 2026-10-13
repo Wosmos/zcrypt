@@ -90,6 +90,7 @@
     "gridView": "عرض الشبكة",
     "select": "تحديد",
     "folderPath": "مسار المجلد",
+    "myVault": "خزنتي",
     "sortBy": "الترتيب حسب {label}",
     "sortByCurrent": "الترتيب حسب {label}، الحالي: {direction}",
     "ascending": "تصاعديًا",
@@ -155,6 +156,7 @@
     "uploadDialogDescription": "تُضغط الملفات وتُشفَّر من طرف إلى طرف وتُقسَّم إلى أجزاء قبل أن تغادر جهازك.",
     "toastFolderProtected": "تمت حماية المجلد",
     "toastFolderPasswordRemoved": "تمت إزالة كلمة مرور المجلد",
+    "toastFolderPasswordRemoveFailed": "تعذرت إزالة كلمة مرور المجلد. لم يتم تغيير أي شيء.",
     "newFolderEmptyVault": "ارفع ملفًا أولًا، وبعدها سيكون لمجلداتك ما تحتويه."
   },
   "settings": {

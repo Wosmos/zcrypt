@@ -185,16 +185,17 @@ export function mimeForFilename(filename: string): string {
   return MIME_BY_EXT[ext] ?? mediaMimeFor(filename) ?? "application/octet-stream";
 }
 
-/** Heuristic: does this thrown error look like a wrong-key failure? */
-function looksLikeWrongKey(err: unknown): boolean {
-  if (err instanceof IncorrectPassphraseError) return true;
-  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  return (
-    msg.includes("decrypt") ||
-    msg.includes("passphrase") ||
-    msg.includes("cipher") ||
-    msg.includes("operationerror") // WebCrypto AES-GCM auth failure
-  );
+/** Typed wrong-key signal: the key derived from the password failed its own check. */
+function isWrongKey(err: unknown): boolean {
+  return err instanceof IncorrectPassphraseError;
+}
+
+/** A chunk failed AES-GCM auth AFTER the key was already proven right. */
+export class ChunkDecryptError extends Error {
+  constructor() {
+    super(tr("hooks.decryptFailed"));
+    this.name = "ChunkDecryptError";
+  }
 }
 
 /**
@@ -213,6 +214,7 @@ function coreCannotServe(msg: string): boolean {
 function coreError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes("content hash mismatch")) return new IntegrityError();
+  if (msg.includes("wrong passphrase or corrupt data")) return new IncorrectPassphraseError();
   return err instanceof Error ? err : new Error(msg);
 }
 
@@ -298,15 +300,18 @@ export async function runDecryptPipeline(
 
   // Legacy files (no wrapped CEK) have no key verifier: a wrong passphrase only
   // surfaces as an AES-GCM auth failure on the first chunk. Verify against
-  // chunk 0 on the MAIN thread before fanning out, so a wrong password still
-  // throws the same DOMException("OperationError") the sequential pipeline
-  // threw: a worker's async decrypt rejection never reaches its 'error' event,
+  // chunk 0 on the MAIN thread before fanning out, so a wrong password throws
+  // a typed IncorrectPassphraseError: a worker's async decrypt rejection never reaches its 'error' event,
   // which would leave the pool (and the viewer) waiting forever instead of
   // re-prompting. Envelope files already fail fast inside resolveFileKey.
   let chunk0: { data: ArrayBuffer; compressed: boolean } | null = null;
   if (!meta.wrapped_cek && meta.chunk_count > 0) {
     chunk0 = await getFileChunk(file.id, 0);
-    await decryptChunk(keyBytes, new Uint8Array(chunk0.data)); // throws on wrong key
+    try {
+      await decryptChunk(keyBytes, new Uint8Array(chunk0.data));
+    } catch {
+      throw new IncorrectPassphraseError();
+    }
   }
 
   const decrypted: Uint8Array[] = new Array(meta.chunk_count);
@@ -334,7 +339,7 @@ export async function runDecryptPipeline(
         compressed,
       });
     } catch {
-      throw new Error(tr("hooks.decryptFailed"));
+      throw new ChunkDecryptError();
     }
 
     decrypted[index] = new Uint8Array(out.plaintext);
@@ -394,6 +399,10 @@ export async function runDecryptPipeline(
   return new Blob([full as BlobPart], { type: mimeForFilename(file.original_name) });
 }
 
+/** Hover sweeps and viewer neighbours both prefetch speculatively, so cap what
+ *  they can start pulling: a huge video prefetch would starve a deliberate open. */
+const HOVER_PREFETCH_MAX_BYTES = 50 * 1024 * 1024;
+
 /**
  * Module-level, NON-prompting cache warm-up, usable outside React (e.g. grid
  * hover). It resolves a password only if one is already available (vault /
@@ -401,6 +410,7 @@ export async function runDecryptPipeline(
  * prefetch is purely an optimisation. Deduped via the decrypt cache.
  */
 export function prefetchFileDecrypt(file: FileMetadata): void {
+  if (file.original_size > HOVER_PREFETCH_MAX_BYTES) return;
   if (isWarmOrInflight(file.id)) return;
   void (async () => {
     try {
@@ -414,10 +424,6 @@ export function prefetchFileDecrypt(file: FileMetadata): void {
   })();
 }
 
-/** Hover sweeps many rows in a second, so cap what a stray pointer crossing can
- *  start pulling: a huge video prefetch would starve a deliberate open. */
-const HOVER_PREFETCH_MAX_BYTES = 50 * 1024 * 1024;
-
 /**
  * Hover-driven prefetch for the explorer's rows/cards. Desktop only, guarded
  * by `(hover: hover)` so touch devices (where pointerenter fires on tap) never
@@ -428,7 +434,6 @@ export function prefetchOnHover(file: FileMetadata): void {
   if (typeof window === "undefined") return;
   if (!window.matchMedia("(hover: hover)").matches) return;
   if (viewerKindFor(file.original_name) === "fallback") return; // not previewable
-  if (file.original_size > HOVER_PREFETCH_MAX_BYTES) return;
   prefetchFileDecrypt(file);
 }
 
@@ -456,7 +461,7 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
         if (err instanceof IntegrityError) throw err;
         // A cancelled unlock prompt is a clean no-op, let it propagate.
         if (err instanceof FolderUnlockCancelled) throw err;
-        if (looksLikeWrongKey(err)) {
+        if (isWrongKey(err)) {
           const fid = file.folder_id ?? null;
           // Throw a typed wrong-password error so callers can clear the cache +
           // re-prompt + retry, exactly mirroring the previous recovery branch.

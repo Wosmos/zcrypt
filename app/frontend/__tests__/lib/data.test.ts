@@ -5,7 +5,6 @@ import {
   accentColors,
   steps,
   faqs,
-  trustBadges,
   GITHUB_REPO,
   RELEASES_URL,
   docsNav,
@@ -53,11 +52,6 @@ describe("static content arrays", () => {
     }
   });
 
-
-  it("trustBadges is a non-empty list of strings", () => {
-    expect(trustBadges.length).toBeGreaterThan(0);
-    for (const b of trustBadges) expect(typeof b).toBe("string");
-  });
 });
 
 describe("repo/releases constants", () => {

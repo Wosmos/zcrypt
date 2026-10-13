@@ -371,6 +371,7 @@
       "retry": "Повторить",
       "decrypting": "Расшифровка…",
       "decryptingProgress": "Расшифровка… {done}/{total} · {percent}%",
+      "tooLarge": "Этот файл слишком большой для предпросмотра. Скачайте его.",
       "noPreview": "Для этого типа файлов предпросмотр недоступен.",
       "readFailed": "Не удалось прочитать этот файл.",
       "docFailed": "Не удалось отобразить этот документ.",
@@ -788,7 +789,10 @@
         "rename": "Переименовать",
         "clear": "Снять выделение",
         "show": "Показать эти сочетания"
-      }
+      },
+      "folderCount": "{count, plural, one {# папка} few {# папки} many {# папок} other {# папки}}",
+      "fileCount": "{count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}",
+      "itemCount": "{count, plural, one {# элемент} few {# элемента} many {# элементов} other {# элемента}}"
     },
     "hooks": {
       "connectionRestored": "Соединение с сервером восстановлено",
@@ -819,7 +823,8 @@
       "deleteFailed": "Не удалось удалить",
       "bulkPartial": "Удалено: {deleted}, ошибок: {failed}",
       "bulkDeleted": "{count, plural, one {Удалён # файл} few {Удалено # файла} many {Удалено # файлов} other {Удалено # файла}}",
-      "bulkDeleteFailed": "Не удалось выполнить массовое удаление"
+      "bulkDeleteFailed": "Не удалось выполнить массовое удаление",
+      "emptyFilesSkipped": "Пустые файлы нельзя загрузить: {names}"
     },
     "notifications": {
       "uploadComplete": "Загрузка завершена",
@@ -835,7 +840,8 @@
       "unlockCustomize": "Разблокируйте хранилище, чтобы настраивать файлы",
       "unlockRename": "Разблокируйте хранилище, чтобы переименовывать файлы",
       "emptyName": "Название не может быть пустым",
-      "addFailed": "Не удалось добавить файлы"
+      "addFailed": "Не удалось добавить файлы",
+      "duplicateName": "Файл с именем \"{name}\" уже существует здесь."
     },
     "toasts": {
       "restartUpload": "Не удалось продолжить предыдущую загрузку «{name}», начинаем заново на {platform}.",
@@ -860,7 +866,8 @@
       "zipPartial": "ZIP сохранён без {failed} из {total} файлов ({names}). Скачайте их по отдельности.",
       "zipFailed": "Не удалось скачать ZIP",
       "zipFailedMsg": "Не удалось скачать ZIP: {msg}",
-      "zipWrongPassword": "Неверный пароль папки в этом ZIP. Повторите, чтобы ввести его снова."
+      "zipWrongPassword": "Неверный пароль папки в этом ZIP. Повторите, чтобы ввести его снова.",
+      "zipFilesLabel": "ZIP, файлов: {count}"
     },
     "l10n": {
       "justNow": "только что",

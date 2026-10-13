@@ -6,6 +6,7 @@ import { listFolders, moveFile, moveFolder } from "@/lib/api";
 import { decryptNameSafe } from "@/lib/name-crypto";
 import { nameKeyFor } from "@/lib/sealed";
 import { qk } from "@/lib/query-keys";
+import { invalidateFolderViews } from "@/lib/invalidate";
 import { queryClient } from "@/lib/query-client";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -231,6 +232,7 @@ export function MoveToFolderDialog({
       setMoving(true);
       try {
         await moveFolder(folderId!, selected);
+        void invalidateFolderViews();
         toast.success(selected === null ? t("folderMovedRoot") : t("folderMoved"));
         onMoved?.();
         onClose();

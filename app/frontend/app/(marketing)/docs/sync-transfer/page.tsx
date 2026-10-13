@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Sync & device transfer | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Sync & device transfer · Docs",
   description:
     "How zcrypt moves data between your own devices: offline pins that keep chosen files on hand per device, end-to-end encrypted clipboard sync pushed live over SSE, folder sync configured for the zcrypt desktop client, and real-time device-to-device file transfer over a 6-digit room code.",
-  alternates: { canonical: `${SITE_URL}/docs/sync-transfer` },
-  openGraph: {
-    title: "Sync & device transfer | zcrypt Docs",
-    description:
-      "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer: the server holds ciphertext and metadata, never your plaintext.",
-    url: `${SITE_URL}/docs/sync-transfer`,
-  },
-};
+  path: "/docs/sync-transfer",
+  ogDescription:
+    "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer: the server holds ciphertext and metadata, never your plaintext.",
+});
 
 const toc = [
   { id: "offline", k: "docs.sync-transfer.toc.offline" },

@@ -177,7 +177,7 @@
         "heading": "Applis de bureau",
         "subheading": "Une appli native conçue avec Tauri, qui embarque {engine}, le moteur {language} intégré, pour que vos fichiers soient chiffrés sur votre appareil avant même d'en sortir.",
         "blurb": {
-          "macos": "Apple Silicon, macOS 11 Big Sur ou version ultérieure.",
+          "macos": "Apple Silicon et Intel, macOS 10.15 Catalina ou version ultérieure.",
           "windows": "Windows 10 et 11, 64 bits.",
           "linux": "64 bits. Choisissez le paquet de votre distribution, ou la version portable pour tout le reste."
         },

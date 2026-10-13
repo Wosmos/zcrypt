@@ -11,6 +11,7 @@ const {
   runDecryptPipelineMock,
   cachedDecryptMock,
   getFilesDataMock,
+  hooks,
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
   getFileChunkMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   runDecryptPipelineMock: vi.fn(),
   cachedDecryptMock: vi.fn(),
   getFilesDataMock: vi.fn(),
+  hooks: {} as { clear?: () => void; wipe?: () => void; folder?: (id: string) => void },
 }));
 
 // The thumbnail decrypts through the viewer's own pipeline (covered by its own
@@ -38,7 +40,15 @@ vi.mock("@/lib/decrypt-cache", () => ({
   cachedDecrypt: cachedDecryptMock,
   // useThumbnail registers its clearer here at module load; stub it so the
   // registration call doesn't hit an undefined export.
-  onDecryptCacheClear: () => {},
+  onDecryptCacheClear: (cb: () => void) => {
+    hooks.clear = cb;
+  },
+  onDecryptWipe: (cb: () => void) => {
+    hooks.wipe = cb;
+  },
+  onDecryptFolderClear: (cb: (id: string) => void) => {
+    hooks.folder = cb;
+  },
 }));
 
 // ── Fake browser media/canvas primitives ────────────────────────────────
@@ -589,7 +599,9 @@ describe("useThumbnail", () => {
     expect(second.result.current.pending).toBe(false);
   });
 
-  it("keeps the cached preview across clearThumbnails (lock/logout) so unlock shows it with no shimmer", async () => {
+  it("drops the in-memory preview on lock and re-hydrates it from disk on unlock with no shimmer", async () => {
+    const { IDBFactory } = await import("fake-indexeddb");
+    globalThis.indexedDB = new IDBFactory();
     const { primeThumbnails, useThumbnail, clearThumbnails, hasCachedThumbnail } = await loadModule();
     getFileMetaMock.mockResolvedValue(makeMeta());
     getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
@@ -598,17 +610,127 @@ describe("useThumbnail", () => {
     const first = renderHook(() => useThumbnail("f1", "photo.jpg"));
     await waitFor(() => expect(first.result.current.thumbnailUrl).not.toBeNull());
     first.unmount();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
-    // Lock/logout must NOT drop the cached preview (that is what caused the
-    // "shimmer on every login": the cache was wiped and had to regenerate).
     act(() => clearThumbnails());
-    expect(hasCachedThumbnail("f1")).toBe(true);
+    expect(hasCachedThumbnail("f1")).toBe(false);
+    const locked = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    expect(locked.result.current.thumbnailUrl).toBeNull();
+    expect(locked.result.current.pending).toBe(false);
+    locked.unmount();
 
-    // Re-unlock: the tile shows instantly from cache, never shimmers.
     act(() => primeThumbnails("vault-pass"));
+    await vi.waitFor(() => expect(hasCachedThumbnail("f1")).toBe(true));
     const second = renderHook(() => useThumbnail("f1", "photo.jpg"));
     expect(second.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
     expect(second.result.current.pending).toBe(false);
+  });
+
+  it("wipeThumbnails (logout) erases memory and the persisted store", async () => {
+    const { IDBFactory } = await import("fake-indexeddb");
+    globalThis.indexedDB = new IDBFactory();
+    const mod1 = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    act(() => mod1.primeThumbnails("vault-pass"));
+    const hook = renderHook(() => mod1.useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(hook.result.current.thumbnailUrl).not.toBeNull());
+    hook.unmount();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    act(() => hooks.wipe!());
+    expect(mod1.hasCachedThumbnail("f1")).toBe(false);
+    await new Promise((r) => setTimeout(r, 10));
+
+    const mod2 = await loadModule();
+    act(() => mod2.primeThumbnails("vault-pass"));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(mod2.hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("wipeThumbnails swallows an IndexedDB failure and clears pending timers", async () => {
+    vi.useFakeTimers();
+    imageBehavior = { mode: "hang", width: 0, height: 0 };
+    const mod = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    act(() => mod.primeThumbnails("vault-pass"));
+    renderHook(() => mod.useThumbnail("f1", "photo.jpg"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(() => mod.wipeThumbnails()).not.toThrow();
+  });
+
+  it("lock cancels a pending retry backoff so nothing regenerates while locked", async () => {
+    vi.useFakeTimers();
+    const mod = await loadModule();
+    getFileMetaMock.mockRejectedValue(new Error("503 unavailable"));
+    act(() => mod.primeThumbnails("vault-pass"));
+    renderHook(() => mod.useThumbnail("f1", "photo.jpg"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    getFileMetaMock.mockClear();
+    mod.clearThumbnails();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+  });
+
+  it("swallows an IndexedDB failure while evicting a re-locked folder", async () => {
+    getFilesDataMock.mockReturnValue([{ id: "p1", folder_id: "fold" }]);
+    const mod = await loadModule();
+    expect(() => hooks.folder!("fold")).not.toThrow();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(mod.hasCachedThumbnail("p1")).toBe(false);
+  });
+
+  it("evicts only a re-locked folder's previews and never persists protected-folder previews", async () => {
+    const { IDBFactory } = await import("fake-indexeddb");
+    globalThis.indexedDB = new IDBFactory();
+    getFilesDataMock.mockReturnValue([
+      { id: "p1", folder_id: "fold" },
+      { id: "o1", folder_id: "other" },
+    ]);
+    const mod = await loadModule();
+    const { useFolderRegistry } = await import("@/store/folder-registry");
+    const spy = vi.spyOn(useFolderRegistry.getState(), "isProtected").mockImplementation((id: string) => id === "fold");
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    cachedDecryptMock.mockImplementation(async (_id: string, _f: unknown, run: () => Promise<Blob>) => run());
+    act(() => mod.primeThumbnails("vault-pass"));
+    const hp = renderHook(() => mod.useThumbnail("p1", "photo.jpg"));
+    const ho = renderHook(() => mod.useThumbnail("o1", "photo.jpg"));
+    await waitFor(() => expect(hp.result.current.thumbnailUrl).not.toBeNull());
+    await waitFor(() => expect(ho.result.current.thumbnailUrl).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    act(() => hooks.folder!("fold"));
+    expect(mod.hasCachedThumbnail("p1")).toBe(false);
+    expect(mod.hasCachedThumbnail("o1")).toBe(true);
+
+    const mod2 = await loadModule();
+    await vi.waitFor(() => expect(mod2.hasCachedThumbnail("o1")).toBe(true));
+    expect(mod2.hasCachedThumbnail("p1")).toBe(false);
+    spy.mockRestore();
+  });
+
+  it("does not cache a thumbnail whose decrypt finished after the vault locked", async () => {
+    const mod = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockImplementation(async () => {
+      mod.clearThumbnails();
+      return { data: new ArrayBuffer(4), sha256: "x", compressed: false };
+    });
+    act(() => mod.primeThumbnails("vault-pass"));
+    renderHook(() => mod.useThumbnail("f1", "photo.jpg"));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mod.hasCachedThumbnail("f1")).toBe(false);
   });
 
   it("marks a file failed when image rendering exceeds its safety-net timeout", async () => {

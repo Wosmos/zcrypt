@@ -127,7 +127,8 @@ const MEDIA_MIME_BY_EXT: Record<string, string> = {
 
 /** Lowercased extension (no dot) of a filename, or "" if none. */
 export function extOf(filename: string): string {
-  return filename.split(".").pop()?.toLowerCase() ?? "";
+  const dot = filename.lastIndexOf(".");
+  return dot < 0 ? "" : filename.slice(dot + 1).toLowerCase();
 }
 
 export function isAudioFile(filename: string): boolean {

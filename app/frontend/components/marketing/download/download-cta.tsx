@@ -97,7 +97,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
         <Link href="/register" className={PRIMARY_BTN}>
           <IosGlyph className="h-4 w-4" />
           {t("download.cta.useWebApp")}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight className="rtl:-scale-x-100 h-4 w-4 transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
         </Link>
         <Note>{t("download.cta.noIos")}</Note>
       </>

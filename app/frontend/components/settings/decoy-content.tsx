@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { motion, AnimatePresence } from "motion/react";
-import Link from "next/link";
 import {
   getDecoyStatus,
   setupDecoy,
@@ -24,12 +23,12 @@ import { formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { LoadFailed, SafeguardHeader } from "@/components/settings/settings-primitives";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { ArrowLeft, FileText, Plus, Trash2, Lock, AlertTriangle } from "@/lib/icons";
+import { FileText, Plus, Trash2, Lock, AlertTriangle } from "@/lib/icons";
 
 export function DecoyContent() {
   const t = useTranslations("settings.decoy");
@@ -72,7 +71,7 @@ export function DecoyContent() {
     },
   });
   const [seeded, setSeeded] = useState(false);
-  const settled = !decoyQuery.isPending;
+  const settled = decoyQuery.isSuccess;
   const loaded = decoyQuery.data;
   if (!seeded && settled) {
     setSeeded(true);
@@ -196,6 +195,18 @@ export function DecoyContent() {
     }
   };
 
+  if (!seeded && decoyQuery.isError) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+        <LoadFailed
+          message={t("loadFailed")}
+          retryLabel={t("retry")}
+          onRetry={() => decoyQuery.refetch()}
+        />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -208,14 +219,7 @@ export function DecoyContent() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-      <Link
-        href="/settings"
-        className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-      >
-        <ArrowLeft className="h-3 w-3" /> {t("back")}
-      </Link>
-
-      <PageHeader title={t("title")} description={t("description")} />
+      <SafeguardHeader back={t("back")} title={t("title")} description={t("description")} />
 
       {/* Setup / Status */}
       <div className="panel p-6">

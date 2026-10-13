@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocCode } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Desktop app | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Desktop app · Docs",
   description:
     "The native zcrypt desktop build for macOS, Windows, and Linux, built with Tauri. A native file picker, OAuth sign-in through your system browser, and the same zero-knowledge encryption as the web app.",
-  alternates: { canonical: `${SITE_URL}/docs/desktop-app` },
-  openGraph: {
-    title: "Desktop app | zcrypt Docs",
-    description:
-      "A native desktop build of zcrypt (Tauri) for macOS, Windows, and Linux: native file picker, system-browser OAuth, same zero-knowledge core.",
-    url: `${SITE_URL}/docs/desktop-app`,
-  },
-};
+  path: "/docs/desktop-app",
+  ogDescription:
+    "A native desktop build of zcrypt (Tauri) for macOS, Windows, and Linux: native file picker, system-browser OAuth, same zero-knowledge core.",
+});
 
 const toc = [
   { id: "what", k: "docs.desktop-app.toc.what" },

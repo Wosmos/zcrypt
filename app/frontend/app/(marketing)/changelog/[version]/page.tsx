@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHero } from "@/components/marketing/ui/page-hero";
 import { T } from "@/components/i18n/t";
+import { Labelled } from "@/components/i18n/labelled";
 import { ArrowLeft, ArrowRight } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
@@ -82,7 +83,7 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
         title={<T k={`changelog.${release.key}.title`} />}
         lede={<T k={`changelog.${release.key}.summary`} />}
       />
-      <section className="pv2-sec pv2-sec-join" aria-label="Release notes">
+      <Labelled as="section" k="changelog.page.releaseNotesLabel" className="pv2-sec pv2-sec-join">
         <div className="pv2-wrap pv2-wrap-narrow">
           {release.date === null ? (
             <p className="mb-6 text-center text-[13px] font-medium text-amber-700 dark:text-amber-300">
@@ -95,7 +96,11 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
             <ReleaseGroups release={release} />
           </div>
 
-          <nav aria-label="Versions" className="mt-10 grid gap-4 sm:grid-cols-2">
+          <Labelled
+            as="nav"
+            k="changelog.page.versionsLabel"
+            className="mt-10 grid gap-4 sm:grid-cols-2"
+          >
             {older ? (
               <Link
                 href={`/changelog/${older.version}`}
@@ -134,7 +139,7 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
             ) : (
               <span />
             )}
-          </nav>
+          </Labelled>
 
           <p className="mt-6 text-center">
             <Link
@@ -148,7 +153,7 @@ export default async function ChangelogVersionPage({ params }: { params: Promise
             <ChangelogCta />
           </div>
         </div>
-      </section>
+      </Labelled>
     </>
   );
 }

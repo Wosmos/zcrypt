@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Folder, Lock, ChevronRight, Archive, Image as ImageIcon, FileText } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
@@ -8,12 +8,12 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { encryptedDrive } from "../_data/encrypted-drive";
 import { T } from "@/components/i18n/t";
-import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Encrypted Cloud Drive. Real Folders & File Explorer",
   description:
     "zcrypt is a real encrypted drive, not a flat bucket of files. Nest folders, drag to organize, search, sort, and switch between grid and list: with every file and even folder names encrypted on your device.",
+  path: "/features/encrypted-drive",
   keywords: [
     "encrypted drive",
     "encrypted file manager",
@@ -23,15 +23,9 @@ export const metadata: Metadata = {
     "secure file organization",
     "zero-knowledge drive",
   ],
-  alternates: { canonical: `${SITE_URL}/features/encrypted-drive` },
-  openGraph: {
-    title: "Encrypted Cloud Drive. Real Folders & File Explorer | zcrypt",
-    description:
-      "A real encrypted drive: nest folders, drag to organize, search and sort: every file and folder name encrypted on your device.",
-    url: `${SITE_URL}/features/encrypted-drive`,
-    type: "website",
-  },
-};
+  ogDescription:
+    "A real encrypted drive: nest folders, drag to organize, search and sort: every file and folder name encrypted on your device.",
+});
 
 const explorerFolders = [
   { id: "projects", count: 12 },

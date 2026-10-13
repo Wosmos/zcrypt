@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocTable } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Glossary | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Glossary · Docs",
   description:
     "Plain-language definitions of the terms used across zcrypt: vault, passphrase, CEK, envelope encryption, chunk, salt, KEK, zero-knowledge, BYOB, repo pool, decoy vault, dead man's switch, TOTP, and zstd.",
-  alternates: { canonical: `${SITE_URL}/docs/glossary` },
-  openGraph: {
-    title: "Glossary | zcrypt Docs",
-    description:
-      "Every zcrypt term, defined: vault, passphrase, CEK, envelope encryption, chunk, salt, KEK, zero-knowledge, BYOB, and more.",
-    url: `${SITE_URL}/docs/glossary`,
-  },
-};
+  path: "/docs/glossary",
+  ogDescription:
+    "Every zcrypt term, defined: vault, passphrase, CEK, envelope encryption, chunk, salt, KEK, zero-knowledge, BYOB, and more.",
+});
 
 const toc = [
   { id: "terms", k: "docs.glossary.toc.terms" },

@@ -371,6 +371,7 @@
       "retry": "Réessayer",
       "decrypting": "Déchiffrement…",
       "decryptingProgress": "Déchiffrement… {done}/{total} · {percent}%",
+      "tooLarge": "Ce fichier est trop volumineux pour être prévisualisé ici. Téléchargez-le à la place.",
       "noPreview": "Aucun aperçu disponible pour ce type de fichier.",
       "readFailed": "Impossible de lire ce fichier.",
       "docFailed": "Impossible d'afficher ce document.",
@@ -788,7 +789,10 @@
         "rename": "Renommer",
         "clear": "Effacer la sélection",
         "show": "Afficher ces raccourcis"
-      }
+      },
+      "folderCount": "{count, plural, one {# dossier} other {# dossiers}}",
+      "fileCount": "{count, plural, one {# fichier} other {# fichiers}}",
+      "itemCount": "{count, plural, one {# élément} other {# éléments}}"
     },
     "hooks": {
       "connectionRestored": "Connexion au serveur rétablie",
@@ -819,7 +823,8 @@
       "deleteFailed": "Échec de la suppression",
       "bulkPartial": "{deleted} supprimés, {failed} échoués",
       "bulkDeleted": "{count, plural, one {# fichier supprimé} other {# fichiers supprimés}}",
-      "bulkDeleteFailed": "Échec de la suppression groupée"
+      "bulkDeleteFailed": "Échec de la suppression groupée",
+      "emptyFilesSkipped": "Les fichiers vides ne peuvent pas être importés : {names}"
     },
     "notifications": {
       "uploadComplete": "Envoi terminé",
@@ -835,7 +840,8 @@
       "unlockCustomize": "Déverrouillez votre coffre pour personnaliser des fichiers",
       "unlockRename": "Déverrouillez votre coffre pour renommer des fichiers",
       "emptyName": "Le nom ne peut pas être vide",
-      "addFailed": "Impossible d'ajouter les fichiers"
+      "addFailed": "Impossible d'ajouter les fichiers",
+      "duplicateName": "Un fichier nommé \"{name}\" existe déjà ici."
     },
     "toasts": {
       "restartUpload": "Impossible de poursuivre l'envoi précédent de « {name} », reprise depuis le début sur {platform}.",
@@ -860,7 +866,8 @@
       "zipPartial": "ZIP enregistré sans {failed} fichiers sur {total} ({names}). Téléchargez-les individuellement.",
       "zipFailed": "Échec du téléchargement du ZIP",
       "zipFailedMsg": "Échec du téléchargement du ZIP : {msg}",
-      "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau."
+      "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau.",
+      "zipFilesLabel": "{count, plural, one {# fichier (ZIP)} other {# fichiers (ZIP)}}"
     },
     "l10n": {
       "justNow": "à l'instant",

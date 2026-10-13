@@ -50,7 +50,7 @@ export function TieInSection({
               className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
             >
               {linkLabel}
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
             </Link>
           ) : null}
         </div>

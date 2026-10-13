@@ -90,6 +90,7 @@
     "gridView": "Grid view",
     "select": "Select",
     "folderPath": "Folder path",
+    "myVault": "My Vault",
     "sortBy": "Sort by {label}",
     "sortByCurrent": "Sort by {label}, currently {direction}",
     "ascending": "ascending",
@@ -155,6 +156,7 @@
     "uploadDialogDescription": "Files are compressed, end-to-end encrypted, and chunked before they leave your device.",
     "toastFolderProtected": "Folder protected",
     "toastFolderPasswordRemoved": "Folder password removed",
+    "toastFolderPasswordRemoveFailed": "Couldn't remove the folder password. Nothing was changed.",
     "newFolderEmptyVault": "Upload a file first, then your folders will have something to hold."
   },
   "settings": {

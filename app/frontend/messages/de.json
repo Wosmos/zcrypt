@@ -90,6 +90,7 @@
     "gridView": "Rasteransicht",
     "select": "Auswählen",
     "folderPath": "Ordnerpfad",
+    "myVault": "Mein Tresor",
     "sortBy": "Sortieren nach {label}",
     "sortByCurrent": "Sortieren nach {label}, aktuell {direction}",
     "ascending": "aufsteigend",
@@ -155,6 +156,7 @@
     "uploadDialogDescription": "Dateien werden komprimiert, Ende-zu-Ende verschlüsselt und in Blöcke aufgeteilt, bevor sie dein Gerät verlassen.",
     "toastFolderProtected": "Ordner geschützt",
     "toastFolderPasswordRemoved": "Ordnerpasswort entfernt",
+    "toastFolderPasswordRemoveFailed": "Das Ordnerpasswort konnte nicht entfernt werden. Es wurde nichts geändert.",
     "newFolderEmptyVault": "Lade zuerst eine Datei hoch, dann haben deine Ordner auch etwas zu halten."
   },
   "settings": {

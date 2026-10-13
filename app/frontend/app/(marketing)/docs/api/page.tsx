@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   DocPage,
   DocSection,
@@ -12,18 +10,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "API reference | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "API reference · Docs",
   description:
     "The zcrypt REST API: base URL, Bearer-JWT authentication, JSON request and response bodies, chunked upload and download, file and folder sharing, shared vaults and per-user keys, timed vaults, snapshots and integrity, offline pins, the encrypted clipboard, sync folders, the SSE event stream, and admin routes.",
-  alternates: { canonical: `${SITE_URL}/docs/api` },
-  openGraph: {
-    title: "API reference | zcrypt Docs",
-    description:
-      "REST endpoints, Bearer-JWT auth, chunked upload/download, sharing, shared vaults, per-user keys, and the SSE event stream for zcrypt.",
-    url: `${SITE_URL}/docs/api`,
-  },
-};
+  path: "/docs/api",
+  ogDescription:
+    "REST endpoints, Bearer-JWT auth, chunked upload/download, sharing, shared vaults, per-user keys, and the SSE event stream for zcrypt.",
+});
 
 const toc = [
   { id: "basics", k: "docs.api.toc.basics" },

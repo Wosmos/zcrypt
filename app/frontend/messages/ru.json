@@ -90,6 +90,7 @@
     "gridView": "Сетка",
     "select": "Выбрать",
     "folderPath": "Путь к папке",
+    "myVault": "Моё хранилище",
     "sortBy": "Сортировать по: {label}",
     "sortByCurrent": "Сортировать по: {label}, сейчас {direction}",
     "ascending": "по возрастанию",
@@ -155,6 +156,7 @@
     "uploadDialogDescription": "Файлы сжимаются, шифруются сквозным шифрованием и делятся на части до того, как покинут ваше устройство.",
     "toastFolderProtected": "Папка защищена",
     "toastFolderPasswordRemoved": "Пароль папки удалён",
+    "toastFolderPasswordRemoveFailed": "Не удалось удалить пароль папки. Ничего не изменено.",
     "newFolderEmptyVault": "Сначала загрузите файл, чтобы в папках было что хранить."
   },
   "settings": {

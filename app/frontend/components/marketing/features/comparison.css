@@ -59,6 +59,9 @@
 .vs-link:hover .vs-link-arrow {
   transform: translateX(3px);
 }
+[dir="rtl"] .vs-link:hover .vs-link-arrow {
+  transform: translateX(-3px);
+}
 
 .vs-cmp {
   max-width: 60rem;

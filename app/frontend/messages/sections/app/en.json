@@ -371,6 +371,7 @@
       "retry": "Retry",
       "decrypting": "Decrypting…",
       "decryptingProgress": "Decrypting… {done}/{total} · {percent}%",
+      "tooLarge": "This file is too large to preview here. Download it instead.",
       "noPreview": "No preview available for this file type.",
       "readFailed": "Could not read this file.",
       "docFailed": "Could not render this document.",
@@ -788,7 +789,10 @@
         "rename": "Rename",
         "clear": "Clear the selection",
         "show": "Show these shortcuts"
-      }
+      },
+      "folderCount": "{count, plural, one {# folder} other {# folders}}",
+      "fileCount": "{count, plural, one {# file} other {# files}}",
+      "itemCount": "{count, plural, one {# item} other {# items}}"
     },
     "hooks": {
       "connectionRestored": "Server connection restored",
@@ -819,7 +823,8 @@
       "deleteFailed": "Delete failed",
       "bulkPartial": "{deleted} deleted, {failed} failed",
       "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
-      "bulkDeleteFailed": "Bulk delete failed"
+      "bulkDeleteFailed": "Bulk delete failed",
+      "emptyFilesSkipped": "Empty files can't be uploaded: {names}"
     },
     "notifications": {
       "uploadComplete": "Upload complete",
@@ -835,7 +840,8 @@
       "unlockCustomize": "Unlock your vault to customize files",
       "unlockRename": "Unlock your vault to rename files",
       "emptyName": "Name cannot be empty",
-      "addFailed": "Failed to add files"
+      "addFailed": "Failed to add files",
+      "duplicateName": "A file named \"{name}\" already exists here."
     },
     "toasts": {
       "restartUpload": "Couldn't continue the previous upload of \"{name}\", restarting on {platform}.",
@@ -860,7 +866,8 @@
       "zipPartial": "ZIP saved without {failed} of {total} files ({names}). Download those individually.",
       "zipFailed": "ZIP download failed",
       "zipFailedMsg": "ZIP download failed: {msg}",
-      "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it."
+      "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it.",
+      "zipFilesLabel": "{count, plural, one {# file (ZIP)} other {# files (ZIP)}}"
     },
     "l10n": {
       "justNow": "just now",

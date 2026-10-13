@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Architecture | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Architecture · Docs",
   description:
     "How zcrypt fits together: a client-side chunk, compress, and encrypt pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces: all behind a strict zero-knowledge boundary.",
-  alternates: { canonical: `${SITE_URL}/docs/architecture` },
-  openGraph: {
-    title: "Architecture | zcrypt Docs",
-    description:
-      "The zcrypt worker-pool pipeline, streaming downloads, staging and sync worker, platform adapters, shared spaces, and the zero-knowledge boundary.",
-    url: `${SITE_URL}/docs/architecture`,
-  },
-};
+  path: "/docs/architecture",
+  ogDescription:
+    "The zcrypt worker-pool pipeline, streaming downloads, staging and sync worker, platform adapters, shared spaces, and the zero-knowledge boundary.",
+});
 
 const toc = [
   { id: "overview", k: "docs.architecture.toc.overview" },
