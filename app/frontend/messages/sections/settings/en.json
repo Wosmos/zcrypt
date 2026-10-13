@@ -454,6 +454,13 @@
       "remove": "Remove",
       "removeFileTitle": "Remove decoy file?",
       "removeFileDesc": "Remove \"{name}\" from the decoy vault?"
+    },
+    "emailPrefs": {
+      "label": "Email",
+      "announcements": "Product announcements",
+      "announcementsDesc": "Occasional news from the zcrypt team.",
+      "footnote": "Account and security emails are always sent.",
+      "saveFailed": "Could not save your email preference"
     }
   }
 }

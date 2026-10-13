@@ -454,6 +454,13 @@
       "remove": "إزالة",
       "removeFileTitle": "إزالة الملف الوهمي؟",
       "removeFileDesc": "إزالة \"{name}\" من الخزنة الوهمية؟"
+    },
+    "emailPrefs": {
+      "label": "البريد الإلكتروني",
+      "announcements": "أخبار المنتج",
+      "announcementsDesc": "أخبار متفرقة من فريق zcrypt.",
+      "footnote": "تُرسل دائمًا رسائل الحساب والأمان.",
+      "saveFailed": "تعذّر حفظ تفضيل البريد الإلكتروني"
     }
   }
 }

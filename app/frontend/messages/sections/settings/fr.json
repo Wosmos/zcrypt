@@ -454,6 +454,13 @@
       "remove": "Retirer",
       "removeFileTitle": "Retirer le fichier leurre ?",
       "removeFileDesc": "Retirer « {name} » du coffre leurre ?"
+    },
+    "emailPrefs": {
+      "label": "E-mail",
+      "announcements": "Actualités du produit",
+      "announcementsDesc": "Des nouvelles occasionnelles de l'équipe zcrypt.",
+      "footnote": "Les e-mails de compte et de sécurité sont toujours envoyés.",
+      "saveFailed": "Impossible d'enregistrer votre préférence e-mail"
     }
   }
 }

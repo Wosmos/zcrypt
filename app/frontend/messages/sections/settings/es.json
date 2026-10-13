@@ -454,6 +454,13 @@
       "remove": "Quitar",
       "removeFileTitle": "¿Quitar el archivo señuelo?",
       "removeFileDesc": "¿Quitar «{name}» de la bóveda señuelo?"
+    },
+    "emailPrefs": {
+      "label": "Correo",
+      "announcements": "Novedades del producto",
+      "announcementsDesc": "Noticias ocasionales del equipo de zcrypt.",
+      "footnote": "Los correos de cuenta y seguridad siempre se envían.",
+      "saveFailed": "No se pudo guardar tu preferencia de correo"
     }
   }
 }

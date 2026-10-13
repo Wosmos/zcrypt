@@ -454,6 +454,13 @@
       "remove": "Entfernen",
       "removeFileTitle": "Köder-Datei entfernen?",
       "removeFileDesc": "„{name}“ aus dem Köder-Tresor entfernen?"
+    },
+    "emailPrefs": {
+      "label": "E-Mail",
+      "announcements": "Produktneuigkeiten",
+      "announcementsDesc": "Gelegentliche Neuigkeiten vom zcrypt-Team.",
+      "footnote": "Konto- und Sicherheits-E-Mails werden immer gesendet.",
+      "saveFailed": "Deine E-Mail-Einstellung konnte nicht gespeichert werden"
     }
   }
 }
