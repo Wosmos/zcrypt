@@ -156,6 +156,7 @@
     "uploadDialogDescription": "文件在离开你的设备之前会被压缩、端到端加密并分块。",
     "toastFolderProtected": "文件夹已加密保护",
     "toastFolderPasswordRemoved": "文件夹密码已移除",
+    "toastFolderPasswordRemoveFailed": "无法移除文件夹密码。未做任何更改。",
     "newFolderEmptyVault": "先上传一个文件，文件夹才有东西可装。"
   },
   "settings": {
