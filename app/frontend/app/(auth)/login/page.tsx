@@ -13,7 +13,7 @@ import { EmailField } from "@/components/auth/email-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
-import { isTauri } from "@/lib/tauri";
+import { isTauri, subscribeOAuthCallback } from "@/lib/tauri";
 import { useFriendlyError } from "@/hooks/useConnectivity";
 
 export default function LoginPage() {
@@ -36,6 +36,8 @@ export default function LoginPage() {
 
     let stopped = false;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let pendingSession = "";
+    let pollNow: (() => void) | null = null;
 
     function startPolling() {
       let session = "";
@@ -50,6 +52,7 @@ export default function LoginPage() {
         /* malformed entry */
       }
       if (!session || !verifier) return;
+      pendingSession = session;
       setApprovalCode(code);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -91,6 +94,7 @@ export default function LoginPage() {
           /* network error, keep polling */
         }
       };
+      pollNow = () => void poll();
       intervalId = setInterval(() => {
         void poll();
       }, 2000);
@@ -105,8 +109,18 @@ export default function LoginPage() {
     }
     window.addEventListener("desktop-oauth-start", onOAuthStart);
 
+    let unlisten: (() => void) | undefined;
+    void subscribeOAuthCallback((session) => {
+      if (stopped || !pendingSession || session !== pendingSession) return;
+      pollNow?.();
+    }).then((fn) => {
+      if (stopped) fn();
+      else unlisten = fn;
+    });
+
     return () => {
       stopped = true;
+      unlisten?.();
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener("desktop-oauth-start", onOAuthStart);
     };

@@ -172,6 +172,16 @@ export async function subscribeTokens(
   });
 }
 
+/** Subscribe to the desktop OAuth deep-link wake-up. The payload is only the
+ *  session id; the caller must compare it with its pending session. */
+export async function subscribeOAuthCallback(cb: (session: string) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<{ session: string }>("zcrypt://oauth-callback", (event) => {
+    cb(event.payload.session);
+  });
+}
+
 export async function stopSync(): Promise<void> {
   return tauriInvoke("stop_sync");
 }

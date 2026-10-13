@@ -53,6 +53,13 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
+  it("subscribeOAuthCallback resolves a no-op unlisten outside Tauri", async () => {
+    const mod = await import("@/lib/tauri");
+    const unlisten = await mod.subscribeOAuthCallback(() => {});
+    expect(listenMock).not.toHaveBeenCalled();
+    expect(() => unlisten()).not.toThrow();
+  });
+
   it("subscribeTokens resolves a no-op unlisten outside Tauri", async () => {
     const mod = await import("@/lib/tauri");
     const unlisten = await mod.subscribeTokens(() => {});
@@ -499,6 +506,20 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(listenMock).toHaveBeenCalledWith("zcrypt://tokens", expect.any(Function));
     handler?.({ payload: { access_token: "a", refresh_token: "r" } });
     expect(cb).toHaveBeenCalledWith({ access_token: "a", refresh_token: "r" });
+  });
+
+  it("subscribeOAuthCallback forwards only the session from zcrypt://oauth-callback", async () => {
+    let handler: ((event: { payload: unknown }) => void) | undefined;
+    listenMock.mockImplementation((_event: string, cb: (event: { payload: unknown }) => void) => {
+      handler = cb;
+      return Promise.resolve(() => {});
+    });
+    const mod = await import("@/lib/tauri");
+    const cb = vi.fn();
+    await mod.subscribeOAuthCallback(cb);
+    expect(listenMock).toHaveBeenCalledWith("zcrypt://oauth-callback", expect.any(Function));
+    handler?.({ payload: { session: "ab12" } });
+    expect(cb).toHaveBeenCalledWith("ab12");
   });
 
   it("subscribeProgress listens on zcrypt://progress and forwards payloads", async () => {
