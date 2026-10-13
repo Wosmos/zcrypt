@@ -58,15 +58,10 @@ func (s *Server) HandleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 		internalError(w, "schedule deletion", err)
 		return
 	}
-	if err := s.db.IncrementTokenVersion(ctx, userID); err != nil {
-		log.Printf("account deletion: bump token version: %v", err)
+	if err := s.revokeSessions(ctx, userID); err != nil {
+		internalError(w, "account deletion: sign out sessions", err)
+		return
 	}
-	s.tokenVersions.invalidate(userID)
-	sessionIDs, err := s.db.DeleteRefreshTokensByUser(ctx, userID)
-	if err != nil {
-		log.Printf("account deletion: drop sessions: %v", err)
-	}
-	s.revokedSessions.add(sessionIDs...)
 	clearRefreshCookie(w)
 
 	cfg, baseURL, to := s.emailCfg(), s.baseURL(r), user.Email
@@ -104,7 +99,7 @@ func (s *Server) fakeAccountDeletion(w http.ResponseWriter, r *http.Request, pas
 	if _, err := s.db.DeleteSession(ctx, claims.Sub, claims.SessionID); err != nil {
 		log.Printf("decoy account deletion: drop session: %v", err)
 	}
-	s.revokedSessions.add(claims.SessionID)
+	s.revokeSessionIDs(claims.Sub, claims.SessionID)
 	clearRefreshCookie(w)
 	deleteAt := time.Now().Add(accountDeletionGrace).UTC().Truncate(time.Second)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"deletion_scheduled_at": deleteAt})

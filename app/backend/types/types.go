@@ -1058,4 +1058,7 @@ type PublishKeyRequest struct {
 	WrappedPrivateKey string `json:"wrapped_private_key"`
 	KDFSalt           string `json:"kdf_salt"`
 	Fingerprint       string `json:"fingerprint"`
+	// CurrentFingerprint is required to replace an existing keypair and must
+	// equal the stored fingerprint; a first publish leaves it empty.
+	CurrentFingerprint string `json:"current_fingerprint,omitempty"`
 }

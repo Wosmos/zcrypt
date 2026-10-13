@@ -153,6 +153,13 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Filename = ""
+	if req.FolderID != nil && *req.FolderID == "" {
+		req.FolderID = nil
+	}
+	if !validOptionalUUID(req.FolderID) {
+		http.Error(w, `{"error":"invalid folder_id"}`, http.StatusBadRequest)
+		return
+	}
 	if req.OriginalSize <= 0 || req.SHA256 == "" || req.Salt == "" || req.ChunkCount <= 0 {
 		http.Error(w, `{"error":"encrypted_name, original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
 		return
@@ -438,15 +445,6 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 
 	compressed := r.Header.Get("X-Chunk-Compressed") == "true"
 
-	// Acquire semaphore slot: limits server-wide concurrent chunk processing to prevent OOM
-	select {
-	case chunkUploadSem <- struct{}{}:
-		defer func() { <-chunkUploadSem }()
-	case <-ctx.Done():
-		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
-		return
-	}
-
 	// Validate session
 	session, err := s.db.GetUploadSession(ctx, sessionID, userID)
 	if err != nil {
@@ -507,6 +505,15 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	actualHash := hex.EncodeToString(hash[:])
 	if actualHash != expectedHash {
 		http.Error(w, `{"error":"chunk hash mismatch"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Take a slot only now that the (slow) body read is done: limits server-wide concurrent chunk processing to prevent OOM
+	select {
+	case chunkUploadSem <- struct{}{}:
+		defer func() { <-chunkUploadSem }()
+	case <-ctx.Done():
+		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
 		return
 	}
 

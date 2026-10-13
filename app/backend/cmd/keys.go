@@ -31,7 +31,8 @@ func (s *Server) HandleGetMyKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(key) // nil → JSON null (client then generates)
 }
 
-// HandlePublishKey publishes (or rotates) the caller's keypair. Every field is
+// HandlePublishKey publishes the caller's keypair, or replaces it when the
+// caller proves the current fingerprint (409 otherwise). Every field is
 // produced client-side; the wrapped private key is opaque ciphertext to us.
 // POST /api/keys
 func (s *Server) HandlePublishKey(w http.ResponseWriter, r *http.Request) {
@@ -48,9 +49,14 @@ func (s *Server) HandlePublishKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.UpsertUserKey(ctx, userID, req.PublicKey, req.WrappedPrivateKey, req.KDFSalt, req.Fingerprint); err != nil {
+	stored, err := s.db.PublishUserKey(ctx, userID, req.PublicKey, req.WrappedPrivateKey, req.KDFSalt, req.Fingerprint, req.CurrentFingerprint)
+	if err != nil {
 		log.Printf("keys: publish: %v", err)
 		http.Error(w, `{"error":"failed to publish key"}`, http.StatusInternalServerError)
+		return
+	}
+	if !stored {
+		http.Error(w, `{"error":"a key is already published; send current_fingerprint to replace it"}`, http.StatusConflict)
 		return
 	}
 

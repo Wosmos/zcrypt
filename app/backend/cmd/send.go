@@ -197,15 +197,6 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 
 	compressed := r.Header.Get("X-Chunk-Compressed") == "true"
 
-	// Acquire server-wide semaphore
-	select {
-	case chunkUploadSem <- struct{}{}:
-		defer func() { <-chunkUploadSem }()
-	case <-ctx.Done():
-		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
-		return
-	}
-
 	// Validate transfer
 	transfer, err := s.db.GetSendTransferByID(ctx, sessionID)
 	if err != nil {
@@ -238,6 +229,15 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 	actualHash := hex.EncodeToString(hash[:])
 	if actualHash != expectedHash {
 		http.Error(w, `{"error":"chunk hash mismatch"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Take a slot only after the (slow) body read, so a slow sender cannot hold one
+	select {
+	case chunkUploadSem <- struct{}{}:
+		defer func() { <-chunkUploadSem }()
+	case <-ctx.Done():
+		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
 		return
 	}
 
