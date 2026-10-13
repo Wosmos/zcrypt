@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback } from "react";
+import type { PlatformStatus, RepoInfo } from "@/types";
 import { usePlatformStatusQuery, useReposQuery, invalidatePlatforms } from "@/store/platform";
+import { asList } from "@/lib/query-cache";
 
 /**
  * Platform health adapter: keeps the `{ statuses, repos, loading, refresh,
@@ -18,8 +20,8 @@ export function usePlatformHealth() {
     await invalidatePlatforms();
   }, []);
 
-  const statuses = statusesQuery.data ?? [];
-  const repos = reposQuery.data ?? [];
+  const statuses = asList<PlatformStatus>(statusesQuery.data);
+  const repos = asList<RepoInfo>(reposQuery.data);
 
   return {
     statuses,

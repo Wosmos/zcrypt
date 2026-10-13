@@ -63,6 +63,11 @@ const PERSIST_ROOTS = new Set([
   "admin",
 ]);
 export const PERSIST_KEY = "zcrypt-query-cache";
+export const PERSIST_VERSION = "2";
+
+export function persistBuster(userId: string | null): string {
+  return userId ? `${userId}:${PERSIST_VERSION}` : "";
+}
 
 export function shouldPersistQuery(query: Query): boolean {
   return query.state.status === "success" && PERSIST_ROOTS.has(String(query.queryKey[0]));
@@ -118,7 +123,7 @@ function flush(): Promise<void> {
   const next = pending;
   pending = null;
   if (!next || !persistUserId) return Promise.resolve();
-  const stamped = scrubPersistedClient({ ...next, buster: persistUserId });
+  const stamped = scrubPersistedClient({ ...next, buster: persistBuster(persistUserId) });
   return idb(() => set(PERSIST_KEY, stamped)).then(() => undefined);
 }
 

@@ -65,6 +65,13 @@ describe("store/platform", () => {
       expect(getPlatformStatusData()).toEqual(platforms);
       expect(getReposData()).toEqual(repos);
     });
+
+    it("treats a cached value that is not a list as empty", () => {
+      queryClient.setQueryData(qk.platforms, { statuses: platforms });
+      queryClient.setQueryData(qk.repos, null);
+      expect(getPlatformStatusData()).toEqual([]);
+      expect(getReposData()).toEqual([]);
+    });
   });
 
   describe("usePlatformStatusQuery", () => {

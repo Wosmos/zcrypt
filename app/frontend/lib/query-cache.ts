@@ -20,6 +20,11 @@ export function setListData<T>(key: QueryKey, updater: T[] | ((prev: T[]) => T[]
   });
 }
 
+/** A cached value as a list, or `[]` when unset or not list-shaped. */
+export function asList<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 /** Non-reactive snapshot of a query's data, or `fallback` when unset. */
 export function getQueryData<T>(key: QueryKey, fallback: T): T {
   return queryClient.getQueryData<T>(key) ?? fallback;

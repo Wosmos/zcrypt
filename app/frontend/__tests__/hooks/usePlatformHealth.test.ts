@@ -70,6 +70,18 @@ describe("usePlatformHealth", () => {
     expect(result.current.isAnyConnected).toBe(true);
   });
 
+  it("never throws when the cached status is not a list", async () => {
+    (getPlatformStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ statuses: connected });
+    (listRepos as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+    const { result } = renderHook(() => usePlatformHealth(), { wrapper });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.statuses).toEqual([]);
+    expect(result.current.repos).toEqual([]);
+    expect(result.current.isAnyConnected).toBe(false);
+  });
+
   it("isAnyConnected is false when no platform reports connected", async () => {
     (getPlatformStatus as ReturnType<typeof vi.fn>).mockResolvedValue(disconnected);
     (listRepos as ReturnType<typeof vi.fn>).mockResolvedValue([]);

@@ -152,7 +152,7 @@ describe("queryPersister (IndexedDB)", () => {
     expect(idb.store.has(PERSIST_KEY)).toBe(false);
     await vi.advanceTimersByTimeAsync(1000);
     const saved = idb.store.get(PERSIST_KEY) as PersistedClient;
-    expect(saved.buster).toBe("user-1");
+    expect(saved.buster).toBe("user-1:2");
     expect(saved.clientState.queries[0].state.data).toEqual([2]);
     expect(idbSet).toHaveBeenCalledTimes(1);
   });

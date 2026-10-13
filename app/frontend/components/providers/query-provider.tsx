@@ -7,6 +7,7 @@ import {
   queryPersister,
   shouldPersistQuery,
   PERSIST_MAX_AGE,
+  persistBuster,
   revalidateRestored,
 } from "@/lib/query-client";
 import { cachedUserId } from "@/store/auth";
@@ -17,7 +18,7 @@ import { cachedUserId } from "@/store/auth";
 const persistOptions = {
   persister: queryPersister,
   maxAge: PERSIST_MAX_AGE,
-  buster: cachedUserId,
+  buster: persistBuster(cachedUserId),
   dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
   onSuccess: revalidateRestored,
 };
