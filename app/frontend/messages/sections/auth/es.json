@@ -97,14 +97,21 @@
         "telegram": "Crear bot con @BotFather"
       }
     },
-    "showcase": {
-      "caption": "Tu bóveda, tal como la ven nuestros servidores.",
-      "note": "Parece un sinsentido. De eso se trata."
-    },
     "login": {
       "approveCode": "Después de iniciar sesión, tu navegador te pedirá que apruebes. Aprueba solo si muestra este código",
       "useMagic": "Envíame un enlace de acceso en su lugar",
       "usePassword": "Mejor uso mi contraseña"
-    }
+    },
+    "panel": {
+      "login": {
+        "headline": "Tus archivos viven como piezas selladas, repartidas por internet.",
+        "sub": "Inicia sesión y tu frase de contraseña las vuelve a unir en archivos. Sin ella son confeti. También para nosotros."
+      },
+      "register": {
+        "headline": "Tu primer archivo se corta, se sella y se reparte.",
+        "sub": "Cada pieza se cifra en tu dispositivo y se guarda en el almacenamiento gratuito que conectes. Nosotros guardamos el mapa, nunca las llaves."
+      }
+    },
+    "orContinueWith": "O continúa con"
   }
 }

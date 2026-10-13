@@ -97,14 +97,21 @@
         "telegram": "Bot über @BotFather erstellen"
       }
     },
-    "showcase": {
-      "caption": "Dein Tresor, so wie unsere Server ihn sehen.",
-      "note": "Sieht aus wie Unsinn. Genau darum geht es."
-    },
     "login": {
       "approveCode": "Nach der Anmeldung bittet dich dein Browser um Bestätigung. Bestätige nur, wenn dieser Code angezeigt wird",
       "useMagic": "Schick mir stattdessen einen Anmeldelink",
       "usePassword": "Doch lieber mit Passwort"
-    }
+    },
+    "panel": {
+      "login": {
+        "headline": "Deine Dateien liegen als versiegelte Teile verstreut im Internet.",
+        "sub": "Melde dich an, und deine Passphrase setzt sie wieder zu Dateien zusammen. Ohne sie sind sie Konfetti. Auch für uns."
+      },
+      "register": {
+        "headline": "Deine erste Datei wird zerteilt, versiegelt und verstreut.",
+        "sub": "Jedes Teil wird auf deinem Gerät verschlüsselt und auf kostenlosem Speicher abgelegt, den du verbindest. Wir behalten die Karte, nie die Schlüssel."
+      }
+    },
+    "orContinueWith": "Oder weiter mit"
   }
 }

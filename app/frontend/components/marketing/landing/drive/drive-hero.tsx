@@ -32,7 +32,7 @@ function Head() {
       <div className="zh-head-in">
         <Link
           href="/download"
-          className="pv2-pill zh-rise"
+          className="pv2-pill glass-surface zh-rise"
           style={{ "--i": 0 } as React.CSSProperties}
         >
           {t("badge")}
@@ -143,7 +143,6 @@ function HeroInner() {
       ref={section}
       id="top"
       className="zh"
-      data-nav-tone="busy"
       data-view={state.view}
       aria-labelledby="h-top"
     >

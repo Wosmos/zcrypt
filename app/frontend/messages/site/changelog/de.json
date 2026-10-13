@@ -70,7 +70,7 @@
         "toolPages": "Die Seiten Pad, Send und Transfer zeigen wieder ihre Schritte und den Abschlusstext.",
         "systemTheme": "Steht das Design auf System, folgt die App jetzt sofort dem Hell-Dunkel-Wechsel deines Geräts.",
         "connectionStatus": "zcrypt sagt dir jetzt sofort, wenn dein Internet weg oder langsam ist oder unsere Server nicht erreichbar sind, und versucht es selbst erneut.",
-        "signInRedesign": "Eine neu gestaltete Anmeldeseite, die deinen Tresor so zeigt, wie unsere Server ihn sehen (unlesbar), mit Live-Serverstatus unter dem Formular."
+        "signInRedesign": "Aufgeräumtere Anmelde- und Registrierungsseiten: ein schlichtes ganzseitiges Layout mit dem Formular auf einer Seite und einem Live-Serverstatus darunter."
       }
     },
     "v0_1_7": {

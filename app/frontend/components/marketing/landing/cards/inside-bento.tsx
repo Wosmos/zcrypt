@@ -65,7 +65,6 @@ export function InsideBento() {
       id="inside"
       className="pv2-sec zc-inside"
       aria-labelledby="h-inside"
-      data-nav-tone="busy"
     >
       <div className="pv2-wrap">
         <SectionHead
