@@ -83,10 +83,68 @@ const adminLink = { href: "/admin", labelKey: "admin", icon: Users } as const;
 const settingsLink = { href: "/settings", labelKey: "settings", icon: Settings } as const;
 const trashLink = { href: "/trash", labelKey: "trash", icon: Trash2 } as const;
 
+function NavItem({
+  link: { href, labelKey, icon: Icon },
+  active,
+  collapsed,
+}: {
+  link: PrimaryLink;
+  active: boolean;
+  collapsed: boolean;
+}) {
+  const t = useTranslations("shell");
+  const router = useRouter();
+  const label = t(labelKey);
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <Link
+          href={href}
+          title={collapsed ? label : undefined}
+          aria-label={collapsed ? label : undefined}
+          aria-current={active ? "page" : undefined}
+          data-tour={TOUR_NAV[href]}
+          onMouseEnter={() => prefetchRoute(href)}
+          onFocus={() => prefetchRoute(href)}
+          className={cn(
+            "group flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-150",
+            collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
+            active
+              ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
+          )}
+        >
+          <Icon
+            className={cn(
+              "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+              active
+                ? "text-[var(--color-accent)]"
+                : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]",
+            )}
+          />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </Link>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem className="gap-2" onSelect={() => router.push(href)}>
+          <ArrowRight className="h-4 w-4 rtl:-scale-x-100" /> {t("openLink")}
+        </ContextMenuItem>
+        {!isTauri && (
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => window.open(href, "_blank", "noopener,noreferrer")}
+          >
+            <ExternalLink className="h-4 w-4" /> {t("openInNewTab")}
+          </ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
 export function Sidebar() {
   const t = useTranslations("shell");
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuthStore();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const [collapsed, setCollapsed] = useState(false);
@@ -129,62 +187,6 @@ export function Sidebar() {
     return pathname === href;
   };
 
-  const NavItem = ({
-    href,
-    label,
-    icon: Icon,
-  }: {
-    href: string;
-    label: string;
-    icon: typeof Shield;
-  }) => {
-    const active = isActive(href);
-    return (
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <Link
-            href={href}
-            title={collapsed ? label : undefined}
-            aria-current={active ? "page" : undefined}
-            data-tour={TOUR_NAV[href]}
-            onMouseEnter={() => prefetchRoute(href)}
-            onFocus={() => prefetchRoute(href)}
-            className={cn(
-              "group flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-150",
-              collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
-              active
-                ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
-            )}
-          >
-            <Icon
-              className={cn(
-                "h-[18px] w-[18px] flex-shrink-0 transition-colors",
-                active
-                  ? "text-[var(--color-accent)]"
-                  : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]",
-              )}
-            />
-            {!collapsed && <span className="truncate">{label}</span>}
-          </Link>
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
-          <ContextMenuItem className="gap-2" onSelect={() => router.push(href)}>
-            <ArrowRight className="h-4 w-4 rtl:-scale-x-100" /> {t("openLink")}
-          </ContextMenuItem>
-          {!isTauri && (
-            <ContextMenuItem
-              className="gap-2"
-              onSelect={() => window.open(href, "_blank", "noopener,noreferrer")}
-            >
-              <ExternalLink className="h-4 w-4" /> {t("openInNewTab")}
-            </ContextMenuItem>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
-    );
-  };
-
   return (
     <>
       {/* Desktop sidebar, floating panel */}
@@ -208,7 +210,12 @@ export function Sidebar() {
         {/* Nav */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto">
           {primaryLinks.map((link) => (
-            <NavItem key={link.href} href={link.href} label={t(link.labelKey)} icon={link.icon} />
+            <NavItem
+              key={link.href}
+              link={link}
+              active={isActive(link.href)}
+              collapsed={collapsed}
+            />
           ))}
 
           <div className={cn("pt-4", collapsed && "flex justify-center")}>
@@ -219,7 +226,12 @@ export function Sidebar() {
             )}
           </div>
           {secondaryLinks.map((link) => (
-            <NavItem key={link.href} href={link.href} label={t(link.labelKey)} icon={link.icon} />
+            <NavItem
+              key={link.href}
+              link={link}
+              active={isActive(link.href)}
+              collapsed={collapsed}
+            />
           ))}
         </nav>
 
@@ -313,6 +325,7 @@ export function Sidebar() {
         >
           <button
             onClick={() => setCollapsed(!collapsed)}
+            aria-expanded={!collapsed}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-secondary)]"
             aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
             title={collapsed ? t("expandSidebar") : t("collapseSidebar")}
