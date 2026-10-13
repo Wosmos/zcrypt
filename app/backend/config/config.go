@@ -16,6 +16,8 @@ import (
 type EmailConfig struct {
 	APIKey string `json:"api_key"`
 	From   string `json:"from"`
+	// BaseURL overrides the Resend API origin; empty means api.resend.com.
+	BaseURL string `json:"base_url,omitempty"`
 }
 
 // OAuthProviderConfig holds client credentials for a single OAuth provider.

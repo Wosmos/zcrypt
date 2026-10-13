@@ -1059,3 +1059,23 @@ type PublishKeyRequest struct {
 	KDFSalt           string `json:"kdf_salt"`
 	Fingerprint       string `json:"fingerprint"`
 }
+
+// EmailRecipient is a user an announcement will be sent to.
+type EmailRecipient struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+}
+
+// EmailCampaign is one admin announcement send and its delivery counts.
+type EmailCampaign struct {
+	ID             string     `json:"id"`
+	Subject        string     `json:"subject"`
+	Body           string     `json:"body"`
+	Audience       string     `json:"audience"`
+	RecipientCount int        `json:"recipient_count"`
+	SentCount      int        `json:"sent_count"`
+	FailedCount    int        `json:"failed_count"`
+	CreatedBy      *string    `json:"created_by,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	FinishedAt     *time.Time `json:"finished_at,omitempty"`
+}

@@ -1022,4 +1022,22 @@ CREATE TABLE IF NOT EXISTS send_usage (
 CREATE INDEX IF NOT EXISTS idx_send_usage_ip ON send_usage(sender_ip, created_at) WHERE user_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_send_usage_user ON send_usage(user_id, created_at) WHERE user_id IS NOT NULL;
 ALTER TABLE send_transfers ADD COLUMN IF NOT EXISTS served_chunks INTEGER[] NOT NULL DEFAULT '{}';
+
+-- Admin announcements. email_opt_out is the recipient's one-click unsubscribe
+-- from them; account-change notices ignore it. A campaign row is written when a
+-- send starts and its counts are updated as batches go out.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_opt_out BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE TABLE IF NOT EXISTS admin_email_campaigns (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	subject         TEXT NOT NULL,
+	body            TEXT NOT NULL,
+	audience        TEXT NOT NULL,
+	recipient_count INTEGER NOT NULL DEFAULT 0,
+	sent_count      INTEGER NOT NULL DEFAULT 0,
+	failed_count    INTEGER NOT NULL DEFAULT 0,
+	created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	finished_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_admin_email_campaigns_created ON admin_email_campaigns(created_at DESC);
 `

@@ -116,6 +116,8 @@ type Server struct {
 
 	// Desktop OAuth: temporary token store for poll-based auth flow
 	bgWG sync.WaitGroup
+	// notifySem bounds concurrent admin-change notification sends.
+	notifySem chan struct{}
 
 	desktopSessionsMu sync.Mutex
 	desktopSessions   map[string]*desktopOAuthResult
@@ -194,6 +196,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		analyticsLimiter:    newRateLimiter(100, 5*time.Minute),
 		bugIPLimiter:        newRateLimiter(10, time.Hour),
 		bugUserLimiter:      newRateLimiter(10, time.Hour),
+		notifySem:           make(chan struct{}, 4),
 		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
 		transferHub:         newTransferHub(),
 		desktopSessions:     make(map[string]*desktopOAuthResult),
@@ -958,6 +961,14 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/plans", s.AdminMiddleware(s.HandleAdminGetPlans))
 	mux.HandleFunc("PUT /api/admin/plans", maxJSON(s.AdminMiddleware(s.HandleAdminSetPlans)))
 	mux.HandleFunc("GET /api/admin/users/{id}", s.AdminMiddleware(s.HandleAdminGetUser))
+	mux.HandleFunc("POST /api/admin/users/bulk", maxJSON(s.AdminMiddleware(s.HandleAdminBulkUsers)))
+	mux.HandleFunc("POST /api/admin/emails", maxJSON(s.AdminMiddleware(s.HandleAdminSendEmail)))
+	mux.HandleFunc("GET /api/admin/emails", s.AdminMiddleware(s.HandleAdminListEmails))
+	mux.HandleFunc("GET /api/admin/emails/{id}", s.AdminMiddleware(s.HandleAdminGetEmail))
+	mux.HandleFunc("GET /api/email/unsubscribe", s.HandleEmailUnsubscribe)
+	mux.HandleFunc("POST /api/email/unsubscribe", s.HandleEmailUnsubscribe)
+	mux.HandleFunc("GET /api/email/preferences", s.AuthMiddleware(s.HandleGetEmailPrefs))
+	mux.HandleFunc("PUT /api/email/preferences", maxJSON(s.AuthMiddleware(s.HandleSetEmailPrefs)))
 
 	// Feedback (authenticated)
 	mux.HandleFunc("POST /api/feedback", maxJSON(s.AuthMiddleware(s.HandleSubmitFeedback)))

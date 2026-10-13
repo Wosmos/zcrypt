@@ -188,9 +188,14 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		Role     string `json:"role"`
 		Password string `json:"password"`
 		Code     string `json:"code"`
+		notifyOpts
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if err := req.validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -213,6 +218,7 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	oldUser, _ := s.db.GetUserByID(ctx, userID)
 	if err := s.db.SetUserRole(ctx, userID, role); err != nil {
 		internalError(w, "AdminSetRole", err)
 		return
@@ -224,7 +230,9 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &adminID, "admin_role_change", map[string]interface{}{"target_user": userID, "role": req.Role})
+	change := adminChange{kind: "role", role: role}
+	notified := s.notifyChange(ctx, oldUser, change, req.notifyOpts, s.baseURL(r))
+	s.audit(r, &adminID, "admin_role_change", changeAuditMeta(userID, change, notified, false))
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -250,12 +258,18 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Password string `json:"password"`
 		Code     string `json:"code"`
+		notifyOpts
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
+	if err := body.validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if !s.adminReauth(w, r, body.Password, body.Code, "admin_user_delete_denied", map[string]interface{}{"target_user": userID}) {
 		return
 	}
 
+	oldUser, _ := s.db.GetUserByID(ctx, userID)
 	if err := s.db.DeleteUser(ctx, userID); err != nil {
 		internalError(w, "AdminDeleteUser", err)
 		return
@@ -270,7 +284,9 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	s.invalidateUserCache(userID)
 
 	adminID := GetUserID(r)
-	s.audit(r, &adminID, "admin_user_delete", map[string]interface{}{"target_user": userID})
+	change := adminChange{kind: "delete"}
+	notified := s.notifyChange(ctx, oldUser, change, body.notifyOpts, s.baseURL(r))
+	s.audit(r, &adminID, "admin_user_delete", changeAuditMeta(userID, change, notified, false))
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -503,9 +519,14 @@ func (s *Server) HandleAdminSetUserQuota(w http.ResponseWriter, r *http.Request)
 
 	var req struct {
 		QuotaBytes *int64 `json:"quota_bytes"` // null = reset to default, 0 = unlimited, >0 = limit
+		notifyOpts
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if err := req.validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -514,10 +535,17 @@ func (s *Server) HandleAdminSetUserQuota(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.db.SetUserQuota(r.Context(), userID, req.QuotaBytes); err != nil {
+	ctx := r.Context()
+	oldUser, _ := s.db.GetUserByID(ctx, userID)
+	if err := s.db.SetUserQuota(ctx, userID, req.QuotaBytes); err != nil {
 		internalError(w, "AdminSetUserQuota", err)
 		return
 	}
+
+	adminID := GetUserID(r)
+	change := adminChange{kind: "quota", quota: req.QuotaBytes}
+	notified := s.notifyChange(ctx, oldUser, change, req.notifyOpts, s.baseURL(r))
+	s.audit(r, &adminID, "admin_quota_change", changeAuditMeta(userID, change, notified, false))
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -585,9 +613,14 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Plan string `json:"plan"`
+		notifyOpts
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if err := req.validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -595,27 +628,21 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 	// UI is built from) plus the standard tiers: a hardcoded list alone rejects
 	// custom/renamed plans the UI legitimately offers, which surfaced as the
 	// "plan must be 'free', 'plus', or 'pro'" error when setting a plan.
-	validPlan := req.Plan == "free" || req.Plan == "plus" || req.Plan == "pro"
-	if !validPlan {
-		for _, p := range s.loadPlanConfigs(ctx).Plans {
-			if p.ID == req.Plan {
-				validPlan = true
-				break
-			}
-		}
-	}
-	if !validPlan {
+	if !s.validPlanID(ctx, req.Plan) {
 		http.Error(w, `{"error":"unknown plan"}`, http.StatusBadRequest)
 		return
 	}
 
+	oldUser, _ := s.db.GetUserByID(ctx, userID)
 	if err := s.db.SetUserPlan(ctx, userID, req.Plan); err != nil {
 		internalError(w, "AdminSetPlan", err)
 		return
 	}
 
 	adminID := GetUserID(r)
-	s.audit(r, &adminID, "admin_plan_change", map[string]interface{}{"target_user": userID, "plan": req.Plan})
+	change := adminChange{kind: "plan", plan: req.Plan}
+	notified := s.notifyChange(ctx, oldUser, change, req.notifyOpts, s.baseURL(r))
+	s.audit(r, &adminID, "admin_plan_change", changeAuditMeta(userID, change, notified, false))
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
