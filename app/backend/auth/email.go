@@ -15,6 +15,20 @@ import (
 type EmailConfig struct {
 	APIKey string // Resend API key
 	From   string // Sender address (e.g. "zcrypt <noreply@yourdomain.com>")
+	// BaseURL overrides the Resend API origin (tests point it at a stub).
+	BaseURL string
+	// BatchInterval is the pause between batch calls; zero means the default.
+	BatchInterval time.Duration
+}
+
+const defaultResendBase = "https://api.resend.com"
+
+func (c *EmailConfig) endpoint(path string) string {
+	base := strings.TrimRight(c.BaseURL, "/")
+	if base == "" {
+		base = defaultResendBase
+	}
+	return base + path
 }
 
 // brand colors
@@ -264,7 +278,7 @@ func sendResend(cfg *EmailConfig, to, subject, htmlBody string) error {
 		return fmt.Errorf("marshal email payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewReader(payload))
+	req, err := http.NewRequest("POST", cfg.endpoint("/emails"), bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}

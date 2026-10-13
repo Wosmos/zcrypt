@@ -5,6 +5,10 @@ import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
 import { ReauthFields, reauthReady, useUserActionConfirm } from "@/components/admin/reauth-fields";
+import { NotifyFields } from "@/components/admin/notify-fields";
+import { QuotaFields } from "@/components/admin/quota-fields";
+import { BulkActionBar } from "@/components/admin/bulk-action-bar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatBytes, cn, bytesToGb } from "@/lib/utils";
 import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
 import { toast } from "@/store/toast";
@@ -50,6 +54,7 @@ interface RowHandlers {
   onPlanChange: (userId: string, username: string, newPlan: string) => void;
   onRoleToggle: (userId: string, currentRole: Role, username: string) => void;
   onDelete: (userId: string, username: string) => void;
+  onToggleSelect: (userId: string) => void;
   onStartEditQuota: (u: AdminUser) => void;
   onSaveQuota: (userId: string) => void | Promise<void>;
   onCancelEditQuota: () => void;
@@ -99,28 +104,12 @@ function QuotaEditor({
   }
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <Select value={quotaMode} onValueChange={(v) => h.onQuotaModeChange(v as QuotaMode)}>
-        <SelectTrigger className="h-7 w-24 text-xs" aria-label={t("quotaMode")}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="default">{t("modeDefault")}</SelectItem>
-          <SelectItem value="custom">{t("modeCustom")}</SelectItem>
-          <SelectItem value="unlimited">{t("modeUnlimited")}</SelectItem>
-        </SelectContent>
-      </Select>
-      {quotaMode === "custom" && (
-        <input
-          type="number"
-          min="0.1"
-          step="0.5"
-          value={quotaInput}
-          onChange={(e) => h.onQuotaInputChange(e.target.value)}
-          className="w-16 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-          placeholder={t("gb")}
-          aria-label={t("quotaGb")}
-        />
-      )}
+      <QuotaFields
+        mode={quotaMode}
+        input={quotaInput}
+        onModeChange={h.onQuotaModeChange}
+        onInputChange={h.onQuotaInputChange}
+      />
       <IconButton
         icon={Check}
         label={t("saveQuota")}
@@ -152,11 +141,23 @@ function QuotaEditor({
 interface RowProps {
   u: AdminUser;
   isSelf: boolean;
+  selected: boolean;
   busy: boolean;
   editing: boolean;
   quotaMode: QuotaMode;
   quotaInput: string;
   h: RowHandlers;
+}
+
+function RowCheckbox({ u, selected, h }: { u: AdminUser; selected: boolean; h: RowHandlers }) {
+  const t = useTranslations("admin.bulk");
+  return (
+    <Checkbox
+      checked={selected}
+      onCheckedChange={() => h.onToggleSelect(u.id)}
+      aria-label={t("selectRow", { username: u.username })}
+    />
+  );
 }
 
 /** Promote/demote + delete actions: shared by the table row and mobile card. */
@@ -197,6 +198,7 @@ function UserRowActions({
 const UserTableRow = memo(function UserTableRow({
   u,
   isSelf,
+  selected,
   busy,
   editing,
   quotaMode,
@@ -206,7 +208,10 @@ const UserTableRow = memo(function UserTableRow({
   const t = useTranslations("admin.userTable");
   return (
     <tr className="group border-b border-[var(--color-border)] transition-colors last:border-0 hover:bg-[var(--color-surface-1)]">
-      <td className="px-5 py-3.5">
+      <td className="w-10 py-3.5 ps-5">
+        <RowCheckbox u={u} selected={selected} h={h} />
+      </td>
+      <td className="px-4 py-3.5">
         <button
           onClick={() => h.onNavigate(u.id)}
           className="group/name rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
@@ -280,6 +285,7 @@ const UserTableRow = memo(function UserTableRow({
 const UserMobileCard = memo(function UserMobileCard({
   u,
   isSelf,
+  selected,
   busy,
   editing,
   quotaMode,
@@ -290,9 +296,12 @@ const UserMobileCard = memo(function UserMobileCard({
   return (
     <div className="space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
+        <div className="pt-0.5">
+          <RowCheckbox u={u} selected={selected} h={h} />
+        </div>
         <button
           onClick={() => h.onNavigate(u.id)}
-          className="group min-w-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+          className="group min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
         >
           <p className="truncate text-sm font-medium text-[var(--color-text)] transition-colors group-hover:text-[var(--color-accent)]">
             {u.username}
@@ -389,6 +398,7 @@ export function UserTable({
   planConfigs?: PlanConfig[];
 }) {
   const t = useTranslations("admin.userTable");
+  const tb = useTranslations("admin.bulk");
   const tRoles = useTranslations("admin.roles");
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -396,14 +406,35 @@ export function UserTable({
   const [quotaInput, setQuotaInput] = useState("");
   const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
 
-  const { confirmAction, setConfirmAction, reauth, setReauth, needsReauth, closeConfirm } =
-    useUserActionConfirm<{
-      type: "delete" | "role" | "plan";
-      userId: string;
-      userName: string;
-      detail: string;
-      newValue?: string;
-    }>();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const {
+    confirmAction,
+    setConfirmAction,
+    reauth,
+    setReauth,
+    notify,
+    setNotify,
+    needsReauth,
+    closeConfirm,
+  } = useUserActionConfirm<{
+    type: "delete" | "role" | "plan" | "quota";
+    userId: string;
+    userName: string;
+    detail: string;
+    newValue?: string;
+    quotaBytes?: number | null;
+  }>();
+
+  const toggleSelect = (userId: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(userId)) next.add(userId);
+      return next;
+    });
+  const allSelected = users.length > 0 && users.every((u) => selected.has(u.id));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(users.map((u) => u.id)));
+  const liveSelected = users.filter((u) => selected.has(u.id)).map((u) => u.id);
 
   const startEditQuota = (u: AdminUser) => {
     setEditingQuota(u.id);
@@ -412,24 +443,20 @@ export function UserTable({
     setQuotaInput(mode === "custom" ? bytesToGb(u.storage_quota!).toString() : "");
   };
 
-  const saveQuota = async (userId: string) => {
-    setBusy(userId);
-    try {
-      const parsed = parseQuotaInput(quotaMode, quotaInput);
-      if (!parsed.ok) {
-        toast.error(parsed.error);
-        setBusy(null);
-        return;
-      }
-      await adminSetUserQuota(userId, parsed.bytes);
-      toast.success(t("quotaUpdated"));
-      setEditingQuota(null);
-      onRefresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("quotaFailed"));
-    } finally {
-      setBusy(null);
+  const saveQuota = (userId: string) => {
+    const parsed = parseQuotaInput(quotaMode, quotaInput);
+    if (!parsed.ok) {
+      toast.error(parsed.error);
+      return;
     }
+    const username = users.find((u) => u.id === userId)?.username ?? "";
+    setConfirmAction({
+      type: "quota",
+      userId,
+      userName: username,
+      detail: t("quotaConfirmDetail", { username }),
+      quotaBytes: parsed.bytes,
+    });
   };
 
   const getQuotaDisplay = (u: AdminUser) => {
@@ -512,16 +539,20 @@ export function UserTable({
     setBusy(confirmAction.userId);
     try {
       if (confirmAction.type === "delete") {
-        await adminDeleteUser(confirmAction.userId, reauth);
+        await adminDeleteUser(confirmAction.userId, reauth, notify);
         toast.success(t("userDeleted"));
       } else if (confirmAction.type === "role") {
-        await adminSetUserRole(confirmAction.userId, confirmAction.newValue!, reauth);
+        await adminSetUserRole(confirmAction.userId, confirmAction.newValue!, reauth, notify);
         toast.success(
           t("roleUpdated", { role: tRoles(confirmAction.newValue === "admin" ? "admin" : "user") }),
         );
       } else if (confirmAction.type === "plan") {
-        await adminSetUserPlan(confirmAction.userId, confirmAction.newValue!);
+        await adminSetUserPlan(confirmAction.userId, confirmAction.newValue!, notify);
         toast.success(t("planUpdated", { plan: confirmAction.newValue ?? "" }));
+      } else {
+        await adminSetUserQuota(confirmAction.userId, confirmAction.quotaBytes ?? null, notify);
+        toast.success(t("quotaUpdated"));
+        setEditingQuota(null);
       }
       closeConfirm();
       onRefresh();
@@ -530,11 +561,12 @@ export function UserTable({
         err instanceof Error
           ? err.message
           : t(
-              confirmAction.type === "delete"
-                ? "deleteFailed"
-                : confirmAction.type === "role"
-                  ? "roleFailed"
-                  : "planFailed",
+              {
+                delete: "deleteFailed",
+                role: "roleFailed",
+                plan: "planFailed",
+                quota: "quotaFailed",
+              }[confirmAction.type],
             ),
       );
     } finally {
@@ -557,6 +589,13 @@ export function UserTable({
           title: confirmAction.newValue === "admin" ? t("promoteTitle") : t("demoteTitle"),
           description: confirmAction.detail,
           confirmLabel: confirmAction.newValue === "admin" ? t("promote") : t("demote"),
+          variant: "warning" as const,
+        };
+      case "quota":
+        return {
+          title: t("quotaConfirmTitle"),
+          description: confirmAction.detail,
+          confirmLabel: t("saveQuota"),
           variant: "warning" as const,
         };
       case "plan": {
@@ -590,6 +629,7 @@ export function UserTable({
     onPlanChange: handlePlanChange,
     onRoleToggle: handleRoleToggle,
     onDelete: handleDelete,
+    onToggleSelect: toggleSelect,
     onStartEditQuota: startEditQuota,
     onSaveQuota: saveQuota,
     onCancelEditQuota: () => setEditingQuota(null),
@@ -606,6 +646,7 @@ export function UserTable({
     return {
       u,
       isSelf: u.id === currentUserId,
+      selected: selected.has(u.id),
       busy: busy === u.id,
       editing,
       quotaMode: editing ? quotaMode : NO_QUOTA_MODE,
@@ -616,13 +657,19 @@ export function UserTable({
   return (
     <>
       <section className="panel overflow-hidden">
-        <div className="border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            {t("heading")}
-          </h2>
-          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            {t("registered", { count: users.length })}
-          </p>
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+              {t("heading")}
+            </h2>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              {t("registered", { count: users.length })}
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+            <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+            {tb("selectAll")}
+          </label>
         </div>
 
         {/* Desktop table */}
@@ -630,7 +677,8 @@ export function UserTable({
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                <th className="px-5 py-3 text-left font-medium">{t("colUser")}</th>
+                <th className="w-10 py-3 ps-5" aria-label={tb("selectColumn")} />
+                <th className="px-4 py-3 text-left font-medium">{t("colUser")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("colRole")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("colPlan")}</th>
                 <th className="px-4 py-3 text-right font-medium">{t("files")}</th>
@@ -670,8 +718,20 @@ export function UserTable({
           confirmDisabled={needsReauth && !reauthReady(reauth)}
         >
           {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
+          <NotifyFields value={notify} onChange={setNotify} />
         </ConfirmModal>
       )}
+
+      <BulkActionBar
+        selectedIds={liveSelected}
+        currentUserId={currentUserId}
+        planConfigs={planConfigs}
+        onClear={() => setSelected(new Set())}
+        onDone={(failedIds) => {
+          setSelected(new Set(failedIds));
+          onRefresh();
+        }}
+      />
     </>
   );
 }

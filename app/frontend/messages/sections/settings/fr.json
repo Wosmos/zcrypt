@@ -460,6 +460,13 @@
       "removeFileDesc": "Retirer « {name} » du coffre leurre ?",
       "loadFailed": "Impossible de charger les paramètres de votre coffre leurre. Rien n'a été modifié.",
       "retry": "Réessayer"
+    },
+    "emailPrefs": {
+      "label": "E-mail",
+      "announcements": "Actualités du produit",
+      "announcementsDesc": "Des nouvelles occasionnelles de l'équipe zcrypt.",
+      "footnote": "Les e-mails de compte et de sécurité sont toujours envoyés.",
+      "saveFailed": "Impossible d'enregistrer votre préférence e-mail"
     }
   }
 }

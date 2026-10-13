@@ -460,6 +460,13 @@
       "removeFileDesc": "„{name}“ aus dem Köder-Tresor entfernen?",
       "loadFailed": "Die Einstellungen deines Köder-Tresors konnten nicht geladen werden. Es wurde nichts geändert.",
       "retry": "Erneut versuchen"
+    },
+    "emailPrefs": {
+      "label": "E-Mail",
+      "announcements": "Produktneuigkeiten",
+      "announcementsDesc": "Gelegentliche Neuigkeiten vom zcrypt-Team.",
+      "footnote": "Konto- und Sicherheits-E-Mails werden immer gesendet.",
+      "saveFailed": "Deine E-Mail-Einstellung konnte nicht gespeichert werden"
     }
   }
 }

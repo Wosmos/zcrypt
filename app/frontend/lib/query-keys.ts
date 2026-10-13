@@ -41,6 +41,8 @@ export const qk = {
   // keeps the previous page while a new filter/page loads.
   adminOverview: ["admin", "overview", "v2"] as const,
   adminUsers: ["admin", "users"] as const,
+  adminEmails: ["admin", "emails"] as const,
+  emailPrefs: ["email-prefs"] as const,
   adminUser: (id: string) => ["admin", "user", id] as const,
   adminAudit: (page: number, eventType: string) => ["admin", "audit", page, eventType] as const,
   adminDownloads: (days: string) => ["admin", "downloads", days] as const,

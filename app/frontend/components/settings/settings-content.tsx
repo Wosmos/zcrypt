@@ -27,6 +27,7 @@ import { ThemePicker } from "@/components/settings/theme-picker";
 import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
 import { ProfileSettings } from "@/components/settings/profile-settings";
+import { EmailPreferences } from "@/components/settings/email-preferences";
 import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
@@ -294,6 +295,7 @@ export function SettingsContent() {
             <ProfileSettings />
             <EncryptionKeyInfo />
             <LinkedAccounts />
+            <EmailPreferences />
           </div>
         );
       case "platforms":

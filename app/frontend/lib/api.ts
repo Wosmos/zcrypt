@@ -869,26 +869,34 @@ export interface AdminReauth {
   code: string;
 }
 
+/** Whether the affected user is emailed about an admin change, and the admin's optional note. */
+export interface AdminNotify {
+  notify: boolean;
+  note: string;
+}
+
 export function adminSetUserRole(
   userId: string,
   role: string,
   reauth: AdminReauth,
+  notify?: AdminNotify,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/role`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role, ...reauth }),
+    body: JSON.stringify({ role, ...reauth, ...notify }),
   });
 }
 
 export function adminDeleteUser(
   userId: string,
   reauth: AdminReauth,
+  notify?: AdminNotify,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(reauth),
+    body: JSON.stringify({ ...reauth, ...notify }),
   });
 }
 
@@ -1009,22 +1017,118 @@ export function adminSetDefaultQuota(bytes: number): Promise<{ success: boolean 
   });
 }
 
-export function adminSetUserPlan(userId: string, plan: string): Promise<{ success: boolean }> {
+export function adminSetUserPlan(
+  userId: string,
+  plan: string,
+  notify?: AdminNotify,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/plan`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ plan }),
+    body: JSON.stringify({ plan, ...notify }),
   });
 }
 
 export function adminSetUserQuota(
   userId: string,
   quotaBytes: number | null,
+  notify?: AdminNotify,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/quota`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ quota_bytes: quotaBytes }),
+    body: JSON.stringify({ quota_bytes: quotaBytes, ...notify }),
+  });
+}
+
+export type AdminBulkAction = "set_plan" | "set_quota" | "set_role" | "delete";
+
+export interface AdminBulkResult {
+  id: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** One action across many users. Role changes and deletes also need the admin's re-auth. */
+export function adminBulkUsers(
+  ids: string[],
+  action: AdminBulkAction,
+  value: string | number | null,
+  notify: AdminNotify,
+  reauth?: AdminReauth,
+): Promise<{ results: AdminBulkResult[] }> {
+  return request<{ results: AdminBulkResult[] }>("/api/admin/users/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, action, value, ...notify, ...reauth }),
+  });
+}
+
+// ─── Admin announcements ───
+
+export interface AdminEmailDraft {
+  subject: string;
+  body: string;
+  /** "all", "plan:<id>" or "ids" (with `ids`). */
+  audience: string;
+  ids?: string[];
+}
+
+export interface AdminEmailCampaign {
+  id: string;
+  subject: string;
+  body: string;
+  audience: string;
+  recipient_count: number;
+  sent_count: number;
+  failed_count: number;
+  created_at: string;
+  finished_at?: string | null;
+}
+
+function postEmail<T>(payload: object): Promise<T> {
+  return request<T>("/api/admin/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminCountEmailRecipients(
+  draft: AdminEmailDraft,
+): Promise<{ recipient_count: number }> {
+  return postEmail({ ...draft, dry_run: true });
+}
+
+export function adminSendTestEmail(draft: AdminEmailDraft): Promise<{ sent: number; to: string }> {
+  return postEmail({ ...draft, test: true });
+}
+
+export function adminSendEmail(
+  draft: AdminEmailDraft,
+): Promise<{ id: string; recipient_count: number }> {
+  return postEmail(draft);
+}
+
+export function adminListEmails(): Promise<AdminEmailCampaign[]> {
+  return request<AdminEmailCampaign[]>("/api/admin/emails");
+}
+
+export function adminGetEmail(id: string): Promise<AdminEmailCampaign> {
+  return request<AdminEmailCampaign>(`/api/admin/emails/${id}`);
+}
+
+// ─── Announcement email preference (the signed-in user's own) ───
+
+export function getEmailPrefs(): Promise<{ email_opt_out: boolean }> {
+  return request<{ email_opt_out: boolean }>("/api/email/preferences");
+}
+
+export function setEmailPrefs(optOut: boolean): Promise<{ email_opt_out: boolean }> {
+  return request<{ email_opt_out: boolean }>("/api/email/preferences", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email_opt_out: optOut }),
   });
 }
 

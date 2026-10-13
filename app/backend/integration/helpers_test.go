@@ -47,6 +47,10 @@ func uniqueTestIP() string {
 // setupTestServer creates an isolated test server with a real DB.
 // The test database is cleaned between tests via schema drop+recreate.
 func setupTestServer(t *testing.T) *testServer {
+	return setupTestServerWith(t, nil)
+}
+
+func setupTestServerWith(t *testing.T, mutate func(*config.Config)) *testServer {
 	t.Helper()
 
 	dbURL := os.Getenv("TEST_DATABASE_URL")
@@ -72,6 +76,10 @@ func setupTestServer(t *testing.T) *testServer {
 		// (and the real IP-extraction path) fully active, while letting each request
 		// look like a distinct client so functional tests don't trip it.
 		TrustedProxyCount: 1,
+	}
+
+	if mutate != nil {
+		mutate(cfg)
 	}
 
 	require.NoError(t, config.EnsureDirs())
@@ -227,7 +235,7 @@ func cleanDB(t *testing.T, db *index.DB) {
 	ctx := context.Background()
 	// Delete in dependency order (FK constraints)
 	tables := []string{
-		"audit_events", "upload_sessions", "chunks", "files",
+		"audit_events", "admin_email_campaigns", "upload_sessions", "chunks", "files",
 		"platform_tokens", "refresh_tokens", "email_tokens", "users",
 	}
 	for _, table := range tables {

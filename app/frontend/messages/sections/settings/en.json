@@ -460,6 +460,13 @@
       "removeFileDesc": "Remove \"{name}\" from the decoy vault?",
       "loadFailed": "Could not load your decoy vault settings. Nothing has been changed.",
       "retry": "Try again"
+    },
+    "emailPrefs": {
+      "label": "Email",
+      "announcements": "Product announcements",
+      "announcementsDesc": "Occasional news from the zcrypt team.",
+      "footnote": "Account and security emails are always sent.",
+      "saveFailed": "Could not save your email preference"
     }
   }
 }

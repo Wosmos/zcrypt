@@ -460,6 +460,13 @@
       "removeFileDesc": "¿Quitar «{name}» de la bóveda señuelo?",
       "loadFailed": "No se pudo cargar la configuración de tu bóveda señuelo. No se ha cambiado nada.",
       "retry": "Intentar de nuevo"
+    },
+    "emailPrefs": {
+      "label": "Correo",
+      "announcements": "Novedades del producto",
+      "announcementsDesc": "Noticias ocasionales del equipo de zcrypt.",
+      "footnote": "Los correos de cuenta y seguridad siempre se envían.",
+      "saveFailed": "No se pudo guardar tu preferencia de correo"
     }
   }
 }

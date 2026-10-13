@@ -3,24 +3,40 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useAuthStore } from "@/store/auth";
-import type { AdminReauth } from "@/lib/api";
+import type { AdminNotify, AdminReauth } from "@/lib/api";
+import { DEFAULT_NOTIFY } from "@/components/admin/notify-fields";
 import { cn } from "@/lib/utils";
 
 export const EMPTY_REAUTH: AdminReauth = { password: "", code: "" };
 
-type UserConfirm = { type: "delete" | "role" | "plan"; detail: string; newValue?: string };
+type UserConfirm = {
+  type: "delete" | "role" | "plan" | "quota";
+  detail: string;
+  newValue?: string;
+};
 
-/** A pending user action plus the re-auth it needs: deletes and role changes
- *  ask for the admin's password, plan changes don't. */
+/** A pending user action plus the re-auth it needs (deletes and role changes ask
+ *  for the admin's password) and the email-notification choice. */
 export function useUserActionConfirm<T extends UserConfirm>() {
   const [confirmAction, setConfirmAction] = useState<T | null>(null);
   const [reauth, setReauth] = useState(EMPTY_REAUTH);
+  const [notify, setNotify] = useState<AdminNotify>(DEFAULT_NOTIFY);
   const needsReauth = confirmAction?.type === "delete" || confirmAction?.type === "role";
   const closeConfirm = () => {
     setConfirmAction(null);
     setReauth(EMPTY_REAUTH);
+    setNotify(DEFAULT_NOTIFY);
   };
-  return { confirmAction, setConfirmAction, reauth, setReauth, needsReauth, closeConfirm };
+  return {
+    confirmAction,
+    setConfirmAction,
+    reauth,
+    setReauth,
+    notify,
+    setNotify,
+    needsReauth,
+    closeConfirm,
+  };
 }
 
 const inputClass =

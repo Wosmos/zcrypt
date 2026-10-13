@@ -19,6 +19,8 @@ import { toast } from "@/store/toast";
 import { Role } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { ReauthFields, reauthReady, useUserActionConfirm } from "@/components/admin/reauth-fields";
+import { NotifyFields } from "@/components/admin/notify-fields";
+import { QuotaFields } from "@/components/admin/quota-fields";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
 import { RoleBadge, PlanBadge } from "@/components/admin/badges";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
@@ -60,8 +62,21 @@ export function AdminUserDetailContent() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
-  const { confirmAction, setConfirmAction, reauth, setReauth, needsReauth, closeConfirm } =
-    useUserActionConfirm<{ type: "delete" | "role" | "plan"; detail: string; newValue?: string }>();
+  const {
+    confirmAction,
+    setConfirmAction,
+    reauth,
+    setReauth,
+    notify,
+    setNotify,
+    needsReauth,
+    closeConfirm,
+  } = useUserActionConfirm<{
+    type: "delete" | "role" | "plan" | "quota";
+    detail: string;
+    newValue?: string;
+    quotaBytes?: number | null;
+  }>();
 
   const [editingQuota, setEditingQuota] = useState(false);
   const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
@@ -156,20 +171,24 @@ export function AdminUserDetailContent() {
     setBusy(true);
     try {
       if (confirmAction.type === "delete") {
-        await adminDeleteUser(u.id, reauth);
+        await adminDeleteUser(u.id, reauth, notify);
         toast.success(tr("userDeleted"));
         router.push("/admin/users");
         return;
       } else if (confirmAction.type === "role") {
-        await adminSetUserRole(u.id, confirmAction.newValue!, reauth);
+        await adminSetUserRole(u.id, confirmAction.newValue!, reauth, notify);
         toast.success(
           tr("roleUpdated", {
             role: tRoles(confirmAction.newValue === "admin" ? "admin" : "user"),
           }),
         );
       } else if (confirmAction.type === "plan") {
-        await adminSetUserPlan(u.id, confirmAction.newValue!);
+        await adminSetUserPlan(u.id, confirmAction.newValue!, notify);
         toast.success(tr("planUpdated", { plan: confirmAction.newValue ?? "" }));
+      } else {
+        await adminSetUserQuota(u.id, confirmAction.quotaBytes ?? null, notify);
+        toast.success(tr("quotaUpdated"));
+        setEditingQuota(false);
       }
       closeConfirm();
       void fetchUser();
@@ -187,24 +206,17 @@ export function AdminUserDetailContent() {
     setQuotaInput(mode === "custom" ? bytesToGb(u.storage_quota!).toString() : "");
   };
 
-  const saveQuota = async () => {
-    setBusy(true);
-    try {
-      const parsed = parseQuotaInput(quotaMode, quotaInput);
-      if (!parsed.ok) {
-        toast.error(parsed.error);
-        setBusy(false);
-        return;
-      }
-      await adminSetUserQuota(u.id, parsed.bytes);
-      toast.success(tr("quotaUpdated"));
-      setEditingQuota(false);
-      void fetchUser();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : tr("quotaFailed"));
-    } finally {
-      setBusy(false);
+  const saveQuota = () => {
+    const parsed = parseQuotaInput(quotaMode, quotaInput);
+    if (!parsed.ok) {
+      toast.error(parsed.error);
+      return;
     }
+    setConfirmAction({
+      type: "quota",
+      detail: tr("quotaConfirmDetail", { username: u.username }),
+      quotaBytes: parsed.bytes,
+    });
   };
 
   const getConfirmModalProps = () => {
@@ -220,6 +232,12 @@ export function AdminUserDetailContent() {
         return {
           title: confirmAction.newValue === "admin" ? tr("promoteTitle") : tr("demoteTitle"),
           confirmLabel: confirmAction.newValue === "admin" ? tr("promote") : tr("demote"),
+          variant: "warning" as const,
+        };
+      case "quota":
+        return {
+          title: tr("quotaConfirmTitle"),
+          confirmLabel: tr("saveQuota"),
           variant: "warning" as const,
         };
       case "plan": {
@@ -367,31 +385,12 @@ export function AdminUserDetailContent() {
                   </Button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Select
-                      value={quotaMode}
-                      onValueChange={(v) => setQuotaMode(v as typeof quotaMode)}
-                    >
-                      <SelectTrigger className="h-8 w-28 text-xs" aria-label={tr("quotaMode")}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">{tr("modePlanDefault")}</SelectItem>
-                        <SelectItem value="custom">{tr("modeCustom")}</SelectItem>
-                        <SelectItem value="unlimited">{tr("modeUnlimited")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {quotaMode === "custom" && (
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        value={quotaInput}
-                        onChange={(e) => setQuotaInput(e.target.value)}
-                        className="w-20 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                        placeholder={tr("gb")}
-                        aria-label={tr("quotaGb")}
-                      />
-                    )}
+                    <QuotaFields
+                      mode={quotaMode}
+                      input={quotaInput}
+                      onModeChange={setQuotaMode}
+                      onInputChange={setQuotaInput}
+                    />
                     <Button variant="primary" size="sm" onClick={saveQuota} disabled={busy}>
                       {t("save")}
                     </Button>
@@ -510,6 +509,7 @@ export function AdminUserDetailContent() {
           confirmDisabled={needsReauth && !reauthReady(reauth)}
         >
           {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
+          <NotifyFields value={notify} onChange={setNotify} />
         </ConfirmModal>
       )}
     </>

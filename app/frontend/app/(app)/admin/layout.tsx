@@ -15,11 +15,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutGrid, Users, FileText, Crown, Download, AlertTriangle, Star } from "@/lib/icons";
+import {
+  LayoutGrid,
+  Users,
+  FileText,
+  Crown,
+  Download,
+  AlertTriangle,
+  Star,
+  Mail,
+} from "@/lib/icons";
 
 const tabs = [
   { href: "/admin", key: "overview", icon: LayoutGrid },
   { href: "/admin/users", key: "users", icon: Users },
+  { href: "/admin/emails", key: "emails", icon: Mail },
   { href: "/admin/audit-logs", key: "auditLogs", icon: FileText },
   { href: "/admin/downloads", key: "downloads", icon: Download },
   { href: "/admin/reports", key: "reports", icon: AlertTriangle },
