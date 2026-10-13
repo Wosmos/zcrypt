@@ -303,8 +303,9 @@ function runSingleDownload(id: string): Promise<void> {
         };
       }
     } catch (err) {
+      if (!isCurrentRun()) return;
       if (err instanceof DownloadPausedError) {
-        if (!sessions.has(id)) return;
+        if (!pausedIds.has(id)) return;
         // Keep the session (resume state intact); the row shows "paused".
         const item = useDownloadStore.getState().queue.find((i) => i.id === id);
         updateProgress(id, "paused", item?.progress, "Paused");
@@ -317,7 +318,6 @@ function runSingleDownload(id: string): Promise<void> {
         updateProgress(id, "cancelled", undefined, "Cancelled");
         return;
       }
-      if (!isCurrentRun()) return;
       const msg = err instanceof Error ? err.message : tr("toasts.downloadFailed");
       // Keep the session so Retry continues from what's already decrypted.
       const recovered = recoverWrongFolderPassword(session.fileId, msg);

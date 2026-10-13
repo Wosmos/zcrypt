@@ -12,6 +12,7 @@ import { resolveFileKey, generateCEK, wrapKey } from "@/lib/crypto";
 import { invalidateShares } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
 
+const mockResolved = vi.hoisted(() => ({ value: "correct horse" }));
 vi.mock("@/store/passphrase", () => ({
   usePassphraseStore: { getState: vi.fn() },
 }));
@@ -34,6 +35,9 @@ vi.mock("@/lib/sealed", () => ({
   sealText: vi.fn(async (t: string) => `enc1:${t}`),
   keyFromBytes: vi.fn(async () => ({}) as CryptoKey),
   userNameKey: vi.fn(),
+}));
+vi.mock("@/hooks/useFolderProtection", () => ({
+  resolveFilePasswordGlobal: vi.fn(async () => mockResolved.value),
 }));
 vi.mock("@/hooks/useShares", () => ({
   invalidateShares: vi.fn(),
@@ -73,6 +77,13 @@ describe("createFileShareLink", () => {
     >);
     userNameKeyMock.mockResolvedValue(nameKey);
     decryptNameMock.mockResolvedValue("report.pdf");
+  });
+
+  it("derives the file key from the folder password for a protected folder", async () => {
+    mockResolved.value = "folder pw";
+    await createFileShareLink("file-1");
+    expect(resolveFileKeyMock).toHaveBeenCalledWith("folder pw", expect.anything(), "d3JhcHBlZA==");
+    mockResolved.value = "correct horse";
   });
 
   it("seals the owner's decrypted file name under the link key", async () => {

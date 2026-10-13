@@ -240,7 +240,7 @@ export function DocsSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-[268px] flex-shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex">
+    <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-[268px] flex-shrink-0 flex-col border-e border-[var(--color-border)] bg-[var(--color-surface)] lg:flex">
       {/* Header: label + search trigger. DocsTopBar (h-14) sits above this,
           so no extra top offset is needed here. */}
       <div className="border-b border-[var(--color-border)] px-4 pb-4 pt-6">
@@ -316,8 +316,8 @@ export function DocsMobileNav() {
       {/* Slide-in drawer: full viewport height, over the top bar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-dvh w-[280px] max-w-[85vw] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] transition-transform duration-300 ease-in-out lg:hidden",
-          open ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 start-0 z-50 flex h-dvh w-[280px] max-w-[85vw] flex-col border-e border-[var(--color-border)] bg-[var(--color-surface)] transition-transform duration-300 ease-in-out lg:hidden",
+          open ? "translate-x-0" : "-translate-x-full rtl:translate-x-full",
         )}
       >
         <div className="border-b border-[var(--color-border)] px-4 pb-3 pt-3">

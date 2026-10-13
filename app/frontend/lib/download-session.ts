@@ -164,7 +164,9 @@ export async function downloadAndDecryptFile(
   const abortErr = () => new DOMException("Download cancelled", "AbortError");
   // On abort, decide pause-vs-cancel: pause preserves state (resume later),
   // cancel discards it (the finally aborts the disk file).
-  const stopError = () => (pausing?.() ? new DownloadPausedError() : abortErr());
+  let pausedAtAbort: boolean | undefined;
+  signal?.addEventListener("abort", () => (pausedAtAbort = pausing?.() ?? false), { once: true });
+  const stopError = () => ((pausedAtAbort ?? pausing?.()) ? new DownloadPausedError() : abortErr());
   if (signal?.aborted) throw stopError();
 
   // Step 1: metadata (cached across resumes).
