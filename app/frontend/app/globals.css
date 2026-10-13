@@ -1204,3 +1204,39 @@ html[lang="ur"] {
 html[dir="rtl"] body {
   letter-spacing: 0;
 }
+
+.grain-lean {
+  transform: translate3d(calc(var(--lean-x, 0) * 48px), calc(var(--lean-y, 0) * 36px), 0);
+  transition: transform 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.grain-light {
+  will-change: transform;
+}
+@keyframes glow-drift-a {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(9%, 7%, 0) scale(1.14); }
+  100% { transform: translate3d(-5%, 12%, 0) scale(0.94); }
+}
+@keyframes glow-drift-b {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  45% { transform: translate3d(-12%, -8%, 0) scale(1.1); }
+  100% { transform: translate3d(-6%, 10%, 0) scale(1.04); }
+}
+@keyframes glow-drift-c {
+  0% { transform: translate3d(0, 0, 0) scale(0.9); }
+  100% { transform: translate3d(-10%, -6%, 0) scale(1.25); }
+}
+@keyframes glow-drift-d {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  55% { transform: translate3d(14%, -9%, 0) scale(1.12); }
+  100% { transform: translate3d(4%, -4%, 0) scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grain-lean {
+    transform: none;
+    transition: none;
+  }
+  .grain-light {
+    animation: none !important;
+  }
+}
