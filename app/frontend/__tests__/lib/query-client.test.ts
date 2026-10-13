@@ -39,6 +39,7 @@ import {
   revalidateRestored,
   PERSIST_KEY,
   PERSIST_MAX_AGE,
+  persistBuster,
 } from "@/lib/query-client";
 import { set as idbSet } from "idb-keyval";
 
@@ -155,6 +156,11 @@ describe("queryPersister (IndexedDB)", () => {
     expect(saved.buster).toBe("user-1:2");
     expect(saved.clientState.queries[0].state.data).toEqual([2]);
     expect(idbSet).toHaveBeenCalledTimes(1);
+  });
+
+  it("signed out has an empty buster, signed in carries the schema version", () => {
+    expect(persistBuster(null)).toBe("");
+    expect(persistBuster("user-1")).toBe("user-1:2");
   });
 
   it("flush with nothing pending is a no-op", async () => {
