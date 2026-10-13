@@ -402,6 +402,25 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.status).toBe("paused");
     });
 
+    it("lets the superseded run settle quietly after a rapid pause then resume", async () => {
+      const rejects: Array<(e: unknown) => void> = [];
+      (downloadAndDecryptFile as Mock).mockImplementation(
+        () => new Promise((_res, rej) => rejects.push(rej)),
+      );
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+
+      useDownloadStore.getState().pauseDownload(id);
+      useDownloadStore.getState().resumeDownload(id, "pw");
+      await flush();
+      rejects[0](new FakeDownloadPausedError());
+      await flush();
+
+      expect(getItem(id)?.status).not.toBe("paused");
+      expect(getItem(id)?.status).not.toBe("cancelled");
+    });
+
     it("resume continues on the SAME resume object (not a fresh restart)", async () => {
       let firstResume: unknown;
       (downloadAndDecryptFile as Mock)

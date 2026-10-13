@@ -60,7 +60,10 @@ impl Drop for SyncGuard {
 /// recorded per file/chunk in the ledger, never bubbled, the loop must
 /// survive offline periods.
 pub async fn sync_once(ctx: &EngineContext) {
-    let files = match ctx.db.get_pending_files() {
+    let Ok(user_id) = ctx.client.user_id().await else {
+        return;
+    };
+    let files = match ctx.db.get_pending_files(&user_id) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("sync: get pending files: {e}");

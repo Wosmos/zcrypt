@@ -248,6 +248,8 @@ export default function VaultPage() {
         toast.success(t("toastFolderPasswordRemoved"));
         setRemoveTarget(null);
         await refresh();
+      } catch {
+        toast.error(t("toastFolderPasswordRemoveFailed"));
       } finally {
         setRekeyProgress(null);
       }

@@ -39,11 +39,8 @@ pub async fn run(
     user_id: &str,
     save_path: &Path,
 ) -> Result<(), EngineError> {
-    let scratch_dir = save_path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let result = run_inner(ctx, files, user_id, save_path, scratch_dir).await;
+    let scratch = tempfile::Builder::new().prefix("zcrypt-bulk-").tempdir()?;
+    let result = run_inner(ctx, files, user_id, save_path, scratch.path()).await;
     if result.is_err() {
         // Never leave a partial/corrupt zip behind, same principle as
         // download's own .zcrypt-part cleanup on failure.
@@ -76,7 +73,7 @@ async fn run_inner(
             return Err(e);
         }
 
-        let entry_name = dedupe_name(&f.filename, &mut used_names);
+        let entry_name = dedupe_name(&safe_entry_name(&f.filename), &mut used_names);
         zip.start_file(&entry_name, options)
             .map_err(|e| EngineError::Other(format!("zip start_file {entry_name}: {e}")))?;
         let copy_result: std::io::Result<()> = (|| {
@@ -91,6 +88,18 @@ async fn run_inner(
     zip.finish()
         .map_err(|e| EngineError::Other(format!("zip finish: {e}")))?;
     Ok(())
+}
+
+/// Zip entry names come from decrypted (so attacker-influenceable, e.g. shared)
+/// metadata: keep only the final path component so an entry can never climb out
+/// of the extraction directory.
+fn safe_entry_name(name: &str) -> String {
+    let last = name.rsplit(['/', '\\']).next().unwrap_or("");
+    let cleaned: String = last.chars().filter(|c| !c.is_control()).collect();
+    match cleaned.as_str() {
+        "" | "." | ".." => "file".to_string(),
+        _ => cleaned,
+    }
 }
 
 /// Claims `name` as-is if unused, otherwise finds the first free
@@ -116,6 +125,16 @@ fn dedupe_name(name: &str, used: &mut HashSet<String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn entry_names_keep_only_the_final_component() {
+        assert_eq!(safe_entry_name("../../etc/passwd"), "passwd");
+        assert_eq!(safe_entry_name("a\\b\\c.txt"), "c.txt");
+        assert_eq!(safe_entry_name(".."), "file");
+        assert_eq!(safe_entry_name("dir/"), "file");
+        assert_eq!(safe_entry_name("ok.txt"), "ok.txt");
+    }
+
     use std::io::Read as _;
     use std::sync::Arc;
 

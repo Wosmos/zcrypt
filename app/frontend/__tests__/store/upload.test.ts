@@ -19,6 +19,10 @@ vi.hoisted(() => {
       clear: () => {
         store.clear();
       },
+      key: (i: number) => Array.from(store.keys())[i] ?? null,
+      get length() {
+        return store.size;
+      },
     },
   });
 });
@@ -120,6 +124,7 @@ vi.mock("@/lib/master-key", () => ({ wrapCekForVault }));
 vi.mock("@/lib/name-crypto", () => ({
   deriveNameKey: vi.fn(async () => ({}) as CryptoKey),
   encryptName: vi.fn(async (name: string) => `enc:${name}`),
+  decryptName: vi.fn(async (enc: string) => enc.replace(/^enc:/, "")),
 }));
 
 // WorkerPool spins up REAL Web Workers in its constructor, mock the whole
@@ -928,7 +933,7 @@ describe("useUploadStore", () => {
       expect(capturedSignal?.aborted).toBe(true);
       expect(cancelUpload).toHaveBeenCalledWith("sess-1");
       expect(getItem(id)).toBeUndefined();
-      expect(localStorage.getItem(`zc_upl:${file.name}:${file.size}:${file.lastModified}`)).toBeNull();
+      expect(localStorage.getItem(`zc_upl:${file.name}:${file.size}:${file.lastModified}:`)).toBeNull();
     });
 
     it("removeFromQueue on a still-queued item (no session yet) does not throw", () => {
@@ -1064,7 +1069,7 @@ describe("useUploadStore", () => {
 
   describe("cross-session resume (localStorage, survives a page reload)", () => {
     function seedPersistedResume(file: File, overrides: Record<string, unknown> = {}) {
-      const key = `zc_upl:${file.name}:${file.size}:${file.lastModified}`;
+      const key = `zc_upl:${file.name}:${file.size}:${file.lastModified}:`;
       localStorage.setItem(
         key,
         JSON.stringify({
@@ -1171,7 +1176,7 @@ describe("useUploadStore", () => {
 
     it("falls through to a fresh init on a corrupted localStorage record", async () => {
       const file = makeFile("a.txt", 10);
-      localStorage.setItem(`zc_upl:${file.name}:${file.size}:${file.lastModified}`, "{not json");
+      localStorage.setItem(`zc_upl:${file.name}:${file.size}:${file.lastModified}:`, "{not json");
 
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       await flush();
@@ -2825,7 +2830,7 @@ describe("useUploadStore", () => {
       // Records written before platform was persisted have no platform field; the
       // live session's platform is the correct source of truth for the restart.
       localStorage.setItem(
-        "zc_upl:a.txt:10:1000",
+        "zc_upl:a.txt:10:1000:",
         JSON.stringify({
           sessionId: "sess-1",
           fileId: "file-1",
@@ -3048,7 +3053,7 @@ describe("useUploadStore", () => {
       // getUploadStatus reports the session as gone, so the cross-session resume
       // at the top of the run declines it and we actually reach the adopt path.
       localStorage.setItem(
-        "zc_upl:a.txt:10:1000",
+        "zc_upl:a.txt:10:1000:",
         JSON.stringify({
           sessionId: "sess-1",
           fileId: "file-1",
@@ -3088,6 +3093,155 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(getItem(id)?.status).toBe("done");
+    });
+  });
+
+  describe("batch serialization, adoption guards and early cancel", () => {
+    const activeStatus = {
+      session_id: "sess-1",
+      file_id: "file-1",
+      status: "active",
+      chunk_count: 1,
+      uploaded_chunks: [],
+      completed_count: 0,
+    };
+
+    it("restarts instead of adopting a resumed session that belongs to a different name", async () => {
+      (initUpload as Mock)
+        .mockReset()
+        .mockResolvedValueOnce(
+          defaultInitResponse({ resumed: true, platform: "telegram", session_id: "sess-old", chunk_size: 2048, chunk_count: 1 }),
+        )
+        .mockResolvedValue(defaultInitResponse());
+      (getFileMeta as Mock).mockResolvedValue({
+        id: "file-1",
+        original_name: "",
+        encrypted_name: "enc:other.txt",
+        salt: "b64:9",
+        wrapped_cek: "b64:1",
+      });
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(cancelUpload).toHaveBeenCalledWith("sess-old");
+      expect(initUpload).toHaveBeenCalledTimes(2);
+    });
+
+    it("restarts instead of adopting a resumed session that was started in another folder", async () => {
+      localStorage.setItem("zc_upl:a.txt:10:1000:folder-a", JSON.stringify({ sessionId: "sess-old" }));
+      (initUpload as Mock)
+        .mockReset()
+        .mockResolvedValueOnce(
+          defaultInitResponse({ resumed: true, platform: "telegram", session_id: "sess-old", chunk_size: 2048, chunk_count: 1 }),
+        )
+        .mockResolvedValue(defaultInitResponse());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, "folder-b");
+      await flush();
+
+      expect(cancelUpload).toHaveBeenCalledWith("sess-old");
+      expect(localStorage.getItem("zc_upl:a.txt:10:1000:folder-a")).not.toBeNull();
+    });
+
+    it("keeps the persisted resume key per folder", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, "folder-b");
+      await flush(5);
+      expect(localStorage.getItem("zc_upl:a.txt:10:1000:folder-b")).not.toBeNull();
+    });
+
+    it("tolerates unreadable storage while looking for another folder's session", async () => {
+      (initUpload as Mock)
+        .mockReset()
+        .mockResolvedValue(
+          defaultInitResponse({ resumed: true, platform: "telegram", session_id: "sess-1", chunk_size: 2048, chunk_count: 1 }),
+        );
+      (getUploadStatus as Mock).mockResolvedValue(activeStatus);
+      const spy = vi.spyOn(localStorage, "getItem").mockImplementation(() => {
+        throw new Error("denied");
+      });
+      localStorage.setItem("zc_upl:z.txt:1:1:other", "{not json");
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      spy.mockRestore();
+      expect(initUpload).toHaveBeenCalled();
+    });
+
+    it("cancels the server session when the item is removed while init was in flight", async () => {
+      let finish!: (v: unknown) => void;
+      (initUpload as Mock).mockReset().mockReturnValue(new Promise((r) => (finish = r)));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      useUploadStore.getState().removeFromQueue(id);
+      finish(defaultInitResponse({ session_id: "sess-orphan" }));
+      await flush(5);
+
+      expect(cancelUpload).toHaveBeenCalledWith("sess-orphan");
+      expect(uploadChunk).not.toHaveBeenCalled();
+    });
+
+    it("swallows a failing cancel of the orphaned session", async () => {
+      let finish!: (v: unknown) => void;
+      (initUpload as Mock).mockReset().mockReturnValue(new Promise((r) => (finish = r)));
+      (cancelUpload as Mock).mockRejectedValue(new Error("gone"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      useUploadStore.getState().removeFromQueue(id);
+      finish(defaultInitResponse({ session_id: "sess-orphan" }));
+      await flush(5);
+
+      expect(cancelUpload).toHaveBeenCalledWith("sess-orphan");
+    });
+
+    it("leaves a pre-existing resumed session alone when the item was aborted", async () => {
+      let finish!: (v: unknown) => void;
+      (initUpload as Mock).mockReset().mockReturnValue(new Promise((r) => (finish = r)));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      useUploadStore.getState().dismissUpload(id);
+      finish(defaultInitResponse({ resumed: true, session_id: "sess-old" }));
+      await flush(5);
+
+      expect(cancelUpload).not.toHaveBeenCalled();
+    });
+
+    it("holds the second of two identical files until the first finishes", async () => {
+      let release!: () => void;
+      (completeUpload as Mock)
+        .mockReset()
+        .mockImplementationOnce(() => new Promise((r) => (release = () => r({ file_id: "file-1" }))))
+        .mockResolvedValue({ file_id: "file-2" });
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("a.txt", 10), makeFile("a.txt", 10, "y".repeat(10))], "pw", "telegram", undefined, undefined, null);
+      await flush(10);
+
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(getItem(queueIdFor(1))?.stage).toMatch(/identical/i);
+
+      release();
+      await flush();
+      expect(initUpload).toHaveBeenCalledTimes(2);
+      expect(getItem(queueIdFor(1))?.status).toBe("done");
+    });
+
+    it("stops a waiting duplicate that was paused", async () => {
+      let release!: () => void;
+      (completeUpload as Mock)
+        .mockReset()
+        .mockImplementationOnce(() => new Promise((r) => (release = () => r({ file_id: "file-1" }))));
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("a.txt", 10), makeFile("a.txt", 10, "y".repeat(10))], "pw", "telegram", undefined, undefined, null);
+      await flush(10);
+      useUploadStore.getState().pauseUpload(queueIdFor(1));
+      release();
+      await flush();
+
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(getItem(queueIdFor(1))?.status).toBe("paused");
     });
   });
 

@@ -156,6 +156,7 @@
     "uploadDialogDescription": "Les fichiers sont compressés, chiffrés de bout en bout et découpés en blocs avant de quitter votre appareil.",
     "toastFolderProtected": "Dossier protégé",
     "toastFolderPasswordRemoved": "Mot de passe du dossier supprimé",
+    "toastFolderPasswordRemoveFailed": "Impossible de supprimer le mot de passe du dossier. Rien n'a été modifié.",
     "newFolderEmptyVault": "Importez d'abord un fichier, vos dossiers auront alors de quoi s'occuper."
   },
   "settings": {
