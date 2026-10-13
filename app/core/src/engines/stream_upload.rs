@@ -82,6 +82,7 @@ pub async fn run(
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".to_string());
+    let stamp = super::local_upload::SourceStamp::of(file_path).await?;
     let file_size = tokio::fs::metadata(file_path).await?.len() as i64;
     let mut chunk_size = ctx.profile.chunk_size as i64;
     let mut chunk_count = count_chunks(file_size, chunk_size);
@@ -376,6 +377,7 @@ pub async fn run(
         return Err(e);
     }
 
+    stamp.ensure_unchanged(file_path).await?;
     ctx.client
         .complete_upload(
             &session_id,
