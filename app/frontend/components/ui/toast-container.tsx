@@ -50,6 +50,8 @@ export function ToastContainer() {
   const tr = useTranslations("ui.toasts");
   const toasts = useToastStore((s) => s.toasts);
   const remove = useToastStore((s) => s.remove);
+  const pause = useToastStore((s) => s.pause);
+  const resume = useToastStore((s) => s.resume);
 
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -76,6 +78,11 @@ export function ToastContainer() {
     }
     if (changed) setHeights(next);
   });
+
+  useEffect(() => {
+    if (expanded) pause();
+    else resume();
+  }, [expanded, pause, resume]);
 
   // Drop transient expand state once the deck empties.
   useEffect(() => {
@@ -219,7 +226,7 @@ export function ToastContainer() {
                           t.action?.onClick();
                           remove(t.id);
                         }}
-                        className="mt-1 text-sm font-semibold underline-offset-2 hover:underline"
+                        className="relative mt-1 text-sm font-semibold underline-offset-2 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:underline"
                         style={{ color: type.color }}
                       >
                         {t.action.label}
@@ -235,7 +242,7 @@ export function ToastContainer() {
                       remove(t.id);
                     }}
                     aria-label={tr("dismiss", { message: t.message })}
-                    className="-me-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                    className="relative -me-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-md before:absolute before:-inset-2.5 before:content-[''] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -247,6 +254,7 @@ export function ToastContainer() {
                     style={{
                       background: type.color,
                       animation: `toast-drain ${t.duration}ms linear forwards`,
+                      animationPlayState: expanded ? "paused" : "running",
                     }}
                   />
                 </div>

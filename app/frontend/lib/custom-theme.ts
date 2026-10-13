@@ -28,6 +28,8 @@ export const DEFAULT_CUSTOM_THEME: CustomThemeValues = {
   bg: "#12141f",
 };
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 const STORAGE_KEY = "zcrypt-custom-theme";
 
 export function loadCustomTheme(): CustomThemeValues {
@@ -36,7 +38,7 @@ export function loadCustomTheme(): CustomThemeValues {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_CUSTOM_THEME;
     const parsed = JSON.parse(raw);
-    if (typeof parsed?.accent === "string" && typeof parsed?.bg === "string") {
+    if (HEX_RE.test(parsed?.accent) && HEX_RE.test(parsed?.bg)) {
       return {
         accent: parsed.accent,
         bg: parsed.bg,
@@ -146,7 +148,7 @@ export function applyCustomThemeVars(stored: CustomThemeValues, mode: ThemeMode 
   root.setProperty("--t-primary", values.accent);
   root.setProperty("--t-primary-fg", accentFg);
   root.setProperty("--t-fg", fg);
-  root.setProperty("--t-muted-fg", `color-mix(in oklab, ${fg} 60%, ${values.bg})`);
+  root.setProperty("--t-muted-fg", `color-mix(in oklab, ${fg} 75%, ${values.bg})`);
   root.setProperty("--t-border", `color-mix(in oklab, ${values.bg} 85%, ${fg})`);
   root.setProperty("--t-sidebar", values.bg);
   root.setProperty("--t-sidebar-fg", fg);

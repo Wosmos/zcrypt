@@ -153,7 +153,11 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 	revoked := func() (bool, error) {
 		cur, err := s.tokenVersions.current(r.Context(), caller.userID)
-		return err == nil && (cur != caller.tokenVersion || s.revokedSessions.has(caller.sessionID)), err
+		if err != nil {
+			return false, err
+		}
+		gone, err := s.sessionRevoked(r.Context(), caller.userID, caller.sessionID)
+		return cur != caller.tokenVersion || gone, err
 	}
 	gone, err := revoked()
 	if err != nil {

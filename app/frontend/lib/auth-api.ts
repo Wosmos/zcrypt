@@ -132,10 +132,14 @@ export function resendVerification(email: string): Promise<{ success: boolean }>
   });
 }
 
-export function setup2FA(accessToken: string): Promise<{ secret: string; uri: string }> {
+export function setup2FA(
+  accessToken: string,
+  password: string,
+): Promise<{ secret: string; uri: string }> {
   return authRequest("/api/auth/2fa/setup", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ password }),
   });
 }
 
@@ -159,11 +163,15 @@ function adoptRotatedSession(res: TwoFAToggleResponse): TwoFAToggleResponse {
   return res;
 }
 
-export function enable2FA(accessToken: string, code: string): Promise<TwoFAToggleResponse> {
+export function enable2FA(
+  accessToken: string,
+  code: string,
+  password: string,
+): Promise<TwoFAToggleResponse> {
   return authRequest<TwoFAToggleResponse>("/api/auth/2fa/enable", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, password }),
   }).then(adoptRotatedSession);
 }
 

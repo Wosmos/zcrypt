@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -89,6 +91,10 @@ func (s *Server) HandleUpdateNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	note, err := s.db.UpdateNote(ctx, userID, noteID, req)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, `{"error":"note not found"}`, http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		log.Printf("notes: update: %v", err)
 		http.Error(w, `{"error":"failed to update note"}`, http.StatusInternalServerError)

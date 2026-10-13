@@ -97,14 +97,14 @@
         "telegram": "Créer un bot via @BotFather"
       }
     },
-    "showcase": {
-      "caption": "Votre coffre, tel que nos serveurs le voient.",
-      "note": "Ça ressemble à du charabia. C'est tout l'intérêt."
-    },
     "login": {
       "approveCode": "Après la connexion, votre navigateur vous demande d'approuver. N'approuvez que s'il affiche ce code",
       "useMagic": "Envoyez-moi plutôt un lien de connexion",
       "usePassword": "Utiliser mon mot de passe"
-    }
+    },
+    "panel": {
+      "encrypted": "Chiffré sur cet appareil. Nous ne voyons que la copie brouillée."
+    },
+    "orContinueWith": "Ou continuer avec"
   }
 }

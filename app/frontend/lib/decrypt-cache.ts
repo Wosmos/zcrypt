@@ -293,6 +293,22 @@ export function onDecryptCacheClear(cb: () => void): void {
   clearListeners.push(cb);
 }
 
+const wipeListeners: Array<() => void> = [];
+export function onDecryptWipe(cb: () => void): void {
+  wipeListeners.push(cb);
+}
+
+/** Logout: also drop plaintext holders that deliberately survive a lock. */
+export function wipeDecryptedPlaintext(): void {
+  clearDecryptCache();
+  for (const cb of wipeListeners) cb();
+}
+
+const folderClearListeners: Array<(folderId: string) => void> = [];
+export function onDecryptFolderClear(cb: (folderId: string) => void): void {
+  folderClearListeners.push(cb);
+}
+
 /**
  * Drop everything. Called on vault lock / TTL expiry / logout so decrypted
  * plaintext does not linger in memory once the vault re-locks.
@@ -337,4 +353,5 @@ export function clearDecryptCacheForFolder(folderId: string): void {
   // Same story for derived keys: there is no folder→salt mapping, so the safe
   // fallback is a FULL clear: unaffected files merely re-derive on next open.
   clearDerivedKeyCache();
+  for (const cb of folderClearListeners) cb(folderId);
 }

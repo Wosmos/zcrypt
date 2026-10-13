@@ -197,15 +197,6 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 
 	compressed := r.Header.Get("X-Chunk-Compressed") == "true"
 
-	// Acquire server-wide semaphore
-	select {
-	case chunkUploadSem <- struct{}{}:
-		defer func() { <-chunkUploadSem }()
-	case <-ctx.Done():
-		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
-		return
-	}
-
 	// Validate transfer
 	transfer, err := s.db.GetSendTransferByID(ctx, sessionID)
 	if err != nil {
@@ -241,6 +232,15 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Take a slot only after the (slow) body read, so a slow sender cannot hold one
+	select {
+	case chunkUploadSem <- struct{}{}:
+		defer func() { <-chunkUploadSem }()
+	case <-ctx.Done():
+		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
+		return
+	}
+
 	// Idempotency: check if chunk already uploaded
 	existing, _ := s.db.GetSendChunkByIndex(ctx, transfer.ID, chunkIndex)
 	if existing != nil {
@@ -261,7 +261,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to verify size"}`, http.StatusInternalServerError)
 		return
 	}
-	if priorBytes+int64(len(data)) > maxSendEncryptedSize {
+	if priorBytes+int64(len(data)) > min(maxSendEncryptedSize, maxEncryptedTotal(transfer.OriginalSize, transfer.ChunkCount)) {
 		http.Error(w, `{"error":"send exceeds maximum size"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -395,7 +395,7 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 	// Get total encrypted size and reconcile against the hard cap (defends against
 	// any concurrency that slipped past the per-chunk check).
 	totalSize, _ := s.db.GetTotalSendChunkSize(ctx, transfer.ID)
-	if totalSize > maxSendEncryptedSize {
+	if totalSize > min(maxSendEncryptedSize, maxEncryptedTotal(transfer.OriginalSize, transfer.ChunkCount)) {
 		http.Error(w, `{"error":"send exceeds maximum size"}`, http.StatusRequestEntityTooLarge)
 		return
 	}

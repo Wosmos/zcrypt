@@ -282,21 +282,22 @@ jobs:
       # Signed updater artifacts are only ever needed on a real release, which
       # runs on main or a tag and does have the secret.
       - name: Build unsigned when no signing key is available
-        if: needs.check-updater-signing.outputs.configured != 'true'
+        if: needs.check-updater-signing.outputs.configured != 'true' || !startsWith(github.ref, 'refs/tags/v')
         working-directory: app/desktop/src-tauri
         shell: bash
         run: |
           tmp=$(mktemp)
           jq '.bundle.createUpdaterArtifacts = false' tauri.conf.json > "$tmp"
           mv "$tmp" tauri.conf.json
-          echo "no TAURI_SIGNING_PRIVATE_KEY (fork or Dependabot run): updater artifacts disabled for this build"
+          echo "not a tag build, or no TAURI_SIGNING_PRIVATE_KEY: updater artifacts disabled for this build"
 
       - name: Build Tauri app
         working-directory: app/desktop/src-tauri
         shell: bash
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+          ZCRYPT_API_URL: ${{ vars.DESKTOP_API_URL }}
         run: cargo tauri build ${{ matrix.args }}
 
       # Both macOS legs bundle their updater tarball as "zcrypt.app.tar.gz".
@@ -370,7 +371,7 @@ jobs:
           # Wait (up to ~5 min) for release.yml to create the release so we never
           # race it for ownership of the tag.
           for i in $(seq 1 30); do
-            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' | grep -qxF "$TAG"; then
               echo "release $TAG exists"; break
             fi
             echo "waiting for release $TAG ($i/30)…"; sleep 10
@@ -515,7 +516,7 @@ jobs:
           mapfile -t files < <(find signed -type f \( -name '*.exe' -o -name '*.msi' \))
           [ ${#files[@]} -gt 0 ] || { echo "SignPath returned no installers"; exit 1; }
           for f in "${files[@]}"; do
-            npx --yes @tauri-apps/cli@2 signer sign --app-version "${TAG#v}" "$f"
+            npx --yes "@tauri-apps/cli@${TAURI_CLI_VERSION}" signer sign --app-version "${TAG#v}" "$f"
             test -s "$f.sig"
           done
           ls -la signed
@@ -537,7 +538,7 @@ jobs:
         run: |
           set -euo pipefail
           for i in $(seq 1 30); do
-            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' | grep -qxF "$TAG"; then
               echo "release $TAG exists"; break
             fi
             echo "waiting for release $TAG ($i/30)…"; sleep 10
@@ -894,7 +895,12 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          PUBLISHING: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         run: |
+          if [ -z "${ANDROID_KEY_BASE64}" ] && [ "${PUBLISHING}" = "true" ]; then
+            echo "::error::ANDROID_KEY_BASE64 is not set. Tag and main builds publish the APK, and an ephemeral key would make it impossible to update over an existing install."
+            exit 1
+          fi
           if [ -n "${ANDROID_KEY_BASE64}" ]; then
             echo "Signing with the configured persistent release keystore."
             echo "keyAlias=${ANDROID_KEY_ALIAS}" > keystore.properties
@@ -902,8 +908,8 @@ jobs:
             base64 -d <<< "${ANDROID_KEY_BASE64}" > "$RUNNER_TEMP/zcrypt-release.jks"
             alias="${ANDROID_KEY_ALIAS}"; pass="${ANDROID_KEY_PASSWORD}"
           else
-            echo "No release keystore secret: generating an ephemeral one so the"
-            echo "release APK is signed + sideloadable (see the step comment)."
+            echo "No release keystore secret and this run does not publish: generating an"
+            echo "ephemeral keystore so the APK is signed + sideloadable for testing."
             keytool -genkeypair -v -noprompt \
               -keystore "$RUNNER_TEMP/zcrypt-release.jks" \
               -alias zcrypt -keyalg RSA -keysize 2048 -validity 10000 \
@@ -930,6 +936,7 @@ jobs:
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ZCRYPT_API_URL: ${{ vars.DESKTOP_API_URL }}
         # RELEASE, all-ABI universal APK. Release (not --debug) keeps it ~100MB
         # instead of ~200MB+; no --target = one universal APK for every device
         # (arm64/armv7/x86/x86_64). This emits an UNSIGNED release APK, the
@@ -997,7 +1004,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           for i in $(seq 1 30); do
-            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' | grep -qxF "$TAG"; then
               echo "release $TAG exists"; break
             fi
             echo "waiting for release $TAG ($i/30)…"; sleep 10
@@ -1012,12 +1019,11 @@ jobs:
       # This is a separate, non-versioned prerelease from the tag-based
       # release above: it exists purely so that link never breaks, and it's
       # refreshed on every push that touches desktop/core (not just version
-      # tags). The APK is signed (persistent keystore if configured, else an
-      # ephemeral CI key) so it installs; it's just not Play-Store-eligible.
-      # Skipped on pull_request builds (untrusted forks don't get a token with
-      # write access, and PR builds shouldn't clobber the public link anyway).
+      # tags). The APK is signed (always the persistent keystore: the build fails on
+      # main without it) so it installs; it's just not Play-Store-eligible.
+      # Only runs for pushes to main: PRs and other branches never touch the link.
       - name: Publish rolling sideload APK (android-latest)
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1039,3 +1045,42 @@ jobs:
 
           gh release upload android-latest "$SIGNED_APK" \
             --repo "$GITHUB_REPOSITORY" --clobber
+
+  publish-release:
+    name: Publish the release
+    needs:
+      [
+        build-desktop,
+        sign-windows,
+        publish-updater-manifest,
+        build-android,
+        check-updater-signing,
+      ]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      && !cancelled()
+      && needs.build-desktop.result == 'success'
+      && needs.build-android.result == 'success'
+      && (needs.sign-windows.result == 'success' || needs.sign-windows.result == 'skipped')
+      && (needs.publish-updater-manifest.result == 'success' || needs.publish-updater-manifest.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require latest.json when updater signing is configured
+        if: needs.check-updater-signing.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          found="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .assets[].name" | grep -cxF latest.json || true)"
+          if [ "$found" -eq 0 ]; then
+            echo "::error::$TAG has no latest.json asset; refusing to publish a release the updater cannot read."
+            exit 1
+          fi
+
+      - name: Publish the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

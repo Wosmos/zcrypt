@@ -1,21 +1,16 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
+import { SITE_DOMAIN } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Quickstart | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Quickstart · Docs",
   description:
     "Create a free account, set your passphrase, connect a storage platform, and upload your first encrypted file to zcrypt in a few minutes. No credit card.",
-  alternates: { canonical: `${SITE_URL}/docs/getting-started` },
-  openGraph: {
-    title: "Quickstart | zcrypt Docs",
-    description:
-      "Sign up, understand your passphrase, connect storage, and upload your first encrypted file to zcrypt, free and open source.",
-    url: `${SITE_URL}/docs/getting-started`,
-  },
-};
+  path: "/docs/getting-started",
+  ogDescription:
+    "Sign up, understand your passphrase, connect storage, and upload your first encrypted file to zcrypt, free and open source.",
+});
 
 const toc = [
   { id: "account", k: "docs.getting-started.toc.account" },

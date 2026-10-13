@@ -127,7 +127,8 @@ export function FilePreview({
     const tag = (e.target as HTMLElement).tagName;
     if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && tag !== "INPUT") {
       e.preventDefault();
-      step(e.key === "ArrowRight" ? 1 : -1);
+      const rtl = getComputedStyle(e.currentTarget).direction === "rtl";
+      step((e.key === "ArrowRight") !== rtl ? 1 : -1);
       return;
     }
     if (ref.current) trapFocus(e, focusables(ref.current));
@@ -214,7 +215,7 @@ export function FilePreview({
               aria-label={tr("drive.preview.previous")}
               onClick={() => step(-1)}
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5 rtl:-scale-x-100" />
             </button>
             <button
               type="button"
@@ -222,7 +223,7 @@ export function FilePreview({
               aria-label={tr("drive.preview.next")}
               onClick={() => step(1)}
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5 rtl:-scale-x-100" />
             </button>
           </>
         ) : null}

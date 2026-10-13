@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Viewing & previewing files | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Viewing & previewing files · Docs",
   description:
     "See image and video thumbnails generated on your device, then open images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in zcrypt's full-screen viewer: decrypted on the fly, with keyboard paging, so plaintext never leaves your device.",
-  alternates: { canonical: `${SITE_URL}/docs/viewing-files` },
-  openGraph: {
-    title: "Viewing & previewing files | zcrypt Docs",
-    description:
-      "A full-screen viewer that previews images, video, audio, PDFs, documents, and code by decrypting on the fly: zero-knowledge, with prev/next and keyboard control.",
-    url: `${SITE_URL}/docs/viewing-files`,
-  },
-};
+  path: "/docs/viewing-files",
+  ogDescription:
+    "A full-screen viewer that previews images, video, audio, PDFs, documents, and code by decrypting on the fly: zero-knowledge, with prev/next and keyboard control.",
+});
 
 const toc = [
   { id: "thumbnails", k: "docs.viewing-files.toc.thumbnails" },

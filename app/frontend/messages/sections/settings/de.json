@@ -407,7 +407,11 @@
       "enable": "Totmannschalter aktivieren",
       "delete": "Löschen",
       "confirmTitle": "Totmannschalter löschen?",
-      "confirmDesc": "Dadurch wird deine Totmannschalter-Konfiguration dauerhaft entfernt. Dein vertrauter Kontakt wird nicht mehr benachrichtigt, wenn du dich nicht meldest."
+      "confirmDesc": "Dadurch wird deine Totmannschalter-Konfiguration dauerhaft entfernt. Dein vertrauter Kontakt wird nicht mehr benachrichtigt, wenn du dich nicht meldest.",
+      "loadFailed": "Dein Totmannschalter konnte nicht geladen werden. Es wurde nichts geändert.",
+      "retry": "Erneut versuchen",
+      "contactEmailPlaceholder": "vertrauensperson@beispiel.de",
+      "contactNamePlaceholder": "Erika Mustermann"
     },
     "decoy": {
       "passwordShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
@@ -453,7 +457,9 @@
       "removeVaultDesc": "Dadurch werden dein Köder-Passwort und alle Köder-Dateien dauerhaft gelöscht. Dein echter Tresor bleibt unberührt.",
       "remove": "Entfernen",
       "removeFileTitle": "Köder-Datei entfernen?",
-      "removeFileDesc": "„{name}“ aus dem Köder-Tresor entfernen?"
+      "removeFileDesc": "„{name}“ aus dem Köder-Tresor entfernen?",
+      "loadFailed": "Die Einstellungen deines Köder-Tresors konnten nicht geladen werden. Es wurde nichts geändert.",
+      "retry": "Erneut versuchen"
     },
     "emailPrefs": {
       "label": "E-Mail",

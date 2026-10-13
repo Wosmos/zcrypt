@@ -1,9 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { cachedDecrypt, isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";
+import {
+  cachedDecrypt,
+  isForegroundDecryptActive,
+  onDecryptCacheClear,
+  onDecryptFolderClear,
+  onDecryptWipe,
+} from "@/lib/decrypt-cache";
 import { isImageFile, isVideoFile } from "@/lib/utils";
 import { getFilesData } from "@/store/files";
+import { useFolderRegistry } from "@/store/folder-registry";
 import { runDecryptPipeline } from "@/hooks/useFileDecryptor";
 
 // A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
@@ -191,9 +198,22 @@ function openDB(): Promise<IDBDatabase> {
 }
 
 async function dbPut(key: string, value: string) {
+  if (isInProtectedFolder(key)) return;
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(value, key);
+}
+
+async function dbDelete(keys: string[] | null) {
+  const db = await openDB();
+  const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+  if (keys === null) store.clear();
+  else for (const k of keys) store.delete(k);
+}
+
+function isInProtectedFolder(fileId: string): boolean {
+  const fid = getFilesData().find((f) => f.id === fileId)?.folder_id ?? null;
+  return !!fid && useFolderRegistry.getState().isProtected(fid);
 }
 
 // ── Boot: hydrate memCache from IndexedDB ────────────────────────────
@@ -561,6 +581,7 @@ async function fetchAndCacheThumbnail(
       markThumbFailed(fileId, /* permanent */ true);
       return null;
     }
+    if (ctxPassphrase === null) return null;
     memCache.set(fileId, dataUrl);
     genStartedAt.delete(fileId);
     const gt = graceTimers.get(fileId);
@@ -623,33 +644,60 @@ export async function seedThumbnailFromFile(
 export function primeThumbnails(passphrase: string, resolvePassword?: ThumbnailPasswordResolver) {
   ctxPassphrase = passphrase;
   ctxResolver = resolvePassword;
+  if (!hydrated && typeof window !== "undefined") void hydrate();
   notify(); // wake already-mounted hooks so they start generating
 }
 
-/**
- * On a vault LOCK / logout, stop NEW thumbnail generation (drop the armed
- * passphrase) but KEEP the already-generated previews cached: both the in-memory
- * mirror and the on-disk `zcrypt_thumbs` store. That is what makes an unlock /
- * reload / re-login show thumbnails INSTANTLY with no shimmer instead of
- * regenerating (and shimmering through) every tile.
- *
- * Trade-off: low-res previews persist decrypted on this device (RAM + IndexedDB);
- * the actual files remain AES-256 encrypted. This matches the device-trust the
- * app already assumes by persisting the passphrase for "keep me unlocked here".
- * To evict previews too, call `wipeThumbnails()`.
- *
- * `useVaultActions` re-arms via `primeThumbnails()` on the next unlock.
- */
-export function clearThumbnails() {
+function resetThumbnailState() {
   ctxPassphrase = null;
   ctxResolver = undefined;
+  memCache.clear();
+  failed.clear();
+  genStartedAt.clear();
+  for (const t of retryTimers.values()) clearTimeout(t);
+  retryTimers.clear();
+  for (const t of graceTimers.values()) clearTimeout(t);
+  graceTimers.clear();
+  hydrated = false;
   notify();
 }
 
-// A vault lock / TTL expiry / logout goes through clearDecryptCache(); piggyback
-// on that single eviction event so thumbnails are dropped in lockstep with the
-// blob cache, no store→hook import (which would cycle through lib/api).
+/**
+ * On a vault LOCK, stop serving and generating thumbnails: the armed passphrase
+ * and the in-memory plaintext previews are dropped, so nothing is shown while
+ * locked. The on-disk `zcrypt_thumbs` store is KEPT so the next unlock re-hydrates
+ * it instantly with no shimmer. `primeThumbnails()` re-arms on the next unlock.
+ */
+export function clearThumbnails() {
+  resetThumbnailState();
+}
+
+/** On LOGOUT: additionally erase the persisted previews so the next account on
+ *  this device inherits nothing. */
+export function wipeThumbnails() {
+  resetThumbnailState();
+  dbDelete(null).catch(() => {});
+}
+
+function evictFolderThumbnails(folderId: string) {
+  const ids = getFilesData()
+    .filter((f) => f.folder_id === folderId)
+    .map((f) => f.id);
+  for (const id of ids) {
+    memCache.delete(id);
+    failed.delete(id);
+    notify(id);
+  }
+  dbDelete(ids).catch(() => {});
+}
+
+// A vault lock / TTL expiry goes through clearDecryptCache(); piggyback on that
+// single eviction event so thumbnails are dropped in lockstep with the blob
+// cache, no store→hook import (which would cycle through lib/api). Logout and a
+// protected folder re-locking have their own hooks for the same reason.
 onDecryptCacheClear(clearThumbnails);
+onDecryptWipe(wipeThumbnails);
+onDecryptFolderClear(evictFolderThumbnails);
 
 /** Check if a file has a cached thumbnail (no passphrase needed). */
 export function hasCachedThumbnail(fileId: string): boolean {

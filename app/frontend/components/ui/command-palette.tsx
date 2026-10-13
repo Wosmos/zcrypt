@@ -159,6 +159,11 @@ export function CommandPalette() {
     }
   };
 
+  const unlockToSearch = () => {
+    onOpenChange(false);
+    vault.unlock();
+  };
+
   const openFile = (name: string) => {
     useVaultSearch.getState().setQuery(name);
     onOpenChange(false);
@@ -194,7 +199,15 @@ export function CommandPalette() {
             </CommandItem>
           ))}
         </CommandGroup>
-        {fileResults.length > 0 && (
+        {!vault.unlocked && (
+          <CommandGroup heading={t("ui.palette.files")}>
+            <CommandItem forceMount value="file unlock" onSelect={unlockToSearch}>
+              <FileIcon className="h-4 w-4 text-[var(--color-text-muted)]" />
+              {t("ui.palette.unlockToSearch")}
+            </CommandItem>
+          </CommandGroup>
+        )}
+        {vault.unlocked && fileResults.length > 0 && (
           <CommandGroup heading={t("ui.palette.files")}>
             {fileResults.map((f) => (
               <CommandItem

@@ -123,6 +123,7 @@ import {
   useFileDecryptor,
   mimeForFilename,
   IntegrityError,
+  ChunkDecryptError,
 } from "@/hooks/useFileDecryptor";
 import {
   FolderUnlockCancelled,
@@ -206,16 +207,6 @@ describe("mimeForFilename", () => {
     expect(mimeForFilename("mystery.xyz")).toBe("application/octet-stream");
     expect(mimeForFilename("noextension")).toBe("application/octet-stream");
   });
-
-  it("falls back to octet-stream if split().pop() ever yields undefined (defensive ?? \"\")", () => {
-    // A real string's split(".") always returns a non-empty array, so pop()
-    // never actually returns undefined, the `?? ""` guards a case that can't
-    // happen for any real string. Force it anyway with a fake "string" (typed
-    // through as `string` to invoke the function's real logic) whose split()
-    // returns an empty array, to prove the fallback itself is correct.
-    const fakeFilename = { split: () => [] } as unknown as string;
-    expect(mimeForFilename(fakeFilename)).toBe("application/octet-stream");
-  });
 });
 
 describe("runDecryptPipeline", () => {
@@ -277,7 +268,7 @@ describe("runDecryptPipeline", () => {
     expect(getFileChunkMock.mock.calls.map((c) => c[1]).sort()).toEqual([0, 1]);
   });
 
-  it("propagates a legacy main-thread key-verification failure (wrong password) before ever reaching the pool", async () => {
+  it("types a legacy main-thread key-verification failure (wrong password) before ever reaching the pool", async () => {
     const file = makeFile({ chunk_count: 1 });
     const meta = makeMeta({ chunk_count: 1, wrapped_cek: undefined });
     getFileMetaMock.mockResolvedValue(meta);
@@ -289,7 +280,7 @@ describe("runDecryptPipeline", () => {
     const authErr = new DOMException("", "OperationError");
     decryptChunkMock.mockRejectedValue(authErr);
 
-    await expect(runDecryptPipeline(file, "wrong-pw")).rejects.toBe(authErr);
+    await expect(runDecryptPipeline(file, "wrong-pw")).rejects.toBeInstanceOf(IncorrectPassphraseError);
     expect(processMock).not.toHaveBeenCalled();
     expect(workerPoolCtorMock).not.toHaveBeenCalled();
   });
@@ -336,7 +327,7 @@ describe("runDecryptPipeline", () => {
     expect(workerPoolCtorMock).toHaveBeenCalledTimes(2);
   });
 
-  it("wraps a worker pool decrypt rejection as a generic wrong-passphrase error", async () => {
+  it("wraps a worker pool decrypt rejection as a ChunkDecryptError, not a wrong-password signal", async () => {
     const file = makeFile({ chunk_count: 1 });
     const meta = makeMeta({ chunk_count: 1 });
     getFileMetaMock.mockResolvedValue(meta);
@@ -350,6 +341,8 @@ describe("runDecryptPipeline", () => {
     await expect(runDecryptPipeline(file, "pw")).rejects.toThrow(
       "Decryption failed, wrong passphrase?"
     );
+    await expect(runDecryptPipeline(file, "pw")).rejects.toBeInstanceOf(ChunkDecryptError);
+    await expect(runDecryptPipeline(file, "pw")).rejects.not.toBeInstanceOf(IncorrectPassphraseError);
   });
 
   it("throws IntegrityError when the reassembled SHA-256 does not match", async () => {
@@ -561,7 +554,12 @@ describe("runDecryptPipeline on desktop", () => {
     tauriMock.sidecarDecryptToMemory.mockRejectedValueOnce(
       "crypto: decryption failed: wrong passphrase or corrupt data",
     );
-    await expect(mod.runDecryptPipeline(makeFile(), "pw")).rejects.toThrow("wrong passphrase");
+    await expect(mod.runDecryptPipeline(makeFile(), "pw")).rejects.toBeInstanceOf(
+      IncorrectPassphraseError,
+    );
+
+    tauriMock.sidecarDecryptToMemory.mockRejectedValueOnce("network: connection reset");
+    await expect(mod.runDecryptPipeline(makeFile(), "pw")).rejects.toThrow("connection reset");
 
     tauriMock.sidecarDecryptToMemory.mockRejectedValueOnce(
       "integrity: content hash mismatch: wrong passphrase or corrupt data",
@@ -579,6 +577,14 @@ describe("prefetchFileDecrypt", () => {
     prefetchFileDecrypt(makeFile());
     await flushMicrotasks();
     expect(resolveFilePasswordGlobalMock).not.toHaveBeenCalled();
+  });
+
+  it("skips a file above the prefetch size cap (viewer neighbours included)", async () => {
+    isWarmOrInflightMock.mockReturnValue(false);
+    prefetchFileDecrypt(makeFile({ original_size: 51 * 1024 * 1024 }));
+    await flushMicrotasks();
+    expect(resolveFilePasswordGlobalMock).not.toHaveBeenCalled();
+    expect(cachedDecryptMock).not.toHaveBeenCalled();
   });
 
   it("silently swallows a rejected password resolution", async () => {
@@ -769,6 +775,15 @@ describe("useFileDecryptor", () => {
     await expect(
       result.current.decryptToBlob(file)
     ).rejects.toBeInstanceOf(IntegrityError);
+  });
+
+  it("does not map a corrupt later chunk to WrongPasswordError", async () => {
+    const folderProtection = makeFolderProtection();
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1 }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockRejectedValue(new Error("auth tag"));
+    const { result } = renderHook(() => useFileDecryptor(folderProtection));
+    await expect(result.current.decryptToBlob(makeFile({ chunk_count: 1 }))).rejects.toBeInstanceOf(ChunkDecryptError);
   });
 
   it("re-throws FolderUnlockCancelled as-is (a clean cancel, not an error)", async () => {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import { ArrowRight, Globe, Monitor, Smartphone, ShieldCheck, Server, Check } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
@@ -8,12 +8,13 @@ import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/
 import { cn } from "@/lib/utils";
 import { apps } from "../_data/apps";
 import { T } from "@/components/i18n/t";
-import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
+import { SITE_DOMAIN } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Web, Desktop & Android. One Encrypted Vault, Three Surfaces",
   description:
     "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, and an Android app you sideload in a minute. Your encryption never changes, only the interface does.",
+  path: "/features/apps",
   keywords: [
     "encrypted storage apps",
     "web app",
@@ -23,15 +24,10 @@ export const metadata: Metadata = {
     "macOS Windows Linux",
     "cross-platform encryption",
   ],
-  alternates: { canonical: `${SITE_URL}/features/apps` },
-  openGraph: {
-    title: "Web, Desktop & Android. One Encrypted Vault | zcrypt",
-    description:
-      "One zero-knowledge core across three surfaces: web in any browser, a native desktop app, and an Android sideload APK.",
-    url: `${SITE_URL}/features/apps`,
-    type: "website",
-  },
-};
+  ogTitle: "Web, Desktop & Android. One Encrypted Vault | zcrypt",
+  ogDescription:
+    "One zero-knowledge core across three surfaces: web in any browser, a native desktop app, and an Android sideload APK.",
+});
 
 export default function AppsPage() {
   const {
@@ -172,7 +168,7 @@ export default function AppsPage() {
                   className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
                   {s.cta}
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
                 </Link>
               </li>
             ))}

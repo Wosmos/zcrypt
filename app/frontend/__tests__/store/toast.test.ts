@@ -76,6 +76,57 @@ describe("useToastStore", () => {
     expect(remaining[0].message).toBe("b");
   });
 
+  describe("pause / resume", () => {
+    afterEach(() => {
+      useToastStore.getState().resume();
+    });
+
+    it("holds the countdown while paused and resumes with the remaining time", () => {
+      useToastStore.getState().add("info", "hover me");
+      vi.advanceTimersByTime(3000);
+      useToastStore.getState().pause();
+      vi.advanceTimersByTime(60000);
+      expect(useToastStore.getState().toasts).toHaveLength(1);
+      useToastStore.getState().resume();
+      vi.advanceTimersByTime(999);
+      expect(useToastStore.getState().toasts).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(useToastStore.getState().toasts).toHaveLength(0);
+    });
+
+    it("does not start the countdown for a toast added while paused", () => {
+      useToastStore.getState().pause();
+      useToastStore.getState().add("info", "late");
+      vi.advanceTimersByTime(60000);
+      expect(useToastStore.getState().toasts).toHaveLength(1);
+      useToastStore.getState().resume();
+      vi.advanceTimersByTime(4000);
+      expect(useToastStore.getState().toasts).toHaveLength(0);
+    });
+
+    it("pausing twice does not double-subtract elapsed time", () => {
+      useToastStore.getState().add("info", "x");
+      vi.advanceTimersByTime(1000);
+      useToastStore.getState().pause();
+      vi.advanceTimersByTime(1000);
+      useToastStore.getState().pause();
+      useToastStore.getState().resume();
+      vi.advanceTimersByTime(2999);
+      expect(useToastStore.getState().toasts).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(useToastStore.getState().toasts).toHaveLength(0);
+    });
+
+    it("resume() leaves running timers alone and remove() cancels the timer", () => {
+      useToastStore.getState().add("info", "x");
+      useToastStore.getState().resume();
+      const id = useToastStore.getState().toasts[0].id;
+      useToastStore.getState().remove(id);
+      vi.advanceTimersByTime(4000);
+      expect(useToastStore.getState().toasts).toHaveLength(0);
+    });
+  });
+
   describe("toast helper", () => {
     it("proxies success/error/info/warning to add() with the right type", () => {
       toast.success("s");

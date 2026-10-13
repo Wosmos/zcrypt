@@ -1,21 +1,15 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
-import { SITE_URL } from "@/lib/site";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Transfer manager | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Transfer manager · Docs",
   description:
     "The docked transfer manager unifies every upload and download in zcrypt: per-item progress, speed and ETA, a direction cue, pause/resume and retry for both directions, and a non-destructive dismiss: all in a panel that survives navigation and stays put while work is in flight. Distinct from device transfer.",
-  alternates: { canonical: `${SITE_URL}/docs/transfer-manager` },
-  openGraph: {
-    title: "Transfer manager | zcrypt Docs",
-    description:
-      "Pause, resume, retry, stop, and track every upload and download from one docked panel that survives navigation and never hides work in flight.",
-    url: `${SITE_URL}/docs/transfer-manager`,
-  },
-};
+  path: "/docs/transfer-manager",
+  ogDescription:
+    "Pause, resume, retry, stop, and track every upload and download from one docked panel that survives navigation and never hides work in flight.",
+});
 
 const toc = [
   { id: "panel", k: "docs.transfer-manager.toc.panel" },

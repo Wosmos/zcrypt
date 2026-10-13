@@ -80,7 +80,8 @@ function MonthPane({ year, month, start, end, max, todayKey, onPick }: MonthPane
                 inMonth && !disabled && "text-[var(--color-text)]",
                 disabled && "cursor-not-allowed text-[var(--color-text-muted)]/30",
                 inRange && "rounded-none bg-[var(--color-accent)]/15",
-                (isStart || isEnd) && "bg-[var(--color-accent)] font-semibold text-white",
+                (isStart || isEnd) &&
+                  "bg-[var(--color-accent)] font-semibold text-[var(--color-on-accent)]",
                 isToday && !isStart && !isEnd && "ring-1 ring-inset ring-[var(--color-accent)]/50",
                 !disabled && !isStart && !isEnd && "hover:bg-[var(--color-surface-2)]",
               )}

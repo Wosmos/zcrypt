@@ -27,9 +27,17 @@ func (db *DB) GetPadByToken(ctx context.Context, token string) (*types.Pad, erro
 	return p, nil
 }
 
-func (db *DB) IncrementPadViews(ctx context.Context, id string) error {
-	_, err := db.pool.Exec(ctx, `UPDATE pads SET view_count = view_count + 1 WHERE id = $1`, id)
-	return err
+func (db *DB) ClaimPadRead(ctx context.Context, token string) (*types.Pad, error) {
+	p := &types.Pad{}
+	err := db.pool.QueryRow(ctx,
+		`UPDATE pads SET view_count = view_count + 1
+		 WHERE token = $1 AND expires_at > NOW() AND (NOT burn_after_read OR view_count = 0)
+		 RETURNING id, token, encrypted_blob, content_size, burn_after_read, view_count, expires_at, creator_ip, created_at`, token,
+	).Scan(&p.ID, &p.Token, &p.EncryptedBlob, &p.ContentSize, &p.BurnAfterRead, &p.ViewCount, &p.ExpiresAt, &p.CreatorIP, &p.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func (db *DB) DeletePad(ctx context.Context, id string) error {

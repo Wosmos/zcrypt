@@ -371,6 +371,7 @@
       "retry": "إعادة المحاولة",
       "decrypting": "جارٍ فك التشفير…",
       "decryptingProgress": "جارٍ فك التشفير… {done}/{total} · {percent}%",
+      "tooLarge": "هذا الملف كبير جدا لمعاينته هنا. قم بتنزيله بدلا من ذلك.",
       "noPreview": "لا تتوفر معاينة لهذا النوع من الملفات.",
       "readFailed": "تعذّرت قراءة هذا الملف.",
       "docFailed": "تعذّر عرض هذا المستند.",
@@ -788,7 +789,10 @@
         "rename": "إعادة تسمية",
         "clear": "مسح التحديد",
         "show": "عرض هذه الاختصارات"
-      }
+      },
+      "folderCount": "{count, plural, zero {# مجلد} one {مجلد واحد} two {مجلدان} few {# مجلدات} many {# مجلدًا} other {# مجلد}}",
+      "fileCount": "{count, plural, zero {# ملف} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}",
+      "itemCount": "{count, plural, zero {# عنصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}}"
     },
     "hooks": {
       "connectionRestored": "تمت استعادة الاتصال بالخادم",
@@ -819,7 +823,8 @@
       "deleteFailed": "فشل الحذف",
       "bulkPartial": "حُذف {deleted} وفشل {failed}",
       "bulkDeleted": "{count, plural, one {تم حذف ملف واحد} two {تم حذف ملفين} few {تم حذف # ملفات} many {تم حذف # ملفًا} other {تم حذف # ملف}}",
-      "bulkDeleteFailed": "فشل الحذف الجماعي"
+      "bulkDeleteFailed": "فشل الحذف الجماعي",
+      "emptyFilesSkipped": "لا يمكن رفع الملفات الفارغة: {names}"
     },
     "notifications": {
       "uploadComplete": "اكتمل الرفع",
@@ -835,7 +840,8 @@
       "unlockCustomize": "افتح قفل خزنتك لتخصيص الملفات",
       "unlockRename": "افتح قفل خزنتك لإعادة تسمية الملفات",
       "emptyName": "لا يمكن أن يكون الاسم فارغًا",
-      "addFailed": "تعذّرت إضافة الملفات"
+      "addFailed": "تعذّرت إضافة الملفات",
+      "duplicateName": "يوجد ملف باسم \"{name}\" هنا بالفعل."
     },
     "toasts": {
       "restartUpload": "تعذّر متابعة عملية الرفع السابقة لـ \"{name}\"، لذا ستبدأ من جديد على {platform}.",
@@ -860,7 +866,8 @@
       "zipPartial": "تم حفظ ملف ZIP بدون {failed} من أصل {total} ملفات ({names}). نزّل تلك الملفات كل على حدة.",
       "zipFailed": "فشل تنزيل ملف ZIP",
       "zipFailedMsg": "فشل تنزيل ملف ZIP: {msg}",
-      "zipWrongPassword": "كلمة مرور مجلد غير صحيحة في ملف ZIP هذا. أعد المحاولة لإدخالها من جديد."
+      "zipWrongPassword": "كلمة مرور مجلد غير صحيحة في ملف ZIP هذا. أعد المحاولة لإدخالها من جديد.",
+      "zipFilesLabel": "ZIP، عدد الملفات: {count}"
     },
     "l10n": {
       "justNow": "الآن",

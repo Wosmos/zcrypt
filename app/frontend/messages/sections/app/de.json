@@ -371,6 +371,7 @@
       "retry": "Wiederholen",
       "decrypting": "Wird entschlüsselt…",
       "decryptingProgress": "Wird entschlüsselt… {done}/{total} · {percent}%",
+      "tooLarge": "Diese Datei ist zu groß für die Vorschau hier. Lade sie stattdessen herunter.",
       "noPreview": "Für diesen Dateityp ist keine Vorschau verfügbar.",
       "readFailed": "Diese Datei konnte nicht gelesen werden.",
       "docFailed": "Dieses Dokument konnte nicht dargestellt werden.",
@@ -788,7 +789,10 @@
         "rename": "Umbenennen",
         "clear": "Auswahl aufheben",
         "show": "Diese Tastenkürzel anzeigen"
-      }
+      },
+      "folderCount": "{count, plural, one {# Ordner} other {# Ordner}}",
+      "fileCount": "{count, plural, one {# Datei} other {# Dateien}}",
+      "itemCount": "{count, plural, one {# Element} other {# Elemente}}"
     },
     "hooks": {
       "connectionRestored": "Serververbindung wiederhergestellt",
@@ -819,7 +823,8 @@
       "deleteFailed": "Löschen fehlgeschlagen",
       "bulkPartial": "{deleted} gelöscht, {failed} fehlgeschlagen",
       "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
-      "bulkDeleteFailed": "Massenlöschung fehlgeschlagen"
+      "bulkDeleteFailed": "Massenlöschung fehlgeschlagen",
+      "emptyFilesSkipped": "Leere Dateien können nicht hochgeladen werden: {names}"
     },
     "notifications": {
       "uploadComplete": "Upload abgeschlossen",
@@ -835,7 +840,8 @@
       "unlockCustomize": "Entsperre deinen Tresor, um Dateien anzupassen",
       "unlockRename": "Entsperre deinen Tresor, um Dateien umzubenennen",
       "emptyName": "Der Name darf nicht leer sein",
-      "addFailed": "Dateien konnten nicht hinzugefügt werden"
+      "addFailed": "Dateien konnten nicht hinzugefügt werden",
+      "duplicateName": "Eine Datei namens \"{name}\" existiert hier bereits."
     },
     "toasts": {
       "restartUpload": "Der vorherige Upload von „{name}“ konnte nicht fortgesetzt werden, Neustart auf {platform}.",
@@ -860,7 +866,8 @@
       "zipPartial": "ZIP ohne {failed} von {total} Dateien gespeichert ({names}). Lade diese einzeln herunter.",
       "zipFailed": "ZIP-Download fehlgeschlagen",
       "zipFailedMsg": "ZIP-Download fehlgeschlagen: {msg}",
-      "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben."
+      "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben.",
+      "zipFilesLabel": "{count, plural, one {# Datei (ZIP)} other {# Dateien (ZIP)}}"
     },
     "l10n": {
       "justNow": "gerade eben",

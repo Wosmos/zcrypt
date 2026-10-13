@@ -177,7 +177,7 @@
         "heading": "Desktop-Apps",
         "subheading": "Eine native App auf Basis von Tauri mit {engine}, der integrierten {language}-Engine, damit deine Dateien auf deinem Gerät verschlüsselt werden, bevor sie es je verlassen.",
         "blurb": {
-          "macos": "Apple Silicon, macOS 11 Big Sur oder neuer.",
+          "macos": "Apple Silicon und Intel, macOS 10.15 Catalina oder neuer.",
           "windows": "Windows 10 und 11, 64 Bit.",
           "linux": "64 Bit. Wähle das Paket deiner Distribution oder die portable Version für alles andere."
         },
@@ -1577,7 +1577,7 @@
             "body": "Große Dateien werden in Teile zerlegt und über deine Konten verteilt. Deine einzige Grenze ist der freie Platz, den du ohnehin schon hast.",
             "caption": "jedes Konto bringt mehr Platz",
             "chips": {
-              "0": "Teile von 4 bis 32 MB",
+              "0": "Teile von 4 bis 16 MB",
               "1": "Neuer Platz, bevor einer voll ist",
               "2": "Telegram: keine Obergrenze"
             }

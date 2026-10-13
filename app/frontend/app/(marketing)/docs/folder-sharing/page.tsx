@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-
+import { pageMetadata } from "@/lib/page-metadata";
 import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
@@ -12,18 +11,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Share a folder | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Share a folder · Docs",
   description:
     "Share a whole folder with a single public link. Everyone with the link can browse and download the files, read-only, with no account, and it stays end-to-end encrypted because the folder key lives only in the URL fragment. Add an optional password that hides the file listing until it's entered.",
-  alternates: { canonical: `${SITE_URL}/docs/folder-sharing` },
-  openGraph: {
-    title: "Share a folder | zcrypt Docs",
-    description:
-      "One public link for a whole folder: read-only, no account needed, and still end-to-end encrypted: the folder key never leaves the link fragment.",
-    url: `${SITE_URL}/docs/folder-sharing`,
-  },
-};
+  path: "/docs/folder-sharing",
+  ogDescription:
+    "One public link for a whole folder: read-only, no account needed, and still end-to-end encrypted: the folder key never leaves the link fragment.",
+});
 
 const toc = [
   { id: "create", k: "docs.folder-sharing.toc.create" },

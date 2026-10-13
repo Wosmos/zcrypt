@@ -12,10 +12,12 @@ import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { AuthLink } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
+import { PasswordField } from "@/components/auth/password-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { useFriendlyError } from "@/hooks/useConnectivity";
-import { Lock, User, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
+import { authScene } from "@/components/auth/auth-scene";
+import { User, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -36,16 +38,19 @@ export default function RegisterPage() {
 
   const doRegister = async (force: boolean) => {
     setLoading(true);
+    authScene.sealing();
     try {
       const res = await registerWithBreachCheck(email, username, password, force);
 
       if (res.requires === "force" && res.warning && !force) {
         setBreachWarning({ message: res.warning, count: res.breach_count ?? 0 });
+        authScene.idle();
         setLoading(false);
         return;
       }
 
       setBreachWarning(null);
+      authScene.done();
 
       if (res.user?.email_verified) {
         const loginRes = await loginApi(email, password);
@@ -65,6 +70,7 @@ export default function RegisterPage() {
         setSuccess("pending");
       }
     } catch (err) {
+      authScene.failed();
       toast.error(friendlyError(err, tr("failed")));
     } finally {
       setLoading(false);
@@ -131,8 +137,6 @@ export default function RegisterPage() {
   return (
     <div className="animate-fade-in">
       <div className="space-y-4">
-        <OAuthButtons />
-
         <form onSubmit={handleSubmit} className="space-y-3">
           <EmailField value={email} onChange={setEmail} />
           <Input
@@ -146,27 +150,21 @@ export default function RegisterPage() {
             required
             autoComplete="username"
           />
-          <Input
+          <PasswordField
             label={t("password")}
-            type="password"
             name="password"
             placeholder={t("passwordPlaceholder")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            icon={<Lock className="h-4 w-4" />}
-            required
             autoComplete="new-password"
+            value={password}
+            onChange={setPassword}
           />
-          <Input
+          <PasswordField
             label={tr("confirmPassword")}
-            type="password"
             name="confirmPassword"
             placeholder={tr("confirmPlaceholder")}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            icon={<Lock className="h-4 w-4" />}
-            required
             autoComplete="new-password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
           />
 
           {/* Breach warning */}
@@ -202,9 +200,11 @@ export default function RegisterPage() {
             {tr("createAccount")}
           </SubmitButton>
         </form>
+
+        <OAuthButtons />
       </div>
 
-      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-5">
+      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
         {tr.rich("haveAccount", {
           link: (chunks) => <AuthLink href="/login">{chunks}</AuthLink>,
         })}

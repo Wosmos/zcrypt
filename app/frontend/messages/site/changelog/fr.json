@@ -11,6 +11,9 @@
       "versionLabel": "Version {version}",
       "readMore": "Ouvrir cette version",
       "allVersions": "Toutes les versions",
+      "releasesLabel": "Versions publiées",
+      "releaseNotesLabel": "Notes de version",
+      "versionsLabel": "Versions",
       "previous": "Plus ancienne",
       "next": "Plus récente",
       "getLatest": "Obtenir la dernière version",
@@ -67,7 +70,7 @@
         "toolPages": "Les pages Pad, Send et Transfer affichent à nouveau leurs étapes et leur texte de fin.",
         "systemTheme": "Avec le thème sur Système, l'appli suit désormais tout de suite le passage clair ou sombre de votre appareil.",
         "connectionStatus": "zcrypt vous prévient désormais tout de suite quand votre internet est coupé ou lent, ou quand nos serveurs sont injoignables, et réessaie tout seul.",
-        "signInRedesign": "Une page de connexion repensée qui montre votre coffre tel que nos serveurs le voient (illisible), avec l'état des serveurs en direct sous le formulaire."
+        "signInRedesign": "Pages de connexion et d'inscription plus épurées : une mise en page simple en pleine page avec le formulaire d'un côté et l'état des serveurs en direct en dessous."
       }
     },
     "v0_1_7": {

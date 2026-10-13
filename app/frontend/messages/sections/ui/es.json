@@ -179,7 +179,8 @@
         "newSpace": "Nuevo espacio",
         "getApps": "Obtener las apps",
         "shortcuts": "Atajos de teclado"
-      }
+      },
+      "unlockToSearch": "Desbloquea para buscar archivos"
     },
     "notifications": {
       "justNow": "ahora mismo",
@@ -290,7 +291,16 @@
       "downloadFor": "Descargar para {os}",
       "otherPlatforms": "Otras plataformas",
       "allDownloads": "Todas las descargas",
-      "iosNote": "Aún no hay app para iPhone. La app web funciona en Safari y se puede añadir a la pantalla de inicio."
+      "iosNote": "Aún no hay app para iPhone. La app web funciona en Safari y se puede añadir a la pantalla de inicio.",
+      "target": {
+        "macosArm64": "Apple silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "Instalador (.exe)",
+        "windowsMsi": "Paquete MSI (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "Sin conexión",

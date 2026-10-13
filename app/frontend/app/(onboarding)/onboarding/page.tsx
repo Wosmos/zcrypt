@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { connectPlatform } from "@/lib/api";
+import { storeDesktopPlatformCreds } from "@/lib/desktop-creds";
 import { invalidatePlatforms } from "@/store/platform";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
 import { toast } from "@/store/toast";
@@ -36,7 +37,9 @@ export default function OnboardingPage() {
     setConnecting(true);
 
     try {
-      await connectPlatform(selectedPlatform, token.trim());
+      const trimmed = token.trim();
+      const res = await connectPlatform(selectedPlatform, trimmed);
+      await storeDesktopPlatformCreds(selectedPlatform, trimmed, res.username);
       // Refresh the cached platform status so the dashboard doesn't briefly show
       // "nothing connected" after onboarding hands off.
       void invalidatePlatforms();
@@ -55,7 +58,8 @@ export default function OnboardingPage() {
   const handleConnectTelegram = async (fullToken: string): Promise<boolean> => {
     setConnecting(true);
     try {
-      await connectPlatform("telegram", fullToken);
+      const res = await connectPlatform("telegram", fullToken);
+      await storeDesktopPlatformCreds("telegram", fullToken, res.username);
       void invalidatePlatforms();
       toast.success(t("connected", { name: "Telegram" }));
       setStep("done");
@@ -186,7 +190,7 @@ export default function OnboardingPage() {
                     </div>
                     {isSelected && (
                       <div className="h-5 w-5 rounded-full bg-[var(--color-accent)] flex items-center justify-center">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-on-accent)]" />
                       </div>
                     )}
                   </button>

@@ -1,62 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Shield, Send, Download, AlertTriangle, Eye, Clock } from "@/lib/icons";
-import { formatBytes, saveBlob } from "@/lib/utils";
+import { Shield, Send, AlertTriangle, Clock } from "@/lib/icons";
 import { openSendHash } from "@/lib/send-hash";
 import { keyFromFragment } from "@/lib/share-link";
-import { isSealed, openText, keyFromBytes } from "@/lib/sealed";
+import { isSealed, keyFromBytes } from "@/lib/sealed";
+import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
+import { openLinkName } from "@/components/tokens/link-name";
 import {
   ViewerCard,
-  ViewerLoading,
   ViewerError,
   ViewerIncompleteLink,
   TokenFileHeader,
-  ViewerDecryptProgress,
-  PreviewHeader,
-  MediaPreview,
-  DownloadCompletePanel,
   useShortExpiry,
 } from "@/components/tokens/viewer";
+import {
+  TokenPageShell,
+  TokenActions,
+  TokenInfoNote,
+  TokenProgressStates,
+} from "@/components/tokens/page-kit";
+import { getPreviewType, getMimeType } from "@/components/tokens/preview-types";
+import { downloadChunks } from "@/components/tokens/chunk-download";
+import { useTokenViewer } from "@/components/tokens/use-token-viewer";
+import type { Progress } from "@/components/tokens/use-token-viewer";
 import type { SendInfo } from "@/types";
-
-type PageState = "loading" | "ready" | "decrypting" | "preview" | "done" | "error";
-
-function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
-  if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
-  if (["mp3", "wav", "aac", "flac", "m4a"].includes(ext)) return "audio";
-  return "none";
-}
-
-function getMimeType(filename: string): string | undefined {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  const map: Record<string, string> = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    gif: "image/gif",
-    webp: "image/webp",
-    bmp: "image/bmp",
-    svg: "image/svg+xml",
-    ico: "image/x-icon",
-    mp4: "video/mp4",
-    webm: "video/webm",
-    ogg: "video/ogg",
-    mov: "video/quicktime",
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    aac: "audio/aac",
-    flac: "audio/flac",
-    m4a: "audio/mp4",
-  };
-  return map[ext];
-}
 
 const noopSubscribe = () => () => {};
 
@@ -65,16 +36,80 @@ export default function SendDownloadPage() {
   const formatExpiry = useShortExpiry();
   const { token } = useParams<{ token: string }>();
   const [info, setInfo] = useState<SendInfo | null>(null);
-  const [pageState, setPageState] = useState<PageState>("loading");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [progress, setProgress] = useState({ stage: "", percent: 0 });
-  const [decryptedBlob, setDecryptedBlob] = useState<Blob | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
   const encryptionKey = useSyncExternalStore(noopSubscribe, keyFromFragment, () => null);
-  const prevUrlRef = useRef<string | null>(null);
 
-  // Fetch send info
+  const decryptFile = useCallback(
+    async (setProgress: (p: Progress) => void) => {
+      if (!token || !encryptionKey) return null;
+
+      const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+      const { getDeviceProfile } = await import("@/lib/device-profile");
+
+      setProgress({ stage: t("pub.fetching"), percent: 0 });
+      const meta = await getSendMeta(token);
+
+      setProgress({ stage: t("pub.deriving"), percent: 1 });
+      const salt = fromBase64(meta.salt);
+      const keyBytes = await deriveKeyBytes(encryptionKey, salt);
+
+      const decryptedChunks = await downloadChunks({
+        count: meta.chunk_count,
+        concurrency: getDeviceProfile().maxConcurrentDownloads,
+        setProgress,
+        stageLabel: (done, total) => t("pub.decryptingN", { done, total }),
+        fetchChunk: async (index) => {
+          const res = await getSendChunk(token, index);
+          try {
+            return await decryptChunk(keyBytes, new Uint8Array(res.data));
+          } catch {
+            throw new Error(t("pub.decryptCorrupt"));
+          }
+        },
+      });
+
+      setProgress({ stage: t("pub.verifying"), percent: 93 });
+      const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
+      const fullFile = new Uint8Array(totalSize);
+      let offset = 0;
+      for (const chunk of decryptedChunks) {
+        fullFile.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+
+      const actualHash = await sha256Hex(fullFile);
+      const expectedHash = await openSendHash(meta.sha256, await keyFromBytes(keyBytes));
+      if (actualHash !== expectedHash) {
+        throw new Error(t("pub.integrityMismatch"));
+      }
+
+      const originalName = resolveDownloadName(info?.file_name ?? "", fullFile);
+      const mime =
+        getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
+      const blob = new Blob([fullFile], { type: mime });
+      return { blob, originalName };
+    },
+    [token, encryptionKey, info, t],
+  );
+
+  const {
+    pageState,
+    setPageState,
+    errorMsg,
+    setErrorMsg,
+    progress,
+    previewUrl,
+    fileName,
+    handlePreview,
+    handleDownload,
+    handleSave,
+  } = useTokenViewer({
+    enabled: !!token && !!encryptionKey,
+    decrypt: decryptFile,
+    previewFallback: t("pub.decryptFailed"),
+    downloadFallback: t("pub.downloadFailed"),
+    fallbackSaveName: info?.file_name ?? "",
+  });
+
   useEffect(() => {
     if (!token) return;
     getSendInfo(token)
@@ -91,175 +126,42 @@ export default function SendDownloadPage() {
         setPageState("error");
         setErrorMsg(t("pub.send.notFound"));
       });
-  }, [token, t]);
+  }, [token, t, setPageState, setErrorMsg]);
 
   // The filename may be sealed under the link key (enc1:). Open it once both the
   // key (fragment) and the KDF salt (public, in the info response) are known.
   useEffect(() => {
-    if (!info || !encryptionKey || !info.salt || !isSealed(info.file_name)) return;
+    if (!info || !encryptionKey || !isSealed(info.file_name)) return;
     const sealed = info.file_name;
-    (async () => {
-      const { deriveKeyBytes, fromBase64 } = await import("@/lib/crypto");
-      const keyBytes = await deriveKeyBytes(encryptionKey, fromBase64(info.salt!));
-      const name = await openText(sealed, await keyFromBytes(keyBytes));
+    const salt = info.salt;
+    const apply = (name: string) =>
       setInfo((cur) => (cur && cur.file_name === sealed ? { ...cur, file_name: name } : cur));
-    })().catch(() => {});
+    openLinkName(
+      sealed,
+      salt
+        ? async () => {
+            const { deriveKeyBytes, fromBase64 } = await import("@/lib/crypto");
+            return keyFromBytes(await deriveKeyBytes(encryptionKey, fromBase64(salt)));
+          }
+        : null,
+    )
+      .then(apply)
+      .catch(() => apply(""));
   }, [info, encryptionKey]);
 
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-    };
-  }, []);
-
-  const decryptFile = useCallback(async (): Promise<{
-    blob: Blob;
-    originalName: string;
-  } | null> => {
-    if (!token || !encryptionKey) return null;
-
-    const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-    const { getDeviceProfile } = await import("@/lib/device-profile");
-
-    setProgress({ stage: t("pub.fetching"), percent: 0 });
-    const meta = await getSendMeta(token);
-
-    setProgress({ stage: t("pub.deriving"), percent: 1 });
-    const salt = fromBase64(meta.salt);
-    const keyBytes = await deriveKeyBytes(encryptionKey, salt);
-
-    const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
-    let chunksDone = 0;
-    const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
-
-    const processChunk = async (index: number) => {
-      const res = await getSendChunk(token, index);
-      const encrypted = new Uint8Array(res.data);
-
-      let plaintext: Uint8Array;
-      try {
-        plaintext = await decryptChunk(keyBytes, encrypted);
-      } catch {
-        throw new Error(t("pub.decryptCorrupt"));
-      }
-
-      decryptedChunks[index] = plaintext;
-      chunksDone++;
-      const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
-      setProgress({
-        stage: t("pub.decryptingN", { done: chunksDone, total: meta.chunk_count }),
-        percent,
-      });
-    };
-
-    const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
-    const workers: Promise<void>[] = [];
-    for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
-      workers.push(
-        (async () => {
-          while (queue.length > 0) {
-            const idx = queue.shift()!;
-            await processChunk(idx);
-          }
-        })(),
-      );
-    }
-    await Promise.all(workers);
-
-    setProgress({ stage: t("pub.verifying"), percent: 93 });
-    const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
-    const fullFile = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const chunk of decryptedChunks) {
-      fullFile.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-
-    const actualHash = await sha256Hex(fullFile);
-    const expectedHash = await openSendHash(meta.sha256, await keyFromBytes(keyBytes));
-    if (actualHash !== expectedHash) {
-      throw new Error(t("pub.integrityMismatch"));
-    }
-
-    const originalName = info?.file_name || "download";
-    const mime = getMimeType(originalName) || "application/octet-stream";
-    const blob = new Blob([fullFile], { type: mime });
-    return { blob, originalName };
-  }, [token, encryptionKey, info, t]);
-
-  // Shared entry-point wrapper for both actions below: guard the key, flip to
-  // the decrypting state, run decryptFile(), and report any failure. Only what
-  // happens with a successful result differs.
-  const runDecrypt = useCallback(
-    async (onSuccess: (blob: Blob, originalName: string) => void, fallbackMsg: string) => {
-      if (!token || !encryptionKey) return;
-      setPageState("decrypting");
-      setErrorMsg("");
-
-      try {
-        const result = await decryptFile();
-        if (!result) return;
-        onSuccess(result.blob, result.originalName);
-      } catch (err) {
-        setPageState("error");
-        setErrorMsg(err instanceof Error ? err.message : fallbackMsg);
-      }
-    },
-    [token, encryptionKey, decryptFile],
-  );
-
-  const handleDecryptAndPreview = useCallback(
-    () =>
-      runDecrypt((blob, originalName) => {
-        setDecryptedBlob(blob);
-        setFileName(originalName);
-
-        const pType = getPreviewType(originalName);
-        if (pType !== "none") {
-          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-          const url = URL.createObjectURL(blob);
-          prevUrlRef.current = url;
-          setPreviewUrl(url);
-        }
-
-        setPageState("preview");
-      }, t("pub.decryptFailed")),
-    [runDecrypt, t],
-  );
-
-  const handleDirectDownload = useCallback(
-    () =>
-      runDecrypt((blob, originalName) => {
-        saveBlob(originalName, blob);
-        setPageState("done");
-        setFileName(originalName);
-      }, t("pub.downloadFailed")),
-    [runDecrypt, t],
-  );
-
-  const handleSaveToDevice = useCallback(() => {
-    if (!decryptedBlob) return;
-    saveBlob(fileName || info?.file_name || "download", decryptedBlob);
-  }, [decryptedBlob, fileName, info]);
-
   const previewType = info ? getPreviewType(info.file_name) : "none";
-  const isPreviewable = previewType !== "none";
   const noKey = pageState === "ready" && !encryptionKey;
+  const namePending = !!info && !!encryptionKey && isSealed(info.file_name);
 
   return (
-    <div className="w-full max-w-lg animate-fade-in">
-      {/* Logo */}
-      <div className="flex items-center justify-center gap-2 mb-8">
-        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10">
-          <Send className="h-5 w-5 text-[var(--color-accent)]" />
-        </div>
-        <span className="text-xl font-bold font-heading tracking-tight">zcrypt Send</span>
-      </div>
-
+    <TokenPageShell
+      icon={Send}
+      brand="zcrypt Send"
+      footer={t.rich("pub.send.footer", {
+        b: (chunks) => <span className="font-semibold">{chunks}</span>,
+      })}
+    >
       <ViewerCard>
-        {pageState === "loading" && <ViewerLoading message={t("pub.loading")} />}
-
         {pageState === "error" && <ViewerError title={t("pub.unavailable")} message={errorMsg} />}
 
         {pageState === "ready" && info && noKey && <ViewerIncompleteLink />}
@@ -273,7 +175,6 @@ export default function SendDownloadPage() {
             />
 
             <div className="p-6 space-y-4">
-              {/* Info badges */}
               <div className="flex flex-wrap gap-2 text-[10px] text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
                   <Clock className="h-3 w-3" />
@@ -291,76 +192,29 @@ export default function SendDownloadPage() {
                 </span>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-2">
-                {isPreviewable ? (
-                  <>
-                    <Button onClick={handleDecryptAndPreview} className="flex-1">
-                      <Eye className="h-4 w-4 mr-2" />
-                      {t("pub.decryptPreview")}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={handleDirectDownload}
-                      className="flex-shrink-0"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={handleDirectDownload} className="w-full">
-                    <Download className="h-4 w-4 mr-2" />
-                    {t("pub.downloadDecrypt")}
-                  </Button>
-                )}
-              </div>
+              <TokenActions
+                previewable={previewType !== "none"}
+                disabled={namePending}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+              />
 
-              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-                <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("pub.send.info")}</p>
-              </div>
+              <TokenInfoNote>{t("pub.send.info")}</TokenInfoNote>
             </div>
           </>
         )}
 
-        {pageState === "decrypting" && info && (
-          <ViewerDecryptProgress
-            fileName={info.file_name}
-            fileSize={info.file_size}
-            stage={progress.stage}
-            percent={progress.percent}
-          />
-        )}
-
-        {pageState === "preview" && info && (
-          <>
-            <PreviewHeader name={fileName || info.file_name} onSave={handleSaveToDevice} />
-
-            {/* Preview content */}
-            <MediaPreview
-              previewType={previewType}
-              previewUrl={previewUrl}
-              name={fileName || info.file_name}
-              onSave={handleSaveToDevice}
-            />
-
-            {/* Bottom bar */}
-            <div className="px-5 py-3 border-t border-[var(--color-border)]">
-              <p className="text-[10px] text-[var(--color-text-muted)]">
-                {t("pub.decryptedInBrowser", { size: formatBytes(info.file_size) })}
-              </p>
-            </div>
-          </>
-        )}
-
-        {pageState === "done" && <DownloadCompletePanel fileName={fileName} />}
+        <TokenProgressStates
+          pageState={pageState}
+          loadingMessage={t("pub.loading")}
+          info={info}
+          progress={progress}
+          fileName={fileName}
+          previewType={previewType}
+          previewUrl={previewUrl}
+          onSave={handleSave}
+        />
       </ViewerCard>
-
-      {/* Footer */}
-      <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-        {t.rich("pub.send.footer", {
-          b: (chunks) => <span className="font-semibold">{chunks}</span>,
-        })}
-      </p>
-    </div>
+    </TokenPageShell>
   );
 }

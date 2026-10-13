@@ -316,7 +316,10 @@
       "colPlan": "套餐",
       "colActions": "操作",
       "quotaConfirmTitle": "更改存储上限",
-      "quotaConfirmDetail": "更新 {username} 的存储上限。"
+      "quotaConfirmDetail": "更新 {username} 的存储上限。",
+      "planFree": "免费版",
+      "planPlus": "Plus",
+      "planPro": "Pro"
     },
     "userDetail": {
       "back": "返回用户列表",
@@ -345,7 +348,8 @@
       "used": "已用",
       "recentActivity": "最近活动",
       "noActivityTitle": "没有最近活动",
-      "noActivityDesc": "该用户尚未产生任何审计活动。"
+      "noActivityDesc": "该用户尚未产生任何审计活动。",
+      "parallel": "{count} 个并行"
     },
     "pricing": {
       "loadFailed": "加载套餐失败",
@@ -393,7 +397,8 @@
       "applyLower": "调低存储、单文件上限或并行上传数，会阻止已超出新限额的用户继续上传。他们已存储的内容不会被删除。",
       "applyPublic": "公开定价页面会立即显示新的名称、价格和功能。",
       "applyRemoved": "被移除的套餐将不再存在;仍使用这些套餐的用户必须先迁移。",
-      "applyConfirm": "应用于所有用户"
+      "applyConfirm": "应用于所有用户",
+      "newPlan": "新套餐"
     },
     "notify": {
       "label": "通过邮件通知",

@@ -315,6 +315,11 @@ export function TrashContent() {
   // ── Keyboard roving focus + selection (matches the explorer model) ───────────
   const handleListKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (
+        e.target !== e.currentTarget &&
+        (e.target as HTMLElement).getAttribute("role") !== "option"
+      )
+        return;
       if (files.length === 0) return;
       const last = files.length - 1;
 

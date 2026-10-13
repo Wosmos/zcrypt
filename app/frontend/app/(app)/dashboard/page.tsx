@@ -248,6 +248,8 @@ export default function VaultPage() {
         toast.success(t("toastFolderPasswordRemoved"));
         setRemoveTarget(null);
         await refresh();
+      } catch {
+        toast.error(t("toastFolderPasswordRemoveFailed"));
       } finally {
         setRekeyProgress(null);
       }
@@ -308,11 +310,11 @@ export default function VaultPage() {
     [vault, logRecentlyViewed],
   );
 
-  // Kebab "Preview" (filename-keyed) routes to the SAME full viewer, scoped to
+  // Kebab "Preview" (id-keyed) routes to the SAME full viewer, scoped to
   // the file's folder so prev/next still walks that folder.
   const handlePreviewInViewer = useCallback(
-    (filename: string) => {
-      const file = files.find((f) => f.original_name === filename);
+    (fileId: string) => {
+      const file = files.find((f) => f.id === fileId);
       if (!file) return;
       const fid = file.folder_id ?? null;
       const folderFiles = files.filter((f) => (f.folder_id ?? null) === fid);
@@ -551,6 +553,7 @@ export default function VaultPage() {
         onClose={closeViewer}
         decrypt={decryptToBlob}
         prefetch={prefetch}
+        onDownloadLarge={(f) => actions.handleDownload(f.original_name)}
         onWrongPassword={(folderId) =>
           folderId == null ? vault.lock() : folderProtection.clearFolderPassword(folderId)
         }

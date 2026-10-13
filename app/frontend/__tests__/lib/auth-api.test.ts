@@ -41,7 +41,7 @@ describe("authRequest core", () => {
   });
 
   it("merges an Authorization header without dropping content-type", async () => {
-    await authApi.setup2FA("my-token");
+    await authApi.setup2FA("my-token", "pw");
     const h = callInit().headers;
     expect(h["Authorization"]).toBe("Bearer my-token");
     expect(h["Content-Type"]).toBe("application/json");
@@ -117,8 +117,8 @@ describe("auth-api endpoint wrappers", () => {
     { name: "resetPassword", run: () => authApi.resetPassword("tok", "newpw"), path: "/api/auth/reset-password", method: "POST", body: { token: "tok", new_password: "newpw" } },
     { name: "verifyEmail", run: () => authApi.verifyEmail("tok"), path: "/api/auth/verify-email", method: "POST", body: { token: "tok" } },
     { name: "resendVerification", run: () => authApi.resendVerification("e@x.com"), path: "/api/auth/resend-verification", method: "POST", body: { email: "e@x.com" } },
-    { name: "setup2FA", run: () => authApi.setup2FA("at"), path: "/api/auth/2fa/setup", method: "POST", auth: "at" },
-    { name: "enable2FA", run: () => authApi.enable2FA("at", "123456"), path: "/api/auth/2fa/enable", method: "POST", body: { code: "123456" }, auth: "at" },
+    { name: "setup2FA", run: () => authApi.setup2FA("at", "pw"), path: "/api/auth/2fa/setup", method: "POST", auth: "at" },
+    { name: "enable2FA", run: () => authApi.enable2FA("at", "123456", "pw"), path: "/api/auth/2fa/enable", method: "POST", body: { code: "123456", password: "pw" }, auth: "at" },
     { name: "verify2FA", run: () => authApi.verify2FA("tt", "123456"), path: "/api/auth/2fa/verify", method: "POST", body: { temp_token: "tt", code: "123456" } },
     { name: "disable2FA", run: () => authApi.disable2FA("at", "pw", "123456"), path: "/api/auth/2fa/disable", method: "POST", body: { password: "pw", code: "123456" }, auth: "at" },
     { name: "getMe", run: () => authApi.getMe("at"), path: "/api/auth/me", auth: "at" },
@@ -171,7 +171,7 @@ describe("2FA toggles adopt the rotated session", () => {
         backup_codes: ["a-b"],
       }),
     );
-    const out = await authApi.enable2FA("old-at", "123456");
+    const out = await authApi.enable2FA("old-at", "123456", "pw");
     expect(out.backup_codes).toEqual(["a-b"]);
     expect(useAuthStore.getState().accessToken).toBe("new-at");
     expect(useAuthStore.getState().refreshTokenValue).toBe("new-rt");
@@ -189,7 +189,7 @@ describe("2FA toggles adopt the rotated session", () => {
     fetchMock.mockResolvedValueOnce(
       resp(200, { success: true, session_rotated: false, backup_codes: ["x-y"] }),
     );
-    const out = await authApi.enable2FA("old-at", "123456");
+    const out = await authApi.enable2FA("old-at", "123456", "pw");
     expect(out.backup_codes).toEqual(["x-y"]);
     expect(useAuthStore.getState().accessToken).toBe("old-at");
   });

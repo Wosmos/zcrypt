@@ -15,7 +15,7 @@ use base64::Engine as _;
 use reqwest::Method;
 use serde::Deserialize;
 
-use crate::adapters::{AdapterError, PlatformAdapter};
+use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::disguise;
 use crate::types::{Chunk, ChunkRef};
 
@@ -206,6 +206,7 @@ impl PlatformAdapter for GitHub {
         };
 
         let (owner, repo_name) = self.parse_repo(repo);
+        validate_locator(&self.account, owner, repo_name, &remote_path)?;
         let url = contents_url(owner, repo_name, &remote_path);
         let content_b64 = BASE64.encode(&data);
 
@@ -255,6 +256,7 @@ impl PlatformAdapter for GitHub {
 
     async fn download(&self, r#ref: &ChunkRef) -> Result<Vec<u8>, AdapterError> {
         let (owner, repo_name) = self.parse_repo(&r#ref.repo);
+        validate_locator(&self.account, owner, repo_name, &r#ref.remote_path)?;
 
         // raw.githubusercontent.com directly: single request, no size limit,
         // avoids the 2-request Contents API dance (same as the Go adapter).
@@ -268,6 +270,7 @@ impl PlatformAdapter for GitHub {
 
     async fn delete(&self, r#ref: &ChunkRef) -> Result<(), AdapterError> {
         let (owner, repo_name) = self.parse_repo(&r#ref.repo);
+        validate_locator(&self.account, owner, repo_name, &r#ref.remote_path)?;
         let url = contents_url(owner, repo_name, &r#ref.remote_path);
 
         // Get the file's current SHA first: the Contents API requires it.

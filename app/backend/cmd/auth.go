@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/auth"
 	"github.com/zcrypt/zcrypt/crypto"
 	"github.com/zcrypt/zcrypt/types"
@@ -273,6 +274,10 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		internalError(w, "login lookup", err)
+		return
+	}
 	if err != nil {
 		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
 		s.loginFailLimiter.record(failKey)
@@ -329,9 +334,6 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	s.audit(r, &user.ID, "login", nil)
 
-	// Auto-checkin dead man's switch on successful login
-	_ = s.db.CheckinDeadManSwitch(ctx, user.ID)
-
 	s.issueTokens(w, r, user)
 }
 
@@ -354,6 +356,10 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	hash := auth.HashToken(refreshToken)
 	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		internalError(w, "refresh token lookup", err)
+		return
+	}
 	if err != nil || s.revokedSessions.has(rt.SessionID) {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
 		return
@@ -372,8 +378,12 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := s.db.GetUserByID(ctx, rt.UserID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		http.Error(w, `{"error":"user not found"}`, http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		internalError(w, "refresh user lookup", err)
 		return
 	}
 
@@ -702,9 +712,27 @@ func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if !s.devMode && (!s.twoFAIPLimiter.allow(s.clientIP(r)) || !s.twoFAUserLimiter.allow(claims.Sub)) {
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
 	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
+		http.Error(w, `{"error":"wrong password"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -757,7 +785,8 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Code string `json:"code"`
+		Code     string `json:"code"`
+		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
@@ -777,6 +806,11 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 
 	if !s.devMode && !s.twoFAUserLimiter.allow(user.ID) {
 		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
+		http.Error(w, `{"error":"wrong password"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -1589,6 +1623,11 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 		user = decoyView(user)
 	}
 
+	if !decoy {
+		if err := s.db.CheckinDeadManSwitch(r.Context(), user.ID); err != nil {
+			log.Printf("deadman: checkin on sign-in failed for user %s: %v", user.ID, err)
+		}
+	}
 	setRefreshCookie(w, refreshToken)
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"access_token":  accessToken,
@@ -1608,7 +1647,7 @@ func (s *Server) revokeSessions(ctx context.Context, userID string) error {
 	if err != nil {
 		return fmt.Errorf("delete refresh tokens: %w", err)
 	}
-	s.revokedSessions.add(sessionIDs...)
+	s.revokeSessionIDs(userID, sessionIDs...)
 	return nil
 }
 

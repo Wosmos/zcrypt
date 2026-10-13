@@ -77,6 +77,18 @@ describe("useConnectivity", () => {
   });
 });
 
+describe("useConnectivity ticking", () => {
+  it("stops its interval once the recovery flash is over", () => {
+    useConnectivityStore.setState({ backend: "up", recoveredAt: Date.now() });
+    renderHook(() => useConnectivity());
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => {
+      vi.advanceTimersByTime(RECOVERY_FLASH_MS + 1_000);
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe("blocking", () => {
   it("blocks on offline, down and maintenance only", () => {
     expect(isBlockingStatus("offline")).toBe(true);

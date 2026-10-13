@@ -97,14 +97,14 @@
         "telegram": "Crear bot con @BotFather"
       }
     },
-    "showcase": {
-      "caption": "Tu bóveda, tal como la ven nuestros servidores.",
-      "note": "Parece un sinsentido. De eso se trata."
-    },
     "login": {
       "approveCode": "Después de iniciar sesión, tu navegador te pedirá que apruebes. Aprueba solo si muestra este código",
       "useMagic": "Envíame un enlace de acceso en su lugar",
       "usePassword": "Mejor uso mi contraseña"
-    }
+    },
+    "panel": {
+      "encrypted": "Cifrado en este dispositivo. Solo vemos la copia ilegible."
+    },
+    "orContinueWith": "O continúa con"
   }
 }

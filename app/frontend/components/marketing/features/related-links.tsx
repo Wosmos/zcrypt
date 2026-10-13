@@ -42,7 +42,7 @@ export function RelatedLinks({
                 <h3 className="pv2-h3 flex items-center gap-2 text-base">
                   {Icon ? <Icon className="h-4 w-4 text-[var(--pv2-accent-ink)]" /> : null}
                   {title}
-                  <ArrowRight className="ml-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="rtl:-scale-x-100 ms-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
                 </h3>
                 <p className="pv2-body mt-2 text-sm">{desc}</p>
               </Link>

@@ -56,6 +56,7 @@ const eventColors: Record<string, string> = {
 export function AdminUserDetailContent() {
   const t = useTranslations("admin.userDetail");
   const tr = useTranslations("admin.userTable");
+  const tRoles = useTranslations("admin.roles");
   const ta = useTranslations("admin.audit");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -158,7 +159,7 @@ export function AdminUserDetailContent() {
             plan: label,
             storage: targetConfig.storage_display,
             fileSize: targetConfig.max_file_display,
-            concurrent: targetConfig.concurrent_display,
+            concurrent: t("parallel", { count: targetConfig.max_concurrent_uploads }),
           })
         : t("planDetail", { username: u.username, plan: label }),
       newValue: newPlan,
@@ -176,7 +177,11 @@ export function AdminUserDetailContent() {
         return;
       } else if (confirmAction.type === "role") {
         await adminSetUserRole(u.id, confirmAction.newValue!, reauth, notify);
-        toast.success(tr("roleUpdated", { role: confirmAction.newValue ?? "" }));
+        toast.success(
+          tr("roleUpdated", {
+            role: tRoles(confirmAction.newValue === "admin" ? "admin" : "user"),
+          }),
+        );
       } else if (confirmAction.type === "plan") {
         await adminSetUserPlan(u.id, confirmAction.newValue!, notify);
         toast.success(tr("planUpdated", { plan: confirmAction.newValue ?? "" }));
@@ -354,7 +359,7 @@ export function AdminUserDetailContent() {
                       {t("concurrent")}
                     </span>
                     <span className="text-sm font-semibold tabular-nums">
-                      {userPlanConfig.concurrent_display}
+                      {t("parallel", { count: userPlanConfig.max_concurrent_uploads })}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-2">

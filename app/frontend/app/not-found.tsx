@@ -44,7 +44,7 @@ export default function NotFound() {
         <div className="flex items-center justify-center gap-3 mt-8">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-accent)] text-[var(--color-on-accent)] text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Home className="h-4 w-4" />
             <T k="ui.notFound.home" />

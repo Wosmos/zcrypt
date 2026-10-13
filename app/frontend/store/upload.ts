@@ -14,7 +14,7 @@ import {
   toBase64,
   fromBase64,
 } from "@/lib/crypto";
-import { encryptName } from "@/lib/name-crypto";
+import { encryptName, decryptName } from "@/lib/name-crypto";
 import { wrapCekForVault } from "@/lib/master-key";
 import { nameKeyFor } from "@/lib/sealed";
 import { useAuthStore } from "@/store/auth";
@@ -40,7 +40,7 @@ import { releaseSharedFile } from "@/lib/android";
 import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
-import { ApiError, isRetryableStatus } from "@/lib/http-error";
+import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
 import { createFrameBatch } from "@/lib/frame-batch";
 
@@ -240,38 +240,55 @@ interface PersistedResume {
   shouldCompress: boolean;
   platform?: string;
 }
-function resumeStoreKey(file: File): string {
-  return `zc_upl:${file.name}:${file.size}:${file.lastModified}`;
+function resumeStoreKey(file: File, folderId: string | null): string {
+  return `zc_upl:${file.name}:${file.size}:${file.lastModified}:${folderId ?? ""}`;
 }
-function savePersistedResume(file: File, rec: PersistedResume): void {
+function savePersistedResume(file: File, folderId: string | null, rec: PersistedResume): void {
   try {
-    localStorage.setItem(resumeStoreKey(file), JSON.stringify(rec));
+    localStorage.setItem(resumeStoreKey(file, folderId), JSON.stringify(rec));
   } catch {
     /* quota / unavailable */
   }
 }
-function clearPersistedResume(file: File): void {
+function clearPersistedResume(file: File, folderId: string | null): void {
   try {
-    localStorage.removeItem(resumeStoreKey(file));
+    localStorage.removeItem(resumeStoreKey(file, folderId));
   } catch {
     /* ignore */
   }
 }
-function readPersistedResume(file: File): PersistedResume | null {
+function readPersistedResume(file: File, folderId: string | null): PersistedResume | null {
   try {
-    const raw = localStorage.getItem(resumeStoreKey(file));
+    const raw = localStorage.getItem(resumeStoreKey(file, folderId));
     return raw ? (JSON.parse(raw) as PersistedResume) : null;
   } catch {
     return null;
   }
+}
+function sessionStartedElsewhere(sessionId: string, currentKey: string): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith("zc_upl:") || key === currentKey) continue;
+      const rec = JSON.parse(localStorage.getItem(key) as string) as { sessionId?: string } | null;
+      if (rec?.sessionId === sessionId) return true;
+    }
+  } catch {
+    /* unreadable: treat as unknown */
+  }
+  return false;
 }
 /** Rebuild an in-memory resume context from a persisted record if, and only if
  * : the server session is still active. Returns undefined on any miss (the
  *  fresh path then re-inits; the server-side duplicate-init detection gives it
  *  a second chance to resume). A fully-staged session (all chunks uploaded,
  *  complete never called) is also resumable: it skips straight to complete. */
-async function loadPersistedResume(file: File, passphrase: string): Promise<ResumeCtx | undefined> {
-  const rec = readPersistedResume(file);
+async function loadPersistedResume(
+  file: File,
+  folderId: string | null,
+  passphrase: string,
+): Promise<ResumeCtx | undefined> {
+  const rec = readPersistedResume(file, folderId);
   if (!rec) return undefined;
   try {
     const status = await getUploadStatus(rec.sessionId);
@@ -441,7 +458,8 @@ async function withRetry<T>(
       const transient =
         err instanceof ApiError
           ? isRetryableStatus(err.status)
-          : msg.includes("too many requests") ||
+          : isNetworkFailure(err) ||
+            msg.includes("too many requests") ||
             msg.includes("slow down") ||
             msg.includes("network request failed") ||
             msg.includes("timed out") ||
@@ -498,6 +516,7 @@ interface UploadFileOpts {
 // startUpload and retryUpload. The server ALSO resumes: an init for a file with
 // an active session returns that session (`resumed: true`), pinned to its
 // original platform and chunk size.
+const batchHashGates = new WeakMap<WorkerPool, Map<string, Promise<void>>>();
 const VAULT_LOCKED_MSG = "Unlock your vault to continue";
 
 async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
@@ -544,10 +563,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   // page reload instead of restarting from zero.
   let resume = itemMeta.get(id)?.resume;
   if (!resume) {
-    resume = await loadPersistedResume(file, passphrase);
+    resume = await loadPersistedResume(file, destFolderId, passphrase);
     if (resume) patchMeta(id, { resume });
   }
 
+  let releaseHash = () => {};
   try {
     if (pauseCheckpoint()) return;
 
@@ -606,6 +626,25 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       fileSha256 = await contentMacFile(file, dedupKey, onHashProgress);
       fileScheme = "hmac_v1";
       if (pauseCheckpoint()) return;
+
+      if (opts.pool) {
+        let gates = batchHashGates.get(opts.pool);
+        if (!gates) batchHashGates.set(opts.pool, (gates = new Map()));
+        const hashKey = `${fileSha256}:${file.size}`;
+        const prior = gates.get(hashKey);
+        let open!: () => void;
+        const gate = new Promise<void>((resolve) => (open = resolve));
+        gates.set(hashKey, gate);
+        releaseHash = () => {
+          if (gates.get(hashKey) === gate) gates.delete(hashKey);
+          open();
+        };
+        if (prior) {
+          updateStatus(id, "queued", 0, "Waiting for identical file…");
+          await prior;
+          if (pauseCheckpoint()) return;
+        }
+      }
 
       encryptedName = await encryptName(file.name, nameKey);
 
@@ -686,18 +725,31 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         return;
       }
 
+      if (abort.signal.aborted) {
+        if (!session.resumed) {
+          await cancelUpload(session.session_id).catch(() => {
+            /* best-effort */
+          });
+          clearPersistedResume(file, destFolderId);
+        }
+        return;
+      }
+
       if (session.resumed) {
         // The server found an ACTIVE session for this exact file, adopt it.
         // Our freshly-generated CEK/salt were discarded server-side; the real
         // key is the session's stored envelope, unwrapped with the passphrase.
         // Adopting also pins the ORIGINAL platform and chunk size.
-        const adopted = await adoptServerSession(session, file, passphrase);
+        const adopted = await adoptServerSession(session, file, passphrase, {
+          nameKey,
+          folderId: destFolderId,
+        });
         if (adopted) {
           resume = adopted;
           // adoptServerSession always carries the session's platform through, so
           // there is nothing to fall back to here.
           patchMeta(id, { resume, platform: adopted.platform });
-          savePersistedResume(file, {
+          savePersistedResume(file, destFolderId, {
             sessionId: adopted.sessionId,
             fileId: adopted.fileId,
             chunkCount: adopted.chunkCount,
@@ -716,7 +768,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           await cancelUpload(session.session_id).catch(() => {
             /* best-effort */
           });
-          clearPersistedResume(file);
+          clearPersistedResume(file, destFolderId);
           session = await doInit(session.platform);
           if (!session) {
             pauseCheckpoint();
@@ -751,7 +803,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         patchMeta(id, { resume: ctx });
         // Also persist session pointers (NOT the key) so this upload can resume
         // after a page reload. See loadPersistedResume.
-        savePersistedResume(file, {
+        savePersistedResume(file, destFolderId, {
           sessionId,
           fileId,
           chunkCount,
@@ -1045,7 +1097,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     updateStatus(id, "done", 100, "Done");
     patchMeta(id, { resume: undefined }); // complete, nothing to resume
-    clearPersistedResume(file); // drop the cross-session resume record
+    clearPersistedResume(file, destFolderId); // drop the cross-session resume record
 
     // Optimistic completion: materialize the row in the explorer immediately
     // (the debounced refetch reconciles). Fresh uploads only, a resumed run's
@@ -1095,6 +1147,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // Batch-shared pools outlive this file, startUpload terminates them once
     // the whole batch settles. Only tear down a pool this call created.
     if (ownsPool) pool.terminate();
+    releaseHash();
   }
 }
 
@@ -1114,12 +1167,21 @@ async function adoptServerSession(
   },
   file: File,
   passphrase: string,
+  expect: { nameKey: CryptoKey; folderId: string | null },
 ): Promise<ResumeCtx | undefined> {
   try {
+    if (sessionStartedElsewhere(session.session_id, resumeStoreKey(file, expect.folderId))) {
+      return undefined;
+    }
     const meta = await getFileMeta(session.file_id);
     if (!meta.wrapped_cek) return undefined;
+    if (
+      meta.encrypted_name &&
+      (await decryptName(meta.encrypted_name, expect.nameKey)) !== file.name
+    )
+      return undefined;
     const cekBytes = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
-    const rec = readPersistedResume(file);
+    const rec = readPersistedResume(file, expect.folderId);
     const chunkSize = session.chunk_size || rec?.chunkSize || 0;
     const chunkCount = session.chunk_count || rec?.chunkCount || 0;
     if (!chunkSize || !chunkCount) return undefined; // can't reslice at unknown boundaries
@@ -1277,7 +1339,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       cancelUpload(meta.resume.sessionId).catch(() => {});
     }
     const item = get().queue.find((i) => i.id === id);
-    if (item) clearPersistedResume(item.file);
+    if (item) clearPersistedResume(item.file, meta?.folderId ?? null);
     itemMeta.delete(id);
     pausedIds.delete(id);
     set((state) => ({

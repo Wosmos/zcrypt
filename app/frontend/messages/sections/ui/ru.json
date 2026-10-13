@@ -179,7 +179,8 @@
         "newSpace": "Новое пространство",
         "getApps": "Скачать приложения",
         "shortcuts": "Горячие клавиши"
-      }
+      },
+      "unlockToSearch": "Разблокируйте, чтобы искать файлы"
     },
     "notifications": {
       "justNow": "только что",
@@ -290,7 +291,16 @@
       "downloadFor": "Скачать для {os}",
       "otherPlatforms": "Другие платформы",
       "allDownloads": "Все загрузки",
-      "iosNote": "Приложения для iPhone пока нет. Веб-приложение работает в Safari, его можно добавить на экран «Домой»."
+      "iosNote": "Приложения для iPhone пока нет. Веб-приложение работает в Safari, его можно добавить на экран «Домой».",
+      "target": {
+        "macosArm64": "Apple Silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "Установщик (.exe)",
+        "windowsMsi": "Пакет MSI (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "Нет подключения",

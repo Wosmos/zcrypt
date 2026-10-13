@@ -152,6 +152,13 @@ describe("LOCALE_INIT_SCRIPT", () => {
     expect(document.documentElement.dir).toBe("rtl");
   });
 
+  it("falls back to the locale cookie when storage is empty", () => {
+    document.cookie = `${LOCALE_STORAGE_KEY}=ar; path=/`;
+    run();
+    expect(document.documentElement.lang).toBe("ar");
+    expect(document.documentElement.dir).toBe("rtl");
+  });
+
   it("detects from the browser and sets ltr for non-rtl languages", () => {
     vi.stubGlobal("navigator", { languages: ["pt", "de-AT"] });
     run();

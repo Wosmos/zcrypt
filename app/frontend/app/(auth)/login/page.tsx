@@ -3,18 +3,19 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Input } from "@/components/ui/input";
 import { login, requestMagicLink, getMe } from "@/lib/auth-api";
 import { OAuthButtons, DESKTOP_OAUTH_SESSION_KEY } from "@/components/auth/oauth-buttons";
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { AuthLink, AUTH_LINK_CLASS, AUTH_LINK_COLORS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
+import { PasswordField } from "@/components/auth/password-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
-import { isTauri } from "@/lib/tauri";
+import { isTauri, subscribeOAuthCallback } from "@/lib/tauri";
 import { useFriendlyError } from "@/hooks/useConnectivity";
+import { authScene } from "@/components/auth/auth-scene";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,6 +37,8 @@ export default function LoginPage() {
 
     let stopped = false;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let pendingSession = "";
+    let pollNow: (() => void) | null = null;
 
     function startPolling() {
       let session = "";
@@ -50,6 +53,7 @@ export default function LoginPage() {
         /* malformed entry */
       }
       if (!session || !verifier) return;
+      pendingSession = session;
       setApprovalCode(code);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -91,6 +95,7 @@ export default function LoginPage() {
           /* network error, keep polling */
         }
       };
+      pollNow = () => void poll();
       intervalId = setInterval(() => {
         void poll();
       }, 2000);
@@ -105,8 +110,18 @@ export default function LoginPage() {
     }
     window.addEventListener("desktop-oauth-start", onOAuthStart);
 
+    let unlisten: (() => void) | undefined;
+    void subscribeOAuthCallback((session) => {
+      if (stopped || !pendingSession || session !== pendingSession) return;
+      pollNow?.();
+    }).then((fn) => {
+      if (stopped) fn();
+      else unlisten = fn;
+    });
+
     return () => {
       stopped = true;
+      unlisten?.();
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener("desktop-oauth-start", onOAuthStart);
     };
@@ -117,10 +132,12 @@ export default function LoginPage() {
     if (!email || !password) return;
 
     setLoading(true);
+    authScene.sealing();
     try {
       const res = await login(email, password);
 
       if (res.requires_2fa && res.temp_token) {
+        authScene.idle();
         sessionStorage.setItem("zcrypt-temp-token", res.temp_token);
         router.push("/2fa-verify");
         return;
@@ -131,9 +148,11 @@ export default function LoginPage() {
         if (res.user) {
           setUser(res.user);
         }
+        authScene.done();
         router.push("/dashboard");
       }
     } catch (err) {
+      authScene.failed();
       toast.error(friendlyError(err, tl("failed")));
     } finally {
       setLoading(false);
@@ -201,7 +220,6 @@ export default function LoginPage() {
   return (
     <div className="animate-fade-in">
       <div className="space-y-4">
-        <OAuthButtons />
         {approvalCode && (
           <div className="rounded-xl border border-[var(--color-border)] p-3 text-center">
             <p className="text-xs text-[var(--color-text-muted)]">{tl("approveCode")}</p>
@@ -212,16 +230,13 @@ export default function LoginPage() {
         {mode === "password" ? (
           <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in">
             <EmailField value={email} onChange={setEmail} />
-            <Input
+            <PasswordField
               label={t("password")}
-              type="password"
               name="password"
               placeholder={t("passwordPlaceholder")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              icon={<Lock className="h-4 w-4" />}
-              required
               autoComplete="current-password"
+              value={password}
+              onChange={setPassword}
             />
 
             <div className="flex justify-end">
@@ -276,9 +291,11 @@ export default function LoginPage() {
           )}
           {mode === "password" ? tl("useMagic") : tl("usePassword")}
         </button>
+
+        <OAuthButtons />
       </div>
 
-      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-8">
+      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
         {tl.rich("noAccount", {
           link: (chunks) => <AuthLink href="/register">{chunks}</AuthLink>,
         })}

@@ -538,6 +538,45 @@ describe("useFolders", () => {
       expect(result.current.breadcrumb.map((c) => c.name)).toEqual(["My Vault", "Docs"]);
     });
 
+    it("re-resolves a crumb opened while locked once the vault unlocks, and keeps the stored name when the folder is not in the cache", async () => {
+      useAuthStore.getState().setUser(USER);
+      const key = await deriveNameKey("vault-pass", USER.id);
+      vi.mocked(api.listFolders).mockResolvedValue([
+        { id: "f1", user_id: USER.id, parent_id: null, encrypted_name: await encryptName("Docs", key), created_at: "t" },
+      ]);
+
+      const { result } = renderFolders();
+      await settled(result, 1);
+      act(() => {
+        result.current.openFolder(result.current.folders[0]);
+      });
+      await waitFor(() => expect(result.current.breadcrumb.map((c) => c.name)).toEqual(["My Vault", "[locked]"]));
+
+      act(() => {
+        usePassphraseStore.getState().setPassphrase("vault-pass");
+      });
+      await waitFor(() => expect(result.current.breadcrumb.map((c) => c.name)).toEqual(["My Vault", "Docs"]));
+
+      act(() => {
+        useFolderStore.getState().pushCrumb({ id: "ghost", name: "Ghost" });
+      });
+      await waitFor(() => expect(result.current.breadcrumb.map((c) => c.name)).toEqual(["My Vault", "Docs", "Ghost"]));
+    });
+
+    it("fetches an ancestor listing that is not cached to name a crumb", async () => {
+      useAuthStore.getState().setUser(USER);
+      usePassphraseStore.getState().setPassphrase("vault-pass");
+      const key = await deriveNameKey("vault-pass", USER.id);
+      const docs = { id: "f1", user_id: USER.id, parent_id: null, encrypted_name: await encryptName("Docs", key), created_at: "t" };
+      vi.mocked(api.listFolders).mockImplementation(async (parent) => (parent === null ? [docs] : []));
+      useFolderStore.getState().pushCrumb({ id: "f1", name: "" });
+      await ensureNames([docs.encrypted_name]);
+
+      const { result } = renderFolders();
+
+      await waitFor(() => expect(result.current.breadcrumb.map((c) => c.name)).toEqual(["My Vault", "Docs"]));
+    });
+
     it("navigateToCrumb truncates the breadcrumb back to that index", async () => {
       useAuthStore.getState().setUser(USER);
       usePassphraseStore.getState().setPassphrase("vault-pass");

@@ -48,35 +48,34 @@ async function startOAuth(provider: string, failedMessage: string) {
 export function OAuthButtons() {
   const t = useTranslations("auth");
   const blocked = useConnectionBlocked();
+  const btn =
+    "flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-medium transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-50";
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+        <span className="h-px flex-1 bg-[var(--color-border)]" />
+        {t("orContinueWith")}
+        <span className="h-px flex-1 bg-[var(--color-border)]" />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <button
+          type="button"
           onClick={() => startOAuth("google", t("oauthFailed"))}
           disabled={blocked}
-          className="disabled:pointer-events-none disabled:opacity-50 flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
+          className={btn}
         >
           <GoogleIcon className="h-4 w-4" />
           Google
         </button>
         <button
+          type="button"
           onClick={() => startOAuth("github", t("oauthFailed"))}
           disabled={blocked}
-          className="disabled:pointer-events-none disabled:opacity-50 flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
+          className={btn}
         >
           <Github className="h-4 w-4" />
           GitHub
         </button>
-      </div>
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[var(--color-border)]" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-[var(--color-bg)] px-3 text-[var(--color-text-muted)]">
-            {t("orContinueWithEmail")}
-          </span>
-        </div>
       </div>
     </div>
   );

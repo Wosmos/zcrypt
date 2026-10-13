@@ -11,6 +11,9 @@
       "versionLabel": "Version {version}",
       "readMore": "Open this version",
       "allVersions": "All versions",
+      "releasesLabel": "Releases",
+      "releaseNotesLabel": "Release notes",
+      "versionsLabel": "Versions",
       "previous": "Older",
       "next": "Newer",
       "getLatest": "Get the latest",
@@ -67,7 +70,7 @@
         "toolPages": "The Pad, Send and Transfer pages show their steps and closing text again.",
         "systemTheme": "With the theme set to System, the app now follows your device's light or dark switch straight away.",
         "connectionStatus": "zcrypt now tells you right away when your internet is down or slow, or when our servers can't be reached, and retries on its own.",
-        "signInRedesign": "A redesigned sign-in page that shows your vault the way our servers see it (unreadable), with a live server status under the form."
+        "signInRedesign": "Cleaner sign-in and sign-up pages: a simple full-page layout with the form on one side, and a live server status under it."
       }
     },
     "v0_1_7": {

@@ -21,7 +21,15 @@ type transferRoom struct {
 	mu        sync.Mutex
 	createdAt time.Time
 	done      chan struct{}
+	ip        string
 }
+
+const (
+	maxTransferRooms       = 500
+	maxTransferRoomsPerIP  = 5
+	maxTransferRoomBytes   = int64(10) << 30
+	errTooManyTransferRoom = "too many active rooms"
+)
 
 // transferHub manages active transfer rooms.
 type transferHub struct {
@@ -35,9 +43,22 @@ func newTransferHub() *transferHub {
 	return h
 }
 
-func (h *transferHub) createRoom() (*transferRoom, error) {
+func (h *transferHub) createRoom(ip string) (*transferRoom, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	if len(h.rooms) >= maxTransferRooms {
+		return nil, fmt.Errorf("%s", errTooManyTransferRoom)
+	}
+	fromIP := 0
+	for _, r := range h.rooms {
+		if r.ip == ip {
+			fromIP++
+		}
+	}
+	if fromIP >= maxTransferRoomsPerIP {
+		return nil, fmt.Errorf("%s", errTooManyTransferRoom)
+	}
 
 	// Generate 6-digit code
 	var code string
@@ -55,6 +76,7 @@ func (h *transferHub) createRoom() (*transferRoom, error) {
 		code:      code,
 		createdAt: time.Now(),
 		done:      make(chan struct{}),
+		ip:        ip,
 	}
 	h.rooms[code] = room
 	return room, nil
@@ -154,7 +176,7 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 
 	switch initial.Type {
 	case "create":
-		s.handleTransferSender(ctx, conn)
+		s.handleTransferSender(ctx, conn, s.clientIP(r))
 	case "join":
 		var code string
 		if err := json.Unmarshal(initial.Data, &code); err != nil {
@@ -167,10 +189,14 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn) {
-	room, err := s.transferHub.createRoom()
+func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn, ip string) {
+	if !s.devMode && !s.transferCreateLimiter.allow(ip) {
+		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("too many rooms created, try again later")})
+		return
+	}
+	room, err := s.transferHub.createRoom(ip)
 	if err != nil {
-		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("too many active rooms")})
+		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw(errTooManyTransferRoom)})
 		return
 	}
 	defer s.transferHub.removeRoom(room.code)
@@ -198,6 +224,7 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 
 	// Relay messages from sender to receiver
 	relayed := 0
+	var relayedBytes int64
 	for {
 		_, msg, err := conn.Read(ctx)
 		if err != nil {
@@ -218,6 +245,12 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 			return
 		}
 		relayed++
+		relayedBytes += int64(len(msg))
+		if relayedBytes > maxTransferRoomBytes {
+			log.Printf("transfer: byte cap reached code=%s relayed=%d", room.code, relayed)
+			conn.Close(websocket.StatusMessageTooBig, "transfer too large")
+			return
+		}
 
 		// Check if transfer is done
 		var m transferMessage

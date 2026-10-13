@@ -1,18 +1,12 @@
-import { Metadata } from "next";
 import DemoClient from "./demo-client";
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Live Demo | zcrypt",
+export const metadata = pageMetadata({
+  title: "Live Demo",
   description:
     "Experience the ultimate speed and zero-knowledge encryption with zcrypt's live interactive demo.",
-  openGraph: {
-    title: "Live Demo | zcrypt",
-    description:
-      "Experience the ultimate speed and zero-knowledge encryption with zcrypt's live interactive demo.",
-    url: `${SITE_URL}/demo`,
-  },
-};
+  path: "/demo",
+});
 
 export default function DemoPage() {
   return <DemoClient />;

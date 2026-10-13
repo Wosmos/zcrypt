@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Link2, Lock, Clock, Download, XCircle, Zap, FileText } from "@/lib/icons";
 import { FeatureFooter } from "@/components/marketing/features/feature-footer";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
@@ -10,10 +10,11 @@ import { sharing } from "../_data/sharing";
 import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Encrypted File Sharing. Keys That Stay in the Link",
   description:
     "Share any file with a link whose decryption key lives only in the URL fragment. It never reaches the server. Add a password, an expiry, or a download limit, and revoke anytime. Recipients need no account and decrypt entirely in their browser.",
+  path: "/features/sharing",
   keywords: [
     "encrypted file sharing",
     "secure share link",
@@ -23,15 +24,10 @@ export const metadata: Metadata = {
     "burn after reading",
     "anonymous file send",
   ],
-  alternates: { canonical: `${SITE_URL}/features/sharing` },
-  openGraph: {
-    title: "Encrypted File Sharing | zcrypt",
-    description:
-      "Per-file share links where the decryption key lives only in the URL fragment, never on the server. Optional password, expiry, and download limits. Revoke anytime.",
-    url: `${SITE_URL}/features/sharing`,
-    type: "website",
-  },
-};
+  ogTitle: "Encrypted File Sharing | zcrypt",
+  ogDescription:
+    "Per-file share links where the decryption key lives only in the URL fragment, never on the server. Optional password, expiry, and download limits. Revoke anytime.",
+});
 
 const LEAD = "[&_strong]:font-normal [&_strong]:text-cyan-600/80 dark:[&_strong]:text-cyan-400/80";
 

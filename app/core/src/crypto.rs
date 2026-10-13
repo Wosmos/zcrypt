@@ -283,6 +283,9 @@ impl KeyCache {
     }
 
     fn clear(&mut self) {
+        for v in self.map.values_mut() {
+            v.zeroize();
+        }
         self.map.clear();
         self.order.clear();
     }

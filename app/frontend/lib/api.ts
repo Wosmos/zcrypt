@@ -292,12 +292,16 @@ export async function getFileChunk(
   sha256: string;
   compressed: boolean;
 }> {
-  // Use the caller's signal if given (download-session supports cancellation);
-  // otherwise bound the fetch ourselves. Keep the timer alive through the body
-  // read so a stall mid-download aborts too.
-  const controller = signal ? undefined : new AbortController();
-  const timeoutId = controller ? setTimeout(() => controller.abort(), CHUNK_TIMEOUT_MS) : undefined;
-  const useSignal = signal ?? controller?.signal;
+  // The stall watchdog always runs, caller signal or not: the caller's
+  // cancel/pause is forwarded into our own controller so either one aborts the
+  // fetch. Keep the timer alive through the body read so a stall mid-download
+  // aborts too.
+  const controller = new AbortController();
+  const onCallerAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", onCallerAbort, { once: true });
+  const timeoutId = setTimeout(() => controller.abort(), CHUNK_TIMEOUT_MS);
+  const useSignal = controller.signal;
 
   try {
     // authedFetch attaches the access token AND refreshes it on a 401, then
@@ -323,7 +327,8 @@ export async function getFileChunk(
     }
     throw err;
   } finally {
-    if (timeoutId) clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", onCallerAbort);
   }
 }
 
@@ -1389,7 +1394,9 @@ export async function getShareFileMeta(
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
   const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
+  if (!res.ok) {
+    throw new ApiError(await parseErrorJson(res, "Failed to get file metadata"), res.status);
+  }
   return res.json();
 }
 
@@ -1426,7 +1433,7 @@ export async function getShareChunk(
 }> {
   const headers = publicLinkHeaders(password, ticket);
   const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
-  if (!res.ok) throw new Error("Failed to download chunk");
+  if (!res.ok) throw new ApiError("Failed to download chunk", res.status);
   return readChunkResponse(res);
 }
 

@@ -97,14 +97,14 @@
         "telegram": "Create bot via @BotFather"
       }
     },
-    "showcase": {
-      "caption": "Your vault, as our servers see it.",
-      "note": "Looks like nonsense. That's the whole point."
-    },
     "login": {
       "approveCode": "After you sign in, your browser asks you to approve. Approve only if it shows this code",
       "useMagic": "Email me a sign-in link instead",
       "usePassword": "Use my password instead"
-    }
+    },
+    "panel": {
+      "encrypted": "Encrypted on this device. We only ever see the scrambled copy."
+    },
+    "orContinueWith": "Or continue with"
   }
 }

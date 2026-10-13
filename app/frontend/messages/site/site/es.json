@@ -177,7 +177,7 @@
         "heading": "Apps de escritorio",
         "subheading": "Una app nativa creada con Tauri que ejecuta {engine}, el motor {language} integrado, para que tus archivos se cifren en tu dispositivo antes de salir de él.",
         "blurb": {
-          "macos": "Apple Silicon, macOS 11 Big Sur o posterior.",
+          "macos": "Apple Silicon e Intel, macOS 10.15 Catalina o posterior.",
           "windows": "Windows 10 y 11, 64 bits.",
           "linux": "64 bits. Elige el paquete de tu distribución o la versión portátil para cualquier otra."
         },
@@ -1577,7 +1577,7 @@
             "body": "Los archivos grandes se cortan en piezas y se reparten entre tus cuentas. Tu único límite es el espacio libre que ya tienes.",
             "caption": "cada cuenta es más espacio",
             "chips": {
-              "0": "Piezas de 4 a 32 MB",
+              "0": "Piezas de 4 a 16 MB",
               "1": "Espacio nuevo antes de que se llene uno",
               "2": "Telegram: sin techo"
             }

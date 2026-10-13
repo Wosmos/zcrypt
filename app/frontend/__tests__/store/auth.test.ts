@@ -31,7 +31,7 @@ import * as qc from "@/lib/query-client";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
-import { clearDecryptCache } from "@/lib/decrypt-cache";
+import { wipeDecryptedPlaintext } from "@/lib/decrypt-cache";
 import { Role, type AuthUser } from "@/types";
 
 // auth.ts's clearAuth() fans out to decrypt-cache directly; mock it so the test
@@ -39,6 +39,7 @@ import { Role, type AuthUser } from "@/types";
 // (those have their own test file).
 vi.mock("@/lib/decrypt-cache", () => ({
   clearDecryptCache: vi.fn(),
+  wipeDecryptedPlaintext: vi.fn(),
 }));
 
 const USER: AuthUser = {
@@ -189,7 +190,7 @@ describe("useAuthStore", () => {
       expect(localStorage.getItem("zcrypt-refresh-token")).toBeNull();
       // Called both directly by clearAuth() and transitively via
       // usePassphraseStore's own clear() (both modules import the same mock).
-      expect(clearDecryptCache).toHaveBeenCalled();
+      expect(wipeDecryptedPlaintext).toHaveBeenCalled();
 
       expect(usePassphraseStore.getState().cachedPassphrase).toBeNull();
       expect(usePassphraseStore.getState().persistent).toBe(false);

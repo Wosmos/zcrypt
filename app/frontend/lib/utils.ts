@@ -685,13 +685,14 @@ export function easeProgress(raw: number): number {
  * @param end   - chars to keep from the end of the base name, before the extension (default 4)
  */
 export function midTrunc(name: string, start = 10, end = 4): string {
-  const dotIdx = name.lastIndexOf(".");
-  const hasExt = dotIdx > 0 && dotIdx < name.length - 1 && name.length - dotIdx <= 6;
-  const base = hasExt ? name.slice(0, dotIdx) : name;
-  const ext = hasExt ? name.slice(dotIdx) : "";
+  const chars = Array.from(name);
+  const dotIdx = chars.lastIndexOf(".");
+  const hasExt = dotIdx > 0 && dotIdx < chars.length - 1 && chars.length - dotIdx <= 6;
+  const base = hasExt ? chars.slice(0, dotIdx) : chars;
+  const ext = hasExt ? chars.slice(dotIdx).join("") : "";
 
   if (base.length <= start + end + 1) return name;
-  return base.slice(0, start) + "…" + base.slice(-end) + ext;
+  return base.slice(0, start).join("") + "…" + base.slice(-end).join("") + ext;
 }
 
 // ─── Shared severity union ───────────────────────────────────────────────────

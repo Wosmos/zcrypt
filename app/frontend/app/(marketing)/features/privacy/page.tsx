@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -24,10 +24,11 @@ import { privacy } from "../_data/privacy";
 import { T } from "@/components/i18n/t";
 import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Privacy Tools. Decoy Profile & Dead Man's Switch",
   description:
     "zcrypt's privacy toolkit: a decoy profile that opens a fake vault under coercion, and a dead man's switch that emails a trusted contact if you stop checking in. Plus snapshots and shared vaults, in beta. All built on zero-knowledge encryption.",
+  path: "/features/privacy",
   keywords: [
     "decoy profile",
     "plausible deniability",
@@ -40,21 +41,11 @@ export const metadata: Metadata = {
     "shared encrypted vaults",
     "border crossing privacy",
   ],
-  alternates: { canonical: `${SITE_URL}/features/privacy` },
-  openGraph: {
-    title: "Privacy Tools. Decoy Profile & Dead Man's Switch | zcrypt",
-    description:
-      "A decoy vault for coercion, a dead man's switch that alerts a trusted contact, plus snapshots and shared vaults in beta: all on a zero-knowledge core.",
-    url: `${SITE_URL}/features/privacy`,
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Privacy Tools. Decoy Profile & Dead Man's Switch | zcrypt",
-    description:
-      "Plausible deniability and a dead man's switch, built on top of zero-knowledge encryption. Honest about what each one does, and doesn't.",
-  },
-};
+  ogDescription:
+    "A decoy vault for coercion, a dead man's switch that alerts a trusted contact, plus snapshots and shared vaults in beta: all on a zero-knowledge core.",
+  twitterDescription:
+    "Plausible deniability and a dead man's switch, built on top of zero-knowledge encryption. Honest about what each one does, and doesn't.",
+});
 
 export default function PrivacyToolsPage() {
   const { hero, decoy, deadMansSwitch, betaSection, betaTools, zeroKnowledgeTieIn, related, cta } =
@@ -159,7 +150,7 @@ export default function PrivacyToolsPage() {
             <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
               <Clock className="h-3.5 w-3.5 text-cyan-500" />
               <T k="site.features.privacy.dms.window" />
-              <span className="ml-auto font-mono text-[var(--color-text-muted)]">
+              <span className="ms-auto font-mono text-[var(--color-text-muted)]">
                 <T k="site.features.privacy.dms.windowRange" />
               </span>
             </div>
@@ -262,7 +253,7 @@ export default function PrivacyToolsPage() {
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
                 >
                   <T k="site.features.common.readDocs" />
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
                 </Link>
               </article>
             ))}
@@ -286,7 +277,7 @@ export default function PrivacyToolsPage() {
               className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--pv2-accent-ink)] transition-all hover:gap-2.5"
             >
               <T k="site.features.privacy.core.linkLabel" />
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="rtl:-scale-x-100 h-3.5 w-3.5" />
             </Link>
           </div>
         </div>

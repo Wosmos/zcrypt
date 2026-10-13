@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight } from "@/lib/icons";
+import { PageHeader } from "@/components/ui/page-header";
+import { ArrowLeft, ChevronRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -133,5 +134,54 @@ export function ValueRow({ icon, title, subtitle, trailing }: RowInner) {
         trailing={<span className="flex-shrink-0">{trailing}</span>}
       />
     </div>
+  );
+}
+
+export function LoadFailed({
+  message,
+  retryLabel,
+  onRetry,
+}: {
+  message: string;
+  retryLabel: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center"
+    >
+      <p className="text-sm text-[var(--color-text-secondary)]">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-3 text-xs font-medium text-[var(--color-text)] underline underline-offset-2"
+      >
+        {retryLabel}
+      </button>
+    </div>
+  );
+}
+
+export function SafeguardHeader({
+  back,
+  title,
+  description,
+}: {
+  back: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <>
+      <Link
+        href="/settings"
+        className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+      >
+        <ArrowLeft className="h-3 w-3" /> {back}
+      </Link>
+
+      <PageHeader title={title} description={description} />
+    </>
   );
 }

@@ -9,6 +9,7 @@ import { verify2FA, getMe } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { useFriendlyError } from "@/hooks/useConnectivity";
+import { authScene } from "@/components/auth/auth-scene";
 import { ArrowLeft } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
@@ -81,6 +82,7 @@ export default function TwoFactorVerifyPage() {
     }
 
     setLoading(true);
+    authScene.sealing();
     try {
       const res = await verify2FA(tempToken, fullCode);
 
@@ -93,9 +95,11 @@ export default function TwoFactorVerifyPage() {
           const me = await getMe(res.access_token);
           setUser(me);
         }
+        authScene.done();
         router.push("/dashboard");
       }
     } catch (err) {
+      authScene.failed();
       toast.error(friendlyError(err, t("twoFa.invalid")));
       setCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();

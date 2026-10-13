@@ -407,7 +407,11 @@
       "enable": "启用死人开关",
       "delete": "删除",
       "confirmTitle": "删除死人开关？",
-      "confirmDesc": "这将永久删除你的死人开关配置。如果你保持静默，可信联系人将不再收到通知。"
+      "confirmDesc": "这将永久删除你的死人开关配置。如果你保持静默，可信联系人将不再收到通知。",
+      "loadFailed": "无法加载你的死人开关。未做任何更改。",
+      "retry": "重试",
+      "contactEmailPlaceholder": "trusted-contact@example.com",
+      "contactNamePlaceholder": "张三"
     },
     "decoy": {
       "passwordShort": "密码至少需要 6 个字符",
@@ -453,7 +457,9 @@
       "removeVaultDesc": "这将永久删除你的诱饵密码和所有诱饵文件。你真正的保险库不受影响。",
       "remove": "移除",
       "removeFileTitle": "移除诱饵文件？",
-      "removeFileDesc": "从诱饵保险库中移除“{name}”？"
+      "removeFileDesc": "从诱饵保险库中移除“{name}”？",
+      "loadFailed": "无法加载你的诱饵保险库设置。未做任何更改。",
+      "retry": "重试"
     },
     "emailPrefs": {
       "label": "邮件",

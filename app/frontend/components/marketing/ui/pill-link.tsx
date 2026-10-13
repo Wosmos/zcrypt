@@ -9,7 +9,7 @@ const VARIANTS = {
   primary:
     "bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50",
   secondary:
-    "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] transition-colors hover:border-[var(--color-border-hover)]",
+    "glass-surface border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] transition-colors hover:border-[var(--color-border-hover)]",
 } as const;
 
 const SIZES = {

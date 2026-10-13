@@ -11,6 +11,9 @@
       "versionLabel": "Versión {version}",
       "readMore": "Abrir esta versión",
       "allVersions": "Todas las versiones",
+      "releasesLabel": "Versiones publicadas",
+      "releaseNotesLabel": "Notas de la versión",
+      "versionsLabel": "Versiones",
       "previous": "Anteriores",
       "next": "Más recientes",
       "getLatest": "Consigue la última",
@@ -67,7 +70,7 @@
         "toolPages": "Las páginas de Pad, Send y Transfer vuelven a mostrar sus pasos y el texto final.",
         "systemTheme": "Con el tema en Sistema, la app ahora sigue al instante el cambio entre claro y oscuro de tu dispositivo.",
         "connectionStatus": "zcrypt ahora te avisa al momento cuando tu internet se cae o va lento, o cuando no podemos llegar a nuestros servidores, y vuelve a intentarlo solo.",
-        "signInRedesign": "Una página de inicio de sesión rediseñada que muestra tu bóveda tal como la ven nuestros servidores (ilegible), con el estado de los servidores en directo bajo el formulario."
+        "signInRedesign": "Páginas de inicio de sesión y registro más limpias: un diseño sencillo a página completa con el formulario a un lado y el estado de los servidores en directo debajo."
       }
     },
     "v0_1_7": {

@@ -90,6 +90,7 @@
     "gridView": "گرڈ کا منظر",
     "select": "منتخب کریں",
     "folderPath": "فولڈر کا راستہ",
+    "myVault": "میرا والٹ",
     "sortBy": "{label} کے مطابق ترتیب دیں",
     "sortByCurrent": "{label} کے مطابق ترتیب دیں، فی الحال {direction}",
     "ascending": "صعودی",
@@ -155,6 +156,7 @@
     "uploadDialogDescription": "فائلیں آپ کی ڈیوائس سے نکلنے سے پہلے کمپریس، اینڈ ٹو اینڈ خفیہ اور حصوں میں تقسیم کی جاتی ہیں۔",
     "toastFolderProtected": "فولڈر محفوظ کر دیا گیا",
     "toastFolderPasswordRemoved": "فولڈر کا پاس ورڈ ہٹا دیا گیا",
+    "toastFolderPasswordRemoveFailed": "فولڈر کا پاس ورڈ نہیں ہٹایا جا سکا۔ کچھ بھی تبدیل نہیں ہوا۔",
     "newFolderEmptyVault": "پہلے کوئی فائل اپ لوڈ کریں، پھر آپ کے فولڈرز کے پاس رکھنے کو کچھ ہوگا۔"
   },
   "settings": {

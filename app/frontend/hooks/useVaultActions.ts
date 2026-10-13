@@ -1,7 +1,7 @@
 "use client";
 
 import { tr } from "@/store/translate";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { isTauri } from "@/lib/tauri";
 import { primeThumbnails } from "@/hooks/useThumbnail";
 import { ensureUserKeypair, OwnKeyMismatchError } from "@/lib/keys";
@@ -80,10 +80,10 @@ export interface VaultActions {
   /** Resume an unfinished upload from the banner, pinned to the ORIGINAL
    *  session's platform (the already-uploaded chunks live there). */
   handleResumeIncomplete: (file: File, upload: IncompleteUpload) => void;
-  /** Single-file download (filename-keyed, matches the explorer callback). */
-  handleDownload: (filename: string) => void;
+  /** Single-file download (id-keyed, matches the explorer callback). */
+  handleDownload: (fileId: string) => void;
   /** In-memory decrypt + integrity check + media preview. */
-  handlePreview: (filename: string) => void;
+  handlePreview: (fileId: string) => void;
   /** Optimistic drag-to-move reparent (re-keys across a protection boundary). */
   handleMoveFileTo: (fileId: string, folderId: string | null) => void;
   /** Move a file via the dialog, re-keying first if it crosses a protection
@@ -127,6 +127,10 @@ export function useVaultActions({
     for (const f of files) m.set(f.id, f);
     return m;
   }, [files]);
+  const fileByIdRef = useRef(fileById);
+  useEffect(() => {
+    fileByIdRef.current = fileById;
+  }, [fileById]);
 
   // ── Thumbnails: batch-load whenever the vault is unlocked + files exist ─────
   // Read the cached passphrase directly (guarded on `unlocked`, so this never
@@ -198,7 +202,7 @@ export function useVaultActions({
         event.bytes_processed,
         event.total_bytes,
       );
-      notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
+      notify(tr("notifications.uploadComplete"), { body: target.file.name, tag: "upload-done" });
       notifActions.uploadComplete(target.file.name);
     }
   });
@@ -284,10 +288,31 @@ export function useVaultActions({
         return;
       }
 
+      const nonEmpty = selectedFiles.filter((f) => f.size > 0 || desktopPath(f));
+      if (nonEmpty.length < selectedFiles.length) {
+        const empty = selectedFiles.filter((f) => !nonEmpty.includes(f));
+        const shown = empty
+          .slice(0, 3)
+          .map((f) => f.name)
+          .join(", ");
+        toast.warning(
+          tr("hooks.emptyFilesSkipped", {
+            names: empty.length > 3 ? `${shown} +${empty.length - 3}` : shown,
+          }),
+        );
+        if (nonEmpty.length === 0) return;
+      }
+
+      const destFolderId = currentFolderId;
       const dupes: string[] = [];
-      const uniqueFiles = selectedFiles.filter((f) => {
+      const uniqueFiles = nonEmpty.filter((f) => {
+        if (!vault.unlocked) return true;
+        const name = f.name.normalize("NFC");
         const exists = files.some(
-          (existing) => existing.original_name === f.name && existing.original_size === f.size,
+          (existing) =>
+            (existing.folder_id ?? null) === destFolderId &&
+            existing.original_name.normalize("NFC") === name &&
+            existing.original_size === f.size,
         );
         if (exists) dupes.push(f.name);
         return !exists;
@@ -306,7 +331,6 @@ export function useVaultActions({
 
       if (uniqueFiles.length === 0) return;
 
-      const destFolderId = currentFolderId;
       const folderProtected =
         destFolderId != null && useFolderRegistry.getState().isProtected(destFolderId);
 
@@ -365,7 +389,7 @@ export function useVaultActions({
   const resolvePasswordForFile = useCallback(
     (fileId: string): Promise<string> => {
       const file = fileById.get(fileId);
-      if (!file) return Promise.reject(new Error("File not found"));
+      if (!file) return Promise.reject(new Error(tr("hooks.fileNotFound")));
       return folderProtection.passwordForFile(file);
     },
     [fileById, folderProtection],
@@ -373,9 +397,10 @@ export function useVaultActions({
 
   // ── Download ──────────────────────────────────────────────────────────────
   const handleDownload = useCallback(
-    (filename: string) => {
-      const file = files.find((f) => f.original_name === filename);
+    (fileId: string) => {
+      const file = fileById.get(fileId);
       if (!file) return;
+      const filename = file.original_name;
       const active = downloadQueue.find(
         (d) =>
           d.fileId === file.id &&
@@ -412,7 +437,14 @@ export function useVaultActions({
         );
       });
     },
-    [files, downloadQueue, vault, storeStartDownload, startDesktopDownload, resolvePasswordForFile],
+    [
+      fileById,
+      downloadQueue,
+      vault,
+      storeStartDownload,
+      startDesktopDownload,
+      resolvePasswordForFile,
+    ],
   );
 
   // ── Bulk ZIP download ───────────────────────────────────────────────────────
@@ -457,9 +489,10 @@ export function useVaultActions({
   // multi-chunk files several times slower than downloads of the same file. A
   // re-open is now a cache hit and shows instantly.
   const startPreview = useCallback(
-    async function startPreviewOf(filename: string): Promise<void> {
-      const file = files.find((f) => f.original_name === filename);
+    async function startPreviewOf(fileId: string): Promise<void> {
+      const file = fileById.get(fileId);
       if (!file) return;
+      const filename = file.original_name;
 
       openPreview(null, filename, file.original_size);
 
@@ -477,11 +510,7 @@ export function useVaultActions({
       } catch (err) {
         closePreview();
         const msg = err instanceof Error ? err.message : "Preview failed";
-        const looksLikeWrongKey =
-          msg.toLowerCase().includes("decrypt") ||
-          msg.toLowerCase().includes("passphrase") ||
-          msg.toLowerCase().includes("cipher") ||
-          err instanceof IncorrectPassphraseError;
+        const looksLikeWrongKey = err instanceof IncorrectPassphraseError;
 
         if (looksLikeWrongKey) {
           const fid = file.folder_id ?? null;
@@ -490,29 +519,29 @@ export function useVaultActions({
             // folder unlock with an inline error, then retry the same preview.
             folderProtection.clearFolderPassword(fid);
             folderProtection.withFolderPassword(fid, "this folder", () => {
-              void startPreviewOf(filename);
+              void startPreviewOf(fileId);
             });
           } else {
             // Wrong VAULT passphrase → re-lock and re-prompt the single vault
             // modal with an inline error, then retry once unlocked.
             vault.lock();
             vault.setError(tr("hooks.wrongPassphrase"));
-            vault.reopen(() => void startPreviewOf(filename));
+            vault.reopen(() => void startPreviewOf(fileId));
           }
         } else {
           toast.error(msg);
         }
       }
     },
-    [files, vault, openPreview, closePreview, folderProtection],
+    [fileById, vault, openPreview, closePreview, folderProtection],
   );
 
   const handlePreview = useCallback(
-    (filename: string) => {
+    (fileId: string) => {
       // Gate on the vault (so folder names/the rest of the app are usable); the
       // per-file resolver inside startPreview swaps in the folder password.
       vault.withPassphrase(() => {
-        void startPreview(filename);
+        void startPreview(fileId);
       });
     },
     [vault, startPreview],
@@ -544,7 +573,7 @@ export function useVaultActions({
   // MoveToFolderDialog can await it; throws on failure so the caller reverts.
   const moveFileWithRekey = useCallback(
     async (fileId: string, destFolderId: string | null) => {
-      const file = fileById.get(fileId);
+      const file = fileByIdRef.current.get(fileId);
       if (!file) throw new Error(tr("hooks.fileNotFound"));
       const srcFolderId = file.folder_id ?? null;
       if (srcFolderId === destFolderId) return; // no-op
@@ -580,14 +609,14 @@ export function useVaultActions({
       await moveFile(fileId, destFolderId, { salt, wrapped_cek });
       clearDecryptCacheForFile(fileId);
     },
-    [fileById, passwordForZone, folderProtection],
+    [passwordForZone, folderProtection],
   );
 
   // Optimistic drag-to-move reparent. Re-keys across a protection boundary
   // first; an unprotected→unprotected move is byte-for-byte the same as before.
   const handleMoveFileTo = useCallback(
     function moveFileTo(fileId: string, folderId: string | null): void {
-      const file = files.find((f) => f.id === fileId);
+      const file = fileByIdRef.current.get(fileId);
       if (!file) return;
       const originalFolderId = file.folder_id ?? null;
       if (originalFolderId === folderId) return; // already there
@@ -627,7 +656,7 @@ export function useVaultActions({
         void refresh(); // reconcile the row's true folder/key state
       });
     },
-    [files, setFiles, moveFileWithRekey, refresh],
+    [setFiles, moveFileWithRekey, refresh],
   );
 
   // ── Delete (optimistic soft-delete → Trash) ─────────────────────────────────

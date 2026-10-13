@@ -43,8 +43,8 @@ export type ExplorerEntry =
 
 /** Callbacks the explorer forwards to the page's crypto/upload context. */
 export interface ExplorerActions {
-  onPreview?: (filename: string) => void;
-  onDownload: (filename: string) => void;
+  onPreview?: (fileId: string) => void;
+  onDownload: (fileId: string) => void;
   onShare?: (id: string) => void;
   onOpenDetails?: (file: FileMetadata) => void;
   onDelete: (id: string) => void;

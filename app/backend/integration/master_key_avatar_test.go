@@ -73,7 +73,9 @@ func TestMasterKeyStorage(t *testing.T) {
 	})
 
 	t.Run("republishing the keypair keeps the master key", func(t *testing.T) {
-		requireStatus(t, ts.POST("/api/keys", publishKeyBody(), user), http.StatusOK)
+		repub := publishKeyBody()
+		repub["current_fingerprint"] = repub["fingerprint"]
+		requireStatus(t, ts.POST("/api/keys", repub, user), http.StatusOK)
 		var me struct {
 			WrappedMasterKey string `json:"wrapped_master_key"`
 		}

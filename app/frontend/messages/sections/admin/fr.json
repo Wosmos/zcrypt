@@ -316,7 +316,10 @@
       "colPlan": "Offre",
       "colActions": "Actions",
       "quotaConfirmTitle": "Modifier la limite de stockage",
-      "quotaConfirmDetail": "Mettre à jour la limite de stockage de {username}."
+      "quotaConfirmDetail": "Mettre à jour la limite de stockage de {username}.",
+      "planFree": "Gratuit",
+      "planPlus": "Plus",
+      "planPro": "Pro"
     },
     "userDetail": {
       "back": "Retour aux utilisateurs",
@@ -345,7 +348,8 @@
       "used": "Utilisé",
       "recentActivity": "Activité récente",
       "noActivityTitle": "Aucune activité récente",
-      "noActivityDesc": "Cet utilisateur n'a pas encore généré d'activité auditée."
+      "noActivityDesc": "Cet utilisateur n'a pas encore généré d'activité auditée.",
+      "parallel": "{count} en parallèle"
     },
     "pricing": {
       "loadFailed": "Échec du chargement des offres",
@@ -393,7 +397,8 @@
       "applyLower": "Réduire le stockage, la taille max. de fichier ou les envois parallèles bloque les nouveaux envois pour les utilisateurs déjà au-dessus de la nouvelle limite. Rien de ce qu'ils ont stocké n'est supprimé.",
       "applyPublic": "La page publique des tarifs affiche immédiatement les nouveaux noms, prix et fonctionnalités.",
       "applyRemoved": "Les offres supprimées cessent d'exister ; les utilisateurs qui y sont encore affectés doivent d'abord être déplacés.",
-      "applyConfirm": "Appliquer à tous les utilisateurs"
+      "applyConfirm": "Appliquer à tous les utilisateurs",
+      "newPlan": "Nouveau forfait"
     },
     "notify": {
       "label": "Prévenir par e-mail",

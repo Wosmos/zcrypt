@@ -13,7 +13,8 @@ func (db *DB) UpsertDeadManSwitch(ctx context.Context, dms *types.DeadManSwitch)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		 ON CONFLICT (user_id) DO UPDATE SET
 		   contact_email = $3, contact_name = $4, timeout_days = $5,
-		   message = $6, include_files = $7, enabled = $8`,
+		   message = $6, include_files = $7, enabled = $8,
+		   last_checkin = NOW(), triggered = FALSE, triggered_at = NULL`,
 		dms.ID, dms.UserID, dms.ContactEmail, dms.ContactName, dms.TimeoutDays,
 		dms.Message, dms.IncludeFiles, dms.Enabled, dms.LastCheckin, dms.CreatedAt)
 	return err

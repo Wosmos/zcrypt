@@ -443,7 +443,7 @@ export function HowItWorks() {
                 <T k="site.home.how.foot" />{" "}
                 <Link href="/docs/how-it-works" className="zw-link">
                   <T k="site.home.how.footLink" />
-                  <ArrowRight />
+                  <ArrowRight className="rtl:-scale-x-100" />
                 </Link>
               </p>
               <Link
@@ -451,7 +451,7 @@ export function HowItWorks() {
                 className="zw-cta inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-6 text-[15px] font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
               >
                 <T k="site.home.how.cta" />
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="rtl:-scale-x-100 h-4 w-4" />
               </Link>
             </div>
             <div className="zw-master">

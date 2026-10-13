@@ -224,63 +224,6 @@ export const desktopEngine = {
     "BYOS-direct: desktop and mobile upload straight to the user's own GitHub, GitLab, Hugging Face, or Telegram account using credentials from the OS keychain, so the backend never touches the platform token. The web app is the exception, because browser sandboxing blocks direct platform access, so it relays ciphertext through the backend.",
 } as const;
 
-// ─── Landing Page Section Copy ───────────────────────────────
-// Plain-string prose for the landing page sections, extracted so the copy
-// lives in one place. Headings that embed JSX (emphasis, animated underlines)
-// stay inline in the page. Only their surrounding plain text is here.
-
-export const landingSections = {
-  cta: {
-    eyebrow: "Get started today",
-    subtext:
-      "Connect your own account. Encrypted on your device. No artificial limits, no vendor lock-in.",
-    button: "Start free",
-  },
-} as const;
-
-// ─── Download Page Copy ──────────────────────────────────────
-// Plain-string prose for the /download page sections. Headlines that embed
-// JSX (the gradient span) and link-bearing footnotes stay inline in the page.
-
-export const downloadPageContent = {
-  hero: {
-    badge: "Apps for every device",
-    subtext:
-      "Native desktop apps, an Android app, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
-    trustItems: [
-      "Free & open source",
-      "Only you can open your files",
-      "No telemetry",
-      "macOS · Windows · Linux",
-    ],
-  },
-  desktop: {
-    heading: "Desktop apps",
-    subheading: `A native app built with Tauri, running ${desktopEngine.name}, the in-process ${desktopEngine.language} engine, so your files are encrypted on your device before they ever leave it.`,
-  },
-  android: {
-    badge: "Android",
-    heading: "On your phone, sideloaded",
-    subheading:
-      "Not on the Play Store, so grab the APK directly and install it yourself. Takes about a minute.",
-  },
-  web: {
-    heading: "Prefer no install",
-    body: "The full encrypted drive runs in any modern browser: folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
-    cta: "Open the web app",
-  },
-  openSource: {
-    heading: "Every build is open source",
-    body: "Desktop, Android, and web, all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
-    githubCta: "Source on GitHub",
-    selfHostCta: "Self-host zcrypt",
-  },
-} as const;
-
-// ─── Trust Bar ────────────────────────────────────────────────
-
-export const trustBadges = ["AES-256-GCM encryption", "Zero-knowledge", "Open source"] as const;
-
 // ─── Repo / releases ────────────────────────────────────────
 // The /download page resolves actual download URLs at runtime from the latest
 // GitHub release (see lib/releases.ts), so no versions/filenames live here.

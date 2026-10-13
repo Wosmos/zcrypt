@@ -407,7 +407,11 @@
       "enable": "Activer l'interrupteur d'homme mort",
       "delete": "Supprimer",
       "confirmTitle": "Supprimer l'interrupteur d'homme mort ?",
-      "confirmDesc": "Cela supprime définitivement la configuration de votre interrupteur d'homme mort. Votre contact de confiance ne sera plus prévenu si vous restez silencieux."
+      "confirmDesc": "Cela supprime définitivement la configuration de votre interrupteur d'homme mort. Votre contact de confiance ne sera plus prévenu si vous restez silencieux.",
+      "loadFailed": "Impossible de charger votre interrupteur d'homme mort. Rien n'a été modifié.",
+      "retry": "Réessayer",
+      "contactEmailPlaceholder": "contact-de-confiance@exemple.fr",
+      "contactNamePlaceholder": "Marie Dupont"
     },
     "decoy": {
       "passwordShort": "Le mot de passe doit comporter au moins 6 caractères",
@@ -453,7 +457,9 @@
       "removeVaultDesc": "Cela supprime définitivement votre mot de passe leurre et tous les fichiers leurres. Votre vrai coffre n'est pas affecté.",
       "remove": "Retirer",
       "removeFileTitle": "Retirer le fichier leurre ?",
-      "removeFileDesc": "Retirer « {name} » du coffre leurre ?"
+      "removeFileDesc": "Retirer « {name} » du coffre leurre ?",
+      "loadFailed": "Impossible de charger les paramètres de votre coffre leurre. Rien n'a été modifié.",
+      "retry": "Réessayer"
     },
     "emailPrefs": {
       "label": "E-mail",

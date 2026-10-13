@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata } from "@/lib/page-metadata";
 import {
   DocPage,
   DocSection,
@@ -12,18 +10,14 @@ import {
 } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
-export const metadata: Metadata = {
-  title: "Passphrase & key management | zcrypt Docs",
+export const metadata = pageMetadata({
+  title: "Passphrase & key management · Docs",
   description:
     "How keys flow through zcrypt: the vault passphrase that never leaves your device, a per-user X25519 sharing keypair whose private half is wrapped under that passphrase, account login secured with bcrypt and TOTP, JWTs with algorithm-confusion defenses and version-based revocation, and hashed refresh tokens.",
-  alternates: { canonical: `${SITE_URL}/docs/key-management` },
-  openGraph: {
-    title: "Passphrase & key management | zcrypt Docs",
-    description:
-      "The two secrets in zcrypt (your vault passphrase and your account password) plus the X25519 sharing keypair derived from your passphrase, and exactly how each is handled, hardened, and revoked.",
-    url: `${SITE_URL}/docs/key-management`,
-  },
-};
+  path: "/docs/key-management",
+  ogDescription:
+    "The two secrets in zcrypt (your vault passphrase and your account password) plus the X25519 sharing keypair derived from your passphrase, and exactly how each is handled, hardened, and revoked.",
+});
 
 const toc = [
   { id: "two-secrets", k: "docs.key-management.toc.two-secrets" },
