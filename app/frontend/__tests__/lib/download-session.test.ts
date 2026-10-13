@@ -531,6 +531,24 @@ describe("downloadAndDecryptFile, abort/cancel", () => {
     expect(saveToDisk.close).not.toHaveBeenCalled();
   });
 
+  it("keeps a pause a pause even if the pause flag clears before the abort is surfaced", async () => {
+    const controller = new AbortController();
+    let paused = true;
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, "irrelevant-since-paused"));
+    getFileChunk.mockImplementationOnce(async () => {
+      controller.abort();
+      paused = false;
+      return { data: chunkBytes(0).buffer, sha256: "", compressed: false };
+    });
+
+    const err = await downloadAndDecryptFile("f1", "pw", {
+      signal: controller.signal,
+      pausing: () => paused,
+    }).catch((e) => e);
+
+    expect((err as Error).name).toBe("DownloadPausedError");
+  });
+
   it("catches an abort that lands between chunk processing finishing and the final signal check", async () => {
     const controller = new AbortController();
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "irrelevant-since-aborted"));
