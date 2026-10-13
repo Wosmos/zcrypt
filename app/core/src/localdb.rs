@@ -4,7 +4,7 @@
 //! sync worker drains them to the backend later.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
@@ -19,9 +19,20 @@ pub enum DbError {
     NoHome,
 }
 
+static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Pin the data dir for platforms with no home directory (Android), where the
+/// shell hands over its app-private folder. First call wins.
+pub fn set_data_dir(dir: PathBuf) {
+    let _ = DATA_DIR.set(dir);
+}
+
 /// The per-device data dir: macOS `~/Library/Application Support/zcrypt-desktop`,
 /// elsewhere `~/.zcrypt-desktop`: same locations as the Go sidecar.
 pub fn data_dir() -> Result<PathBuf, DbError> {
+    if let Some(dir) = DATA_DIR.get() {
+        return Ok(dir.clone());
+    }
     let home = dirs::home_dir().ok_or(DbError::NoHome)?;
     Ok(if cfg!(target_os = "macos") {
         home.join("Library")

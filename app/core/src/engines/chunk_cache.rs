@@ -5,14 +5,26 @@
 //! Every operation is best-effort: a cache failure never fails a download.
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::SystemTime;
 
 use crate::crypto;
 
 const BUDGET_BYTES: u64 = 1024 * 1024 * 1024;
 
+static CACHE_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Pin the cache root for platforms where `dirs` has none (Android).
+pub fn set_cache_dir(dir: PathBuf) {
+    let _ = CACHE_DIR.set(dir);
+}
+
 fn default_dir() -> Option<PathBuf> {
-    Some(dirs::cache_dir()?.join("zcrypt-desktop").join("chunks"))
+    let root = match CACHE_DIR.get() {
+        Some(dir) => dir.clone(),
+        None => dirs::cache_dir()?.join("zcrypt-desktop"),
+    };
+    Some(root.join("chunks"))
 }
 
 fn valid_key(sha: &str) -> bool {

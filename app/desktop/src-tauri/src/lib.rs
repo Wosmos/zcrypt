@@ -1446,6 +1446,14 @@ pub fn run() {
             biometric_authenticate,
         ])
         .setup(|app| {
+            if cfg!(target_os = "android") {
+                if let Ok(dir) = app.path().app_data_dir() {
+                    zcrypt_core::localdb::set_data_dir(dir);
+                }
+                if let Ok(dir) = app.path().app_cache_dir() {
+                    zcrypt_core::engines::chunk_cache::set_cache_dir(dir);
+                }
+            }
             let store = app
                 .path()
                 .app_data_dir()
