@@ -251,6 +251,14 @@ pub(super) fn decrypt_chunk_zeroizing(
     result
 }
 
+fn unique_part_path(save_path: &Path) -> std::path::PathBuf {
+    let name = save_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    save_path.with_file_name(format!("{name}.{}.zcrypt-part", uuid::Uuid::new_v4()))
+}
+
 pub async fn run(
     ctx: &EngineContext,
     file_id: &str,
@@ -286,8 +294,13 @@ pub async fn run(
 
     // 3. Concurrent fetch/decrypt feeding the ordered writer. The sink writes
     //    synchronously through a BufWriter (big sequential chunk writes).
-    let part_path = save_path.with_extension("zcrypt-part");
-    let mut out = std::io::BufWriter::new(std::fs::File::create(&part_path)?);
+    let part_path = unique_part_path(save_path);
+    let mut out = std::io::BufWriter::new(
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&part_path)?,
+    );
     let (tx, rx) = mpsc::channel::<(u32, Vec<u8>)>((ctx.profile.concurrent_downloads * 2).max(4));
 
     let sem = Arc::new(tokio::sync::Semaphore::new(

@@ -297,6 +297,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+          ZCRYPT_API_URL: ${{ vars.DESKTOP_API_URL }}
         run: cargo tauri build ${{ matrix.args }}
 
       # Both macOS legs bundle their updater tarball as "zcrypt.app.tar.gz".
@@ -935,6 +936,7 @@ jobs:
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ZCRYPT_API_URL: ${{ vars.DESKTOP_API_URL }}
         # RELEASE, all-ABI universal APK. Release (not --debug) keeps it ~100MB
         # instead of ~200MB+; no --target = one universal APK for every device
         # (arm64/armv7/x86/x86_64). This emits an UNSIGNED release APK, the

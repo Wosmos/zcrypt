@@ -20,7 +20,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use serde::Deserialize;
 
-use crate::adapters::{AdapterError, PlatformAdapter};
+use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::crypto;
 use crate::disguise;
 use crate::types::{Chunk, ChunkRef};
@@ -67,6 +67,11 @@ impl HuggingFace {
         } else {
             format!("{}/{}", self.account, repo)
         }
+    }
+
+    fn check(&self, full_repo: &str, remote_path: &str) -> Result<(), AdapterError> {
+        let (owner, name) = full_repo.split_once('/').unwrap_or((full_repo, ""));
+        validate_locator(&self.account, owner, name, remote_path)
     }
 
     fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -256,6 +261,7 @@ impl PlatformAdapter for HuggingFace {
             chunk_ref.remote_path.clone()
         };
         let repo = self.full_repo(repo);
+        self.check(&repo, &remote_path)?;
 
         // LFS is content-addressed by the SHA-256 of the (ciphertext) bytes.
         let oid = crypto::sha256_hex(&data);
@@ -275,6 +281,7 @@ impl PlatformAdapter for HuggingFace {
 
     async fn download(&self, r#ref: &ChunkRef) -> Result<Vec<u8>, AdapterError> {
         let repo = self.full_repo(&r#ref.repo);
+        self.check(&repo, &r#ref.remote_path)?;
         let url = format!("{ENDPOINT}/{repo}/resolve/main/{}", r#ref.remote_path);
         let resp = self.auth(self.client.get(&url)).send().await?;
         if !resp.status().is_success() {
@@ -285,6 +292,7 @@ impl PlatformAdapter for HuggingFace {
 
     async fn delete(&self, r#ref: &ChunkRef) -> Result<(), AdapterError> {
         let repo = self.full_repo(&r#ref.repo);
+        self.check(&repo, &r#ref.remote_path)?;
         let ndjson = build_ndjson(&[
             serde_json::json!({
                 "key": "header",
