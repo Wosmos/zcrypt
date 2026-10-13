@@ -22,15 +22,8 @@ export function ToolHero({ badgeIcon: BadgeIcon, base }: { badgeIcon: ToolIcon; 
           <T k={`${base}.badge`} />
         </span>
       }
-      title={
-        <>
-          <T k={`${base}.titleLead`} />{" "}
-          <span className="text-[var(--color-accent)]">
-            <T k={`${base}.titleAccent`} />
-          </span>
-        </>
-      }
-      accent={false}
+      title={<T k={`${base}.titleLead`} />}
+      highlight={<T k={`${base}.titleAccent`} />}
       lede={<T k={`${base}.subtitle`} />}
     />
   );

@@ -55,6 +55,7 @@ export function ComparisonPage({
       <PageHero
         eyebrow={<T k={c("heroEyebrow")} values={name} />}
         title={<T k={k("hero.title")} />}
+        highlight={<T k={k("hero.highlight")} />}
         lede={<T k={k("hero.lede")} />}
         actions={
           <>

@@ -109,24 +109,6 @@
 .zh[data-expanded="true"] .zh-cue {
   visibility: hidden;
 }
-.zh-rise {
-  animation: zh-rise 0.48s var(--zh-ease-out) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
-}
-.zh-rise-keep {
-  animation-name: zh-rise-y;
-}
-@keyframes zh-rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-}
-@keyframes zh-rise-y {
-  from {
-    transform: translateY(12px);
-  }
-}
 @keyframes zh-bob {
   0%,
   100% {
@@ -295,7 +277,7 @@ html:not([data-zh-placed]) .zh-frame {
   .zh-frame .zh-win {
     border-radius: 24px;
   }
-  .zh-rise {
+  .zh .pv2-rise {
     animation: none;
   }
 }

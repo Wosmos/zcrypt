@@ -57,16 +57,26 @@ a.pv2-card, .pv2-card-link { transition: transform 200ms var(--ease-hover), box-
 .pv2-hero-left { text-align: left; }
 .pv2-hero-left .pv2-hero-head { align-items: flex-start; margin-inline: 0; }
 .pv2-hero-left .pv2-ctas { justify-content: flex-start; margin-inline: 0; }
+.pv2-hero-fill { box-sizing: border-box; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: 88px 0 clamp(40px, 7svh, 80px); }
+.pv2-hero-fill .pv2-wrap { width: 100%; }
 .pv2-hero-head > .pv2-eyebrow { margin-bottom: -4px; }
 .pv2-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 14px; border-radius: 999px; corner-shape: round; border: 1px solid var(--color-border); background: var(--color-surface); font-size: 13px; font-weight: 500; color: var(--color-text); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05); transition: border-color 0.16s var(--ease-hover), transform 0.16s var(--ease-hover); }
 .pv2-pill:hover { border-color: var(--color-border-hover); }
 .pv2-pill svg { color: var(--pv2-accent-ink); transition: transform 0.16s var(--ease-hover); }
 .pv2-pill:hover svg { transform: translateX(2px); }
 .pv2-h1 { margin-top: 20px; max-width: 16ch; font-family: var(--font-heading); font-weight: 700; font-size: clamp(2.5rem, 1.5rem + 4vw, 4.5rem); line-height: 0.98; letter-spacing: -0.04em; color: var(--color-text); text-wrap: balance; }
+.pv2-hl { background: linear-gradient(92deg, var(--pv2-accent-ink) 0%, color-mix(in oklab, var(--pv2-accent-ink) 70%, var(--color-text)) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.pv2-hl-br { display: none; }
+@media (min-width: 640px) { .pv2-hl-br { display: block; } }
 .pv2-sub { margin-top: 20px; max-width: 38rem; font-size: 18px; line-height: 1.5; color: var(--color-text-secondary); text-wrap: pretty; }
 .pv2-ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 28px; }
 .pv2-cta { height: 48px; white-space: nowrap; }
 .pv2-micro { margin-top: 14px; font-size: 13px; color: var(--color-text-secondary); }
+.pv2-rise { animation: pv2-rise 0.48s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both; animation-delay: calc(var(--i, 0) * 60ms); }
+.pv2-rise-keep { animation-name: pv2-rise-y; }
+@keyframes pv2-rise { from { opacity: 0; transform: translateY(12px); } }
+@keyframes pv2-rise-y { from { transform: translateY(12px); } }
+@media (prefers-reduced-motion: reduce) { .pv2-rise { animation: none; } }
 @media (max-width: 767px) {
   .pv2-sub { font-size: 17px; }
   .pv2-ctas { flex-direction: column; align-self: stretch; max-width: 26rem; margin-inline: auto; width: 100%; }

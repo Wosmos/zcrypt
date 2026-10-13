@@ -21,19 +21,28 @@ export const proseBody = "space-y-4 text-base leading-relaxed text-[var(--color-
 export function ReadingPage({
   eyebrow,
   title,
+  highlight,
   lede,
   after,
   children,
 }: {
   eyebrow: ReactNode;
   title: ReactNode;
+  highlight?: ReactNode;
   lede: ReactNode;
   after?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <>
-      <PageHero align="left" className={readingWidth} eyebrow={eyebrow} title={title} lede={lede} />
+      <PageHero
+        align="left"
+        className={readingWidth}
+        eyebrow={eyebrow}
+        title={title}
+        highlight={highlight}
+        lede={lede}
+      />
       <article className={cn(readingArticle, "pb-8")}>{children}</article>
       {after}
     </>

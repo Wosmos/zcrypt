@@ -946,13 +946,14 @@
     },
     "home": {
       "p1": "Documentation",
-      "p2": "zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser previews, and per-folder passwords, all encrypted on your device and stored in accounts you already own. These guides cover every part of it.",
+      "p2": "Real folders, previews and per-folder passwords, all encrypted on your device. These guides cover every part of it.",
       "p3": "Start with the Quickstart",
       "p4": "Start free",
       "p5": "Can't find what you need?",
       "p6": "The whole project is open source. Open an issue, read the code, or reach out and we'll help directly.",
       "p7": "Contact support",
-      "h1": "How zcrypt works"
+      "h1": "How zcrypt",
+      "highlight": "works"
     },
     "how-it-works": {
       "toc": {

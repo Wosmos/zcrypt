@@ -946,13 +946,14 @@
     },
     "home": {
       "p1": "Dokumentation",
-      "p2": "zcrypt ist ein Zero-Knowledge-verschlüsseltes Cloud-Laufwerk: echte Ordner, sofortige Vorschauen im Browser und Passwörter pro Ordner, alles auf deinem Gerät verschlüsselt und in Konten gespeichert, die dir bereits gehören. Diese Anleitungen decken jeden Teil davon ab.",
+      "p2": "Echte Ordner, Vorschauen und Passwörter pro Ordner, alles auf deinem Gerät verschlüsselt. Diese Anleitungen decken jeden Teil davon ab.",
       "p3": "Starte mit dem Schnellstart",
       "p4": "Kostenlos starten",
       "p5": "Findest du nicht, was du brauchst?",
       "p6": "Das ganze Projekt ist Open Source. Eröffne ein Issue, lies den Code oder melde dich, und wir helfen dir direkt.",
       "p7": "Support kontaktieren",
-      "h1": "So funktioniert zcrypt"
+      "h1": "So funktioniert",
+      "highlight": "zcrypt"
     },
     "how-it-works": {
       "toc": {

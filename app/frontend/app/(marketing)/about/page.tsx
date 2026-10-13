@@ -52,6 +52,7 @@ export default function AboutPage() {
         badge={<WosmoWordmark className="mb-8 h-8 w-auto text-[var(--color-text)]" />}
         eyebrow={<T k="site.about.hero.eyebrow" />}
         title={<T k="site.about.hero.title" />}
+        highlight={<T k="site.about.hero.highlight" />}
         lede={<T k="site.about.hero.subtext" />}
         actions={
           <>

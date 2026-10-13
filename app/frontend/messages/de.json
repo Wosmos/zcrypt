@@ -400,8 +400,9 @@
     },
     "hero": {
       "badge": "Jetzt auf Android (Beta)",
-      "title": "Kostenloser Cloud-Speicher ohne Limit",
-      "sub": "Deine Dateien werden auf deinem eigenen Handy oder Laptop verschlüsselt und dann in Konten gespeichert, die du schon hast, etwa bei Telegram oder GitHub. Niemand sonst kann sie öffnen. Nicht einmal wir.",
+      "title": "Kostenloser Cloud-Speicher",
+      "highlight": "ohne Limit",
+      "sub": "Auf deinem Gerät verschlüsselt, gespeichert in Konten, die du schon hast, etwa Telegram oder GitHub. Niemand kann sie öffnen. Nicht einmal wir.",
       "cta": "Kostenlos starten",
       "micro": "Keine Karte. Keine Testphase. Es gibt nichts, worauf du upgraden müsstest.",
       "scroll": "Scrollen, um die App zu öffnen",

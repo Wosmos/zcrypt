@@ -27,6 +27,7 @@ export function related(tx: Tx, items: [href: string, id: string][]): RelatedIte
 export interface HeroData {
   eyebrow: ReactNode;
   title: ReactNode;
+  highlight: ReactNode;
   subtext: ReactNode;
   secondaryLabel: ReactNode;
   secondaryHref: string;
@@ -71,6 +72,7 @@ export function hero(tx: Tx, secondary: ReactNode, secondaryHref: string): HeroD
   return {
     eyebrow: tx("hero.eyebrow"),
     title: tx("hero.title"),
+    highlight: tx("hero.highlight"),
     subtext: tx("hero.subtext"),
     secondaryLabel: secondary,
     secondaryHref,

@@ -400,8 +400,9 @@
     },
     "hero": {
       "badge": "Now on Android (beta)",
-      "title": "Free cloud storage with no limit",
-      "sub": "Your files get locked on your own phone or laptop, then saved in accounts you already have, like Telegram or GitHub. Nobody else can open them. Not even us.",
+      "title": "Free cloud storage",
+      "highlight": "with no limit",
+      "sub": "Locked on your device, kept in accounts you already have, like Telegram or GitHub. Nobody can open them. Not even us.",
       "cta": "Start free",
       "micro": "No card. No trial. There's nothing to upgrade to.",
       "scroll": "Scroll to open the app",

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { T } from "@/components/i18n/t";
+import { pillClass } from "@/components/marketing/ui/pill-link";
+import { cn } from "@/lib/utils";
 
 export function RssLink() {
   return (
     <Link
       prefetch={false}
       href="/changelog/feed.xml"
-      className="group inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+      className={cn("group", pillClass("secondary"))}
     >
       <svg
         viewBox="0 0 24 24"

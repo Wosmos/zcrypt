@@ -32,7 +32,7 @@ function Head() {
       <div className="zh-head-in">
         <Link
           href="/download"
-          className="pv2-pill glass-surface zh-rise"
+          className="pv2-pill glass-surface pv2-rise"
           style={{ "--i": 0 } as React.CSSProperties}
         >
           {t("badge")}
@@ -40,22 +40,23 @@ function Head() {
         </Link>
         <h1
           id="h-top"
-          className="pv2-h1 zh-rise zh-rise-keep"
+          className="pv2-h1 pv2-rise pv2-rise-keep"
           style={{ "--i": 1 } as React.CSSProperties}
         >
-          {t("title")}
+          {t("title")} <br className="pv2-hl-br" />
+          <span className="pv2-hl">{t("highlight")}</span>
           <span className="pv2-dot" aria-hidden="true">
             .
           </span>
         </h1>
-        <p className="pv2-sub zh-rise" style={{ "--i": 2 } as React.CSSProperties}>
+        <p className="pv2-sub pv2-rise" style={{ "--i": 2 } as React.CSSProperties}>
           {t("sub")}
         </p>
-        <div className="pv2-ctas zh-rise" style={{ "--i": 3 } as React.CSSProperties}>
+        <div className="pv2-ctas pv2-rise" style={{ "--i": 3 } as React.CSSProperties}>
           <PillLink href="/register">{t("cta")}</PillLink>
           <OsButton />
         </div>
-        <p className="pv2-micro zh-rise" style={{ "--i": 4 } as React.CSSProperties}>
+        <p className="pv2-micro pv2-rise" style={{ "--i": 4 } as React.CSSProperties}>
           {t("micro")}
         </p>
         <span className="zh-cue" aria-hidden="true">

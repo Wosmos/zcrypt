@@ -31,6 +31,8 @@ export default function ChangelogPage() {
       <PageHero
         eyebrow={<T k="changelog.page.eyebrow" />}
         title={<T k="changelog.page.title" />}
+        highlight={<T k="changelog.page.highlight" />}
+        highlightBreak={false}
         lede={<T k="changelog.page.lede" />}
         actions={<RssLink />}
       />

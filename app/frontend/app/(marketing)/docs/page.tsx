@@ -18,7 +18,7 @@ import {
 import { docsNav, type DocsNavGroup, type DocsNavLink } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { cn } from "@/lib/utils";
-import { Accent } from "@/components/marketing/ui/page-hero";
+import { PageHero } from "@/components/marketing/ui/page-hero";
 import { PillLink, pillClass } from "@/components/marketing/ui/pill-link";
 import { cardSurface } from "@/components/marketing/ui/card";
 import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
@@ -175,26 +175,25 @@ export default function DocsPage() {
       />
 
       {/* Intro */}
-      <header className="pv2-hero-left mb-12">
-        <p className="pv2-eyebrow">
-          <T k="docs.home.p1" />
-        </p>
-        <h1 className="pv2-h1 mt-4">
-          <T k="docs.home.h1" />
-          <Accent text="How zcrypt works" />
-        </h1>
-        <p className="pv2-sub max-w-2xl">
-          <T k="docs.home.p2" />
-        </p>
-        <div className="pv2-ctas">
-          <PillLink href="/docs/getting-started">
-            <T k="docs.home.p3" />
-          </PillLink>
-          <PillLink href="/register" variant="secondary">
-            <T k="docs.home.p4" />
-          </PillLink>
-        </div>
-      </header>
+      <PageHero
+        align="left"
+        className="mb-12 pt-0! pb-0! [--pv2-container:100%] [--pv2-gutter:0px] before:hidden!"
+        eyebrow={<T k="docs.home.p1" />}
+        title={<T k="docs.home.h1" />}
+        highlight={<T k="docs.home.highlight" />}
+        highlightBreak={false}
+        lede={<T k="docs.home.p2" />}
+        actions={
+          <>
+            <PillLink href="/docs/getting-started">
+              <T k="docs.home.p3" />
+            </PillLink>
+            <PillLink href="/register" variant="secondary">
+              <T k="docs.home.p4" />
+            </PillLink>
+          </>
+        }
+      />
 
       {/* Continuous table of contents: every group stacked top to bottom,
           its pages nested underneath, as one flowing outline */}

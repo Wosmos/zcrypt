@@ -2,8 +2,9 @@
   "changelog": {
     "page": {
       "eyebrow": "Changelog",
-      "title": "Was ist neu",
-      "lede": "Jede Version von zcrypt, in einfachen Worten. Wir schreiben das von Hand, damit du siehst, was sich geändert hat, ohne Commit-Nachrichten lesen zu müssen.",
+      "title": "Was ist",
+      "highlight": "neu",
+      "lede": "Jede Version von zcrypt in klaren Worten, von Hand geschrieben, damit du keine Commit-Nachrichten lesen musst.",
       "metaTitle": "Was ist neu in zcrypt",
       "latestBadge": "Aktuell",
       "upcomingBadge": "Geplant",

@@ -121,7 +121,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           <span aria-hidden> · </span>
           <a
             href="#android"
-            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+            className="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
           >
             {t("download.cta.installSteps")}
           </a>
@@ -149,7 +149,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
             install: (chunks) => (
               <a
                 href="#install"
-                className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+                className="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
               >
                 {chunks}
               </a>
@@ -188,14 +188,14 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           <span aria-hidden> · </span>
           <a
             href="#desktop"
-            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+            className="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
           >
             {t("download.cta.otherOptions")}
           </a>
           <span aria-hidden> · </span>
           <a
             href="#install"
-            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+            className="font-medium text-[var(--pv2-accent-ink)] underline-offset-2 hover:underline"
           >
             {t("download.cta.installOneCommand")}
           </a>

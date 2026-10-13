@@ -23,6 +23,7 @@ export default function PhilosophyPage() {
     <ReadingPage
       eyebrow={<T k="site.philosophy.hero.eyebrow" />}
       title={<T k="site.philosophy.hero.title" />}
+      highlight={<T k="site.philosophy.hero.highlight" />}
       lede={<T k="site.philosophy.hero.lede" />}
       after={<ClosingCta id="philosophy-cta" />}
     >

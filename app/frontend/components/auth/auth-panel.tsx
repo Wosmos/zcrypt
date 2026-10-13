@@ -18,7 +18,7 @@ const TRUST = [
 export function AuthPanel({ heading, sub }: { heading: string; sub: string }) {
   const t = useTranslations("auth.features");
   return (
-    <aside className="relative hidden min-h-0 overflow-hidden bg-[#04080c] lg:flex lg:flex-col">
+    <aside className="grain-dark relative hidden min-h-0 overflow-hidden bg-[#04080c] lg:flex lg:flex-col">
       <GrainLayers />
       <div className="relative flex min-h-0 flex-1 flex-col p-10 xl:p-12 [@media(max-height:760px)]:py-7">
         <Logo size="md" href="/" />

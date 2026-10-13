@@ -1205,22 +1205,47 @@ html[dir="rtl"] body {
   letter-spacing: 0;
 }
 
+:root {
+  --grain-1: color-mix(in oklab, var(--color-accent) 30%, var(--color-bg));
+  --grain-2: color-mix(in oklab, var(--color-accent) 12%, #c6cde0);
+  --grain-3: color-mix(in oklab, var(--color-accent) 9%, var(--color-bg));
+  --grain-tex-opacity: 0.14;
+  --grain-tex-blend: multiply;
+}
+.dark {
+  --grain-1: color-mix(in oklab, var(--color-accent) 22%, var(--color-bg));
+  --grain-2: color-mix(in oklab, var(--color-accent) 9%, #0b1330);
+  --grain-3: color-mix(in oklab, var(--color-accent) 6%, var(--color-bg));
+  --grain-tex-opacity: 0.2;
+  --grain-tex-blend: overlay;
+}
+.grain-dark {
+  --grain-1: color-mix(in oklab, #00d5e4 22%, #04080c);
+  --grain-2: color-mix(in oklab, #00d5e4 9%, #0b1330);
+  --grain-3: color-mix(in oklab, #00d5e4 6%, #04080c);
+  --grain-tex-opacity: 0.2;
+  --grain-tex-blend: overlay;
+}
 .grain-lean {
-  transform: translate3d(calc(var(--lean-x, 0) * 48px), calc(var(--lean-y, 0) * 36px), 0);
-  transition: transform 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate3d(calc(var(--lean-x, 0) * 28px), calc(var(--lean-y, 0) * 20px), 0);
+  transition: transform 2.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .grain-light {
   will-change: transform;
+}
+.grain-tex {
+  opacity: var(--grain-tex-opacity);
+  mix-blend-mode: var(--grain-tex-blend);
 }
 @keyframes glow-drift-a {
   0% {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(22%, 16%, 0) scale(1.2);
+    transform: translate3d(7%, 5%, 0) scale(1.06);
   }
   100% {
-    transform: translate3d(-8%, 28%, 0) scale(0.9);
+    transform: translate3d(-4%, 9%, 0) scale(0.97);
   }
 }
 @keyframes glow-drift-b {
@@ -1228,29 +1253,21 @@ html[dir="rtl"] body {
     transform: translate3d(0, 0, 0) scale(1);
   }
   45% {
-    transform: translate3d(-26%, -14%, 0) scale(1.15);
+    transform: translate3d(-8%, -5%, 0) scale(1.05);
   }
   100% {
-    transform: translate3d(-12%, 20%, 0) scale(1.05);
+    transform: translate3d(-4%, 7%, 0) scale(1.02);
   }
 }
 @keyframes glow-drift-c {
   0% {
-    transform: translate3d(0, 0, 0) scale(0.85);
-  }
-  100% {
-    transform: translate3d(-24%, -14%, 0) scale(1.35);
-  }
-}
-@keyframes glow-drift-d {
-  0% {
     transform: translate3d(0, 0, 0) scale(1);
   }
   55% {
-    transform: translate3d(30%, -18%, 0) scale(1.15);
+    transform: translate3d(9%, -6%, 0) scale(1.04);
   }
   100% {
-    transform: translate3d(10%, -8%, 0) scale(0.95);
+    transform: translate3d(3%, -3%, 0) scale(0.98);
   }
 }
 @media (prefers-reduced-motion: reduce) {

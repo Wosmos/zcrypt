@@ -2,8 +2,9 @@
   "changelog": {
     "page": {
       "eyebrow": "Novedades",
-      "title": "Qué hay de nuevo",
-      "lede": "Cada versión de zcrypt, en cristiano. Las escribimos a mano para que veas qué cambió sin tener que leer mensajes de commit.",
+      "title": "Qué hay",
+      "highlight": "de nuevo",
+      "lede": "Cada versión de zcrypt, en palabras claras, escrita a mano para que no tengas que leer mensajes de commit.",
       "metaTitle": "Qué hay de nuevo en zcrypt",
       "latestBadge": "Última",
       "upcomingBadge": "Próximamente",

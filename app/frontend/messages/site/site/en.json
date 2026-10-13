@@ -49,8 +49,9 @@
     "about": {
       "hero": {
         "eyebrow": "Who's actually behind this",
-        "title": "Hi, I'm Wasif. I just wanted free storage",
-        "subtext": "Wasif Malik, or <b>Wosmo</b> to the internet. A full-stack engineer in Karachi, Pakistan who needed somewhere to put a lot of files, couldn't find storage that didn't also want to read them, and instead of letting it go like a reasonable person, spent a few months building his own. That's zcrypt. It's just me back here: no team, no investors, no “zcrypt family.” Which mostly means when something breaks, I already know whose fault it is.",
+        "title": "Hi, I'm Wasif.",
+        "highlight": "I just wanted free storage",
+        "subtext": "Wasif Malik, <b>Wosmo</b> online. An engineer in Karachi who needed somewhere to put a lot of files, so he built it himself.",
         "primary": "View my portfolio"
       },
       "chips": {
@@ -100,7 +101,8 @@
     "philosophy": {
       "hero": {
         "eyebrow": "Why zcrypt",
-        "title": "Why we built zcrypt",
+        "title": "Why we built",
+        "highlight": "zcrypt",
         "lede": "A long-overdue conversation about who owns your data, who's profiting from it, and why that needs to change."
       },
       "short": {
@@ -164,8 +166,9 @@
     "download": {
       "hero": {
         "badge": "Apps for every device",
-        "title": "Your drive, on every device",
-        "subtext": "Native desktop apps, an Android app, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
+        "title": "Your drive",
+        "highlight": "on every device",
+        "subtext": "Desktop, Android, or just the browser. The same drive everywhere, locked before anything leaves your device.",
         "trust": {
           "free": "Free & open source",
           "onlyYou": "Only you can open your files",
@@ -266,8 +269,8 @@
         "hero": {
           "badge": "End-to-end encrypted",
           "titleLead": "Send files securely.",
-          "titleAccent": "No account needed.",
-          "subtitle": "Drop a file, get an encrypted link. Your file is encrypted in your browser with AES-256 before upload. The decryption key never touches our servers."
+          "titleAccent": "No account needed",
+          "subtitle": "Drop a file, get an encrypted link. It's encrypted in your browser with AES-256 and the key never touches our servers."
         },
         "how": {
           "title": "How encrypted file sharing works",
@@ -321,8 +324,8 @@
         "hero": {
           "badge": "Zero-knowledge text sharing",
           "titleLead": "Encrypted text pad.",
-          "titleAccent": "Share privately.",
-          "subtitle": "Paste your text, get an encrypted link. Perfect for sharing passwords, API keys, code snippets, or anything sensitive. Everything is encrypted in your browser."
+          "titleAccent": "Share privately",
+          "subtitle": "Paste text, get an encrypted link. Good for passwords, API keys and snippets. Everything is encrypted in your browser."
         },
         "how": {
           "title": "How encrypted text sharing works",
@@ -395,8 +398,8 @@
         "hero": {
           "badge": "Peer-to-peer encrypted",
           "titleLead": "Transfer files between devices.",
-          "titleAccent": "Encrypted in real time.",
-          "subtitle": "Send encrypted files from one device to another through a relay that stores nothing. No accounts. Found by a 6-digit code, encrypted with a key the server never sees."
+          "titleAccent": "Encrypted in real time",
+          "subtitle": "Device to device through a relay that stores nothing. No accounts: a 6-digit code, and a key the server never sees."
         },
         "how": {
           "title": "How encrypted transfer works",
@@ -632,8 +635,9 @@
       },
       "index": {
         "eyebrow": "Features",
-        "title": "Everything the drive does",
-        "lede": "A real file manager where only you can open what's inside. Here's every part of it, so dig into whichever matters to you.",
+        "title": "Everything",
+        "highlight": "the drive does",
+        "lede": "A real file manager where only you can open what's inside. Dig into whichever part matters to you.",
         "searchPlaceholder": "Search features & docs...",
         "allFeatures": "All features",
         "ctaTitle": "Start with a drive you actually own",
@@ -642,8 +646,9 @@
       "encryptedDrive": {
         "hero": {
           "eyebrow": "The encrypted drive",
-          "title": "A real drive, locked end to end",
-          "subtext": "Most “encrypted storage” gives you a flat list of files. zcrypt gives you a real file explorer (folders, search, previews, drag-and-drop) where everything is encrypted on your device before it leaves."
+          "title": "A real drive",
+          "highlight": "locked end to end",
+          "subtext": "Most “encrypted storage” is a flat list. zcrypt is a real explorer: folders, search, previews, locked on your device first."
         },
         "mock": {
           "vault": "My Vault",
@@ -718,8 +723,9 @@
       "folders": {
         "hero": {
           "eyebrow": "Encrypted folders",
-          "title": "Folders that lock themselves",
-          "subtext": "Organize with real, nestable folders whose names are encrypted on your device. Then give any folder its own password: a second lock, separate from your vault, that keeps it sealed even when everything else is open."
+          "title": "Folders that",
+          "highlight": "lock themselves",
+          "subtext": "Real folders with encrypted names. Give any one its own password, a second lock that holds even when the vault is open."
         },
         "mock": {
           "label": "Folder tree",
@@ -805,8 +811,9 @@
       "fileViewers": {
         "hero": {
           "eyebrow": "In-browser file viewers",
-          "title": "See your files without handing them over",
-          "subtext": "Most encrypted storage makes you download a file and trust a server to show it. zcrypt previews images, video, PDFs, documents, and code right in your browser, decrypted on the fly, then gone.",
+          "title": "See your files",
+          "highlight": "without handing them over",
+          "subtext": "Images, video, PDFs, docs and code open right in your browser, decrypted on the fly, then gone. No server ever sees them.",
           "secondaryLabel": "How decryption works"
         },
         "mock": {
@@ -928,8 +935,9 @@
       "sharing": {
         "hero": {
           "eyebrow": "Encrypted sharing",
-          "title": "Share a file, not the keys to everything",
-          "subtext": "Every share link carries its own decryption key inside the URL fragment: the one piece of a link a browser never transmits. The recipient opens it, their browser decrypts the file, and the server only ever held ciphertext."
+          "title": "Share a file",
+          "highlight": "not the keys to everything",
+          "subtext": "Each link carries its own key in the URL fragment, which a browser never sends. The server only ever holds ciphertext."
         },
         "mock": {
           "label": "Share link",
@@ -1027,8 +1035,9 @@
       "encryption": {
         "hero": {
           "eyebrow": "Zero-knowledge encryption",
-          "title": "We can't read your files",
-          "subtext": "Your files are encrypted on your own device with AES-256-GCM before they ever leave it. The key is derived from your passphrase and never transmitted. We store ciphertext and nothing else, no keys, no plaintext, not even your folder names."
+          "title": "We can't read your files.",
+          "highlight": "That's the whole point",
+          "subtext": "Encrypted on your device with AES-256-GCM. The key never leaves. We store ciphertext and nothing else, not even folder names."
         },
         "boundary": {
           "trustedZone": "Trusted zone",
@@ -1137,8 +1146,9 @@
       "transfers": {
         "hero": {
           "eyebrow": "The transfer manager",
-          "title": "Start it, walk away, it picks up again",
-          "subtext": "One docked panel tracks every upload and download. Live progress and ETA, pause and resume without re-encrypting, retry on failure, and bulk ZIP downloads, and it keeps running as you move around the app."
+          "title": "Start it, walk away.",
+          "highlight": "It picks up again",
+          "subtext": "One panel tracks every transfer: live progress, pause and resume without re-encrypting, retries, and bulk ZIP downloads."
         },
         "mock": {
           "title": "Transfers",
@@ -1226,8 +1236,9 @@
       "privacy": {
         "hero": {
           "eyebrow": "Privacy tools",
-          "title": "Privacy for the moments that matter",
-          "subtext": "Encryption keeps your files unreadable. These tools go a step further, for being pressured to unlock, for going quiet unexpectedly, and for the edge cases real privacy has to plan for. Built on the same zero-knowledge core, and honest about what each one actually does.",
+          "title": "Privacy for the",
+          "highlight": "moments that matter",
+          "subtext": "Encryption keeps files unreadable. These tools cover the rest: being pressured to unlock, going quiet, and the edge cases.",
           "trustLine": "Zero-knowledge by design. We never hold your keys or your plaintext."
         },
         "decoy": {
@@ -1306,8 +1317,9 @@
       "byos": {
         "hero": {
           "eyebrow": "Bring your own storage",
-          "title": "Use the storage you already have",
-          "subtext": "Connect accounts you own (GitHub, GitLab, Hugging Face, Telegram) and your encrypted files are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so your space grows on its own. Your data, your infrastructure, no lock-in."
+          "title": "We don't sell you storage.",
+          "highlight": "You already have it",
+          "subtext": "Connect GitHub, GitLab, Hugging Face or Telegram. Your encrypted chunks live in accounts you control. No lock-in, ever."
         },
         "mock": {
           "label": "Connected storage",
@@ -1407,8 +1419,9 @@
       "apps": {
         "hero": {
           "eyebrow": "Web, desktop & Android",
-          "title": "One drive, three ways in",
-          "subtext": "The same zero-knowledge core, wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, and an Android app you sideload in a minute. The encryption never changes, only the interface does.",
+          "title": "One drive.",
+          "highlight": "Three ways in",
+          "subtext": "The same core in the browser, a native app for macOS, Windows and Linux, and an Android app. Only the interface changes.",
           "secondaryLabel": "Download the apps"
         },
         "mock": {
@@ -1906,8 +1919,9 @@
       },
       "googleDrive": {
         "hero": {
-          "title": "Google Drive can read your files. zcrypt can't",
-          "lede": "Google Drive is deeply integrated and incredibly convenient, but it processes your content for search, previews, and smart features, and it isn't end-to-end encrypted. zcrypt encrypts everything on your device first, stores it in accounts you already own, and is open source from top to bottom.",
+          "title": "Google Drive can read your files.",
+          "highlight": "zcrypt can't",
+          "lede": "Drive scans your files for search and smart features. zcrypt locks them on your device first, and the code is open.",
           "secondary": "See how it works"
         },
         "pillarsHead": {
@@ -1977,8 +1991,9 @@
       },
       "dropbox": {
         "hero": {
-          "title": "Dropbox is convenient. zcrypt is private",
-          "lede": "Dropbox is a polished, friction-free place to keep files, but it holds the keys and can read what you store. zcrypt is a real encrypted drive where everything is encrypted on your device, stored in accounts you already own, and the code is open for anyone to audit.",
+          "title": "Dropbox is convenient.",
+          "highlight": "zcrypt is private",
+          "lede": "Dropbox is polished, but it holds the keys and can read what you store. zcrypt locks everything on your device first.",
           "secondary": "See the drive"
         },
         "pillarsHead": {
@@ -2048,8 +2063,9 @@
       },
       "protonDrive": {
         "hero": {
-          "title": "Both are private. Only one is yours to run",
-          "lede": "Proton Drive is a genuinely excellent, audited, zero-knowledge drive, and we respect it. The differences are narrower here and more about philosophy: zcrypt is open source <em>and</em> self-hostable, stores files in accounts you already own, and has no artificial caps.",
+          "title": "Both are private.",
+          "highlight": "Only one is yours to run",
+          "lede": "Proton Drive is excellent. We mean it. The difference: zcrypt is open source, self-hostable, and has no artificial caps.",
           "secondary": "See how it works"
         },
         "respectNote": "<b>Credit where it's due.</b> Proton Drive is end-to-end encrypted, independently audited, backed by an established privacy company, and has mature mobile apps. If you're weighing it against zcrypt, you're already making a privacy-respecting choice. This page is about which trade-offs suit you, not about claiming Proton gets anything wrong.",

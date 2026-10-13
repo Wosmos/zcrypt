@@ -49,8 +49,9 @@
     "about": {
       "hero": {
         "eyebrow": "Qui se cache vraiment derrière tout ça",
-        "title": "Salut, moi c'est Wasif. Je voulais juste du stockage gratuit",
-        "subtext": "Wasif Malik, ou <b>Wosmo</b> pour internet. Un ingénieur full-stack à Karachi, au Pakistan, qui avait besoin d'un endroit où ranger beaucoup de fichiers, n'a pas trouvé de stockage qui ne veuille pas aussi les lire et, au lieu de laisser tomber comme une personne raisonnable, a passé quelques mois à construire le sien. Voilà zcrypt. Il n'y a que moi ici : pas d'équipe, pas d'investisseurs, pas de « famille zcrypt ». Ce qui veut surtout dire que, quand quelque chose casse, je sais déjà à qui la faute.",
+        "title": "Salut, moi c'est Wasif.",
+        "highlight": "Je voulais juste du stockage gratuit",
+        "subtext": "Wasif Malik, <b>Wosmo</b> en ligne. Un ingénieur à Karachi qui avait besoin d'un endroit pour beaucoup de fichiers, alors il l'a construit lui-même.",
         "primary": "Voir mon portfolio"
       },
       "chips": {
@@ -100,7 +101,8 @@
     "philosophy": {
       "hero": {
         "eyebrow": "Pourquoi zcrypt",
-        "title": "Pourquoi nous avons créé zcrypt",
+        "title": "Pourquoi nous avons créé",
+        "highlight": "zcrypt",
         "lede": "Une conversation attendue depuis longtemps sur qui possède vos données, qui en profite, et pourquoi cela doit changer."
       },
       "short": {
@@ -164,8 +166,9 @@
     "download": {
       "hero": {
         "badge": "Des applis pour chaque appareil",
-        "title": "Votre disque, sur chaque appareil",
-        "subtext": "Des applis de bureau natives, une appli Android et une appli web sans installation. Le même disque privé partout, verrouillé sur votre appareil avant que quoi que ce soit n'en sorte.",
+        "title": "Votre disque",
+        "highlight": "sur chaque appareil",
+        "subtext": "Ordinateur, Android ou simplement le navigateur. Le même disque partout, verrouillé avant que quoi que ce soit ne quitte votre appareil.",
         "trust": {
           "free": "Gratuit et open source",
           "onlyYou": "Vous seul pouvez ouvrir vos fichiers",
@@ -266,8 +269,8 @@
         "hero": {
           "badge": "Chiffrement de bout en bout",
           "titleLead": "Envoyez des fichiers en toute sécurité.",
-          "titleAccent": "Aucun compte requis.",
-          "subtitle": "Déposez un fichier, obtenez un lien chiffré. Votre fichier est chiffré dans votre navigateur avec AES-256 avant l'envoi. La clé de déchiffrement ne touche jamais nos serveurs."
+          "titleAccent": "Aucun compte requis",
+          "subtitle": "Déposez un fichier, obtenez un lien chiffré. Il est chiffré dans votre navigateur avec AES-256 et la clé ne touche jamais nos serveurs."
         },
         "how": {
           "title": "Comment fonctionne le partage de fichiers chiffrés",
@@ -321,8 +324,8 @@
         "hero": {
           "badge": "Partage de texte à connaissance nulle",
           "titleLead": "Bloc-notes chiffré.",
-          "titleAccent": "Partagez en privé.",
-          "subtitle": "Collez votre texte, obtenez un lien chiffré. Idéal pour partager des mots de passe, des clés d'API, des extraits de code ou tout ce qui est sensible. Tout est chiffré dans votre navigateur."
+          "titleAccent": "Partagez en privé",
+          "subtitle": "Collez du texte, obtenez un lien chiffré. Idéal pour les mots de passe, clés API et extraits. Tout est chiffré dans votre navigateur."
         },
         "how": {
           "title": "Comment fonctionne le partage de texte chiffré",
@@ -395,8 +398,8 @@
         "hero": {
           "badge": "Chiffrement de pair à pair",
           "titleLead": "Transférez des fichiers entre appareils.",
-          "titleAccent": "Chiffrés en temps réel.",
-          "subtitle": "Envoyez des fichiers chiffrés d'un appareil à l'autre via un relais qui ne stocke rien. Sans compte. Trouvé grâce à un code à 6 chiffres, chiffré avec une clé que le serveur ne voit jamais."
+          "titleAccent": "Chiffrés en temps réel",
+          "subtitle": "D'appareil à appareil via un relais qui ne stocke rien. Sans compte : un code à 6 chiffres et une clé que le serveur ne voit jamais."
         },
         "how": {
           "title": "Comment fonctionne le transfert chiffré",
@@ -632,8 +635,9 @@
       },
       "index": {
         "eyebrow": "Fonctionnalités",
-        "title": "Tout ce que fait le drive",
-        "lede": "Un vrai gestionnaire de fichiers dont vous seul pouvez ouvrir le contenu. Voici chacune de ses parties, plongez dans celle qui vous importe.",
+        "title": "Tout ce que",
+        "highlight": "fait le drive",
+        "lede": "Un vrai gestionnaire de fichiers où vous seul pouvez ouvrir ce qu'il contient. Explorez la partie qui vous intéresse.",
         "searchPlaceholder": "Rechercher des fonctionnalités et de la doc...",
         "allFeatures": "Toutes les fonctionnalités",
         "ctaTitle": "Commencez avec un drive qui vous appartient vraiment",
@@ -642,8 +646,9 @@
       "encryptedDrive": {
         "hero": {
           "eyebrow": "Le drive chiffré",
-          "title": "Un vrai drive, verrouillé de bout en bout",
-          "subtext": "La plupart des « stockages chiffrés » vous donnent une liste plate de fichiers. zcrypt vous offre un vrai explorateur de fichiers (dossiers, recherche, aperçus, glisser-déposer) où tout est chiffré sur votre appareil avant de partir."
+          "title": "Un vrai drive,",
+          "highlight": "verrouillé de bout en bout",
+          "subtext": "La plupart des « stockages chiffrés » sont une liste plate. zcrypt est un vrai explorateur : dossiers, recherche, aperçus, verrouillés d'abord sur votre appareil."
         },
         "mock": {
           "vault": "Mon coffre",
@@ -718,8 +723,9 @@
       "folders": {
         "hero": {
           "eyebrow": "Dossiers chiffrés",
-          "title": "Des dossiers qui se verrouillent tout seuls",
-          "subtext": "Organisez avec de vrais dossiers imbriquables dont les noms sont chiffrés sur votre appareil. Puis donnez à n'importe quel dossier son propre mot de passe : un second verrou, distinct de votre coffre, qui le garde scellé même quand tout le reste est ouvert."
+          "title": "Des dossiers qui",
+          "highlight": "se verrouillent tout seuls",
+          "subtext": "De vrais dossiers aux noms chiffrés. Donnez à chacun son propre mot de passe, un second verrou qui tient même quand le coffre est ouvert."
         },
         "mock": {
           "label": "Arborescence",
@@ -805,8 +811,9 @@
       "fileViewers": {
         "hero": {
           "eyebrow": "Visionneuses de fichiers dans le navigateur",
-          "title": "Voyez vos fichiers sans les livrer",
-          "subtext": "La plupart des stockages chiffrés vous obligent à télécharger un fichier et à faire confiance à un serveur pour l'afficher. zcrypt affiche images, vidéo, PDF, documents et code directement dans votre navigateur, déchiffrés à la volée, puis disparus.",
+          "title": "Voyez vos fichiers",
+          "highlight": "sans les livrer",
+          "subtext": "Images, vidéos, PDF, documents et code s'ouvrent directement dans votre navigateur, déchiffrés à la volée, puis disparaissent. Aucun serveur ne les voit.",
           "secondaryLabel": "Comment fonctionne le déchiffrement"
         },
         "mock": {
@@ -928,8 +935,9 @@
       "sharing": {
         "hero": {
           "eyebrow": "Partage chiffré",
-          "title": "Partagez un fichier, pas les clés de tout",
-          "subtext": "Chaque lien de partage porte sa propre clé de déchiffrement dans le fragment de l'URL : la seule partie d'un lien qu'un navigateur ne transmet jamais. Le destinataire l'ouvre, son navigateur déchiffre le fichier, et le serveur n'a jamais détenu que du texte chiffré."
+          "title": "Partagez un fichier,",
+          "highlight": "pas les clés de tout",
+          "subtext": "Chaque lien porte sa propre clé dans le fragment d'URL, qu'un navigateur n'envoie jamais. Le serveur ne détient que du texte chiffré."
         },
         "mock": {
           "label": "Lien de partage",
@@ -1027,8 +1035,9 @@
       "encryption": {
         "hero": {
           "eyebrow": "Chiffrement à connaissance nulle",
-          "title": "Nous ne pouvons pas lire vos fichiers",
-          "subtext": "Vos fichiers sont chiffrés sur votre propre appareil avec AES-256-GCM avant de le quitter. La clé est dérivée de votre phrase secrète et jamais transmise. Nous stockons du texte chiffré et rien d'autre : ni clés, ni texte en clair, pas même vos noms de dossiers."
+          "title": "Nous ne pouvons pas lire vos fichiers.",
+          "highlight": "C'est tout l'intérêt",
+          "subtext": "Chiffrés sur votre appareil avec AES-256-GCM. La clé ne le quitte jamais. Nous stockons du texte chiffré et rien d'autre, pas même les noms de dossiers."
         },
         "boundary": {
           "trustedZone": "Zone de confiance",
@@ -1137,8 +1146,9 @@
       "transfers": {
         "hero": {
           "eyebrow": "Le gestionnaire de transferts",
-          "title": "Lancez-le, partez, il reprend tout seul",
-          "subtext": "Un seul panneau ancré suit chaque envoi et téléchargement. Progression et temps restant en direct, pause et reprise sans rechiffrer, nouvelle tentative en cas d'échec et téléchargements ZIP groupés, et il continue de tourner pendant que vous naviguez dans l'app."
+          "title": "Lancez-le, partez.",
+          "highlight": "Il reprend tout seul",
+          "subtext": "Un seul panneau suit chaque transfert : progression en direct, pause et reprise sans rechiffrer, nouvelles tentatives et téléchargements ZIP groupés."
         },
         "mock": {
           "title": "Transferts",
@@ -1226,8 +1236,9 @@
       "privacy": {
         "hero": {
           "eyebrow": "Outils de confidentialité",
-          "title": "La confidentialité pour les moments qui comptent",
-          "subtext": "Le chiffrement garde vos fichiers illisibles. Ces outils vont un cran plus loin : quand on vous presse de déverrouiller, quand vous devenez silencieux de façon inattendue, et pour les cas limites que la vraie confidentialité doit prévoir. Bâtis sur le même cœur à connaissance nulle, et honnêtes sur ce que chacun fait réellement.",
+          "title": "La confidentialité pour",
+          "highlight": "les moments qui comptent",
+          "subtext": "Le chiffrement rend les fichiers illisibles. Ces outils couvrent le reste : la pression pour déverrouiller, le silence soudain et les cas limites.",
           "trustLine": "Connaissance nulle par conception. Nous ne détenons jamais vos clés ni votre texte en clair."
         },
         "decoy": {
@@ -1306,8 +1317,9 @@
       "byos": {
         "hero": {
           "eyebrow": "Apportez votre propre stockage",
-          "title": "Utilisez le stockage que vous avez déjà",
-          "subtext": "Connectez des comptes qui vous appartiennent (GitHub, GitLab, Hugging Face, Telegram) et vos fichiers chiffrés sont stockés sous forme de fragments déguisés dans des dépôts qui sont à vous. Les dépôts tournent automatiquement en se remplissant, votre espace grandit donc tout seul. Vos données, votre infrastructure, sans enfermement."
+          "title": "Nous ne vous vendons pas de stockage.",
+          "highlight": "Vous l'avez déjà",
+          "subtext": "Connectez GitHub, GitLab, Hugging Face ou Telegram. Vos fragments chiffrés vivent dans des comptes que vous contrôlez. Aucune dépendance, jamais."
         },
         "mock": {
           "label": "Stockage connecté",
@@ -1407,8 +1419,9 @@
       "apps": {
         "hero": {
           "eyebrow": "Web, bureau et Android",
-          "title": "Un drive, trois façons d'y entrer",
-          "subtext": "Le même cœur à connaissance nulle, où que vous travailliez : une application web dans n'importe quel navigateur, une application de bureau native pour macOS, Windows et Linux, et une application Android que vous installez en sideload en une minute. Le chiffrement ne change jamais, seule l'interface change.",
+          "title": "Un drive.",
+          "highlight": "Trois façons d'y entrer",
+          "subtext": "Le même cœur dans le navigateur, une app native pour macOS, Windows et Linux, et une app Android. Seule l'interface change.",
           "secondaryLabel": "Télécharger les apps"
         },
         "mock": {
@@ -1906,8 +1919,9 @@
       },
       "googleDrive": {
         "hero": {
-          "title": "Google Drive peut lire vos fichiers. zcrypt, non",
-          "lede": "Google Drive est profondément intégré et incroyablement pratique, mais il traite votre contenu pour la recherche, les aperçus et les fonctions intelligentes, et il n'est pas chiffré de bout en bout. zcrypt chiffre tout d'abord sur votre appareil, le stocke dans des comptes qui vous appartiennent déjà, et est open source de bout en bout.",
+          "title": "Google Drive peut lire vos fichiers.",
+          "highlight": "zcrypt, non",
+          "lede": "Drive analyse vos fichiers pour la recherche et les fonctions intelligentes. zcrypt les verrouille d'abord sur votre appareil, et le code est ouvert.",
           "secondary": "Voir comment ça marche"
         },
         "pillarsHead": {
@@ -1977,8 +1991,9 @@
       },
       "dropbox": {
         "hero": {
-          "title": "Dropbox est pratique. zcrypt est privé",
-          "lede": "Dropbox est un endroit soigné et sans friction pour garder ses fichiers, mais il détient les clés et peut lire ce que vous stockez. zcrypt est un vrai drive chiffré où tout est chiffré sur votre appareil, stocké dans des comptes qui vous appartiennent déjà, et dont le code est ouvert à l'audit de tous.",
+          "title": "Dropbox est pratique.",
+          "highlight": "zcrypt est privé",
+          "lede": "Dropbox est soigné, mais il détient les clés et peut lire ce que vous stockez. zcrypt verrouille tout d'abord sur votre appareil.",
           "secondary": "Voir le drive"
         },
         "pillarsHead": {
@@ -2048,8 +2063,9 @@
       },
       "protonDrive": {
         "hero": {
-          "title": "Les deux sont privés. Un seul est à vous pour l'héberger",
-          "lede": "Proton Drive est un drive à connaissance nulle réellement excellent et audité, et nous le respectons. Les différences sont ici plus minces et tiennent davantage à la philosophie : zcrypt est open source <em>et</em> auto-hébergeable, stocke les fichiers dans des comptes qui vous appartiennent déjà, et n'a aucun plafond artificiel.",
+          "title": "Les deux sont privés.",
+          "highlight": "Un seul est à vous pour l'héberger",
+          "lede": "Proton Drive est excellent. Sincèrement. La différence : zcrypt est open source, auto-hébergeable et sans plafonds artificiels.",
           "secondary": "Voir comment ça marche"
         },
         "respectNote": "<b>À chacun son mérite.</b> Proton Drive est chiffré de bout en bout, audité de façon indépendante, soutenu par une entreprise de confidentialité reconnue, et dispose d'applications mobiles matures. Si vous le comparez à zcrypt, vous faites déjà un choix respectueux de la vie privée. Cette page porte sur les compromis qui vous conviennent, pas sur l'idée que Proton se tromperait en quoi que ce soit.",

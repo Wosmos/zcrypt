@@ -946,13 +946,14 @@
     },
     "home": {
       "p1": "Documentación",
-      "p2": "zcrypt es una unidad en la nube cifrada de conocimiento cero: carpetas reales, vistas previas instantáneas en el navegador y contraseñas por carpeta, todo cifrado en tu dispositivo y almacenado en cuentas que ya son tuyas. Estas guías cubren cada parte.",
+      "p2": "Carpetas de verdad, vistas previas y contraseñas por carpeta, todo cifrado en tu dispositivo. Estas guías cubren cada parte.",
       "p3": "Empieza con el Inicio rápido",
       "p4": "Empieza gratis",
       "p5": "¿No encuentras lo que necesitas?",
       "p6": "Todo el proyecto es de código abierto. Abre una incidencia, lee el código o ponte en contacto y te ayudaremos directamente.",
       "p7": "Contactar con soporte",
-      "h1": "Cómo funciona zcrypt"
+      "h1": "Cómo funciona",
+      "highlight": "zcrypt"
     },
     "how-it-works": {
       "toc": {

@@ -49,8 +49,9 @@
     "about": {
       "hero": {
         "eyebrow": "Wer wirklich dahintersteckt",
-        "title": "Hi, ich bin Wasif. Ich wollte nur kostenlosen Speicher",
-        "subtext": "Wasif Malik, im Internet auch <b>Wosmo</b> genannt. Ein Full-Stack-Entwickler aus Karachi, Pakistan, der irgendwo viele Dateien ablegen wollte, keinen Speicher fand, der sie nicht auch lesen will, und statt es wie ein vernünftiger Mensch gut sein zu lassen, ein paar Monate lang seinen eigenen gebaut hat. Das ist zcrypt. Hier hinten bin nur ich: kein Team, keine Investoren, keine „zcrypt-Familie“. Was meistens heißt: Wenn etwas kaputtgeht, weiß ich schon, wer schuld ist.",
+        "title": "Hi, ich bin Wasif.",
+        "highlight": "Ich wollte nur kostenlosen Speicher",
+        "subtext": "Wasif Malik, online <b>Wosmo</b>. Ein Entwickler in Karatschi, der einen Platz für sehr viele Dateien brauchte und ihn sich kurzerhand selbst gebaut hat.",
         "primary": "Mein Portfolio ansehen"
       },
       "chips": {
@@ -100,7 +101,8 @@
     "philosophy": {
       "hero": {
         "eyebrow": "Warum zcrypt",
-        "title": "Warum wir zcrypt gebaut haben",
+        "title": "Warum wir",
+        "highlight": "zcrypt gebaut haben",
         "lede": "Ein längst überfälliges Gespräch darüber, wem deine Daten gehören, wer daran verdient und warum sich das ändern muss."
       },
       "short": {
@@ -164,8 +166,9 @@
     "download": {
       "hero": {
         "badge": "Apps für jedes Gerät",
-        "title": "Dein Laufwerk, auf jedem Gerät",
-        "subtext": "Native Desktop-Apps, eine Android-App und eine Web-App, die keine Installation braucht. Überall dasselbe private Laufwerk, auf deinem Gerät verschlüsselt, bevor irgendetwas es verlässt.",
+        "title": "Dein Laufwerk",
+        "highlight": "auf jedem Gerät",
+        "subtext": "Desktop, Android oder einfach der Browser. Überall dasselbe Laufwerk, verschlüsselt, bevor etwas dein Gerät verlässt.",
         "trust": {
           "free": "Kostenlos und Open Source",
           "onlyYou": "Nur du kannst deine Dateien öffnen",
@@ -266,8 +269,8 @@
         "hero": {
           "badge": "Ende-zu-Ende-verschlüsselt",
           "titleLead": "Dateien sicher senden.",
-          "titleAccent": "Kein Konto nötig.",
-          "subtitle": "Datei ablegen, verschlüsselten Link erhalten. Deine Datei wird vor dem Hochladen in deinem Browser mit AES-256 verschlüsselt. Der Entschlüsselungsschlüssel berührt nie unsere Server."
+          "titleAccent": "Kein Konto nötig",
+          "subtitle": "Datei ablegen, verschlüsselten Link bekommen. Sie wird im Browser mit AES-256 verschlüsselt, und der Schlüssel berührt unsere Server nie."
         },
         "how": {
           "title": "So funktioniert verschlüsseltes Teilen von Dateien",
@@ -321,8 +324,8 @@
         "hero": {
           "badge": "Zero-Knowledge-Textfreigabe",
           "titleLead": "Verschlüsseltes Textpad.",
-          "titleAccent": "Privat teilen.",
-          "subtitle": "Text einfügen, verschlüsselten Link erhalten. Ideal zum Teilen von Passwörtern, API-Schlüsseln, Code-Schnipseln oder allem Sensiblen. Alles wird in deinem Browser verschlüsselt."
+          "titleAccent": "Privat teilen",
+          "subtitle": "Text einfügen, verschlüsselten Link bekommen. Gut für Passwörter, API-Schlüssel und Snippets. Alles wird im Browser verschlüsselt."
         },
         "how": {
           "title": "So funktioniert verschlüsseltes Teilen von Text",
@@ -395,8 +398,8 @@
         "hero": {
           "badge": "Peer-to-Peer-verschlüsselt",
           "titleLead": "Dateien zwischen Geräten übertragen.",
-          "titleAccent": "In Echtzeit verschlüsselt.",
-          "subtitle": "Sende verschlüsselte Dateien von einem Gerät zum anderen über ein Relay, das nichts speichert. Keine Konten. Gefunden per 6-stelligem Code, verschlüsselt mit einem Schlüssel, den der Server nie sieht."
+          "titleAccent": "In Echtzeit verschlüsselt",
+          "subtitle": "Von Gerät zu Gerät über ein Relay, das nichts speichert. Keine Konten: ein 6-stelliger Code und ein Schlüssel, den der Server nie sieht."
         },
         "how": {
           "title": "So funktioniert die verschlüsselte Übertragung",
@@ -632,8 +635,9 @@
       },
       "index": {
         "eyebrow": "Funktionen",
-        "title": "Alles, was das Laufwerk kann",
-        "lede": "Ein echter Dateimanager, dessen Inhalt nur du öffnen kannst. Hier findest du jeden Teil davon, such dir einfach heraus, was dich interessiert.",
+        "title": "Alles,",
+        "highlight": "was das Laufwerk kann",
+        "lede": "Ein echter Dateimanager, in dem nur du öffnen kannst, was drin ist. Schau dir an, was dich interessiert.",
         "searchPlaceholder": "Funktionen und Doku durchsuchen...",
         "allFeatures": "Alle Funktionen",
         "ctaTitle": "Starte mit einem Laufwerk, das wirklich dir gehört",
@@ -642,8 +646,9 @@
       "encryptedDrive": {
         "hero": {
           "eyebrow": "Das verschlüsselte Laufwerk",
-          "title": "Ein echtes Laufwerk, Ende-zu-Ende verschlüsselt",
-          "subtext": "Die meisten „verschlüsselten Speicher“ geben dir eine flache Dateiliste. zcrypt gibt dir einen echten Datei-Explorer (Ordner, Suche, Vorschauen, Drag-and-drop), in dem alles auf deinem Gerät verschlüsselt wird, bevor es es verlässt."
+          "title": "Ein echtes Laufwerk,",
+          "highlight": "Ende-zu-Ende verschlüsselt",
+          "subtext": "Die meisten „verschlüsselten Speicher“ sind eine flache Liste. zcrypt ist ein echter Explorer: Ordner, Suche, Vorschauen, zuerst auf deinem Gerät verschlüsselt."
         },
         "mock": {
           "vault": "Mein Tresor",
@@ -718,8 +723,9 @@
       "folders": {
         "hero": {
           "eyebrow": "Verschlüsselte Ordner",
-          "title": "Ordner, die sich selbst verschließen",
-          "subtext": "Organisiere mit echten, verschachtelbaren Ordnern, deren Namen auf deinem Gerät verschlüsselt sind. Gib dann jedem Ordner ein eigenes Passwort: ein zweites Schloss, getrennt von deinem Tresor, das ihn versiegelt hält, auch wenn alles andere offen ist."
+          "title": "Ordner, die sich",
+          "highlight": "selbst verschließen",
+          "subtext": "Echte Ordner mit verschlüsselten Namen. Gib jedem ein eigenes Passwort, ein zweites Schloss, das auch bei offenem Tresor hält."
         },
         "mock": {
           "label": "Ordnerbaum",
@@ -805,8 +811,9 @@
       "fileViewers": {
         "hero": {
           "eyebrow": "Dateibetrachter im Browser",
-          "title": "Sieh deine Dateien, ohne sie aus der Hand zu geben",
-          "subtext": "Bei den meisten verschlüsselten Speichern musst du eine Datei herunterladen und einem Server vertrauen, der sie anzeigt. zcrypt zeigt Bilder, Videos, PDFs, Dokumente und Code direkt in deinem Browser, spontan entschlüsselt und danach wieder weg.",
+          "title": "Sieh deine Dateien,",
+          "highlight": "ohne sie aus der Hand zu geben",
+          "subtext": "Bilder, Videos, PDFs, Dokumente und Code öffnen sich direkt im Browser, werden im Flug entschlüsselt und sind dann weg. Kein Server sieht sie je.",
           "secondaryLabel": "So funktioniert die Entschlüsselung"
         },
         "mock": {
@@ -928,8 +935,9 @@
       "sharing": {
         "hero": {
           "eyebrow": "Verschlüsseltes Teilen",
-          "title": "Teile eine Datei, nicht die Schlüssel zu allem",
-          "subtext": "Jeder Freigabelink trägt seinen eigenen Entschlüsselungsschlüssel im URL-Fragment: dem einen Teil eines Links, den ein Browser nie überträgt. Der Empfänger öffnet ihn, sein Browser entschlüsselt die Datei, und der Server hat immer nur Chiffretext gehalten."
+          "title": "Teile eine Datei,",
+          "highlight": "nicht die Schlüssel zu allem",
+          "subtext": "Jeder Link trägt seinen eigenen Schlüssel im URL-Fragment, das ein Browser nie sendet. Der Server hält immer nur Chiffretext."
         },
         "mock": {
           "label": "Freigabelink",
@@ -1027,8 +1035,9 @@
       "encryption": {
         "hero": {
           "eyebrow": "Zero-Knowledge-Verschlüsselung",
-          "title": "Wir können deine Dateien nicht lesen",
-          "subtext": "Deine Dateien werden auf deinem eigenen Gerät mit AES-256-GCM verschlüsselt, bevor sie es je verlassen. Der Schlüssel wird aus deiner Passphrase abgeleitet und nie übertragen. Wir speichern Chiffretext und sonst nichts: keine Schlüssel, keinen Klartext, nicht einmal deine Ordnernamen."
+          "title": "Wir können deine Dateien nicht lesen.",
+          "highlight": "Genau darum geht es",
+          "subtext": "Auf deinem Gerät mit AES-256-GCM verschlüsselt. Der Schlüssel verlässt es nie. Wir speichern Chiffretext und sonst nichts, nicht einmal Ordnernamen."
         },
         "boundary": {
           "trustedZone": "Vertrauenswürdige Zone",
@@ -1137,8 +1146,9 @@
       "transfers": {
         "hero": {
           "eyebrow": "Der Transfer-Manager",
-          "title": "Starten, weggehen, er macht weiter",
-          "subtext": "Ein angedocktes Panel verfolgt jeden Upload und Download. Live-Fortschritt und Restzeit, Pausieren und Fortsetzen ohne Neuverschlüsselung, Wiederholen bei Fehlern und ZIP-Sammeldownloads, und es läuft weiter, während du dich in der App bewegst."
+          "title": "Starten, weggehen.",
+          "highlight": "Er macht weiter",
+          "subtext": "Ein Panel verfolgt jede Übertragung: Live-Fortschritt, Pause und Fortsetzen ohne erneutes Verschlüsseln, Wiederholungen und ZIP-Sammeldownloads."
         },
         "mock": {
           "title": "Übertragungen",
@@ -1226,8 +1236,9 @@
       "privacy": {
         "hero": {
           "eyebrow": "Datenschutz-Werkzeuge",
-          "title": "Privatsphäre für die Momente, auf die es ankommt",
-          "subtext": "Verschlüsselung hält deine Dateien unlesbar. Diese Werkzeuge gehen einen Schritt weiter: für den Fall, dass du zum Entsperren gedrängt wirst, unerwartet verstummst, und für die Randfälle, die echte Privatsphäre einplanen muss. Auf demselben Zero-Knowledge-Kern gebaut und ehrlich darüber, was jedes davon wirklich tut.",
+          "title": "Privatsphäre für die",
+          "highlight": "Momente, auf die es ankommt",
+          "subtext": "Verschlüsselung hält Dateien unlesbar. Diese Werkzeuge decken den Rest ab: Druck zum Entsperren, plötzliches Verstummen und die Grenzfälle.",
           "trustLine": "Zero-Knowledge by Design. Wir halten nie deine Schlüssel oder deinen Klartext."
         },
         "decoy": {
@@ -1306,8 +1317,9 @@
       "byos": {
         "hero": {
           "eyebrow": "Bring deinen eigenen Speicher mit",
-          "title": "Nutze den Speicher, den du schon hast",
-          "subtext": "Verbinde Accounts, die dir gehören (GitHub, GitLab, Hugging Face, Telegram), und deine verschlüsselten Dateien werden als getarnte Chunks in Repos gespeichert, die dir gehören. Repos rotieren automatisch, wenn sie sich füllen, dein Platz wächst also von selbst. Deine Daten, deine Infrastruktur, kein Lock-in."
+          "title": "Wir verkaufen dir keinen Speicher.",
+          "highlight": "Du hast ihn schon",
+          "subtext": "Verbinde GitHub, GitLab, Hugging Face oder Telegram. Deine verschlüsselten Blöcke liegen in Konten, die du kontrollierst. Kein Lock-in, nie."
         },
         "mock": {
           "label": "Verbundener Speicher",
@@ -1407,8 +1419,9 @@
       "apps": {
         "hero": {
           "eyebrow": "Web, Desktop und Android",
-          "title": "Ein Laufwerk, drei Zugänge",
-          "subtext": "Derselbe Zero-Knowledge-Kern, wo immer du arbeitest: eine Web-App in jedem Browser, eine native Desktop-App für macOS, Windows und Linux und eine Android-App, die du in einer Minute per Sideload installierst. Die Verschlüsselung ändert sich nie, nur die Oberfläche.",
+          "title": "Ein Laufwerk.",
+          "highlight": "Drei Zugänge",
+          "subtext": "Derselbe Kern im Browser, als native App für macOS, Windows und Linux und als Android-App. Nur die Oberfläche ändert sich.",
           "secondaryLabel": "Apps herunterladen"
         },
         "mock": {
@@ -1906,8 +1919,9 @@
       },
       "googleDrive": {
         "hero": {
-          "title": "Google Drive kann deine Dateien lesen. zcrypt nicht",
-          "lede": "Google Drive ist tief integriert und unglaublich bequem, verarbeitet aber deine Inhalte für Suche, Vorschauen und smarte Funktionen und ist nicht Ende-zu-Ende-verschlüsselt. zcrypt verschlüsselt zuerst alles auf deinem Gerät, speichert es in Konten, die dir bereits gehören, und ist von oben bis unten Open Source.",
+          "title": "Google Drive kann deine Dateien lesen.",
+          "highlight": "zcrypt nicht",
+          "lede": "Drive durchsucht deine Dateien für Suche und smarte Funktionen. zcrypt verschlüsselt sie zuerst auf deinem Gerät, und der Code ist offen.",
           "secondary": "So funktioniert es"
         },
         "pillarsHead": {
@@ -1977,8 +1991,9 @@
       },
       "dropbox": {
         "hero": {
-          "title": "Dropbox ist bequem. zcrypt ist privat",
-          "lede": "Dropbox ist ein ausgefeilter, reibungsloser Ort für Dateien, hält aber die Schlüssel und kann lesen, was du speicherst. zcrypt ist ein echtes verschlüsseltes Laufwerk: Alles wird auf deinem Gerät verschlüsselt, in Konten gespeichert, die dir bereits gehören, und der Code ist für jeden offen einsehbar.",
+          "title": "Dropbox ist bequem.",
+          "highlight": "zcrypt ist privat",
+          "lede": "Dropbox ist ausgereift, hält aber die Schlüssel und kann lesen, was du speicherst. zcrypt verschlüsselt alles zuerst auf deinem Gerät.",
           "secondary": "Das Laufwerk ansehen"
         },
         "pillarsHead": {
@@ -2048,8 +2063,9 @@
       },
       "protonDrive": {
         "hero": {
-          "title": "Beide sind privat. Nur eines kannst du selbst betreiben",
-          "lede": "Proton Drive ist ein wirklich hervorragendes, geprüftes Zero-Knowledge-Laufwerk, und wir respektieren es. Die Unterschiede sind hier kleiner und eher philosophisch: zcrypt ist Open Source <em>und</em> selbst hostbar, speichert Dateien in Konten, die dir bereits gehören, und hat keine künstlichen Grenzen.",
+          "title": "Beide sind privat.",
+          "highlight": "Nur eines kannst du selbst betreiben",
+          "lede": "Proton Drive ist exzellent. Ehrlich. Der Unterschied: zcrypt ist Open Source, selbst hostbar und hat keine künstlichen Grenzen.",
           "secondary": "So funktioniert es"
         },
         "respectNote": "<b>Ehre, wem Ehre gebührt.</b> Proton Drive ist Ende-zu-Ende-verschlüsselt, unabhängig geprüft, wird von einem etablierten Datenschutzunternehmen getragen und hat ausgereifte Mobile-Apps. Wenn du es mit zcrypt vergleichst, triffst du schon eine datenschutzbewusste Wahl. Auf dieser Seite geht es darum, welche Kompromisse zu dir passen, nicht darum, Proton Fehler zu unterstellen.",

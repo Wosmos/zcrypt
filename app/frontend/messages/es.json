@@ -400,8 +400,9 @@
     },
     "hero": {
       "badge": "Ya en Android (beta)",
-      "title": "Almacenamiento en la nube gratis y sin límite",
-      "sub": "Tus archivos se cifran en tu propio móvil o portátil y luego se guardan en cuentas que ya tienes, como Telegram o GitHub. Nadie más puede abrirlos. Ni siquiera nosotros.",
+      "title": "Almacenamiento en la nube gratis",
+      "highlight": "y sin límite",
+      "sub": "Cifrado en tu dispositivo y guardado en cuentas que ya tienes, como Telegram o GitHub. Nadie puede abrirlos. Ni siquiera nosotros.",
       "cta": "Empieza gratis",
       "micro": "Sin tarjeta. Sin prueba. No hay nada a lo que mejorar.",
       "scroll": "Desplázate para abrir la app",

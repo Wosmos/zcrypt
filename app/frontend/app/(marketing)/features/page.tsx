@@ -66,6 +66,7 @@ export default function FeaturesPage() {
       <PageHero
         eyebrow={<T k="site.features.index.eyebrow" />}
         title={<T k="site.features.index.title" />}
+        highlight={<T k="site.features.index.highlight" />}
         lede={<T k="site.features.index.lede" />}
       >
         <div className="mx-auto mt-8 max-w-xl">

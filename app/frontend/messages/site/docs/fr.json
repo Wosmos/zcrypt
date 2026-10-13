@@ -946,13 +946,14 @@
     },
     "home": {
       "p1": "Documentation",
-      "p2": "zcrypt est un disque cloud chiffré zero-knowledge : de vrais dossiers, des aperçus instantanés dans le navigateur et des mots de passe par dossier, le tout chiffré sur votre appareil et stocké dans des comptes que vous possédez déjà. Ces guides couvrent chacune de ses parties.",
+      "p2": "De vrais dossiers, des aperçus et des mots de passe par dossier, le tout chiffré sur votre appareil. Ces guides en couvrent chaque partie.",
       "p3": "Commencer par le démarrage rapide",
       "p4": "Commencer gratuitement",
       "p5": "Vous ne trouvez pas ce qu’il vous faut ?",
       "p6": "Tout le projet est open source. Ouvrez un ticket, lisez le code, ou contactez-nous et nous vous aiderons directement.",
       "p7": "Contacter le support",
-      "h1": "Comment fonctionne zcrypt"
+      "h1": "Comment fonctionne",
+      "highlight": "zcrypt"
     },
     "how-it-works": {
       "toc": {

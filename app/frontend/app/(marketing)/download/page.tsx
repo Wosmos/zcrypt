@@ -58,8 +58,10 @@ export default async function DownloadPage() {
       />
 
       <PageHero
+        fill
         eyebrow={<T k="site.download.hero.badge" />}
         title={<T k="site.download.hero.title" />}
+        highlight={<T k="site.download.hero.highlight" />}
         lede={<T k="site.download.hero.subtext" />}
         actions={<DownloadCta release={release} />}
       >

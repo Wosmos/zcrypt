@@ -49,8 +49,9 @@
     "about": {
       "hero": {
         "eyebrow": "Quién está realmente detrás de esto",
-        "title": "Hola, soy Wasif. Solo quería almacenamiento gratis",
-        "subtext": "Wasif Malik, o <b>Wosmo</b> para internet. Un ingeniero full-stack de Karachi, Pakistán, que necesitaba un sitio donde guardar un montón de archivos, no encontró almacenamiento que no quisiera leerlos también y, en lugar de dejarlo pasar como una persona razonable, pasó unos meses construyéndose el suyo. Eso es zcrypt. Aquí detrás solo estoy yo: sin equipo, sin inversores, sin «familia zcrypt». Lo que casi siempre significa que cuando algo falla, ya sé de quién es la culpa.",
+        "title": "Hola, soy Wasif.",
+        "highlight": "Solo quería almacenamiento gratis",
+        "subtext": "Wasif Malik, <b>Wosmo</b> en internet. Un ingeniero en Karachi que necesitaba dónde guardar muchos archivos, así que lo construyó él mismo.",
         "primary": "Ver mi portafolio"
       },
       "chips": {
@@ -100,7 +101,8 @@
     "philosophy": {
       "hero": {
         "eyebrow": "Por qué zcrypt",
-        "title": "Por qué construimos zcrypt",
+        "title": "Por qué construimos",
+        "highlight": "zcrypt",
         "lede": "Una conversación pendiente desde hace mucho sobre quién es dueño de tus datos, quién se lucra con ellos y por qué eso tiene que cambiar."
       },
       "short": {
@@ -164,8 +166,9 @@
     "download": {
       "hero": {
         "badge": "Apps para cada dispositivo",
-        "title": "Tu unidad, en cada dispositivo",
-        "subtext": "Apps nativas de escritorio, una app para Android y una app web que no necesita instalación. La misma unidad privada en todas partes, cifrada en tu dispositivo antes de que nada salga de él.",
+        "title": "Tu unidad",
+        "highlight": "en cada dispositivo",
+        "subtext": "Escritorio, Android o solo el navegador. La misma unidad en todas partes, cifrada antes de que nada salga de tu dispositivo.",
         "trust": {
           "free": "Gratis y de código abierto",
           "onlyYou": "Solo tú puedes abrir tus archivos",
@@ -266,8 +269,8 @@
         "hero": {
           "badge": "Cifrado de extremo a extremo",
           "titleLead": "Envía archivos de forma segura.",
-          "titleAccent": "Sin necesidad de cuenta.",
-          "subtitle": "Suelta un archivo y obtén un enlace cifrado. Tu archivo se cifra en el navegador con AES-256 antes de subirse. La clave de descifrado nunca toca nuestros servidores."
+          "titleAccent": "Sin necesidad de cuenta",
+          "subtitle": "Suelta un archivo y obtén un enlace cifrado. Se cifra en tu navegador con AES-256 y la clave nunca toca nuestros servidores."
         },
         "how": {
           "title": "Cómo funciona compartir archivos cifrados",
@@ -321,8 +324,8 @@
         "hero": {
           "badge": "Texto compartido con conocimiento cero",
           "titleLead": "Bloc de texto cifrado.",
-          "titleAccent": "Comparte en privado.",
-          "subtitle": "Pega tu texto y obtén un enlace cifrado. Ideal para compartir contraseñas, claves de API, fragmentos de código o cualquier cosa sensible. Todo se cifra en tu navegador."
+          "titleAccent": "Comparte en privado",
+          "subtitle": "Pega texto y obtén un enlace cifrado. Ideal para contraseñas, claves de API y fragmentos. Todo se cifra en tu navegador."
         },
         "how": {
           "title": "Cómo funciona compartir texto cifrado",
@@ -395,8 +398,8 @@
         "hero": {
           "badge": "Cifrado de igual a igual",
           "titleLead": "Transfiere archivos entre dispositivos.",
-          "titleAccent": "Cifrados en tiempo real.",
-          "subtitle": "Envía archivos cifrados de un dispositivo a otro a través de un relé que no guarda nada. Sin cuentas. Se encuentra con un código de 6 dígitos y se cifra con una clave que el servidor nunca ve."
+          "titleAccent": "Cifrados en tiempo real",
+          "subtitle": "De dispositivo a dispositivo a través de un relé que no guarda nada. Sin cuentas: un código de 6 dígitos y una clave que el servidor nunca ve."
         },
         "how": {
           "title": "Cómo funciona la transferencia cifrada",
@@ -632,8 +635,9 @@
       },
       "index": {
         "eyebrow": "Funciones",
-        "title": "Todo lo que hace la unidad",
-        "lede": "Un gestor de archivos de verdad donde solo tú puedes abrir lo que hay dentro. Aquí tienes cada parte, así que entra en la que más te importe.",
+        "title": "Todo lo que",
+        "highlight": "hace la unidad",
+        "lede": "Un gestor de archivos de verdad donde solo tú puedes abrir lo que hay dentro. Explora la parte que te importe.",
         "searchPlaceholder": "Buscar funciones y documentación...",
         "allFeatures": "Todas las funciones",
         "ctaTitle": "Empieza con una unidad que de verdad es tuya",
@@ -642,8 +646,9 @@
       "encryptedDrive": {
         "hero": {
           "eyebrow": "La unidad cifrada",
-          "title": "Una unidad de verdad, cifrada de extremo a extremo",
-          "subtext": "La mayoría del «almacenamiento cifrado» te da una lista plana de archivos. zcrypt te da un explorador de archivos real (carpetas, búsqueda, vistas previas, arrastrar y soltar) donde todo se cifra en tu dispositivo antes de salir."
+          "title": "Una unidad de verdad,",
+          "highlight": "cifrada de extremo a extremo",
+          "subtext": "La mayoría del “almacenamiento cifrado” es una lista plana. zcrypt es un explorador de verdad: carpetas, búsqueda, vistas previas, cifrado primero en tu dispositivo."
         },
         "mock": {
           "vault": "Mi bóveda",
@@ -718,8 +723,9 @@
       "folders": {
         "hero": {
           "eyebrow": "Carpetas cifradas",
-          "title": "Carpetas que se cierran solas",
-          "subtext": "Organiza con carpetas reales y anidables cuyos nombres se cifran en tu dispositivo. Después dale a cualquier carpeta su propia contraseña: una segunda cerradura, separada de tu bóveda, que la mantiene sellada aunque todo lo demás esté abierto."
+          "title": "Carpetas que",
+          "highlight": "se cierran solas",
+          "subtext": "Carpetas de verdad con nombres cifrados. Dale a cualquiera su propia contraseña: un segundo cierre que aguanta incluso con la bóveda abierta."
         },
         "mock": {
           "label": "Árbol de carpetas",
@@ -805,8 +811,9 @@
       "fileViewers": {
         "hero": {
           "eyebrow": "Visores de archivos en el navegador",
-          "title": "Mira tus archivos sin entregarlos",
-          "subtext": "La mayoría del almacenamiento cifrado te obliga a descargar un archivo y fiarte de un servidor para mostrarlo. zcrypt previsualiza imágenes, vídeo, PDF, documentos y código directamente en tu navegador, descifrados al vuelo y luego desaparecen.",
+          "title": "Mira tus archivos",
+          "highlight": "sin entregarlos",
+          "subtext": "Imágenes, vídeo, PDF, documentos y código se abren en tu navegador, descifrados al vuelo y luego desaparecen. Ningún servidor los ve.",
           "secondaryLabel": "Cómo funciona el descifrado"
         },
         "mock": {
@@ -928,8 +935,9 @@
       "sharing": {
         "hero": {
           "eyebrow": "Compartir cifrado",
-          "title": "Comparte un archivo, no las llaves de todo",
-          "subtext": "Cada enlace para compartir lleva su propia clave de descifrado dentro del fragmento de la URL: la única parte de un enlace que un navegador nunca transmite. El destinatario lo abre, su navegador descifra el archivo y el servidor solo tuvo texto cifrado."
+          "title": "Comparte un archivo,",
+          "highlight": "no las llaves de todo",
+          "subtext": "Cada enlace lleva su propia clave en el fragmento de la URL, que el navegador nunca envía. El servidor solo guarda texto cifrado."
         },
         "mock": {
           "label": "Enlace para compartir",
@@ -1027,8 +1035,9 @@
       "encryption": {
         "hero": {
           "eyebrow": "Cifrado de conocimiento cero",
-          "title": "No podemos leer tus archivos",
-          "subtext": "Tus archivos se cifran en tu propio dispositivo con AES-256-GCM antes de salir. La clave se deriva de tu frase de contraseña y nunca se transmite. Guardamos texto cifrado y nada más: sin claves, sin texto plano, ni siquiera tus nombres de carpeta."
+          "title": "No podemos leer tus archivos.",
+          "highlight": "De eso se trata",
+          "subtext": "Cifrados en tu dispositivo con AES-256-GCM. La clave nunca sale. Guardamos texto cifrado y nada más, ni siquiera los nombres de las carpetas."
         },
         "boundary": {
           "trustedZone": "Zona de confianza",
@@ -1137,8 +1146,9 @@
       "transfers": {
         "hero": {
           "eyebrow": "El gestor de transferencias",
-          "title": "Lánzalo, vete, y retoma solo",
-          "subtext": "Un único panel acoplado sigue cada subida y descarga. Progreso y tiempo restante en vivo, pausa y reanudación sin recifrar, reintento ante fallos y descargas masivas en ZIP, y sigue funcionando mientras te mueves por la app."
+          "title": "Lánzalo, vete.",
+          "highlight": "Retoma solo",
+          "subtext": "Un solo panel sigue cada transferencia: progreso en vivo, pausa y reanudación sin volver a cifrar, reintentos y descargas ZIP en bloque."
         },
         "mock": {
           "title": "Transferencias",
@@ -1226,8 +1236,9 @@
       "privacy": {
         "hero": {
           "eyebrow": "Herramientas de privacidad",
-          "title": "Privacidad para los momentos que importan",
-          "subtext": "El cifrado mantiene tus archivos ilegibles. Estas herramientas van un paso más allá: para cuando te presionan para desbloquear, para cuando te quedas en silencio de forma inesperada y para los casos límite que la privacidad real debe prever. Construidas sobre el mismo núcleo de conocimiento cero y honestas sobre lo que hace cada una.",
+          "title": "Privacidad para",
+          "highlight": "los momentos que importan",
+          "subtext": "El cifrado mantiene los archivos ilegibles. Estas herramientas cubren el resto: que te presionen para desbloquear, desaparecer de golpe y los casos límite.",
           "trustLine": "Conocimiento cero por diseño. Nunca tenemos tus claves ni tu texto plano."
         },
         "decoy": {
@@ -1306,8 +1317,9 @@
       "byos": {
         "hero": {
           "eyebrow": "Trae tu propio almacenamiento",
-          "title": "Usa el almacenamiento que ya tienes",
-          "subtext": "Conecta cuentas que son tuyas (GitHub, GitLab, Hugging Face, Telegram) y tus archivos cifrados se guardan como fragmentos disfrazados en repositorios tuyos. Los repositorios rotan automáticamente al llenarse, así que tu espacio crece solo. Tus datos, tu infraestructura, sin ataduras."
+          "title": "No te vendemos almacenamiento.",
+          "highlight": "Ya lo tienes",
+          "subtext": "Conecta GitHub, GitLab, Hugging Face o Telegram. Tus fragmentos cifrados viven en cuentas que controlas tú. Sin ataduras, nunca."
         },
         "mock": {
           "label": "Almacenamiento conectado",
@@ -1407,8 +1419,9 @@
       "apps": {
         "hero": {
           "eyebrow": "Web, escritorio y Android",
-          "title": "Una unidad, tres formas de entrar",
-          "subtext": "El mismo núcleo de conocimiento cero, trabajes donde trabajes: una app web en cualquier navegador, una app de escritorio nativa para macOS, Windows y Linux y una app de Android que instalas por sideload en un minuto. El cifrado nunca cambia, solo la interfaz.",
+          "title": "Una unidad.",
+          "highlight": "Tres formas de entrar",
+          "subtext": "El mismo núcleo en el navegador, una app nativa para macOS, Windows y Linux, y una app para Android. Solo cambia la interfaz.",
           "secondaryLabel": "Descargar las apps"
         },
         "mock": {
@@ -1906,8 +1919,9 @@
       },
       "googleDrive": {
         "hero": {
-          "title": "Google Drive puede leer tus archivos. zcrypt no",
-          "lede": "Google Drive está profundamente integrado y es increíblemente cómodo, pero procesa tu contenido para la búsqueda, las vistas previas y las funciones inteligentes, y no tiene cifrado de extremo a extremo. zcrypt lo cifra todo primero en tu dispositivo, lo guarda en cuentas que ya son tuyas y es de código abierto de arriba abajo.",
+          "title": "Google Drive puede leer tus archivos.",
+          "highlight": "zcrypt no",
+          "lede": "Drive analiza tus archivos para la búsqueda y las funciones inteligentes. zcrypt los cifra primero en tu dispositivo, y el código es abierto.",
           "secondary": "Mira cómo funciona"
         },
         "pillarsHead": {
@@ -1977,8 +1991,9 @@
       },
       "dropbox": {
         "hero": {
-          "title": "Dropbox es cómodo. zcrypt es privado",
-          "lede": "Dropbox es un lugar pulido y sin fricciones para guardar archivos, pero tiene las claves y puede leer lo que almacenas. zcrypt es una unidad cifrada de verdad donde todo se cifra en tu dispositivo, se guarda en cuentas que ya son tuyas y el código está abierto para que cualquiera lo audite.",
+          "title": "Dropbox es cómodo.",
+          "highlight": "zcrypt es privado",
+          "lede": "Dropbox está muy pulido, pero tiene las llaves y puede leer lo que guardas. zcrypt lo cifra todo primero en tu dispositivo.",
           "secondary": "Ver la unidad"
         },
         "pillarsHead": {
@@ -2048,8 +2063,9 @@
       },
       "protonDrive": {
         "hero": {
-          "title": "Los dos son privados. Solo uno es tuyo para ejecutarlo",
-          "lede": "Proton Drive es una unidad de conocimiento cero realmente excelente y auditada, y la respetamos. Aquí las diferencias son más estrechas y tienen más que ver con la filosofía: zcrypt es de código abierto <em>y</em> autoalojable, guarda los archivos en cuentas que ya son tuyas y no tiene límites artificiales.",
+          "title": "Los dos son privados.",
+          "highlight": "Solo uno es tuyo para ejecutarlo",
+          "lede": "Proton Drive es excelente. Lo decimos en serio. La diferencia: zcrypt es de código abierto, autoalojable y sin límites artificiales.",
           "secondary": "Mira cómo funciona"
         },
         "respectNote": "<b>Hay que reconocer los méritos.</b> Proton Drive tiene cifrado de extremo a extremo, está auditado de forma independiente, cuenta con el respaldo de una empresa de privacidad consolidada y tiene aplicaciones móviles maduras. Si lo estás comparando con zcrypt, ya estás haciendo una elección que respeta la privacidad. Esta página trata de qué compromisos te convienen, no de afirmar que Proton haga algo mal.",

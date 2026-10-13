@@ -9,6 +9,7 @@ import { SITE_URL } from "@/lib/site";
 export function FeatureHero({
   eyebrow,
   title,
+  highlight,
   subtext,
   secondaryLabel,
   secondaryHref,
@@ -18,6 +19,7 @@ export function FeatureHero({
 }: {
   eyebrow: ReactNode;
   title: ReactNode;
+  highlight?: ReactNode;
   subtext: ReactNode;
   secondaryLabel: ReactNode;
   secondaryHref: string;
@@ -40,6 +42,7 @@ export function FeatureHero({
       <PageHero
         eyebrow={eyebrow}
         title={title}
+        highlight={highlight}
         lede={subtext}
         note={trustLine}
         actions={

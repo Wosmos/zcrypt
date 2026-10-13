@@ -400,8 +400,9 @@
     },
     "hero": {
       "badge": "Désormais sur Android (bêta)",
-      "title": "Un stockage cloud gratuit et sans limite",
-      "sub": "Vos fichiers sont chiffrés sur votre propre téléphone ou ordinateur, puis enregistrés dans des comptes que vous avez déjà, comme Telegram ou GitHub. Personne d'autre ne peut les ouvrir. Pas même nous.",
+      "title": "Un stockage cloud gratuit",
+      "highlight": "et sans limite",
+      "sub": "Verrouillé sur votre appareil, conservé dans des comptes que vous avez déjà, comme Telegram ou GitHub. Personne ne peut les ouvrir. Pas même nous.",
       "cta": "Commencer gratuitement",
       "micro": "Pas de carte. Pas d'essai. Il n'y a rien à quoi passer.",
       "scroll": "Faites défiler pour ouvrir l'app",

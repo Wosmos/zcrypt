@@ -2,8 +2,9 @@
   "changelog": {
     "page": {
       "eyebrow": "Journal des modifications",
-      "title": "Nouveautés",
-      "lede": "Chaque version de zcrypt, en mots simples. Nous les écrivons à la main pour que vous voyiez ce qui a changé sans lire des messages de commit.",
+      "title": "Quoi de",
+      "highlight": "neuf",
+      "lede": "Chaque version de zcrypt, en mots simples, écrite à la main pour que vous n'ayez pas à lire les messages de commit.",
       "metaTitle": "Nouveautés de zcrypt",
       "latestBadge": "Dernière",
       "upcomingBadge": "À venir",

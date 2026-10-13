@@ -2,8 +2,9 @@
   "changelog": {
     "page": {
       "eyebrow": "更新日志",
-      "title": "新功能",
-      "lede": "zcrypt 的每个版本，都用大白话写给你。这些都是我们手写的，这样你不用翻提交记录也能看懂改了什么。",
+      "title": "有什么",
+      "highlight": "新变化",
+      "lede": "zcrypt 的每个版本，用大白话手写而成，这样你就不用去读提交信息了。",
       "metaTitle": "zcrypt 新功能",
       "latestBadge": "最新",
       "upcomingBadge": "即将推出",
