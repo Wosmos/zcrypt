@@ -24,13 +24,13 @@ import { cn } from "@/lib/utils";
 const OS_NAME: Record<PlatformId, string> = { macos: "macOS", windows: "Windows", linux: "Linux" };
 
 const DESKTOP_TARGETS: { os: PlatformId; target: DownloadTarget; label: string }[] = [
-  { os: "macos", target: "macos-arm64", label: "Apple silicon (.dmg)" },
-  { os: "macos", target: "macos-x64", label: "Intel (.dmg)" },
-  { os: "windows", target: "windows-exe", label: "Installer (.exe)" },
-  { os: "windows", target: "windows-msi", label: "MSI package (.msi)" },
-  { os: "linux", target: "linux-appimage", label: "AppImage" },
-  { os: "linux", target: "linux-deb", label: "Debian / Ubuntu (.deb)" },
-  { os: "linux", target: "linux-rpm", label: "Fedora / RHEL (.rpm)" },
+  { os: "macos", target: "macos-arm64", label: "macosArm64" },
+  { os: "macos", target: "macos-x64", label: "macosX64" },
+  { os: "windows", target: "windows-exe", label: "windowsExe" },
+  { os: "windows", target: "windows-msi", label: "windowsMsi" },
+  { os: "linux", target: "linux-appimage", label: "linuxAppimage" },
+  { os: "linux", target: "linux-deb", label: "linuxDeb" },
+  { os: "linux", target: "linux-rpm", label: "linuxRpm" },
 ];
 
 const PRIMARY: Record<PlatformId, DownloadTarget> = {
@@ -185,7 +185,7 @@ export function GetAppsButton({ className }: { className?: string }) {
                           </div>
                           {DESKTOP_TARGETS.filter((d) => d.os === group).map((d) => (
                             <DropdownMenuItem key={d.target} asChild>
-                              <a href={dlUrl(d.target)}>{d.label}</a>
+                              <a href={dlUrl(d.target)}>{t(`target.${d.label}`)}</a>
                             </DropdownMenuItem>
                           ))}
                         </div>

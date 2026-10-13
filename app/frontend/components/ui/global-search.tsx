@@ -141,10 +141,13 @@ export function GlobalSearch({ className }: { className?: string }) {
       ref={rootRef}
       className={cn("relative w-full min-w-0", className)}
       data-tour="vault-search"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
     >
       <div
         className={cn(
-          "group flex h-11 items-center gap-2 rounded-2xl border bg-[var(--color-surface)] px-3 transition sm:gap-3 sm:px-4-[border-color,box-shadow] duration-200",
+          "group flex h-11 items-center gap-2 rounded-2xl border bg-[var(--color-surface)] px-3 transition-[border-color,box-shadow] duration-200 sm:gap-3 sm:px-4",
           panelOpen
             ? "border-[var(--color-accent)]/50 shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-accent)_14%,transparent)]"
             : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",

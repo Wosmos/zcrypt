@@ -179,7 +179,8 @@
         "newSpace": "New Space",
         "getApps": "Get the apps",
         "shortcuts": "Keyboard shortcuts"
-      }
+      },
+      "unlockToSearch": "Unlock to search files"
     },
     "notifications": {
       "justNow": "just now",
@@ -290,7 +291,16 @@
       "downloadFor": "Download for {os}",
       "otherPlatforms": "Other platforms",
       "allDownloads": "All downloads",
-      "iosNote": "No iPhone app yet. The web app works in Safari and can be added to your Home Screen."
+      "iosNote": "No iPhone app yet. The web app works in Safari and can be added to your Home Screen.",
+      "target": {
+        "macosArm64": "Apple silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "Installer (.exe)",
+        "windowsMsi": "MSI package (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "You're offline",

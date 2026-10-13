@@ -70,6 +70,13 @@ describe("loadCustomTheme / saveCustomTheme", () => {
     expect(loadCustomTheme()).toEqual(DEFAULT_CUSTOM_THEME);
   });
 
+  it("falls back to the default when a stored colour isn't a valid hex", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ accent: "red", bg: "#222222" }));
+    expect(loadCustomTheme()).toEqual(DEFAULT_CUSTOM_THEME);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ accent: "#111111", bg: "#22" }));
+    expect(loadCustomTheme()).toEqual(DEFAULT_CUSTOM_THEME);
+  });
+
   it("falls back to the default on corrupt JSON", () => {
     localStorage.setItem(STORAGE_KEY, "{not json");
     expect(loadCustomTheme()).toEqual(DEFAULT_CUSTOM_THEME);

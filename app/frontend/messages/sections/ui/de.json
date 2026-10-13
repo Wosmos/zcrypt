@@ -179,7 +179,8 @@
         "newSpace": "Neuer Space",
         "getApps": "Apps herunterladen",
         "shortcuts": "Tastenkürzel"
-      }
+      },
+      "unlockToSearch": "Zum Durchsuchen der Dateien entsperren"
     },
     "notifications": {
       "justNow": "gerade eben",
@@ -290,7 +291,16 @@
       "downloadFor": "Für {os} herunterladen",
       "otherPlatforms": "Andere Plattformen",
       "allDownloads": "Alle Downloads",
-      "iosNote": "Noch keine iPhone-App. Die Web-App läuft in Safari und lässt sich zum Home-Bildschirm hinzufügen."
+      "iosNote": "Noch keine iPhone-App. Die Web-App läuft in Safari und lässt sich zum Home-Bildschirm hinzufügen.",
+      "target": {
+        "macosArm64": "Apple Silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "Installer (.exe)",
+        "windowsMsi": "MSI-Paket (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "Du bist offline",

@@ -179,7 +179,8 @@
         "newSpace": "新建共享空间",
         "getApps": "获取应用",
         "shortcuts": "键盘快捷键"
-      }
+      },
+      "unlockToSearch": "解锁以搜索文件"
     },
     "notifications": {
       "justNow": "刚刚",
@@ -290,7 +291,16 @@
       "downloadFor": "下载 {os} 版",
       "otherPlatforms": "其他平台",
       "allDownloads": "全部下载",
-      "iosNote": "暂无 iPhone 应用。网页版可在 Safari 中使用，并可添加到主屏幕。"
+      "iosNote": "暂无 iPhone 应用。网页版可在 Safari 中使用，并可添加到主屏幕。",
+      "target": {
+        "macosArm64": "Apple silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "安装程序 (.exe)",
+        "windowsMsi": "MSI 安装包 (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "你已离线",

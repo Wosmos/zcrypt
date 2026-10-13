@@ -252,7 +252,7 @@ export function StylePickerDialog({
                 >
                   <opt.Icon weight="fill" size={18} className="text-[var(--color-text)]" />
                   {active && (
-                    <Check className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-[var(--color-accent)] p-0.5 text-white" />
+                    <Check className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-[var(--color-accent)] p-0.5 text-[var(--color-on-accent)]" />
                   )}
                 </button>
               );
@@ -316,7 +316,7 @@ export function StylePickerDialog({
                         )}
                       >
                         {active && (
-                          <Check className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-[var(--color-accent)] p-0.5 text-white" />
+                          <Check className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-[var(--color-accent)] p-0.5 text-[var(--color-on-accent)]" />
                         )}
                       </button>
                     );

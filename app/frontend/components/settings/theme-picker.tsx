@@ -11,6 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { designedMode, paletteFor, type CustomThemeValues } from "@/lib/custom-theme";
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const SHORT_HEX_RE = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/;
+
+const expandHex = (v: string) => v.replace(SHORT_HEX_RE, "#$1$1$2$2$3$3");
 
 interface CardPalette {
   accent: string;
@@ -199,11 +202,13 @@ function CustomThemeEditor({
 
   const commitAccent = (value: string) => {
     setAccentHex(value);
-    if (HEX_COLOR_RE.test(value)) onChange({ ...values, accent: value });
+    const full = expandHex(value);
+    if (HEX_COLOR_RE.test(full)) onChange({ ...values, accent: full });
   };
   const commitBg = (value: string) => {
     setBgHex(value);
-    if (HEX_COLOR_RE.test(value)) onChange({ ...values, bg: value, background: undefined });
+    const full = expandHex(value);
+    if (HEX_COLOR_RE.test(full)) onChange({ ...values, bg: full });
   };
   const selectDesign = (key: string | undefined) => {
     onChange({ ...values, background: key });
@@ -212,8 +217,13 @@ function CustomThemeEditor({
   return (
     <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
       <div className="grid grid-cols-2 gap-3">
-        <ColorField label={t("accent")} hex={accentHex} onChange={commitAccent} />
-        <ColorField label={t("canvas")} hex={bgHex} onChange={commitBg} />
+        <ColorField
+          label={t("accent")}
+          hex={accentHex}
+          committed={values.accent}
+          onChange={commitAccent}
+        />
+        <ColorField label={t("canvas")} hex={bgHex} committed={values.bg} onChange={commitBg} />
       </div>
 
       <label className="flex cursor-pointer items-start justify-between gap-3">
@@ -276,7 +286,7 @@ function CustomThemeEditor({
                 )}
               >
                 {active && (
-                  <Check className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-[var(--color-accent)] p-0.5 text-white" />
+                  <Check className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-[var(--color-accent)] p-0.5 text-[var(--color-on-accent)]" />
                 )}
               </button>
             );
@@ -290,10 +300,12 @@ function CustomThemeEditor({
 function ColorField({
   label,
   hex,
+  committed,
   onChange,
 }: {
   label: string;
   hex: string;
+  committed: string;
   onChange: (value: string) => void;
 }) {
   const t = useTranslations("settings.themePicker");
@@ -321,6 +333,8 @@ function ColorField({
             const v = e.target.value;
             onChange(v && !v.startsWith("#") ? `#${v}` : v);
           }}
+          onBlur={() => onChange(committed)}
+          aria-invalid={!HEX_COLOR_RE.test(expandHex(hex))}
           placeholder="#3B82F6"
           maxLength={7}
           className="h-8 min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 font-mono text-xs uppercase text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"

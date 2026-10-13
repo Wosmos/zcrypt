@@ -101,7 +101,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
             // Squircle (not rounded-full, which corner-shape forces back to a
             // circle). Rotating the whole button would skew the squircle into a
             // diamond, so only the "+" glyph rotates (below).
-            "flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--color-accent)] text-white",
+            "flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--color-accent)] text-[var(--color-on-accent)]",
             // iOS Safari paints its own inset/gradient chrome on <button> and a
             // grey tap flash: both shrink the FAB visually. Reset them so it
             // renders as the full-size accent squircle everywhere.
