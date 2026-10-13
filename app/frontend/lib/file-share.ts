@@ -22,6 +22,7 @@ import { getFileMeta, createShare, type FileMetaResponse } from "@/lib/api";
 import { decryptName } from "@/lib/name-crypto";
 import { sealText, keyFromBytes, userNameKey } from "@/lib/sealed";
 import { invalidateShares } from "@/hooks/useShares";
+import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { usePassphraseStore } from "@/store/passphrase";
 import { tr } from "@/store/translate";
 
@@ -71,8 +72,9 @@ export function clearFileShareCache(): void {
   warmed.clear();
 }
 
-function prepareFileKey(fileId: string, passphrase: string): Promise<WarmEntry> {
-  const hit = warmed.get(fileId);
+function prepareFileKey(fileId: string, password: string): Promise<WarmEntry> {
+  const key = `${fileId}\u0000${password}`;
+  const hit = warmed.get(key);
   if (hit) return hit;
   watchLock();
   const p = (async () => {
@@ -80,12 +82,12 @@ function prepareFileKey(fileId: string, passphrase: string): Promise<WarmEntry> 
     if (!meta.wrapped_cek) {
       throw new Error(tr("l10n.err.fileLegacy"));
     }
-    const cekBuf = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
+    const cekBuf = await resolveFileKey(password, fromBase64(meta.salt), meta.wrapped_cek);
     return { meta, cek: new Uint8Array(cekBuf) };
   })();
-  warmed.set(fileId, p);
+  warmed.set(key, p);
   p.catch(() => {
-    if (warmed.get(fileId) === p) warmed.delete(fileId);
+    if (warmed.get(key) === p) warmed.delete(key);
   });
   return p;
 }
@@ -94,9 +96,10 @@ function prepareFileKey(fileId: string, passphrase: string): Promise<WarmEntry> 
  *  the share dialog opens) so creating the link afterwards is near-instant.
  *  Cleared when the vault locks. Best effort. */
 export function warmFileShareKey(fileId: string): void {
-  const passphrase = usePassphraseStore.getState().getPassphrase();
-  if (!passphrase) return;
-  prepareFileKey(fileId, passphrase).catch(() => {});
+  if (!usePassphraseStore.getState().getPassphrase()) return;
+  resolveFilePasswordGlobal(fileId)
+    .then((password) => prepareFileKey(fileId, password))
+    .catch(() => {});
 }
 
 /**
@@ -117,7 +120,7 @@ export async function createFileShareLink(
   }
 
   // 1. Recover this file's CEK using the owner's passphrase.
-  const { meta, cek } = await prepareFileKey(fileId, passphrase);
+  const { meta, cek } = await prepareFileKey(fileId, await resolveFilePasswordGlobal(fileId));
 
   // 2. Wrap the CEK under a fresh random share key.
   const shareKey = generateCEK();
