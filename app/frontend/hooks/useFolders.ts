@@ -1,8 +1,8 @@
 "use client";
 
 import { tr } from "@/store/translate";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import {
   listFolders,
   createFolder as apiCreateFolder,
@@ -58,7 +58,7 @@ export function useFolders() {
   const epoch = useSyncExternalStore(subscribeNames, getNamesEpoch, getNamesEpoch);
 
   const currentFolderId = useFolderStore((s) => s.currentFolderId);
-  const breadcrumb = useFolderStore((s) => s.breadcrumb);
+  const trail = useFolderStore((s) => s.breadcrumb);
   const setCurrentFolder = useFolderStore((s) => s.setCurrentFolder);
   const navigateToCrumbStore = useFolderStore((s) => s.navigateToCrumb);
 
@@ -75,6 +75,24 @@ export function useFolders() {
     select,
   });
   const folders = query.data ?? EMPTY;
+
+  const crumbNames = useQueries({
+    queries: trail.slice(1).map((crumb, i) => ({
+      queryKey: qk.folders(trail[i].id),
+      queryFn: () => listFolders(trail[i].id),
+      select: (raw: Folder[]) => {
+        const hit = raw.find((f) => f.id === crumb.id);
+        return hit ? resolveFolders([hit], unlocked, epoch)[0].name : undefined;
+      },
+    })),
+  });
+  const breadcrumb = useMemo(
+    () =>
+      trail.map((crumb, i) =>
+        i === 0 ? crumb : { ...crumb, name: crumbNames[i - 1].data ?? crumb.name },
+      ),
+    [trail, crumbNames],
+  );
 
   // Record protection metadata so any browsed folder can be password-routed by
   // id (the backend has no get-by-id), and decrypt any names not seen yet.
