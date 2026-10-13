@@ -795,21 +795,93 @@ async fn start_folder_watch(
 
     let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
+        let inflight = Arc::new(StdMutex::new(std::collections::HashSet::<PathBuf>::new()));
         while let Some(p) = rx.recv().await {
-            let st = app2.state::<EngineState>();
-            let pass = { st.passphrase.lock().unwrap().clone() };
-            let Some(pass) = pass else { continue }; // vault locked → skip
-            let ctx = match st.context(&app2).await {
-                Ok(c) => c,
-                Err(_) => continue, // engine not connected yet → skip
-            };
-            match engines::local_upload(&ctx, &p, &pass).await {
-                Ok(_) => notify_backup(&app2, &p),
-                Err(e) => eprintln!("folder-watch: {}: {}", p.display(), e),
+            if is_transient_name(&p) || !inflight.lock().unwrap().insert(p.clone()) {
+                continue;
             }
+            let app3 = app2.clone();
+            let inflight = inflight.clone();
+            tauri::async_runtime::spawn(async move {
+                backup_when_stable(&app3, &p).await;
+                inflight.lock().unwrap().remove(&p);
+            });
         }
     });
     Ok(Some(path))
+}
+
+/// Dotfiles, editor/OS temp files and partial downloads: never backed up.
+fn is_transient_name(path: &Path) -> bool {
+    let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_lowercase()) else {
+        return true;
+    };
+    const SUFFIXES: [&str; 9] = [
+        ".zcrypt-part",
+        ".tmp",
+        ".temp",
+        ".part",
+        ".partial",
+        ".crdownload",
+        ".download",
+        ".opdownload",
+        "~",
+    ];
+    name.starts_with('.')
+        || name.starts_with("~$")
+        || SUFFIXES.iter().any(|suffix| name.ends_with(suffix))
+}
+
+/// Wait until the file's size and mtime hold still for `FOLDER_WATCH_QUIET`,
+/// so a copy or download still in progress is never read half-written.
+/// False when the file disappears or never settles.
+async fn wait_until_stable(path: &Path) -> bool {
+    const POLL: Duration = Duration::from_millis(500);
+    const GIVE_UP: Duration = Duration::from_secs(30 * 60);
+    let started = Instant::now();
+    let mut last = None;
+    let mut stable_since = Instant::now();
+    loop {
+        let Ok(meta) = tokio::fs::metadata(path).await else {
+            return false;
+        };
+        let stamp = (meta.len(), meta.modified().ok());
+        if last != Some(stamp) {
+            last = Some(stamp);
+            stable_since = Instant::now();
+        } else if stable_since.elapsed() >= FOLDER_WATCH_QUIET {
+            return true;
+        }
+        if started.elapsed() > GIVE_UP {
+            return false;
+        }
+        tokio::time::sleep(POLL).await;
+    }
+}
+
+const FOLDER_WATCH_QUIET: Duration = Duration::from_secs(2);
+
+async fn backup_when_stable(app: &tauri::AppHandle, path: &Path) {
+    const MAX_ATTEMPTS: u32 = 3;
+    for _ in 0..MAX_ATTEMPTS {
+        if !wait_until_stable(path).await {
+            return;
+        }
+        let st = app.state::<EngineState>();
+        let pass = { st.passphrase.lock().unwrap().clone() };
+        let Some(pass) = pass else { return }; // vault locked → skip
+        let Ok(ctx) = st.context(app).await else {
+            return; // engine not connected yet → skip
+        };
+        match engines::local_upload(&ctx, path, &pass).await {
+            Ok(_) => return notify_backup(app, path),
+            Err(engines::EngineError::Io(e)) if e.kind() == std::io::ErrorKind::Interrupted => {
+                continue;
+            }
+            Err(e) => return eprintln!("folder-watch: {}: {}", path.display(), e),
+        }
+    }
+    eprintln!("folder-watch: {}: kept changing, skipped", path.display());
 }
 
 /// Stop the active folder watch (drops the watcher, which ends the processor).
