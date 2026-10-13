@@ -8,21 +8,6 @@ pub fn temp_prefix(pid: u32) -> String {
     format!("zcrypt-{pid}-")
 }
 
-/// Resolve the temp path for a webview-supplied `name`. Only a bare file name
-/// is accepted: separators, `.`/`..` and NUL are rejected so the result can
-/// never leave `dir`.
-pub fn temp_file_path(dir: &Path, pid: u32, name: &str) -> Result<PathBuf, String> {
-    let bad = name.is_empty()
-        || name == "."
-        || name == ".."
-        || name.contains(['/', '\\', '\0'])
-        || Path::new(name).file_name() != Some(std::ffi::OsStr::new(name));
-    if bad {
-        return Err("invalid temp file name".to_string());
-    }
-    Ok(dir.join(format!("{}{}", temp_prefix(pid), name)))
-}
-
 /// Confine a removal request to a regular file this process created: the
 /// parent must canonicalise to the temp dir and the name must carry this
 /// pid's prefix. Returns `Ok(None)` when the file is already gone.
@@ -150,32 +135,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
-    }
-
-    #[test]
-    fn temp_file_path_keeps_plain_names_inside_dir() {
-        let dir = Path::new("/tmp/x");
-        assert_eq!(
-            temp_file_path(dir, 7, "photo.jpg").unwrap(),
-            dir.join("zcrypt-7-photo.jpg")
-        );
-    }
-
-    #[test]
-    fn temp_file_path_rejects_traversal_and_separators() {
-        let dir = Path::new("/tmp/x");
-        for name in [
-            "",
-            ".",
-            "..",
-            "../etc/passwd",
-            "a/b",
-            "a\\b",
-            "nul\0byte",
-            "/abs",
-        ] {
-            assert!(temp_file_path(dir, 7, name).is_err(), "{name:?} accepted");
-        }
     }
 
     #[test]

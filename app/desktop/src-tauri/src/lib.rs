@@ -24,6 +24,7 @@ use zcrypt_core::engines::{self, CancelToken, CredProvider, EngineContext, Platf
 use zcrypt_core::localdb::LocalDb;
 use zcrypt_core::profiles;
 use zcrypt_core::types::{Progress, ProgressFn};
+use zeroize::Zeroize;
 
 /// OS keychain service name for all zcrypt desktop secrets.
 const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
@@ -192,7 +193,11 @@ fn spawn_inactivity_autolock(app: tauri::AppHandle) {
             // .take() both checks and clears in one lock acquisition, a race
             // with an explicit clear_passphrase() just means both agree the
             // end state is None, never a corrupt/partial state.
-            let had_passphrase = state.passphrase.lock().unwrap().take().is_some();
+            let cleared = state.passphrase.lock().unwrap().take();
+            let had_passphrase = cleared.is_some();
+            if let Some(mut old) = cleared {
+                old.zeroize();
+            }
             if had_passphrase {
                 zcrypt_core::crypto::clear_key_cache();
                 let _ = app.emit(AUTO_LOCK_EVENT, ());
@@ -201,7 +206,28 @@ fn spawn_inactivity_autolock(app: tauri::AppHandle) {
     });
 }
 
+fn keychain_key_allowed(key: &str) -> bool {
+    if key == "vault.passphrase" {
+        return true;
+    }
+    let Some(rest) = key.strip_prefix("platform.") else {
+        return false;
+    };
+    let Some((id, field)) = rest.rsplit_once('.') else {
+        return false;
+    };
+    matches!(field, "token" | "account")
+        && !id.is_empty()
+        && id.len() <= 32
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
 fn keychain_entry(key: &str) -> Result<keyring::Entry, String> {
+    if !keychain_key_allowed(key) {
+        return Err("keychain: key not permitted".to_string());
+    }
     keyring::Entry::new(KEYCHAIN_SERVICE, key).map_err(|e| format!("keychain: {}", e))
 }
 
@@ -558,6 +584,26 @@ async fn delete_file(
 // Sync worker
 // ---------------------------------------------------------------------------
 
+/// The API origin baked in at build time (`ZCRYPT_API_URL`, the same
+/// DESKTOP_API_URL the frontend export is built with). Unset builds (dev) only
+/// accept a loopback backend.
+fn api_origin_allowed(base_url: &str) -> bool {
+    api_origin_matches(base_url, option_env!("ZCRYPT_API_URL"))
+}
+
+fn api_origin_matches(base_url: &str, pinned: Option<&str>) -> bool {
+    let Ok(url) = url::Url::parse(base_url) else {
+        return false;
+    };
+    if !matches!(url.path(), "" | "/") || url.query().is_some() || !url.username().is_empty() {
+        return false;
+    }
+    match pinned.filter(|p| !p.is_empty()) {
+        Some(p) => url::Url::parse(p).is_ok_and(|p| p.origin() == url.origin()),
+        None => matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]")),
+    }
+}
+
 /// Build the API client (persisting rotated tokens back to the OS keychain)
 /// and (re)start the background sync worker.
 #[tauri::command]
@@ -568,6 +614,9 @@ async fn start_sync(
     access_token: String,
     refresh_token: String,
 ) -> Result<(), String> {
+    if !api_origin_allowed(&base_url) {
+        return Err("base_url is not the zcrypt API origin".to_string());
+    }
     // One client for the life of the app: every transfer shares its token
     // state, so a new pair from the webview (a fresh login) reaches uploads
     // already in flight instead of stranding them on a dead refresh token.
@@ -723,7 +772,10 @@ async fn set_passphrase(
     state: tauri::State<'_, EngineState>,
     passphrase: String,
 ) -> Result<(), String> {
-    *state.passphrase.lock().unwrap() = Some(passphrase);
+    let previous = state.passphrase.lock().unwrap().replace(passphrase);
+    if let Some(mut old) = previous {
+        old.zeroize();
+    }
     state.touch_activity();
     Ok(())
 }
@@ -734,7 +786,9 @@ async fn set_passphrase(
 /// key can't outlive the passphrase it was derived from.
 #[tauri::command]
 async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), String> {
-    *state.passphrase.lock().unwrap() = None;
+    if let Some(mut old) = state.passphrase.lock().unwrap().take() {
+        old.zeroize();
+    }
     zcrypt_core::crypto::clear_key_cache();
     Ok(())
 }
@@ -1264,14 +1318,6 @@ async fn pick_save_path(
     Ok(Some(path))
 }
 
-/// Write file data to a temp file. Returns the path.
-#[tauri::command]
-async fn write_temp_file(name: String, data: Vec<u8>) -> Result<String, String> {
-    let tmp = paths::temp_file_path(&std::env::temp_dir(), std::process::id(), &name)?;
-    std::fs::write(&tmp, &data).map_err(|e| format!("write temp: {}", e))?;
-    Ok(tmp.to_string_lossy().to_string())
-}
-
 #[tauri::command]
 async fn remove_temp_file(path: String) -> Result<(), String> {
     let dir = std::env::temp_dir();
@@ -1316,7 +1362,6 @@ pub fn run() {
             install_update,
             pick_files,
             pick_save_path,
-            write_temp_file,
             remove_temp_file,
             set_autostart,
             is_autostart_enabled,
@@ -1438,24 +1483,83 @@ fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Navigate the main webview to the OAuth callback page with tokens from a deep link.
-/// Incoming URL: zcrypt://oauth/callback?access_token=...&refresh_token=...
-fn handle_deep_link(app: &tauri::AppHandle, raw: &str) {
-    // The payload may contain the URL directly or as a JSON array element
-    let url = raw
-        .trim_matches(|c| c == '[' || c == ']' || c == '"')
-        .to_string();
+const OAUTH_CALLBACK_EVENT: &str = "zcrypt://oauth-callback";
 
-    if !url.starts_with("zcrypt://oauth/callback") {
-        return;
+#[derive(serde::Serialize, Clone, Debug, PartialEq, Eq)]
+struct OAuthCallback {
+    session: String,
+}
+
+/// Parse a `zcrypt://oauth/callback?session=...` deep link. Only that exact
+/// target is accepted, and only the session id is forwarded: tokens never
+/// travel through a URL any other app on the machine can open, the webview
+/// redeems them itself via the verifier-bound desktop-poll.
+fn parse_oauth_callback(raw: &str) -> Option<OAuthCallback> {
+    let url = url::Url::parse(raw.trim_matches(|c| c == '[' || c == ']' || c == '"')).ok()?;
+    if url.scheme() != "zcrypt" || url.host_str() != Some("oauth") || url.path() != "/callback" {
+        return None;
+    }
+    let session = url
+        .query_pairs()
+        .find(|(k, _)| k == "session" || k == "state")
+        .map(|(_, v)| v.into_owned())?;
+    let valid =
+        (1..=128).contains(&session.len()) && session.chars().all(|c| c.is_ascii_hexdigit());
+    valid.then_some(OAuthCallback { session })
+}
+
+fn handle_deep_link(app: &tauri::AppHandle, raw: &str) {
+    if let Some(payload) = parse_oauth_callback(raw) {
+        let _ = app.emit_to("main", OAUTH_CALLBACK_EVENT, payload);
+    }
+}
+
+#[cfg(test)]
+mod deep_link_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_only_the_oauth_callback_with_a_hex_session() {
+        let ok = parse_oauth_callback("zcrypt://oauth/callback?session=ab12");
+        assert_eq!(
+            ok,
+            Some(OAuthCallback {
+                session: "ab12".into()
+            })
+        );
+        assert!(parse_oauth_callback("\"zcrypt://oauth/callback?session=ab12\"").is_some());
+        assert!(parse_oauth_callback("zcrypt://oauth/callback?session=a');alert(1);//").is_none());
+        assert!(parse_oauth_callback("zcrypt://oauth/other?session=ab12").is_none());
+        assert!(parse_oauth_callback("zcrypt://evil/callback?session=ab12").is_none());
+        assert!(parse_oauth_callback("https://oauth/callback?session=ab12").is_none());
+        assert!(parse_oauth_callback("zcrypt://oauth/callback").is_none());
+    }
+}
+
+#[cfg(test)]
+mod origin_tests {
+    use super::*;
+
+    #[test]
+    fn pins_the_api_origin() {
+        let pin = Some("https://api.zcrypt.cloud");
+        assert!(api_origin_matches("https://api.zcrypt.cloud", pin));
+        assert!(api_origin_matches("https://api.zcrypt.cloud/", pin));
+        assert!(!api_origin_matches("https://evil.example", pin));
+        assert!(!api_origin_matches("http://api.zcrypt.cloud", pin));
+        assert!(!api_origin_matches("https://api.zcrypt.cloud/x", pin));
+        assert!(api_origin_matches("http://localhost:8080", None));
+        assert!(!api_origin_matches("https://evil.example", None));
     }
 
-    // Extract the query string and convert to a fragment-based URL
-    // so the existing frontend callback page can handle it identically.
-    let query = url.split_once('?').map_or("", |(_, q)| q);
-
-    if let Some(webview) = app.get_webview_window("main") {
-        let nav_url = format!("/oauth/callback#{}", query);
-        let _ = webview.eval(format!("window.location.replace('{}')", nav_url));
+    #[test]
+    fn keychain_allowlist() {
+        assert!(keychain_key_allowed("vault.passphrase"));
+        assert!(keychain_key_allowed("platform.github.token"));
+        assert!(keychain_key_allowed("platform.telegram.account"));
+        assert!(!keychain_key_allowed("auth.access"));
+        assert!(!keychain_key_allowed("platform..token"));
+        assert!(!keychain_key_allowed("platform.a.b.token"));
+        assert!(!keychain_key_allowed("anything"));
     }
 }

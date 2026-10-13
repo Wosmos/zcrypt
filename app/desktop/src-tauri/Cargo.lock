@@ -6833,6 +6833,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "subtle",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "urlencoding",
@@ -6866,9 +6867,11 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-updater",
  "tokio",
+ "url",
  "windows 0.62.2",
  "windows-future 0.3.2",
  "zcrypt-core",
+ "zeroize",
 ]
 
 [[package]]
