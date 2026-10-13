@@ -101,25 +101,25 @@ export function MarketingFooter() {
       {/* Cyan glow bleeding up from behind the footer box */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-[-90px] z-[1] h-[300px] w-[min(1100px,92%)] -translate-x-1/2"
+        className="pointer-events-none absolute left-1/2 top-[-240px] z-0 h-[240px] w-[min(1100px,92%)] -translate-x-1/2"
         style={{
           background:
-            "radial-gradient(ellipse 60% 110% at 50% 100%, rgba(0,213,228,0.07), transparent 78%)",
+            "radial-gradient(ellipse 55% 100% at 50% 100%, color-mix(in oklab, var(--color-accent) 7%, transparent), transparent 80%)",
         }}
       />
 
       <div
-        className="relative overflow-hidden rounded-t-[32px] border border-b-0 border-[var(--color-border)]"
+        className="relative z-[1] overflow-hidden rounded-t-[32px] border border-b-0 border-[var(--color-border)]"
         style={{
           background:
-            "radial-gradient(120% 90% at 50% 0%, rgba(0,213,228,0.05), transparent 55%), linear-gradient(180deg, var(--color-surface), var(--color-bg) 62%)",
+            "radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--color-accent) 6%, transparent), transparent 55%), linear-gradient(180deg, var(--color-surface), var(--color-bg) 62%)",
           boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.07), 0 -22px 60px -34px rgba(0,213,228,0.12)",
+            "inset 0 1px 0 rgba(255,255,255,0.07), 0 -22px 60px -34px color-mix(in oklab, var(--color-accent) 14%, transparent)",
         }}
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 z-[1] h-px w-[60%] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgb(0_213_228/0.35),transparent)]"
+          className="pointer-events-none absolute left-1/2 top-0 z-[1] h-px w-[60%] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,color-mix(in_oklab,var(--color-accent)_40%,transparent),transparent)]"
         />
 
         {/* Giant faint wordmark watermark */}
