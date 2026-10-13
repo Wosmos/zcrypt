@@ -45,7 +45,7 @@ Every file goes through the same client-side pipeline before a single byte leave
 
 ```mermaid
 flowchart LR
-    F["Your file"] --> S["split into chunks<br/>(4 / 10 / 16 / 32 MiB)"]
+    F["Your file"] --> S["split into chunks<br/>(4 / 8 / 10 / 16 MiB)"]
     S --> C["zstd compress<br/>(each chunk)"]
     C --> E["AES-256-GCM encrypt<br/>random per-file key (CEK)"]
     E --> U["upload chunks to<br/>your storage accounts"]

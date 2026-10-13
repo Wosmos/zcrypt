@@ -111,8 +111,8 @@ layout:
 Upload, per file:
 1. Compute the file-level content hash (§5) over the **original plaintext**.
 2. Generate salt, derive KEK, generate CEK, wrap CEK.
-3. Split the plaintext into fixed-size chunks (device-profile tiered: 4 MiB
-   light / 10 MiB normal / 16 MiB intense / 32 MiB ludicrous; final chunk is
+3. Split the plaintext into fixed-size chunks (device-profile tiered: 4, 8, 10 or 16 MiB on web;
+   desktop and mobile use 10 MiB; final chunk is
    the remainder). Chunk boundaries are over the ORIGINAL plaintext.
 4. Per chunk, in order:
    a. **Compress** with zstd IF the filename's extension is not on the

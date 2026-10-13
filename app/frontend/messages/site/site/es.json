@@ -1577,7 +1577,7 @@
             "body": "Los archivos grandes se cortan en piezas y se reparten entre tus cuentas. Tu único límite es el espacio libre que ya tienes.",
             "caption": "cada cuenta es más espacio",
             "chips": {
-              "0": "Piezas de 4 a 32 MB",
+              "0": "Piezas de 4 a 16 MB",
               "1": "Espacio nuevo antes de que se llene uno",
               "2": "Telegram: sin techo"
             }
