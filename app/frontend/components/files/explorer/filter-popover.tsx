@@ -123,7 +123,7 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
           <Filter className="h-3.5 w-3.5" />
           {t("filter")}
           {count > 0 && (
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-semibold text-white">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-semibold text-[var(--color-on-accent)]">
               {count}
             </span>
           )}

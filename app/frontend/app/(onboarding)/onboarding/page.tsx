@@ -190,7 +190,7 @@ export default function OnboardingPage() {
                     </div>
                     {isSelected && (
                       <div className="h-5 w-5 rounded-full bg-[var(--color-accent)] flex items-center justify-center">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-on-accent)]" />
                       </div>
                     )}
                   </button>
