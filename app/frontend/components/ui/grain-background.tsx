@@ -11,22 +11,22 @@ const LIGHTS = [
   {
     box: { left: "-35.4%", top: "-33.2%", width: "100.8%", height: "86.4%" },
     bg: "radial-gradient(closest-side, rgba(34,211,238,0.7) 0%, rgba(34,211,238,0.18) 56%, transparent 100%)",
-    anim: "glow-drift-a 29s",
+    anim: "glow-drift-a 17s",
   },
   {
     box: { left: "41%", top: "-5.4%", width: "108%", height: "100.8%" },
     bg: "radial-gradient(closest-side, rgba(99,102,241,0.6) 0%, rgba(99,102,241,0.15) 58%, transparent 100%)",
-    anim: "glow-drift-b 37s",
+    anim: "glow-drift-b 21s",
   },
   {
     box: { left: "8%", top: "26.5%", width: "84%", height: "63%" },
     bg: "radial-gradient(closest-side, rgba(165,243,252,0.16) 0%, transparent 100%)",
-    anim: "glow-drift-c 26s",
+    anim: "glow-drift-c 15s",
   },
   {
     box: { left: "-36.2%", top: "60.4%", width: "122.4%", height: "79.2%" },
     bg: "radial-gradient(closest-side, rgba(20,184,166,0.6) 0%, rgba(20,184,166,0.15) 58%, transparent 100%)",
-    anim: "glow-drift-d 53s",
+    anim: "glow-drift-d 27s",
   },
 ];
 
