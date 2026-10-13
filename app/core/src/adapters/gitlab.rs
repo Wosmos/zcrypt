@@ -12,7 +12,7 @@ use base64::Engine as _;
 use reqwest::Method;
 use serde::Deserialize;
 
-use crate::adapters::{AdapterError, PlatformAdapter};
+use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::disguise;
 use crate::types::{Chunk, ChunkRef};
 
@@ -48,6 +48,11 @@ impl GitLab {
         self.client
             .request(method, url)
             .header("PRIVATE-TOKEN", self.token.as_str())
+    }
+
+    fn check(&self, repo: &str, remote_path: &str) -> Result<(), AdapterError> {
+        let (owner, name) = repo.split_once('/').unwrap_or((repo, ""));
+        validate_locator(&self.account, owner, name, remote_path)
     }
 }
 
@@ -174,6 +179,7 @@ impl PlatformAdapter for GitLab {
             chunk_ref.remote_path.clone()
         };
 
+        self.check(repo, &remote_path)?;
         let resp = self
             .req(Method::POST, &file_url(repo, &remote_path))
             .json(&serde_json::json!({
@@ -198,6 +204,7 @@ impl PlatformAdapter for GitLab {
     }
 
     async fn download(&self, r#ref: &ChunkRef) -> Result<Vec<u8>, AdapterError> {
+        self.check(&r#ref.repo, &r#ref.remote_path)?;
         let url = raw_file_url(&r#ref.repo, &r#ref.remote_path);
         let resp = self.req(Method::GET, &url).send().await?;
         if !resp.status().is_success() {
@@ -207,6 +214,7 @@ impl PlatformAdapter for GitLab {
     }
 
     async fn delete(&self, r#ref: &ChunkRef) -> Result<(), AdapterError> {
+        self.check(&r#ref.repo, &r#ref.remote_path)?;
         let resp = self
             .req(Method::DELETE, &file_url(&r#ref.repo, &r#ref.remote_path))
             .json(&serde_json::json!({

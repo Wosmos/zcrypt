@@ -24,6 +24,10 @@ pub fn compress(data: &[u8], profile_level: i32) -> (Vec<u8>, bool) {
     }
 }
 
+/// Largest chunk plaintext any profile produces (the intense tier, 32 MiB);
+/// a frame that inflates past it is a decompression bomb, not a chunk.
+pub const MAX_CHUNK_PLAINTEXT: u64 = 32 * 1024 * 1024;
+
 #[derive(Debug, thiserror::Error)]
 #[error("zstd decompress: {0}")]
 pub struct DecompressError(#[from] std::io::Error);
@@ -31,8 +35,18 @@ pub struct DecompressError(#[from] std::io::Error);
 /// Decompress a standard zstd frame (any conforming encoder's output).
 pub fn decompress(data: &[u8]) -> Result<Vec<u8>, DecompressError> {
     let mut out = Vec::new();
-    let mut decoder = zstd::stream::read::Decoder::new(data)?;
-    std::io::Read::read_to_end(&mut decoder, &mut out)?;
+    let decoder = zstd::stream::read::Decoder::new(data)?;
+    std::io::Read::read_to_end(
+        &mut std::io::Read::take(decoder, MAX_CHUNK_PLAINTEXT + 1),
+        &mut out,
+    )?;
+    if out.len() as u64 > MAX_CHUNK_PLAINTEXT {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "decompressed chunk exceeds the maximum chunk size",
+        )
+        .into());
+    }
     Ok(out)
 }
 
@@ -95,5 +109,13 @@ mod tests {
         let (out, ok) = compress(&incompressible, 2);
         assert!(!ok);
         assert_eq!(out, incompressible);
+    }
+
+    #[test]
+    fn decompress_rejects_frames_larger_than_a_chunk() {
+        let bomb = zstd::bulk::compress(&vec![0u8; MAX_CHUNK_PLAINTEXT as usize + 1], 1).unwrap();
+        assert!(decompress(&bomb).is_err());
+        let fine = zstd::bulk::compress(&vec![0u8; 1024], 1).unwrap();
+        assert_eq!(decompress(&fine).unwrap().len(), 1024);
     }
 }

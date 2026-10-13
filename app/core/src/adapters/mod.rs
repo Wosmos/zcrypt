@@ -17,7 +17,7 @@ pub mod telegram;
 #[derive(Debug, thiserror::Error)]
 pub enum AdapterError {
     #[error("http: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(reqwest::Error),
     /// Platform rate limit (HTTP 429 / secondary limits). Callers back off or
     /// re-route the file to another platform.
     #[error("rate limited by {platform}{retry_after}", retry_after = .retry_after_secs.map(|s| format!(" (retry after {s}s)")).unwrap_or_default())]
@@ -35,6 +35,12 @@ pub enum AdapterError {
     NotFound(String),
     #[error("{0}")]
     Other(String),
+}
+
+impl From<reqwest::Error> for AdapterError {
+    fn from(e: reqwest::Error) -> Self {
+        Self::Http(e.without_url())
+    }
 }
 
 /// The unified platform interface, mirrors the Go `adapters.PlatformAdapter`.
@@ -65,6 +71,47 @@ pub trait PlatformAdapter: Send + Sync {
     /// List chunk files in a repo (reconcile support; Telegram returns
     /// `NotFound`: a chat can't be enumerated via the Bot API).
     async fn list_chunks(&self, repo: &str) -> Result<Vec<ChunkRef>, AdapterError>;
+}
+
+fn safe_segment(seg: &str) -> bool {
+    !seg.is_empty()
+        && seg != "."
+        && seg != ".."
+        && seg
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+}
+
+/// Guard against server-supplied locators steering the user's own token at
+/// someone else's repo or an unexpected API path: the repo must belong to the
+/// credential's account and `remote_path` must be a plain relative zcrypt chunk
+/// path (`ab/cdef....bin`, or a flat `<hex>.bin`) with no traversal, query or
+/// fragment characters.
+pub(crate) fn validate_locator(
+    account: &str,
+    owner: &str,
+    repo_name: &str,
+    remote_path: &str,
+) -> Result<(), AdapterError> {
+    let bad = |what: &str| {
+        Err(AdapterError::Other(format!(
+            "invalid chunk locator: {what}"
+        )))
+    };
+    if account.is_empty() || !owner.eq_ignore_ascii_case(account) {
+        return bad("repo owner does not match the connected account");
+    }
+    if repo_name.is_empty() || !repo_name.split('/').all(safe_segment) {
+        return bad("repo name");
+    }
+    let mut depth = 0;
+    for seg in remote_path.split('/') {
+        depth += 1;
+        if depth > 2 || !safe_segment(seg) {
+            return bad("remote path");
+        }
+    }
+    Ok(())
 }
 
 /// Construct the adapter for a platform with the user's own token.
@@ -119,5 +166,38 @@ mod tests {
         assert!(Arc::ptr_eq(&a, &b));
         assert!(!Arc::ptr_eq(&a, &c));
         assert!(shared_adapter("nope", "tok", "acct").is_none());
+    }
+}
+
+#[cfg(test)]
+mod locator_tests {
+    use super::validate_locator;
+
+    #[test]
+    fn accepts_zcrypt_layout_for_own_account() {
+        assert!(
+            validate_locator("Alice", "alice", "utils-tools-v1", "ab/cdef0123456789.bin").is_ok()
+        );
+        assert!(validate_locator("alice", "alice", "g/sub/proj", "0123456789abcdef.bin").is_ok());
+    }
+
+    #[test]
+    fn rejects_foreign_owner_and_hostile_paths() {
+        assert!(validate_locator("alice", "mallory", "r", "ab/c.bin").is_err());
+        assert!(validate_locator("", "", "r", "ab/c.bin").is_err());
+        for p in [
+            "../x.bin",
+            "/ab/c.bin",
+            "ab/c.bin?x=1",
+            "ab/c.bin#f",
+            "a/b/c.bin",
+            "",
+            "ab//c.bin",
+            "a%2fb",
+        ] {
+            assert!(validate_locator("alice", "alice", "r", p).is_err(), "{p}");
+        }
+        assert!(validate_locator("alice", "alice", "r/../x", "ab/c.bin").is_err());
+        assert!(validate_locator("alice", "alice", "r?x", "ab/c.bin").is_err());
     }
 }
