@@ -1577,7 +1577,7 @@
             "body": "Große Dateien werden in Teile zerlegt und über deine Konten verteilt. Deine einzige Grenze ist der freie Platz, den du ohnehin schon hast.",
             "caption": "jedes Konto bringt mehr Platz",
             "chips": {
-              "0": "Teile von 4 bis 32 MB",
+              "0": "Teile von 4 bis 16 MB",
               "1": "Neuer Platz, bevor einer voll ist",
               "2": "Telegram: keine Obergrenze"
             }

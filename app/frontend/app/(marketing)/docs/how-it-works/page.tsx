@@ -5,7 +5,7 @@ import { T } from "@/components/i18n/t";
 export const metadata = pageMetadata({
   title: "How it works · Docs",
   description:
-    "Follow a file through zcrypt end to end: on your device it is split into device-tiered chunks (4 to 32 MiB), each chunk is compressed with zstd and encrypted with AES-256-GCM under a random per-file key, and the result is pushed to your own storage. Downloading reverses every step.",
+    "Follow a file through zcrypt end to end: on your device it is split into device-tiered chunks (4 to 16 MiB), each chunk is compressed with zstd and encrypted with AES-256-GCM under a random per-file key, and the result is pushed to your own storage. Downloading reverses every step.",
   path: "/docs/how-it-works",
   ogDescription:
     "A file's journey through zcrypt: chunk, compress, encrypt, and upload, all client-side and zero-knowledge.",
@@ -35,7 +35,7 @@ export default function HowItWorksDocPage() {
         </DocP>
         <DocCode
           label={<T k="docs.how-it-works.a3" />}
-        >{`chunk (4 to 32 MiB)  →  compress (zstd)  →  encrypt (AES-256-GCM)  →  upload to your storage`}</DocCode>
+        >{`chunk (4 to 16 MiB)  →  compress (zstd)  →  encrypt (AES-256-GCM)  →  upload to your storage`}</DocCode>
       </DocSection>
 
       <DocSection id="chunk" title={<T k="docs.how-it-works.a14" />}>
