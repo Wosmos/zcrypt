@@ -31,7 +31,7 @@ export function useConnectivity() {
   const [now, setNow] = useState(() => Date.now());
   const recovering = state.recoveredAt !== null && now - state.recoveredAt < RECOVERY_FLASH_MS;
   const retryAt = isBlockingStatus(state.status) ? state.nextRetryAt : null;
-  const ticking = retryAt !== null || state.recoveredAt !== null;
+  const ticking = retryAt !== null || recovering;
   useEffect(() => {
     if (!ticking) return;
     const id = setInterval(() => setNow(Date.now()), 1_000);

@@ -84,7 +84,7 @@ function Body({
               type="button"
               onClick={onRetry}
               disabled={checking}
-              className="inline-flex items-center gap-1.5 rounded-md font-semibold text-[var(--color-text)] transition-opacity hover:opacity-80 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+              className="relative inline-flex items-center gap-1.5 rounded-md font-semibold before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] text-[var(--color-text)] transition-opacity hover:opacity-80 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", checking && "animate-spin")} aria-hidden />
               {checking ? t("checking") : t("retryNow")}
@@ -108,40 +108,46 @@ function Body({
  */
 export function ConnectionBanner({ variant = "floating" }: { variant?: "floating" | "inline" }) {
   const { shown, retryIn, checking, check } = useShown();
+  const t = useTranslations("ui.connection");
   const reduce = useReducedMotion();
   const retry = () => void check();
+  const live = (
+    <div role="status" aria-live="polite" className="sr-only">
+      {shown ? `${t(`${shown}Title`)}. ${t(`${shown}Body`)}` : ""}
+    </div>
+  );
 
   if (variant === "inline") {
     return (
-      <AnimatePresence initial={false}>
-        {shown && (
-          <motion.div
-            key="conn"
-            role="status"
-            aria-live="polite"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            animate={reduce ? { opacity: 1 } : { opacity: 1, height: "auto" }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className={cn("mb-4 rounded-xl border p-3", TONE[shown].ring)}>
-              <Body shown={shown} retryIn={retryIn} checking={checking} onRetry={retry} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <>
+        {live}
+        <AnimatePresence initial={false}>
+          {shown && (
+            <motion.div
+              key="conn"
+              initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, height: "auto" }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className={cn("mb-4 rounded-xl border p-3", TONE[shown].ring)}>
+                <Body shown={shown} retryIn={retryIn} checking={checking} onRetry={retry} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
     );
   }
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[calc(0.75rem+var(--safe-top,0px))] z-[60] flex justify-center px-3">
+      {live}
       <AnimatePresence>
         {shown && (
           <motion.div
             key="conn"
-            role="status"
-            aria-live="polite"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: -16, scale: 0.98 }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.98 }}

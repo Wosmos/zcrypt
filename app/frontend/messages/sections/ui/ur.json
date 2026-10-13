@@ -179,7 +179,8 @@
         "newSpace": "نیا اسپیس",
         "getApps": "ایپس حاصل کریں",
         "shortcuts": "کی بورڈ شارٹ کٹس"
-      }
+      },
+      "unlockToSearch": "فائلیں تلاش کرنے کے لیے ان لاک کریں"
     },
     "notifications": {
       "justNow": "ابھی ابھی",
@@ -290,7 +291,16 @@
       "downloadFor": "{os} کے لیے ڈاؤن لوڈ کریں",
       "otherPlatforms": "دوسرے پلیٹ فارم",
       "allDownloads": "تمام ڈاؤن لوڈز",
-      "iosNote": "آئی فون ایپ ابھی نہیں ہے۔ ویب ایپ Safari میں چلتی ہے اور ہوم اسکرین پر شامل کی جا سکتی ہے۔"
+      "iosNote": "آئی فون ایپ ابھی نہیں ہے۔ ویب ایپ Safari میں چلتی ہے اور ہوم اسکرین پر شامل کی جا سکتی ہے۔",
+      "target": {
+        "macosArm64": "Apple silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "انسٹالر (.exe)",
+        "windowsMsi": "MSI پیکیج (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "آپ آف لائن ہیں",

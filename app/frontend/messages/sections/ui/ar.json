@@ -179,7 +179,8 @@
         "newSpace": "مساحة جديدة",
         "getApps": "احصل على التطبيقات",
         "shortcuts": "اختصارات لوحة المفاتيح"
-      }
+      },
+      "unlockToSearch": "افتح القفل للبحث في الملفات"
     },
     "notifications": {
       "justNow": "الآن",
@@ -290,7 +291,16 @@
       "downloadFor": "تنزيل لنظام {os}",
       "otherPlatforms": "أنظمة أخرى",
       "allDownloads": "كل التنزيلات",
-      "iosNote": "لا يوجد تطبيق لآيفون بعد. يعمل تطبيق الويب في Safari ويمكن إضافته إلى الشاشة الرئيسية."
+      "iosNote": "لا يوجد تطبيق لآيفون بعد. يعمل تطبيق الويب في Safari ويمكن إضافته إلى الشاشة الرئيسية.",
+      "target": {
+        "macosArm64": "Apple silicon (.dmg)",
+        "macosX64": "Intel (.dmg)",
+        "windowsExe": "مثبّت (.exe)",
+        "windowsMsi": "حزمة MSI (.msi)",
+        "linuxAppimage": "AppImage",
+        "linuxDeb": "Debian / Ubuntu (.deb)",
+        "linuxRpm": "Fedora / RHEL (.rpm)"
+      }
     },
     "connection": {
       "offlineTitle": "أنت غير متصل",

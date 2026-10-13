@@ -55,7 +55,10 @@ export function DateRangeControl() {
           type="single"
           value={preset === "custom" ? "custom" : preset}
           onValueChange={(v) => {
-            if (!v) return;
+            if (!v) {
+              if (preset === "custom") setCustomOpen(true);
+              return;
+            }
             if (v === "custom") {
               setCustomOpen(true);
               return;
