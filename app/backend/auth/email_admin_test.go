@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -59,7 +60,7 @@ func TestAnnouncementEmailUnsubscribeLinkAndHeaders(t *testing.T) {
 }
 
 func TestUnsubscribeToken(t *testing.T) {
-	secret := "0123456789abcdef0123456789abcdef"
+	secret := strings.Repeat("ab", 16)
 	tok := UnsubscribeToken(secret, "user-1")
 	id, ok := VerifyUnsubscribeToken(secret, tok)
 	assert.True(t, ok)
@@ -107,7 +108,7 @@ func TestSendBatchChunksAndPaces(t *testing.T) {
 func TestSendBatchCountsFailuresAndRetriesRateLimit(t *testing.T) {
 	var mu sync.Mutex
 	calls := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		mu.Lock()
 		calls++
 		n := calls
@@ -138,7 +139,7 @@ func TestSendBatchNotConfigured(t *testing.T) {
 }
 
 func TestSendBatchStopsOnCancel(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) }))
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

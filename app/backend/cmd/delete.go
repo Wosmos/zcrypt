@@ -83,7 +83,7 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 			s.emitFileChange(ctx, userID, fileID, "deleted")
 			s.audit(r, &userID, "file_purge_client", map[string]interface{}{"file_id": fileID})
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"success":true}`))
+			_, _ = w.Write([]byte(`{"success":true}`))
 			return
 		}
 	}

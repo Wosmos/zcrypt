@@ -210,7 +210,7 @@ func sendBatchChunk(ctx context.Context, cfg *EmailConfig, msgs []OutgoingEmail,
 			return fmt.Errorf("resend batch request: %w", err)
 		}
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode < 400 {
 			return nil
 		}

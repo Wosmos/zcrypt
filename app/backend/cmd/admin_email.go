@@ -156,10 +156,10 @@ func (s *Server) runCampaign(cfg *auth.EmailConfig, id string, msgs []auth.Outgo
 		sent += ok
 		failed += bad
 		if err != nil {
-			log.Printf("admin email campaign %s: %v", id, err)
+			log.Printf("admin email campaign %s: %v", logSafe(id), err) // #nosec G706 -- control chars stripped via logSafe
 		}
 		if uerr := s.db.UpdateEmailCampaign(context.Background(), id, sent, failed, false); uerr != nil {
-			log.Printf("admin email campaign %s: progress: %v", id, uerr)
+			log.Printf("admin email campaign %s: progress: %v", logSafe(id), uerr) // #nosec G706 -- control chars stripped via logSafe
 		}
 		if ctx.Err() != nil {
 			failed += len(msgs) - end
@@ -173,7 +173,7 @@ func (s *Server) runCampaign(cfg *auth.EmailConfig, id string, msgs []auth.Outgo
 		}
 	}
 	if err := s.db.UpdateEmailCampaign(context.Background(), id, sent, failed, true); err != nil {
-		log.Printf("admin email campaign %s: finish: %v", id, err)
+		log.Printf("admin email campaign %s: finish: %v", logSafe(id), err) // #nosec G706 -- control chars stripped via logSafe
 	}
 }
 
@@ -243,7 +243,7 @@ func writeUnsubscribePage(w http.ResponseWriter, status int, title, msg string) 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	fmt.Fprintf(w, unsubscribePage, html.EscapeString(title), html.EscapeString(msg))
+	_, _ = fmt.Fprintf(w, unsubscribePage, html.EscapeString(title), html.EscapeString(msg))
 }
 
 // HandleEmailUnsubscribe opts a user out of announcements from a signed link.

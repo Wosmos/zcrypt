@@ -1625,7 +1625,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 
 	if !decoy {
 		if err := s.db.CheckinDeadManSwitch(r.Context(), user.ID); err != nil {
-			log.Printf("deadman: checkin on sign-in failed for user %s: %v", user.ID, err)
+			log.Printf("deadman: checkin on sign-in failed for user %s: %v", logSafe(user.ID), err) // #nosec G706 -- control chars stripped via logSafe
 		}
 	}
 	setRefreshCookie(w, refreshToken)

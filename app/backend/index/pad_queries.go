@@ -27,6 +27,8 @@ func (db *DB) GetPadByToken(ctx context.Context, token string) (*types.Pad, erro
 	return p, nil
 }
 
+// ClaimPadRead atomically records one read of the pad and returns it; it fails
+// with pgx.ErrNoRows when the pad is gone, expired or already burned.
 func (db *DB) ClaimPadRead(ctx context.Context, token string) (*types.Pad, error) {
 	p := &types.Pad{}
 	err := db.pool.QueryRow(ctx,

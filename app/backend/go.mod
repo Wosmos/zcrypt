@@ -2,15 +2,15 @@ module github.com/zcrypt/zcrypt
 
 go 1.26.0
 
-toolchain go1.26.6
+toolchain go1.26.9
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/google/go-github/v60 v60.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/crypto v0.57.0
-	nhooyr.io/websocket v1.8.17
 )
 
 require (

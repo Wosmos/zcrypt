@@ -147,7 +147,7 @@ func (s *Server) dispatchNotifications(msgs []auth.OutgoingEmail) {
 		defer cancel()
 		sent, failed, err := auth.SendBatch(ctx, cfg, msgs)
 		if err != nil {
-			log.Printf("admin notify: sent %d, failed %d: %v", sent, failed, err)
+			log.Printf("admin notify: sent %d, failed %d: %s", sent, failed, logSafe(err.Error())) // #nosec G706 -- control chars stripped via logSafe
 		}
 	})
 }

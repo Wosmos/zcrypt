@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 )
 
 // transferRoom represents a pairing room for real-time file transfer.
@@ -191,12 +191,12 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn, ip string) {
 	if !s.devMode && !s.transferCreateLimiter.allow(ip) {
-		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("too many rooms created, try again later")})
+		_ = wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("too many rooms created, try again later")})
 		return
 	}
 	room, err := s.transferHub.createRoom(ip)
 	if err != nil {
-		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw(errTooManyTransferRoom)})
+		_ = wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw(errTooManyTransferRoom)})
 		return
 	}
 	defer s.transferHub.removeRoom(room.code)
@@ -248,7 +248,7 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn,
 		relayedBytes += int64(len(msg))
 		if relayedBytes > maxTransferRoomBytes {
 			log.Printf("transfer: byte cap reached code=%s relayed=%d", room.code, relayed)
-			conn.Close(websocket.StatusMessageTooBig, "transfer too large")
+			_ = conn.Close(websocket.StatusMessageTooBig, "transfer too large")
 			return
 		}
 
