@@ -47,3 +47,4 @@ a0ce8655490235ea1aedc98f7d9a8ca7659257e6:.env.loadtest.example:generic-api-key:1
 # history is not rewritten, so this exact finding is allowlisted; that password
 # must be (and stay) rotated. Any other leak still fails the scan.
 424c7d9477cf8daf6f43dd506af1bcda44c663a8:.claude/settings.local.json:generic-api-key:42
+439aafe1ad0ebcd3fad820a06e6e43891815ede8:app/backend/auth/email_admin_test.go:generic-api-key:62
