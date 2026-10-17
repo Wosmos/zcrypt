@@ -60,6 +60,7 @@ func telegramAPIURL(botToken, method string) string {
 // bot token (no chat required yet).
 func telegramGetMeStandalone(client *http.Client, botToken string) (string, error) {
 	resp, err := client.Get(telegramAPIURL(botToken, "getMe"))
+	err = scrubTelegramToken(err, botToken)
 	if err != nil {
 		return "", fmt.Errorf("getMe request: %w", err)
 	}
@@ -119,6 +120,7 @@ func telegramGetUpdatesOnce(client *http.Client, botToken string) (chats []Detec
 	q.Set("timeout", "0")
 	q.Set("allowed_updates", `["my_chat_member","channel_post","message"]`)
 	resp, err := client.Get(telegramAPIURL(botToken, "getUpdates") + "?" + q.Encode())
+	err = scrubTelegramToken(err, botToken)
 	if err != nil {
 		return nil, false, false, fmt.Errorf("getUpdates request: %w", err)
 	}

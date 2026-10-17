@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -262,7 +263,7 @@ func (t *TelegramAdapter) getMe() (string, error) {
 		return "", fmt.Errorf("create getMe request: %w", err)
 	}
 
-	resp, err := t.client.Do(req)
+	resp, err := t.do(req)
 	if err != nil {
 		return "", fmt.Errorf("getMe request: %w", err)
 	}
@@ -297,7 +298,7 @@ func (t *TelegramAdapter) validateChat() error {
 		return fmt.Errorf("create getChat request: %w", err)
 	}
 
-	resp, err := t.client.Do(req)
+	resp, err := t.do(req)
 	if err != nil {
 		return fmt.Errorf("getChat request: %w", err)
 	}
@@ -382,7 +383,7 @@ func (t *TelegramAdapter) sendDocument(ctx context.Context, data []byte, filenam
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	resp, err := t.client.Do(req)
+	resp, err := t.do(req)
 	if err != nil {
 		return 0, "", err
 	}
@@ -431,7 +432,7 @@ func (t *TelegramAdapter) openFile(ctx context.Context, fileID string) (io.ReadC
 		return nil, fmt.Errorf("create download request: %w", err)
 	}
 
-	dlResp, err := t.client.Do(dlReq)
+	dlResp, err := t.do(dlReq)
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
@@ -453,7 +454,7 @@ func (t *TelegramAdapter) getFile(ctx context.Context, fileID string) (string, i
 		return "", 0, fmt.Errorf("create getFile request: %w", err)
 	}
 
-	resp, err := t.client.Do(req)
+	resp, err := t.do(req)
 	if err != nil {
 		return "", 0, fmt.Errorf("getFile: %w", err)
 	}
@@ -517,7 +518,7 @@ func (t *TelegramAdapter) deleteMessage(ctx context.Context, messageID int64) er
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := t.client.Do(req)
+	resp, err := t.do(req)
 	if err != nil {
 		return fmt.Errorf("deleteMessage: %w", err)
 	}
@@ -548,4 +549,20 @@ func parsePartRef(ref string) (int64, string, error) {
 		return 0, "", fmt.Errorf("parse message id: %w", err)
 	}
 	return msgID, parts[1], nil
+}
+
+// do sends a Bot API request. The bot token travels in the URL path, so every
+// transport error carries it: scrub it before the error can reach a log line
+// or an API response.
+func (t *TelegramAdapter) do(req *http.Request) (*http.Response, error) {
+	resp, err := t.client.Do(req)
+	return resp, scrubTelegramToken(err, t.botToken)
+}
+
+func scrubTelegramToken(err error, botToken string) error {
+	var ue *url.Error
+	if botToken != "" && errors.As(err, &ue) {
+		ue.URL = strings.ReplaceAll(ue.URL, botToken, "<redacted>")
+	}
+	return err
 }

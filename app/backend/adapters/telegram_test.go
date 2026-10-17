@@ -407,3 +407,25 @@ func TestTelegramVerifyChunk(t *testing.T) {
 		t.Error("an unparsable ref must not verify")
 	}
 }
+
+func TestTelegramErrorsNeverCarryTheBotToken(t *testing.T) {
+	token := strings.Repeat("7", 10) + ":" + strings.Repeat("x", 35)
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	base := srv.URL
+	srv.Close()
+
+	a := &TelegramAdapter{botToken: token, chatID: "-100", apiBase: base, client: &http.Client{}}
+	_, err := a.getMe()
+	if err == nil {
+		t.Fatal("expected a connection error from a closed server")
+	}
+	if strings.Contains(err.Error(), token) {
+		t.Fatalf("error leaks the bot token: %v", err)
+	}
+	if !strings.Contains(err.Error(), "<redacted>") {
+		t.Fatalf("expected the URL to keep a redacted marker, got: %v", err)
+	}
+	if scrubTelegramToken(nil, token) != nil {
+		t.Fatal("nil error must stay nil")
+	}
+}
