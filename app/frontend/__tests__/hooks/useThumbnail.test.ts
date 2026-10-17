@@ -414,13 +414,31 @@ describe("useThumbnail", () => {
     expect(getFileMetaMock.mock.calls.length).toBe(1);
     expect(result.current.pending).toBe(true);
 
-    // Advance through both backoffs (3s, then 6s) to exhaust all 3 attempts.
-    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 6_000 + 300); });
-
-    expect(getFileMetaMock.mock.calls.length).toBe(3); // attempted exactly MAX times
-    expect(result.current.pending).toBe(false); // gave up → type icon
+    // One 3s backoff exhausts both attempts; nothing is retried after that.
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 300); });
+    expect(getFileMetaMock.mock.calls.length).toBe(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(getFileMetaMock.mock.calls.length).toBe(2);
+    expect(result.current.pending).toBe(false);
+    expect(result.current.unavailable).toBe(true);
     expect(result.current.thumbnailUrl).toBeNull();
     expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("starts a fresh pair of attempts when the user retries a failed preview", async () => {
+    vi.useFakeTimers();
+    const { primeThumbnails, useThumbnail, retryThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockRejectedValue(new Error("network down"));
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_400); });
+    expect(result.current.unavailable).toBe(true);
+
+    act(() => retryThumbnail("f1"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(getFileMetaMock.mock.calls.length).toBe(3);
   });
 
   it("marks a file failed when the image fails to decode", async () => {

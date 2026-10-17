@@ -765,7 +765,8 @@
       "retrying": "Sicherung dieser Datei wird erneut versucht",
       "retryFailed": "Die Sicherung konnte nicht erneut versucht werden",
       "notBackedUpHint": "Diese Datei hat deinen Speicher noch nicht erreicht. Tippe, um es erneut zu versuchen.",
-      "notBackedUp": "Nicht gesichert"
+      "notBackedUp": "Nicht gesichert",
+      "retryPreview": "Erneut versuchen"
     },
     "vaultExplorer": {
       "duplicateFolder": "Ein Ordner mit dem Namen „{name}“ existiert hier bereits.",

@@ -590,9 +590,60 @@ describe("prefetchFileDecrypt", () => {
   it("silently swallows a rejected password resolution", async () => {
     isWarmOrInflightMock.mockReturnValue(false);
     resolveFilePasswordGlobalMock.mockRejectedValue(new Error("locked"));
-    expect(() => prefetchFileDecrypt(makeFile())).not.toThrow();
+    expect(() => prefetchFileDecrypt(makeFile({ id: "swallow" }))).not.toThrow();
     await flushMicrotasks();
     expect(cachedDecryptMock).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed prefetch once after 30s, then stops until the file is opened", async () => {
+    vi.useFakeTimers();
+    try {
+      isWarmOrInflightMock.mockReturnValue(false);
+      resolveFilePasswordGlobalMock.mockRejectedValue(new Error("offline"));
+      const file = makeFile({ id: "cooldown" });
+      prefetchFileDecrypt(file);
+      await vi.advanceTimersByTimeAsync(0);
+      prefetchFileDecrypt(file);
+      await vi.advanceTimersByTimeAsync(29_000);
+      prefetchFileDecrypt(file);
+      expect(resolveFilePasswordGlobalMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      prefetchFileDecrypt(file);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(resolveFilePasswordGlobalMock).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
+      prefetchFileDecrypt(file);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(resolveFilePasswordGlobalMock).toHaveBeenCalledTimes(2);
+
+      cachedDecryptMock.mockResolvedValue(new Blob());
+      const protection = {
+        passwordForFile: vi.fn().mockResolvedValue("pw"),
+        isFileProtected: vi.fn().mockReturnValue(false),
+      } as unknown as UseFolderProtection;
+      const { result } = renderHook(() => useFileDecryptor(protection));
+      await result.current.decryptToBlob(file);
+      resolveFilePasswordGlobalMock.mockResolvedValue("pw");
+      prefetchFileDecrypt(file);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(resolveFilePasswordGlobalMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a successful prefetch leaves no failure record behind", async () => {
+    isWarmOrInflightMock.mockReturnValue(false);
+    resolveFilePasswordGlobalMock.mockResolvedValue("pw");
+    cachedDecryptMock.mockResolvedValue(new Blob());
+    const file = makeFile({ id: "ok-prefetch" });
+    prefetchFileDecrypt(file);
+    await flushMicrotasks();
+    prefetchFileDecrypt(file);
+    await flushMicrotasks();
+    expect(cachedDecryptMock).toHaveBeenCalledTimes(2);
   });
 
   it("runs the decrypt pipeline through cachedDecrypt when a password is available", async () => {

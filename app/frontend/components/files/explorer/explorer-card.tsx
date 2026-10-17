@@ -15,6 +15,7 @@ import { FileHealthBadge } from "./health-badge";
 import { FileActionsMenu } from "./file-actions-menu";
 import { formatBytes, isVideoFile, cn, midTrunc, extOf } from "@/lib/utils";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
+import { retryThumbnail } from "@/hooks/useThumbnail";
 import {
   Folder,
   FolderOpen,
@@ -254,6 +255,18 @@ function FileCardInner({
               />
             )}
           </div>
+          {unavailable && !thumbnailUrl && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                retryThumbnail(file.id);
+              }}
+              className="-mt-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+            >
+              {t("retryPreview")}
+            </button>
+          )}
 
           {/* Name: bottom, wraps to 2 lines like macOS Finder. Smaller on phones
               (11px) so long names don't dominate the tighter 2-column grid. */}

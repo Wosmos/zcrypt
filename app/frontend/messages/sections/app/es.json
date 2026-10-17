@@ -765,7 +765,8 @@
       "retrying": "Reintentando la copia de seguridad de este archivo",
       "retryFailed": "No se pudo reintentar la copia de seguridad",
       "notBackedUpHint": "Este archivo aún no ha llegado a tu almacenamiento. Toca para reintentar.",
-      "notBackedUp": "Sin copia de seguridad"
+      "notBackedUp": "Sin copia de seguridad",
+      "retryPreview": "Reintentar"
     },
     "vaultExplorer": {
       "duplicateFolder": "Ya existe aquí una carpeta llamada «{name}».",

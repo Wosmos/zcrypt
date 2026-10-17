@@ -40,7 +40,7 @@ const memCache = new Map<string, string>();
 // then left the file iconless until a full page reload. With retry, the shimmer
 // simply resolves into the real thumbnail once the chunk lands (a few seconds),
 // no reload needed; a genuinely un-thumbnailable file gives up after MAX_ATTEMPTS.
-const MAX_THUMB_ATTEMPTS = 3;
+const MAX_THUMB_ATTEMPTS = 2;
 // `hard` marks a TERMINAL failure that reflects unrecoverable data (the chunk
 // fetch/decrypt kept failing across every retry, e.g. the file's bytes are
 // genuinely gone from the storage platform), as opposed to an immediate
@@ -700,6 +700,14 @@ onDecryptWipe(wipeThumbnails);
 onDecryptFolderClear(evictFolderThumbnails);
 
 /** Check if a file has a cached thumbnail (no passphrase needed). */
+/** The user asked to try a failed preview again: forget its failures so the
+ *  mounted card starts a fresh pair of attempts. */
+export function retryThumbnail(fileId: string): void {
+  failed.delete(fileId);
+  genStartedAt.delete(fileId);
+  notify(fileId);
+}
+
 export function hasCachedThumbnail(fileId: string): boolean {
   return memCache.has(fileId);
 }

@@ -765,7 +765,8 @@
       "retrying": "Nouvelle tentative de sauvegarde de ce fichier",
       "retryFailed": "Impossible de relancer la sauvegarde",
       "notBackedUpHint": "Ce fichier n'a pas encore atteint votre stockage. Touchez pour réessayer.",
-      "notBackedUp": "Non sauvegardé"
+      "notBackedUp": "Non sauvegardé",
+      "retryPreview": "Réessayer"
     },
     "vaultExplorer": {
       "duplicateFolder": "Un dossier nommé « {name} » existe déjà ici.",

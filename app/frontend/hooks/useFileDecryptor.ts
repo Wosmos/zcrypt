@@ -409,17 +409,28 @@ const HOVER_PREFETCH_MAX_BYTES = 50 * 1024 * 1024;
  * folder unlocked) and otherwise silently does nothing; errors are swallowed:
  * prefetch is purely an optimisation. Deduped via the decrypt cache.
  */
+/** Background prefetch tries a file at most twice (the second after 30s) and
+ *  then stops for good, so an unreachable platform is never polled by hovers or
+ *  viewer re-renders. Opening the file is the user's own retry and clears it. */
+const PREFETCH_COOLDOWN_MS = [30_000, Number.POSITIVE_INFINITY];
+const prefetchFailures = new Map<string, { count: number; retryAt: number }>();
+
 export function prefetchFileDecrypt(file: FileMetadata): void {
   if (file.original_size > HOVER_PREFETCH_MAX_BYTES) return;
   if (isWarmOrInflight(file.id)) return;
+  const failure = prefetchFailures.get(file.id);
+  if (failure && Date.now() < failure.retryAt) return;
   void (async () => {
     try {
       const password = await resolveFilePasswordGlobal(file.id);
       await cachedDecrypt(file.id, file.folder_id ?? null, () =>
         runDecryptPipeline(file, password),
       );
+      prefetchFailures.delete(file.id);
     } catch {
-      // Locked / unavailable / network: prefetch is an optimisation, ignore.
+      const count = (prefetchFailures.get(file.id)?.count ?? 0) + 1;
+      const wait = PREFETCH_COOLDOWN_MS[Math.min(count, PREFETCH_COOLDOWN_MS.length) - 1];
+      prefetchFailures.set(file.id, { count, retryAt: Date.now() + wait });
     }
   })();
 }
@@ -450,6 +461,7 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
       try {
         // Cache hit → returns instantly, skipping the prompt and the pipeline.
         // Concurrent callers for the same id share one decrypt.
+        prefetchFailures.delete(file.id);
         return await cachedDecrypt(file.id, file.folder_id ?? null, async () => {
           // Resolve the right password (vault, or folder pass for a protected
           // folder: prompting/verifying through the existing unlock flow). Can

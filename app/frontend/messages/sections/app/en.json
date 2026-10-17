@@ -765,7 +765,8 @@
       "retrying": "Retrying the backup of this file",
       "retryFailed": "Could not retry the backup",
       "notBackedUpHint": "This file hasn't reached your storage yet. Tap to retry.",
-      "notBackedUp": "Not backed up"
+      "notBackedUp": "Not backed up",
+      "retryPreview": "Try again"
     },
     "vaultExplorer": {
       "duplicateFolder": "A folder named \"{name}\" already exists here.",
