@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { useTranslations } from "next-intl";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
-import { explorerItemPropsEqual, FOCUS_RING } from "./types";
+import { explorerItemPropsEqual, FOCUS_RING, OFFSCREEN_SKIP } from "./types";
 import { folderLook } from "./folder-look";
 import {
   ExplorerEntryDispatch,
@@ -81,6 +81,7 @@ function FolderCard({
           {...(drag.dropHandlers ?? {})}
           className={cn(
             "ft-host group relative flex select-none flex-col items-center gap-1.5 rounded-xl transition-all duration-200 [-webkit-touch-callout:none] focus-visible:ring-inset",
+            OFFSCREEN_SKIP,
             FOCUS_RING,
             drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             drag.isBeingDragged && "opacity-50",
@@ -208,6 +209,7 @@ function FileCardInner({
           onTouchStart={drag.onTouchStart}
           className={cn(
             "ft-host group relative flex select-none flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all duration-200 [-webkit-touch-callout:none] focus-visible:ring-inset",
+            OFFSCREEN_SKIP,
             FOCUS_RING,
             drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             drag.isBeingDragged && "opacity-50",

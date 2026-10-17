@@ -21,6 +21,11 @@ export function gridTemplateColumns(gridCols: GridCols, isMobile: boolean): stri
 export const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
 
+/** Grid cards off screen are neither painted nor rastered. A vault with
+ *  hundreds of tiles otherwise asks the GPU for every card's shadows and
+ *  filters at once on unlock, and Chrome drops whole layers when it runs out. */
+export const OFFSCREEN_SKIP = "[content-visibility:auto] [contain-intrinsic-size:auto_148px]";
+
 /**
  * Accent selection treatment (M4): one consistent look shared by list rows and
  * grid cards: a soft accent tint plus an inset accent ring.
