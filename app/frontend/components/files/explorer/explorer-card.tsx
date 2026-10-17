@@ -272,7 +272,7 @@ function FileCardInner({
             onOpenDetails={onOpenDetails}
             onCustomizeFile={onCustomizeFile}
             onRenameFile={onRenameFile}
-            triggerClassName="absolute right-1.5 top-1.5 z-10 bg-[var(--color-surface)]/80 backdrop-blur"
+            triggerClassName="absolute right-1.5 top-1.5 z-10 bg-[var(--color-surface)]"
           />
         </div>
       </ContextMenuTrigger>

@@ -161,11 +161,14 @@
 .ft-doc {
   width: 76px;
   height: 100px;
-  filter: drop-shadow(0 3px 5px rgba(16, 24, 40, 0.12)) drop-shadow(0 1px 1px rgba(16, 24, 40, 0.08));
+  border-radius: 10px;
+  box-shadow:
+    0 3px 5px rgba(16, 24, 40, 0.12),
+    0 1px 1px rgba(16, 24, 40, 0.08);
   transition: transform 0.3s var(--ft-spring);
 }
 .dark .ft-doc {
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
 }
 .ft-doc-back,
 .ft-doc-page {
@@ -199,7 +202,7 @@
   height: var(--ft-fold-s);
   background: linear-gradient(225deg, transparent 50%, var(--color-surface-2) 50%);
   border-bottom-left-radius: 3px;
-  filter: drop-shadow(-1px 1px 1px rgba(0, 0, 0, 0.12));
+  box-shadow: -1px 1px 1px rgba(0, 0, 0, 0.12);
 }
 .ft-doc-ic {
   width: 28px;
