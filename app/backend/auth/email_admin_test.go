@@ -148,3 +148,19 @@ func TestSendBatchStopsOnCancel(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, 150, sent+failed)
 }
+
+func TestPlainTextKeepsWordsAndLinksAndDropsMarkup(t *testing.T) {
+	in := `<html><head><style>p{color:red}</style></head><body><h1>Hello &amp; welcome</h1>` +
+		`<p>Line one<br>Line   two</p><p><a href="https://www.zcrypt.cloud/x?a=1&amp;b=2">Open zcrypt</a></p>` +
+		`<p><a href="https://www.zcrypt.cloud">https://www.zcrypt.cloud</a></p></body></html>`
+	got := PlainText(in)
+	assert.Equal(t, "Hello & welcome\n\nLine one\nLine two\n\nOpen zcrypt (https://www.zcrypt.cloud/x?a=1&b=2)\n\nhttps://www.zcrypt.cloud", got)
+	assert.NotContains(t, got, "color:red")
+}
+
+func TestEveryOutgoingEmailCarriesATextPart(t *testing.T) {
+	msg := AnnouncementEmail("a@b.c", "News", "Hello there\nhttps://www.zcrypt.cloud", "https://www.zcrypt.cloud/api/email/unsubscribe?token=t", "https://www.zcrypt.cloud")
+	text := PlainText(msg.HTML)
+	assert.Contains(t, text, "Hello there")
+	assert.Contains(t, text, "Unsubscribe (https://www.zcrypt.cloud/api/email/unsubscribe?token=t)")
+}

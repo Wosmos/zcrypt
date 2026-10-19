@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -273,6 +275,7 @@ func sendResend(cfg *EmailConfig, to, subject, htmlBody string) error {
 		"to":      []string{to},
 		"subject": subject,
 		"html":    htmlBody,
+		"text":    PlainText(htmlBody),
 	})
 	if err != nil {
 		return fmt.Errorf("marshal email payload: %w", err)
@@ -298,4 +301,39 @@ func sendResend(cfg *EmailConfig, to, subject, htmlBody string) error {
 	}
 
 	return nil
+}
+
+var (
+	textHead   = regexp.MustCompile(`(?is)<(head|style|script)[^>]*>.*?</(head|style|script)>`)
+	textLink   = regexp.MustCompile(`(?is)<a\s[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+	textBreak  = regexp.MustCompile(`(?i)<br\s*/?>|</li>`)
+	textBlock  = regexp.MustCompile(`(?i)</(p|div|h[1-6]|tr|table|blockquote)>`)
+	textTag    = regexp.MustCompile(`(?s)<[^>]+>`)
+	textSpaces = regexp.MustCompile(`[ \t\r\f\v]+`)
+	textBlank  = regexp.MustCompile(`\n\s*\n\s*\n+`)
+)
+
+// PlainText derives the text/plain alternative sent alongside every HTML
+// email. Mail providers score HTML-only messages as more likely to be spam,
+// and links keep their URL so the text version stays usable.
+func PlainText(htmlBody string) string {
+	s := textHead.ReplaceAllString(htmlBody, "")
+	s = textLink.ReplaceAllStringFunc(s, func(m string) string {
+		parts := textLink.FindStringSubmatch(m)
+		label := strings.TrimSpace(textTag.ReplaceAllString(parts[2], ""))
+		href := html.UnescapeString(parts[1])
+		if label == "" || label == href {
+			return href
+		}
+		return label + " (" + href + ")"
+	})
+	s = textBreak.ReplaceAllString(s, "\n")
+	s = textBlock.ReplaceAllString(s, "\n\n")
+	s = textTag.ReplaceAllString(s, "")
+	s = html.UnescapeString(s)
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimSpace(textSpaces.ReplaceAllString(l, " "))
+	}
+	return strings.TrimSpace(textBlank.ReplaceAllString(strings.Join(lines, "\n"), "\n\n"))
 }

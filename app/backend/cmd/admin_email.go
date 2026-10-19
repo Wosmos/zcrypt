@@ -81,7 +81,7 @@ func validateEmailRequest(req *sendEmailRequest, planOK func(string) bool) (emai
 }
 
 func (s *Server) unsubscribeURL(r *http.Request, userID string) string {
-	return s.backendBaseURL(r) + "/api/email/unsubscribe?token=" + url.QueryEscape(auth.UnsubscribeToken(s.cfg.JWTSecret, userID))
+	return s.baseURL(r) + "/api/email/unsubscribe?token=" + url.QueryEscape(auth.UnsubscribeToken(s.cfg.JWTSecret, userID))
 }
 
 func (s *Server) announcement(r *http.Request, rec types.EmailRecipient, subject, body, baseURL string) auth.OutgoingEmail {

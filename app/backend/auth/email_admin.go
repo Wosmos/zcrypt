@@ -187,7 +187,7 @@ func SendBatch(ctx context.Context, cfg *EmailConfig, msgs []OutgoingEmail) (sen
 func sendBatchChunk(ctx context.Context, cfg *EmailConfig, msgs []OutgoingEmail, interval time.Duration) error {
 	payload := make([]map[string]any, len(msgs))
 	for i, m := range msgs {
-		item := map[string]any{"from": cfg.From, "to": []string{m.To}, "subject": m.Subject, "html": m.HTML}
+		item := map[string]any{"from": cfg.From, "to": []string{m.To}, "subject": m.Subject, "html": m.HTML, "text": PlainText(m.HTML)}
 		if len(m.Headers) > 0 {
 			item["headers"] = m.Headers
 		}
