@@ -3,4 +3,10 @@ ignore = [
     { id = "RUSTSEC-2024-0370", reason = "proc-macro-error 1.0.4 is a build-time macro dependency of glib-macros 0.18, part of the gtk-rs stack Tauri uses on Linux; no Tauri release has moved off it yet" },
     { id = "RUSTSEC-2026-0194", reason = "quick-xml 0.37 and 0.38 come from tauri-winrt-notification and plist, whose releases still require quick-xml below 0.41; they only handle XML the app and Tauri generate, never input from a server or a file" },
     { id = "RUSTSEC-2026-0195", reason = "same quick-xml copies as RUSTSEC-2026-0194: pinned below 0.41 by tauri-winrt-notification and plist, and never fed untrusted XML" },
+    { id = "RUSTSEC-2026-0367", reason = "zip 4.6.1 comes only from tauri-plugin-updater 2.14 (no 2.x release uses zip 9), only on Windows, and it extracts only after the update's minisign signature is verified against our pinned key; the SUID/SGID issue is Unix-only" },
+    { id = "RUSTSEC-2026-0368", reason = "same updater-only zip 4.6.1 copy as RUSTSEC-2026-0367: Windows-only, and it never extracts an archive that failed signature verification, so no attacker-controlled symlink targets reach it" },
+    { id = "RUSTSEC-2026-0369", reason = "same updater-only zip 4.6.1 copy as RUSTSEC-2026-0367: Unix permission handling through symlinks does not apply on Windows, the only platform where it runs, and only on signed archives" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant is unmaintained, not vulnerable; it reaches us only through zbus 5 (Linux D-Bus for notify-rust and tauri-plugin-opener) and no zbus release has replaced it yet" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names is unmaintained, not vulnerable; same Linux-only zbus 5 path as RUSTSEC-2026-0370, with no replacement available upstream" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is unmaintained, not vulnerable; same Linux-only zbus 5 path as RUSTSEC-2026-0370" },
 ]
