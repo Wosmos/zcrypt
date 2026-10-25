@@ -132,7 +132,7 @@ describe("useDownloadStore", () => {
       expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
       expect(lastCallOptions().saveToDisk).toBeUndefined();
       expect(getItem(id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("small.txt downloaded");
+      expect(toast.success).toHaveBeenCalledWith("small.txt downloaded", expect.anything());
     });
 
     it("passes a persistent resume object and a pausing() callback into the pipeline", async () => {
@@ -1334,7 +1334,7 @@ describe("useDownloadStore", () => {
         "/save/path"
       );
       expect(getItem(id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded");
+      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded", expect.anything());
       expect(notifications.downloadComplete).toHaveBeenCalledWith("2 files (ZIP)");
     });
 
@@ -1476,7 +1476,7 @@ describe("useDownloadStore", () => {
       expect(item.fileSize).toBe(300);
       await flush();
       expect(getItem(item.id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded");
+      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded", expect.anything());
     });
 
     it("paints ZIP progress from downloadAsZip's onProgress callback", async () => {
@@ -1565,6 +1565,7 @@ describe("useDownloadStore", () => {
       expect(toast.success).not.toHaveBeenCalled();
       expect(toast.warning).toHaveBeenCalledWith(
         "ZIP saved without 2 of 2 files (b.txt, c.txt). Download those individually.",
+        expect.anything(),
       );
       expect(useFolderPasswordStore.getState().get("folder-2")).toBeNull();
     });

@@ -352,7 +352,7 @@ describe("useUploadStore", () => {
       expect(completeUpload).toHaveBeenCalledWith("sess-1", 10, 10);
       expect(getItem(id)?.status).toBe("done");
       expect(getItem(id)?.progress).toBe(100);
-      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded");
+      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded", expect.anything());
     });
 
     it("materializes an optimistic row in the file list on completion", async () => {
@@ -490,7 +490,7 @@ describe("useUploadStore", () => {
     it("shows a single-file success toast for one file", async () => {
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       await flush();
-      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded");
+      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded", expect.anything());
     });
 
     it("shows a single-file failure toast for one file", async () => {
@@ -505,7 +505,7 @@ describe("useUploadStore", () => {
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
       await flush();
-      expect(toast.success).toHaveBeenCalledWith("All 2 files uploaded");
+      expect(toast.success).toHaveBeenCalledWith("All 2 files uploaded", expect.anything());
     });
 
     it("shows an all-failed toast for a multi-file batch", async () => {
@@ -528,7 +528,7 @@ describe("useUploadStore", () => {
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
       await flush();
-      expect(toast.warning).toHaveBeenCalledWith("1 uploaded, 1 failed");
+      expect(toast.warning).toHaveBeenCalledWith("1 uploaded, 1 failed", expect.anything());
     });
 
     it("calls onRefresh once the whole batch settles", async () => {

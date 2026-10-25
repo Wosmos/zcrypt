@@ -140,7 +140,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
         maxDownloads,
       });
       setNewLink(url);
-      toast.success(tr("details.shareCreated"));
+      toast.success(tr("details.shareCreated"), { sound: { event: "done", area: "sharing" } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : tr("details.shareFailed"));
     } finally {
@@ -522,6 +522,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
         destructive
         title={t("revokeTitle")}
         description={t("revokeBody")}
+        preview={{ names: [file.original_name] }}
         confirmLabel={t("revoke")}
         loading={revoking}
         onConfirm={handleRevoke}

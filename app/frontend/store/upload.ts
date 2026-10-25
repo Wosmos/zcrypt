@@ -1496,15 +1496,22 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       // user will see the per-item completion in the transfer manager.
       if (pausedCount === 0) {
         if (total === 1) {
-          if (doneCount === 1) toast.success(tr("toasts.uploaded", { name: items[0].file.name }));
+          if (doneCount === 1)
+            toast.success(tr("toasts.uploaded", { name: items[0].file.name }), {
+              sound: { event: "done", area: "transfers" },
+            });
           else if (failedCount === 1)
             toast.error(tr("toasts.failedName", { name: items[0].file.name }));
         } else if (failedCount === 0) {
-          toast.success(tr("toasts.allUploaded", { count: doneCount }));
+          toast.success(tr("toasts.allUploaded", { count: doneCount }), {
+            sound: { event: "done", area: "transfers" },
+          });
         } else if (doneCount === 0) {
           toast.error(tr("toasts.allFailed", { count: failedCount }));
         } else {
-          toast.warning(tr("toasts.partialUpload", { done: doneCount, failed: failedCount }));
+          toast.warning(tr("toasts.partialUpload", { done: doneCount, failed: failedCount }), {
+            sound: { event: "headsUp", area: "transfers" },
+          });
         }
       }
 

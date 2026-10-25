@@ -59,4 +59,84 @@ describe("usePreferencesStore", () => {
     expect(usePreferencesStore.getState().advancedMode).toBe(false);
     expect(localStorage.setItem).toHaveBeenCalledWith("zcrypt-advanced-mode", "false");
   });
+  describe("sound preferences", () => {
+    const saved = (value: unknown) =>
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockImplementation((k: string) =>
+        k === "zcrypt-sound-prefs" ? JSON.stringify(value) : null,
+      );
+
+    it("defaults to soft, everything on, background only", async () => {
+      const { usePreferencesStore, DEFAULT_SOUND_PREFS } = await import("@/store/preferences");
+      expect(usePreferencesStore.getState().sound).toEqual(DEFAULT_SOUND_PREFS);
+      expect(DEFAULT_SOUND_PREFS).toMatchObject({
+        enabled: true,
+        set: "soft",
+        vibrate: true,
+        backgroundOnly: true,
+      });
+    });
+
+    it("defaults to the built-in choices when window is undefined (SSR)", async () => {
+      vi.stubGlobal("window", undefined);
+      const { usePreferencesStore, DEFAULT_SOUND_PREFS } = await import("@/store/preferences");
+      expect(usePreferencesStore.getState().sound).toEqual(DEFAULT_SOUND_PREFS);
+    });
+
+    it("reads saved choices and fills in anything missing or invalid", async () => {
+      saved({ enabled: false, set: "glass", areas: { sharing: false, security: "no" }, vibrate: false });
+      const { loadSoundPrefs } = await import("@/store/preferences");
+      expect(loadSoundPrefs()).toEqual({
+        enabled: false,
+        set: "glass",
+        areas: { transfers: true, sharing: false, security: true, problems: true },
+        vibrate: false,
+        backgroundOnly: true,
+      });
+    });
+
+    it("keeps valid booleans for background only and ignores an unknown set", async () => {
+      saved({ set: "loud", backgroundOnly: false });
+      const { loadSoundPrefs } = await import("@/store/preferences");
+      expect(loadSoundPrefs()).toMatchObject({ set: "soft", backgroundOnly: false });
+    });
+
+    it("falls back to defaults for null, non-object or unreadable storage", async () => {
+      const { loadSoundPrefs, DEFAULT_SOUND_PREFS } = await import("@/store/preferences");
+      saved(null);
+      expect(loadSoundPrefs()).toEqual(DEFAULT_SOUND_PREFS);
+      saved(7);
+      expect(loadSoundPrefs()).toEqual(DEFAULT_SOUND_PREFS);
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue("{broken");
+      expect(loadSoundPrefs()).toEqual(DEFAULT_SOUND_PREFS);
+    });
+
+    it("setSound merges, updates state and persists", async () => {
+      const { usePreferencesStore } = await import("@/store/preferences");
+      usePreferencesStore.getState().setSound({ set: "minimal", vibrate: false });
+      expect(usePreferencesStore.getState().sound).toMatchObject({ set: "minimal", vibrate: false, enabled: true });
+      const [key, value] = (localStorage.setItem as ReturnType<typeof vi.fn>).mock.calls.at(-1) as string[];
+      expect(key).toBe("zcrypt-sound-prefs");
+      expect(JSON.parse(value).set).toBe("minimal");
+    });
+
+    it("setSoundArea flips one area and leaves the rest", async () => {
+      const { usePreferencesStore } = await import("@/store/preferences");
+      usePreferencesStore.getState().setSoundArea("security", false);
+      expect(usePreferencesStore.getState().sound.areas).toEqual({
+        transfers: true,
+        sharing: true,
+        security: false,
+        problems: true,
+      });
+    });
+
+    it("still applies a choice when storage refuses the write", async () => {
+      (localStorage.setItem as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      const { usePreferencesStore } = await import("@/store/preferences");
+      usePreferencesStore.getState().setSound({ enabled: false });
+      expect(usePreferencesStore.getState().sound.enabled).toBe(false);
+    });
+  });
 });

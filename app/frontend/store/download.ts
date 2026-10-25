@@ -283,7 +283,9 @@ function runSingleDownload(id: string): Promise<void> {
       updateProgress(id, "done", 100, "Done");
       sessions.delete(id);
       pausedIds.delete(id);
-      toast.success(tr("toasts.downloaded", { name: session.filename }));
+      toast.success(tr("toasts.downloaded", { name: session.filename }), {
+        sound: { event: "done", area: "transfers" },
+      });
       notifications.downloadComplete(session.filename);
       if (
         typeof window !== "undefined" &&
@@ -574,7 +576,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         zipSessions.delete(id);
         notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
         if (report.failed.length === 0) {
-          toast.success(tr("toasts.zipDone", { count: files.length }));
+          toast.success(tr("toasts.zipDone", { count: files.length }), {
+            sound: { event: "done", area: "transfers" },
+          });
           return;
         }
         for (const f of report.failed) {
@@ -583,6 +587,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         const names = report.failed.map((f) => f.filename).join(", ");
         toast.warning(
           tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
+          { sound: { event: "headsUp", area: "transfers" } },
         );
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -679,7 +684,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
-        toast.success(tr("toasts.zipDone", { count: files.length }));
+        toast.success(tr("toasts.zipDone", { count: files.length }), {
+          sound: { event: "done", area: "transfers" },
+        });
         notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: files.length }));
       } catch (err) {
         const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");

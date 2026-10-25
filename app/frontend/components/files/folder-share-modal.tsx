@@ -129,6 +129,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
           skipped > 0
             ? t("folder.createdSkipped", { shared, skipped })
             : t("folder.created", { shared }),
+          { sound: { event: "done", area: "sharing" } },
         );
       }
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folder.id) });
