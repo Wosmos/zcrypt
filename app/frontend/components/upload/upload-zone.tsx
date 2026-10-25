@@ -12,6 +12,13 @@ interface UploadZoneProps {
   compact?: boolean;
 }
 
+const PREPARING_SAFETY_MS = 5 * 60 * 1000;
+const NO_CANCEL_GUESS_MS = 3000;
+
+function supportsCancelEvent(): boolean {
+  return typeof HTMLInputElement !== "undefined" && "oncancel" in HTMLInputElement.prototype;
+}
+
 export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   const t = useTranslations("app.uploadZone");
   const [dragOver, setDragOver] = useState(false);
@@ -25,6 +32,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   // Synchronous mirror of `preparing`. React state updates are async, so a
   // rapid double-tap could slip past a state-only guard and open two pickers.
   const preparingRef = useRef(false);
+  const pickerOpenRef = useRef(false);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The file input is a PERSISTENT hidden element in the JSX (same pattern as
@@ -36,6 +44,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
 
   const clearPreparing = useCallback(() => {
     preparingRef.current = false;
+    pickerOpenRef.current = false;
     setPreparing(false);
     if (focusTimerRef.current) {
       clearTimeout(focusTimerRef.current);
@@ -63,10 +72,11 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   }, []);
 
   const handleClick = useCallback(() => {
-    if (preparingRef.current) return; // picker already open / files preparing
+    if (pickerOpenRef.current) return;
     // Set BEFORE opening the picker so the guard is up the instant the (modal,
     // possibly slow-to-appear) native UI takes over.
     preparingRef.current = true;
+    pickerOpenRef.current = true;
     setPreparing(true);
 
     // Desktop: go straight to Tauri's native dialog and skip the hidden
@@ -114,18 +124,23 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     return () => input.removeEventListener("cancel", onCancel);
   }, [clearPreparing]);
 
-  // Fallback for older iOS with no "cancel" event: when the window regains
-  // focus (picker closed) and no change event arrives within 3s, assume the
-  // picker was dismissed and clear the preparing state. A slow HEIC/HEVC
-  // transcode can outlive the 3s: worst case the spinner clears early and the
-  // zone becomes clickable again, which is safe.
+  // When the picker closes, the phone may still spend a minute or more
+  // preparing a large photo selection (iOS HEIC transcodes, Android copying
+  // cloud photos) before change fires. Browsers that fire "cancel" tell us
+  // when nothing was picked, so keep the spinner up until change or cancel,
+  // with a long safety net. Only browsers without "cancel" fall back to the
+  // short focus guess.
   useEffect(() => {
     const onFocus = () => {
+      pickerOpenRef.current = false;
       if (!preparingRef.current) return;
       if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
-      focusTimerRef.current = setTimeout(() => {
-        if (preparingRef.current) clearPreparing();
-      }, 3000);
+      focusTimerRef.current = setTimeout(
+        () => {
+          if (preparingRef.current) clearPreparing();
+        },
+        supportsCancelEvent() ? PREPARING_SAFETY_MS : NO_CANCEL_GUESS_MS,
+      );
     };
     window.addEventListener("focus", onFocus);
     return () => {
