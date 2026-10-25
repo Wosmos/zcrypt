@@ -55,4 +55,34 @@ describe("useTransferDockStore", () => {
     expect(after.visible).toBe(false);
     expect(after.height).toBe(120);
   });
+
+  it("holds the page's drop target and clears it", () => {
+    const target = { folderName: "Family", upload: () => {}, download: () => {} };
+    useTransferDockStore.getState().setDropTarget(target);
+    expect(useTransferDockStore.getState().dropTarget).toBe(target);
+    useTransferDockStore.getState().setDropTarget(null);
+    expect(useTransferDockStore.getState().dropTarget).toBeNull();
+  });
+
+  it("remembers folder names and skips no-op writes", () => {
+    useTransferDockStore.getState().rememberFolder("f1", "Family");
+    const before = useTransferDockStore.getState();
+    expect(before.folderNames.f1).toBe("Family");
+    useTransferDockStore.getState().rememberFolder("f1", "Family");
+    expect(useTransferDockStore.getState()).toBe(before);
+    useTransferDockStore.getState().rememberFolder("f1", "Trips");
+    expect(useTransferDockStore.getState().folderNames.f1).toBe("Trips");
+  });
+
+  it("records bars as high-water marks, drops gone rows, and skips no-op writes", () => {
+    useTransferDockStore.setState({ bars: {} });
+    useTransferDockStore.getState().recordBars({ a: 40, b: 10 });
+    useTransferDockStore.getState().recordBars({ a: 20, b: 10 });
+    expect(useTransferDockStore.getState().bars).toEqual({ a: 40, b: 10 });
+    const before = useTransferDockStore.getState();
+    useTransferDockStore.getState().recordBars({ a: 40, b: 10 });
+    expect(useTransferDockStore.getState()).toBe(before);
+    useTransferDockStore.getState().recordBars({ a: 50 });
+    expect(useTransferDockStore.getState().bars).toEqual({ a: 50 });
+  });
 });

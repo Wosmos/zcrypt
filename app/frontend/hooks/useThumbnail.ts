@@ -835,6 +835,15 @@ export function useThumbnail(
   return { thumbnailUrl, loading, pending, unavailable, cardRef };
 }
 
+/** Read-only: a file's cached thumbnail, updating when it lands. Never fetches or decrypts. */
+export function useCachedThumbnail(fileId: string | undefined): string | null {
+  const id = fileId ?? "";
+  const sub = useCallback((cb: () => void) => subscribeId(id, cb), [id]);
+  const ver = useCallback(() => getIdVersion(id), [id]);
+  useSyncExternalStore(sub, ver, ver);
+  return fileId ? (memCache.get(fileId) ?? null) : null;
+}
+
 /** Hook to get all cached thumbnails (for listing). */
 export function useThumbnailCache(): Map<string, string> {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

@@ -1161,6 +1161,19 @@ describe("useThumbnail", () => {
     a2.unmount();
   });
 
+  it("useCachedThumbnail reads the cache without generating and updates when a seed lands", async () => {
+    const { useCachedThumbnail, seedThumbnailFromFile } = await loadModule();
+    const { result } = renderHook(() => useCachedThumbnail("f1"));
+    const none = renderHook(() => useCachedThumbnail(undefined));
+    expect(result.current).toBeNull();
+    expect(none.result.current).toBeNull();
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["b"], "photo.jpg"), "photo.jpg");
+    });
+    expect(result.current).toBe("data:image/webp;base64,FAKE");
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+  });
+
   it("seedThumbnailFromFile caches a video poster frame from local bytes", async () => {
     const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
 
