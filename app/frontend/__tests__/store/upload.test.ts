@@ -49,6 +49,20 @@ import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import type { SidecarProgress } from "@/lib/tauri";
+import { useTransferDockStore } from "@/store/transfer-dock";
+
+const { notifyMock, getCachedThumbnailMock } = vi.hoisted(() => ({
+  notifyMock: vi.fn(async (_event: import("@/lib/notify").NotifyEvent) => true),
+  getCachedThumbnailMock: vi.fn((_id?: string): string | undefined => undefined),
+}));
+vi.mock("@/lib/notify", () => ({
+  notify: notifyMock,
+  failureReason: (kind: string) => `reason:${kind}`,
+}));
+vi.mock("@/hooks/useThumbnail", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/useThumbnail")>()),
+  getCachedThumbnail: getCachedThumbnailMock,
+}));
 
 vi.mock("@/lib/upload-session", () => ({
   initUpload: vi.fn(),
@@ -226,6 +240,9 @@ describe("useUploadStore", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.restoreAllMocks();
+    notifyMock.mockClear();
+    getCachedThumbnailMock.mockReset();
+    useTransferDockStore.setState({ folderNames: {} });
     // Clears call-count history on the @/lib/crypto mocks specifically, their
     // baked-in factory implementations are never touched by the manual
     // .mockReset() calls below, so without this their call counts (e.g.
@@ -352,7 +369,7 @@ describe("useUploadStore", () => {
       expect(completeUpload).toHaveBeenCalledWith("sess-1", 10, 10);
       expect(getItem(id)?.status).toBe("done");
       expect(getItem(id)?.progress).toBe(100);
-      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded");
+      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded", expect.anything());
     });
 
     it("materializes an optimistic row in the file list on completion", async () => {
@@ -490,7 +507,7 @@ describe("useUploadStore", () => {
     it("shows a single-file success toast for one file", async () => {
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       await flush();
-      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded");
+      expect(toast.success).toHaveBeenCalledWith("a.txt uploaded", expect.anything());
     });
 
     it("shows a single-file failure toast for one file", async () => {
@@ -505,7 +522,7 @@ describe("useUploadStore", () => {
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
       await flush();
-      expect(toast.success).toHaveBeenCalledWith("All 2 files uploaded");
+      expect(toast.success).toHaveBeenCalledWith("All 2 files uploaded", expect.anything());
     });
 
     it("shows an all-failed toast for a multi-file batch", async () => {
@@ -528,7 +545,7 @@ describe("useUploadStore", () => {
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
       await flush();
-      expect(toast.warning).toHaveBeenCalledWith("1 uploaded, 1 failed");
+      expect(toast.warning).toHaveBeenCalledWith("1 uploaded, 1 failed", expect.anything());
     });
 
     it("calls onRefresh once the whole batch settles", async () => {
@@ -1195,95 +1212,63 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("background notifications: full branch matrix", () => {
-    function stubNotification(permission: NotificationPermission) {
-      const ctorSpy = vi.fn();
-      class FakeNotification {
-        static permission = permission;
-        constructor(...args: unknown[]) {
-          ctorSpy(...args);
-        }
-      }
-      vi.stubGlobal("Notification", FakeNotification);
-      return ctorSpy;
-    }
+  describe("background notifications: batch end", () => {
+    const calls = (type: string) =>
+      notifyMock.mock.calls.map(([e]) => e).filter((e: { type: string }) => e.type === type);
 
-    it("never notifies when permission is not granted", async () => {
-      const ctorSpy = stubNotification("denied");
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-      let releaseChunk: () => void = () => {};
-      (uploadChunk as Mock).mockImplementation(() => new Promise<void>((resolve) => {
-        releaseChunk = resolve;
-      }));
-      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
-      await flush(5);
-      vi.advanceTimersByTime(3000);
-
-      expect(ctorSpy).not.toHaveBeenCalled();
-      releaseChunk();
-      await flush();
-    });
-
-    // The "all work settled" notification (lines ~52-65) fires from WITHIN
-    // the setInterval poller's own tick, but startUpload's own batch-settle
-    // handler ALSO clears that interval the moment Promise.all resolves, via
-    // a pure microtask chain with no timer delay in the happy path. That
-    // microtask reaction always wins the race against the next real 3s tick,
-    // so the interval never survives long enough to OBSERVE "done" through
-    // real time advancement. Rather than fight that unwinnable race, capture
-    // the tick callback directly off `setInterval` and invoke it ourselves:
-    // this exercises the exact same closure/branches with the same
-    // `getBatchState` wiring, just without depending on wall-clock timing.
-    function captureIntervalTick(): { getTick: () => (() => void) | undefined } {
-      let tick: (() => void) | undefined;
-      vi.stubGlobal("setInterval", ((cb: () => void) => {
-        tick = cb;
-        return 999 as unknown as ReturnType<typeof setInterval>;
-      }) as typeof setInterval);
-      return { getTick: () => tick };
-    }
-
-    it("sends an all-succeeded 'Upload complete' notification once its poller tick observes a fully-settled batch", async () => {
-      const ctorSpy = stubNotification("granted");
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-      const { getTick } = captureIntervalTick();
-
+    it("reports a finished multi-file batch with its folder and the newest thumbnail", async () => {
+      getCachedThumbnailMock.mockReturnValue("data:image/webp;base64,AA");
       useUploadStore
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
       await flush();
-      expect(getItem(queueIdFor(0))?.status).toBe("done");
-      expect(getItem(queueIdFor(1))?.status).toBe("done");
-
-      getTick()!();
-
-      const finalCall = ctorSpy.mock.calls.find(([title]) => title === "Upload complete");
-      expect(finalCall).toBeDefined();
-      expect(finalCall![1].body).toBe("All 2 files uploaded");
-      expect(finalCall![1]).toMatchObject({ icon: "/brand/icon-192.png", tag: "zcrypt-upload-progress", silent: true });
+      expect(calls("transferDone")).toEqual([
+        {
+          type: "transferDone",
+          kind: "upload",
+          count: 2,
+          failed: 0,
+          folder: "My Vault",
+          folderId: null,
+          thumbnail: "data:image/webp;base64,AA",
+        },
+      ]);
     });
 
-    it("sends a partial-failure 'Upload complete' notification once its poller tick observes a mixed-result batch", async () => {
-      const ctorSpy = stubNotification("granted");
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-      const { getTick } = captureIntervalTick();
+    it("names a remembered destination folder and falls back when the name is unknown", async () => {
+      useTransferDockStore.getState().rememberFolder("fold-1", "Family");
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, "fold-1");
+      await flush();
+      expect(calls("transferDone")[0]).toMatchObject({ folder: "Family", folderId: "fold-1", thumbnail: undefined });
+
+      notifyMock.mockClear();
+      useUploadStore.getState().startUpload([makeFile("c.txt", 10), makeFile("d.txt", 10)], "pw", "telegram", 2, undefined, "fold-2");
+      await flush();
+      expect(calls("transferDone")[0]).toMatchObject({ folder: "its folder", folderId: "fold-2" });
+    });
+
+    it("reports a single failed file by name with a plain reason", async () => {
+      (uploadChunk as Mock).mockRejectedValue(new Error("bad request"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      expect(calls("transferFailed")).toEqual([
+        { type: "transferFailed", kind: "upload", name: "a.txt", reason: "reason:upload" },
+      ]);
+      expect(calls("transferDone")).toHaveLength(0);
+    });
+
+    it("reports a mixed batch with its failure count", async () => {
       (uploadChunk as Mock).mockImplementation(async (sessionId: string) => {
         if (sessionId === "sess-fail") throw new Error("bad request");
       });
       (initUpload as Mock)
         .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-ok" }))
         .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-fail" }));
-
       useUploadStore
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
       await flush();
-
-      getTick()!();
-
-      const finalCall = ctorSpy.mock.calls.find(([title]) => title === "Upload complete");
-      expect(finalCall).toBeDefined();
-      expect(finalCall![1].body).toBe("1 uploaded, 1 failed");
+      expect(calls("transferDone")[0]).toMatchObject({ count: 1, failed: 1 });
     });
   });
 
@@ -1585,6 +1570,39 @@ describe("useUploadStore", () => {
   });
 
   describe("startDesktopUpload", () => {
+    it("notifies progress while files stream and a summary when the batch settles", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin", "/tmp/b.bin"]);
+      let releaseB: () => void = () => {};
+      (sidecarUpload as Mock).mockImplementation((path: string) =>
+        path === "/tmp/a.bin" ? Promise.resolve() : new Promise<void>((res) => { releaseB = res; }),
+      );
+      const run = useUploadStore.getState().startDesktopUpload("pw", undefined);
+      await flush(5);
+      const progress = notifyMock.mock.calls.map(([e]) => e).filter((e: { type: string }) => e.type === "transferProgress");
+      expect(progress.at(-1)).toMatchObject({ kind: "upload", done: 1, total: 2, percent: 50 });
+      releaseB();
+      await run;
+      expect(notifyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "transferDone", kind: "upload", count: 2, failed: 0 }),
+      );
+    });
+
+    it("skips the summary when every item was cancelled", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      let release: () => void = () => {};
+      (sidecarUpload as Mock).mockImplementation(() => new Promise<void>((res) => { release = res; }));
+      const run = useUploadStore.getState().startDesktopUpload("pw", undefined);
+      await flush(5);
+      useUploadStore.getState().removeFromQueue(useUploadStore.getState().queue[0].id);
+      vi.advanceTimersByTime(3000);
+      notifyMock.mockClear();
+      release();
+      await run;
+      expect(notifyMock).not.toHaveBeenCalled();
+    });
+
     it("does nothing when the native picker returns no paths", async () => {
       const { pickFiles } = await import("@/lib/tauri");
       (pickFiles as Mock).mockResolvedValue([]);
@@ -2028,67 +2046,35 @@ describe("useUploadStore", () => {
   });
 
   describe("background notifications", () => {
-    it("posts a per-batch progress notification only while the tab is hidden and permission is granted", async () => {
-      class FakeNotification {
-        static permission: NotificationPermission = "granted";
-        title: string;
-        options?: NotificationOptions;
-        constructor(title: string, options?: NotificationOptions) {
-          this.title = title;
-          this.options = options;
-        }
-      }
-      vi.stubGlobal("Notification", FakeNotification);
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-      const ctorSpy = vi.fn();
-      vi.stubGlobal(
-        "Notification",
-        new Proxy(FakeNotification, {
-          construct(target, args) {
-            ctorSpy(...args);
-            return new target(args[0] as string, args[1] as NotificationOptions);
-          },
-        })
-      );
-
+    it("posts progress every 3 seconds while the batch runs, with the in-flight thumbnail", async () => {
+      getCachedThumbnailMock.mockImplementation((id?: string) => (id ? "data:thumb" : undefined));
       let releaseChunk: () => void = () => {};
       (uploadChunk as Mock).mockImplementation(() => new Promise<void>((resolve) => {
         releaseChunk = resolve;
       }));
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       await flush(5);
+      notifyMock.mockClear();
       vi.advanceTimersByTime(3000);
 
-      expect(ctorSpy).toHaveBeenCalled();
-      const [, opts] = ctorSpy.mock.calls[0];
-      expect(opts.tag).toBe("zcrypt-upload-progress");
-
+      expect(notifyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "transferProgress", kind: "upload", done: 0, total: 1, thumbnail: "data:thumb" }),
+      );
       releaseChunk();
       await flush();
-      delete (document as { hidden?: boolean }).hidden;
     });
 
-    it("does not post anything while the tab is visible", async () => {
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
-      const ctorSpy = vi.fn();
-      vi.stubGlobal("Notification", class {
-        static permission: NotificationPermission = "granted";
-        constructor(...args: unknown[]) {
-          ctorSpy(...args);
-        }
-      });
-      let releaseChunk: () => void = () => {};
-      (uploadChunk as Mock).mockImplementation(() => new Promise<void>((resolve) => {
-        releaseChunk = resolve;
-      }));
+    it("stays quiet on a tick that sees the batch already settled", async () => {
+      let tick: (() => void) | undefined;
+      vi.stubGlobal("setInterval", ((cb: () => void) => {
+        tick = cb;
+        return 999 as unknown as ReturnType<typeof setInterval>;
+      }) as typeof setInterval);
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
-      await flush(5);
-      vi.advanceTimersByTime(3000);
-
-      expect(ctorSpy).not.toHaveBeenCalled();
-      releaseChunk();
       await flush();
-      delete (document as { hidden?: boolean }).hidden;
+      notifyMock.mockClear();
+      tick!();
+      expect(notifyMock).not.toHaveBeenCalled();
     });
   });
 

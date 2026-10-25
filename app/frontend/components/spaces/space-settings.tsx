@@ -241,7 +241,7 @@ export function SpaceSettings() {
   } | null>(null);
   const [removing, setRemoving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [typed, setTyped] = useState("");
+  const [rotateOpen, setRotateOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const spaceName = meta.name || t("shared.space");
@@ -611,7 +611,7 @@ export function SpaceSettings() {
             {rotateError && <Notice tone="error">{rotateError}</Notice>}
             <Button
               variant={d.needs_rotation ? "primary" : "secondary"}
-              onClick={() => void handleRotate()}
+              onClick={() => setRotateOpen(true)}
               disabled={rotating}
             >
               {rotating ? (
@@ -631,13 +631,7 @@ export function SpaceSettings() {
           description={perms.owner ? t("settings.dangerOwner") : t("settings.dangerMember")}
         >
           {perms.owner ? (
-            <Button
-              variant="danger"
-              onClick={() => {
-                setTyped("");
-                setDeleteOpen(true);
-              }}
-            >
+            <Button variant="danger" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" />
               {t("settings.deleteSpace")}
             </Button>
@@ -691,18 +685,27 @@ export function SpaceSettings() {
           b: (chunks) => <span className="font-medium text-[var(--color-text)]">{chunks}</span>,
         })}
         confirmLabel={t("settings.deleteConfirm")}
-        confirmDisabled={typed.trim() !== meta.name}
+        typeToConfirm={meta.name}
         loading={deleting}
         onConfirm={() => void handleDelete()}
-      >
-        <Input
-          aria-label={t("settings.typeAria")}
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          placeholder={spaceName}
-          autoComplete="off"
-        />
-      </ConfirmDialog>
+      />
+
+      <ConfirmDialog
+        open={rotateOpen}
+        onOpenChange={(o) => {
+          if (!rotating && !o) setRotateOpen(false);
+        }}
+        variant="warning"
+        icon={Key}
+        title={t("settings.rotateConfirmTitle")}
+        description={t("settings.rotateConfirmDesc")}
+        confirmLabel={t("settings.rotateConfirm")}
+        loading={rotating}
+        onConfirm={() => {
+          setRotateOpen(false);
+          void handleRotate();
+        }}
+      />
     </PageShell>
   );
 }

@@ -203,21 +203,23 @@ export function MoveToFolderDialog({
   const undoMoveFor = (ids: string[]) => {
     if (!originOf) return undefined;
     const origins = ids.map((id) => [id, originOf(id)] as const);
-    return {
-      label: t("undo"),
-      onClick: async () => {
-        try {
-          for (const [id, folder] of origins) {
-            if (onMoveFile) await onMoveFile(id, folder);
-            else await moveFile(id, folder);
-          }
-        } catch {
-          toast.error(t("undoFailed"));
-        } finally {
-          onMoved?.();
+    return async () => {
+      try {
+        for (const [id, folder] of origins) {
+          if (onMoveFile) await onMoveFile(id, folder);
+          else await moveFile(id, folder);
         }
-      },
+      } catch {
+        toast.error(t("undoFailed"));
+      } finally {
+        onMoved?.();
+      }
     };
+  };
+
+  const toastMoved = (message: string, undo: (() => Promise<void>) | undefined) => {
+    if (undo) toast.undo(message, () => void undo());
+    else toast.success(message);
   };
 
   const handleMove = async () => {
@@ -277,7 +279,7 @@ export function MoveToFolderDialog({
       if (failed > 0) {
         toast.warning(t("partial", { succeeded, failed }));
       } else {
-        toast.success(t("movedCount", { count: succeeded }), undo);
+        toastMoved(t("movedCount", { count: succeeded }), undo);
       }
       onMoved?.();
       onClose();
@@ -293,7 +295,7 @@ export function MoveToFolderDialog({
       // fallback is a plain move (unprotected → unprotected, byte-for-byte same).
       if (onMoveFile) await onMoveFile(fileId, selected);
       else await moveFile(fileId, selected);
-      toast.success(selected === null ? t("movedRoot") : t("fileMoved"), undo);
+      toastMoved(selected === null ? t("movedRoot") : t("fileMoved"), undo);
       onMoved?.();
       onClose();
     } catch (err) {

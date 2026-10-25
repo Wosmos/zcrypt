@@ -107,7 +107,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
       setGeneratedToken(token);
       setShareKeyB64(shareKey);
       setStep("link");
-      toast.success(t("created"));
+      toast.success(t("created"), { sound: { event: "done", area: "sharing" } });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("createFailed"));
     } finally {

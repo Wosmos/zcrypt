@@ -108,12 +108,6 @@
     },
     "transfer": {
       "title": "Transfers",
-      "complete": "Transfers complete",
-      "failedCount": "{count} failed",
-      "activeCount": "{count} active",
-      "clearCompleted": "Clear completed",
-      "expand": "Expand transfers",
-      "collapse": "Collapse transfers",
       "openFolderRetryTransfer": "Open the protected folder to unlock it, then retry this transfer.",
       "openFolderRetryDownload": "Open the protected folder to unlock it, then retry this download.",
       "pauseUpload": "Pause upload",
@@ -125,50 +119,104 @@
       "resumeDownload": "Resume download",
       "retryDownload": "Retry download",
       "dismiss": "Dismiss",
-      "eta": {
-        "seconds": "~{count}s left",
-        "minutes": "~{count}m left",
-        "hoursMinutes": "~{hours}h {minutes}m left"
+      "rootFolder": "My Vault",
+      "folderFallback": "its folder",
+      "lockTip": "Encrypted on this device before anything leaves it",
+      "minimize": "Minimize transfers",
+      "open": "Open transfers",
+      "close": "Close transfers",
+      "retry": "Retry",
+      "retryFailed": "Retry failed",
+      "pauseAll": "Pause all",
+      "resumeAll": "Resume all",
+      "clearDone": "Clear done",
+      "header": {
+        "timeLeft": "{time} left",
+        "done": "done",
+        "paused": "paused",
+        "speed": "{speed}/s",
+        "downloads": "{count, plural, one {# download} other {# downloads}}",
+        "failed": "{count} failed"
       },
-      "stage": {
-        "paused": "Paused",
-        "queued": "Queued",
-        "done": "Done",
-        "failed": "Failed",
-        "cancelled": "Cancelled",
-        "uploaded": "Uploaded",
+      "progress": {
+        "ready": "Getting ready",
+        "securing": "Securing on this device",
+        "sending": "Sending",
+        "sendingBytes": "Sending · {done} of {total}",
+        "sendingEta": "Sending · {time}",
+        "checking": "Checking…",
+        "savedTo": "Saved to {folder}",
+        "fetching": "Fetching",
+        "fetchingBytes": "Fetching · {done} of {total}",
+        "fetchingEta": "Fetching · {time}",
+        "unlocking": "Unlocking on this device",
+        "saving": "Saving…",
         "downloaded": "Downloaded",
-        "resuming": "Resuming…",
-        "retrying": "Retrying...",
-        "uploading": "Uploading...",
-        "downloading": "Downloading...",
-        "finalizing": "Finalizing...",
-        "hashing": "Hashing file…",
-        "hashingPercent": "Hashing file… {percent}%",
-        "derivingKey": "Deriving encryption key...",
-        "startingSession": "Starting upload session...",
-        "chooseSave": "Choose where to save…",
-        "fetchingMeta": "Fetching metadata...",
-        "verifying": "Verifying integrity...",
-        "savingFile": "Saving file...",
-        "savingZip": "Saving ZIP...",
-        "processing": "Processing",
-        "encrypting": "Encrypting",
-        "uploadingChunk": "Uploading chunk {current}/{total}",
-        "downloadingChunks": "Downloading {current}/{total}",
-        "waitingSlot": "Waiting for slot ({attempt})...",
-        "downloadingFile": "Downloading {name}",
-        "withCount": "{stage} ({index}/{total})",
-        "uploadFailed": "Upload failed",
-        "downloadFailed": "Download failed",
-        "zipFailed": "ZIP download failed",
-        "tooLargeDownload": "Too large to download in this browser",
-        "tooLargeZip": "Too large to ZIP in this browser",
-        "chooseZipSave": "Choose where to save the ZIP",
-        "unreachable": "Can't reach zcrypt's servers (network/DNS)",
-        "startingZip": "Starting ZIP...",
-        "noPlatform": "No storage platform connected. Go to Settings to connect one."
-      }
+        "queued": "Waiting for its turn",
+        "choose": "Choose where to save",
+        "paused": "Paused",
+        "offline": "Waiting for Wi-Fi",
+        "stopped": "Stopped"
+      },
+      "time": {
+        "fewSeconds": "a few seconds",
+        "seconds": "about {count} s",
+        "minutes": "about {count} min",
+        "hours": "about {hours} h",
+        "hoursMinutes": "about {hours} h {minutes} min"
+      },
+      "errors": {
+        "dropped": "Couldn't send · the connection dropped at {percent}%",
+        "droppedDownload": "Couldn't download · the connection dropped at {percent}%",
+        "sendFailed": "Couldn't send · try again",
+        "downloadFailed": "Couldn't download · try again",
+        "tooBigDownload": "Too big for this browser, use the app",
+        "tooBigZip": "Too big for a ZIP here, download the files one by one",
+        "chooseZip": "Pick where to save the ZIP, then retry",
+        "noPlatform": "No storage connected · connect one in Settings",
+        "vaultLocked": "Your vault locked · unlock it, then retry",
+        "unlockFolder": "Unlock the folder first",
+        "wrongKey": "Couldn't unlock · check the password, then retry",
+        "damaged": "This copy looks damaged · try again",
+        "tooBigUpload": "Too big to send · the limit is 10 GB per file",
+        "storageFull": "Storage is full · free up space or connect more"
+      },
+      "batch": {
+        "titlePhotos": "{count, plural, one {# photo} other {# photos}} → {folder}",
+        "titleFiles": "{count, plural, one {# file} other {# files}} → {folder}",
+        "sendingPhotos": "Sending {active, plural, one {# photo} other {# photos}} now, {waiting} waiting their turn",
+        "sendingFiles": "Sending {active, plural, one {# file} other {# files}} now, {waiting} waiting their turn",
+        "downloading": "Downloading {active, plural, one {# file} other {# files}} now, {waiting} waiting their turn",
+        "waiting": "{count} waiting their turn",
+        "paused": "Paused. {count} left to go.",
+        "offline": "Waiting for Wi-Fi. It continues on its own.",
+        "saved": "{count} saved to {folder}.",
+        "savedSomeFailed": "{count} saved to {folder}. {failed} couldn't be sent.",
+        "allFailed": "{failed} couldn't be sent.",
+        "downloaded": "{count} downloaded.",
+        "downloadedSomeFailed": "{count} downloaded. {failed} couldn't be downloaded."
+      },
+      "legend": {
+        "done": "Done",
+        "uploading": "Uploading",
+        "waiting": "Waiting",
+        "failed": "Failed"
+      },
+      "segment": {
+        "done": "{count} done",
+        "uploading": "{count} uploading",
+        "waiting": "{count} waiting",
+        "failed": "{count} failed"
+      },
+      "drop": {
+        "upload": "Drop to upload",
+        "download": "Drop to download",
+        "uploadDetail": "{count, plural, one {# file} other {# files}} → {folder} · encrypted here first",
+        "downloadDetail": "{count, plural, one {# file} other {# files}} · decrypted on this device",
+        "uploadShort": "Drop to upload {count, plural, one {# file} other {# files}} → {folder}",
+        "downloadShort": "Drop to download {count, plural, one {# file} other {# files}}"
+      },
+      "orb": "Transfers, {left} left. Tap to open, press and hold to pause or resume."
     },
     "tokens": {
       "expired": "Expired",
@@ -431,7 +479,8 @@
       "purgeBody": "This file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.",
       "purgeConfirm": "Delete permanently",
       "bulkPurgeTitle": "{count, plural, one {Delete # file permanently?} other {Delete # files permanently?}}",
-      "bulkPurgeBody": "{count, plural, one {This # file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.} other {These # files will be permanently deleted and their chunks removed from all storage platforms. This action cannot be undone.}}"
+      "bulkPurgeBody": "{count, plural, one {This # file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.} other {These # files will be permanently deleted and their chunks removed from all storage platforms. This action cannot be undone.}}",
+      "bulkPurgeConfirm": "{count, plural, one {Delete # file forever} other {Delete # files forever}}"
     },
     "createFromFiles": {
       "defaultName": "Folder for {name}",
@@ -950,6 +999,25 @@
           "tokenLabel": "Create bot via @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "Uploading {done}/{total} · {percent}%",
+      "downloading": "Downloading {done}/{total} · {percent}%",
+      "progressBody": "Still going in the background",
+      "uploadDone": "Upload finished",
+      "downloadDone": "Download finished",
+      "uploadFailed": "Couldn't upload {name}",
+      "downloadFailed": "Couldn't download {name}",
+      "newSignIn": "New sign-in to your account",
+      "newSignInBody": "{device}. Not you? Sign it out in Settings.",
+      "inviteReceived": "You were invited to {space}",
+      "inviteReceivedBody": "Open zcrypt to accept or decline.",
+      "linkViewed": "Someone opened your link",
+      "storageFull": "Your storage is full",
+      "storageFullBody": "New uploads wait until you free up space or connect your own account.",
+      "view": "View",
+      "retry": "Retry",
+      "open": "Open"
     }
   }
 }

@@ -21,6 +21,8 @@ export interface DragItem {
   name: string;
   /** For folders: the current parent so we can no-op a drop onto the same parent. */
   parentId?: string | null;
+  /** For files: every file id in the drag (the whole selection on a bulk drag). */
+  ids?: string[];
 }
 
 interface DragMoveStore {
@@ -61,6 +63,9 @@ export function canDrop(item: DragItem | null, destFolderId: string | null): boo
 }
 
 export const DRAG_MIME = "application/x-zcrypt-move";
+
+/** Carries the dragged vault file ids (JSON array) to app drop targets such as the transfer panel. */
+export const FILES_DRAG_MIME = "application/x-zcrypt-files";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Custom drag ghost (OWNER 2: "tilt-on-drag" + bulk stacked-count ghost).

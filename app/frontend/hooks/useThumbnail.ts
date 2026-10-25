@@ -712,6 +712,11 @@ export function hasCachedThumbnail(fileId: string): boolean {
   return memCache.has(fileId);
 }
 
+/** A file's thumbnail data URL if it is already in memory, never fetching or decrypting. */
+export function getCachedThumbnail(fileId: string | undefined): string | undefined {
+  return fileId ? memCache.get(fileId) : undefined;
+}
+
 /** Get cached thumbnail count for stats. */
 export function getCachedThumbnailCount(): number {
   return memCache.size;
@@ -833,6 +838,15 @@ export function useThumbnail(
   const unavailable = thumbable && withinSize && !thumbnailUrl && isHardFailed(fileId);
 
   return { thumbnailUrl, loading, pending, unavailable, cardRef };
+}
+
+/** Read-only: a file's cached thumbnail, updating when it lands. Never fetches or decrypts. */
+export function useCachedThumbnail(fileId: string | undefined): string | null {
+  const id = fileId ?? "";
+  const sub = useCallback((cb: () => void) => subscribeId(id, cb), [id]);
+  const ver = useCallback(() => getIdVersion(id), [id]);
+  useSyncExternalStore(sub, ver, ver);
+  return fileId ? (memCache.get(fileId) ?? null) : null;
 }
 
 /** Hook to get all cached thumbnails (for listing). */

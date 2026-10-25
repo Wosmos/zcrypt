@@ -102,9 +102,9 @@
       "signOutCount": "Cerrar sesión en {count, plural, one {1 dispositivo} other {# dispositivos}}",
       "confirmOneTitle": "¿Cerrar sesión en este dispositivo?",
       "confirmOneDesc": "Se cerrará la sesión de {device} ({network}) de inmediato.",
-      "confirmAllTitle": "¿Cerrar sesión en todos los demás dispositivos?",
+      "confirmAllTitle": "{count, plural, one {¿Cerrar sesión en # otro dispositivo?} other {¿Cerrar sesión en # otros dispositivos?}}",
       "confirmAllDesc": "Todas las sesiones salvo esta terminan de inmediato. Esos dispositivos necesitarán tu contraseña para volver a iniciar sesión.",
-      "confirmAllLabel": "Cerrar las demás"
+      "confirmAllLabel": "{count, plural, one {Cerrar sesión en # dispositivo} other {Cerrar sesión en # dispositivos}}"
     },
     "securityActivity": {
       "loadFailed": "No se pudo cargar tu actividad de seguridad",
@@ -467,6 +467,64 @@
       "announcementsDesc": "Noticias ocasionales del equipo de zcrypt.",
       "footnote": "Los correos de cuenta y seguridad siempre se envían.",
       "saveFailed": "No se pudo guardar tu preferencia de correo"
+    },
+    "notifications": "Notificaciones",
+    "notificationsDesc": "Sonidos y vibración",
+    "soundPrefs": {
+      "master": "Sonidos",
+      "masterDesc": "Reproducir un tono cuando algo termina o te necesita",
+      "groupSet": "Conjunto de sonidos",
+      "setFootnote": "Toca un conjunto para oírlo. Los sonidos se generan en tu dispositivo, sin archivos de audio.",
+      "set": {
+        "soft": "Suave",
+        "glass": "Cristal",
+        "minimal": "Mínimo"
+      },
+      "setDesc": {
+        "soft": "Cálido y redondo",
+        "glass": "Brillante y ligero",
+        "minimal": "Corto y discreto"
+      },
+      "event": {
+        "done": "Terminado",
+        "headsUp": "Aviso",
+        "problem": "Problema"
+      },
+      "eventDesc": {
+        "done": "Subidas, descargas, enlaces y exportaciones que tardaron",
+        "headsUp": "Avisos y cosas que esperan por ti",
+        "problem": "Algo salió mal"
+      },
+      "preview": "Reproducir",
+      "previewAria": "Reproducir el sonido «{event}»",
+      "groupAreas": "Reproducir sonidos para",
+      "area": {
+        "transfers": "Subidas y descargas",
+        "sharing": "Compartir y Spaces",
+        "security": "Seguridad",
+        "problems": "Problemas"
+      },
+      "vibrate": "Vibrar en el teléfono",
+      "vibrateDesc": "Un zumbido breve con cada sonido en dispositivos táctiles",
+      "backgroundOnly": "Solo en segundo plano",
+      "backgroundOnlyDesc": "Guardar silencio mientras zcrypt está abierto y en primer plano"
+    },
+    "notifyPrefs": {
+      "group": "Notificaciones del sistema",
+      "title": "Notificaciones en este dispositivo",
+      "state": {
+        "granted": "Activadas. zcrypt te avisa cuando terminan las transferencias, incluso en segundo plano.",
+        "default": "Desactivadas. Actívalas para saber cuándo terminan las subidas mientras no estás.",
+        "denied": "Bloqueadas. Permite las notificaciones de zcrypt en los ajustes del navegador o del sistema.",
+        "unsupported": "Este navegador no puede mostrar notificaciones."
+      },
+      "turnOn": "Activar notificaciones",
+      "test": "Enviar una prueba",
+      "testTitle": "Las notificaciones están activadas",
+      "testBody": "Así es como zcrypt te avisa.",
+      "thumbnails": "Mostrar vistas previas de fotos",
+      "thumbnailsDesc": "Una pequeña vista previa de la foto en las notificaciones de subida. Desactívalo para que no aparezcan fotos en la pantalla de bloqueo.",
+      "iosHint": "Para recibir notificaciones en iPhone, añade zcrypt a tu pantalla de inicio: toca Compartir y luego Añadir a pantalla de inicio."
     }
   }
 }

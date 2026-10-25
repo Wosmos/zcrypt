@@ -1,5 +1,6 @@
 "use client";
 
+import { Banner } from "@/components/ui/banner";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -203,18 +204,16 @@ export function DeadManContent() {
 
       {/* Triggered banner */}
       {dms?.triggered && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
-          <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500 dark:text-red-400" />
-          <div>
-            <p className="text-sm font-medium text-red-500 dark:text-red-400">{t("triggered")}</p>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              {t("triggeredDesc", {
-                date: dms.triggered_at ? formatDateTime(dms.triggered_at) : t("unknownDate"),
-                email: dms.contact_email,
-              })}
-            </p>
-          </div>
-        </div>
+        <Banner
+          kind="error"
+          role="alert"
+          icon={ShieldAlert}
+          title={t("triggered")}
+          body={t("triggeredDesc", {
+            date: dms.triggered_at ? formatDateTime(dms.triggered_at) : t("unknownDate"),
+            email: dms.contact_email,
+          })}
+        />
       )}
 
       {/* Status */}

@@ -126,6 +126,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  appleWebApp: { capable: true, title: "zcrypt", statusBarStyle: "default" },
   alternates: {
     canonical: SITE_URL,
   },

@@ -1,57 +1,39 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { memo, type ComponentType } from "react";
 import { useTranslations } from "next-intl";
-import {
-  Upload,
-  Download,
-  CheckCircle2,
-  AlertCircle,
-  StopCircle,
-  Pause,
-  Play,
-  RotateCcw,
-  X,
-} from "@/lib/icons";
-import { cn, formatBytes, easeProgress } from "@/lib/utils";
-import { localizeError, localizeStage } from "./stage-text";
+import { Check, Pause, Play, StopCircle, X, type IconProps } from "@/lib/icons";
+import { cn, formatBytes } from "@/lib/utils";
+import { translateLabel, type TransferPhase, type TransferView } from "@/lib/transfer-progress";
+import { TONE, TransferThumb } from "./transfer-parts";
 
-type Translate = ReturnType<typeof useTranslations>;
-
-// A single unified view-model the manager builds from the upload + download
-// stores. The manager owns store wiring; this component is presentational and
-// only calls back the handlers it's given.
-type TransferDirection = "upload" | "download";
 export type TransferState = "queued" | "active" | "paused" | "done" | "failed" | "cancelled";
 
+/** One upload or download as the panel shows it. */
 export interface TransferEntry {
-  /** Stable key, prefixed by direction so upload + download ids never collide. */
+  /** Stable key, prefixed by direction so upload and download ids never collide. */
   key: string;
   /** Underlying store id (used for the control callbacks). */
   id: string;
-  direction: TransferDirection;
+  direction: "upload" | "download";
   name: string;
-  /** 0–100 raw percent (eased for display only). */
-  progress: number;
+  /** Vault file id, once known: drives the thumbnail. */
+  fileId?: string;
   state: TransferState;
-  stage?: string;
-  error?: string;
-  /** Bytes label shown on the right (file size). */
+  view: TransferView;
   sizeBytes?: number;
-  /** Bytes uploaded so far (uploads only): drives the true-ratio bar width. */
   bytesProcessed?: number;
-  /** Total bytes to upload (uploads only): drives the true-ratio bar width. */
   totalBytes?: number;
-  /** Smoothed transfer rate in bytes/sec (uploads only), speed + ETA display. */
   rateBps?: number;
-  /** For download ETA math, kept raw, never eased. */
+  etaSeconds?: number;
   startedAt: number;
-  /** Core-driven desktop (Tauri) upload: the Rust core has no pause, so the
-   *  pause control is hidden for these rows. */
+  /** Destination folder of an upload (null = vault root). */
+  folderId?: string | null;
+  /** Core-driven desktop (Tauri) upload: the Rust core has no pause. */
   desktop?: boolean;
 }
 
+/** Row actions, all wired by the manager. */
 export interface TransferItemControls {
   onPause: (id: string) => void;
   onResume: (id: string) => void;
@@ -64,16 +46,23 @@ export interface TransferItemControls {
   onDismiss: (entry: TransferEntry) => void;
 }
 
+const DOWNLOAD_PHASES = new Set<TransferPhase>(["fetching", "unlocking", "saving"]);
+const IDLE_PHASES = new Set<TransferPhase>(["queued", "choose", "paused", "offline", "stopped"]);
+
+function barColor(phase: TransferPhase): string {
+  if (DOWNLOAD_PHASES.has(phase)) return TONE.ok;
+  if (IDLE_PHASES.has(phase)) return "var(--color-text-muted)";
+  return TONE.accent;
+}
+
 function ControlButton({
   icon: Icon,
   label,
   onClick,
-  tone = "neutral",
 }: {
-  icon: typeof X;
+  icon: ComponentType<IconProps>;
   label: string;
   onClick: () => void;
-  tone?: "neutral" | "accent" | "danger";
 }) {
   return (
     <button
@@ -81,396 +70,184 @@ function ControlButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={cn(
-        "flex h-6 w-6 items-center justify-center rounded-md transition-colors",
-        "text-[var(--color-text-muted)]",
-        "hover:bg-[var(--color-surface-1)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
-        tone === "accent" && "hover:text-[var(--color-accent)]",
-        tone === "danger" && "hover:text-rose-500",
-        tone === "neutral" && "hover:text-[var(--color-text)]",
-      )}
+      className="grid h-7 w-7 place-items-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
     >
-      <Icon className="h-3.5 w-3.5" />
+      <Icon className="h-3.5 w-3.5" weight="bold" />
     </button>
   );
 }
 
-function StatusGlyph({ entry }: { entry: TransferEntry }) {
-  const DirIcon = entry.direction === "upload" ? Upload : Download;
-  switch (entry.state) {
-    case "done":
-      return <CheckCircle2 className="h-4 w-4 text-[var(--color-accent)]" />;
-    case "failed":
-      return <AlertCircle className="h-4 w-4 text-rose-500" />;
-    case "cancelled":
-      return <StopCircle className="h-4 w-4 text-amber-500" />;
-    case "paused":
-      return <Pause className="h-4 w-4 text-[var(--color-text-secondary)]" />;
-    case "active":
-      // Direction-explicit + animated: an upload arrow drifts up in the accent
-      // colour, a download arrow drifts down in cyan, so "which way is this
-      // going" is obvious at a glance without reading the stage text. (The dock
-      // header still shows the brand spinner for overall "working" state.)
-      return (
-        <DirIcon
-          className={cn(
-            "h-4 w-4",
-            entry.direction === "upload"
-              ? "text-[var(--color-accent)] animate-nudge-up"
-              : "text-cyan-500 animate-nudge-down",
-          )}
-        />
-      );
-    case "queued":
-    default:
-      return <DirIcon className="h-4 w-4 text-[var(--color-text-muted)]" />;
-  }
-}
-
-// "~40s left" from a seconds estimate (rate-based, so it doesn't inherit the
-// queue-wait/pause time the old percent-extrapolation ETA did).
-function formatRemaining(t: Translate, seconds: number): string | undefined {
-  if (!isFinite(seconds) || seconds <= 0) return undefined;
-  if (seconds < 60) return t("eta.seconds", { count: Math.ceil(seconds) });
-  if (seconds < 3600) return t("eta.minutes", { count: Math.ceil(seconds / 60) });
-  const h = Math.floor(seconds / 3600);
-  const m = Math.ceil((seconds % 3600) / 60);
-  return t("eta.hoursMinutes", { hours: h, minutes: m });
-}
-
-function downloadRemaining(startedAt: number, percent: number): number | undefined {
-  if (percent <= 1 || percent >= 100) return undefined;
-  const elapsed = (Date.now() - startedAt) / 1000;
-  if (elapsed < 3) return undefined;
-  return Math.max(0, elapsed / (percent / 100) - elapsed);
-}
-
-function statusText(t: Translate, entry: TransferEntry, short = false): string {
-  if (entry.state === "failed")
-    return entry.error ? localizeError(t, entry.error) : t("stage.failed");
-  if (entry.state === "cancelled") return t("stage.cancelled");
-  if (entry.state === "done")
-    return entry.direction === "upload" ? t("stage.uploaded") : t("stage.downloaded");
-  if (entry.state === "paused")
-    return entry.stage ? localizeStage(t, entry.stage) : t("stage.paused");
-  if (entry.state === "queued") return t("stage.queued");
-  // active. Uploads: speed + ETA from the smoothed byte rate (accurate, stable).
-  // Downloads: the old elapsed/percent extrapolation (no byte rate available).
-  let eta: string | undefined;
-  if (
-    entry.direction === "upload" &&
-    typeof entry.rateBps === "number" &&
-    entry.rateBps > 0 &&
-    typeof entry.bytesProcessed === "number" &&
-    typeof entry.totalBytes === "number" &&
-    entry.totalBytes > 0
-  ) {
-    const speed = `${formatBytes(entry.rateBps)}/s`;
-    const left = formatRemaining(t, (entry.totalBytes - entry.bytesProcessed) / entry.rateBps);
-    eta = left ? `${speed} · ${left}` : speed;
-  } else if (entry.direction === "download") {
-    const remaining = downloadRemaining(entry.startedAt, entry.progress);
-    eta = remaining === undefined ? undefined : formatRemaining(t, remaining);
-  }
-  const verb = entry.stage
-    ? localizeStage(t, entry.stage)
-    : entry.direction === "upload"
-      ? t("stage.uploading")
-      : t("stage.downloading");
-  // Mobile: the spinner + name already convey direction: show just the ETA when
-  // we have one, so the line stays tight on narrow screens.
-  if (short) return eta || verb;
-  if (eta) return `${verb} · ${eta}`;
-  return verb;
-}
-
-function TransferItemBase({
+function RowControls({
   entry,
   controls,
 }: {
   entry: TransferEntry;
   controls: TransferItemControls;
 }) {
-  const reduceMotion = useReducedMotion();
   const t = useTranslations("app.transfer");
-
-  // A tiny file (a few hundred bytes) finishes in a couple of milliseconds, so
-  // its "active" phase (and thus the progress bar) would flash in and vanish
-  // before the fill animation could play ("woop"). Hold the bar for a short beat
-  // after completion so it animates to a satisfying 100% and settles, instead of
-  // blinking out. Only triggered on the active/paused → done transition.
-  const [settling, setSettling] = useState(false);
-  const prevState = useRef(entry.state);
-  useEffect(() => {
-    const was = prevState.current;
-    prevState.current = entry.state;
-    if (entry.state === "done" && (was === "active" || was === "paused")) {
-      if (reduceMotion) return;
-      // oxlint-disable-next-line react/set-state-in-effect
-      setSettling(true);
-      const timer = setTimeout(() => setSettling(false), 700);
-      return () => clearTimeout(timer);
-    }
-  }, [entry.state, reduceMotion]);
-
-  const showBar = entry.state === "active" || entry.state === "paused" || settling;
-  const failedLike = entry.state === "failed" || entry.state === "cancelled";
-
-  // Bar width = TRUE byte ratio so it never appears to stall (M5-progress). For
-  // uploads with real byte counts, use bytesProcessed/totalBytes; otherwise (and
-  // for all downloads) fall back to the raw item.progress.
-  const hasBytes =
-    entry.direction === "upload" &&
-    typeof entry.bytesProcessed === "number" &&
-    typeof entry.totalBytes === "number" &&
-    entry.totalBytes > 0;
-  const barProgress =
-    entry.state === "done"
-      ? 100 // settling: animate the last stretch to a full bar before it collapses
-      : hasBytes
-        ? Math.min(
-            100,
-            Math.max(0, ((entry.bytesProcessed as number) / (entry.totalBytes as number)) * 100),
-          )
-        : entry.progress;
-  // The % label MATCHES the bar when real bytes exist (the old log-eased label
-  // said 74% while the bar showed half-width, two different lies). The eased
-  // curve remains only for byte-less phases (encrypting) and downloads. Capped
-  // at 99 while active so "100%" can only ever mean done.
-  const labelPct = Math.min(
-    99,
-    Math.round(
-      hasBytes && (entry.bytesProcessed as number) > 0 ? barProgress : easeProgress(entry.progress),
-    ),
+  const { id, state } = entry;
+  if (state === "done" || state === "failed" || state === "cancelled")
+    return (
+      <ControlButton icon={X} label={t("dismiss")} onClick={() => controls.onDismiss(entry)} />
+    );
+  if (entry.direction === "upload") {
+    const cancel = (
+      <ControlButton
+        icon={X}
+        label={t("cancelUpload")}
+        onClick={() => controls.onCancelUpload(id)}
+      />
+    );
+    if (state === "paused")
+      return (
+        <>
+          <ControlButton
+            icon={Play}
+            label={t("resumeUpload")}
+            onClick={() => controls.onResume(id)}
+          />
+          {cancel}
+        </>
+      );
+    return (
+      <>
+        {state === "active" && !entry.desktop && (
+          <ControlButton
+            icon={Pause}
+            label={t("pauseUpload")}
+            onClick={() => controls.onPause(id)}
+          />
+        )}
+        {cancel}
+      </>
+    );
+  }
+  const stop = (
+    <ControlButton
+      icon={StopCircle}
+      label={t("stopDownload")}
+      onClick={() => controls.onStopDownload(id)}
+    />
   );
-  // Finalize is a short server round-trip with no byte movement, show an
-  // indeterminate full bar instead of a frozen 97%.
-  const isFinalizing = entry.state === "active" && (entry.stage?.startsWith("Finalizing") ?? false);
-
+  if (state === "paused")
+    return (
+      <>
+        <ControlButton
+          icon={Play}
+          label={t("resumeDownload")}
+          onClick={() => controls.onResumeDownload(id)}
+        />
+        {stop}
+      </>
+    );
   return (
-    <motion.div
-      layout={!reduceMotion}
-      initial={reduceMotion ? false : { opacity: 0, y: 6, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={
-        reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, transition: { duration: 0.15 } }
-      }
-      transition={{ type: "spring", stiffness: 420, damping: 34 }}
-      className={cn(
-        "rounded-xl border px-3 py-2.5 transition-colors",
-        entry.state === "done" && "border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5",
-        entry.state === "failed" && "border-rose-500/20 bg-rose-500/5",
-        entry.state === "cancelled" && "border-amber-500/20 bg-amber-500/5",
-        (entry.state === "active" || entry.state === "queued" || entry.state === "paused") &&
-          "border-[var(--color-border)] bg-[var(--color-surface)]",
+    <>
+      {state === "active" && (
+        <ControlButton
+          icon={Pause}
+          label={t("pauseDownload")}
+          onClick={() => controls.onPauseDownload(id)}
+        />
       )}
-    >
-      <div className="flex items-center gap-2.5">
-        <div className="flex-shrink-0">
-          <StatusGlyph entry={entry} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-xs font-medium text-[var(--color-text)]">{entry.name}</p>
-            <div className="flex flex-shrink-0 items-center gap-1.5 text-[10px] tabular-nums text-[var(--color-text-muted)]">
-              {typeof entry.sizeBytes === "number" && entry.sizeBytes > 0 && (
-                <span>{formatBytes(entry.sizeBytes)}</span>
-              )}
-              {entry.state === "active" && <span>{labelPct}%</span>}
-            </div>
-          </div>
-
-          {showBar && (
-            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-              <motion.div
-                className={cn(
-                  "relative h-full overflow-hidden rounded-full bg-[var(--color-accent)]",
-                  isFinalizing && "animate-pulse",
-                )}
-                initial={false}
-                animate={{ width: isFinalizing ? "100%" : `${barProgress}%` }}
-                transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
-              >
-                {/* Microsoft-style sheen swept across the fill while actively
-                    transferring (not while paused/finalizing), reads as motion
-                    even when a chunk is momentarily stalled. */}
-                {entry.state === "active" && !isFinalizing && !reduceMotion && (
-                  <span className="animate-bar-sheen absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-                )}
-              </motion.div>
-            </div>
-          )}
-
-          <p
-            role="status"
-            className={cn(
-              "mt-0.5 truncate text-[10px]",
-              failedLike ? "text-rose-500 dark:text-rose-400" : "text-[var(--color-text-muted)]",
-            )}
-          >
-            <span className="sm:hidden">{statusText(t, entry, true)}</span>
-            <span className="hidden sm:inline">{statusText(t, entry, false)}</span>
-          </p>
-        </div>
-
-        <div className="flex flex-shrink-0 items-center gap-0.5">
-          {/* Upload, active: Pause + Cancel. Desktop-core uploads hide Pause:
-              the Rust core's sync has no pause, so the button only froze the UI
-              row while the core kept uploading. */}
-          {entry.direction === "upload" && entry.state === "active" && (
-            <>
-              {!entry.desktop && (
-                <ControlButton
-                  icon={Pause}
-                  label={t("pauseUpload")}
-                  tone="accent"
-                  onClick={() => controls.onPause(entry.id)}
-                />
-              )}
-              <ControlButton
-                icon={X}
-                label={t("cancelUpload")}
-                tone="danger"
-                onClick={() => controls.onCancelUpload(entry.id)}
-              />
-            </>
-          )}
-
-          {/* Upload: queued: only Cancel (no chunks in flight yet) */}
-          {entry.direction === "upload" && entry.state === "queued" && (
-            <ControlButton
-              icon={X}
-              label={t("cancelUpload")}
-              tone="danger"
-              onClick={() => controls.onCancelUpload(entry.id)}
-            />
-          )}
-
-          {/* Upload: paused: Resume + Cancel */}
-          {entry.direction === "upload" && entry.state === "paused" && (
-            <>
-              <ControlButton
-                icon={Play}
-                label={t("resumeUpload")}
-                tone="accent"
-                onClick={() => controls.onResume(entry.id)}
-              />
-              <ControlButton
-                icon={X}
-                label={t("cancelUpload")}
-                tone="danger"
-                onClick={() => controls.onCancelUpload(entry.id)}
-              />
-            </>
-          )}
-
-          {/* Upload, failed: Retry + Dismiss. Desktop (core-streamed) uploads
-              can't "pause" but DO resume from the backend's already-uploaded
-              chunks, so the same control reads as "Resume" (Play) rather than
-              "Retry": it re-drives the core, which continues, not restarts. */}
-          {entry.direction === "upload" && entry.state === "failed" && (
-            <>
-              {entry.desktop ? (
-                <ControlButton
-                  icon={Play}
-                  label={t("resumeUpload")}
-                  tone="accent"
-                  onClick={() => controls.onRetryUpload(entry.id)}
-                />
-              ) : (
-                <ControlButton
-                  icon={RotateCcw}
-                  label={t("retryUpload")}
-                  tone="accent"
-                  onClick={() => controls.onRetryUpload(entry.id)}
-                />
-              )}
-              <ControlButton
-                icon={X}
-                label={t("dismiss")}
-                onClick={() => controls.onDismiss(entry)}
-              />
-            </>
-          )}
-
-          {/* Download: active: Pause + Stop */}
-          {entry.direction === "download" && entry.state === "active" && (
-            <>
-              <ControlButton
-                icon={Pause}
-                label={t("pauseDownload")}
-                tone="accent"
-                onClick={() => controls.onPauseDownload(entry.id)}
-              />
-              <ControlButton
-                icon={StopCircle}
-                label={t("stopDownload")}
-                tone="danger"
-                onClick={() => controls.onStopDownload(entry.id)}
-              />
-            </>
-          )}
-
-          {/* Download: queued: only Stop (nothing to pause yet) */}
-          {entry.direction === "download" && entry.state === "queued" && (
-            <ControlButton
-              icon={StopCircle}
-              label={t("stopDownload")}
-              tone="danger"
-              onClick={() => controls.onStopDownload(entry.id)}
-            />
-          )}
-
-          {/* Download: paused: Resume + Stop */}
-          {entry.direction === "download" && entry.state === "paused" && (
-            <>
-              <ControlButton
-                icon={Play}
-                label={t("resumeDownload")}
-                tone="accent"
-                onClick={() => controls.onResumeDownload(entry.id)}
-              />
-              <ControlButton
-                icon={StopCircle}
-                label={t("stopDownload")}
-                tone="danger"
-                onClick={() => controls.onStopDownload(entry.id)}
-              />
-            </>
-          )}
-
-          {/* Download: failed/cancelled: Retry + Dismiss */}
-          {entry.direction === "download" &&
-            (entry.state === "failed" || entry.state === "cancelled") && (
-              <>
-                <ControlButton
-                  icon={RotateCcw}
-                  label={t("retryDownload")}
-                  tone="accent"
-                  onClick={() => controls.onRetryDownload(entry.id)}
-                />
-                <ControlButton
-                  icon={X}
-                  label={t("dismiss")}
-                  onClick={() => controls.onDismiss(entry)}
-                />
-              </>
-            )}
-
-          {/* Done. Dismiss */}
-          {entry.state === "done" && (
-            <ControlButton
-              icon={X}
-              label={t("dismiss")}
-              onClick={() => controls.onDismiss(entry)}
-            />
-          )}
-        </div>
-      </div>
-    </motion.div>
+      {stop}
+    </>
   );
 }
 
+function TransferItemBase({
+  entry,
+  controls,
+  canHover,
+}: {
+  entry: TransferEntry;
+  controls: TransferItemControls;
+  /** Desktop pointer: controls appear on hover and focus; on touch they always show. */
+  canHover: boolean;
+}) {
+  const t = useTranslations("app.transfer");
+  const text = translateLabel(t, entry.view.label);
+  const failed = entry.state === "failed" || entry.state === "cancelled";
+  const done = entry.state === "done";
+  const { phase, bar } = entry.view;
+  const retryLabel = entry.direction === "upload" && entry.desktop ? t("resumeUpload") : t("retry");
+  const retry = () =>
+    entry.direction === "upload"
+      ? controls.onRetryUpload(entry.id)
+      : controls.onRetryDownload(entry.id);
+
+  return (
+    <div
+      data-transfer-row={entry.key}
+      data-state={entry.state}
+      className={cn(
+        "group flex items-center gap-3 px-3.5 py-2.5 transition-colors",
+        failed && "bg-[color-mix(in_oklab,var(--toast-error)_8%,transparent)]",
+      )}
+    >
+      <TransferThumb fileId={entry.fileId} name={entry.name} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium text-[var(--color-text)]" title={entry.name}>
+          {entry.name}
+        </p>
+        <div className="mt-1 flex items-center gap-2 text-[11.5px] leading-snug text-[var(--color-text-muted)]">
+          {!failed && !done && (
+            <span
+              className="relative block h-1 w-[30%] min-w-12 max-w-[130px] flex-none overflow-hidden rounded-full bg-[var(--color-surface-2)]"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(bar)}
+              aria-label={entry.name}
+            >
+              <span
+                data-bar={phase}
+                className={cn(
+                  "absolute inset-y-0 start-0 overflow-hidden rounded-full transition-[width] duration-500 motion-reduce:transition-none",
+                  phase === "checking" && "animate-pulse",
+                )}
+                style={{ width: `${bar}%`, background: barColor(phase) }}
+              >
+                {(phase === "securing" || phase === "sending" || phase === "fetching") && (
+                  <span className="animate-bar-sheen absolute inset-y-0 start-0 w-1/2 bg-gradient-to-r from-transparent via-white/45 to-transparent" />
+                )}
+              </span>
+            </span>
+          )}
+          {done && (
+            <Check className="h-3.5 w-3.5 flex-none" weight="bold" style={{ color: TONE.ok }} />
+          )}
+          <span
+            className={cn("min-w-0", failed ? "line-clamp-2" : "truncate")}
+            style={failed ? { color: TONE.err } : done ? { color: TONE.ok } : undefined}
+          >
+            {text}
+            {done && entry.sizeBytes ? ` · ${formatBytes(entry.sizeBytes)}` : ""}
+          </span>
+        </div>
+      </div>
+      {failed && (
+        <button
+          type="button"
+          onClick={retry}
+          className="flex-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        >
+          {retryLabel}
+        </button>
+      )}
+      <div
+        data-row-controls
+        data-hover-only={canHover ? "true" : "false"}
+        className={cn(
+          "flex flex-none items-center gap-0.5",
+          canHover &&
+            "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100",
+        )}
+      >
+        <RowControls entry={entry} controls={controls} />
+      </div>
+    </div>
+  );
+}
+
+/** One row: thumbnail, name, a single status line, and its controls. */
 export const TransferItem = memo(TransferItemBase);

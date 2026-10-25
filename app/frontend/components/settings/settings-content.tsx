@@ -28,6 +28,8 @@ import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
 import { ProfileSettings } from "@/components/settings/profile-settings";
 import { EmailPreferences } from "@/components/settings/email-preferences";
+import { NotificationSettings } from "@/components/settings/notification-prefs";
+import { SystemNotificationSettings } from "@/components/settings/system-notifications";
 import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
@@ -64,6 +66,7 @@ import {
   Download,
   MonitorSmartphone,
   Archive,
+  Bell,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -73,6 +76,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 
 type SectionId =
   | "appearance"
+  | "notifications"
   | "updates"
   | "account"
   | "data"
@@ -96,6 +100,11 @@ const SECTIONS: SectionDef[] = [
   {
     id: "appearance",
     icon: Sparkles,
+    group: "General",
+  },
+  {
+    id: "notifications",
+    icon: Bell,
     group: "General",
   },
   {
@@ -287,6 +296,8 @@ export function SettingsContent() {
     switch (id) {
       case "appearance":
         return <AppearanceContent advancedMode={advancedMode} setAdvancedMode={setAdvancedMode} />;
+      case "notifications":
+        return <NotificationSettings notificationsExtra={<SystemNotificationSettings />} />;
       case "updates":
         return <AppUpdates />;
       case "account":

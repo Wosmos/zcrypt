@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { tr } from "@/store/translate";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
+import { failureReason, notify } from "@/lib/notify";
 import {
   downloadAndDecryptFile,
   DownloadPausedError,
@@ -16,6 +17,10 @@ import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { genId } from "@/lib/id";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { createFrameBatch } from "@/lib/frame-batch";
+
+function notifyZipDone(count: number, failed: number) {
+  void notify({ type: "transferDone", kind: "download", count, failed, folder: "" });
+}
 
 // Files at/above this size stream to disk (a Save-As prompt) instead of being
 // assembled in memory: the only way to download something too big to hold in a
@@ -283,25 +288,11 @@ function runSingleDownload(id: string): Promise<void> {
       updateProgress(id, "done", 100, "Done");
       sessions.delete(id);
       pausedIds.delete(id);
-      toast.success(tr("toasts.downloaded", { name: session.filename }));
+      toast.success(tr("toasts.downloaded", { name: session.filename }), {
+        sound: { event: "done", area: "transfers" },
+      });
       notifications.downloadComplete(session.filename);
-      if (
-        typeof window !== "undefined" &&
-        "Notification" in window &&
-        Notification.permission === "granted" &&
-        document.hidden
-      ) {
-        const n = new Notification(tr("notifications.downloadComplete"), {
-          body: session.filename,
-          icon: "/brand/icon-192.png",
-          tag: "download-done",
-        });
-        setTimeout(() => n.close(), 5000);
-        n.onclick = () => {
-          window.focus();
-          n.close();
-        };
-      }
+      void notify({ type: "downloadDone", name: session.filename });
     } catch (err) {
       if (!isCurrentRun()) return;
       if (err instanceof DownloadPausedError) {
@@ -328,6 +319,9 @@ function runSingleDownload(id: string): Promise<void> {
         toast.error(tr("toasts.downloadFailedMsg", { msg }));
       }
       notifications.downloadFailed(session.filename, msg);
+      const item = useDownloadStore.getState().queue.find((i) => i.id === id);
+      const reason = failureReason("download", msg, item?.progress ?? 0);
+      void notify({ type: "transferFailed", kind: "download", name: session.filename, reason });
     }
   })();
 
@@ -479,8 +473,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         updateProgress(id, "downloading", 0, "Starting…");
         await sidecarDownload(fileId, effectivePass, userId, savePath);
         setStatusNow(id, { status: "done", progress: 100, stage: "Done" });
-        toast.success(`${filename} downloaded`);
+        toast.success(tr("toasts.downloaded", { name: filename }), {
+          sound: { event: "done", area: "transfers" },
+        });
         notifications.downloadComplete(filename);
+        void notify({ type: "downloadDone", name: filename });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         // A DNS/connect failure means we couldn't even reach zcrypt's servers,
@@ -573,8 +570,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
         notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
+        notifyZipDone(report.added, report.failed.length);
         if (report.failed.length === 0) {
-          toast.success(tr("toasts.zipDone", { count: files.length }));
+          toast.success(tr("toasts.zipDone", { count: files.length }), {
+            sound: { event: "done", area: "transfers" },
+          });
           return;
         }
         for (const f of report.failed) {
@@ -583,6 +583,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         const names = report.failed.map((f) => f.filename).join(", ");
         toast.warning(
           tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
+          { sound: { event: "headsUp", area: "transfers" } },
         );
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -679,8 +680,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
         updateProgress(id, "done", 100, "Done");
         zipSessions.delete(id);
-        toast.success(tr("toasts.zipDone", { count: files.length }));
+        toast.success(tr("toasts.zipDone", { count: files.length }), {
+          sound: { event: "done", area: "transfers" },
+        });
         notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: files.length }));
+        notifyZipDone(files.length, 0);
       } catch (err) {
         const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
         const isNetwork =

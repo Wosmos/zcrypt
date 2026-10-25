@@ -30,7 +30,9 @@ import {
   getUploadStatus,
 } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
-import { seedThumbnailFromFile } from "@/hooks/useThumbnail";
+import { getCachedThumbnail, seedThumbnailFromFile } from "@/hooks/useThumbnail";
+import { failureReason, notify } from "@/lib/notify";
+import { useTransferDockStore } from "@/store/transfer-dock";
 import { setFilesData } from "@/store/files";
 import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-profile";
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
@@ -75,48 +77,25 @@ function debouncedRefresh(fn?: () => void | Promise<void>) {
   }, delay);
 }
 
-// --- Background push notification progress ---
-// When user switches to another app/tab, show system notifications with upload progress.
-// Uses the same `tag` to replace the notification (not spam new ones).
+// --- Background notifications ---
+// While the batch runs, a progress notification every few seconds (lib/notify
+// only shows it when zcrypt is in the background and replaces it by tag).
 let bgNotifInterval: ReturnType<typeof setInterval> | null = null;
 
-function startBackgroundNotifications(
-  getBatchState: () => { done: number; failed: number; total: number; percent: number },
-) {
+interface BatchSnapshot {
+  done: number;
+  failed: number;
+  total: number;
+  percent: number;
+  thumbnail?: string;
+}
+
+function startBackgroundNotifications(getBatchState: () => BatchSnapshot) {
   stopBackgroundNotifications();
   bgNotifInterval = setInterval(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    // Only show when tab is hidden (user switched away)
-    if (!document.hidden) return;
-
-    const { done, failed, total, percent } = getBatchState();
-    const active = total - done - failed;
-    if (active <= 0) {
-      // All done, send final notification
-      const body = failed > 0 ? `${done} uploaded, ${failed} failed` : `All ${done} files uploaded`;
-      new Notification("Upload complete", {
-        body,
-        icon: "/brand/icon-192.png",
-        tag: "zcrypt-upload-progress",
-        silent: true,
-      });
-      stopBackgroundNotifications();
-      return;
-    }
-
-    // Progress bar made of block characters
-    const barLen = 20;
-    const filled = Math.round((percent / 100) * barLen);
-    const bar = "▓".repeat(filled) + "░".repeat(barLen - filled);
-
-    new Notification(`Uploading ${done}/${total} files`, {
-      body: `${bar} ${percent}%`,
-      icon: "/brand/icon-192.png",
-      tag: "zcrypt-upload-progress",
-      silent: true,
-      requireInteraction: false,
-    });
+    const { done, failed, total, percent, thumbnail } = getBatchState();
+    if (total - done - failed <= 0) return;
+    void notify({ type: "transferProgress", kind: "upload", done, total, percent, thumbnail });
   }, 3000);
 }
 
@@ -125,6 +104,44 @@ function stopBackgroundNotifications() {
     clearInterval(bgNotifInterval);
     bgNotifInterval = null;
   }
+}
+
+/** The thumbnail of the newest item in `items` that has one cached, preferring ones in flight. */
+function batchThumbnail(items: UploadItem[]): string | undefined {
+  const moving = items.filter((i) => i.status !== "done" && i.status !== "failed");
+  for (const list of [moving, items]) {
+    for (let n = list.length - 1; n >= 0; n--) {
+      const thumb = getCachedThumbnail(list[n].fileId);
+      if (thumb) return thumb;
+    }
+  }
+  return undefined;
+}
+
+function folderLabel(folderId: string | null | undefined): string {
+  if (!folderId) return tr("transfer.rootFolder");
+  return useTransferDockStore.getState().folderNames[folderId] ?? tr("transfer.folderFallback");
+}
+
+function notifyBatchEnd(items: UploadItem[], folderId: string | null | undefined) {
+  if (items.length === 0) return;
+  const done = items.filter((i) => i.status === "done").length;
+  const failed = items.filter((i) => i.status === "failed");
+  if (items.length === 1 && failed.length === 1) {
+    const item = failed[0];
+    const reason = failureReason("upload", item.error, item.progress);
+    void notify({ type: "transferFailed", kind: "upload", name: item.file.name, reason });
+    return;
+  }
+  void notify({
+    type: "transferDone",
+    kind: "upload",
+    count: done,
+    failed: failed.length,
+    folder: folderLabel(folderId),
+    folderId: folderId ?? null,
+    thumbnail: batchThumbnail(items),
+  });
 }
 
 // --- Throttled progress updates to prevent UI jank ---
@@ -1444,7 +1461,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               ) / batch.length,
             )
           : 0;
-      return { done, failed, total: batch.length, percent };
+      return { done, failed, total: batch.length, percent, thumbnail: batchThumbnail(batch) };
     });
 
     // Launch all uploads with concurrency control, show summary when done.
@@ -1495,16 +1512,24 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       // summary toast. Resuming re-runs uploadOneFile (via resumeUpload), and the
       // user will see the per-item completion in the transfer manager.
       if (pausedCount === 0) {
+        notifyBatchEnd(batchItems, folderId);
         if (total === 1) {
-          if (doneCount === 1) toast.success(tr("toasts.uploaded", { name: items[0].file.name }));
+          if (doneCount === 1)
+            toast.success(tr("toasts.uploaded", { name: items[0].file.name }), {
+              sound: { event: "done", area: "transfers" },
+            });
           else if (failedCount === 1)
             toast.error(tr("toasts.failedName", { name: items[0].file.name }));
         } else if (failedCount === 0) {
-          toast.success(tr("toasts.allUploaded", { count: doneCount }));
+          toast.success(tr("toasts.allUploaded", { count: doneCount }), {
+            sound: { event: "done", area: "transfers" },
+          });
         } else if (doneCount === 0) {
           toast.error(tr("toasts.allFailed", { count: failedCount }));
         } else {
-          toast.warning(tr("toasts.partialUpload", { done: doneCount, failed: failedCount }));
+          toast.warning(tr("toasts.partialUpload", { done: doneCount, failed: failedCount }), {
+            sound: { event: "headsUp", area: "transfers" },
+          });
         }
       }
 
@@ -1727,6 +1752,19 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       return { id, filePath };
     });
 
+    const ids = new Set(items.map((i) => i.id));
+    const batchNow = () => get().queue.filter((q) => ids.has(q.id));
+    startBackgroundNotifications(() => {
+      const batch = batchNow();
+      const done = batch.filter((i) => i.status === "done").length;
+      const failed = batch.filter((i) => i.status === "failed").length;
+      const percent = Math.round(
+        batch.reduce((sum, i) => sum + (i.status === "done" ? 100 : i.progress || 0), 0) /
+          batch.length,
+      );
+      return { done, failed, total: batch.length, percent };
+    });
+
     try {
       await Promise.all(
         items.map(async ({ id, filePath }) => {
@@ -1760,8 +1798,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       );
     } finally {
       unlisten();
+      stopBackgroundNotifications();
     }
 
+    notifyBatchEnd(batchNow(), folderId);
     void onRefresh?.();
   },
 }));

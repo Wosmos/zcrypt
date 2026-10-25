@@ -629,11 +629,11 @@ export function useVaultActions({
       // later folder re-lock can't serve it under the wrong zone, and so it
       // re-decrypts under the destination folder's key if that changed.
       clearDecryptCacheForFile(fileId);
-      toast.success(
+      toast.undo(
         folderId === null
           ? tr("hooks.movedRoot", { name: file.original_name })
           : tr("hooks.moved", { name: file.original_name }),
-        { label: tr("hooks.undo"), onClick: () => moveFileTo(fileId, originalFolderId) },
+        () => moveFileTo(fileId, originalFolderId),
       );
       // Revert THIS file only (functionally) on failure, never a whole-list
       // snapshot, which would undo sibling moves still in flight from the same
@@ -672,13 +672,10 @@ export function useVaultActions({
       deleteFile(target.id)
         .then(() => {
           void invalidateTrash();
-          toast.success(tr("hooks.fileDeleted"), {
-            label: tr("hooks.undo"),
-            onClick: () => {
-              restoreFile(target.id)
-                .then(() => invalidateFilesViews())
-                .catch(() => toast.error(tr("hooks.undoFailed")));
-            },
+          toast.undo(tr("hooks.fileDeleted"), () => {
+            restoreFile(target.id)
+              .then(() => invalidateFilesViews())
+              .catch(() => toast.error(tr("hooks.undoFailed")));
           });
         })
         .catch((err) => {
@@ -705,13 +702,10 @@ export function useVaultActions({
           );
           void refresh(); // reconcile the partial failure against the server
         } else {
-          toast.success(tr("hooks.bulkDeleted", { count: result.deleted }), {
-            label: tr("hooks.undo"),
-            onClick: () => {
-              bulkRestoreFiles(ids)
-                .then(() => invalidateFilesViews())
-                .catch(() => toast.error(tr("hooks.undoFailed")));
-            },
+          toast.undo(tr("hooks.bulkDeleted", { count: result.deleted }), () => {
+            bulkRestoreFiles(ids)
+              .then(() => invalidateFilesViews())
+              .catch(() => toast.error(tr("hooks.undoFailed")));
           });
         }
         // Deleted rows now live in Trash.

@@ -108,12 +108,6 @@
     },
     "transfer": {
       "title": "Transferencias",
-      "complete": "Transferencias completadas",
-      "failedCount": "{count} fallidas",
-      "activeCount": "{count} activas",
-      "clearCompleted": "Borrar completadas",
-      "expand": "Expandir transferencias",
-      "collapse": "Contraer transferencias",
       "openFolderRetryTransfer": "Abre la carpeta protegida para desbloquearla y vuelve a intentar esta transferencia.",
       "openFolderRetryDownload": "Abre la carpeta protegida para desbloquearla y vuelve a intentar esta descarga.",
       "pauseUpload": "Pausar subida",
@@ -125,50 +119,104 @@
       "resumeDownload": "Reanudar descarga",
       "retryDownload": "Reintentar descarga",
       "dismiss": "Descartar",
-      "eta": {
-        "seconds": "faltan ~{count} s",
-        "minutes": "faltan ~{count} min",
-        "hoursMinutes": "faltan ~{hours} h {minutes} min"
+      "rootFolder": "Mi bóveda",
+      "folderFallback": "su carpeta",
+      "lockTip": "Cifrado en este dispositivo antes de que nada salga de él",
+      "minimize": "Minimizar transferencias",
+      "open": "Abrir transferencias",
+      "close": "Cerrar transferencias",
+      "retry": "Reintentar",
+      "retryFailed": "Reintentar fallidos",
+      "pauseAll": "Pausar todo",
+      "resumeAll": "Reanudar todo",
+      "clearDone": "Quitar terminados",
+      "header": {
+        "timeLeft": "quedan {time}",
+        "done": "listo",
+        "paused": "en pausa",
+        "speed": "{speed}/s",
+        "downloads": "{count, plural, one {# descarga} other {# descargas}}",
+        "failed": "{count} fallidos"
       },
-      "stage": {
-        "paused": "En pausa",
-        "queued": "En cola",
-        "done": "Listo",
-        "failed": "Error",
-        "cancelled": "Cancelado",
-        "uploaded": "Subido",
+      "progress": {
+        "ready": "Preparando",
+        "securing": "Protegiendo en este dispositivo",
+        "sending": "Enviando",
+        "sendingBytes": "Enviando · {done} de {total}",
+        "sendingEta": "Enviando · {time}",
+        "checking": "Comprobando…",
+        "savedTo": "Guardado en {folder}",
+        "fetching": "Trayendo",
+        "fetchingBytes": "Trayendo · {done} de {total}",
+        "fetchingEta": "Trayendo · {time}",
+        "unlocking": "Desbloqueando en este dispositivo",
+        "saving": "Guardando…",
         "downloaded": "Descargado",
-        "resuming": "Reanudando…",
-        "retrying": "Reintentando...",
-        "uploading": "Subiendo...",
-        "downloading": "Descargando...",
-        "finalizing": "Finalizando...",
-        "hashing": "Calculando el hash del archivo…",
-        "hashingPercent": "Calculando el hash del archivo… {percent}%",
-        "derivingKey": "Derivando la clave de cifrado...",
-        "startingSession": "Iniciando la sesión de subida...",
-        "chooseSave": "Elige dónde guardar…",
-        "fetchingMeta": "Obteniendo metadatos...",
-        "verifying": "Verificando la integridad...",
-        "savingFile": "Guardando el archivo...",
-        "savingZip": "Guardando el ZIP...",
-        "processing": "Procesando",
-        "encrypting": "Cifrando",
-        "uploadingChunk": "Subiendo fragmento {current}/{total}",
-        "downloadingChunks": "Descargando {current}/{total}",
-        "waitingSlot": "Esperando un hueco libre ({attempt})...",
-        "downloadingFile": "Descargando {name}",
-        "withCount": "{stage} ({index}/{total})",
-        "uploadFailed": "Error al subir",
-        "downloadFailed": "Error al descargar",
-        "zipFailed": "Error al descargar el ZIP",
-        "tooLargeDownload": "Demasiado grande para descargarlo en este navegador",
-        "tooLargeZip": "Demasiado grande para crear el ZIP en este navegador",
-        "chooseZipSave": "Elige dónde guardar el ZIP",
-        "unreachable": "No se puede acceder a los servidores de zcrypt (red/DNS)",
-        "startingZip": "Iniciando el ZIP...",
-        "noPlatform": "No hay ninguna plataforma de almacenamiento conectada. Ve a Ajustes para conectar una."
-      }
+        "queued": "Esperando su turno",
+        "choose": "Elige dónde guardar",
+        "paused": "En pausa",
+        "offline": "Esperando wifi",
+        "stopped": "Detenido"
+      },
+      "time": {
+        "fewSeconds": "unos segundos",
+        "seconds": "unos {count} s",
+        "minutes": "unos {count} min",
+        "hours": "unas {hours} h",
+        "hoursMinutes": "unas {hours} h {minutes} min"
+      },
+      "errors": {
+        "dropped": "No se pudo enviar · la conexión se cortó al {percent}%",
+        "droppedDownload": "No se pudo descargar · la conexión se cortó al {percent}%",
+        "sendFailed": "No se pudo enviar · inténtalo de nuevo",
+        "downloadFailed": "No se pudo descargar · inténtalo de nuevo",
+        "tooBigDownload": "Demasiado grande para este navegador, usa la app",
+        "tooBigZip": "Demasiado grande para un ZIP aquí, descarga los archivos uno a uno",
+        "chooseZip": "Elige dónde guardar el ZIP y vuelve a intentarlo",
+        "noPlatform": "No hay almacenamiento conectado · conecta uno en Ajustes",
+        "vaultLocked": "Tu bóveda se bloqueó · desbloquéala y vuelve a intentarlo",
+        "unlockFolder": "Desbloquea primero la carpeta",
+        "wrongKey": "No se pudo desbloquear · revisa la contraseña y vuelve a intentarlo",
+        "damaged": "Esta copia parece dañada · inténtalo de nuevo",
+        "tooBigUpload": "Demasiado grande para enviar · el límite es 10 GB por archivo",
+        "storageFull": "El almacenamiento está lleno · libera espacio o conecta más"
+      },
+      "batch": {
+        "titlePhotos": "{count, plural, one {# foto} other {# fotos}} → {folder}",
+        "titleFiles": "{count, plural, one {# archivo} other {# archivos}} → {folder}",
+        "sendingPhotos": "Enviando {active, plural, one {# foto} other {# fotos}} ahora, {waiting} esperando su turno",
+        "sendingFiles": "Enviando {active, plural, one {# archivo} other {# archivos}} ahora, {waiting} esperando su turno",
+        "downloading": "Descargando {active, plural, one {# archivo} other {# archivos}} ahora, {waiting} esperando su turno",
+        "waiting": "{count} esperando su turno",
+        "paused": "En pausa. Quedan {count}.",
+        "offline": "Esperando wifi. Seguirá por sí solo.",
+        "saved": "{count} guardados en {folder}.",
+        "savedSomeFailed": "{count} guardados en {folder}. {failed} no se pudieron enviar.",
+        "allFailed": "{failed} no se pudieron enviar.",
+        "downloaded": "{count} descargados.",
+        "downloadedSomeFailed": "{count} descargados. {failed} no se pudieron descargar."
+      },
+      "legend": {
+        "done": "Listos",
+        "uploading": "Enviando",
+        "waiting": "En espera",
+        "failed": "Fallidos"
+      },
+      "segment": {
+        "done": "{count} listos",
+        "uploading": "{count} enviando",
+        "waiting": "{count} en espera",
+        "failed": "{count} fallidos"
+      },
+      "drop": {
+        "upload": "Suelta para subir",
+        "download": "Suelta para descargar",
+        "uploadDetail": "{count, plural, one {# archivo} other {# archivos}} → {folder} · cifrado aquí primero",
+        "downloadDetail": "{count, plural, one {# archivo} other {# archivos}} · descifrado en este dispositivo",
+        "uploadShort": "Suelta para subir {count, plural, one {# archivo} other {# archivos}} → {folder}",
+        "downloadShort": "Suelta para descargar {count, plural, one {# archivo} other {# archivos}}"
+      },
+      "orb": "Transferencias, quedan {left}. Toca para abrir, mantén pulsado para pausar o reanudar."
     },
     "tokens": {
       "expired": "Caducado",
@@ -431,7 +479,8 @@
       "purgeBody": "Este archivo se eliminará definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.",
       "purgeConfirm": "Eliminar definitivamente",
       "bulkPurgeTitle": "{count, plural, one {¿Eliminar # archivo definitivamente?} other {¿Eliminar # archivos definitivamente?}}",
-      "bulkPurgeBody": "{count, plural, one {Este # archivo se eliminará definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.} other {Estos # archivos se eliminarán definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.}}"
+      "bulkPurgeBody": "{count, plural, one {Este # archivo se eliminará definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.} other {Estos # archivos se eliminarán definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.}}",
+      "bulkPurgeConfirm": "{count, plural, one {Eliminar # archivo para siempre} other {Eliminar # archivos para siempre}}"
     },
     "createFromFiles": {
       "defaultName": "Carpeta de {name}",
@@ -950,6 +999,25 @@
           "tokenLabel": "Crear bot con @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "Subiendo {done}/{total} · {percent}%",
+      "downloading": "Descargando {done}/{total} · {percent}%",
+      "progressBody": "Sigue en segundo plano",
+      "uploadDone": "Subida terminada",
+      "downloadDone": "Descarga terminada",
+      "uploadFailed": "No se pudo subir {name}",
+      "downloadFailed": "No se pudo descargar {name}",
+      "newSignIn": "Nuevo inicio de sesión en tu cuenta",
+      "newSignInBody": "{device}. ¿No fuiste tú? Ciérrala en Ajustes.",
+      "inviteReceived": "Te invitaron a {space}",
+      "inviteReceivedBody": "Abre zcrypt para aceptar o rechazar.",
+      "linkViewed": "Alguien abrió tu enlace",
+      "storageFull": "Tu almacenamiento está lleno",
+      "storageFullBody": "Las nuevas subidas esperan hasta que liberes espacio o conectes tu propia cuenta.",
+      "view": "Ver",
+      "retry": "Reintentar",
+      "open": "Abrir"
     }
   }
 }

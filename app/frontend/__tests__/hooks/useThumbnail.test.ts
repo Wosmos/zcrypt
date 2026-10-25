@@ -1120,15 +1120,23 @@ describe("useThumbnail", () => {
   });
 
   it("seedThumbnailFromFile caches an image thumbnail from local bytes with no network round trip", async () => {
-    const { primeThumbnails, useThumbnail, seedThumbnailFromFile, hasCachedThumbnail } =
-      await loadModule();
+    const {
+      primeThumbnails,
+      useThumbnail,
+      seedThumbnailFromFile,
+      hasCachedThumbnail,
+      getCachedThumbnail,
+    } = await loadModule();
     act(() => primeThumbnails("vault-pass"));
+    expect(getCachedThumbnail("f1")).toBeUndefined();
+    expect(getCachedThumbnail(undefined)).toBeUndefined();
 
     await act(async () => {
       await seedThumbnailFromFile("f1", new File(["local-bytes"], "photo.jpg"), "photo.jpg");
     });
 
     expect(hasCachedThumbnail("f1")).toBe(true);
+    expect(getCachedThumbnail("f1")).toBe("data:image/webp;base64,FAKE");
     expect(getFileMetaMock).not.toHaveBeenCalled();
     expect(getFileChunkMock).not.toHaveBeenCalled();
 
@@ -1159,6 +1167,19 @@ describe("useThumbnail", () => {
     // One of two cards for f1 unmounts: the other keeps its subscription.
     a1.unmount();
     a2.unmount();
+  });
+
+  it("useCachedThumbnail reads the cache without generating and updates when a seed lands", async () => {
+    const { useCachedThumbnail, seedThumbnailFromFile } = await loadModule();
+    const { result } = renderHook(() => useCachedThumbnail("f1"));
+    const none = renderHook(() => useCachedThumbnail(undefined));
+    expect(result.current).toBeNull();
+    expect(none.result.current).toBeNull();
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["b"], "photo.jpg"), "photo.jpg");
+    });
+    expect(result.current).toBe("data:image/webp;base64,FAKE");
+    expect(getFileMetaMock).not.toHaveBeenCalled();
   });
 
   it("seedThumbnailFromFile caches a video poster frame from local bytes", async () => {

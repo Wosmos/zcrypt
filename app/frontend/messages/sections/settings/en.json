@@ -102,9 +102,9 @@
       "signOutCount": "Sign out {count, plural, one {1 device} other {# devices}}",
       "confirmOneTitle": "Sign this device out?",
       "confirmOneDesc": "{device} ({network}) will be signed out immediately.",
-      "confirmAllTitle": "Sign out every other device?",
+      "confirmAllTitle": "Sign out {count, plural, one {# other device} other {# other devices}}?",
       "confirmAllDesc": "Every session except this one ends immediately. Those devices will need your password to sign back in.",
-      "confirmAllLabel": "Sign out others"
+      "confirmAllLabel": "{count, plural, one {Sign out # device} other {Sign out # devices}}"
     },
     "securityActivity": {
       "loadFailed": "Could not load your security activity",
@@ -467,6 +467,64 @@
       "announcementsDesc": "Occasional news from the zcrypt team.",
       "footnote": "Account and security emails are always sent.",
       "saveFailed": "Could not save your email preference"
+    },
+    "notifications": "Notifications",
+    "notificationsDesc": "Sounds and vibration",
+    "soundPrefs": {
+      "master": "Sounds",
+      "masterDesc": "Play a tone when something finishes or needs you",
+      "groupSet": "Sound set",
+      "setFootnote": "Tap a set to hear it. Sounds are made on your device, no audio files.",
+      "set": {
+        "soft": "Soft",
+        "glass": "Glass",
+        "minimal": "Minimal"
+      },
+      "setDesc": {
+        "soft": "Warm and round",
+        "glass": "Bright and airy",
+        "minimal": "Short and quiet"
+      },
+      "event": {
+        "done": "Finished",
+        "headsUp": "Heads up",
+        "problem": "Problem"
+      },
+      "eventDesc": {
+        "done": "Uploads, downloads, links and exports that took time",
+        "headsUp": "Warnings and things waiting for you",
+        "problem": "Something went wrong"
+      },
+      "preview": "Play",
+      "previewAria": "Play the {event} sound",
+      "groupAreas": "Play sounds for",
+      "area": {
+        "transfers": "Uploads and downloads",
+        "sharing": "Sharing and Spaces",
+        "security": "Security",
+        "problems": "Problems"
+      },
+      "vibrate": "Vibrate on phone",
+      "vibrateDesc": "A short buzz with each sound on touch devices",
+      "backgroundOnly": "Only in the background",
+      "backgroundOnlyDesc": "Stay silent while zcrypt is open and in focus"
+    },
+    "notifyPrefs": {
+      "group": "System notifications",
+      "title": "Notifications on this device",
+      "state": {
+        "granted": "On. zcrypt lets you know when transfers finish, even in the background.",
+        "default": "Off. Turn them on to hear about finished uploads while you are away.",
+        "denied": "Blocked. Allow notifications for zcrypt in your browser or system settings.",
+        "unsupported": "This browser can't show notifications."
+      },
+      "turnOn": "Turn on notifications",
+      "test": "Send a test",
+      "testTitle": "Notifications are on",
+      "testBody": "This is how zcrypt lets you know.",
+      "thumbnails": "Show photo previews",
+      "thumbnailsDesc": "A small preview of the photo in upload notifications. Turn off to keep photos off your lock screen.",
+      "iosHint": "To get notifications on iPhone, add zcrypt to your Home Screen: tap Share, then Add to Home Screen."
     }
   }
 }

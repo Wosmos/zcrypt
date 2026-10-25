@@ -41,6 +41,13 @@ vi.mock("@/lib/tauri", async (importOriginal) => {
   return { ...actual, ...tauriMocks };
 });
 
+const notifyMock = vi.hoisted(() => vi.fn(async (_event: import("@/lib/notify").NotifyEvent) => true));
+vi.mock("@/lib/notify", () => ({
+  notify: notifyMock,
+  failureReason: (kind: string, error: string | undefined, percent: number) =>
+    `reason:${kind}:${error}:${percent}`,
+}));
+
 import { useDownloadStore, canStreamToDisk } from "@/store/download";
 import { downloadAndDecryptFile, DownloadPausedError, type DownloadOptions } from "@/lib/download-session";
 const FakeDownloadPausedError = DownloadPausedError;
@@ -98,6 +105,7 @@ describe("useDownloadStore", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.restoreAllMocks();
+    notifyMock.mockClear();
     (downloadAndDecryptFile as Mock).mockReset().mockResolvedValue(undefined);
     (downloadAsZip as Mock).mockReset().mockResolvedValue({ added: 1, failed: [] });
     tauriMocks.sidecarDownload.mockReset().mockResolvedValue(undefined);
@@ -132,7 +140,7 @@ describe("useDownloadStore", () => {
       expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
       expect(lastCallOptions().saveToDisk).toBeUndefined();
       expect(getItem(id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("small.txt downloaded");
+      expect(toast.success).toHaveBeenCalledWith("small.txt downloaded", expect.anything());
     });
 
     it("passes a persistent resume object and a pausing() callback into the pipeline", async () => {
@@ -348,32 +356,37 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.progress).toBe(20);
     });
 
-    it("fires a web notification when the tab is hidden", async () => {
-      const ctorSpy = vi.fn();
-      let instance: { onclick: (() => void) | null; close: Mock } | undefined;
-      vi.stubGlobal("Notification", class {
-        static permission = "granted";
-        onclick: (() => void) | null = null;
-        close = vi.fn();
-        constructor(...a: unknown[]) {
-          ctorSpy(...a);
-          instance = this;
-        }
-      });
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-      const focusSpy = vi.spyOn(window, "focus").mockImplementation(() => {});
+    it("tells lib/notify the download finished", async () => {
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
       await flush();
-      expect(ctorSpy).toHaveBeenCalledWith("Download complete", expect.objectContaining({ tag: "download-done" }));
+      expect(notifyMock).toHaveBeenCalledWith({ type: "downloadDone", name: "a.bin" });
+    });
 
-      // Clicking the notification focuses the tab and dismisses it.
-      instance!.onclick!();
-      expect(focusSpy).toHaveBeenCalledTimes(1);
-      expect(instance!.close).toHaveBeenCalledTimes(1);
+    it("tells lib/notify a download failed, with its plain reason", async () => {
+      (downloadAndDecryptFile as Mock).mockRejectedValue(new Error("Failed to fetch"));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      expect(notifyMock).toHaveBeenCalledWith({
+        type: "transferFailed",
+        kind: "download",
+        name: "a.bin",
+        reason: "reason:download:Failed to fetch:0",
+      });
+    });
 
-      // It also self-dismisses after 5s even if never clicked.
-      vi.advanceTimersByTime(5000);
-      expect(instance!.close).toHaveBeenCalledTimes(2);
+    it("still explains a failure whose row was already cleared", async () => {
+      let fail: (e: Error) => void = () => {};
+      (downloadAndDecryptFile as Mock).mockImplementation(
+        () => new Promise((_res, rej) => { fail = rej; }),
+      );
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      useDownloadStore.setState({ queue: [] });
+      fail(new Error("boom"));
+      await flush();
+      expect(notifyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "transferFailed", reason: "reason:download:boom:0" }),
+      );
     });
   });
 
@@ -1154,7 +1167,10 @@ describe("useDownloadStore", () => {
         "/save/path"
       );
       expect(getItem(id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("secret.bin downloaded");
+      expect(toast.success).toHaveBeenCalledWith("secret.bin downloaded", {
+        sound: { event: "done", area: "transfers" },
+      });
+      expect(notifyMock).toHaveBeenCalledWith({ type: "downloadDone", name: "secret.bin" });
       expect(notifications.downloadComplete).toHaveBeenCalledWith("secret.bin");
     });
 
@@ -1334,7 +1350,7 @@ describe("useDownloadStore", () => {
         "/save/path"
       );
       expect(getItem(id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded");
+      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded", expect.anything());
       expect(notifications.downloadComplete).toHaveBeenCalledWith("2 files (ZIP)");
     });
 
@@ -1476,7 +1492,7 @@ describe("useDownloadStore", () => {
       expect(item.fileSize).toBe(300);
       await flush();
       expect(getItem(item.id)?.status).toBe("done");
-      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded");
+      expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded", expect.anything());
     });
 
     it("paints ZIP progress from downloadAsZip's onProgress callback", async () => {
@@ -1565,6 +1581,7 @@ describe("useDownloadStore", () => {
       expect(toast.success).not.toHaveBeenCalled();
       expect(toast.warning).toHaveBeenCalledWith(
         "ZIP saved without 2 of 2 files (b.txt, c.txt). Download those individually.",
+        expect.anything(),
       );
       expect(useFolderPasswordStore.getState().get("folder-2")).toBeNull();
     });

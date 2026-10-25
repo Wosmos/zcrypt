@@ -1,123 +1,302 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
-import { useToastStore, type ToastType } from "@/store/toast";
-import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from "@/lib/icons";
+import { toastRemainingMs, useToastStore, type Toast } from "@/store/toast";
+import { useTransferDockStore } from "@/store/transfer-dock";
+import { installAudioUnlock } from "@/lib/sounds";
+import { Check, X } from "@/lib/icons";
+import { KIND, tint } from "@/components/ui/kind";
 import { cn } from "@/lib/utils";
 
-// ─── Deck geometry (ported from the toast.html reference) ─────────────────────
-// Newest sits on top; the rest peek up + to the side and recede into the screen
-// (3D). Hover the deck (or tap / focus into it) to fan them into a flat 2D list.
-const TOP_ROOM = 22; // headroom above the front card
-const PEEK_Y = 11; // how far each card behind peeks up (collapsed)
-const PEEK_X = 8; // how far each card behind shifts left (collapsed)
-const Z_STEP = 65; // depth each card recedes (collapsed)
-const GAP = 10; // gap between cards when expanded
-const VISIBLE = 3; // cards drawn in the collapsed deck
-const MAX = 5; // hard cap on rendered cards (mirrors the store cap)
+const PILL_VISIBLE = 3;
+const GLASS_VISIBLE = 3;
+const RING_C = 62.8;
 
-// SSR-safe layout effect (avoids the useLayoutEffect-on-server warning).
-const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const ENTER = "motion-safe:animate-[toast-in_0.28s_cubic-bezier(0.2,0.8,0.2,1)_both]";
 
-// Per-type treatment: a base colour drives the card's tinted gradient, border,
-// chip and drain bar. Colours are theme tokens (light-safe in light mode, bright
-// in dark). `info` uses the app accent so it stays on-brand. `assertive` routes
-// the message to the assertive vs polite screen-reader announcer.
-const TYPE: Record<ToastType, { color: string; Icon: typeof CheckCircle2; assertive: boolean }> = {
-  success: { color: "var(--toast-success)", Icon: CheckCircle2, assertive: false },
-  error: { color: "var(--toast-error)", Icon: AlertCircle, assertive: true },
-  info: { color: "var(--color-accent)", Icon: Info, assertive: false },
-  warning: { color: "var(--toast-warning)", Icon: AlertTriangle, assertive: true },
-};
-
-/** Tinted card gradient + border for a given type colour. */
-function cardStyle(color: string): CSSProperties {
-  return {
-    backgroundImage: `linear-gradient(180deg, color-mix(in srgb, ${color} 16%, var(--color-surface)), var(--color-surface) 66%)`,
-    borderColor: `color-mix(in srgb, ${color} 34%, var(--color-border))`,
-  };
+function isUndo(t: Toast) {
+  return Boolean(t.undo);
 }
 
+function isPill(t: Toast) {
+  return (t.type === "success" || t.type === "info") && !isUndo(t);
+}
+
+function isGlass(t: Toast) {
+  return (t.type === "warning" || t.type === "error") && !isUndo(t);
+}
+
+function Dismiss({ toast, className }: { toast: Toast; className?: string }) {
+  const tr = useTranslations("ui.toasts");
+  const remove = useToastStore((s) => s.remove);
+  return (
+    <button
+      type="button"
+      onClick={() => remove(toast.id)}
+      aria-label={tr("dismiss", { message: toast.message })}
+      className={cn(
+        "relative grid h-6 w-6 flex-shrink-0 place-items-center rounded-full before:absolute before:-inset-2 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
+        className,
+      )}
+    >
+      <X className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function Count({ count }: { count: number }) {
+  const tr = useTranslations("ui.toasts");
+  if (count < 2) return null;
+  return (
+    <span
+      className="ms-1.5 rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums opacity-80"
+      style={{ background: "color-mix(in oklab, currentColor 14%, transparent)" }}
+      aria-label={tr("times", { count })}
+    >
+      {`×${count}`}
+    </span>
+  );
+}
+
+function Pill({ toast, depth }: { toast: Toast; depth: number }) {
+  const remove = useToastStore((s) => s.remove);
+  const kind = KIND[toast.type];
+  const Icon = toast.icon ?? (toast.type === "success" ? Check : kind.Icon);
+  return (
+    <div
+      data-toast="pill"
+      data-kind={toast.type}
+      className={cn(
+        "pointer-events-auto flex max-w-[min(92vw,26rem)] items-center gap-2.5 rounded-full bg-[var(--color-text)] py-1.5 ps-2 pe-3 text-[13px] font-medium text-[var(--color-bg)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] transition-[transform,opacity] duration-300",
+        ENTER,
+        depth > 0 && "scale-[0.96] opacity-80",
+      )}
+    >
+      <span
+        className="grid h-[22px] w-[22px] flex-shrink-0 place-items-center rounded-full text-[var(--color-on-accent)]"
+        style={{ background: kind.color }}
+      >
+        <Icon className="h-3 w-3" weight="bold" />
+      </span>
+      <span className="min-w-0 break-words py-0.5 leading-snug">
+        {toast.message}
+        <Count count={toast.count} />
+      </span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            remove(toast.id);
+          }}
+          className="flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-[color-mix(in_oklab,var(--color-bg)_16%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-bg)]"
+          style={{ background: "color-mix(in oklab, var(--color-bg) 10%, transparent)" }}
+        >
+          {toast.action.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function GlassRow({ toast }: { toast: Toast }) {
+  const remove = useToastStore((s) => s.remove);
+  const kind = KIND[toast.type];
+  const Icon = toast.icon ?? kind.Icon;
+  return (
+    <div
+      data-toast="glass"
+      data-kind={toast.type}
+      className={cn(
+        "pointer-events-auto flex items-center gap-3 rounded-2xl border px-3 py-2.5 shadow-[0_14px_40px_-14px_rgba(0,0,0,0.45)] backdrop-blur-xl",
+        ENTER,
+      )}
+      style={{
+        background: "color-mix(in oklab, var(--color-surface) 82%, transparent)",
+        borderColor:
+          toast.type === "error"
+            ? tint(kind.color, 45, "var(--color-border)")
+            : "var(--color-border)",
+      }}
+    >
+      {toast.thumbnail ? (
+        // oxlint-disable-next-line nextjs/no-img-element
+        <img
+          src={toast.thumbnail}
+          alt=""
+          className="h-9 w-9 flex-shrink-0 rounded-[10px] object-cover"
+        />
+      ) : (
+        <span
+          className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-[10px]"
+          style={{ background: tint(kind.color, 16), color: kind.color }}
+        >
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-[13px] font-semibold leading-snug text-[var(--color-text)]">
+          {toast.message}
+          <Count count={toast.count} />
+        </p>
+        {toast.detail && (
+          <p className="break-words text-xs leading-snug text-[var(--color-text-muted)]">
+            {toast.detail}
+          </p>
+        )}
+      </div>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            remove(toast.id);
+          }}
+          className="relative flex-shrink-0 rounded-md px-1 text-[12.5px] font-semibold text-[var(--color-accent)] before:absolute before:-inset-2 before:content-[''] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        >
+          {toast.action.label}
+        </button>
+      )}
+      <Dismiss
+        toast={toast}
+        className="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+      />
+    </div>
+  );
+}
+
+function UndoRing({ toast }: { toast: Toast }) {
+  const tr = useTranslations("ui.toasts");
+  const [left, setLeft] = useState(toast.duration);
+  useEffect(() => {
+    const tick = () => setLeft(toastRemainingMs(toast.id) ?? 0);
+    tick();
+    const handle = setInterval(tick, 100);
+    return () => clearInterval(handle);
+  }, [toast.id, toast.lastAt]);
+  const seconds = Math.ceil(left / 1000);
+  return (
+    <span
+      role="img"
+      aria-label={tr("secondsLeft", { seconds })}
+      className="relative grid h-[26px] w-[26px] flex-shrink-0 place-items-center"
+    >
+      <svg viewBox="0 0 26 26" className="absolute inset-0 -rotate-90 rtl:rotate-90" aria-hidden>
+        <circle
+          cx="13"
+          cy="13"
+          r="10"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity="0.2"
+          strokeWidth="2"
+        />
+        <circle
+          data-ring
+          cx="13"
+          cy="13"
+          r="10"
+          fill="none"
+          stroke="var(--toast-inv-accent)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={RING_C}
+          strokeDashoffset={RING_C * (1 - left / toast.duration)}
+        />
+      </svg>
+      <span className="text-[11px] font-semibold tabular-nums" aria-hidden>
+        {seconds}
+      </span>
+    </span>
+  );
+}
+
+function UndoBar({ toast }: { toast: Toast }) {
+  const tr = useTranslations("ui.toasts");
+  const remove = useToastStore((s) => s.remove);
+  return (
+    <div
+      data-toast="undo"
+      className={cn(
+        "pointer-events-auto flex items-center gap-3 rounded-2xl bg-[var(--color-text)] py-2.5 ps-4 pe-3 text-[var(--color-bg)] shadow-[0_14px_40px_-14px_rgba(0,0,0,0.55)]",
+        ENTER,
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-[13px] font-medium leading-snug">
+          {toast.message}
+          <Count count={toast.count} />
+        </p>
+        {toast.detail && (
+          <p className="break-words text-xs leading-snug opacity-70">{toast.detail}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          toast.undo?.();
+          remove(toast.id);
+        }}
+        className="relative flex-shrink-0 rounded-md px-1 text-[13px] font-semibold before:absolute before:-inset-2 before:content-[''] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--toast-inv-accent)]"
+        style={{ color: "var(--toast-inv-accent)" }}
+      >
+        {tr("undo")}
+      </button>
+      <UndoRing toast={toast} />
+    </div>
+  );
+}
+
+/** The one place every toast is drawn: pills, glass rows and the undo bar. */
 export function ToastContainer() {
   const tr = useTranslations("ui.toasts");
   const toasts = useToastStore((s) => s.toasts);
-  const remove = useToastStore((s) => s.remove);
   const pause = useToastStore((s) => s.pause);
   const resume = useToastStore((s) => s.resume);
+  const removeNewest = useToastStore((s) => s.removeNewest);
 
-  const [hovered, setHovered] = useState(false);
-  const [pinned, setPinned] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [heights, setHeights] = useState<Record<string, number>>({});
-  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const containerRef = useRef<HTMLDivElement>(null);
+  const dockVisible = useTransferDockStore((s) => s.visible);
+  const dockHeight = useTransferDockStore((s) => s.height);
+  const glassBottom = {
+    "--toast-glass-bottom": dockVisible ? `${dockHeight + 28}px` : "1.5rem",
+  } as CSSProperties;
 
-  const expanded = hovered || pinned || focused;
+  useEffect(() => installAudioUnlock(), []);
 
-  // Newest first, capped so a burst can't grow an unbounded deck.
-  const ordered = [...toasts].slice(-MAX).reverse();
-  const total = ordered.length;
-
-  // Measure card heights so the expanded (2D) layout stacks them exactly and the
-  // deck container can size itself. Converges in one corrective pass.
-  useIsoLayoutEffect(() => {
-    const next: Record<string, number> = {};
-    let changed = ordered.length !== Object.keys(heights).length;
-    for (const t of ordered) {
-      const h = nodeRefs.current.get(t.id)?.offsetHeight ?? heights[t.id] ?? 64;
-      next[t.id] = h;
-      if (heights[t.id] !== h) changed = true;
-    }
-    if (changed) setHeights(next);
-  });
-
+  const hasToasts = toasts.length > 0;
   useEffect(() => {
-    if (expanded) pause();
-    else resume();
-  }, [expanded, pause, resume]);
+    if (!hasToasts) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"]'))
+        return;
+      removeNewest();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hasToasts, removeNewest]);
 
-  // Drop transient expand state once the deck empties.
-  useEffect(() => {
-    if (total === 0 && (pinned || hovered || focused)) {
-      queueMicrotask(() => {
-        setPinned(false);
-        setHovered(false);
-        setFocused(false);
-      });
-    }
-  }, [total, pinned, hovered, focused]);
+  const pills = toasts.filter(isPill);
+  const glass = toasts.filter(isGlass);
+  const undos = toasts.filter(isUndo);
+  const polite = toasts.filter((t) => t.type !== "error");
+  const assertive = toasts.filter((t) => t.type === "error");
 
-  const h = useCallback((id: string) => heights[id] ?? 64, [heights]);
+  const hover = {
+    onMouseEnter: pause,
+    onMouseLeave: resume,
+    onFocusCapture: pause,
+    onBlurCapture: resume,
+  };
 
-  const toggle = useCallback(() => {
-    setPinned((p) => !(hovered || focused || p));
-    setHovered(false);
-  }, [hovered, focused]);
-
-  // Screen-reader announcements live in two persistent, always-mounted regions
-  // OUTSIDE the visual deck (so they exist before text is injected). Each toast
-  // is a separate child node, so a new arrival is announced without re-reading
-  // the others. The visual cards below are NOT live regions.
-  const polite = toasts.filter((t) => !TYPE[t.type].assertive);
-  const assertive = toasts.filter((t) => TYPE[t.type].assertive);
-
-  const frontH = total > 0 ? h(ordered[0].id) : 0;
-  const deckHeight = expanded
-    ? TOP_ROOM + ordered.reduce((s, t) => s + h(t.id) + GAP, 0) - GAP
-    : TOP_ROOM + frontH;
-  const hidden = total - VISIBLE;
+  const visiblePills = pills.slice(-PILL_VISIBLE).reverse();
+  const visibleGlass = glass.slice(-GLASS_VISIBLE).reverse();
+  const olderPills = pills.length - visiblePills.length;
+  const olderGlass = glass.length - visibleGlass.length;
 
   return (
     <>
-      {/* Persistent SR announcers */}
       <div aria-live="polite" aria-atomic="false" className="sr-only">
         {polite.map((t) => (
           <div key={t.id}>{t.message}</div>
@@ -129,164 +308,50 @@ export function ToastContainer() {
         ))}
       </div>
 
-      {total > 0 && (
+      {visiblePills.length > 0 && (
         <div
-          ref={containerRef}
           aria-label={tr("label")}
-          className={cn(
-            // Mobile: near-full-width, pinned near the top clear of the notch.
-            "fixed top-[calc(var(--safe-top)+0.75rem)] inset-x-3 z-[100] flex flex-col gap-2",
-            // Desktop: compact deck in the top-right.
-            "sm:inset-x-auto sm:end-6 sm:top-5 sm:w-[380px]",
-          )}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          onFocusCapture={() => setFocused(true)}
-          onBlurCapture={(e) => {
-            if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-              setFocused(false);
-            }
-          }}
+          {...hover}
+          className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--safe-bottom,0px)+5.5rem)] z-[100] flex flex-col-reverse items-center gap-2 px-3 md:bottom-24 lg:bottom-6"
         >
-          {/* The 3D deck */}
-          <div
-            className="relative motion-reduce:![perspective:none] motion-reduce:!transition-none"
-            style={{
-              height: deckHeight,
-              perspective: 1400,
-              perspectiveOrigin: "top center",
-              transformStyle: "preserve-3d",
-              transition: "height .4s cubic-bezier(.22,.61,.36,1)",
-            }}
-            onClick={toggle}
-          >
-            {ordered.map((t, i) => {
-              const type = TYPE[t.type];
-              // Only the front card is interactive when collapsed; expanding
-              // reveals the rest. Non-interactive cards are inert, removed from
-              // the tab order and the a11y tree, so a keyboard user can never
-              // land on the Dismiss button of a card they can't see.
-              const interactive = expanded || i === 0;
-              let transform: string;
-              let opacity = 1;
-              if (i === 0) {
-                transform = `translateY(${TOP_ROOM}px)`;
-              } else if (expanded) {
-                const y = TOP_ROOM + ordered.slice(0, i).reduce((s, o) => s + h(o.id) + GAP, 0);
-                transform = `translateY(${y}px)`;
-              } else {
-                const y = TOP_ROOM - i * PEEK_Y;
-                transform = `translateY(${y}px) translateX(-${i * PEEK_X}px) translateZ(-${i * Z_STEP}px)`;
-                opacity = i < VISIBLE ? 1 : 0;
-              }
-              const dimmed = !expanded && i >= 1;
-
-              return (
-                <div
-                  key={t.id}
-                  ref={(el) => {
-                    if (el) nodeRefs.current.set(t.id, el);
-                    else nodeRefs.current.delete(t.id);
-                  }}
-                  inert={!interactive}
-                  aria-hidden={!interactive || undefined}
-                  className="absolute inset-x-0 top-0 flex items-start gap-3 overflow-hidden rounded-2xl border p-3 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.6)] motion-reduce:!transition-none"
-                  style={{
-                    ...cardStyle(type.color),
-                    transformOrigin: "top center",
-                    transform,
-                    opacity,
-                    zIndex: total - i,
-                    filter: dimmed ? `brightness(${1 - i * 0.06})` : undefined,
-                    transition:
-                      "transform .4s cubic-bezier(.22,.61,.36,1), opacity .3s ease, filter .3s ease",
-                  }}
-                >
-                  {/* Chip */}
-                  <span
-                    className="mt-0.5 grid h-8 w-8 flex-shrink-0 place-items-center rounded-xl"
-                    style={{
-                      background: `color-mix(in srgb, ${type.color} 16%, transparent)`,
-                      color: type.color,
-                    }}
-                  >
-                    <type.Icon className="h-[18px] w-[18px]" />
-                  </span>
-
-                  {/* Body */}
-                  <div className="min-w-0 flex-1 pt-1">
-                    <p className="break-words text-sm font-medium leading-snug text-[var(--color-text)]">
-                      {t.message}
-                    </p>
-                    {t.action && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          t.action?.onClick();
-                          remove(t.id);
-                        }}
-                        className="relative mt-1 text-sm font-semibold underline-offset-2 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:underline"
-                        style={{ color: type.color }}
-                      >
-                        {t.action.label}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Dismiss */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      remove(t.id);
-                    }}
-                    aria-label={tr("dismiss", { message: t.message })}
-                    className="relative -me-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-md before:absolute before:-inset-2.5 before:content-[''] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-
-                  {/* Countdown drain */}
-                  <span
-                    aria-hidden
-                    className="absolute bottom-0 start-0 h-[3px] w-full origin-left rtl:origin-right motion-reduce:!animate-none"
-                    style={{
-                      background: type.color,
-                      animation: `toast-drain ${t.duration}ms linear forwards`,
-                      animationPlayState: expanded ? "paused" : "running",
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-
-          {/* "N more" bar: mirrors the app; toggles the fan open/closed. */}
-          {hidden > 0 && (
-            <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.5)]">
-              <span className="text-[13px] text-[var(--color-text-secondary)]">
-                {expanded
-                  ? tr("showingAll")
-                  : tr.rich(hidden === 1 ? "moreOne" : "more", {
-                      count: hidden,
-                      b: (chunks) => (
-                        <b className="font-semibold text-[var(--color-text)]">{chunks}</b>
-                      ),
-                    })}
-              </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggle();
-                }}
-                className="text-[13px] font-semibold text-[var(--color-accent)] transition-opacity hover:opacity-80"
-              >
-                {expanded ? tr("showLess") : tr("showAll")}
-              </button>
-            </div>
+          {visiblePills.map((t, i) => (
+            <Pill key={t.id} toast={t} depth={i} />
+          ))}
+          {olderPills > 0 && (
+            <span className="pointer-events-auto rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--color-text-muted)]">
+              {`+${olderPills}`}
+            </span>
           )}
+        </div>
+      )}
+
+      {visibleGlass.length > 0 && (
+        <div
+          aria-label={tr("label")}
+          {...hover}
+          style={glassBottom}
+          className="pointer-events-none fixed inset-x-3 top-[calc(var(--safe-top,0px)+0.75rem)] z-[100] flex flex-col gap-2 md:inset-x-auto md:bottom-[var(--toast-glass-bottom)] md:end-6 md:top-auto md:w-[380px] md:flex-col-reverse"
+        >
+          {visibleGlass.map((t) => (
+            <GlassRow key={t.id} toast={t} />
+          ))}
+          {olderGlass > 0 && (
+            <span className="pointer-events-auto self-center rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--color-text-muted)]">
+              {`+${olderGlass}`}
+            </span>
+          )}
+        </div>
+      )}
+
+      {undos.length > 0 && (
+        <div
+          aria-label={tr("label")}
+          {...hover}
+          className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--safe-bottom,0px)+5.5rem)] z-[45] flex flex-col gap-2 md:inset-x-auto md:bottom-6 md:start-6 md:w-[360px]"
+        >
+          {undos.slice(-2).map((t) => (
+            <UndoBar key={t.id} toast={t} />
+          ))}
         </div>
       )}
     </>

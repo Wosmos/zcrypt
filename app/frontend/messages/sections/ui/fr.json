@@ -201,11 +201,9 @@
     "toasts": {
       "label": "Notifications",
       "dismiss": "Ignorer la notification : {message}",
-      "showingAll": "Toutes les notifications sont affichées",
-      "more": "<b>{count} notifications</b> de plus",
-      "moreOne": "<b>1 notification</b> de plus",
-      "showLess": "Afficher moins",
-      "showAll": "Tout afficher"
+      "undo": "Annuler",
+      "secondsLeft": "{seconds, plural, one {# seconde pour annuler} other {# secondes pour annuler}}",
+      "times": "{count} fois"
     },
     "strength": {
       "tooShort": "Trop court",
@@ -325,6 +323,13 @@
         "down": "Serveurs injoignables",
         "offline": "Hors ligne"
       }
+    },
+    "banner": {
+      "dismiss": "Fermer"
+    },
+    "confirm": {
+      "previewMore": "{names} et {count} de plus",
+      "typeToConfirm": "Saisissez <b>{word}</b> pour confirmer"
     }
   }
 }

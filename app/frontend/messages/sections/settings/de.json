@@ -102,9 +102,9 @@
       "signOutCount": "{count, plural, one {1 Gerät abmelden} other {# Geräte abmelden}}",
       "confirmOneTitle": "Dieses Gerät abmelden?",
       "confirmOneDesc": "{device} ({network}) wird sofort abgemeldet.",
-      "confirmAllTitle": "Alle anderen Geräte abmelden?",
+      "confirmAllTitle": "{count, plural, one {# anderes Gerät abmelden?} other {# andere Geräte abmelden?}}",
       "confirmAllDesc": "Alle Sitzungen außer dieser enden sofort. Diese Geräte brauchen dein Passwort, um sich wieder anzumelden.",
-      "confirmAllLabel": "Andere abmelden"
+      "confirmAllLabel": "{count, plural, one {# Gerät abmelden} other {# Geräte abmelden}}"
     },
     "securityActivity": {
       "loadFailed": "Deine Sicherheitsaktivität konnte nicht geladen werden",
@@ -467,6 +467,64 @@
       "announcementsDesc": "Gelegentliche Neuigkeiten vom zcrypt-Team.",
       "footnote": "Konto- und Sicherheits-E-Mails werden immer gesendet.",
       "saveFailed": "Deine E-Mail-Einstellung konnte nicht gespeichert werden"
+    },
+    "notifications": "Benachrichtigungen",
+    "notificationsDesc": "Töne und Vibration",
+    "soundPrefs": {
+      "master": "Töne",
+      "masterDesc": "Einen Ton abspielen, wenn etwas fertig ist oder dich braucht",
+      "groupSet": "Klangset",
+      "setFootnote": "Tippe auf ein Set, um es zu hören. Die Töne entstehen auf deinem Gerät, ohne Audiodateien.",
+      "set": {
+        "soft": "Sanft",
+        "glass": "Glas",
+        "minimal": "Minimal"
+      },
+      "setDesc": {
+        "soft": "Warm und rund",
+        "glass": "Hell und luftig",
+        "minimal": "Kurz und leise"
+      },
+      "event": {
+        "done": "Fertig",
+        "headsUp": "Hinweis",
+        "problem": "Problem"
+      },
+      "eventDesc": {
+        "done": "Uploads, Downloads, Links und Exporte, die Zeit gebraucht haben",
+        "headsUp": "Warnungen und Dinge, die auf dich warten",
+        "problem": "Etwas ist schiefgelaufen"
+      },
+      "preview": "Abspielen",
+      "previewAria": "Ton „{event}“ abspielen",
+      "groupAreas": "Töne abspielen für",
+      "area": {
+        "transfers": "Uploads und Downloads",
+        "sharing": "Teilen und Spaces",
+        "security": "Sicherheit",
+        "problems": "Probleme"
+      },
+      "vibrate": "Auf dem Handy vibrieren",
+      "vibrateDesc": "Ein kurzes Brummen zu jedem Ton auf Touchgeräten",
+      "backgroundOnly": "Nur im Hintergrund",
+      "backgroundOnlyDesc": "Stumm bleiben, solange zcrypt geöffnet und im Vordergrund ist"
+    },
+    "notifyPrefs": {
+      "group": "Systembenachrichtigungen",
+      "title": "Benachrichtigungen auf diesem Gerät",
+      "state": {
+        "granted": "An. zcrypt meldet sich, wenn Übertragungen fertig sind, auch im Hintergrund.",
+        "default": "Aus. Schalte sie ein, um von fertigen Uploads zu erfahren, während du weg bist.",
+        "denied": "Blockiert. Erlaube Benachrichtigungen für zcrypt in den Browser- oder Systemeinstellungen.",
+        "unsupported": "Dieser Browser kann keine Benachrichtigungen anzeigen."
+      },
+      "turnOn": "Benachrichtigungen einschalten",
+      "test": "Test senden",
+      "testTitle": "Benachrichtigungen sind an",
+      "testBody": "So meldet sich zcrypt bei dir.",
+      "thumbnails": "Fotovorschauen zeigen",
+      "thumbnailsDesc": "Eine kleine Vorschau des Fotos in Upload-Benachrichtigungen. Ausschalten, damit keine Fotos auf dem Sperrbildschirm erscheinen.",
+      "iosHint": "Für Benachrichtigungen auf dem iPhone füge zcrypt zum Home-Bildschirm hinzu: Tippe auf Teilen, dann auf Zum Home-Bildschirm."
     }
   }
 }

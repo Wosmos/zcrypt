@@ -1,5 +1,6 @@
 "use client";
 
+import { Banner } from "@/components/ui/banner";
 import { spaceHref } from "@/lib/space-routes";
 import { useSpaceId } from "@/hooks/useSpaceId";
 import Link from "next/link";
@@ -46,7 +47,6 @@ import {
   type SpaceFileRow,
 } from "@/components/spaces/use-space";
 import {
-  AlertTriangle,
   Download,
   File as FileIcon,
   LayoutGrid,
@@ -344,24 +344,22 @@ export function SpaceHome() {
       </header>
 
       {needsRotation && (
-        <div
-          role="status"
-          className="flex flex-col gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3.5 sm:flex-row sm:items-center"
-        >
-          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-          <p className="flex-1 text-sm text-[var(--color-text)]">
-            {t("home.rotationBanner")}
-            {!perms.rotate && ` ${t("home.rotationAsk")}`}
-          </p>
-          {perms.rotate && (
-            <Link
-              href={spaceHref(id, "/settings", "#rotate")}
-              className={buttonClass("primary", "sm")}
-            >
-              {t("home.rotateKey")}
-            </Link>
-          )}
-        </div>
+        <Banner
+          kind="warning"
+          title={t("home.rotationBanner")}
+          body={perms.rotate ? undefined : t("home.rotationAsk")}
+          actions={
+            perms.rotate
+              ? [
+                  {
+                    label: t("home.rotateKey"),
+                    href: spaceHref(id, "/settings", "#rotate"),
+                    variant: "outline",
+                  },
+                ]
+              : undefined
+          }
+        />
       )}
 
       {inFlight && (

@@ -121,7 +121,7 @@ describe("SignedInDevices", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Sign out 2 devices" }));
     fireEvent.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Sign out others" }),
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: /^Sign out \d+ devices?$/ }),
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Signed out 2 other devices"));
     expect(api.revokeOtherSessions).toHaveBeenCalledWith("tok");
@@ -134,7 +134,7 @@ describe("SignedInDevices", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Sign out 1 device" }));
     fireEvent.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Sign out others" }),
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: /^Sign out \d+ devices?$/ }),
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Signed out 1 other device"));
   });
@@ -146,7 +146,7 @@ describe("SignedInDevices", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Sign out 1 device" }));
     fireEvent.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Sign out others" }),
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: /^Sign out \d+ devices?$/ }),
     );
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("boom"));
   });

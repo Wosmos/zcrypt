@@ -1,161 +1,159 @@
 "use client";
 
-import { forwardRef, type SVGProps } from "react";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { forwardRef, type ComponentType, type SVGProps } from "react";
 import {
-  AlertCircle as AlertCircleData,
-  AlertTriangle as AlertTriangleData,
-  Archive as ArchiveData,
-  ArrowDown as ArrowDownData,
-  ArrowLeft as ArrowLeftData,
-  ArrowRight as ArrowRightData,
-  ArrowUp as ArrowUpData,
-  CompassIcon as CompassIconData,
-  ArrowUpDown as ArrowUpDownData,
-  ArrowUpRight01Icon as ArrowUpRight01IconData,
-  BarChart as BarChartData,
-  Bell as BellData,
-  BellOff as BellOffData,
-  BookOpen01Icon as BookOpen01IconData,
-  Box as BoxData,
-  Calendar03Icon as Calendar03IconData,
-  Check as CheckData,
-  CheckCircle as CheckCircleData,
-  CheckSquare as CheckSquareData,
-  ChevronDown as ChevronDownData,
-  ChevronLeft as ChevronLeftData,
-  ChevronRight as ChevronRightData,
-  ChevronUp as ChevronUpData,
-  Clock as ClockData,
-  Cloud as CloudData,
-  CloudUpload as CloudUploadData,
-  Code as CodeData,
-  Cog as CogData,
-  Copy as CopyData,
-  Cpu as CpuData,
-  Crown as CrownData,
-  DashboardSpeed01Icon as DashboardSpeed01IconData,
-  Database as DatabaseData,
-  Download as DownloadData,
-  Edit as EditData,
-  ExternalLink as ExternalLinkData,
-  Eye as EyeData,
-  File as FileData,
-  FileText as FileTextData,
-  FileUploadIcon as FileUploadIconData,
-  FilterIcon as FilterIconData,
-  FingerPrintIcon as FingerPrintIconData,
-  Folder as FolderData,
-  FolderAddIcon as FolderAddIconData,
-  FolderOpen as FolderOpenData,
-  GitBranch as GitBranchData,
-  GitCommitIcon as GitCommitIconData,
-  Github as GithubData,
-  Globe as GlobeData,
-  GridTableIcon as GridTableIconData,
-  HardDrive as HardDriveData,
-  Heart as HeartData,
-  Home as HomeData,
-  Image as ImageData,
-  Infinity as InfinityData,
-  Info as InfoData,
-  Key as KeyData,
-  Layers as LayersData,
-  LayoutGrid as LayoutGridData,
-  LayoutThreeColumnIcon as LayoutThreeColumnIconData,
-  ListViewIcon as ListViewIconData,
-  GridViewIcon as GridViewIconData,
-  Link2 as Link2Data,
-  LoaderCircle as LoaderCircleData,
-  Location01Icon as Location01IconData,
-  KeyboardIcon as KeyboardIconData,
-  Lock as LockData,
-  LogIn as LogInData,
-  LogOut as LogOutData,
-  Mail as MailData,
-  Maximize01Icon as Maximize01IconData,
-  Menu as MenuData,
-  MessageSquare as MessageSquareData,
-  Minimize01Icon as Minimize01IconData,
-  MinusSignIcon as MinusSignIconData,
-  Monitor as MonitorData,
-  MonitorSmartphone as MonitorSmartphoneData,
-  Moon as MoonData,
-  MoreHorizontal as MoreHorizontalData,
-  Music as MusicData,
-  PaintBrush01Icon as PaintBrush01IconData,
-  PanelLeft as PanelLeftData,
-  PanelLeftClose as PanelLeftCloseData,
-  Pause as PauseData,
-  Play as PlayData,
-  Plus as PlusData,
-  QuoteDownIcon as QuoteDownIconData,
-  RefreshCcw as RefreshCcwData,
-  RefreshCw as RefreshCwData,
-  Rocket as RocketData,
-  RotateCcw as RotateCcwData,
-  RotateClockwiseIcon as RotateClockwiseIconData,
-  Search as SearchData,
-  Send as SendData,
-  Server as ServerData,
-  Settings as SettingsData,
-  Share01Icon as Share01IconData,
-  Shield as ShieldData,
-  ShieldAlert as ShieldAlertData,
-  ShieldCheck as ShieldCheckData,
-  SkipForward as SkipForwardData,
-  Smartphone as SmartphoneData,
-  Sparkles as SparklesData,
-  Square as SquareData,
-  Star as StarData,
-  Stop as StopData,
-  Sun as SunData,
-  Table as TableData,
-  Terminal as TerminalData,
-  Trash2 as Trash2Data,
-  TrendingDown as TrendingDownData,
-  TrendingUp as TrendingUpData,
-  Unlock as UnlockData,
-  Upload as UploadData,
-  User as UserData,
-  UserAdd01Icon as UserAdd01IconData,
-  Users as UsersData,
-  Video as VideoData,
-  ViewOffIcon as ViewOffIconData,
-  Volume2 as Volume2Data,
-  Wand as WandData,
-  Wifi as WifiData,
-  WifiOff01Icon as WifiOff01IconData,
-  CloudOffIcon as CloudOffIconData,
-  Wrench01Icon as Wrench01IconData,
-  SignalLow02Icon as SignalLow02IconData,
-  X as XData,
-  XCircle as XCircleData,
-  Zap as ZapData,
-  ZoomInAreaIcon as ZoomInAreaIconData,
-  ZoomOutAreaIcon as ZoomOutAreaIconData,
-  Translate as TranslateData,
-} from "@hugeicons/core-free-icons";
+  IconContext,
+  type Icon as PhosphorIcon,
+  type IconProps as PhosphorProps,
+  type IconWeight,
+  Archive as PhArchive,
+  ArrowClockwise as PhArrowClockwise,
+  ArrowCounterClockwise as PhArrowCounterClockwise,
+  ArrowDown as PhArrowDown,
+  ArrowLeft as PhArrowLeft,
+  ArrowRight as PhArrowRight,
+  ArrowSquareOut as PhArrowSquareOut,
+  ArrowUp as PhArrowUp,
+  ArrowUpRight as PhArrowUpRight,
+  ArrowsClockwise as PhArrowsClockwise,
+  ArrowsDownUp as PhArrowsDownUp,
+  ArrowsIn as PhArrowsIn,
+  ArrowsOut as PhArrowsOut,
+  Bell as PhBell,
+  BellSlash as PhBellSlash,
+  BookOpen as PhBookOpen,
+  CalendarBlank as PhCalendarBlank,
+  CaretDown as PhCaretDown,
+  CaretLeft as PhCaretLeft,
+  CaretRight as PhCaretRight,
+  CaretUp as PhCaretUp,
+  CellSignalLow as PhCellSignalLow,
+  ChartBar as PhChartBar,
+  ChartLineUp as PhChartLineUp,
+  ChatCircle as PhChatCircle,
+  Check as PhCheck,
+  CheckCircle as PhCheckCircle,
+  CheckSquare as PhCheckSquare,
+  CircleNotch as PhCircleNotch,
+  Clock as PhClock,
+  Cloud as PhCloud,
+  CloudArrowUp as PhCloudArrowUp,
+  CloudSlash as PhCloudSlash,
+  Code as PhCode,
+  Columns as PhColumns,
+  Compass as PhCompass,
+  Copy as PhCopy,
+  Cpu as PhCpu,
+  Crown as PhCrown,
+  Cube as PhCube,
+  Database as PhDatabase,
+  DeviceMobile as PhDeviceMobile,
+  Devices as PhDevices,
+  DotsThree as PhDotsThree,
+  DownloadSimple as PhDownloadSimple,
+  Envelope as PhEnvelope,
+  Eye as PhEye,
+  EyeSlash as PhEyeSlash,
+  File as PhFile,
+  FileArrowUp as PhFileArrowUp,
+  FileText as PhFileText,
+  Fingerprint as PhFingerprint,
+  Folder as PhFolder,
+  FolderOpen as PhFolderOpen,
+  FolderPlus as PhFolderPlus,
+  Funnel as PhFunnel,
+  Gauge as PhGauge,
+  Gear as PhGear,
+  GearSix as PhGearSix,
+  GitBranch as PhGitBranch,
+  GitCommit as PhGitCommit,
+  GithubLogo as PhGithubLogo,
+  Globe as PhGlobe,
+  HardDrive as PhHardDrive,
+  HardDrives as PhHardDrives,
+  Heart as PhHeart,
+  House as PhHouse,
+  Image as PhImage,
+  Infinity as PhInfinity,
+  Info as PhInfo,
+  Key as PhKey,
+  Keyboard as PhKeyboard,
+  Lightning as PhLightning,
+  Link as PhLink,
+  List as PhList,
+  Lock as PhLock,
+  LockOpen as PhLockOpen,
+  MagicWand as PhMagicWand,
+  MagnifyingGlass as PhMagnifyingGlass,
+  MagnifyingGlassMinus as PhMagnifyingGlassMinus,
+  MagnifyingGlassPlus as PhMagnifyingGlassPlus,
+  MapPin as PhMapPin,
+  Minus as PhMinus,
+  Monitor as PhMonitor,
+  Moon as PhMoon,
+  MusicNote as PhMusicNote,
+  PaintBrush as PhPaintBrush,
+  PaperPlaneTilt as PhPaperPlaneTilt,
+  Pause as PhPause,
+  PencilSimple as PhPencilSimple,
+  Play as PhPlay,
+  Plus as PhPlus,
+  Quotes as PhQuotes,
+  Rocket as PhRocket,
+  Rows as PhRows,
+  ShareNetwork as PhShareNetwork,
+  Shield as PhShield,
+  ShieldCheck as PhShieldCheck,
+  ShieldWarning as PhShieldWarning,
+  SidebarSimple as PhSidebarSimple,
+  SignIn as PhSignIn,
+  SignOut as PhSignOut,
+  SkipForward as PhSkipForward,
+  Sparkle as PhSparkle,
+  SpeakerHigh as PhSpeakerHigh,
+  Square as PhSquare,
+  SquaresFour as PhSquaresFour,
+  Stack as PhStack,
+  Star as PhStar,
+  StopCircle as PhStopCircle,
+  Sun as PhSun,
+  Table as PhTable,
+  Terminal as PhTerminal,
+  Translate as PhTranslate,
+  Trash as PhTrash,
+  TrendDown as PhTrendDown,
+  UploadSimple as PhUploadSimple,
+  User as PhUser,
+  UserPlus as PhUserPlus,
+  Users as PhUsers,
+  VideoCamera as PhVideoCamera,
+  Warning as PhWarning,
+  WarningCircle as PhWarningCircle,
+  WifiHigh as PhWifiHigh,
+  WifiSlash as PhWifiSlash,
+  Wrench as PhWrench,
+  X as PhX,
+  XCircle as PhXCircle,
+} from "@phosphor-icons/react";
 
-type IconProps = SVGProps<SVGSVGElement> & {
+export type IconProps = Omit<SVGProps<SVGSVGElement>, "ref"> & {
   size?: number | string;
   strokeWidth?: number;
-  /** Active-state variant (mobile nav): slightly heavier stroke, mirroring the
-   *  custom nav-icons' `filled` contract. Consumed HERE: it must never spread
-   *  onto the <svg> element (React warns on non-boolean DOM attributes). */
+  weight?: IconWeight;
   filled?: boolean;
 };
 
-function makeIcon(iconData: IconSvgElement, displayName: string) {
+export const IconWeightContext = IconContext;
+export const boldIcon: IconWeight = "bold";
+
+function makeIcon(Glyph: PhosphorIcon, displayName: string) {
   const Icon = forwardRef<SVGSVGElement, IconProps>(
-    ({ size = 24, className, strokeWidth = 1.5, filled, ...props }, ref) => (
-      <HugeiconsIcon
-        ref={ref}
-        icon={iconData}
+    ({ size = 24, strokeWidth: _strokeWidth, filled, weight, ...props }, ref) => (
+      <Glyph
+        ref={ref as PhosphorProps["ref"]}
         size={typeof size === "string" ? parseInt(size, 10) : size}
-        strokeWidth={filled ? Math.max(strokeWidth, 1.8) : strokeWidth}
-        className={className}
-        {...props}
+        {...(filled ? { weight: "fill" as const } : weight ? { weight } : {})}
+        {...(props as PhosphorProps)}
       />
     ),
   );
@@ -163,135 +161,138 @@ function makeIcon(iconData: IconSvgElement, displayName: string) {
   return Icon;
 }
 
-export const Shield = makeIcon(ShieldData, "Shield");
-export const Lock = makeIcon(LockData, "Lock");
-export const Keyboard = makeIcon(KeyboardIconData, "KeyboardIcon");
-export const Unlock = makeIcon(UnlockData, "Unlock");
-export const Upload = makeIcon(UploadData, "Upload");
-export const FileUpload = makeIcon(FileUploadIconData, "FileUploadIcon");
-export const Download = makeIcon(DownloadData, "Download");
-export const Calendar = makeIcon(Calendar03IconData, "Calendar");
-export const Bell = makeIcon(BellData, "Bell");
-export const BellOff = makeIcon(BellOffData, "BellOff");
-export const Check = makeIcon(CheckData, "Check");
-export const CheckCircle2 = makeIcon(CheckCircleData, "CheckCircle");
-export const X = makeIcon(XData, "X");
-export const ChevronDown = makeIcon(ChevronDownData, "ChevronDown");
-export const Filter = makeIcon(FilterIconData, "Filter");
-export const ChevronLeft = makeIcon(ChevronLeftData, "ChevronLeft");
-export const ChevronRight = makeIcon(ChevronRightData, "ChevronRight");
-export const ChevronUp = makeIcon(ChevronUpData, "ChevronUp");
-export const Eye = makeIcon(EyeData, "Eye");
-export const File = makeIcon(FileData, "File");
-export const FileText = makeIcon(FileTextData, "FileText");
-export const Folder = makeIcon(FolderData, "Folder");
-export const FolderOpen = makeIcon(FolderOpenData, "FolderOpen");
-export const FolderAdd = makeIcon(FolderAddIconData, "FolderAddIcon");
-export const Edit = makeIcon(EditData, "Edit");
-export const Trash2 = makeIcon(Trash2Data, "Trash2");
-export const Star = makeIcon(StarData, "Star");
-export const Compass = makeIcon(CompassIconData, "CompassIcon");
-export const Heart = makeIcon(HeartData, "Heart");
-export const Home = makeIcon(HomeData, "Home");
-export const Settings = makeIcon(SettingsData, "Settings");
-export const Sun = makeIcon(SunData, "Sun");
-export const Moon = makeIcon(MoonData, "Moon");
-export const Menu = makeIcon(MenuData, "Menu");
-export const Plus = makeIcon(PlusData, "Plus");
-export const Mail = makeIcon(MailData, "Mail");
-export const Cloud = makeIcon(CloudData, "Cloud");
-export const Database = makeIcon(DatabaseData, "Database");
-export const Globe = makeIcon(GlobeData, "Globe");
-export const Languages = makeIcon(TranslateData, "Languages");
-export const Key = makeIcon(KeyData, "Key");
-export const AlertCircle = makeIcon(AlertCircleData, "AlertCircle");
-export const AlertTriangle = makeIcon(AlertTriangleData, "AlertTriangle");
-export const Info = makeIcon(InfoData, "Info");
-export const User = makeIcon(UserData, "User");
-export const Users = makeIcon(UsersData, "Users");
-export const Clock = makeIcon(ClockData, "Clock");
-export const Code = makeIcon(CodeData, "Code");
-export const Link2 = makeIcon(Link2Data, "Link2");
-export const Github = makeIcon(GithubData, "Github");
-export const GitBranch = makeIcon(GitBranchData, "GitBranch");
-export const Loader2 = makeIcon(LoaderCircleData, "LoaderCircle");
-export const Infinity = makeIcon(InfinityData, "Infinity");
-export const Sparkles = makeIcon(SparklesData, "Sparkles");
-export const Crown = makeIcon(CrownData, "Crown");
-export const Zap = makeIcon(ZapData, "Zap");
-export const Wand2 = makeIcon(WandData, "Wand");
-export const RefreshCcw = makeIcon(RefreshCcwData, "RefreshCcw");
-export const RotateCcw = makeIcon(RotateCcwData, "RotateCcw");
-export const Video = makeIcon(VideoData, "Video");
-export const Music = makeIcon(MusicData, "Music");
-export const Image = makeIcon(ImageData, "Image");
-export const Archive = makeIcon(ArchiveData, "Archive");
-export const Layers = makeIcon(LayersData, "Layers");
-export const HardDrive = makeIcon(HardDriveData, "HardDrive");
-export const Gauge = makeIcon(DashboardSpeed01IconData, "DashboardSpeed01Icon");
-export const TrendingDown = makeIcon(TrendingDownData, "TrendingDown");
-export const BarChart3 = makeIcon(BarChartData, "BarChart");
-export const MessageSquare = makeIcon(MessageSquareData, "MessageSquare");
-export const Send = makeIcon(SendData, "Send");
-export const ArrowLeft = makeIcon(ArrowLeftData, "ArrowLeft");
-export const ArrowRight = makeIcon(ArrowRightData, "ArrowRight");
-export const ArrowUpRight = makeIcon(ArrowUpRight01IconData, "ArrowUpRight01Icon");
-export const MapPin = makeIcon(Location01IconData, "Location01Icon");
-export const ShieldAlert = makeIcon(ShieldAlertData, "ShieldAlert");
-export const ShieldCheck = makeIcon(ShieldCheckData, "ShieldCheck");
-export const LogIn = makeIcon(LogInData, "LogIn");
-export const LogOut = makeIcon(LogOutData, "LogOut");
-export const XCircle = makeIcon(XCircleData, "XCircle");
-export const Cog = makeIcon(CogData, "Cog");
-export const PanelLeft = makeIcon(PanelLeftData, "PanelLeft");
-export const PanelLeftClose = makeIcon(PanelLeftCloseData, "PanelLeftClose");
-export const ExternalLink = makeIcon(ExternalLinkData, "ExternalLink");
-export const Copy = makeIcon(CopyData, "Copy");
-export const Table = makeIcon(TableData, "Table");
-export const Activity = makeIcon(TrendingUpData, "TrendingUp");
-export const UserPlus = makeIcon(UserAdd01IconData, "UserAdd01Icon");
-export const Square = makeIcon(SquareData, "Square");
-export const CheckSquare = makeIcon(CheckSquareData, "CheckSquare");
-export const ArrowDown = makeIcon(ArrowDownData, "ArrowDown");
-export const ArrowUp = makeIcon(ArrowUpData, "ArrowUp");
-export const ArrowUpDown = makeIcon(ArrowUpDownData, "ArrowUpDown");
-export const Box = makeIcon(BoxData, "Box");
-export const Cpu = makeIcon(CpuData, "Cpu");
-export const LayoutGrid = makeIcon(LayoutGridData, "LayoutGrid");
-export const GridView = makeIcon(GridViewIconData, "GridView");
-export const ListView = makeIcon(ListViewIconData, "ListView");
-export const Columns = makeIcon(LayoutThreeColumnIconData, "LayoutThreeColumn");
-export const Monitor = makeIcon(MonitorData, "Monitor");
-export const MonitorSmartphone = makeIcon(MonitorSmartphoneData, "MonitorSmartphone");
-export const MoreHorizontal = makeIcon(MoreHorizontalData, "MoreHorizontal");
-export const Pause = makeIcon(PauseData, "Pause");
-export const Play = makeIcon(PlayData, "Play");
-export const RefreshCw = makeIcon(RefreshCwData, "RefreshCw");
-export const Rocket = makeIcon(RocketData, "Rocket");
-export const Search = makeIcon(SearchData, "Search");
-export const SkipForward = makeIcon(SkipForwardData, "SkipForward");
-export const StopCircle = makeIcon(StopData, "Stop");
-export const TableProperties = makeIcon(GridTableIconData, "GridTableIcon");
-export const UploadCloud = makeIcon(CloudUploadData, "CloudUpload");
-export const Volume2 = makeIcon(Volume2Data, "Volume2");
-export const Terminal = makeIcon(TerminalData, "Terminal");
-export const Smartphone = makeIcon(SmartphoneData, "Smartphone");
-export const Share2 = makeIcon(Share01IconData, "Share01Icon");
-export const Server = makeIcon(ServerData, "Server");
-export const Wifi = makeIcon(WifiData, "Wifi");
-export const WifiOff = makeIcon(WifiOff01IconData, "WifiOff01Icon");
-export const CloudOff = makeIcon(CloudOffIconData, "CloudOffIcon");
-export const Wrench = makeIcon(Wrench01IconData, "Wrench01Icon");
-export const SignalLow = makeIcon(SignalLow02IconData, "SignalLow02Icon");
-export const PaintBrush = makeIcon(PaintBrush01IconData, "PaintBrush01Icon");
-export const Fingerprint = makeIcon(FingerPrintIconData, "FingerPrintIcon");
-export const GitCommit = makeIcon(GitCommitIconData, "GitCommit");
-export const ZoomIn = makeIcon(ZoomInAreaIconData, "ZoomIn");
-export const ZoomOut = makeIcon(ZoomOutAreaIconData, "ZoomOut");
-export const Minus = makeIcon(MinusSignIconData, "Minus");
-export const Maximize = makeIcon(Maximize01IconData, "Maximize");
-export const Minimize = makeIcon(Minimize01IconData, "Minimize");
-export const RotateCw = makeIcon(RotateClockwiseIconData, "RotateCw");
-export const BookOpen = makeIcon(BookOpen01IconData, "BookOpen");
-export const Quote = makeIcon(QuoteDownIconData, "Quote");
-export const EyeOff = makeIcon(ViewOffIconData, "EyeOff");
+export type IconComponent = ComponentType<IconProps>;
+
+export const Shield = makeIcon(PhShield, "Shield");
+export const Lock = makeIcon(PhLock, "Lock");
+export const Keyboard = makeIcon(PhKeyboard, "Keyboard");
+export const Unlock = makeIcon(PhLockOpen, "Unlock");
+export const Upload = makeIcon(PhUploadSimple, "Upload");
+export const FileUpload = makeIcon(PhFileArrowUp, "FileUpload");
+export const Download = makeIcon(PhDownloadSimple, "Download");
+export const Calendar = makeIcon(PhCalendarBlank, "Calendar");
+export const Bell = makeIcon(PhBell, "Bell");
+export const BellOff = makeIcon(PhBellSlash, "BellOff");
+export const Check = makeIcon(PhCheck, "Check");
+export const CheckCircle2 = makeIcon(PhCheckCircle, "CheckCircle2");
+export const X = makeIcon(PhX, "X");
+export const ChevronDown = makeIcon(PhCaretDown, "ChevronDown");
+export const Filter = makeIcon(PhFunnel, "Filter");
+export const ChevronLeft = makeIcon(PhCaretLeft, "ChevronLeft");
+export const ChevronRight = makeIcon(PhCaretRight, "ChevronRight");
+export const ChevronUp = makeIcon(PhCaretUp, "ChevronUp");
+export const Eye = makeIcon(PhEye, "Eye");
+export const File = makeIcon(PhFile, "File");
+export const FileText = makeIcon(PhFileText, "FileText");
+export const Folder = makeIcon(PhFolder, "Folder");
+export const FolderOpen = makeIcon(PhFolderOpen, "FolderOpen");
+export const FolderAdd = makeIcon(PhFolderPlus, "FolderAdd");
+export const Edit = makeIcon(PhPencilSimple, "Edit");
+export const Trash2 = makeIcon(PhTrash, "Trash2");
+export const Star = makeIcon(PhStar, "Star");
+export const Compass = makeIcon(PhCompass, "Compass");
+export const Heart = makeIcon(PhHeart, "Heart");
+export const Home = makeIcon(PhHouse, "Home");
+export const Settings = makeIcon(PhGear, "Settings");
+export const Sun = makeIcon(PhSun, "Sun");
+export const Moon = makeIcon(PhMoon, "Moon");
+export const Menu = makeIcon(PhList, "Menu");
+export const Plus = makeIcon(PhPlus, "Plus");
+export const Mail = makeIcon(PhEnvelope, "Mail");
+export const Cloud = makeIcon(PhCloud, "Cloud");
+export const Database = makeIcon(PhDatabase, "Database");
+export const Globe = makeIcon(PhGlobe, "Globe");
+export const Languages = makeIcon(PhTranslate, "Languages");
+export const Key = makeIcon(PhKey, "Key");
+export const AlertCircle = makeIcon(PhWarningCircle, "AlertCircle");
+export const AlertTriangle = makeIcon(PhWarning, "AlertTriangle");
+export const Info = makeIcon(PhInfo, "Info");
+export const User = makeIcon(PhUser, "User");
+export const Users = makeIcon(PhUsers, "Users");
+export const Clock = makeIcon(PhClock, "Clock");
+export const Code = makeIcon(PhCode, "Code");
+export const Link2 = makeIcon(PhLink, "Link2");
+export const Github = makeIcon(PhGithubLogo, "Github");
+export const GitBranch = makeIcon(PhGitBranch, "GitBranch");
+export const Loader2 = makeIcon(PhCircleNotch, "Loader2");
+const InfinityIcon = makeIcon(PhInfinity, "Infinity");
+export { InfinityIcon as Infinity };
+export const Sparkles = makeIcon(PhSparkle, "Sparkles");
+export const Crown = makeIcon(PhCrown, "Crown");
+export const Zap = makeIcon(PhLightning, "Zap");
+export const Wand2 = makeIcon(PhMagicWand, "Wand2");
+export const RefreshCcw = makeIcon(PhArrowsClockwise, "RefreshCcw");
+export const RotateCcw = makeIcon(PhArrowCounterClockwise, "RotateCcw");
+export const Video = makeIcon(PhVideoCamera, "Video");
+export const Music = makeIcon(PhMusicNote, "Music");
+export const Image = makeIcon(PhImage, "Image");
+export const Archive = makeIcon(PhArchive, "Archive");
+export const Layers = makeIcon(PhStack, "Layers");
+export const HardDrive = makeIcon(PhHardDrive, "HardDrive");
+export const Gauge = makeIcon(PhGauge, "Gauge");
+export const TrendingDown = makeIcon(PhTrendDown, "TrendingDown");
+export const BarChart3 = makeIcon(PhChartBar, "BarChart3");
+export const MessageSquare = makeIcon(PhChatCircle, "MessageSquare");
+export const Send = makeIcon(PhPaperPlaneTilt, "Send");
+export const ArrowLeft = makeIcon(PhArrowLeft, "ArrowLeft");
+export const ArrowRight = makeIcon(PhArrowRight, "ArrowRight");
+export const ArrowUpRight = makeIcon(PhArrowUpRight, "ArrowUpRight");
+export const MapPin = makeIcon(PhMapPin, "MapPin");
+export const ShieldAlert = makeIcon(PhShieldWarning, "ShieldAlert");
+export const ShieldCheck = makeIcon(PhShieldCheck, "ShieldCheck");
+export const LogIn = makeIcon(PhSignIn, "LogIn");
+export const LogOut = makeIcon(PhSignOut, "LogOut");
+export const XCircle = makeIcon(PhXCircle, "XCircle");
+export const Cog = makeIcon(PhGearSix, "Cog");
+export const PanelLeft = makeIcon(PhSidebarSimple, "PanelLeft");
+export const PanelLeftClose = makeIcon(PhSidebarSimple, "PanelLeftClose");
+export const ExternalLink = makeIcon(PhArrowSquareOut, "ExternalLink");
+export const Copy = makeIcon(PhCopy, "Copy");
+export const Table = makeIcon(PhTable, "Table");
+export const Activity = makeIcon(PhChartLineUp, "Activity");
+export const UserPlus = makeIcon(PhUserPlus, "UserPlus");
+export const Square = makeIcon(PhSquare, "Square");
+export const CheckSquare = makeIcon(PhCheckSquare, "CheckSquare");
+export const ArrowDown = makeIcon(PhArrowDown, "ArrowDown");
+export const ArrowUp = makeIcon(PhArrowUp, "ArrowUp");
+export const ArrowUpDown = makeIcon(PhArrowsDownUp, "ArrowUpDown");
+export const Box = makeIcon(PhCube, "Box");
+export const Cpu = makeIcon(PhCpu, "Cpu");
+export const LayoutGrid = makeIcon(PhSquaresFour, "LayoutGrid");
+export const GridView = makeIcon(PhSquaresFour, "GridView");
+export const ListView = makeIcon(PhRows, "ListView");
+export const Columns = makeIcon(PhColumns, "Columns");
+export const Monitor = makeIcon(PhMonitor, "Monitor");
+export const MonitorSmartphone = makeIcon(PhDevices, "MonitorSmartphone");
+export const MoreHorizontal = makeIcon(PhDotsThree, "MoreHorizontal");
+export const Pause = makeIcon(PhPause, "Pause");
+export const Play = makeIcon(PhPlay, "Play");
+export const RefreshCw = makeIcon(PhArrowsClockwise, "RefreshCw");
+export const Rocket = makeIcon(PhRocket, "Rocket");
+export const Search = makeIcon(PhMagnifyingGlass, "Search");
+export const SkipForward = makeIcon(PhSkipForward, "SkipForward");
+export const StopCircle = makeIcon(PhStopCircle, "StopCircle");
+export const TableProperties = makeIcon(PhTable, "TableProperties");
+export const UploadCloud = makeIcon(PhCloudArrowUp, "UploadCloud");
+export const Volume2 = makeIcon(PhSpeakerHigh, "Volume2");
+export const Terminal = makeIcon(PhTerminal, "Terminal");
+export const Smartphone = makeIcon(PhDeviceMobile, "Smartphone");
+export const Share2 = makeIcon(PhShareNetwork, "Share2");
+export const Server = makeIcon(PhHardDrives, "Server");
+export const Wifi = makeIcon(PhWifiHigh, "Wifi");
+export const WifiOff = makeIcon(PhWifiSlash, "WifiOff");
+export const CloudOff = makeIcon(PhCloudSlash, "CloudOff");
+export const Wrench = makeIcon(PhWrench, "Wrench");
+export const SignalLow = makeIcon(PhCellSignalLow, "SignalLow");
+export const PaintBrush = makeIcon(PhPaintBrush, "PaintBrush");
+export const Fingerprint = makeIcon(PhFingerprint, "Fingerprint");
+export const GitCommit = makeIcon(PhGitCommit, "GitCommit");
+export const ZoomIn = makeIcon(PhMagnifyingGlassPlus, "ZoomIn");
+export const ZoomOut = makeIcon(PhMagnifyingGlassMinus, "ZoomOut");
+export const Minus = makeIcon(PhMinus, "Minus");
+export const Maximize = makeIcon(PhArrowsOut, "Maximize");
+export const Minimize = makeIcon(PhArrowsIn, "Minimize");
+export const RotateCw = makeIcon(PhArrowClockwise, "RotateCw");
+export const BookOpen = makeIcon(PhBookOpen, "BookOpen");
+export const Quote = makeIcon(PhQuotes, "Quote");
+export const EyeOff = makeIcon(PhEyeSlash, "EyeOff");

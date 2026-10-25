@@ -227,9 +227,9 @@ export function SignedInDevices() {
         open={confirmAll}
         onOpenChange={setConfirmAll}
         destructive
-        title={t("confirmAllTitle")}
+        title={t("confirmAllTitle", { count: others.length })}
         description={t("confirmAllDesc")}
-        confirmLabel={t("confirmAllLabel")}
+        confirmLabel={t("confirmAllLabel", { count: others.length })}
         loading={revokingAll}
         onConfirm={() => void signOutOthers()}
       />

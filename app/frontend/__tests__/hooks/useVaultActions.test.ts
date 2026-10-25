@@ -71,6 +71,7 @@ const {
       error: vi.fn(),
       info: vi.fn(),
       warning: vi.fn(),
+      undo: vi.fn(),
     },
     mockFormatBytes: vi.fn((n: number) => `${n}B`),
     mockDeleteFile: vi.fn(),
@@ -1118,9 +1119,9 @@ describe("handleMoveFileTo", () => {
     });
 
     expect(args.setFiles).toHaveBeenCalledTimes(1);
-    expect(mockToast.success).toHaveBeenCalledWith(
+    expect(mockToast.undo).toHaveBeenCalledWith(
       'Moved "a.png" to Root',
-      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      expect.any(Function),
     );
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
     expect(args.refresh).not.toHaveBeenCalled();
@@ -1140,9 +1141,9 @@ describe("handleMoveFileTo", () => {
 
     rerender(makeArgs({ files: [{ ...file, folder_id: null }] }));
 
-    const [, action] = mockToast.success.mock.calls[0];
+    const [, action] = mockToast.undo.mock.calls[0];
     await act(async () => {
-      action.onClick();
+      action();
       await flush();
     });
 
@@ -1159,9 +1160,9 @@ describe("handleMoveFileTo", () => {
       await flush();
     });
 
-    expect(mockToast.success).toHaveBeenCalledWith(
+    expect(mockToast.undo).toHaveBeenCalledWith(
       'Moved "a.png"',
-      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      expect.any(Function),
     );
   });
 
@@ -1237,9 +1238,9 @@ describe("executeDelete", () => {
 
     expect(args.setFiles).toHaveBeenCalledTimes(1);
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
-    expect(mockToast.success).toHaveBeenCalledWith(
+    expect(mockToast.undo).toHaveBeenCalledWith(
       "File deleted",
-      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      expect.any(Function),
     );
     expect(args.refreshQuota).toHaveBeenCalledTimes(1);
     expect(mockDeleteFile).toHaveBeenCalledWith("f1");
@@ -1256,9 +1257,9 @@ describe("executeDelete", () => {
       await flush();
     });
 
-    const [, action] = mockToast.success.mock.calls[0];
+    const [, action] = mockToast.undo.mock.calls[0];
     await act(async () => {
-      action.onClick();
+      action();
       await flush();
     });
 
@@ -1277,9 +1278,9 @@ describe("executeDelete", () => {
       await flush();
     });
 
-    const [, action] = mockToast.success.mock.calls[0];
+    const [, action] = mockToast.undo.mock.calls[0];
     await act(async () => {
-      action.onClick();
+      action();
       await flush();
     });
 
@@ -1340,9 +1341,9 @@ describe("executeBulkDelete", () => {
 
     expect(args.setFiles).toHaveBeenCalledTimes(1);
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledTimes(2);
-    expect(mockToast.success).toHaveBeenCalledWith(
+    expect(mockToast.undo).toHaveBeenCalledWith(
       "Deleted 2 files",
-      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      expect.any(Function),
     );
     expect(mockInvalidateTrash).toHaveBeenCalled();
     expect(args.refreshQuota).toHaveBeenCalled();
@@ -1356,9 +1357,9 @@ describe("executeBulkDelete", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     await result.current.executeBulkDelete(["f1", "f2"]);
-    const [, action] = mockToast.success.mock.calls[0];
+    const [, action] = mockToast.undo.mock.calls[0];
     await act(async () => {
-      action.onClick();
+      action();
       await flush();
     });
 
@@ -1373,9 +1374,9 @@ describe("executeBulkDelete", () => {
     const { result } = renderHook(() => useVaultActions(args));
 
     await result.current.executeBulkDelete(["f1"]);
-    const [, action] = mockToast.success.mock.calls[0];
+    const [, action] = mockToast.undo.mock.calls[0];
     await act(async () => {
-      action.onClick();
+      action();
       await flush();
     });
 
@@ -1389,9 +1390,9 @@ describe("executeBulkDelete", () => {
 
     await result.current.executeBulkDelete(["f1"]);
 
-    expect(mockToast.success).toHaveBeenCalledWith(
+    expect(mockToast.undo).toHaveBeenCalledWith(
       "Deleted 1 file",
-      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+      expect.any(Function),
     );
   });
 

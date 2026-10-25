@@ -201,11 +201,9 @@
     "toasts": {
       "label": "الإشعارات",
       "dismiss": "تجاهل الإشعار: {message}",
-      "showingAll": "عرض كل الإشعارات",
-      "more": "<b>{count} إشعارات إضافية</b>",
-      "moreOne": "<b>إشعار إضافي واحد</b>",
-      "showLess": "عرض أقل",
-      "showAll": "عرض الكل"
+      "undo": "تراجع",
+      "secondsLeft": "{seconds, plural, one {تبقّت ثانية واحدة للتراجع} two {تبقّت ثانيتان للتراجع} few {تبقّت # ثوانٍ للتراجع} many {تبقّت # ثانية للتراجع} other {تبقّت # ثانية للتراجع}}",
+      "times": "{count} مرات"
     },
     "strength": {
       "tooShort": "قصيرة جداً",
@@ -325,6 +323,13 @@
         "down": "الخوادم غير متاحة",
         "offline": "أنت غير متصل"
       }
+    },
+    "banner": {
+      "dismiss": "إغلاق"
+    },
+    "confirm": {
+      "previewMore": "{names} و{count} أخرى",
+      "typeToConfirm": "اكتب <b>{word}</b> للتأكيد"
     }
   }
 }

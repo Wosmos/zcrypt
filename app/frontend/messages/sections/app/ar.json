@@ -108,12 +108,6 @@
     },
     "transfer": {
       "title": "عمليات النقل",
-      "complete": "اكتملت عمليات النقل",
-      "failedCount": "فشل {count}",
-      "activeCount": "{count} نشطة",
-      "clearCompleted": "مسح المكتملة",
-      "expand": "توسيع عمليات النقل",
-      "collapse": "طيّ عمليات النقل",
       "openFolderRetryTransfer": "افتح المجلد المحمي لإلغاء قفله، ثم أعد محاولة هذا النقل.",
       "openFolderRetryDownload": "افتح المجلد المحمي لإلغاء قفله، ثم أعد محاولة هذا التنزيل.",
       "pauseUpload": "إيقاف الرفع مؤقتًا",
@@ -125,50 +119,104 @@
       "resumeDownload": "استئناف التنزيل",
       "retryDownload": "إعادة محاولة التنزيل",
       "dismiss": "إخفاء",
-      "eta": {
-        "seconds": "متبقي ~{count} ث",
-        "minutes": "متبقي ~{count} د",
-        "hoursMinutes": "متبقي ~{hours} س {minutes} د"
-      },
-      "stage": {
+      "rootFolder": "خزنتي",
+      "folderFallback": "مجلده",
+      "lockTip": "يُشفَّر على هذا الجهاز قبل أن يغادره أي شيء",
+      "minimize": "تصغير عمليات النقل",
+      "open": "فتح عمليات النقل",
+      "close": "إغلاق عمليات النقل",
+      "retry": "إعادة المحاولة",
+      "retryFailed": "إعادة محاولة الفاشلة",
+      "pauseAll": "إيقاف الكل مؤقتًا",
+      "resumeAll": "استئناف الكل",
+      "clearDone": "مسح المكتملة",
+      "header": {
+        "timeLeft": "متبقٍ {time}",
+        "done": "اكتمل",
         "paused": "متوقف مؤقتًا",
-        "queued": "في الانتظار",
-        "done": "تم",
-        "failed": "فشل",
-        "cancelled": "أُلغي",
-        "uploaded": "تم الرفع",
+        "speed": "{speed}/ث",
+        "downloads": "التنزيلات: {count}",
+        "failed": "الفاشلة: {count}"
+      },
+      "progress": {
+        "ready": "جارٍ التجهيز",
+        "securing": "جارٍ التأمين على هذا الجهاز",
+        "sending": "جارٍ الإرسال",
+        "sendingBytes": "جارٍ الإرسال · {done} من {total}",
+        "sendingEta": "جارٍ الإرسال · {time}",
+        "checking": "جارٍ التحقق…",
+        "savedTo": "حُفظ في {folder}",
+        "fetching": "جارٍ الجلب",
+        "fetchingBytes": "جارٍ الجلب · {done} من {total}",
+        "fetchingEta": "جارٍ الجلب · {time}",
+        "unlocking": "جارٍ فك القفل على هذا الجهاز",
+        "saving": "جارٍ الحفظ…",
         "downloaded": "تم التنزيل",
-        "resuming": "جارٍ الاستئناف…",
-        "retrying": "جارٍ إعادة المحاولة...",
-        "uploading": "جارٍ الرفع...",
-        "downloading": "جارٍ التنزيل...",
-        "finalizing": "جارٍ الإنهاء...",
-        "hashing": "جارٍ حساب بصمة الملف…",
-        "hashingPercent": "جارٍ حساب بصمة الملف… {percent}%",
-        "derivingKey": "جارٍ اشتقاق مفتاح التشفير...",
-        "startingSession": "جارٍ بدء جلسة الرفع...",
-        "chooseSave": "اختر مكان الحفظ…",
-        "fetchingMeta": "جارٍ جلب البيانات الوصفية...",
-        "verifying": "جارٍ التحقق من السلامة...",
-        "savingFile": "جارٍ حفظ الملف...",
-        "savingZip": "جارٍ حفظ ملف ZIP...",
-        "processing": "جارٍ المعالجة",
-        "encrypting": "جارٍ التشفير",
-        "uploadingChunk": "جارٍ رفع الجزء {current}/{total}",
-        "downloadingChunks": "جارٍ التنزيل {current}/{total}",
-        "waitingSlot": "في انتظار خانة متاحة ({attempt})...",
-        "downloadingFile": "جارٍ تنزيل {name}",
-        "withCount": "{stage} ({index}/{total})",
-        "uploadFailed": "فشل الرفع",
-        "downloadFailed": "فشل التنزيل",
-        "zipFailed": "فشل تنزيل ملف ZIP",
-        "tooLargeDownload": "الملف أكبر من أن يُنزَّل في هذا المتصفح",
-        "tooLargeZip": "الحجم أكبر من أن يُضغط إلى ZIP في هذا المتصفح",
-        "chooseZipSave": "اختر مكان حفظ ملف ZIP",
-        "unreachable": "تعذّر الوصول إلى خوادم zcrypt (الشبكة/DNS)",
-        "startingZip": "جارٍ بدء ملف ZIP...",
-        "noPlatform": "لا توجد منصة تخزين متصلة. انتقل إلى الإعدادات لربط واحدة."
-      }
+        "queued": "ينتظر دوره",
+        "choose": "اختر مكان الحفظ",
+        "paused": "متوقف مؤقتًا",
+        "offline": "بانتظار Wi-Fi",
+        "stopped": "متوقف"
+      },
+      "time": {
+        "fewSeconds": "بضع ثوانٍ",
+        "seconds": "نحو {count} ث",
+        "minutes": "نحو {count} د",
+        "hours": "نحو {hours} س",
+        "hoursMinutes": "نحو {hours} س {minutes} د"
+      },
+      "errors": {
+        "dropped": "تعذّر الإرسال · انقطع الاتصال عند {percent}%",
+        "droppedDownload": "تعذّر التنزيل · انقطع الاتصال عند {percent}%",
+        "sendFailed": "تعذّر الإرسال · حاول مرة أخرى",
+        "downloadFailed": "تعذّر التنزيل · حاول مرة أخرى",
+        "tooBigDownload": "كبير جدًا على هذا المتصفح، استخدم التطبيق",
+        "tooBigZip": "كبير جدًا على ملف ZIP هنا، نزّل الملفات واحدًا تلو الآخر",
+        "chooseZip": "اختر مكان حفظ ملف ZIP ثم أعد المحاولة",
+        "noPlatform": "لا توجد مساحة تخزين متصلة · اربط واحدة من الإعدادات",
+        "vaultLocked": "قُفلت خزنتك · افتحها ثم أعد المحاولة",
+        "unlockFolder": "افتح قفل المجلد أولًا",
+        "wrongKey": "تعذّر فك القفل · تحقق من كلمة المرور ثم أعد المحاولة",
+        "damaged": "تبدو هذه النسخة تالفة · حاول مرة أخرى",
+        "tooBigUpload": "كبير جدًا للإرسال · الحد 10 GB لكل ملف",
+        "storageFull": "التخزين ممتلئ · أفرغ مساحة أو اربط المزيد"
+      },
+      "batch": {
+        "titlePhotos": "الصور: {count} ← {folder}",
+        "titleFiles": "الملفات: {count} ← {folder}",
+        "sendingPhotos": "يُرسَل الآن من الصور: {active}، وينتظر دوره: {waiting}",
+        "sendingFiles": "يُرسَل الآن من الملفات: {active}، وينتظر دوره: {waiting}",
+        "downloading": "يُنزَّل الآن من الملفات: {active}، وينتظر دوره: {waiting}",
+        "waiting": "ينتظر دوره: {count}",
+        "paused": "متوقف مؤقتًا. المتبقي: {count}.",
+        "offline": "بانتظار Wi-Fi. سيستمر من تلقاء نفسه.",
+        "saved": "حُفظ في {folder}: {count}.",
+        "savedSomeFailed": "حُفظ في {folder}: {count}. تعذّر إرسال: {failed}.",
+        "allFailed": "تعذّر إرسال: {failed}.",
+        "downloaded": "تم تنزيل: {count}.",
+        "downloadedSomeFailed": "تم تنزيل: {count}. تعذّر تنزيل: {failed}."
+      },
+      "legend": {
+        "done": "مكتمل",
+        "uploading": "قيد الرفع",
+        "waiting": "بالانتظار",
+        "failed": "فاشل"
+      },
+      "segment": {
+        "done": "مكتمل: {count}",
+        "uploading": "قيد الرفع: {count}",
+        "waiting": "بالانتظار: {count}",
+        "failed": "فاشل: {count}"
+      },
+      "drop": {
+        "upload": "أفلت للرفع",
+        "download": "أفلت للتنزيل",
+        "uploadDetail": "الملفات: {count} ← {folder} · تُشفَّر هنا أولًا",
+        "downloadDetail": "الملفات: {count} · تُفك على هذا الجهاز",
+        "uploadShort": "أفلت لرفع الملفات ({count}) ← {folder}",
+        "downloadShort": "أفلت لتنزيل الملفات ({count})"
+      },
+      "orb": "عمليات النقل، المتبقي {left}. انقر للفتح، واضغط مطولًا للإيقاف المؤقت أو الاستئناف."
     },
     "tokens": {
       "expired": "منتهي الصلاحية",
@@ -431,7 +479,8 @@
       "purgeBody": "سيُحذف هذا الملف نهائيًا وتُزال أجزاؤه من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.",
       "purgeConfirm": "حذف نهائيًا",
       "bulkPurgeTitle": "{count, plural, one {حذف ملف واحد نهائيًا؟} two {حذف ملفين نهائيًا؟} few {حذف # ملفات نهائيًا؟} many {حذف # ملفًا نهائيًا؟} other {حذف # ملف نهائيًا؟}}",
-      "bulkPurgeBody": "{count, plural, one {سيُحذف هذا الملف نهائيًا وتُزال أجزاؤه من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} two {سيُحذف هذان الملفان نهائيًا وتُزال أجزاؤهما من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} few {ستُحذف هذه الملفات الـ # نهائيًا وتُزال أجزاؤها من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} many {ستُحذف هذه الملفات الـ # نهائيًا وتُزال أجزاؤها من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} other {ستُحذف هذه الملفات الـ # نهائيًا وتُزال أجزاؤها من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.}}"
+      "bulkPurgeBody": "{count, plural, one {سيُحذف هذا الملف نهائيًا وتُزال أجزاؤه من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} two {سيُحذف هذان الملفان نهائيًا وتُزال أجزاؤهما من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} few {ستُحذف هذه الملفات الـ # نهائيًا وتُزال أجزاؤها من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} many {ستُحذف هذه الملفات الـ # نهائيًا وتُزال أجزاؤها من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.} other {ستُحذف هذه الملفات الـ # نهائيًا وتُزال أجزاؤها من جميع منصات التخزين. لا يمكن التراجع عن هذا الإجراء.}}",
+      "bulkPurgeConfirm": "{count, plural, one {حذف ملف واحد نهائيًا} two {حذف ملفين نهائيًا} few {حذف # ملفات نهائيًا} many {حذف # ملفًا نهائيًا} other {حذف # ملف نهائيًا}}"
     },
     "createFromFiles": {
       "defaultName": "مجلد {name}",
@@ -950,6 +999,25 @@
           "tokenLabel": "أنشئ بوتًا عبر @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "جارٍ الرفع {done}/{total} · {percent}%",
+      "downloading": "جارٍ التنزيل {done}/{total} · {percent}%",
+      "progressBody": "مستمر في الخلفية",
+      "uploadDone": "اكتمل الرفع",
+      "downloadDone": "اكتمل التنزيل",
+      "uploadFailed": "تعذّر رفع {name}",
+      "downloadFailed": "تعذّر تنزيل {name}",
+      "newSignIn": "تسجيل دخول جديد إلى حسابك",
+      "newSignInBody": "{device}. لست أنت؟ سجّل خروجه من الإعدادات.",
+      "inviteReceived": "تمت دعوتك إلى {space}",
+      "inviteReceivedBody": "افتح zcrypt للقبول أو الرفض.",
+      "linkViewed": "فتح أحدهم رابطك",
+      "storageFull": "مساحة التخزين ممتلئة",
+      "storageFullBody": "تنتظر عمليات الرفع الجديدة حتى تفرّغ مساحة أو تربط حسابك الخاص.",
+      "view": "عرض",
+      "retry": "إعادة المحاولة",
+      "open": "فتح"
     }
   }
 }

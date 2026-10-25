@@ -201,11 +201,9 @@
     "toasts": {
       "label": "Notifications",
       "dismiss": "Dismiss notification: {message}",
-      "showingAll": "Showing all notifications",
-      "more": "<b>{count} more</b> notifications",
-      "moreOne": "<b>1 more</b> notification",
-      "showLess": "Show less",
-      "showAll": "Show all"
+      "undo": "Undo",
+      "secondsLeft": "{seconds, plural, one {# second left to undo} other {# seconds left to undo}}",
+      "times": "{count} times"
     },
     "strength": {
       "tooShort": "Too short",
@@ -325,6 +323,13 @@
         "down": "Servers unreachable",
         "offline": "You're offline"
       }
+    },
+    "banner": {
+      "dismiss": "Dismiss"
+    },
+    "confirm": {
+      "previewMore": "{names} and {count, plural, one {# more} other {# more}}",
+      "typeToConfirm": "Type <b>{word}</b> to confirm"
     }
   }
 }
