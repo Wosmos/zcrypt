@@ -479,7 +479,8 @@
       "purgeBody": "Este archivo se eliminará definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.",
       "purgeConfirm": "Eliminar definitivamente",
       "bulkPurgeTitle": "{count, plural, one {¿Eliminar # archivo definitivamente?} other {¿Eliminar # archivos definitivamente?}}",
-      "bulkPurgeBody": "{count, plural, one {Este # archivo se eliminará definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.} other {Estos # archivos se eliminarán definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.}}"
+      "bulkPurgeBody": "{count, plural, one {Este # archivo se eliminará definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.} other {Estos # archivos se eliminarán definitivamente y sus fragmentos se quitarán de todas las plataformas de almacenamiento. Esta acción no se puede deshacer.}}",
+      "bulkPurgeConfirm": "{count, plural, one {Eliminar # archivo para siempre} other {Eliminar # archivos para siempre}}"
     },
     "createFromFiles": {
       "defaultName": "Carpeta de {name}",

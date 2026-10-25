@@ -249,9 +249,12 @@
       "leaveConfirm": "离开空间",
       "removeConfirm": "移除并重新加密",
       "deleteTitle": "删除此空间？",
-      "deleteDesc": "这将删除 <b>{name}</b>，并撤销 {others, plural, other {其他 # 位成员}} 的访问权限。请输入名称以确认。",
+      "deleteDesc": "这将删除 <b>{name}</b>，并撤销另外 {others} 位成员的访问权限。此操作无法撤销。",
       "deleteConfirm": "删除空间",
-      "typeAria": "输入空间名称以确认"
+      "typeAria": "输入空间名称以确认",
+      "rotateConfirmTitle": "要轮换此 Space 的密钥吗？",
+      "rotateConfirmDesc": "每个文件都会用新密钥重新加密，并重新分享给当前成员。较大的 Space 可能需要一些时间。",
+      "rotateConfirm": "轮换密钥"
     },
     "share": {
       "title": "共享文件",

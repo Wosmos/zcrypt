@@ -10,6 +10,10 @@ import { useTransferDockStore } from "@/store/transfer-dock";
 import { seedThumbnailFromFile } from "@/hooks/useThumbnail";
 import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import type { UploadItem } from "@/types";
+import { toast } from "@/store/toast";
+import { Banner } from "@/components/ui/banner";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { AlertTriangle, CloudOff, Database, WifiOff } from "@/lib/icons";
 
 const MB = 1024 * 1024;
 const FAMILY = "dev-family";
@@ -225,6 +229,102 @@ async function thumbnails() {
   );
 }
 
+const PREVIEW = {
+  names: ["Beach day.jpg", "IMG_4021.HEIC", "Mom birthday.MOV"],
+  count: 12,
+  bytes: 48 * MB,
+};
+
+function AlertsHarness() {
+  const [confirm, setConfirm] = useState<null | "delete" | "type">(null);
+  const buttons: Array<[string, () => void]> = [
+    ["success", () => toast.success("Link copied", { label: "Open", onClick: () => {} })],
+    ["info", () => toast.info("Syncing 3 devices")],
+    ["merge", () => toast.success("Link created")],
+    [
+      "warning",
+      () =>
+        toast.warning(
+          "Storage almost full",
+          { label: "Manage", onClick: () => {} },
+          { detail: "92% of 15 GB used" },
+        ),
+    ],
+    [
+      "error",
+      () =>
+        toast.error(
+          "Upload failed",
+          { label: "Retry", onClick: () => {} },
+          { detail: "Mom birthday.MOV needs a better connection" },
+        ),
+    ],
+    ["undo", () => toast.undo("Moved 3 files to Trips", () => {}, { detail: "Family / Trips" })],
+    ["delete confirm", () => setConfirm("delete")],
+    ["type confirm", () => setConfirm("type")],
+  ];
+  return (
+    <section className="space-y-3">
+      <h2 className="font-heading text-lg font-semibold">Toasts, banners, confirmations</h2>
+      <div className="flex flex-wrap gap-2">
+        {buttons.map(([label, run]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={run}
+            className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-sm"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <Banner
+        kind="error"
+        icon={WifiOff}
+        title="You are offline"
+        body="Changes will sync when the connection is back."
+        actions={[{ label: "Retry now" }]}
+      />
+      <Banner
+        kind="warning"
+        icon={Database}
+        title="Your storage is nearly full"
+        body="Connect your own account to remove the cap."
+        actions={[{ label: "Connect your own", variant: "outline" }]}
+        onDismiss={() => {}}
+      />
+      <Banner kind="info" icon={CloudOff} title="Maintenance in progress" body="Back shortly." />
+      <Banner kind="success" title="Back online" />
+      <Banner
+        kind="error"
+        role="alert"
+        icon={AlertTriangle}
+        title="Your account will be deleted on Nov 12"
+        body="Sign in any time before then to keep it."
+        actions={[{ label: "Keep my account", variant: "outline" }]}
+      />
+      <ConfirmModal
+        open={confirm === "delete"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => setConfirm(null)}
+        title="Delete 12 files?"
+        description="They move to Trash and are removed for good after 30 days."
+        preview={PREVIEW}
+        confirmLabel="Delete 12 files"
+      />
+      <ConfirmModal
+        open={confirm === "type"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => setConfirm(null)}
+        title="Delete the Trips Space?"
+        description="This deletes Trips and revokes access for 3 other members. This cannot be undone."
+        typeToConfirm="Trips"
+        confirmLabel="Delete Trips"
+      />
+    </section>
+  );
+}
+
 /** Seeds the transfer stores with fake items and renders the real panel over a plain page. */
 export function TransfersHarness() {
   const [scenario, setScenario] = useState<Scenario>("big");
@@ -289,6 +389,7 @@ export function TransfersHarness() {
             {dark ? "light" : "dark"}
           </button>
         </div>
+        <AlertsHarness />
         <div className="grid grid-cols-3 gap-3">
           {["IMG_5001.jpg", "Contract.pdf", "Trip.mov"].map((n) => (
             <div

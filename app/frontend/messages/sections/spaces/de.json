@@ -249,9 +249,12 @@
       "leaveConfirm": "Space verlassen",
       "removeConfirm": "Entfernen und neu verschlüsseln",
       "deleteTitle": "Diesen Space löschen?",
-      "deleteDesc": "Dadurch wird <b>{name}</b> gelöscht und der Zugriff für {others, plural, one {# weiteres Mitglied} other {# weitere Mitglieder}} entzogen. Gib zur Bestätigung den Namen ein.",
+      "deleteDesc": "Dadurch wird <b>{name}</b> gelöscht und der Zugriff für {others, plural, one {# weiteres Mitglied} other {# weitere Mitglieder}} entzogen. Das lässt sich nicht rückgängig machen.",
       "deleteConfirm": "Space löschen",
-      "typeAria": "Gib zur Bestätigung den Space-Namen ein"
+      "typeAria": "Gib zur Bestätigung den Space-Namen ein",
+      "rotateConfirmTitle": "Schlüssel dieses Space rotieren?",
+      "rotateConfirmDesc": "Jede Datei wird mit einem neuen Schlüssel neu verschlüsselt und erneut mit den aktuellen Mitgliedern geteilt. In einem großen Space kann das dauern.",
+      "rotateConfirm": "Schlüssel rotieren"
     },
     "share": {
       "title": "Datei teilen",

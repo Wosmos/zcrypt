@@ -288,6 +288,7 @@ export function FolderDetailsDrawer({
         destructive
         title={t("revokeFolderTitle")}
         description={t("revokeFolderBody")}
+        preview={{ names: [folder.name] }}
         confirmLabel={t("revoke")}
         loading={revoking}
         onConfirm={handleRevoke}

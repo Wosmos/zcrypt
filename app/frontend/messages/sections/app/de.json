@@ -479,7 +479,8 @@
       "purgeBody": "Diese Datei wird endgültig gelöscht und ihre Blöcke werden von allen Speicherplattformen entfernt. Das kann nicht rückgängig gemacht werden.",
       "purgeConfirm": "Endgültig löschen",
       "bulkPurgeTitle": "{count, plural, one {# Datei endgültig löschen?} other {# Dateien endgültig löschen?}}",
-      "bulkPurgeBody": "{count, plural, one {Diese # Datei wird endgültig gelöscht und ihre Blöcke werden von allen Speicherplattformen entfernt. Das kann nicht rückgängig gemacht werden.} other {Diese # Dateien werden endgültig gelöscht und ihre Blöcke werden von allen Speicherplattformen entfernt. Das kann nicht rückgängig gemacht werden.}}"
+      "bulkPurgeBody": "{count, plural, one {Diese # Datei wird endgültig gelöscht und ihre Blöcke werden von allen Speicherplattformen entfernt. Das kann nicht rückgängig gemacht werden.} other {Diese # Dateien werden endgültig gelöscht und ihre Blöcke werden von allen Speicherplattformen entfernt. Das kann nicht rückgängig gemacht werden.}}",
+      "bulkPurgeConfirm": "{count, plural, one {# Datei endgültig löschen} other {# Dateien endgültig löschen}}"
     },
     "createFromFiles": {
       "defaultName": "Ordner {name}",

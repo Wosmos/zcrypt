@@ -479,7 +479,8 @@
       "purgeBody": "Ce fichier sera supprimé définitivement et ses fragments seront retirés de toutes les plateformes de stockage. Cette action est irréversible.",
       "purgeConfirm": "Supprimer définitivement",
       "bulkPurgeTitle": "{count, plural, one {Supprimer # fichier définitivement ?} other {Supprimer # fichiers définitivement ?}}",
-      "bulkPurgeBody": "{count, plural, one {Ce # fichier sera supprimé définitivement et ses fragments seront retirés de toutes les plateformes de stockage. Cette action est irréversible.} other {Ces # fichiers seront supprimés définitivement et leurs fragments seront retirés de toutes les plateformes de stockage. Cette action est irréversible.}}"
+      "bulkPurgeBody": "{count, plural, one {Ce # fichier sera supprimé définitivement et ses fragments seront retirés de toutes les plateformes de stockage. Cette action est irréversible.} other {Ces # fichiers seront supprimés définitivement et leurs fragments seront retirés de toutes les plateformes de stockage. Cette action est irréversible.}}",
+      "bulkPurgeConfirm": "{count, plural, one {Supprimer # fichier définitivement} other {Supprimer # fichiers définitivement}}"
     },
     "createFromFiles": {
       "defaultName": "Dossier {name}",

@@ -249,9 +249,12 @@
       "leaveConfirm": "Quitter l’espace",
       "removeConfirm": "Retirer et rechiffrer",
       "deleteTitle": "Supprimer cet espace ?",
-      "deleteDesc": "Cela supprime <b>{name}</b> et révoque l’accès de {others, plural, one {# autre membre} other {# autres membres}}. Saisissez le nom pour confirmer.",
+      "deleteDesc": "Cela supprime <b>{name}</b> et révoque l'accès de {others, plural, one {# autre membre} other {# autres membres}}. Cette action est irréversible.",
       "deleteConfirm": "Supprimer l’espace",
-      "typeAria": "Saisissez le nom de l’espace pour confirmer"
+      "typeAria": "Saisissez le nom de l’espace pour confirmer",
+      "rotateConfirmTitle": "Renouveler la clé de ce Space ?",
+      "rotateConfirmDesc": "Chaque fichier est rechiffré avec une nouvelle clé et partagé à nouveau avec les membres actuels. Cela peut prendre du temps dans un grand Space.",
+      "rotateConfirm": "Renouveler la clé"
     },
     "share": {
       "title": "Partager le fichier",

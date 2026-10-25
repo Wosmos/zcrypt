@@ -479,7 +479,8 @@
       "purgeBody": "此文件将被永久删除，其分块也会从所有存储平台中移除。此操作无法撤销。",
       "purgeConfirm": "永久删除",
       "bulkPurgeTitle": "永久删除 {count} 个文件？",
-      "bulkPurgeBody": "这 {count} 个文件将被永久删除，其分块也会从所有存储平台中移除。此操作无法撤销。"
+      "bulkPurgeBody": "这 {count} 个文件将被永久删除，其分块也会从所有存储平台中移除。此操作无法撤销。",
+      "bulkPurgeConfirm": "永久删除 {count} 个文件"
     },
     "createFromFiles": {
       "defaultName": "{name} 文件夹",

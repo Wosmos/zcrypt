@@ -249,9 +249,12 @@
       "leaveConfirm": "Leave space",
       "removeConfirm": "Remove and re-key",
       "deleteTitle": "Delete this space?",
-      "deleteDesc": "This deletes <b>{name}</b> and revokes access for {others, plural, one {# other member} other {# other members}}. Type the name to confirm.",
+      "deleteDesc": "This deletes <b>{name}</b> and revokes access for {others, plural, one {# other member} other {# other members}}. This cannot be undone.",
       "deleteConfirm": "Delete space",
-      "typeAria": "Type the space name to confirm"
+      "typeAria": "Type the space name to confirm",
+      "rotateConfirmTitle": "Rotate this Space's key?",
+      "rotateConfirmDesc": "Every file is re-encrypted with a new key and shared again with the current members. This can take a while in a large Space.",
+      "rotateConfirm": "Rotate key"
     },
     "share": {
       "title": "Share File",

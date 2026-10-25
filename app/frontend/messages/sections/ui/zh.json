@@ -201,11 +201,9 @@
     "toasts": {
       "label": "通知",
       "dismiss": "忽略通知：{message}",
-      "showingAll": "正在显示全部通知",
-      "more": "<b>另有 {count} 条</b>通知",
-      "moreOne": "<b>另有 1 条</b>通知",
-      "showLess": "收起",
-      "showAll": "显示全部"
+      "undo": "撤销",
+      "secondsLeft": "还剩 {seconds} 秒可撤销",
+      "times": "{count} 次"
     },
     "strength": {
       "tooShort": "太短",
@@ -325,6 +323,13 @@
         "down": "服务器无法访问",
         "offline": "你已离线"
       }
+    },
+    "banner": {
+      "dismiss": "关闭"
+    },
+    "confirm": {
+      "previewMore": "{names} 以及另外 {count} 项",
+      "typeToConfirm": "输入 <b>{word}</b> 以确认"
     }
   }
 }

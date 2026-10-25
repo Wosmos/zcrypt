@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Database, AlertTriangle, ArrowRight } from "@/lib/icons";
+import { Database, AlertTriangle, ArrowRight } from "@/lib/icons";
+import { Banner } from "@/components/ui/banner";
 import { useQuota } from "@/hooks/useQuota";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -99,69 +99,46 @@ export function SharedStorageBanner() {
           transition={{ duration: 0.2 }}
           className="overflow-hidden"
         >
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-xl border py-2 ps-3 pe-2",
-              warn
-                ? "border-amber-500/30 bg-amber-500/5"
-                : "border-[var(--color-border)] bg-[var(--color-surface-1)]",
-            )}
+          <Banner
+            kind={warn ? "warning" : "info"}
+            icon={Icon}
+            title={
+              unavailable ? td("storageUnavailable") : pct >= 80 ? t("nearlyFull") : t("using")
+            }
+            actions={[
+              {
+                label: t("connectOwn"),
+                href: "/settings?tab=storage",
+                variant: "outline",
+                icon: <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />,
+              },
+            ]}
+            onDismiss={canDismiss ? dismiss : undefined}
           >
-            <Icon
-              className={cn(
-                "h-4 w-4 shrink-0",
-                warn ? "text-amber-500" : "text-[var(--color-text-muted)]",
-              )}
-            />
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-[var(--color-text)]">
-                {unavailable ? td("storageUnavailable") : pct >= 80 ? t("nearlyFull") : t("using")}
-              </p>
-              {!unavailable && (
-                <div className="mt-1 flex items-center gap-2">
+            {!unavailable && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div
+                  className="h-1 w-full max-w-24 shrink-0 overflow-hidden rounded-full bg-[var(--color-surface-3)]"
+                  role="progressbar"
+                  aria-valuenow={Math.round(pct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={t("usedAria")}
+                >
                   <div
-                    className="h-1 w-full max-w-24 shrink-0 overflow-hidden rounded-full bg-[var(--color-surface-3)]"
-                    role="progressbar"
-                    aria-valuenow={Math.round(pct)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={t("usedAria")}
-                  >
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-[width] duration-500",
-                        warn ? "bg-amber-500" : "bg-[var(--color-accent)]",
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="truncate text-xs tabular-nums text-[var(--color-text-muted)]">
-                    {t("usedOf", { used: formatBytes(used), total: formatBytes(total) })}
-                  </span>
+                    className={cn(
+                      "h-full rounded-full transition-[width] duration-500",
+                      warn ? "bg-amber-500" : "bg-[var(--color-accent)]",
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-              )}
-            </div>
-
-            <Link
-              href="/settings?tab=storage"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
-            >
-              {t("connectOwn")}
-              <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
-            </Link>
-
-            {canDismiss && (
-              <button
-                type="button"
-                onClick={dismiss}
-                aria-label={t("dismiss")}
-                className="shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                <span className="truncate text-xs tabular-nums text-[var(--color-text-muted)]">
+                  {t("usedOf", { used: formatBytes(used), total: formatBytes(total) })}
+                </span>
+              </div>
             )}
-          </div>
+          </Banner>
         </motion.div>
       )}
     </AnimatePresence>

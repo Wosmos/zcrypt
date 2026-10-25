@@ -102,9 +102,9 @@
       "signOutCount": "退出 {count, plural, other {# 台设备}}",
       "confirmOneTitle": "让此设备退出登录？",
       "confirmOneDesc": "{device}（{network}）将立即退出登录。",
-      "confirmAllTitle": "让所有其他设备退出登录？",
+      "confirmAllTitle": "要登出另外 {count} 台设备吗？",
       "confirmAllDesc": "除当前会话外的所有会话将立即结束。这些设备需要密码才能重新登录。",
-      "confirmAllLabel": "退出其他设备"
+      "confirmAllLabel": "登出 {count} 台设备"
     },
     "securityActivity": {
       "loadFailed": "无法加载你的安全活动",
@@ -467,6 +467,47 @@
       "announcementsDesc": "zcrypt 团队偶尔发送的新闻。",
       "footnote": "账号和安全相关的邮件始终会发送。",
       "saveFailed": "无法保存你的邮件偏好"
+    },
+    "notifications": "通知",
+    "notificationsDesc": "声音与振动",
+    "soundPrefs": {
+      "master": "声音",
+      "masterDesc": "在任务完成或需要你处理时播放提示音",
+      "groupSet": "音效套装",
+      "setFootnote": "点按套装即可试听。声音由你的设备生成，没有音频文件。",
+      "set": {
+        "soft": "柔和",
+        "glass": "玻璃",
+        "minimal": "极简"
+      },
+      "setDesc": {
+        "soft": "温暖圆润",
+        "glass": "明亮通透",
+        "minimal": "短促安静"
+      },
+      "event": {
+        "done": "已完成",
+        "headsUp": "提醒",
+        "problem": "问题"
+      },
+      "eventDesc": {
+        "done": "耗时的上传、下载、链接和导出",
+        "headsUp": "警告和等待你处理的事项",
+        "problem": "出了点问题"
+      },
+      "preview": "播放",
+      "previewAria": "播放“{event}”提示音",
+      "groupAreas": "在以下场景播放声音",
+      "area": {
+        "transfers": "上传与下载",
+        "sharing": "共享与 Spaces",
+        "security": "安全",
+        "problems": "问题"
+      },
+      "vibrate": "手机上振动",
+      "vibrateDesc": "在触屏设备上，每次提示音伴随一次短振动",
+      "backgroundOnly": "仅在后台时",
+      "backgroundOnlyDesc": "zcrypt 打开且处于前台时保持静音"
     }
   }
 }

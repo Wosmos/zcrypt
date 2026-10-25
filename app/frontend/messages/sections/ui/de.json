@@ -201,11 +201,9 @@
     "toasts": {
       "label": "Benachrichtigungen",
       "dismiss": "Benachrichtigung schließen: {message}",
-      "showingAll": "Alle Benachrichtigungen werden angezeigt",
-      "more": "<b>{count} weitere</b> Benachrichtigungen",
-      "moreOne": "<b>1 weitere</b> Benachrichtigung",
-      "showLess": "Weniger anzeigen",
-      "showAll": "Alle anzeigen"
+      "undo": "Rückgängig",
+      "secondsLeft": "{seconds, plural, one {Noch # Sekunde zum Rückgängigmachen} other {Noch # Sekunden zum Rückgängigmachen}}",
+      "times": "{count}-mal"
     },
     "strength": {
       "tooShort": "Zu kurz",
@@ -325,6 +323,13 @@
         "down": "Server nicht erreichbar",
         "offline": "Du bist offline"
       }
+    },
+    "banner": {
+      "dismiss": "Schließen"
+    },
+    "confirm": {
+      "previewMore": "{names} und {count} weitere",
+      "typeToConfirm": "Gib <b>{word}</b> zur Bestätigung ein"
     }
   }
 }

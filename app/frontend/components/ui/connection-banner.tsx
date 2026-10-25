@@ -3,38 +3,19 @@
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { CheckCircle2, CloudOff, RefreshCw, SignalLow, WifiOff, Wrench } from "@/lib/icons";
+import { Banner } from "@/components/ui/banner";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import type { ConnectionStatus } from "@/store/connectivity";
-import { cn } from "@/lib/utils";
+import { cn, type Severity } from "@/lib/utils";
 
 type Shown = Exclude<ConnectionStatus, "ok"> | "recovered";
 
-const TONE: Record<Shown, { icon: typeof WifiOff; ring: string; chip: string }> = {
-  offline: {
-    icon: WifiOff,
-    ring: "border-rose-500/30 bg-rose-500/[0.07]",
-    chip: "bg-rose-500/15 text-rose-500",
-  },
-  down: {
-    icon: CloudOff,
-    ring: "border-amber-500/35 bg-amber-500/[0.08]",
-    chip: "bg-amber-500/15 text-amber-500",
-  },
-  maintenance: {
-    icon: Wrench,
-    ring: "border-sky-500/30 bg-sky-500/[0.07]",
-    chip: "bg-sky-500/15 text-sky-500",
-  },
-  slow: {
-    icon: SignalLow,
-    ring: "border-[var(--color-border)] bg-[var(--color-surface-1)]",
-    chip: "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
-  },
-  recovered: {
-    icon: CheckCircle2,
-    ring: "border-emerald-500/30 bg-emerald-500/[0.07]",
-    chip: "bg-emerald-500/15 text-emerald-500",
-  },
+const KIND_OF: Record<Shown, { kind: Severity; icon: typeof WifiOff }> = {
+  offline: { kind: "error", icon: WifiOff },
+  down: { kind: "warning", icon: CloudOff },
+  maintenance: { kind: "info", icon: Wrench },
+  slow: { kind: "info", icon: SignalLow },
+  recovered: { kind: "success", icon: CheckCircle2 },
 };
 
 /** Which state to show right now, or null for nothing. */
@@ -44,60 +25,57 @@ function useShown() {
   return { ...c, shown };
 }
 
-function Body({
+function ConnectionAlert({
   shown,
   retryIn,
   checking,
   onRetry,
   compact,
+  className,
 }: {
   shown: Shown;
   retryIn: number | null;
   checking: boolean;
   onRetry: () => void;
   compact?: boolean;
+  className?: string;
 }) {
   const t = useTranslations("ui.connection");
-  const tone = TONE[shown];
-  const Icon = tone.icon;
+  const { kind, icon } = KIND_OF[shown];
   const canRetry = shown === "offline" || shown === "down" || shown === "maintenance";
+  const showRetryIn = canRetry && !checking && retryIn !== null && retryIn > 0;
 
   return (
-    <div className="flex items-start gap-3">
-      <span
-        className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", tone.chip)}
-      >
-        <Icon className="h-4 w-4" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-tight text-[var(--color-text)]">
-          {t(`${shown}Title`)}
+    <Banner
+      kind={kind}
+      icon={icon}
+      title={t(`${shown}Title`)}
+      body={compact && shown === "recovered" ? undefined : t(`${shown}Body`)}
+      className={className}
+      actions={
+        canRetry
+          ? [
+              {
+                label: checking ? t("checking") : t("retryNow"),
+                onClick: onRetry,
+                disabled: checking,
+                icon: (
+                  <RefreshCw
+                    className={cn("h-3.5 w-3.5", checking && "animate-spin")}
+                    aria-hidden
+                  />
+                ),
+              },
+            ]
+          : undefined
+      }
+    >
+      {showRetryIn && (
+        <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-muted)]">
+          {t("retryIn", { seconds: retryIn })}
         </p>
-        {!(compact && shown === "recovered") && (
-          <p className="mt-0.5 text-xs leading-snug text-[var(--color-text-muted)]">
-            {t(`${shown}Body`)}
-          </p>
-        )}
-        {canRetry && (
-          <div className="mt-2 flex items-center gap-3 text-xs">
-            <button
-              type="button"
-              onClick={onRetry}
-              disabled={checking}
-              className="relative inline-flex items-center gap-1.5 rounded-md font-semibold before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] text-[var(--color-text)] transition-opacity hover:opacity-80 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", checking && "animate-spin")} aria-hidden />
-              {checking ? t("checking") : t("retryNow")}
-            </button>
-            {!checking && retryIn !== null && retryIn > 0 && (
-              <span className="tabular-nums text-[var(--color-text-muted)]">
-                {t("retryIn", { seconds: retryIn })}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </Banner>
   );
 }
 
@@ -131,9 +109,13 @@ export function ConnectionBanner({ variant = "floating" }: { variant?: "floating
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className={cn("mb-4 rounded-xl border p-3", TONE[shown].ring)}>
-                <Body shown={shown} retryIn={retryIn} checking={checking} onRetry={retry} />
-              </div>
+              <ConnectionAlert
+                shown={shown}
+                retryIn={retryIn}
+                checking={checking}
+                onRetry={retry}
+                className="mb-4"
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -152,13 +134,15 @@ export function ConnectionBanner({ variant = "floating" }: { variant?: "floating
             animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className={cn(
-              "pointer-events-auto w-full max-w-md rounded-2xl border p-3 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] backdrop-blur-xl",
-              "bg-[var(--color-surface)]/90",
-              TONE[shown].ring,
-            )}
+            className="pointer-events-auto w-full max-w-md shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] rounded-2xl backdrop-blur-xl"
           >
-            <Body shown={shown} retryIn={retryIn} checking={checking} onRetry={retry} compact />
+            <ConnectionAlert
+              shown={shown}
+              retryIn={retryIn}
+              checking={checking}
+              onRetry={retry}
+              compact
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -1624,6 +1624,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           destructive
           title={t("deleteFolderTitle")}
           description={t("deleteFolderDescription")}
+          preview={deleteTarget ? { names: [deleteTarget.name] } : undefined}
           confirmLabel={t("deleteFolderConfirm")}
           loading={busy}
         />

@@ -680,15 +680,11 @@ export function TrashContent() {
         onConfirm={handlePurge}
         destructive
         title={t("purgeTitle")}
-        description={
-          <>
-            <span className="block">{t("purgeBody")}</span>
-            {purgeTarget && (
-              <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
-                {purgeTarget.original_name}
-              </span>
-            )}
-          </>
+        description={t("purgeBody")}
+        preview={
+          purgeTarget
+            ? { names: [purgeTarget.original_name], bytes: purgeTarget.original_size }
+            : undefined
         }
         confirmLabel={t("purgeConfirm")}
         loading={purging}
@@ -701,8 +697,13 @@ export function TrashContent() {
         onConfirm={handleBulkPurge}
         destructive
         title={t("bulkPurgeTitle", { count: selectedCount })}
-        description={<span className="block">{t("bulkPurgeBody", { count: selectedCount })}</span>}
-        confirmLabel={t("purgeConfirm")}
+        description={t("bulkPurgeBody", { count: selectedCount })}
+        preview={{
+          names: selectedFiles.map((f) => f.original_name),
+          count: selectedCount,
+          bytes: selectedFiles.reduce((sum, f) => sum + f.original_size, 0),
+        }}
+        confirmLabel={t("bulkPurgeConfirm", { count: selectedCount })}
         loading={bulkPurging}
       />
     </div>

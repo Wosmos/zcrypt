@@ -479,7 +479,8 @@
       "purgeBody": "This file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.",
       "purgeConfirm": "Delete permanently",
       "bulkPurgeTitle": "{count, plural, one {Delete # file permanently?} other {Delete # files permanently?}}",
-      "bulkPurgeBody": "{count, plural, one {This # file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.} other {These # files will be permanently deleted and their chunks removed from all storage platforms. This action cannot be undone.}}"
+      "bulkPurgeBody": "{count, plural, one {This # file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.} other {These # files will be permanently deleted and their chunks removed from all storage platforms. This action cannot be undone.}}",
+      "bulkPurgeConfirm": "{count, plural, one {Delete # file forever} other {Delete # files forever}}"
     },
     "createFromFiles": {
       "defaultName": "Folder for {name}",

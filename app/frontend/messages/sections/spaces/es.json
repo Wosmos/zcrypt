@@ -249,9 +249,12 @@
       "leaveConfirm": "Salir del espacio",
       "removeConfirm": "Quitar y recifrar",
       "deleteTitle": "¿Eliminar este espacio?",
-      "deleteDesc": "Esto elimina <b>{name}</b> y revoca el acceso de {others, plural, one {# miembro más} other {# miembros más}}. Escribe el nombre para confirmar.",
+      "deleteDesc": "Esto elimina <b>{name}</b> y revoca el acceso de {others, plural, one {# miembro más} other {# miembros más}}. No se puede deshacer.",
       "deleteConfirm": "Eliminar espacio",
-      "typeAria": "Escribe el nombre del espacio para confirmar"
+      "typeAria": "Escribe el nombre del espacio para confirmar",
+      "rotateConfirmTitle": "¿Rotar la clave de este Space?",
+      "rotateConfirmDesc": "Cada archivo se vuelve a cifrar con una clave nueva y se comparte de nuevo con los miembros actuales. En un Space grande puede tardar.",
+      "rotateConfirm": "Rotar clave"
     },
     "share": {
       "title": "Compartir archivo",

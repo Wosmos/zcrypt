@@ -201,11 +201,9 @@
     "toasts": {
       "label": "اطلاعات",
       "dismiss": "اطلاع نظر انداز کریں: {message}",
-      "showingAll": "تمام اطلاعات دکھائی جا رہی ہیں",
-      "more": "<b>{count} مزید</b> اطلاعات",
-      "moreOne": "<b>1 مزید</b> اطلاع",
-      "showLess": "کم دکھائیں",
-      "showAll": "سب دکھائیں"
+      "undo": "واپس کریں",
+      "secondsLeft": "واپس کرنے کے لیے {seconds} سیکنڈ باقی ہیں",
+      "times": "{count} بار"
     },
     "strength": {
       "tooShort": "بہت چھوٹا",
@@ -325,6 +323,13 @@
         "down": "سرورز دستیاب نہیں",
         "offline": "آپ آف لائن ہیں"
       }
+    },
+    "banner": {
+      "dismiss": "بند کریں"
+    },
+    "confirm": {
+      "previewMore": "{names} اور {count} مزید",
+      "typeToConfirm": "تصدیق کے لیے <b>{word}</b> لکھیں"
     }
   }
 }

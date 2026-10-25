@@ -102,9 +102,9 @@
       "signOutCount": "Déconnecter {count, plural, one {1 appareil} other {# appareils}}",
       "confirmOneTitle": "Déconnecter cet appareil ?",
       "confirmOneDesc": "{device} ({network}) sera déconnecté immédiatement.",
-      "confirmAllTitle": "Déconnecter tous les autres appareils ?",
+      "confirmAllTitle": "{count, plural, one {Déconnecter # autre appareil ?} other {Déconnecter # autres appareils ?}}",
       "confirmAllDesc": "Toutes les sessions sauf celle-ci se terminent immédiatement. Ces appareils auront besoin de votre mot de passe pour se reconnecter.",
-      "confirmAllLabel": "Déconnecter les autres"
+      "confirmAllLabel": "{count, plural, one {Déconnecter # appareil} other {Déconnecter # appareils}}"
     },
     "securityActivity": {
       "loadFailed": "Impossible de charger votre activité de sécurité",
@@ -467,6 +467,47 @@
       "announcementsDesc": "Des nouvelles occasionnelles de l'équipe zcrypt.",
       "footnote": "Les e-mails de compte et de sécurité sont toujours envoyés.",
       "saveFailed": "Impossible d'enregistrer votre préférence e-mail"
+    },
+    "notifications": "Notifications",
+    "notificationsDesc": "Sons et vibrations",
+    "soundPrefs": {
+      "master": "Sons",
+      "masterDesc": "Jouer un son quand une tâche se termine ou a besoin de vous",
+      "groupSet": "Jeu de sons",
+      "setFootnote": "Touchez un jeu pour l'écouter. Les sons sont générés sur votre appareil, sans fichiers audio.",
+      "set": {
+        "soft": "Doux",
+        "glass": "Verre",
+        "minimal": "Minimal"
+      },
+      "setDesc": {
+        "soft": "Chaud et rond",
+        "glass": "Clair et aérien",
+        "minimal": "Court et discret"
+      },
+      "event": {
+        "done": "Terminé",
+        "headsUp": "Attention",
+        "problem": "Problème"
+      },
+      "eventDesc": {
+        "done": "Envois, téléchargements, liens et exports qui ont pris du temps",
+        "headsUp": "Avertissements et éléments qui vous attendent",
+        "problem": "Un problème est survenu"
+      },
+      "preview": "Écouter",
+      "previewAria": "Écouter le son « {event} »",
+      "groupAreas": "Jouer des sons pour",
+      "area": {
+        "transfers": "Envois et téléchargements",
+        "sharing": "Partage et Spaces",
+        "security": "Sécurité",
+        "problems": "Problèmes"
+      },
+      "vibrate": "Vibrer sur le téléphone",
+      "vibrateDesc": "Une courte vibration à chaque son sur les appareils tactiles",
+      "backgroundOnly": "Seulement en arrière-plan",
+      "backgroundOnlyDesc": "Rester silencieux tant que zcrypt est ouvert au premier plan"
     }
   }
 }
