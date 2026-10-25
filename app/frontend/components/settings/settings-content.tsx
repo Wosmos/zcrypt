@@ -29,6 +29,7 @@ import { LinkedAccounts } from "@/components/settings/linked-accounts";
 import { ProfileSettings } from "@/components/settings/profile-settings";
 import { EmailPreferences } from "@/components/settings/email-preferences";
 import { NotificationSettings } from "@/components/settings/notification-prefs";
+import { SystemNotificationSettings } from "@/components/settings/system-notifications";
 import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
@@ -296,7 +297,7 @@ export function SettingsContent() {
       case "appearance":
         return <AppearanceContent advancedMode={advancedMode} setAdvancedMode={setAdvancedMode} />;
       case "notifications":
-        return <NotificationSettings />;
+        return <NotificationSettings notificationsExtra={<SystemNotificationSettings />} />;
       case "updates":
         return <AppUpdates />;
       case "account":

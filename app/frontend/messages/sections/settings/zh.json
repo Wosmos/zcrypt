@@ -508,6 +508,23 @@
       "vibrateDesc": "在触屏设备上，每次提示音伴随一次短振动",
       "backgroundOnly": "仅在后台时",
       "backgroundOnlyDesc": "zcrypt 打开且处于前台时保持静音"
+    },
+    "notifyPrefs": {
+      "group": "系统通知",
+      "title": "此设备上的通知",
+      "state": {
+        "granted": "已开启。传输完成时 zcrypt 会通知你，即使在后台。",
+        "default": "已关闭。开启后，离开时也能知道上传已完成。",
+        "denied": "已被阻止。请在浏览器或系统设置中允许 zcrypt 的通知。",
+        "unsupported": "此浏览器无法显示通知。"
+      },
+      "turnOn": "开启通知",
+      "test": "发送测试",
+      "testTitle": "通知已开启",
+      "testBody": "zcrypt 会这样通知你。",
+      "thumbnails": "显示照片预览",
+      "thumbnailsDesc": "在上传通知中显示照片的小预览。关闭后锁屏上不会出现照片。",
+      "iosHint": "要在 iPhone 上接收通知，请将 zcrypt 添加到主屏幕：点按共享，然后点按添加到主屏幕。"
     }
   }
 }

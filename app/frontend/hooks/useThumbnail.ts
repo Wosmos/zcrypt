@@ -712,6 +712,11 @@ export function hasCachedThumbnail(fileId: string): boolean {
   return memCache.has(fileId);
 }
 
+/** A file's thumbnail data URL if it is already in memory, never fetching or decrypting. */
+export function getCachedThumbnail(fileId: string | undefined): string | undefined {
+  return fileId ? memCache.get(fileId) : undefined;
+}
+
 /** Get cached thumbnail count for stats. */
 export function getCachedThumbnailCount(): number {
   return memCache.size;

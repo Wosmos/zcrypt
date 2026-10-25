@@ -999,6 +999,25 @@
           "tokenLabel": "@BotFather کے ذریعے بوٹ بنائیں"
         }
       }
+    },
+    "notify": {
+      "uploading": "اپ لوڈ ہو رہا ہے {done}/{total} · {percent}%",
+      "downloading": "ڈاؤن لوڈ ہو رہا ہے {done}/{total} · {percent}%",
+      "progressBody": "پس منظر میں جاری ہے",
+      "uploadDone": "اپ لوڈ مکمل",
+      "downloadDone": "ڈاؤن لوڈ مکمل",
+      "uploadFailed": "{name} اپ لوڈ نہیں ہو سکی",
+      "downloadFailed": "{name} ڈاؤن لوڈ نہیں ہو سکی",
+      "newSignIn": "آپ کے اکاؤنٹ میں نیا سائن اِن",
+      "newSignInBody": "{device}۔ آپ نہیں تھے؟ ترتیبات میں اسے سائن آؤٹ کریں۔",
+      "inviteReceived": "آپ کو {space} میں مدعو کیا گیا ہے",
+      "inviteReceivedBody": "قبول یا مسترد کرنے کے لیے zcrypt کھولیں۔",
+      "linkViewed": "کسی نے آپ کا لنک کھولا",
+      "storageFull": "آپ کی اسٹوریج بھر گئی ہے",
+      "storageFullBody": "نئے اپ لوڈ تب تک رکے رہیں گے جب تک آپ جگہ خالی نہ کریں یا اپنا اکاؤنٹ نہ جوڑیں۔",
+      "view": "دیکھیں",
+      "retry": "دوبارہ کوشش کریں",
+      "open": "کھولیں"
     }
   }
 }

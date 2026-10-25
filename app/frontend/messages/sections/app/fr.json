@@ -999,6 +999,25 @@
           "tokenLabel": "Créer un bot via @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "Envoi {done}/{total} · {percent}%",
+      "downloading": "Téléchargement {done}/{total} · {percent}%",
+      "progressBody": "Continue en arrière-plan",
+      "uploadDone": "Envoi terminé",
+      "downloadDone": "Téléchargement terminé",
+      "uploadFailed": "Impossible d'envoyer {name}",
+      "downloadFailed": "Impossible de télécharger {name}",
+      "newSignIn": "Nouvelle connexion à votre compte",
+      "newSignInBody": "{device}. Ce n'est pas vous ? Déconnectez-la dans les Réglages.",
+      "inviteReceived": "Vous êtes invité dans {space}",
+      "inviteReceivedBody": "Ouvrez zcrypt pour accepter ou refuser.",
+      "linkViewed": "Quelqu'un a ouvert votre lien",
+      "storageFull": "Votre stockage est plein",
+      "storageFullBody": "Les nouveaux envois attendent que vous libériez de l'espace ou connectiez votre propre compte.",
+      "view": "Voir",
+      "retry": "Réessayer",
+      "open": "Ouvrir"
     }
   }
 }

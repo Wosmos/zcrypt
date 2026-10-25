@@ -1120,15 +1120,23 @@ describe("useThumbnail", () => {
   });
 
   it("seedThumbnailFromFile caches an image thumbnail from local bytes with no network round trip", async () => {
-    const { primeThumbnails, useThumbnail, seedThumbnailFromFile, hasCachedThumbnail } =
-      await loadModule();
+    const {
+      primeThumbnails,
+      useThumbnail,
+      seedThumbnailFromFile,
+      hasCachedThumbnail,
+      getCachedThumbnail,
+    } = await loadModule();
     act(() => primeThumbnails("vault-pass"));
+    expect(getCachedThumbnail("f1")).toBeUndefined();
+    expect(getCachedThumbnail(undefined)).toBeUndefined();
 
     await act(async () => {
       await seedThumbnailFromFile("f1", new File(["local-bytes"], "photo.jpg"), "photo.jpg");
     });
 
     expect(hasCachedThumbnail("f1")).toBe(true);
+    expect(getCachedThumbnail("f1")).toBe("data:image/webp;base64,FAKE");
     expect(getFileMetaMock).not.toHaveBeenCalled();
     expect(getFileChunkMock).not.toHaveBeenCalled();
 

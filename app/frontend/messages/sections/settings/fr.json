@@ -508,6 +508,23 @@
       "vibrateDesc": "Une courte vibration à chaque son sur les appareils tactiles",
       "backgroundOnly": "Seulement en arrière-plan",
       "backgroundOnlyDesc": "Rester silencieux tant que zcrypt est ouvert au premier plan"
+    },
+    "notifyPrefs": {
+      "group": "Notifications système",
+      "title": "Notifications sur cet appareil",
+      "state": {
+        "granted": "Activées. zcrypt vous prévient quand les transferts se terminent, même en arrière-plan.",
+        "default": "Désactivées. Activez-les pour savoir quand vos envois se terminent pendant votre absence.",
+        "denied": "Bloquées. Autorisez les notifications de zcrypt dans les réglages du navigateur ou du système.",
+        "unsupported": "Ce navigateur ne peut pas afficher de notifications."
+      },
+      "turnOn": "Activer les notifications",
+      "test": "Envoyer un test",
+      "testTitle": "Les notifications sont activées",
+      "testBody": "Voici comment zcrypt vous prévient.",
+      "thumbnails": "Afficher les aperçus de photos",
+      "thumbnailsDesc": "Un petit aperçu de la photo dans les notifications d'envoi. Désactivez pour garder les photos hors de l'écran verrouillé.",
+      "iosHint": "Pour recevoir des notifications sur iPhone, ajoutez zcrypt à l'écran d'accueil : touchez Partager, puis Sur l'écran d'accueil."
     }
   }
 }

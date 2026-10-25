@@ -25,6 +25,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
 import { useTransferDockStore } from "@/store/transfer-dock";
+import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
 import { ChevronDown, Lock, X } from "@/lib/icons";
 import { cn, extOf, formatBytes, isImageFile, isVideoFile } from "@/lib/utils";
 import {
@@ -371,6 +372,15 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     for (const e of entries.filter((x) => x.state === "failed"))
       (e.direction === "upload" ? controls.onRetryUpload : controls.onRetryDownload)(e.id);
   };
+  const retryFailedRef = useRef(retryFailed);
+  useEffect(() => {
+    retryFailedRef.current = retryFailed;
+  });
+  useEffect(() => {
+    const onRetry = () => retryFailedRef.current();
+    window.addEventListener(RETRY_TRANSFERS_EVENT, onRetry);
+    return () => window.removeEventListener(RETRY_TRANSFERS_EVENT, onRetry);
+  }, []);
   const clearDone = () => {
     clearUploads();
     clearDownloads();

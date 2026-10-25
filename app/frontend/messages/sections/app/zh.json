@@ -999,6 +999,25 @@
           "tokenLabel": "通过 @BotFather 创建机器人"
         }
       }
+    },
+    "notify": {
+      "uploading": "正在上传 {done}/{total} · {percent}%",
+      "downloading": "正在下载 {done}/{total} · {percent}%",
+      "progressBody": "正在后台继续",
+      "uploadDone": "上传完成",
+      "downloadDone": "下载完成",
+      "uploadFailed": "无法上传 {name}",
+      "downloadFailed": "无法下载 {name}",
+      "newSignIn": "你的账户有新的登录",
+      "newSignInBody": "{device}。不是你？请在设置中将其退出。",
+      "inviteReceived": "你被邀请加入 {space}",
+      "inviteReceivedBody": "打开 zcrypt 接受或拒绝。",
+      "linkViewed": "有人打开了你的链接",
+      "storageFull": "你的存储空间已满",
+      "storageFullBody": "新的上传会等待，直到你释放空间或连接自己的账户。",
+      "view": "查看",
+      "retry": "重试",
+      "open": "打开"
     }
   }
 }

@@ -14,6 +14,7 @@ import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
+import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
 import type { UploadItem } from "@/types";
 
 const MB = 1024 * 1024;
@@ -186,6 +187,19 @@ describe("TransferManager panel", () => {
     expect(within(rows[0] as HTMLElement).getByText(/the connection dropped at 59%/)).toBeInTheDocument();
     fireEvent.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Retry" }));
     expect(actions.retryUpload).toHaveBeenCalledWith("bad", "pass");
+  });
+
+  it("retries every failure when a notification's Retry is tapped", () => {
+    seed([up("b", { status: "failed", error: "x" })], []);
+    const { unmount } = render(<TransferManager />);
+    act(() => {
+      window.dispatchEvent(new Event(RETRY_TRANSFERS_EVENT));
+    });
+    expect(actions.retryUpload).toHaveBeenCalledWith("b", "pass");
+    unmount();
+    actions.retryUpload.mockClear();
+    window.dispatchEvent(new Event(RETRY_TRANSFERS_EVENT));
+    expect(actions.retryUpload).not.toHaveBeenCalled();
   });
 
   it("footer: retry failed only with failures, pause all, resume all, clear done", () => {

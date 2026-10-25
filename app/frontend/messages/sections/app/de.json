@@ -999,6 +999,25 @@
           "tokenLabel": "Bot über @BotFather erstellen"
         }
       }
+    },
+    "notify": {
+      "uploading": "Hochladen {done}/{total} · {percent}%",
+      "downloading": "Herunterladen {done}/{total} · {percent}%",
+      "progressBody": "Läuft im Hintergrund weiter",
+      "uploadDone": "Hochladen abgeschlossen",
+      "downloadDone": "Download abgeschlossen",
+      "uploadFailed": "{name} konnte nicht hochgeladen werden",
+      "downloadFailed": "{name} konnte nicht heruntergeladen werden",
+      "newSignIn": "Neue Anmeldung bei deinem Konto",
+      "newSignInBody": "{device}. Nicht du? Melde es in den Einstellungen ab.",
+      "inviteReceived": "Du wurdest zu {space} eingeladen",
+      "inviteReceivedBody": "Öffne zcrypt, um anzunehmen oder abzulehnen.",
+      "linkViewed": "Jemand hat deinen Link geöffnet",
+      "storageFull": "Dein Speicher ist voll",
+      "storageFullBody": "Neue Uploads warten, bis du Platz schaffst oder dein eigenes Konto verbindest.",
+      "view": "Ansehen",
+      "retry": "Erneut versuchen",
+      "open": "Öffnen"
     }
   }
 }

@@ -48,6 +48,8 @@ import { useFolderProtection } from "@/hooks/useFolderProtection";
 import { useFileDecryptor } from "@/hooks/useFileDecryptor";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { useFolderStore } from "@/store/folders";
+import { useOpenFolderRequests } from "@/hooks/useOpenFolderRequests";
+import { useFolderRegistry } from "@/store/folder-registry";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -221,6 +223,18 @@ export default function VaultPage() {
     },
     [folderProtection, setCurrentFolder],
   );
+
+  const openFolderById = useCallback(
+    (id: string, name: string) => {
+      if (useFolderRegistry.getState().isProtected(id)) {
+        folderProtection.withFolderPassword(id, name, () => setCurrentFolder(id, name));
+      } else {
+        setCurrentFolder(id, name);
+      }
+    },
+    [folderProtection, setCurrentFolder],
+  );
+  useOpenFolderRequests(openFolderById);
 
   // Protect a folder: re-key its files from the vault pass to the new folder
   // password (vault must be unlocked), then persist protection. Shows progress.

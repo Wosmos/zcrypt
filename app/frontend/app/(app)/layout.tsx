@@ -6,6 +6,7 @@ import { VaultLockProvider } from "@/components/providers/vault-lock-provider";
 import { AppScope } from "@/components/providers/app-scope";
 import { AppTransfers } from "@/components/transfer/app-transfers";
 import { FileEventsBridge } from "@/components/providers/file-events-bridge";
+import { BackgroundAlerts } from "@/components/providers/background-alerts";
 import { SpaceAddsStrip, SpaceAddsGuard } from "@/components/share/space-adds-strip";
 import { KeyChangeHost } from "@/components/spaces/key-change";
 import { SharingKeysLoader } from "@/components/providers/sharing-keys-loader";
@@ -62,6 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               navigation (stores are singletons). Renders null when idle. */}
               <AppTransfers />
               <FileEventsBridge />
+              <BackgroundAlerts />
               <ReviewPrompt />
               <WhatsNewHost />
               <SpaceAddsStrip />

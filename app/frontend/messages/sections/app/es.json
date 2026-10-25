@@ -999,6 +999,25 @@
           "tokenLabel": "Crear bot con @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "Subiendo {done}/{total} · {percent}%",
+      "downloading": "Descargando {done}/{total} · {percent}%",
+      "progressBody": "Sigue en segundo plano",
+      "uploadDone": "Subida terminada",
+      "downloadDone": "Descarga terminada",
+      "uploadFailed": "No se pudo subir {name}",
+      "downloadFailed": "No se pudo descargar {name}",
+      "newSignIn": "Nuevo inicio de sesión en tu cuenta",
+      "newSignInBody": "{device}. ¿No fuiste tú? Ciérrala en Ajustes.",
+      "inviteReceived": "Te invitaron a {space}",
+      "inviteReceivedBody": "Abre zcrypt para aceptar o rechazar.",
+      "linkViewed": "Alguien abrió tu enlace",
+      "storageFull": "Tu almacenamiento está lleno",
+      "storageFullBody": "Las nuevas subidas esperan hasta que liberes espacio o conectes tu propia cuenta.",
+      "view": "Ver",
+      "retry": "Reintentar",
+      "open": "Abrir"
     }
   }
 }

@@ -139,4 +139,39 @@ describe("usePreferencesStore", () => {
       expect(usePreferencesStore.getState().sound.enabled).toBe(false);
     });
   });
+
+  describe("notification preferences", () => {
+    it("shows photo previews by default, also during SSR", async () => {
+      const { usePreferencesStore, DEFAULT_NOTIFY_PREFS } = await import("@/store/preferences");
+      expect(usePreferencesStore.getState().notify).toEqual(DEFAULT_NOTIFY_PREFS);
+      expect(DEFAULT_NOTIFY_PREFS.thumbnails).toBe(true);
+      vi.resetModules();
+      vi.stubGlobal("window", undefined);
+      const ssr = await import("@/store/preferences");
+      expect(ssr.usePreferencesStore.getState().notify).toEqual(DEFAULT_NOTIFY_PREFS);
+    });
+
+    it("reads a saved choice and ignores anything invalid or unreadable", async () => {
+      const { loadNotifyPrefs } = await import("@/store/preferences");
+      const getItem = localStorage.getItem as ReturnType<typeof vi.fn>;
+      getItem.mockReturnValue(JSON.stringify({ thumbnails: false }));
+      expect(loadNotifyPrefs()).toEqual({ thumbnails: false });
+      getItem.mockReturnValue(JSON.stringify({ thumbnails: "no" }));
+      expect(loadNotifyPrefs()).toEqual({ thumbnails: true });
+      getItem.mockReturnValue(null);
+      expect(loadNotifyPrefs()).toEqual({ thumbnails: true });
+      getItem.mockReturnValue("{broken");
+      expect(loadNotifyPrefs()).toEqual({ thumbnails: true });
+    });
+
+    it("setNotify updates state and persists under its own key", async () => {
+      const { usePreferencesStore } = await import("@/store/preferences");
+      usePreferencesStore.getState().setNotify({ thumbnails: false });
+      expect(usePreferencesStore.getState().notify.thumbnails).toBe(false);
+      expect(localStorage.setItem).toHaveBeenLastCalledWith(
+        "zcrypt-notify-prefs",
+        JSON.stringify({ thumbnails: false }),
+      );
+    });
+  });
 });

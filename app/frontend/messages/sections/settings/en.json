@@ -508,6 +508,23 @@
       "vibrateDesc": "A short buzz with each sound on touch devices",
       "backgroundOnly": "Only in the background",
       "backgroundOnlyDesc": "Stay silent while zcrypt is open and in focus"
+    },
+    "notifyPrefs": {
+      "group": "System notifications",
+      "title": "Notifications on this device",
+      "state": {
+        "granted": "On. zcrypt lets you know when transfers finish, even in the background.",
+        "default": "Off. Turn them on to hear about finished uploads while you are away.",
+        "denied": "Blocked. Allow notifications for zcrypt in your browser or system settings.",
+        "unsupported": "This browser can't show notifications."
+      },
+      "turnOn": "Turn on notifications",
+      "test": "Send a test",
+      "testTitle": "Notifications are on",
+      "testBody": "This is how zcrypt lets you know.",
+      "thumbnails": "Show photo previews",
+      "thumbnailsDesc": "A small preview of the photo in upload notifications. Turn off to keep photos off your lock screen.",
+      "iosHint": "To get notifications on iPhone, add zcrypt to your Home Screen: tap Share, then Add to Home Screen."
     }
   }
 }

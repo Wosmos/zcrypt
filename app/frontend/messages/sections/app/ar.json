@@ -999,6 +999,25 @@
           "tokenLabel": "أنشئ بوتًا عبر @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "جارٍ الرفع {done}/{total} · {percent}%",
+      "downloading": "جارٍ التنزيل {done}/{total} · {percent}%",
+      "progressBody": "مستمر في الخلفية",
+      "uploadDone": "اكتمل الرفع",
+      "downloadDone": "اكتمل التنزيل",
+      "uploadFailed": "تعذّر رفع {name}",
+      "downloadFailed": "تعذّر تنزيل {name}",
+      "newSignIn": "تسجيل دخول جديد إلى حسابك",
+      "newSignInBody": "{device}. لست أنت؟ سجّل خروجه من الإعدادات.",
+      "inviteReceived": "تمت دعوتك إلى {space}",
+      "inviteReceivedBody": "افتح zcrypt للقبول أو الرفض.",
+      "linkViewed": "فتح أحدهم رابطك",
+      "storageFull": "مساحة التخزين ممتلئة",
+      "storageFullBody": "تنتظر عمليات الرفع الجديدة حتى تفرّغ مساحة أو تربط حسابك الخاص.",
+      "view": "عرض",
+      "retry": "إعادة المحاولة",
+      "open": "فتح"
     }
   }
 }

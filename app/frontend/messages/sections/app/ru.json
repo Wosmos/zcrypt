@@ -999,6 +999,25 @@
           "tokenLabel": "Создать бота через @BotFather"
         }
       }
+    },
+    "notify": {
+      "uploading": "Загрузка {done}/{total} · {percent}%",
+      "downloading": "Скачивание {done}/{total} · {percent}%",
+      "progressBody": "Продолжается в фоне",
+      "uploadDone": "Загрузка завершена",
+      "downloadDone": "Скачивание завершено",
+      "uploadFailed": "Не удалось загрузить {name}",
+      "downloadFailed": "Не удалось скачать {name}",
+      "newSignIn": "Новый вход в ваш аккаунт",
+      "newSignInBody": "{device}. Это не вы? Завершите сеанс в настройках.",
+      "inviteReceived": "Вас пригласили в {space}",
+      "inviteReceivedBody": "Откройте zcrypt, чтобы принять или отклонить.",
+      "linkViewed": "Кто-то открыл вашу ссылку",
+      "storageFull": "Хранилище заполнено",
+      "storageFullBody": "Новые загрузки ждут, пока вы не освободите место или не подключите свой аккаунт.",
+      "view": "Открыть папку",
+      "retry": "Повторить",
+      "open": "Открыть"
     }
   }
 }

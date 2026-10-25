@@ -51,17 +51,44 @@ export function loadSoundPrefs(): SoundPrefs {
   }
 }
 
+/** Per-device choices for operating system notifications. */
+export interface NotifyPrefs {
+  /** Attach the photo preview to transfer notifications. */
+  thumbnails: boolean;
+}
+
+export const DEFAULT_NOTIFY_PREFS: NotifyPrefs = { thumbnails: true };
+
+const NOTIFY_KEY = "zcrypt-notify-prefs";
+
+/** Read the saved notification choices, falling back to defaults. */
+export function loadNotifyPrefs(): NotifyPrefs {
+  try {
+    const raw = JSON.parse(
+      localStorage.getItem(NOTIFY_KEY) ?? "null",
+    ) as Partial<NotifyPrefs> | null;
+    const thumbnails = raw?.thumbnails;
+    return {
+      thumbnails: typeof thumbnails === "boolean" ? thumbnails : DEFAULT_NOTIFY_PREFS.thumbnails,
+    };
+  } catch {
+    return DEFAULT_NOTIFY_PREFS;
+  }
+}
+
 interface PreferencesStore {
   advancedMode: boolean;
   setAdvancedMode: (enabled: boolean) => void;
   sound: SoundPrefs;
   setSound: (patch: Partial<Omit<SoundPrefs, "areas">>) => void;
   setSoundArea: (area: SoundArea, on: boolean) => void;
+  notify: NotifyPrefs;
+  setNotify: (patch: Partial<NotifyPrefs>) => void;
 }
 
-function saveSound(sound: SoundPrefs) {
+function save(key: string, value: SoundPrefs | NotifyPrefs) {
   try {
-    localStorage.setItem(SOUND_KEY, JSON.stringify(sound));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // storage blocked: the choice still applies for this session
   }
@@ -80,14 +107,22 @@ export const usePreferencesStore = create<PreferencesStore>((set, get) => ({
 
   setSound: (patch) => {
     const sound = { ...get().sound, ...patch };
-    saveSound(sound);
+    save(SOUND_KEY, sound);
     set({ sound });
   },
 
   setSoundArea: (area, on) => {
     const current = get().sound;
     const sound = { ...current, areas: { ...current.areas, [area]: on } };
-    saveSound(sound);
+    save(SOUND_KEY, sound);
     set({ sound });
+  },
+
+  notify: typeof window !== "undefined" ? loadNotifyPrefs() : DEFAULT_NOTIFY_PREFS,
+
+  setNotify: (patch) => {
+    const notify = { ...get().notify, ...patch };
+    save(NOTIFY_KEY, notify);
+    set({ notify });
   },
 }));

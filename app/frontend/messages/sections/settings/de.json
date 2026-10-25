@@ -508,6 +508,23 @@
       "vibrateDesc": "Ein kurzes Brummen zu jedem Ton auf Touchgeräten",
       "backgroundOnly": "Nur im Hintergrund",
       "backgroundOnlyDesc": "Stumm bleiben, solange zcrypt geöffnet und im Vordergrund ist"
+    },
+    "notifyPrefs": {
+      "group": "Systembenachrichtigungen",
+      "title": "Benachrichtigungen auf diesem Gerät",
+      "state": {
+        "granted": "An. zcrypt meldet sich, wenn Übertragungen fertig sind, auch im Hintergrund.",
+        "default": "Aus. Schalte sie ein, um von fertigen Uploads zu erfahren, während du weg bist.",
+        "denied": "Blockiert. Erlaube Benachrichtigungen für zcrypt in den Browser- oder Systemeinstellungen.",
+        "unsupported": "Dieser Browser kann keine Benachrichtigungen anzeigen."
+      },
+      "turnOn": "Benachrichtigungen einschalten",
+      "test": "Test senden",
+      "testTitle": "Benachrichtigungen sind an",
+      "testBody": "So meldet sich zcrypt bei dir.",
+      "thumbnails": "Fotovorschauen zeigen",
+      "thumbnailsDesc": "Eine kleine Vorschau des Fotos in Upload-Benachrichtigungen. Ausschalten, damit keine Fotos auf dem Sperrbildschirm erscheinen.",
+      "iosHint": "Für Benachrichtigungen auf dem iPhone füge zcrypt zum Home-Bildschirm hinzu: Tippe auf Teilen, dann auf Zum Home-Bildschirm."
     }
   }
 }
