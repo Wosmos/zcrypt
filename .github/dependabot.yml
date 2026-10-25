@@ -25,6 +25,11 @@ updates:
     groups:
       rust-core:
         patterns: ["*"]
+    ignore:
+      # RustCrypto majors (aes-gcm, hmac, sha2) change the trait API together;
+      # they get migrated by hand, not by a lockfile bump.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 3
 
   - package-ecosystem: cargo
@@ -34,6 +39,12 @@ updates:
     groups:
       rust-desktop:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # glib 0.18 is pinned by Tauri's gtk stack; nothing here can move it, so
+      # the security job for it fails on every run until Tauri moves to gtk4.
+      - dependency-name: "glib"
     open-pull-requests-limit: 3
 
   - package-ecosystem: npm
