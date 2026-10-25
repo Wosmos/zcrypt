@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { toastRemainingMs, useToastStore, type Toast } from "@/store/toast";
+import { useTransferDockStore } from "@/store/transfer-dock";
 import { installAudioUnlock } from "@/lib/sounds";
 import { Check, X } from "@/lib/icons";
 import { KIND, tint } from "@/components/ui/kind";
@@ -255,6 +256,12 @@ export function ToastContainer() {
   const resume = useToastStore((s) => s.resume);
   const removeNewest = useToastStore((s) => s.removeNewest);
 
+  const dockVisible = useTransferDockStore((s) => s.visible);
+  const dockHeight = useTransferDockStore((s) => s.height);
+  const glassBottom = {
+    "--toast-glass-bottom": dockVisible ? `${dockHeight + 28}px` : "1.5rem",
+  } as CSSProperties;
+
   useEffect(() => installAudioUnlock(), []);
 
   const hasToasts = toasts.length > 0;
@@ -322,7 +329,8 @@ export function ToastContainer() {
         <div
           aria-label={tr("label")}
           {...hover}
-          className="pointer-events-none fixed inset-x-3 top-[calc(var(--safe-top,0px)+0.75rem)] z-[100] flex flex-col gap-2 md:inset-x-auto md:bottom-6 md:end-6 md:top-auto md:w-[380px] md:flex-col-reverse"
+          style={glassBottom}
+          className="pointer-events-none fixed inset-x-3 top-[calc(var(--safe-top,0px)+0.75rem)] z-[100] flex flex-col gap-2 md:inset-x-auto md:bottom-[var(--toast-glass-bottom)] md:end-6 md:top-auto md:w-[380px] md:flex-col-reverse"
         >
           {visibleGlass.map((t) => (
             <GlassRow key={t.id} toast={t} />
@@ -339,7 +347,7 @@ export function ToastContainer() {
         <div
           aria-label={tr("label")}
           {...hover}
-          className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--safe-bottom,0px)+5.5rem)] z-[100] flex flex-col gap-2 md:inset-x-auto md:bottom-6 md:start-6 md:w-[360px]"
+          className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--safe-bottom,0px)+5.5rem)] z-[45] flex flex-col gap-2 md:inset-x-auto md:bottom-6 md:start-6 md:w-[360px]"
         >
           {undos.slice(-2).map((t) => (
             <UndoBar key={t.id} toast={t} />

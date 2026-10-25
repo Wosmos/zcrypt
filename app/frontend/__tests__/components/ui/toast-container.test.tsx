@@ -6,6 +6,7 @@ vi.mock("@/lib/sounds", () => ({ playSound: vi.fn(), installAudioUnlock: vi.fn((
 import { ToastContainer } from "@/components/ui/toast-container";
 import { toast, useToastStore } from "@/store/toast";
 import { installAudioUnlock } from "@/lib/sounds";
+import { useTransferDockStore } from "@/store/transfer-dock";
 
 const clear = () => useToastStore.getState().toasts.forEach((t) => useToastStore.getState().remove(t.id));
 
@@ -123,6 +124,29 @@ describe("ToastContainer", () => {
     expect(assertive).not.toHaveTextContent("W1");
     expect(polite).toHaveTextContent("W1");
     expect(polite).toHaveTextContent("S1");
+  });
+
+  describe("layout around the transfer panel", () => {
+    afterEach(() => useTransferDockStore.getState().report(false, 0));
+
+    it("lifts warning and error rows above the open transfer panel on desktop", () => {
+      render(<ToastContainer />);
+      act(() => toast.warning("Storage almost full"));
+      const stack = document.querySelector('[data-toast="glass"]')!.parentElement as HTMLElement;
+      expect(stack.style.getPropertyValue("--toast-glass-bottom")).toBe("1.5rem");
+      expect(stack.className).toContain("md:bottom-[var(--toast-glass-bottom)]");
+
+      act(() => useTransferDockStore.getState().report(true, 300));
+      expect(stack.style.getPropertyValue("--toast-glass-bottom")).toBe("328px");
+    });
+
+    it("keeps the undo bar under dialogs and sheets", () => {
+      render(<ToastContainer />);
+      act(() => toast.undo("Moved", vi.fn()));
+      const region = document.querySelector('[data-toast="undo"]')!.parentElement as HTMLElement;
+      expect(region.className).toContain("z-[45]");
+      expect(region.className).not.toContain("z-[100]");
+    });
   });
 
   describe("undo bar", () => {

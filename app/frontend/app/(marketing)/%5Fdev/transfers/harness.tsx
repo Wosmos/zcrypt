@@ -13,6 +13,8 @@ import type { UploadItem } from "@/types";
 import { toast } from "@/store/toast";
 import { Banner } from "@/components/ui/banner";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { NotificationSettings } from "@/components/settings/notification-prefs";
+import { SystemNotificationSettings } from "@/components/settings/system-notifications";
 import { AlertTriangle, CloudOff, Database, WifiOff } from "@/lib/icons";
 
 const MB = 1024 * 1024;
@@ -261,6 +263,13 @@ function AlertsHarness() {
     ],
     ["undo", () => toast.undo("Moved 3 files to Trips", () => {}, { detail: "Family / Trips" })],
     ["delete confirm", () => setConfirm("delete")],
+    [
+      "undo + sheet",
+      () => {
+        setConfirm("delete");
+        toast.undo("Moved 3 files to Trips", () => {});
+      },
+    ],
     ["type confirm", () => setConfirm("type")],
   ];
   return (
@@ -390,6 +399,10 @@ export function TransfersHarness() {
           </button>
         </div>
         <AlertsHarness />
+        <section className="max-w-xl space-y-3">
+          <h2 className="font-heading text-lg font-semibold">Settings, Notifications</h2>
+          <NotificationSettings notificationsExtra={<SystemNotificationSettings />} />
+        </section>
         <div className="grid grid-cols-3 gap-3">
           {["IMG_5001.jpg", "Contract.pdf", "Trip.mov"].map((n) => (
             <div
