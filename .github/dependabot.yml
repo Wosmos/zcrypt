@@ -47,7 +47,7 @@ updates:
       - dependency-name: "glib"
     open-pull-requests-limit: 3
 
-  - package-ecosystem: npm
+  - package-ecosystem: bun
     directory: /app/frontend
     schedule:
       interval: monthly
