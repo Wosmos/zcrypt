@@ -74,7 +74,13 @@
       "emptyFiltered": "Aucun signalement ne correspond à ce statut.",
       "emptyAll": "Rien n'a encore été signalé depuis l'app.",
       "signedOut": "Déconnecté",
-      "unknownLower": "inconnu"
+      "unknownLower": "inconnu",
+      "kind": "Type",
+      "kindBug": "Bug",
+      "kindIdea": "Idée",
+      "kindLeft": "Parti",
+      "kindOther": "Autre",
+      "contactEmail": "E-mail de contact"
     },
     "feedback": {
       "stars": "{rating} sur 5",

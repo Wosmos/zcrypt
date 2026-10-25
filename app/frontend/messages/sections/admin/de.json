@@ -74,7 +74,13 @@
       "emptyFiltered": "Keine Berichte mit diesem Status.",
       "emptyAll": "Aus der App wurde noch nichts gemeldet.",
       "signedOut": "Abgemeldet",
-      "unknownLower": "unbekannt"
+      "unknownLower": "unbekannt",
+      "kind": "Art",
+      "kindBug": "Fehler",
+      "kindIdea": "Idee",
+      "kindLeft": "Abgewandert",
+      "kindOther": "Sonstiges",
+      "contactEmail": "Kontakt-E-Mail"
     },
     "feedback": {
       "stars": "{rating} von 5",

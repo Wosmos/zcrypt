@@ -74,7 +74,13 @@
       "emptyFiltered": "没有符合此状态的报告。",
       "emptyAll": "应用尚未收到任何报告。",
       "signedOut": "未登录",
-      "unknownLower": "未知"
+      "unknownLower": "未知",
+      "kind": "类型",
+      "kindBug": "Bug",
+      "kindIdea": "想法",
+      "kindLeft": "已离开",
+      "kindOther": "其他",
+      "contactEmail": "联系邮箱"
     },
     "feedback": {
       "stars": "{rating} 分(满分 5)",

@@ -74,7 +74,13 @@
       "emptyFiltered": "لا توجد بلاغات بهذه الحالة.",
       "emptyAll": "لم يُبلَّغ عن شيء من التطبيق بعد.",
       "signedOut": "غير مسجّل الدخول",
-      "unknownLower": "غير معروف"
+      "unknownLower": "غير معروف",
+      "kind": "النوع",
+      "kindBug": "خلل",
+      "kindIdea": "فكرة",
+      "kindLeft": "مغادرة",
+      "kindOther": "أخرى",
+      "contactEmail": "بريد التواصل"
     },
     "feedback": {
       "stars": "{rating} من 5",

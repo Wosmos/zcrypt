@@ -74,7 +74,13 @@
       "emptyFiltered": "اس حالت کی کوئی رپورٹ نہیں۔",
       "emptyAll": "ایپ سے ابھی تک کچھ رپورٹ نہیں کیا گیا۔",
       "signedOut": "سائن آؤٹ",
-      "unknownLower": "نامعلوم"
+      "unknownLower": "نامعلوم",
+      "kind": "قسم",
+      "kindBug": "خرابی",
+      "kindIdea": "خیال",
+      "kindLeft": "چھوڑ گئے",
+      "kindOther": "دیگر",
+      "contactEmail": "رابطے کا ای میل"
     },
     "feedback": {
       "stars": "5 میں سے {rating}",

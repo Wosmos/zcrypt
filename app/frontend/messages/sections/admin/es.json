@@ -74,7 +74,13 @@
       "emptyFiltered": "Ningún informe coincide con este estado.",
       "emptyAll": "Aún no se ha informado de nada desde la app.",
       "signedOut": "Sin sesión",
-      "unknownLower": "desconocido"
+      "unknownLower": "desconocido",
+      "kind": "Tipo",
+      "kindBug": "Error",
+      "kindIdea": "Idea",
+      "kindLeft": "Se fue",
+      "kindOther": "Otro",
+      "contactEmail": "Correo de contacto"
     },
     "feedback": {
       "stars": "{rating} de 5",

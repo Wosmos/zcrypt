@@ -74,7 +74,13 @@
       "emptyFiltered": "No reports match this status.",
       "emptyAll": "Nothing has been reported from the app yet.",
       "signedOut": "Signed out",
-      "unknownLower": "unknown"
+      "unknownLower": "unknown",
+      "kind": "Type",
+      "kindBug": "Bug",
+      "kindIdea": "Idea",
+      "kindLeft": "Left",
+      "kindOther": "Other",
+      "contactEmail": "Contact email"
     },
     "feedback": {
       "stars": "{rating} out of 5",

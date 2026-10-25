@@ -9,6 +9,7 @@ import {
   adminUpdateBugReport,
   type AdminBugReport,
   type BugReportStatus,
+  type FeedbackKind,
 } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
 import { queryClient } from "@/lib/query-client";
@@ -55,6 +56,18 @@ function StatusBadge({ status }: { status: BugReportStatus }) {
   const t = useTranslations("admin.bugs");
   const key = STATUSES.find((s) => s.value === status)?.key;
   return <Badge variant={STATUS_VARIANT[status] ?? "muted"}>{key ? t(key) : status}</Badge>;
+}
+
+const KIND_KEYS: Record<FeedbackKind, string> = {
+  bug: "kindBug",
+  idea: "kindIdea",
+  left: "kindLeft",
+  other: "kindOther",
+};
+
+function KindBadge({ kind }: { kind: FeedbackKind }) {
+  const t = useTranslations("admin.bugs");
+  return <Badge variant="muted">{KIND_KEYS[kind] ? t(KIND_KEYS[kind]) : kind}</Badge>;
 }
 
 function Screenshot({ id }: { id: string }) {
@@ -147,7 +160,18 @@ function ReportDrawer({
               {report.has_screenshot && <Screenshot id={report.id} />}
 
               <dl className="grid grid-cols-2 gap-3 border-t border-[var(--color-border)] pt-4">
+                <Field label={t("kind")} value={t(KIND_KEYS[report.kind] ?? "kindBug")} />
                 <Field label={t("reporter")} value={report.email} />
+                {report.contact_email && (
+                  <div className="col-span-2 text-xs">
+                    <dt className="text-[var(--color-text-muted)]">{t("contactEmail")}</dt>
+                    <dd className="mt-0.5 break-words font-medium text-[var(--color-text-secondary)]">
+                      <a href={`mailto:${report.contact_email}`} className="underline">
+                        {report.contact_email}
+                      </a>
+                    </dd>
+                  </div>
+                )}
                 <Field label={t("appVersion")} value={report.app_version} />
                 <Field label={t("platform")} value={report.platform} />
                 <Field label={t("route")} value={report.route} />
@@ -249,7 +273,10 @@ export function BugReports() {
                     {r.app_version || t("unknownLower")} · {formatRelativeTime(r.created_at)}
                   </p>
                 </div>
-                <StatusBadge status={r.status} />
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <StatusBadge status={r.status} />
+                  <KindBadge kind={r.kind} />
+                </div>
               </button>
             </li>
           ))}

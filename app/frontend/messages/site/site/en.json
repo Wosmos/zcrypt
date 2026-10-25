@@ -2138,6 +2138,37 @@
           "p5": "zcrypt is the better fit when you want an encrypted drive you can fully self-host, store in accounts you already own, and scale without artificial caps, all open source and free."
         }
       }
+    },
+    "feedback": {
+      "heroTitle": "Tell me what's",
+      "heroHighlight": "not working.",
+      "heroLede": "I'm one person and I read every message. A bug, an idea, or the reason you stopped using zcrypt, it all helps.",
+      "typeLegend": "What is this about?",
+      "typeBug": "Something's broken",
+      "typeIdea": "An idea",
+      "typeLeft": "Why I stopped using zcrypt",
+      "typeOther": "Something else",
+      "messageLabel": "Your message",
+      "messagePlaceholder": "Say it plainly. No need to be polite.",
+      "counter": "{count} / {max}",
+      "sendingAs": "Sending as {email}",
+      "sendingAsAccount": "Sending from your account",
+      "attach": "Attach a screenshot (optional)",
+      "attachProcessing": "Processing image...",
+      "attachRemove": "Remove screenshot",
+      "attachAlt": "Attached screenshot",
+      "emailLabel": "Want a reply? Leave your email",
+      "emailHint": "Optional. Only used to answer you. It never goes on a list.",
+      "emailPlaceholder": "you@example.com",
+      "submit": "Send feedback",
+      "sending": "Sending...",
+      "successTitle": "Thanks, I read every one.",
+      "successBody": "Your message is in. If you left an email, I may write back.",
+      "backHome": "Back to home",
+      "sendAnother": "Send another",
+      "errRate": "Too many messages from here right now. Please try again in a little while.",
+      "errGeneric": "Could not send that. Please try again.",
+      "errAttach": "Could not attach that image"
     }
   }
 }

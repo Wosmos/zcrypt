@@ -2138,6 +2138,37 @@
           "p5": "zcrypt convient mieux quand vous voulez un drive chiffré que vous pouvez entièrement auto-héberger, stocker dans des comptes qui vous appartiennent déjà et faire grandir sans plafonds artificiels, le tout open source et gratuit."
         }
       }
+    },
+    "feedback": {
+      "heroTitle": "Dis-moi ce qui",
+      "heroHighlight": "ne marche pas.",
+      "heroLede": "Je suis une seule personne et je lis chaque message. Un bug, une idée ou la raison pour laquelle tu as arrêté zcrypt, tout aide.",
+      "typeLegend": "De quoi s'agit-il ?",
+      "typeBug": "Quelque chose est cassé",
+      "typeIdea": "Une idée",
+      "typeLeft": "Pourquoi j'ai arrêté zcrypt",
+      "typeOther": "Autre chose",
+      "messageLabel": "Ton message",
+      "messagePlaceholder": "Dis-le simplement. Pas besoin d'être poli.",
+      "counter": "{count} / {max}",
+      "sendingAs": "Envoi en tant que {email}",
+      "sendingAsAccount": "Envoi depuis ton compte",
+      "attach": "Joindre une capture d'écran (facultatif)",
+      "attachProcessing": "Traitement de l'image...",
+      "attachRemove": "Retirer la capture",
+      "attachAlt": "Capture jointe",
+      "emailLabel": "Envie d'une réponse ? Laisse ton e-mail",
+      "emailHint": "Facultatif. Sert uniquement à te répondre et n'entre dans aucune liste.",
+      "emailPlaceholder": "toi@exemple.fr",
+      "submit": "Envoyer mon avis",
+      "sending": "Envoi...",
+      "successTitle": "Merci, je les lis tous.",
+      "successBody": "Ton message est bien arrivé. Si tu as laissé un e-mail, je t'écrirai peut-être.",
+      "backHome": "Retour à l'accueil",
+      "sendAnother": "En envoyer un autre",
+      "errRate": "Trop de messages depuis ici pour le moment. Réessaie dans un petit moment.",
+      "errGeneric": "Impossible d'envoyer. Réessaie.",
+      "errAttach": "Impossible de joindre cette image"
     }
   }
 }

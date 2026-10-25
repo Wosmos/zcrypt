@@ -2138,6 +2138,37 @@
           "p5": "当你想要一个可以完全自托管、存放在你已有账号中、可以无人为上限地扩展的加密网盘，而且全部开源免费时，zcrypt 更合适。"
         }
       }
+    },
+    "feedback": {
+      "heroTitle": "告诉我什么",
+      "heroHighlight": "出了问题。",
+      "heroLede": "我只有一个人，每条消息都会读。一个 bug、一个想法，或者你不再使用 zcrypt 的原因，都有帮助。",
+      "typeLegend": "是关于什么的？",
+      "typeBug": "有东西坏了",
+      "typeIdea": "一个想法",
+      "typeLeft": "我为什么不再使用 zcrypt",
+      "typeOther": "其他",
+      "messageLabel": "你的留言",
+      "messagePlaceholder": "直说就好，不用客气。",
+      "counter": "{count} / {max}",
+      "sendingAs": "以 {email} 的身份发送",
+      "sendingAsAccount": "从你的账户发送",
+      "attach": "附上截图（可选）",
+      "attachProcessing": "正在处理图片...",
+      "attachRemove": "移除截图",
+      "attachAlt": "已附截图",
+      "emailLabel": "想要回复？请留下邮箱",
+      "emailHint": "可选。仅用于回复你，不会进入任何名单。",
+      "emailPlaceholder": "you@example.com",
+      "submit": "发送反馈",
+      "sending": "发送中...",
+      "successTitle": "谢谢，我每一条都会读。",
+      "successBody": "你的留言已收到。如果你留了邮箱，我可能会回复。",
+      "backHome": "返回首页",
+      "sendAnother": "再发一条",
+      "errRate": "此处现在的消息太多了，请稍后再试。",
+      "errGeneric": "发送失败，请重试。",
+      "errAttach": "无法附上该图片"
     }
   }
 }

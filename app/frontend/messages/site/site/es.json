@@ -2138,6 +2138,37 @@
           "p5": "zcrypt encaja mejor cuando quieres una unidad cifrada que puedas autoalojar por completo, guardar en cuentas que ya son tuyas y escalar sin límites artificiales, todo de código abierto y gratis."
         }
       }
+    },
+    "feedback": {
+      "heroTitle": "Cuéntame qué",
+      "heroHighlight": "no funciona.",
+      "heroLede": "Soy una sola persona y leo cada mensaje. Un error, una idea o la razón por la que dejaste de usar zcrypt, todo ayuda.",
+      "typeLegend": "¿De qué se trata?",
+      "typeBug": "Algo está roto",
+      "typeIdea": "Una idea",
+      "typeLeft": "Por qué dejé de usar zcrypt",
+      "typeOther": "Otra cosa",
+      "messageLabel": "Tu mensaje",
+      "messagePlaceholder": "Dilo sin rodeos. No hace falta ser amable.",
+      "counter": "{count} / {max}",
+      "sendingAs": "Enviando como {email}",
+      "sendingAsAccount": "Enviando desde tu cuenta",
+      "attach": "Adjuntar una captura de pantalla (opcional)",
+      "attachProcessing": "Procesando la imagen...",
+      "attachRemove": "Quitar la captura",
+      "attachAlt": "Captura adjunta",
+      "emailLabel": "¿Quieres una respuesta? Deja tu correo",
+      "emailHint": "Opcional. Solo se usa para responderte y nunca entra en una lista.",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "submit": "Enviar comentarios",
+      "sending": "Enviando...",
+      "successTitle": "Gracias, leo cada uno.",
+      "successBody": "Tu mensaje llegó. Si dejaste un correo, puede que te escriba.",
+      "backHome": "Volver al inicio",
+      "sendAnother": "Enviar otro",
+      "errRate": "Demasiados mensajes desde aquí ahora mismo. Inténtalo de nuevo en un rato.",
+      "errGeneric": "No se pudo enviar. Inténtalo de nuevo.",
+      "errAttach": "No se pudo adjuntar esa imagen"
     }
   }
 }

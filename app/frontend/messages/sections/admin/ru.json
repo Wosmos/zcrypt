@@ -74,7 +74,13 @@
       "emptyFiltered": "Нет отчётов с таким статусом.",
       "emptyAll": "Из приложения пока ничего не сообщали.",
       "signedOut": "Без входа",
-      "unknownLower": "неизвестно"
+      "unknownLower": "неизвестно",
+      "kind": "Тип",
+      "kindBug": "Ошибка",
+      "kindIdea": "Идея",
+      "kindLeft": "Ушёл",
+      "kindOther": "Другое",
+      "contactEmail": "Почта для связи"
     },
     "feedback": {
       "stars": "{rating} из 5",

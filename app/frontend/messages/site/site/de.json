@@ -2138,6 +2138,37 @@
           "p5": "zcrypt passt besser, wenn du ein verschlüsseltes Laufwerk willst, das du vollständig selbst hosten, in Konten ablegen, die dir bereits gehören, und ohne künstliche Grenzen skalieren kannst, alles Open Source und kostenlos."
         }
       }
+    },
+    "feedback": {
+      "heroTitle": "Sag mir, was",
+      "heroHighlight": "nicht funktioniert.",
+      "heroLede": "Ich bin ein einzelner Mensch und lese jede Nachricht. Ein Fehler, eine Idee oder der Grund, warum du zcrypt nicht mehr nutzt: alles hilft.",
+      "typeLegend": "Worum geht es?",
+      "typeBug": "Etwas ist kaputt",
+      "typeIdea": "Eine Idee",
+      "typeLeft": "Warum ich zcrypt nicht mehr nutze",
+      "typeOther": "Etwas anderes",
+      "messageLabel": "Deine Nachricht",
+      "messagePlaceholder": "Sag es einfach direkt. Du musst nicht höflich sein.",
+      "counter": "{count} / {max}",
+      "sendingAs": "Senden als {email}",
+      "sendingAsAccount": "Senden von deinem Konto",
+      "attach": "Screenshot anhängen (optional)",
+      "attachProcessing": "Bild wird verarbeitet...",
+      "attachRemove": "Screenshot entfernen",
+      "attachAlt": "Angehängter Screenshot",
+      "emailLabel": "Möchtest du eine Antwort? Hinterlasse deine E-Mail",
+      "emailHint": "Optional. Wird nur für die Antwort an dich verwendet und landet auf keiner Liste.",
+      "emailPlaceholder": "du@beispiel.de",
+      "submit": "Feedback senden",
+      "sending": "Wird gesendet...",
+      "successTitle": "Danke, ich lese jede einzelne.",
+      "successBody": "Deine Nachricht ist angekommen. Falls du eine E-Mail hinterlassen hast, melde ich mich vielleicht.",
+      "backHome": "Zurück zur Startseite",
+      "sendAnother": "Weitere senden",
+      "errRate": "Von hier kommen gerade zu viele Nachrichten. Bitte versuche es in einer Weile erneut.",
+      "errGeneric": "Das konnte nicht gesendet werden. Bitte versuche es erneut.",
+      "errAttach": "Das Bild konnte nicht angehängt werden"
     }
   }
 }

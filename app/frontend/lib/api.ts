@@ -1136,15 +1136,22 @@ export function setEmailPrefs(optOut: boolean): Promise<{ email_opt_out: boolean
 
 export type BugReportStatus = "open" | "triaged" | "fixed" | "wontfix";
 
+export type FeedbackKind = "bug" | "idea" | "left" | "other";
+
 export interface BugReportInput {
   description: string;
   screenshot?: string;
+  kind?: FeedbackKind;
+  contact_email?: string;
+  website?: string;
+  elapsed_ms?: number;
   app_version: string;
   platform: string;
   route: string;
   user_agent: string;
 }
 
+/** Works signed in (the token is attached by `request`) and signed out. */
 export function submitBugReport(data: BugReportInput): Promise<{ success: boolean; id: string }> {
   return request<{ success: boolean; id: string }>("/api/feedback/bug", {
     method: "POST",
@@ -1165,6 +1172,8 @@ export interface AdminBugReport {
   route: string;
   user_agent: string;
   status: BugReportStatus;
+  kind: FeedbackKind;
+  contact_email: string;
   created_at: string;
 }
 

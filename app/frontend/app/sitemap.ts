@@ -25,6 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { ...make("/changelog", 0.6, "weekly"), lastModified: LATEST_RELEASED.date ?? lastModified },
     make("/about", 0.6, "monthly"),
     make("/philosophy", 0.6, "yearly"),
+    make("/feedback", 0.5, "yearly"),
     make("/send", 0.7, "monthly"),
     make("/pad", 0.7, "monthly"),
     make("/transfer", 0.7, "monthly"),
