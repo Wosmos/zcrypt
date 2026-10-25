@@ -5,12 +5,16 @@ const h = vi.hoisted(() => ({
   search: "",
   submit: vi.fn(),
   downscale: vi.fn(),
+  refresh: vi.fn(),
+  me: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(h.search),
 }));
 vi.mock("@/lib/api", () => ({ submitBugReport: h.submit }));
+vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken: h.refresh }));
+vi.mock("@/lib/auth-api", () => ({ getMe: h.me }));
 vi.mock("@/lib/bug-report", () => ({
   collectBugContext: async (route: string) => ({
     app_version: "9.9.9",
@@ -37,6 +41,8 @@ describe("FeedbackForm", () => {
     h.search = "";
     h.submit.mockReset().mockResolvedValue({ success: true });
     h.downscale.mockReset().mockResolvedValue("data:image/jpeg;base64,AAAA");
+    h.refresh.mockReset().mockResolvedValue(null);
+    h.me.mockReset().mockResolvedValue(null);
     useAuthStore.setState({ accessToken: null, user: null });
   });
   afterEach(() => {
@@ -251,5 +257,30 @@ describe("FeedbackForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send feedback" }));
     fireEvent.click(await screen.findByRole("button", { name: "Send another" }));
     expect(screen.getByLabelText("Your message")).toHaveValue("");
+  });
+
+  it("restores a signed-in session from the cookie and shows who is sending", async () => {
+    h.refresh.mockImplementation(async () => {
+      useAuthStore.setState({ accessToken: "fresh" });
+      return "fresh";
+    });
+    h.me.mockResolvedValue({ id: "u1", email: "back@example.com" });
+    render(<FeedbackForm />);
+    await waitFor(() => expect(screen.getByText(/back@example.com/)).toBeTruthy());
+    expect(h.me).toHaveBeenCalledWith("fresh");
+  });
+
+  it("stays signed out when there is no session to restore", async () => {
+    render(<FeedbackForm />);
+    await waitFor(() => expect(h.refresh).toHaveBeenCalled());
+    expect(h.me).not.toHaveBeenCalled();
+  });
+
+  it("loads the profile for a token that has no user yet", async () => {
+    useAuthStore.setState({ accessToken: "tok", user: null });
+    h.me.mockRejectedValue(new Error("down"));
+    render(<FeedbackForm />);
+    await waitFor(() => expect(h.me).toHaveBeenCalledWith("tok"));
+    expect(h.refresh).not.toHaveBeenCalled();
   });
 });

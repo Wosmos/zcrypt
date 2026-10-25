@@ -33,8 +33,10 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
   const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const openedAt = useRef(0);
 
   useEffect(() => {
+    if (open) openedAt.current = Date.now();
     if (!open) {
       queueMicrotask(() => {
         setDescription("");
@@ -69,6 +71,7 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
     try {
       await submitBugReport({
         description: text,
+        elapsed_ms: Date.now() - openedAt.current,
         ...(screenshot ? { screenshot } : {}),
         ...(await collectBugContext(pathname)),
       });

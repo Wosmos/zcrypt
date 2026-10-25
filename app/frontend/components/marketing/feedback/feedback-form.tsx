@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { submitBugReport, type FeedbackKind } from "@/lib/api";
 import { collectBugContext, downscaleToJpeg } from "@/lib/bug-report";
 import { ApiError } from "@/lib/http-error";
 import { useAuthStore } from "@/store/auth";
+import { tryRefreshToken } from "@/lib/auth-fetch";
+import { getMe } from "@/lib/auth-api";
 import { cn } from "@/lib/utils";
 
 const MAX_LEN = 5000;
@@ -44,6 +46,21 @@ export function FeedbackForm() {
   const signedIn = useAuthStore((s) => Boolean(s.accessToken));
   const email = useAuthStore((s) => s.user?.email ?? "");
   const [startedAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    const { accessToken, user, setUser } = useAuthStore.getState();
+    if (accessToken && user) return;
+    let cancelled = false;
+    void (async () => {
+      const token = accessToken ?? (await tryRefreshToken().catch(() => null));
+      if (!token || cancelled) return;
+      const me = await getMe(token).catch(() => null);
+      if (me && !cancelled) setUser(me);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [kind, setKind] = useState<FeedbackKind>(() => kindFromParam(params.get("type")));
