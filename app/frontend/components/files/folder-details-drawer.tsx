@@ -12,19 +12,10 @@ import {
 } from "@/components/ui/sheet";
 import { SkeletonText } from "@/components/ui/skeletons";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import {
-  Folder,
-  File,
-  FolderOpen,
-  HardDrive,
-  Lock,
-  Database,
-  Clock,
-  Key,
-  Share2,
-} from "@/lib/icons";
+import { Folder, File, FolderOpen, HardDrive, Clock, Key, Share2 } from "@/lib/icons";
 import {
   MetaRow,
+  EncryptedSizeRows,
   CopyField,
   EncryptionAssuranceCard,
   ShareLinkRow,
@@ -187,26 +178,7 @@ export function FolderDetailsDrawer({
                     value={formatBytes(stats.originalBytes)}
                     icon={HardDrive}
                   />
-                  <MetaRow
-                    label={t("encryptedSize")}
-                    value={formatBytes(stats.encryptedBytes)}
-                    icon={Lock}
-                  />
-                  <MetaRow
-                    label={t("spaceSaved")}
-                    value={
-                      <span
-                        className={
-                          Number(savings) > 0
-                            ? "text-[var(--color-accent)]"
-                            : "text-[var(--color-text-muted)]"
-                        }
-                      >
-                        {savings}%
-                      </span>
-                    }
-                    icon={Database}
-                  />
+                  <EncryptedSizeRows encryptedBytes={stats.encryptedBytes} savings={savings} />
                   <MetaRow
                     label={t("created")}
                     value={formatDate(folder.created_at)}

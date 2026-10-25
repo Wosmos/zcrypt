@@ -105,7 +105,7 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
     await page.getByRole("button", { name: "Unlock", exact: true }).click();
   }
   const confirm = page.getByPlaceholder("Type it again");
-  const done = page.getByText("Transfers complete");
+  const done = page.getByText(/^Saved to /).or(page.getByRole("button", { name: "Clear done" })).first();
   await expect(confirm.or(done)).toBeVisible({ timeout: 30_000 });
   if (await confirm.isVisible()) {
     await confirm.fill(PASSPHRASE);
@@ -114,7 +114,7 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
   }
 
   await expect(done).toBeVisible({ timeout: 30_000 });
-  const clear = page.getByRole("button", { name: "Clear completed" });
+  const clear = page.getByRole("button", { name: "Clear done" });
   if (await clear.isVisible().catch(() => false)) await clear.click();
   for (const f of files) {
     await expect(page.getByText(f.name, { exact: true }).first()).toBeVisible();

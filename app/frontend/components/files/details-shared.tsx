@@ -3,8 +3,8 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { IconButton } from "@/components/ui/icon-button";
-import { File, Copy, Check, ShieldCheck, Link2, Lock, Trash2 } from "@/lib/icons";
-import { cn, formatDate } from "@/lib/utils";
+import { File, Copy, Check, Database, ShieldCheck, Link2, Lock, Trash2 } from "@/lib/icons";
+import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "@/store/toast";
 import { tr } from "@/store/translate";
@@ -35,6 +35,35 @@ export function MetaRow({
       </span>
       <span className="truncate text-sm tabular-nums text-[var(--color-text)]">{value}</span>
     </div>
+  );
+}
+
+/** The encrypted-size and space-saved rows both detail drawers show. */
+export function EncryptedSizeRows({
+  encryptedBytes,
+  savings,
+}: {
+  encryptedBytes: number;
+  savings: string;
+}) {
+  const t = useTranslations("app.details");
+  return (
+    <>
+      <MetaRow label={t("encryptedSize")} value={formatBytes(encryptedBytes)} icon={Lock} />
+      <MetaRow
+        label={t("spaceSaved")}
+        value={
+          <span
+            className={
+              Number(savings) > 0 ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
+            }
+          >
+            {savings}%
+          </span>
+        }
+        icon={Database}
+      />
+    </>
   );
 }
 

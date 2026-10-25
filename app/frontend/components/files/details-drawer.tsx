@@ -25,7 +25,6 @@ import {
   Key,
   Clock,
   HardDrive,
-  Database,
   Share2,
   Link2,
   Plus,
@@ -33,6 +32,7 @@ import {
 } from "@/lib/icons";
 import {
   MetaRow,
+  EncryptedSizeRows,
   CopyField,
   EncryptionAssuranceCard,
   ShareLinkRow,
@@ -254,26 +254,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                     value={formatBytes(file.original_size)}
                     icon={HardDrive}
                   />
-                  <MetaRow
-                    label={t("encryptedSize")}
-                    value={formatBytes(file.encrypted_size)}
-                    icon={Lock}
-                  />
-                  <MetaRow
-                    label={t("spaceSaved")}
-                    value={
-                      <span
-                        className={
-                          Number(savings) > 0
-                            ? "text-[var(--color-accent)]"
-                            : "text-[var(--color-text-muted)]"
-                        }
-                      >
-                        {savings}%
-                      </span>
-                    }
-                    icon={Database}
-                  />
+                  <EncryptedSizeRows encryptedBytes={file.encrypted_size} savings={savings} />
                   <MetaRow label={t("chunks")} value={file.chunk_count} icon={Layers} />
                   <MetaRow
                     label={t("created")}
