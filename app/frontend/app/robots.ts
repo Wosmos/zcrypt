@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
           "/tools/",
           "/trash/",
           "/share/",
+          "/_dev/",
         ],
       },
       {
@@ -34,6 +35,7 @@ export default function robots(): MetadataRoute.Robots {
           "/tools/",
           "/trash/",
           "/share/",
+          "/_dev/",
         ],
       },
     ],

@@ -64,7 +64,14 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useKeyboardSelection } from "@/hooks/useKeyboardSelection";
 import { useTouchDragMove } from "@/hooks/useTouchDragMove";
 import { useTouchRangeSelect } from "@/hooks/useTouchRangeSelect";
-import { useDragMove, canDrop, DRAG_MIME, setDragGhost, type DragItem } from "@/hooks/useDragMove";
+import {
+  useDragMove,
+  canDrop,
+  DRAG_MIME,
+  FILES_DRAG_MIME,
+  setDragGhost,
+  type DragItem,
+} from "@/hooks/useDragMove";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
@@ -902,8 +909,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             : [file.id];
           setBulkDragIds(ids);
           e.dataTransfer.setData(DRAG_MIME, file.id);
-          e.dataTransfer.effectAllowed = "move";
-          startDrag({ kind: "file", id: file.id, name: file.original_name });
+          e.dataTransfer.setData(FILES_DRAG_MIME, JSON.stringify(ids));
+          e.dataTransfer.effectAllowed = "copyMove";
+          startDrag({ kind: "file", id: file.id, name: file.original_name, ids });
           setDragGhost(e, {
             tilt: !prefersReducedMotion,
             count: ids.length,

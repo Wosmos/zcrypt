@@ -48,6 +48,7 @@ import { useFolderProtection } from "@/hooks/useFolderProtection";
 import { useFileDecryptor } from "@/hooks/useFileDecryptor";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { useFolderStore } from "@/store/folders";
+import { useTransferDockStore } from "@/store/transfer-dock";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
@@ -170,6 +171,30 @@ export default function VaultPage() {
     folderProtection,
     currentFolderId,
   });
+
+  // The transfer panel lives in the layout; hand it this page's upload and
+  // download actions so files dropped on it take the same paths as everywhere else.
+  const actionsRef = useRef(actions);
+  useEffect(() => {
+    actionsRef.current = actions;
+  }, [actions]);
+  const currentFolderName = useFolderStore((s) => s.breadcrumb[s.breadcrumb.length - 1]?.name);
+  const dropFolderName = currentFolderId ? (currentFolderName ?? "") : ta("transfer.rootFolder");
+  useEffect(() => {
+    if (currentFolderId && currentFolderName)
+      useTransferDockStore.getState().rememberFolder(currentFolderId, currentFolderName);
+  }, [currentFolderId, currentFolderName]);
+  useEffect(() => {
+    const { setDropTarget } = useTransferDockStore.getState();
+    setDropTarget({
+      folderName: dropFolderName,
+      upload: (dropped) => actionsRef.current.handleFilesSelected(dropped),
+      download: (ids) => {
+        for (const id of ids) actionsRef.current.handleDownload(id);
+      },
+    });
+    return () => setDropTarget(null);
+  }, [dropFolderName]);
 
   // ── Folder protection: set / remove password + open-protected dialogs ───────
   const [protectTarget, setProtectTarget] = useState<DecryptedFolder | null>(null);
