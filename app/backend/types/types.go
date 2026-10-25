@@ -377,6 +377,8 @@ type BugReport struct {
 	Route         string    `json:"route"`
 	UserAgent     string    `json:"user_agent"`
 	Status        string    `json:"status"`
+	Kind          string    `json:"kind"`
+	ContactEmail  string    `json:"contact_email"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

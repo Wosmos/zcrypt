@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/mail"
 	"strings"
 	"unicode/utf8"
 
@@ -22,7 +23,32 @@ const (
 	bugPlatformMax    = 64
 	bugRouteMax       = 512
 	bugUserAgentMax   = 512
+	bugEmailMax       = 254
+
+	bugMinAnonElapsedMs = 3000
+	bugAnonGlobalKey    = "anon-global"
 )
+
+var bugKinds = map[string]bool{"bug": true, "idea": true, "left": true, "other": true}
+
+var errBadContactEmail = errors.New("invalid email")
+
+// validContactEmail returns the trimmed address, or an error when it is not a
+// bare RFC 5322 address.
+func validContactEmail(v string) (string, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "", nil
+	}
+	if len(v) > bugEmailMax || strings.ContainsAny(v, "\r\n\x00") {
+		return "", errBadContactEmail
+	}
+	addr, err := mail.ParseAddress(v)
+	if err != nil || addr.Address != v {
+		return "", errBadContactEmail
+	}
+	return v, nil
+}
 
 var bugStatuses = map[string]bool{"open": true, "triaged": true, "fixed": true, "wontfix": true}
 
@@ -63,7 +89,9 @@ func boundedField(v string, limit int) (string, bool) {
 	return v, true
 }
 
-// HandleSubmitBugReport stores an in-app bug report. Auth is optional.
+// HandleSubmitBugReport stores a bug report or piece of feedback. Auth is
+// optional; anonymous submissions are stricter (no screenshot, timing check,
+// tighter limits).
 // POST /api/feedback/bug
 func (s *Server) HandleSubmitBugReport(w http.ResponseWriter, r *http.Request) {
 	var userID *string
@@ -72,23 +100,66 @@ func (s *Server) HandleSubmitBugReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !s.devMode {
-		if !s.bugIPLimiter.allow(s.clientIP(r)) || (userID != nil && !s.bugUserLimiter.allow(*userID)) {
+		ip := s.clientIP(r)
+		limited := !s.bugIPLimiter.allow(ip)
+		if userID != nil {
+			limited = limited || !s.bugUserLimiter.allow(*userID)
+		} else {
+			limited = limited || !s.bugAnonIPLimiter.allow(ip) || !s.bugAnonGlobalLimiter.allow(bugAnonGlobalKey)
+		}
+		if limited {
 			http.Error(w, `{"error":"too many reports, try again later"}`, http.StatusTooManyRequests)
 			return
 		}
 	}
 
 	var req struct {
-		Description string `json:"description"`
-		Screenshot  string `json:"screenshot"`
-		AppVersion  string `json:"app_version"`
-		Platform    string `json:"platform"`
-		Route       string `json:"route"`
-		UserAgent   string `json:"user_agent"`
+		Description  string `json:"description"`
+		Screenshot   string `json:"screenshot"`
+		AppVersion   string `json:"app_version"`
+		Platform     string `json:"platform"`
+		Route        string `json:"route"`
+		UserAgent    string `json:"user_agent"`
+		Kind         string `json:"kind"`
+		ContactEmail string `json:"contact_email"`
+		Website      string `json:"website"`
+		ElapsedMs    int    `json:"elapsed_ms"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
+	}
+
+	kind := strings.TrimSpace(req.Kind)
+	if kind == "" {
+		kind = "bug"
+	}
+	if !bugKinds[kind] {
+		http.Error(w, `{"error":"invalid kind"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Website != "" || (userID == nil && req.ElapsedMs < bugMinAnonElapsedMs) {
+		reason := "honeypot"
+		if req.Website == "" {
+			reason = "too_fast"
+		}
+		s.audit(r, userID, "bug_report_dropped", map[string]interface{}{"reason": reason})
+		writeJSON(w, http.StatusCreated, map[string]interface{}{"success": true})
+		return
+	}
+
+	contact := ""
+	if userID == nil {
+		var err error
+		if contact, err = validContactEmail(req.ContactEmail); err != nil {
+			http.Error(w, `{"error":"invalid email"}`, http.StatusBadRequest)
+			return
+		}
+		if req.Screenshot != "" {
+			http.Error(w, `{"error":"sign in to attach a screenshot"}`, http.StatusBadRequest)
+			return
+		}
 	}
 
 	desc, ok := boundedField(req.Description, bugDescriptionMax)
@@ -115,20 +186,22 @@ func (s *Server) HandleSubmitBugReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	report := &types.BugReport{
-		ID:          uuid.NewString(),
-		UserID:      userID,
-		Description: desc,
-		AppVersion:  version,
-		Platform:    platform,
-		Route:       route,
-		UserAgent:   ua,
+		ID:           uuid.NewString(),
+		UserID:       userID,
+		Description:  desc,
+		AppVersion:   version,
+		Platform:     platform,
+		Route:        route,
+		UserAgent:    ua,
+		Kind:         kind,
+		ContactEmail: contact,
 	}
 	if err := s.db.InsertBugReport(r.Context(), report, shot); err != nil {
 		internalError(w, "insert bug report", err)
 		return
 	}
 
-	s.audit(r, userID, "bug_report", map[string]interface{}{"id": report.ID, "has_screenshot": len(shot) > 0})
+	s.audit(r, userID, "bug_report", map[string]interface{}{"id": report.ID, "has_screenshot": len(shot) > 0, "kind": kind})
 	writeJSON(w, http.StatusCreated, map[string]interface{}{"success": true, "id": report.ID})
 }
 

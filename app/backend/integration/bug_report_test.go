@@ -78,9 +78,77 @@ func TestBugReports(t *testing.T) {
 	})
 
 	t.Run("anonymous submit is accepted", func(t *testing.T) {
-		resp := ts.POST("/api/feedback/bug", map[string]string{"description": "Cannot log in"}, "")
+		resp := ts.POST("/api/feedback/bug", map[string]interface{}{"description": "Cannot log in", "elapsed_ms": 9000}, "")
 		requireStatus(t, resp, http.StatusCreated)
 		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM bug_reports WHERE description='Cannot log in' AND user_id IS NULL`))
+	})
+
+	t.Run("kind and contact email", func(t *testing.T) {
+		anon := func(extra map[string]interface{}) *http.Response {
+			body := map[string]interface{}{"description": "an idea worth keeping", "elapsed_ms": 9000}
+			for k, v := range extra {
+				body[k] = v
+			}
+			return ts.POST("/api/feedback/bug", body, "")
+		}
+		requireStatus(t, anon(map[string]interface{}{"kind": "idea", "contact_email": "  reply@example.com "}), http.StatusCreated)
+		requireStatus(t, anon(map[string]interface{}{"kind": "nonsense"}), http.StatusBadRequest)
+		requireStatus(t, anon(map[string]interface{}{"contact_email": "Bob <bob@example.com>"}), http.StatusBadRequest)
+		requireStatus(t, anon(map[string]interface{}{"screenshot": "data:image/jpeg;base64," + shot}), http.StatusBadRequest)
+		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM bug_reports WHERE kind='idea' AND contact_email='reply@example.com' AND user_id IS NULL`))
+		assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM bug_reports WHERE description='an idea worth keeping' AND kind='bug'`))
+
+		requireStatus(t, ts.POST("/api/feedback/bug", map[string]interface{}{"description": "signed in default kind", "contact_email": "ignored@example.com"}, userToken), http.StatusCreated)
+		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM bug_reports WHERE description='signed in default kind' AND kind='bug' AND contact_email='' AND user_id IS NOT NULL`))
+	})
+
+	t.Run("honeypot and too-fast anonymous reports are silently dropped", func(t *testing.T) {
+		for _, body := range []map[string]interface{}{
+			{"description": "bot honeypot", "website": "http://spam.example", "elapsed_ms": 9000},
+			{"description": "bot too fast", "elapsed_ms": 500},
+			{"description": "bot no timing"},
+		} {
+			resp := ts.POST("/api/feedback/bug", body, "")
+			requireStatus(t, resp, http.StatusCreated)
+		}
+		assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM bug_reports WHERE description LIKE 'bot %'`))
+		requireStatus(t, ts.POST("/api/feedback/bug", map[string]interface{}{"description": "signed in is not timed", "elapsed_ms": 0}, userToken), http.StatusCreated)
+		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM bug_reports WHERE description='signed in is not timed'`))
+	})
+
+	t.Run("admin list returns kind and contact email", func(t *testing.T) {
+		var out struct {
+			Reports []struct {
+				Kind         string `json:"kind"`
+				ContactEmail string `json:"contact_email"`
+			} `json:"reports"`
+		}
+		decodeJSON(t, ts.GET("/api/admin/bug-reports?limit=100", adminToken), &out)
+		var found bool
+		for _, r := range out.Reports {
+			if r.Kind == "idea" && r.ContactEmail == "reply@example.com" {
+				found = true
+			}
+		}
+		assert.True(t, found)
+	})
+
+	t.Run("anonymous per-IP limit is 5 per hour", func(t *testing.T) {
+		post := func() int {
+			data, _ := json.Marshal(map[string]interface{}{"description": "anon spam", "elapsed_ms": 9000})
+			req, err := http.NewRequest("POST", ts.URL+"/api/feedback/bug", bytes.NewReader(data))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Forwarded-For", "203.0.113.88")
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			resp.Body.Close()
+			return resp.StatusCode
+		}
+		for i := 0; i < 5; i++ {
+			require.Equal(t, http.StatusCreated, post())
+		}
+		assert.Equal(t, http.StatusTooManyRequests, post())
 	})
 
 	t.Run("validation", func(t *testing.T) {

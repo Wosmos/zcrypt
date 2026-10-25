@@ -16,9 +16,9 @@ func (db *DB) InsertBugReport(ctx context.Context, r *types.BugReport, screensho
 		shot = screenshot
 	}
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO bug_reports (id, user_id, description, screenshot, app_version, platform, route, user_agent)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		r.ID, r.UserID, r.Description, shot, r.AppVersion, r.Platform, r.Route, r.UserAgent,
+		`INSERT INTO bug_reports (id, user_id, description, screenshot, app_version, platform, route, user_agent, kind, contact_email)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		r.ID, r.UserID, r.Description, shot, r.AppVersion, r.Platform, r.Route, r.UserAgent, r.Kind, r.ContactEmail,
 	)
 	if err != nil {
 		return fmt.Errorf("insert bug report: %w", err)
@@ -39,7 +39,7 @@ func (db *DB) ListBugReports(ctx context.Context, status string, limit, offset i
 	rows, err := db.pool.Query(ctx,
 		`SELECT b.id, b.user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
 		        b.description, b.screenshot IS NOT NULL, b.app_version, b.platform,
-		        b.route, b.user_agent, b.status, b.created_at
+		        b.route, b.user_agent, b.status, b.kind, b.contact_email, b.created_at
 		 FROM bug_reports b LEFT JOIN users u ON b.user_id = u.id
 		 WHERE ($1 = '' OR b.status = $1)
 		 ORDER BY b.created_at DESC LIMIT $2 OFFSET $3`,
@@ -55,7 +55,7 @@ func (db *DB) ListBugReports(ctx context.Context, status string, limit, offset i
 		var b types.BugReport
 		if err := rows.Scan(&b.ID, &b.UserID, &b.Email, &b.Username, &b.Description,
 			&b.HasScreenshot, &b.AppVersion, &b.Platform, &b.Route, &b.UserAgent,
-			&b.Status, &b.CreatedAt); err != nil {
+			&b.Status, &b.Kind, &b.ContactEmail, &b.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan bug report: %w", err)
 		}
 		items = append(items, b)

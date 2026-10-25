@@ -426,6 +426,13 @@ CREATE TABLE IF NOT EXISTS bug_reports (
 CREATE INDEX IF NOT EXISTS idx_bug_reports_status_time ON bug_reports(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bug_reports_time ON bug_reports(created_at DESC);
 
+-- Public feedback page: what kind of message it is and an optional reply address
+ALTER TABLE bug_reports ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'bug';
+ALTER TABLE bug_reports ADD COLUMN IF NOT EXISTS contact_email TEXT NOT NULL DEFAULT '';
+ALTER TABLE bug_reports DROP CONSTRAINT IF EXISTS bug_reports_kind_check;
+ALTER TABLE bug_reports ADD CONSTRAINT bug_reports_kind_check
+	CHECK (kind IN ('bug', 'idea', 'left', 'other'));
+
 -- In-app reviews; one per user, shown on the landing page once approved
 CREATE TABLE IF NOT EXISTS reviews (
 	id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

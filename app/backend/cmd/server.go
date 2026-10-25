@@ -93,6 +93,9 @@ type Server struct {
 	// Bug-report limiters: per-IP and per-user, 10 reports per hour each
 	bugIPLimiter   *rateLimiter
 	bugUserLimiter *rateLimiter
+	// Anonymous feedback: 5 per IP per hour and 200 per day across everyone
+	bugAnonIPLimiter     *rateLimiter
+	bugAnonGlobalLimiter *rateLimiter
 
 	// sseTickets holds the short-lived, single-use tickets that authenticate
 	// an /api/events stream, so the access token never rides in a URL.
@@ -202,6 +205,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		analyticsLimiter:      newRateLimiter(100, 5*time.Minute),
 		bugIPLimiter:          newRateLimiter(10, time.Hour),
 		bugUserLimiter:        newRateLimiter(10, time.Hour),
+		bugAnonIPLimiter:      newRateLimiter(5, time.Hour),
+		bugAnonGlobalLimiter:  newRateLimiter(200, 24*time.Hour),
 		notifySem:             make(chan struct{}, 4),
 		globalAdapterCache:    make(map[string]adapters.PlatformAdapter),
 		transferHub:           newTransferHub(),
