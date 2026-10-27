@@ -188,7 +188,7 @@ type CountryCount struct {
 // UserCountries counts users by their last known country (or signup country).
 func (db *DB) UserCountries(ctx context.Context, limit int) ([]CountryCount, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT `+userCountryExpr+` AS c, COUNT(*) FROM users u GROUP BY c ORDER BY 2 DESC, c LIMIT $1`, limit)
+		`SELECT `+userCountryExpr+` AS c, COUNT(*) FROM users u GROUP BY c ORDER BY 2 DESC, `+userCountryExpr+` = '', 1 LIMIT $1`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("user countries: %w", err)
 	}

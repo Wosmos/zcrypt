@@ -201,21 +201,22 @@ func (db *DB) ListAuditEvents(ctx context.Context, page ListPage, eventType, use
 	if userID != "" {
 		w.add("a.user_id = " + w.arg(userID))
 	}
-	from := ` FROM audit_events a`
 	if page.Search != "" {
-		from += ` LEFT JOIN users u ON u.id = a.user_id`
 		p := w.arg(likePattern(page.Search))
 		w.add("(u.email ILIKE " + p + " OR u.username ILIKE " + p + " OR a.event_type ILIKE " + p + ")")
 	}
-	from += w.sql()
+	const base = ` FROM audit_events a LEFT JOIN users u ON u.id = a.user_id`
+	const target = ` LEFT JOIN users tu ON tu.id = CASE WHEN a.metadata->>'target_user' ~ '^[0-9a-f-]{36}$'
+		THEN (a.metadata->>'target_user')::uuid END`
 
 	var total int
-	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*)`+from, w.args...).Scan(&total); err != nil {
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*)`+base+w.sql(), w.args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count audit events: %w", err)
 	}
 
 	rows, err := db.pool.Query(ctx,
-		`SELECT a.id, a.user_id, a.event_type, a.ip, a.user_agent, a.metadata, a.created_at`+from+
+		`SELECT a.id, a.user_id, COALESCE(u.username, ''), COALESCE(tu.username, ''),
+		        a.event_type, a.ip, a.user_agent, a.metadata, a.created_at`+base+target+w.sql()+
 			orderSQL("a.created_at", page.Desc, "a.id")+` LIMIT `+w.arg(page.Limit)+` OFFSET `+w.arg(page.Offset),
 		w.args...)
 	if err != nil {
@@ -227,7 +228,7 @@ func (db *DB) ListAuditEvents(ctx context.Context, page ListPage, eventType, use
 	for rows.Next() {
 		var e types.AuditEvent
 		var metaBytes []byte
-		if err := rows.Scan(&e.ID, &e.UserID, &e.EventType, &e.IP, &e.UserAgent, &metaBytes, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.Username, &e.TargetUsername, &e.EventType, &e.IP, &e.UserAgent, &metaBytes, &e.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan audit event: %w", err)
 		}
 		e.Metadata = decodeMeta(metaBytes)

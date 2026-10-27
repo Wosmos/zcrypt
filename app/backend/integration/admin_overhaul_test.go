@@ -102,7 +102,7 @@ func TestAdminUsersListPagingSearchLocation(t *testing.T) {
 	ts, adminToken, tag, _ := adminOverhaulFixture(t)
 
 	var page adminUsersPage
-	ts.adminGet("/api/admin/users?q=ov-user&limit=2&sort=email&order=asc&q="+tag, adminToken, http.StatusOK, &page)
+	ts.adminGet("/api/admin/users?limit=2&sort=email&order=asc&role=user&q="+tag, adminToken, http.StatusOK, &page)
 	assert.Equal(t, 3, page.Total)
 	assert.Equal(t, 2, page.Limit)
 	require.Len(t, page.Users, 2)
@@ -212,6 +212,17 @@ func TestAdminUserJourneyReportAndSessions(t *testing.T) {
 	assert.Equal(t, "admin", j.Events[0].Family)
 	assert.NotEmpty(t, j.Events[0].Actor, "admin actions name the admin")
 
+	var audit struct {
+		Events []struct {
+			Username       string `json:"username"`
+			TargetUsername string `json:"target_username"`
+		} `json:"events"`
+	}
+	ts.adminGet("/api/admin/audit?event_type=admin_plan_change&q=ov-admin-"+tag, adminToken, http.StatusOK, &audit)
+	require.NotEmpty(t, audit.Events)
+	assert.Equal(t, "ov0_"+tag, audit.Events[0].TargetUsername, "the audit log names the target, not its id")
+	assert.NotEmpty(t, audit.Events[0].Username)
+
 	ts.adminGet("/api/admin/users/"+id+"/journey?kinds=auth&limit=1", adminToken, http.StatusOK, &j)
 	require.Len(t, j.Events, 1)
 	assert.Equal(t, "auth", j.Events[0].Family)
@@ -311,9 +322,14 @@ func TestAdminOverviewAndListShapes(t *testing.T) {
 		}
 		assert.Equal(t, "5", string(body["limit"]), path)
 		resp := ts.GET(path+"?sort=nope", adminToken)
-		if path != "/api/admin/tokens" {
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode, path)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, path)
+		resp.Body.Close()
+		resp = ts.GET(path+"?sort=created_at&order=asc", adminToken)
+		if path == "/api/admin/reviews" {
+			resp.Body.Close()
+			resp = ts.GET(path+"?sort=updated_at&order=asc", adminToken)
 		}
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "%s accepts the sort the UI sends", path)
 		resp.Body.Close()
 	}
 

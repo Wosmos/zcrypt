@@ -354,7 +354,7 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 // GET /api/admin/tokens?limit&offset
 func (s *Server) HandleAdminListTokens(w http.ResponseWriter, r *http.Request) {
 	adminID := GetUserID(r)
-	page, err := parseListPage(r, nil, "")
+	page, err := parseListPage(r, tokenSorts, "created_at")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -754,7 +754,10 @@ func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pageBody("events", events, total, page))
 }
 
-var auditSorts = map[string]string{"created_at": ""}
+var (
+	auditSorts = map[string]string{"created_at": ""}
+	tokenSorts = map[string]string{"created_at": ""}
+)
 
 // HandleAdminVerifyAuditChain recomputes the audit-log hash chain and reports
 // whether it is intact. A break means a row was edited, deleted, or reordered:

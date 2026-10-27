@@ -294,13 +294,16 @@ type OAuthProvider struct {
 
 // AuditEvent represents a logged security or system event.
 type AuditEvent struct {
-	ID        string                 `json:"id"`
-	UserID    *string                `json:"user_id,omitempty"`
-	EventType string                 `json:"event_type"`
-	IP        string                 `json:"ip"`
-	UserAgent string                 `json:"user_agent"`
-	Metadata  map[string]interface{} `json:"metadata"`
-	CreatedAt time.Time              `json:"created_at"`
+	ID     string  `json:"id"`
+	UserID *string `json:"user_id,omitempty"`
+	// Username and TargetUsername are filled by the admin audit list only.
+	Username       string                 `json:"username,omitempty"`
+	TargetUsername string                 `json:"target_username,omitempty"`
+	EventType      string                 `json:"event_type"`
+	IP             string                 `json:"ip"`
+	UserAgent      string                 `json:"user_agent"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	CreatedAt      time.Time              `json:"created_at"`
 }
 
 // Manifest describes a file's chunk layout stored alongside chunks in the repo.
