@@ -729,7 +729,7 @@
       "risk": {
         "no_2fa": "El inicio de sesión en dos pasos está desactivado",
         "unverified_email": "Dirección de correo sin verificar",
-        "failed_signins": "{count, plural, one {# inicio de sesión fallido en los últimos 7 días} other {# inicios de sesión fallidos en los últimos 7 días}}",
+        "failed_sign_ins": "{count, plural, one {# inicio de sesión fallido en los últimos 7 días} other {# inicios de sesión fallidos en los últimos 7 días}}",
         "many_countries": "{count, plural, one {Inició sesión desde # país en 7 días} other {Inició sesión desde # países en 7 días}}",
         "deletion_pending": "La eliminación de la cuenta está programada",
         "dormant": "Sin actividad desde hace más de 90 días"

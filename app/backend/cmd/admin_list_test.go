@@ -66,13 +66,13 @@ func TestRiskFlags(t *testing.T) {
 	for _, f := range flags {
 		codes = append(codes, f.Code+":"+f.Severity)
 	}
-	assert.Equal(t, []string{"no_2fa:high", "failed_signins:high", "many_countries:high",
+	assert.Equal(t, []string{"no_2fa:high", "failed_sign_ins:high", "many_countries:high",
 		"unverified_email:medium", "deletion_pending:medium", "dormant:low"}, codes)
 
 	warn := riskFlags(&types.AdminUser{User: types.User{TOTPEnabled: true, EmailVerified: true}},
 		&index.UserReportStats{FailedSignins7d: 3, LastActiveAt: &recent}, now)
 	require.Len(t, warn, 1)
-	assert.Equal(t, RiskFlag{Code: "failed_signins", Severity: "medium", Value: 3}, warn[0])
+	assert.Equal(t, RiskFlag{Code: "failed_sign_ins", Severity: "medium", Value: 3}, warn[0])
 
 	plain := riskFlags(&types.AdminUser{User: types.User{EmailVerified: true}, LastSeenAt: &recent}, &index.UserReportStats{}, now)
 	assert.Equal(t, []RiskFlag{{Code: "no_2fa", Severity: "low"}}, plain)

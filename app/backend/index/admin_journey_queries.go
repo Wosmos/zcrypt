@@ -164,7 +164,7 @@ type UserReportStats struct {
 	Platforms        []LabelCount `json:"platforms"`
 	Shares           int          `json:"shares"`
 	Spaces           int          `json:"spaces"`
-	FailedSignins7d  int          `json:"failed_signins_7d"`
+	FailedSignins7d  int          `json:"failed_sign_ins_7d"`
 	Countries7d      []string     `json:"countries_7d"`
 	SignedInEvents7d int          `json:"sign_ins_7d"`
 }

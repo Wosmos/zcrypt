@@ -108,7 +108,7 @@ function useExportLabels() {
       [t("shares"), String(r.stats.shares)],
       [t("spaces"), String(r.stats.spaces)],
       [t("signIns7d"), String(r.stats.sign_ins_7d)],
-      [t("failedSignins7d"), String(r.stats.failed_signins_7d)],
+      [t("failedSignins7d"), String(r.stats.failed_sign_ins_7d)],
       [t("countries7d"), r.stats.countries_7d.join(", ") || t("none")],
     ],
     riskLabel,

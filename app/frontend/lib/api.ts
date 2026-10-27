@@ -847,7 +847,7 @@ export interface RiskFlag {
   code:
     | "no_2fa"
     | "unverified_email"
-    | "failed_signins"
+    | "failed_sign_ins"
     | "many_countries"
     | "deletion_pending"
     | "dormant";
@@ -874,7 +874,7 @@ export interface AdminUserReport {
     platforms: LabelCount[];
     shares: number;
     spaces: number;
-    failed_signins_7d: number;
+    failed_sign_ins_7d: number;
     countries_7d: string[];
     sign_ins_7d: number;
   };

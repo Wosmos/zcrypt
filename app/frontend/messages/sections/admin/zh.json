@@ -729,7 +729,7 @@
       "risk": {
         "no_2fa": "未开启两步验证登录",
         "unverified_email": "邮箱地址未验证",
-        "failed_signins": "{count, plural, other {近 7 天有 # 次登录失败}}",
+        "failed_sign_ins": "{count, plural, other {近 7 天有 # 次登录失败}}",
         "many_countries": "{count, plural, other {7 天内从 # 个国家/地区登录}}",
         "deletion_pending": "已安排删除账户",
         "dormant": "已超过 90 天没有活动"

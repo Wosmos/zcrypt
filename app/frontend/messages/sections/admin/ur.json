@@ -729,7 +729,7 @@
       "risk": {
         "no_2fa": "دو مرحلہ لاگ ان بند ہے",
         "unverified_email": "ای میل ایڈریس کی تصدیق نہیں ہوئی",
-        "failed_signins": "{count, plural, one {پچھلے 7 دن میں # ناکام لاگ ان} other {پچھلے 7 دن میں # ناکام لاگ ان}}",
+        "failed_sign_ins": "{count, plural, one {پچھلے 7 دن میں # ناکام لاگ ان} other {پچھلے 7 دن میں # ناکام لاگ ان}}",
         "many_countries": "{count, plural, one {7 دن میں # ملک سے لاگ ان ہوا} other {7 دن میں # ممالک سے لاگ ان ہوا}}",
         "deletion_pending": "اکاؤنٹ حذف کرنا طے شدہ ہے",
         "dormant": "90 دن سے زیادہ عرصے سے کوئی سرگرمی نہیں"

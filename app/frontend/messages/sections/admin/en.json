@@ -729,7 +729,7 @@
       "risk": {
         "no_2fa": "Two-factor sign-in is off",
         "unverified_email": "Email address not verified",
-        "failed_signins": "{count, plural, one {# failed sign-in in the last 7 days} other {# failed sign-ins in the last 7 days}}",
+        "failed_sign_ins": "{count, plural, one {# failed sign-in in the last 7 days} other {# failed sign-ins in the last 7 days}}",
         "many_countries": "{count, plural, one {Signed in from # country in 7 days} other {Signed in from # countries in 7 days}}",
         "deletion_pending": "Account deletion is scheduled",
         "dormant": "No activity for over 90 days"

@@ -729,7 +729,7 @@
       "risk": {
         "no_2fa": "La connexion en deux étapes est désactivée",
         "unverified_email": "Adresse e-mail non vérifiée",
-        "failed_signins": "{count, plural, one {# connexion échouée ces 7 derniers jours} other {# connexions échouées ces 7 derniers jours}}",
+        "failed_sign_ins": "{count, plural, one {# connexion échouée ces 7 derniers jours} other {# connexions échouées ces 7 derniers jours}}",
         "many_countries": "{count, plural, one {Connecté depuis # pays en 7 jours} other {Connecté depuis # pays en 7 jours}}",
         "deletion_pending": "La suppression du compte est programmée",
         "dormant": "Aucune activité depuis plus de 90 jours"

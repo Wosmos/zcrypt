@@ -729,7 +729,7 @@
       "risk": {
         "no_2fa": "Zwei-Faktor-Anmeldung ist deaktiviert",
         "unverified_email": "E-Mail-Adresse nicht bestätigt",
-        "failed_signins": "{count, plural, one {# fehlgeschlagene Anmeldung in den letzten 7 Tagen} other {# fehlgeschlagene Anmeldungen in den letzten 7 Tagen}}",
+        "failed_sign_ins": "{count, plural, one {# fehlgeschlagene Anmeldung in den letzten 7 Tagen} other {# fehlgeschlagene Anmeldungen in den letzten 7 Tagen}}",
         "many_countries": "{count, plural, one {In 7 Tagen aus # Land angemeldet} other {In 7 Tagen aus # Ländern angemeldet}}",
         "deletion_pending": "Kontolöschung ist geplant",
         "dormant": "Seit über 90 Tagen keine Aktivität"

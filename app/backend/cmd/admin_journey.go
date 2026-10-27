@@ -109,9 +109,9 @@ func riskFlags(u *types.AdminUser, st *index.UserReportStats, now time.Time) []R
 	}
 	switch n := st.FailedSignins7d; {
 	case n >= riskFailedSigninsHigh:
-		flags = append(flags, RiskFlag{Code: "failed_signins", Severity: "high", Value: n})
+		flags = append(flags, RiskFlag{Code: "failed_sign_ins", Severity: "high", Value: n})
 	case n >= riskFailedSigninsWarn:
-		flags = append(flags, RiskFlag{Code: "failed_signins", Severity: "medium", Value: n})
+		flags = append(flags, RiskFlag{Code: "failed_sign_ins", Severity: "medium", Value: n})
 	}
 	if n := len(st.Countries7d); n >= riskCountriesThreshold {
 		flags = append(flags, RiskFlag{Code: "many_countries", Severity: "high", Value: n})

@@ -190,7 +190,7 @@ export function UserReport({
           <Stat
             label={t("signIns7d")}
             value={st.sign_ins_7d.toLocaleString()}
-            sub={t("failed7d", { count: st.failed_signins_7d })}
+            sub={t("failed7d", { count: st.failed_sign_ins_7d })}
           />
           <Stat
             label={t("countries7d")}

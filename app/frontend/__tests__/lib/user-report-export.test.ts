@@ -15,7 +15,7 @@ const report = (over: Partial<AdminUserReport> = {}): AdminUserReport => ({
     platforms: [],
     shares: 0,
     spaces: 0,
-    failed_signins_7d: 0,
+    failed_sign_ins_7d: 0,
     countries_7d: [],
     sign_ins_7d: 1,
   },
@@ -34,7 +34,7 @@ const report = (over: Partial<AdminUserReport> = {}): AdminUserReport => ({
       expires_at: "",
     },
   ],
-  risk_flags: [{ code: "failed_signins", severity: "high", value: 6 }],
+  risk_flags: [{ code: "failed_sign_ins", severity: "high", value: 6 }],
   generated_at: "2026-10-27T10:00:00Z",
   ...over,
 });
@@ -93,7 +93,7 @@ describe("user report export", () => {
     expect(html).toContain('<html lang="de">');
     expect(html).toContain("<title>Account report: &lt;alice&gt;</title>");
     expect(html).toContain("<h1>&lt;alice&gt;</h1>");
-    expect(html).toContain("HIGH: failed_signins:6");
+    expect(html).toContain("HIGH: failed_sign_ins:6");
     expect(html).toContain("pdf: 2 (2048 B)");
     expect(html).toContain("<p class=\"muted\">None</p>");
     expect(html).toContain("Chrome on Linux DE");
