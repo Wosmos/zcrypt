@@ -522,6 +522,9 @@
       "test": "发送测试",
       "testTitle": "通知已开启",
       "testBody": "zcrypt 会这样通知你。",
+      "testSent": "测试已发送",
+      "testSentHint": "没有看到？请在系统通知设置中允许 {app}，并关闭专注模式或勿扰模式。",
+      "testFailed": "zcrypt 无法把通知交给浏览器。请刷新页面后重试。",
       "thumbnails": "显示照片预览",
       "thumbnailsDesc": "在上传通知中显示照片的小预览。关闭后锁屏上不会出现照片。",
       "iosHint": "要在 iPhone 上接收通知，请将 zcrypt 添加到主屏幕：点按共享，然后点按添加到主屏幕。"

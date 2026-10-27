@@ -522,6 +522,9 @@
       "test": "Envoyer un test",
       "testTitle": "Les notifications sont activées",
       "testBody": "Voici comment zcrypt vous prévient.",
+      "testSent": "Test envoyé",
+      "testSentHint": "Rien ne s'est affiché ? Autorisez {app} dans les réglages de notifications de votre système et désactivez Concentration ou Ne pas déranger.",
+      "testFailed": "zcrypt n'a pas pu transmettre la notification au navigateur. Rechargez la page et réessayez.",
       "thumbnails": "Afficher les aperçus de photos",
       "thumbnailsDesc": "Un petit aperçu de la photo dans les notifications d'envoi. Désactivez pour garder les photos hors de l'écran verrouillé.",
       "iosHint": "Pour recevoir des notifications sur iPhone, ajoutez zcrypt à l'écran d'accueil : touchez Partager, puis Sur l'écran d'accueil."

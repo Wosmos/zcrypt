@@ -522,6 +522,9 @@
       "test": "Send a test",
       "testTitle": "Notifications are on",
       "testBody": "This is how zcrypt lets you know.",
+      "testSent": "Test sent",
+      "testSentHint": "Nothing appeared? Allow {app} in your system's notification settings and turn off Focus or Do Not Disturb.",
+      "testFailed": "zcrypt couldn't hand the notification to the browser. Reload the page and try again.",
       "thumbnails": "Show photo previews",
       "thumbnailsDesc": "A small preview of the photo in upload notifications. Turn off to keep photos off your lock screen.",
       "iosHint": "To get notifications on iPhone, add zcrypt to your Home Screen: tap Share, then Add to Home Screen."
