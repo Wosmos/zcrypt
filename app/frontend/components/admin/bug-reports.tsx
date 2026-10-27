@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   adminGetBugReportScreenshot,
@@ -12,15 +13,21 @@ import {
   type FeedbackKind,
 } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
-import { queryClient } from "@/lib/query-client";
+import { useAdminList } from "@/hooks/useAdminList";
 import { qk } from "@/lib/query-keys";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
-import { toast } from "@/store/toast";
-import { AlertTriangle } from "@/lib/icons";
+import { AlertTriangle, Eye, User } from "@/lib/icons";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  BulkBar,
+  DataTable,
+  TableFilter,
+  TableSearch,
+  TableTitle,
+} from "@/components/admin/data-table";
+import { useBulkStatus } from "@/components/admin/status-bulk";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Pagination } from "@/components/ui/pagination";
-import { SkeletonRow } from "@/components/ui/skeletons";
 import {
   Select,
   SelectContent,
@@ -35,8 +42,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
-const PAGE_SIZE = 20;
 
 const STATUSES: { value: BugReportStatus; key: string }[] = [
   { value: "open", key: "statusOpen" },
@@ -161,7 +166,21 @@ function ReportDrawer({
 
               <dl className="grid grid-cols-2 gap-3 border-t border-[var(--color-border)] pt-4">
                 <Field label={t("kind")} value={t(KIND_KEYS[report.kind] ?? "kindBug")} />
-                <Field label={t("reporter")} value={report.email} />
+                <div className="text-xs">
+                  <dt className="text-[var(--color-text-muted)]">{t("reporter")}</dt>
+                  <dd className="mt-0.5 break-words font-medium text-[var(--color-text-secondary)]">
+                    {report.user_id ? (
+                      <Link
+                        href={`/admin/users/${report.user_id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {report.username || report.email}
+                      </Link>
+                    ) : (
+                      t("signedOutUser")
+                    )}
+                  </dd>
+                </div>
                 {report.contact_email && (
                   <div className="col-span-2 text-xs">
                     <dt className="text-[var(--color-text-muted)]">{t("contactEmail")}</dt>
@@ -189,115 +208,150 @@ function ReportDrawer({
 
 export function BugReports() {
   const t = useTranslations("admin.bugs");
-  const [page, setPage] = useState(0);
-  const [status, setStatus] = useState<BugReportStatus | "">("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const { data, loading } = useAdminQuery(qk.adminBugReports(status, page * PAGE_SIZE), () =>
-    adminListBugReports(status, PAGE_SIZE, page * PAGE_SIZE),
+  const router = useRouter();
+  const list = useAdminList("bug-reports", { sort: "created_at" });
+  const status = (list.filters.status ?? "") as BugReportStatus | "";
+  const page = useAdminQuery(qk.adminList("bug-reports", list.params), () =>
+    adminListBugReports(status, list.params),
   );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const bulk = useBulkStatus<BugReportStatus>(adminUpdateBugReport, [
+    "admin",
+    "list",
+    "bug-reports",
+  ]);
 
-  const reports = data?.reports ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const reports = page.data?.reports ?? [];
+  const total = page.data?.total ?? 0;
   const selected = reports.find((r) => r.id === selectedId) ?? null;
+  const live = reports.filter((r) => checked.has(r.id)).map((r) => r.id);
+  const statusLabel = (s: BugReportStatus) =>
+    t(STATUSES.find((x) => x.value === s)?.key ?? "statusOpen");
 
-  const changeStatus = async (id: string, next: BugReportStatus) => {
-    try {
-      await adminUpdateBugReport(id, next);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "bug-reports"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("updateFailed"));
-    }
+  const apply = async (ids: string[], next: BugReportStatus) => {
+    const failed = await bulk.run(ids, next, statusLabel(next));
+    setChecked(new Set(failed));
   };
 
   return (
-    <section className="panel overflow-hidden">
-      <div className="flex flex-col justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            {t("title")}
-          </h2>
-          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({total})</span>
-        </div>
-        <div className="sm:w-44">
-          <Select
-            value={status || "all"}
-            onValueChange={(v) => {
-              setStatus(v === "all" ? "" : (v as BugReportStatus));
-              setPage(0);
-            }}
+    <>
+      <DataTable<AdminBugReport>
+        label={t("title")}
+        title={<TableTitle icon={AlertTriangle} title={t("title")} count={total} />}
+        toolbar={
+          <>
+            <TableSearch list={list} placeholder={t("search")} />
+            <TableFilter
+              list={list}
+              name="status"
+              label={t("filterStatus")}
+              options={STATUSES.map((s) => ({ value: s.value, label: t(s.key) }))}
+            />
+          </>
+        }
+        rows={reports}
+        rowKey={(r) => r.id}
+        list={list}
+        total={total}
+        loading={page.loading}
+        fetching={page.fetching}
+        error={page.error}
+        onRetry={page.refresh}
+        empty={{
+          icon: <AlertTriangle className="h-7 w-7 text-[var(--color-text-muted)]" />,
+          title: t("emptyTitle"),
+          description: t("emptyAll"),
+        }}
+        onRowOpen={(r) => setSelectedId(r.id)}
+        selection={{ selected: checked, onChange: setChecked }}
+        columns={[
+          {
+            id: "report",
+            header: t("colReport"),
+            className: "min-w-[16rem]",
+            cell: (r) => (
+              <span className="block min-w-0">
+                <span className="line-clamp-2 break-words text-sm text-[var(--color-text)]">
+                  {r.description}
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-[var(--color-text-muted)]">
+                  {r.username || r.email || t("signedOut")}
+                </span>
+              </span>
+            ),
+          },
+          {
+            id: "status",
+            header: t("status"),
+            cell: (r) => (
+              <span className="flex flex-wrap gap-1">
+                <StatusBadge status={r.status} />
+                <KindBadge kind={r.kind} />
+              </span>
+            ),
+          },
+          {
+            id: "app",
+            header: t("appVersion"),
+            hideBelow: "lg",
+            cell: (r) => (
+              <span className="text-xs text-[var(--color-text-secondary)]">
+                {r.platform || t("unknownLower")} · {r.app_version || t("unknownLower")}
+              </span>
+            ),
+          },
+          {
+            id: "created",
+            header: t("colFiled"),
+            sortKey: "created_at",
+            align: "end",
+            cell: (r) => (
+              <span className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-muted)]">
+                {formatRelativeTime(r.created_at)}
+              </span>
+            ),
+          },
+        ]}
+        rowActions={(r) => [
+          { label: t("view"), icon: Eye, onSelect: () => setSelectedId(r.id) },
+          ...STATUSES.filter((s) => s.value !== r.status).map((s, i) => ({
+            label: t("markAs", { status: t(s.key) }),
+            separatorBefore: i === 0,
+            onSelect: () => void apply([r.id], s.value),
+          })),
+          ...(r.user_id
+            ? [
+                {
+                  label: t("openUser"),
+                  icon: User,
+                  separatorBefore: true,
+                  onSelect: () => router.push(`/admin/users/${r.user_id}`),
+                },
+              ]
+            : []),
+        ]}
+      />
+
+      <BulkBar count={live.length} onClear={() => setChecked(new Set())}>
+        {STATUSES.map((s) => (
+          <Button
+            key={s.value}
+            variant="ghost"
+            size="sm"
+            disabled={bulk.busy}
+            onClick={() => void apply(live, s.value)}
           >
-            <SelectTrigger className="h-9 text-xs" aria-label={t("filterStatus")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allStatuses")}</SelectItem>
-              {STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {t(s.key)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="divide-y divide-[var(--color-border)] px-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonRow key={i} />
-          ))}
-        </div>
-      ) : reports.length === 0 ? (
-        <EmptyState
-          icon={<AlertTriangle className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title={t("emptyTitle")}
-          description={status ? t("emptyFiltered") : t("emptyAll")}
-        />
-      ) : (
-        <ul className="divide-y divide-[var(--color-border)]">
-          {reports.map((r) => (
-            <li key={r.id}>
-              <button
-                onClick={() => setSelectedId(r.id)}
-                className="flex w-full items-start gap-3 px-5 py-3 text-left transition-colors hover:bg-[var(--color-surface-1)]"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 break-words text-sm text-[var(--color-text)]">
-                    {r.description}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
-                    {r.username || r.email || t("signedOut")} · {r.platform || t("unknownLower")} ·{" "}
-                    {r.app_version || t("unknownLower")} · {formatRelativeTime(r.created_at)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <StatusBadge status={r.status} />
-                  <KindBadge kind={r.kind} />
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {total > PAGE_SIZE && (
-        <Pagination
-          currentPage={page + 1}
-          totalPages={totalPages}
-          onPageChange={(p) => setPage(p - 1)}
-          totalItems={total}
-          pageSize={PAGE_SIZE}
-        />
-      )}
+            {t("markAs", { status: t(s.key) })}
+          </Button>
+        ))}
+      </BulkBar>
 
       <ReportDrawer
         report={selected}
         onClose={() => setSelectedId(null)}
-        onStatus={(id, next) => void changeStatus(id, next)}
+        onStatus={(id, next) => void apply([id], next)}
       />
-    </section>
+    </>
   );
 }

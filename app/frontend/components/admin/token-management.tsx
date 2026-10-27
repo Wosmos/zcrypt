@@ -4,10 +4,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -16,27 +14,36 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { badgeVariants } from "@/components/ui/badge";
-import { adminCreateToken, adminDeleteToken, adminToggleTokenScope } from "@/lib/api";
+import {
+  adminCreateToken,
+  adminDeleteToken,
+  adminListTokens,
+  adminToggleTokenScope,
+} from "@/lib/api";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { useAdminList } from "@/hooks/useAdminList";
+import { qk } from "@/lib/query-keys";
+import { DataTable } from "@/components/admin/data-table";
 import { EMPTY_REAUTH, ReauthFields, reauthReady } from "@/components/admin/reauth-fields";
 import { toast } from "@/store/toast";
-import { cn } from "@/lib/utils";
+import { cn, formatDateShort } from "@/lib/utils";
 import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import type { PlatformTokenInfo } from "@/types";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
-import { PLATFORM_NAMES as platformNames, PLATFORM_SHORT as platformShort } from "@/lib/platforms";
+import { PLATFORM_NAMES as platformNames } from "@/lib/platforms";
 import { useOverridesFor } from "@/hooks/useOverridesFor";
 
-export function TokenManagement({
-  tokens,
-  othersCount,
-  onRefresh,
-}: {
-  tokens: PlatformTokenInfo[];
-  othersCount: number;
-  onRefresh: () => void;
-}) {
+/** The acting admin's own platform tokens, paged, plus adding a new one. */
+export function TokenManagement() {
   const tr = useTranslations("admin.tokens");
+  const list = useAdminList("tokens", { sort: "created_at", pageSize: 10 });
+  const page = useAdminQuery(qk.adminList("tokens", list.params), () =>
+    adminListTokens(list.params),
+  );
+  const tokens = page.data?.tokens ?? [];
+  const othersCount = page.data?.others_count ?? 0;
+  const onRefresh = page.refresh;
   const [showForm, setShowForm] = useState(false);
   const [platform, setPlatform] = useState("github");
   const [token, setToken] = useState("");
@@ -121,17 +128,19 @@ export function TokenManagement({
 
   return (
     <>
-      <section className="panel overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+      <DataTable
+        title={
           <div className="min-w-0">
             <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
               {tr("title")}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              {tr("countMine", { count: tokens.length })}
+              {tr("countMine", { count: page.data?.total ?? 0 })}
               {othersCount > 0 && ` · ${tr("fromOthers", { count: othersCount })}`}
             </p>
           </div>
+        }
+        toolbar={
           <Button
             variant={showForm ? "secondary" : "primary"}
             size="sm"
@@ -143,131 +152,145 @@ export function TokenManagement({
             {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             {showForm ? tr("cancel") : tr("add")}
           </Button>
-        </div>
-
-        {showForm && (
-          <div className="animate-fade-in space-y-4 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]/50 p-5">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="sm:w-44">
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger className="h-10" aria-label={tr("platform")}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="github">GitHub</SelectItem>
-                    <SelectItem value="gitlab">GitLab</SelectItem>
-                    <SelectItem value="huggingface">Hugging Face</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1">
-                <Input
-                  type="password"
-                  placeholder={tr("placeholder")}
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  icon={<Key className="h-4 w-4" />}
-                />
-              </div>
-            </div>
-            <ReauthFields value={reauth} onChange={setReauth} className="" />
-            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-              <label className="flex cursor-pointer items-center gap-2">
-                <Checkbox
-                  checked={isGlobal}
-                  onCheckedChange={(checked) => setIsGlobal(checked === true)}
-                />
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  {tr("globalToken")} <span className="hidden sm:inline">{tr("globalHint")}</span>
-                </span>
-              </label>
-              <Button
-                onClick={handleCreate}
-                disabled={creating || !token.trim() || !reauthReady(reauth)}
-                className="w-full sm:w-auto"
-              >
-                {creating ? (
-                  <span className="flex items-center gap-2">
-                    <LogoSpinner size={14} speed="fast" />
-                    {tr("adding")}
-                  </span>
-                ) : (
-                  tr("add")
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {tokens.length === 0 ? (
-          <EmptyState
-            icon={<Key className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={tr("emptyTitle")}
-            description={tr("emptyDesc")}
-          />
-        ) : (
-          <div className="divide-y divide-[var(--color-border)]">
-            {tokens.map((t) => {
-              const isGlobalResolved = resolveGlobal(t);
-              return (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-[var(--color-surface-1)] sm:gap-3 sm:px-5"
-                >
-                  <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-2)] sm:flex">
-                    <Key className="h-4 w-4 text-[var(--color-text-muted)]" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className="truncate text-sm font-medium text-[var(--color-text)]">
-                        <span className="sm:hidden">{platformShort[t.platform] ?? t.platform}</span>
-                        <span className="hidden sm:inline">
-                          {platformNames[t.platform] ?? t.platform}
-                        </span>
-                      </span>
-                      <span className="truncate text-xs text-[var(--color-text-muted)]">
-                        @{t.username}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--color-text-muted)] tabular-nums">
-                      {new Date(t.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setScopeTarget(t)}
-                    title={isGlobalResolved ? tr("makeLocalHint") : tr("makeGlobalHint")}
-                    aria-label={isGlobalResolved ? tr("makeLocal") : tr("makeGlobal")}
-                    className={cn(
-                      badgeVariants({ variant: scopeVariant(t) }),
-                      scopePillClass,
-                      // Neutralize badgeVariants' base focus: ring (fires on mouse click);
-                      // keep only the intended focus-visible accent ring.
-                      "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-                    )}
-                  >
-                    {isGlobalResolved ? (
-                      <Globe className="h-3.5 w-3.5" />
-                    ) : (
-                      <User className="h-3.5 w-3.5" />
-                    )}
-                    <span className="hidden sm:inline">
-                      {isGlobalResolved ? tr("global") : tr("local")}
-                    </span>
-                  </button>
-                  <IconButton
-                    icon={Trash2}
-                    label={tr("delete")}
-                    variant="ghost"
-                    onClick={() => setDeleteTarget(t)}
-                    disabled={deleting === t.id}
-                    className="flex-shrink-0 hover:bg-red-500/10 hover:text-red-500"
+        }
+        subheader={
+          showForm && (
+            <div className="animate-fade-in space-y-4 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]/50 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="sm:w-44">
+                  <Select value={platform} onValueChange={setPlatform}>
+                    <SelectTrigger className="h-10" aria-label={tr("platform")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="github">GitHub</SelectItem>
+                      <SelectItem value="gitlab">GitLab</SelectItem>
+                      <SelectItem value="huggingface">Hugging Face</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Input
+                    type="password"
+                    placeholder={tr("placeholder")}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    icon={<Key className="h-4 w-4" />}
                   />
                 </div>
+              </div>
+              <ReauthFields value={reauth} onChange={setReauth} className="" />
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <Checkbox
+                    checked={isGlobal}
+                    onCheckedChange={(checked) => setIsGlobal(checked === true)}
+                  />
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    {tr("globalToken")} <span className="hidden sm:inline">{tr("globalHint")}</span>
+                  </span>
+                </label>
+                <Button
+                  onClick={handleCreate}
+                  disabled={creating || !token.trim() || !reauthReady(reauth)}
+                  className="w-full sm:w-auto"
+                >
+                  {creating ? (
+                    <span className="flex items-center gap-2">
+                      <LogoSpinner size={14} speed="fast" />
+                      {tr("adding")}
+                    </span>
+                  ) : (
+                    tr("add")
+                  )}
+                </Button>
+              </div>
+            </div>
+          )
+        }
+        label={tr("title")}
+        rows={tokens}
+        rowKey={(tk) => tk.id}
+        list={list}
+        total={page.data?.total ?? 0}
+        loading={page.loading}
+        fetching={page.fetching}
+        error={page.error}
+        onRetry={page.refresh}
+        empty={{
+          icon: <Key className="h-7 w-7 text-[var(--color-text-muted)]" />,
+          title: tr("emptyTitle"),
+          description: tr("emptyDesc"),
+        }}
+        columns={[
+          {
+            id: "platform",
+            header: tr("platform"),
+            cell: (tk) => (
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-2)] sm:flex">
+                  <Key className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-[var(--color-text)]">
+                    {platformNames[tk.platform] ?? tk.platform}
+                  </span>
+                  <span className="block truncate text-xs text-[var(--color-text-muted)]">
+                    @{tk.username}
+                  </span>
+                </span>
+              </span>
+            ),
+          },
+          {
+            id: "scope",
+            header: tr("scope"),
+            cell: (tk) => {
+              const g = resolveGlobal(tk);
+              return (
+                <button
+                  type="button"
+                  onClick={() => setScopeTarget(tk)}
+                  title={g ? tr("makeLocalHint") : tr("makeGlobalHint")}
+                  aria-label={g ? tr("makeLocal") : tr("makeGlobal")}
+                  className={cn(
+                    badgeVariants({ variant: scopeVariant(tk) }),
+                    scopePillClass,
+                    "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
+                  )}
+                >
+                  {g ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                  {g ? tr("global") : tr("local")}
+                </button>
               );
-            })}
-          </div>
-        )}
-      </section>
+            },
+          },
+          {
+            id: "added",
+            header: tr("added_col"),
+            cell: (tk) => (
+              <span className="tabular-nums text-[var(--color-text-muted)]">
+                {formatDateShort(tk.created_at)}
+              </span>
+            ),
+          },
+        ]}
+        rowActions={(tk) => [
+          {
+            label: resolveGlobal(tk) ? tr("makeLocal") : tr("makeGlobal"),
+            icon: resolveGlobal(tk) ? User : Globe,
+            onSelect: () => setScopeTarget(tk),
+          },
+          {
+            label: tr("delete"),
+            icon: Trash2,
+            destructive: true,
+            disabled: deleting === tk.id,
+            onSelect: () => setDeleteTarget(tk),
+            separatorBefore: true,
+          },
+        ]}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

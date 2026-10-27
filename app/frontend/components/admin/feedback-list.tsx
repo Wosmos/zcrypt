@@ -1,22 +1,23 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { adminListFeedback } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { useAdminList } from "@/hooks/useAdminList";
 import { qk } from "@/lib/query-keys";
+import { cn, formatDateShort } from "@/lib/utils";
+import { DataTable, TableSearch } from "@/components/admin/data-table";
 import { Star, MessageSquare } from "@/lib/icons";
-import { cn } from "@/lib/utils";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Pagination } from "@/components/ui/pagination";
-import { SkeletonRow } from "@/components/ui/skeletons";
 
-const PAGE_SIZE = 10;
-
-function Stars({ rating }: { rating: number }) {
+/** Five stars, the first `rating` filled. */
+export function Stars({ rating }: { rating: number }) {
   const t = useTranslations("admin.feedback");
   return (
-    <div className="flex items-center gap-0.5" aria-label={t("stars", { rating })}>
+    <span
+      className="inline-flex items-center gap-0.5"
+      role="img"
+      aria-label={t("stars", { rating })}
+    >
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
@@ -26,152 +27,97 @@ function Stars({ rating }: { rating: number }) {
           )}
         />
       ))}
-    </div>
+    </span>
   );
 }
 
 export function FeedbackList() {
   const t = useTranslations("admin.feedback");
-  const [page, setPage] = useState(0);
-  const { data, loading } = useAdminQuery(qk.adminFeedback(page * PAGE_SIZE), () =>
-    adminListFeedback(PAGE_SIZE, page * PAGE_SIZE),
+  const list = useAdminList("feedback", { sort: "created_at", pageSize: 10 });
+  const page = useAdminQuery(qk.adminList("feedback", list.params), () =>
+    adminListFeedback(list.params),
   );
-
-  const feedback = data?.feedback ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const avgRating =
-    feedback.length > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0;
+  const total = page.data?.total ?? 0;
+  const avg = page.data?.average_rating ?? 0;
 
   return (
-    <div className="panel overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] p-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10">
-          <MessageSquare className="h-4 w-4 text-amber-500" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            {t("title")}
-          </h3>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            {t("responses", { count: total })}
-            {avgRating > 0 && (
-              <span className="ml-2">{t("avg", { value: avgRating.toFixed(1) })}</span>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="divide-y divide-[var(--color-border)] px-5">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <SkeletonRow key={i} />
-          ))}
-        </div>
-      ) : feedback.length === 0 ? (
-        <EmptyState
-          icon={<MessageSquare className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title={t("emptyTitle")}
-          description={t("emptyDesc")}
-        />
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    {t("colUser")}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    {t("colRating")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    {t("colMessage")}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    {t("colDate")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {feedback.map((f) => (
-                  <tr
-                    key={f.id}
-                    className="border-b border-[var(--color-border)] transition-colors last:border-0 hover:bg-[var(--color-surface-1)]"
-                  >
-                    <td className="px-4 py-3.5">
-                      <p className="text-sm font-medium text-[var(--color-text)]">{f.username}</p>
-                      <p className="truncate text-xs text-[var(--color-text-muted)]">{f.email}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex justify-center">
-                        <Stars rating={f.rating} />
-                      </div>
-                    </td>
-                    <td className="max-w-xs px-4 py-3.5">
-                      <p className="truncate text-sm text-[var(--color-text-secondary)]">
-                        {f.message || (
-                          <span className="italic text-[var(--color-text-muted)]">
-                            {t("noMessage")}
-                          </span>
-                        )}
-                      </p>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-xs text-[var(--color-text-muted)] tabular-nums">
-                      {new Date(f.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <DataTable
+      label={t("title")}
+      title={
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10">
+            <MessageSquare className="h-4 w-4 text-amber-500" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+              {t("title")}
+            </h3>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {t("responses", { count: total })}
+              {avg > 0 && <span className="ms-2">{t("avg", { value: avg.toFixed(1) })}</span>}
+            </p>
           </div>
-
-          {/* Mobile card layout */}
-          <div className="divide-y divide-[var(--color-border)] sm:hidden">
-            {feedback.map((f) => (
-              <div key={f.id} className="space-y-2 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                      {f.username}
-                    </p>
-                    <p className="truncate text-xs text-[var(--color-text-muted)]">{f.email}</p>
-                  </div>
-                  <div className="flex flex-shrink-0 flex-col items-end gap-1">
-                    <Stars rating={f.rating} />
-                    <span className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
-                      {new Date(f.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                {f.message && (
-                  <p className="line-clamp-3 text-sm text-[var(--color-text-secondary)]">
-                    {f.message}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="border-t border-[var(--color-border)] px-4 py-3">
-          <Pagination
-            currentPage={page + 1}
-            totalPages={totalPages}
-            onPageChange={(p) => setPage(p - 1)}
-            totalItems={total}
-            pageSize={PAGE_SIZE}
-          />
         </div>
-      )}
-    </div>
+      }
+      toolbar={<TableSearch list={list} placeholder={t("search")} />}
+      rows={page.data?.feedback ?? []}
+      rowKey={(f) => f.id}
+      list={list}
+      total={total}
+      loading={page.loading}
+      fetching={page.fetching}
+      error={page.error}
+      onRetry={page.refresh}
+      empty={{
+        icon: <MessageSquare className="h-7 w-7 text-[var(--color-text-muted)]" />,
+        title: t("emptyTitle"),
+        description: t("emptyDesc"),
+      }}
+      rowHref={(f) => `/admin/users/${f.user_id}`}
+      columns={[
+        {
+          id: "user",
+          header: t("colUser"),
+          cell: (f) => (
+            <span className="block min-w-0">
+              <span className="block truncate text-sm font-medium text-[var(--color-text)] group-hover:text-[var(--color-accent)]">
+                {f.username}
+              </span>
+              <span className="block truncate text-xs text-[var(--color-text-muted)]">
+                {f.email}
+              </span>
+            </span>
+          ),
+        },
+        {
+          id: "rating",
+          header: t("colRating"),
+          sortKey: "rating",
+          cell: (f) => <Stars rating={f.rating} />,
+        },
+        {
+          id: "message",
+          header: t("colMessage"),
+          className: "max-w-md",
+          cell: (f) =>
+            f.message ? (
+              <span className="line-clamp-2 text-[var(--color-text-secondary)]">{f.message}</span>
+            ) : (
+              <span className="italic text-[var(--color-text-muted)]">{t("noMessage")}</span>
+            ),
+        },
+        {
+          id: "date",
+          header: t("colDate"),
+          sortKey: "created_at",
+          align: "end",
+          cell: (f) => (
+            <span className="whitespace-nowrap tabular-nums text-xs text-[var(--color-text-muted)]">
+              {formatDateShort(f.created_at)}
+            </span>
+          ),
+        },
+      ]}
+    />
   );
 }
