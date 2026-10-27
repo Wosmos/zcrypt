@@ -2,9 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { useState, useRef, useEffect } from "react";
-import { Users, FileText, Database, GitBranch, AlertTriangle, ChevronDown } from "@/lib/icons";
-import { formatBytes } from "@/lib/utils";
-import { StatCard } from "@/components/ui/stat-card";
+import Link from "next/link";
+import { AlertTriangle, ChevronDown } from "@/lib/icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
@@ -103,25 +102,22 @@ function DurabilityAlertDetails({
                     key={user.user_id}
                     className="flex items-center justify-between gap-2 text-xs"
                   >
-                    <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/admin/users/${user.user_id}`}
+                      className="min-w-0 flex-1 rounded-md hover:text-[var(--color-accent)]"
+                    >
                       <div className="font-medium text-[var(--color-text)]">{user.username}</div>
                       <div className="truncate text-[var(--color-text-muted)]">{user.email}</div>
-                    </div>
-                    <div className="flex flex-shrink-0 gap-1">
+                    </Link>
+                    <div className="flex flex-shrink-0 flex-col items-end gap-0.5 text-[11px] tabular-nums">
                       {user.damaged_files > 0 && (
-                        <Badge variant="amber" className="py-0.5 px-1.5 text-xs">
-                          {user.damaged_files}D
-                        </Badge>
+                        <span>{t("damagedFiles", { count: user.damaged_files })}</span>
                       )}
                       {user.degraded_files > 0 && (
-                        <Badge variant="amber" className="py-0.5 px-1.5 text-xs">
-                          {user.degraded_files}G
-                        </Badge>
+                        <span>{t("degradedFiles", { count: user.degraded_files })}</span>
                       )}
                       {user.stuck_chunks > 0 && (
-                        <Badge variant="amber" className="py-0.5 px-1.5 text-xs">
-                          {user.stuck_chunks}S
-                        </Badge>
+                        <span>{t("stuckChunks", { count: user.stuck_chunks })}</span>
                       )}
                     </div>
                   </div>
@@ -137,16 +133,17 @@ function DurabilityAlertDetails({
                 {data.sample_files.map((file) => (
                   <div key={file.id} className="flex items-start justify-between gap-2 text-xs">
                     <div className="min-w-0 flex-1">
-                      <div className="font-mono text-[var(--color-text)]">
-                        {file.id.slice(0, 8)}
+                      <div className="truncate text-[var(--color-text)]">{file.reason}</div>
+                      <div className="truncate text-[var(--color-text-muted)]">
+                        {data.users?.find((x) => x.user_id === file.user_id)?.username ??
+                          t("unknownOwner")}
                       </div>
-                      <div className="truncate text-[var(--color-text-muted)]">{file.reason}</div>
                     </div>
                     <Badge
                       variant={file.status === "damaged" ? "amber" : "muted"}
                       className="flex-shrink-0 py-0.5 px-1.5"
                     >
-                      {file.status}
+                      {file.status === "damaged" ? t("statusDamaged") : t("statusDegraded")}
                     </Badge>
                   </div>
                 ))}
@@ -170,7 +167,8 @@ function DurabilityAlertDetails({
   );
 }
 
-function DurabilityAlert({ stats }: { stats: SystemStats }) {
+/** Amber strip naming damaged files, degraded files and stuck chunks, with details and a reconcile. */
+export function DurabilityAlert({ stats }: { stats: SystemStats }) {
   const t = useTranslations("admin.stats");
   const degraded = stats.degraded_files ?? 0;
   const damaged = stats.damaged_files ?? 0;
@@ -255,33 +253,5 @@ function DurabilityAlert({ stats }: { stats: SystemStats }) {
         {Content}
       </PopoverContent>
     </Popover>
-  );
-}
-
-export function SystemStatsCards({ stats }: { stats: SystemStats }) {
-  const t = useTranslations("admin.stats");
-  return (
-    <div className="space-y-4">
-      <DurabilityAlert stats={stats} />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label={t("totalUsers")}
-          value={stats.total_users.toLocaleString()}
-          icon={Users}
-          accent
-        />
-        <StatCard
-          label={t("totalFiles")}
-          value={stats.total_files.toLocaleString()}
-          icon={FileText}
-        />
-        <StatCard label={t("totalStorage")} value={formatBytes(stats.total_size)} icon={Database} />
-        <StatCard
-          label={t("totalRepos")}
-          value={stats.total_repos.toLocaleString()}
-          icon={GitBranch}
-        />
-      </div>
-    </div>
   );
 }

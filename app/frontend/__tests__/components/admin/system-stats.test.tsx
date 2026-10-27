@@ -28,7 +28,7 @@ vi.mock("@/components/ui/logo-spinner", () => ({
   LogoSpinner: () => <span data-testid="spinner">loading</span>,
 }));
 
-import { SystemStatsCards } from "@/components/admin/system-stats";
+import { DurabilityAlert } from "@/components/admin/system-stats";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return createElement(QueryClientProvider, { client: queryClient }, children);
@@ -61,7 +61,7 @@ const healthDetails = (over: Partial<AdminHealthDetails> = {}): AdminHealthDetai
   ...over,
 });
 
-describe("SystemStatsCards with DurabilityAlert", () => {
+describe("DurabilityAlert with DurabilityAlert", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
@@ -73,7 +73,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
 
   it("renders nothing when all health values are zero", () => {
     const { container } = render(
-      <SystemStatsCards stats={stats({ degraded_files: 0, damaged_files: 0, stuck_chunks: 0 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 0, damaged_files: 0, stuck_chunks: 0 })} />,
       { wrapper },
     );
     expect(container.querySelector("[role='alert']")).not.toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
 
   it("renders a summary strip when there are health problems", () => {
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
 
   it("prioritizes damaged files in the summary", () => {
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 3, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 3, stuck_chunks: 2 })} />,
       { wrapper },
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -101,28 +101,29 @@ describe("SystemStatsCards with DurabilityAlert", () => {
   it("renders affected users when popover is opened", async () => {
     api.adminGetHealthDetails.mockResolvedValueOnce(healthDetails());
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     const button = screen.getByRole("alert");
     fireEvent.click(button);
     await waitFor(() => {
-      expect(screen.getByText("alice")).toBeInTheDocument();
+      expect(screen.getAllByText("alice").length).toBeGreaterThan(0);
     });
-    expect(screen.getByText("alice@example.com")).toBeInTheDocument();
+    expect(screen.getByText("alice@example.com").closest("a")).toHaveAttribute("href", "/admin/users/u1");
+    expect(screen.getByText("2 stuck chunks", { selector: "span" })).toBeInTheDocument();
   });
 
   it("renders system totals in details", async () => {
     api.adminGetHealthDetails.mockResolvedValueOnce(healthDetails());
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     fireEvent.click(screen.getByRole("alert"));
     await waitFor(() => {
       expect(screen.getByText("System totals")).toBeInTheDocument();
     });
-    expect(screen.getByText("1 degraded file")).toBeInTheDocument();
+    expect(screen.getAllByText("1 degraded file").length).toBe(2);
   });
 
   it("renders sample files in details when present", async () => {
@@ -134,7 +135,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
       }),
     );
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     fireEvent.click(screen.getByRole("alert"));
@@ -153,7 +154,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
       }),
     );
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     fireEvent.click(screen.getByRole("alert"));
@@ -179,7 +180,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
     api.adminGetHealthDetails.mockResolvedValueOnce(healthDetails());
     api.adminRunReconcile.mockRejectedValueOnce(new Error("reconcile failed"));
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     fireEvent.click(screen.getByRole("alert"));
@@ -196,7 +197,7 @@ describe("SystemStatsCards with DurabilityAlert", () => {
     api.adminGetHealthDetails.mockResolvedValueOnce(healthDetails());
     api.adminRunReconcile.mockResolvedValueOnce({ total_orphans: 0, total_missing: 5, note: "done" });
     render(
-      <SystemStatsCards stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
+      <DurabilityAlert stats={stats({ degraded_files: 1, damaged_files: 0, stuck_chunks: 2 })} />,
       { wrapper },
     );
     fireEvent.click(screen.getByRole("alert"));
@@ -209,11 +210,21 @@ describe("SystemStatsCards with DurabilityAlert", () => {
     });
   });
 
-  it("renders stat cards below the alert", () => {
-    render(<SystemStatsCards stats={stats()} />, { wrapper });
-    expect(screen.getByText("Total users")).toBeInTheDocument();
-    expect(screen.getByText("Total files")).toBeInTheDocument();
-    expect(screen.getByText("Total storage")).toBeInTheDocument();
-    expect(screen.getByText("Total repos")).toBeInTheDocument();
+  it("names a sample file's owner instead of showing its id", async () => {
+    api.adminGetHealthDetails.mockResolvedValueOnce(
+      healthDetails({
+        sample_files: [
+          { id: "file-1234-abcd", user_id: "u1", status: "damaged", reason: "missing on platform" },
+          { id: "file-9", user_id: "gone", status: "degraded", reason: "not confirmed" },
+        ],
+      }),
+    );
+    render(<DurabilityAlert stats={stats({ damaged_files: 1 })} />, { wrapper });
+    fireEvent.click(screen.getByRole("alert"));
+    await waitFor(() => expect(screen.getByText("missing on platform")).toBeInTheDocument());
+    expect(screen.queryByText(/file-123/)).not.toBeInTheDocument();
+    expect(screen.getByText("Owner not found")).toBeInTheDocument();
+    expect(screen.getByText("Damaged")).toBeInTheDocument();
+    expect(screen.getByText("Degraded")).toBeInTheDocument();
   });
 });
