@@ -94,6 +94,9 @@ describe("announcements", () => {
     expect(call()).toMatchObject({ method: undefined });
     expect(call().url).toMatch(/\/api\/admin\/emails$/);
     fetchMock.mockClear();
+    await api.adminListEmails({ limit: 10, offset: 20, q: "launch" });
+    expect(call().url).toContain("/api/admin/emails?limit=10&offset=20&q=launch");
+    fetchMock.mockClear();
     await api.adminGetEmail("c1");
     expect(call().url).toContain("/api/admin/emails/c1");
   });

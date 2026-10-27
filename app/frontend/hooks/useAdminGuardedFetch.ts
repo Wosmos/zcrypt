@@ -2,19 +2,15 @@ import { useCallback } from "react";
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth";
 import { queryClient } from "@/lib/query-client";
-import { adminGetStats, adminListTokens, adminGetHealthDetails } from "@/lib/api";
+import { adminGetStats, adminGetOverview, adminGetHealthDetails } from "@/lib/api";
 import { Role } from "@/types";
 
-/** The admin overview's data (stats + platform tokens). Shared by the page and
- *  the sidebar's hover prefetch so both fill the same cache entry. */
-export async function fetchAdminOverview() {
-  const [stats, owned] = await Promise.all([adminGetStats(), adminListTokens()]);
-  const legacy = Array.isArray(owned);
-  return {
-    stats,
-    tokens: legacy ? (owned as unknown as typeof owned.tokens) : (owned.tokens ?? []),
-    othersCount: legacy ? 0 : (owned.others_count ?? 0),
-  };
+/** The admin overview's data: counts, a days-long series and the system stats.
+ *  Shared by the page and the sidebar's hover prefetch so both fill the same
+ *  cache entry. */
+export async function fetchAdminOverview(days = 30) {
+  const [overview, stats] = await Promise.all([adminGetOverview(days), adminGetStats()]);
+  return { overview, stats };
 }
 
 export async function fetchAdminHealthDetails() {
@@ -46,11 +42,19 @@ export function useAdminQuery<T>(
     await queryClient.invalidateQueries({ queryKey: ["admin"] });
   }, []);
 
+  const { refetch } = query;
+  const reload = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
   return {
     user,
     data: query.data,
     loading: query.isPending,
+    fetching: query.isFetching,
     error: query.isError,
     refresh,
+    /** Refetches this view only, for polling without marking every admin view stale. */
+    reload,
   };
 }

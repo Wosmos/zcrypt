@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from "react";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useAdminQuery, fetchAdminOverview, fetchAdminHealthDetails } from "@/hooks/useAdminGuardedFetch";
-import { adminGetStats, adminListTokens, adminGetHealthDetails } from "@/lib/api";
+import { adminGetStats, adminGetOverview, adminGetHealthDetails } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { Role } from "@/types";
 
@@ -14,7 +14,7 @@ vi.mock("@/store/auth", () => ({
 
 vi.mock("@/lib/api", () => ({
   adminGetStats: vi.fn(async () => ({ users: 1 })),
-  adminListTokens: vi.fn(async () => ({ tokens: [{ id: "t" }], others_count: 3 })),
+  adminGetOverview: vi.fn(async (days: number) => ({ days })),
   adminGetHealthDetails: vi.fn(async () => ({
     users: [{ user_id: "u1", email: "a@b", username: "alice", degraded_files: 1, damaged_files: 0, stuck_chunks: 2 }],
     totals: { degraded_files: 1, damaged_files: 0, stuck_chunks: 2 },
@@ -95,32 +95,24 @@ describe("useAdminQuery", () => {
     expect(result.current.data).toBeUndefined();
   });
 
-  it("fetchAdminOverview loads stats and tokens together", async () => {
-    await expect(fetchAdminOverview()).resolves.toEqual({
-      stats: { users: 1 },
-      tokens: [{ id: "t" }],
-      othersCount: 3,
-    });
+  it("fetchAdminOverview loads the overview for a range and the stats together", async () => {
+    await expect(fetchAdminOverview(90)).resolves.toEqual({ overview: { days: 90 }, stats: { users: 1 } });
+    expect(adminGetOverview).toHaveBeenCalledWith(90);
     expect(adminGetStats).toHaveBeenCalled();
-    expect(adminListTokens).toHaveBeenCalled();
+    await fetchAdminOverview();
+    expect(adminGetOverview).toHaveBeenLastCalledWith(30);
   });
 
-  it("fetchAdminOverview tolerates a legacy array token response", async () => {
-    vi.mocked(adminListTokens).mockResolvedValueOnce([{ id: "old" }] as never);
-    await expect(fetchAdminOverview()).resolves.toEqual({
-      stats: { users: 1 },
-      tokens: [{ id: "old" }],
-      othersCount: 0,
-    });
-  });
-
-  it("fetchAdminOverview defaults missing token fields", async () => {
-    vi.mocked(adminListTokens).mockResolvedValueOnce({} as never);
-    await expect(fetchAdminOverview()).resolves.toEqual({
-      stats: { users: 1 },
-      tokens: [],
-      othersCount: 0,
-    });
+  it("reload refetches only this view", async () => {
+    auth.user = { role: Role.Admin };
+    const fetcher = vi.fn().mockResolvedValue(1);
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    const { result } = renderHook(() => useAdminQuery(["admin", "t6"], fetcher), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.reload());
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it("fetchAdminHealthDetails returns health details", async () => {
