@@ -205,6 +205,8 @@ func (s *Server) HandleSubmitBugReport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]interface{}{"success": true, "id": report.ID})
 }
 
+var bugReportSorts = map[string]string{"created_at": ""}
+
 func truncateRunes(v string, limit int) string {
 	if utf8.RuneCountInString(v) <= limit {
 		return v
@@ -213,9 +215,9 @@ func truncateRunes(v string, limit int) string {
 }
 
 // HandleAdminListBugReports lists bug reports, optionally filtered by status.
-// GET /api/admin/bug-reports?status=&limit=&offset=
+// GET /api/admin/bug-reports?status&limit&offset&q&order
 func (s *Server) HandleAdminListBugReports(w http.ResponseWriter, r *http.Request) {
-	adminListByStatus(w, r, "reports", bugStatuses, s.db.ListBugReports)
+	adminListByStatus(w, r, "reports", bugStatuses, bugReportSorts, "created_at", s.db.ListBugReports)
 }
 
 // HandleAdminUpdateBugReport changes a report's status.

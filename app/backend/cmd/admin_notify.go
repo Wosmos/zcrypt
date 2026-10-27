@@ -320,6 +320,9 @@ func (s *Server) HandleAdminBulkUsers(w http.ResponseWriter, r *http.Request) {
 				if req.Action == "set_role" {
 					if rerr := s.revokeSessions(ctx, id); rerr != nil {
 						log.Printf("admin bulk role: revoke sessions %s: %v", id, rerr)
+						applied[id] = true
+						fail(id, "role changed but signing them out failed")
+						continue
 					}
 				}
 				succeed(id)
