@@ -28,33 +28,45 @@ func (db *DB) HasUserSubmittedFeedback(ctx context.Context, userID string) (bool
 	return count > 0, err
 }
 
-// ListFeedback returns paginated feedback with user info for admin.
-func (db *DB) ListFeedback(ctx context.Context, limit, offset int) ([]types.FeedbackWithUser, int, error) {
-	var total int
-	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM feedback`).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count feedback: %w", err)
-	}
+// FeedbackSorts maps the feedback list's sort keys to SQL.
+var FeedbackSorts = map[string]string{"created_at": "f.created_at", "rating": "f.rating"}
 
+// ListFeedback returns one page of feedback with user info for admins, the
+// number matching the search, and the average rating across all of them.
+func (db *DB) ListFeedback(ctx context.Context, page ListPage) ([]types.FeedbackWithUser, int, float64, error) {
+	w := &whereBuilder{}
+	if page.Search != "" {
+		p := w.arg(likePattern(page.Search))
+		w.add("(f.message ILIKE " + p + " OR u.email ILIKE " + p + " OR u.username ILIKE " + p + ")")
+	}
+	from := ` FROM feedback f JOIN users u ON f.user_id = u.id` + w.sql()
+	var total int
+	var avg float64
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*), COALESCE(AVG(f.rating), 0)`+from, w.args...).Scan(&total, &avg); err != nil {
+		return nil, 0, 0, fmt.Errorf("count feedback: %w", err)
+	}
+	expr, ok := FeedbackSorts[page.Sort]
+	if !ok {
+		expr = FeedbackSorts["created_at"]
+	}
 	rows, err := db.pool.Query(ctx,
-		`SELECT f.id, f.user_id, f.rating, f.message, f.context, f.created_at,
-		        u.email, u.username
-		 FROM feedback f JOIN users u ON f.user_id = u.id
-		 ORDER BY f.created_at DESC LIMIT $1 OFFSET $2`,
-		limit, offset,
+		`SELECT f.id, f.user_id, f.rating, f.message, f.context, f.created_at, u.email, u.username`+from+
+			orderSQL(expr, page.Desc, "f.id")+` LIMIT `+w.arg(page.Limit)+` OFFSET `+w.arg(page.Offset),
+		w.args...,
 	)
 	if err != nil {
-		return nil, 0, fmt.Errorf("list feedback: %w", err)
+		return nil, 0, 0, fmt.Errorf("list feedback: %w", err)
 	}
 	defer rows.Close()
 
-	var items []types.FeedbackWithUser
+	items := []types.FeedbackWithUser{}
 	for rows.Next() {
 		var fb types.FeedbackWithUser
 		if err := rows.Scan(&fb.ID, &fb.UserID, &fb.Rating, &fb.Message,
 			&fb.Context, &fb.CreatedAt, &fb.Email, &fb.Username); err != nil {
-			return nil, 0, fmt.Errorf("scan feedback: %w", err)
+			return nil, 0, 0, fmt.Errorf("scan feedback: %w", err)
 		}
 		items = append(items, fb)
 	}
-	return items, total, rows.Err()
+	return items, total, avg, rows.Err()
 }

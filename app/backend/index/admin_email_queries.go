@@ -138,22 +138,38 @@ func (db *DB) UpdateEmailCampaign(ctx context.Context, id string, sent, failed i
 
 const campaignCols = `id, subject, body, audience, recipient_count, sent_count, failed_count, created_by, created_at, finished_at`
 
-// ListEmailCampaigns returns the most recent campaigns.
-func (db *DB) ListEmailCampaigns(ctx context.Context, limit int) ([]types.EmailCampaign, error) {
-	rows, err := db.pool.Query(ctx, `SELECT `+campaignCols+` FROM admin_email_campaigns ORDER BY created_at DESC LIMIT $1`, limit)
+// EmailCampaignSorts maps the campaign list's sort keys to SQL.
+var EmailCampaignSorts = map[string]string{"created_at": "created_at", "recipient_count": "recipient_count"}
+
+// ListEmailCampaigns returns one page of campaigns and how many match.
+func (db *DB) ListEmailCampaigns(ctx context.Context, page ListPage) ([]types.EmailCampaign, int, error) {
+	w := &whereBuilder{}
+	if page.Search != "" {
+		w.add("subject ILIKE " + w.arg(likePattern(page.Search)))
+	}
+	var total int
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM admin_email_campaigns`+w.sql(), w.args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count email campaigns: %w", err)
+	}
+	expr, ok := EmailCampaignSorts[page.Sort]
+	if !ok {
+		expr = EmailCampaignSorts["created_at"]
+	}
+	rows, err := db.pool.Query(ctx, `SELECT `+campaignCols+` FROM admin_email_campaigns`+w.sql()+
+		orderSQL(expr, page.Desc, "id")+` LIMIT `+w.arg(page.Limit)+` OFFSET `+w.arg(page.Offset), w.args...)
 	if err != nil {
-		return nil, fmt.Errorf("list email campaigns: %w", err)
+		return nil, 0, fmt.Errorf("list email campaigns: %w", err)
 	}
 	defer rows.Close()
 	out := []types.EmailCampaign{}
 	for rows.Next() {
 		var c types.EmailCampaign
 		if err := rows.Scan(&c.ID, &c.Subject, &c.Body, &c.Audience, &c.RecipientCount, &c.SentCount, &c.FailedCount, &c.CreatedBy, &c.CreatedAt, &c.FinishedAt); err != nil {
-			return nil, fmt.Errorf("scan campaign: %w", err)
+			return nil, 0, fmt.Errorf("scan campaign: %w", err)
 		}
 		out = append(out, c)
 	}
-	return out, rows.Err()
+	return out, total, rows.Err()
 }
 
 // GetEmailCampaign loads one campaign.

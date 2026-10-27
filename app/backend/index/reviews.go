@@ -69,21 +69,29 @@ func (db *DB) ListPublicReviews(ctx context.Context, limit int) ([]types.PublicR
 
 // ListReviews returns paginated reviews for moderation, newest first. An empty
 // status returns every status.
-func (db *DB) ListReviews(ctx context.Context, status string, limit, offset int) ([]types.Review, int, error) {
+func (db *DB) ListReviews(ctx context.Context, status string, page ListPage) ([]types.Review, int, error) {
+	w := &whereBuilder{}
+	if status != "" {
+		w.add("r.status = " + w.arg(status))
+	}
+	if page.Search != "" {
+		p := w.arg(likePattern(page.Search))
+		w.add("(r.quote ILIKE " + p + " OR r.display_name ILIKE " + p + " OR u.email ILIKE " + p + " OR u.username ILIKE " + p + ")")
+	}
+	from := ` FROM reviews r LEFT JOIN users u ON r.user_id = u.id` + w.sql()
 	var total int
-	if err := db.pool.QueryRow(ctx,
-		`SELECT COUNT(*) FROM reviews WHERE ($1 = '' OR status = $1)`, status,
-	).Scan(&total); err != nil {
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*)`+from, w.args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count reviews: %w", err)
 	}
-
+	expr, ok := ReviewSorts[page.Sort]
+	if !ok {
+		expr = ReviewSorts["updated_at"]
+	}
 	rows, err := db.pool.Query(ctx,
 		`SELECT r.id, r.user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
-		        r.rating, r.quote, r.display_name, r.public_ok, r.status, r.created_at, r.updated_at
-		 FROM reviews r LEFT JOIN users u ON r.user_id = u.id
-		 WHERE ($1 = '' OR r.status = $1)
-		 ORDER BY r.updated_at DESC LIMIT $2 OFFSET $3`,
-		status, limit, offset,
+		        r.rating, r.quote, r.display_name, r.public_ok, r.status, r.created_at, r.updated_at`+from+
+			orderSQL(expr, page.Desc, "r.id")+` LIMIT `+w.arg(page.Limit)+` OFFSET `+w.arg(page.Offset),
+		w.args...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list reviews: %w", err)
@@ -101,6 +109,9 @@ func (db *DB) ListReviews(ctx context.Context, status string, limit, offset int)
 	}
 	return items, total, rows.Err()
 }
+
+// ReviewSorts maps the review list's sort keys to SQL.
+var ReviewSorts = map[string]string{"updated_at": "r.updated_at", "rating": "r.rating"}
 
 // UpdateReviewStatus sets a review's moderation status. It returns false when
 // the id matches no review.

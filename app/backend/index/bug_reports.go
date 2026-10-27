@@ -28,22 +28,27 @@ func (db *DB) InsertBugReport(ctx context.Context, r *types.BugReport, screensho
 
 // ListBugReports returns paginated bug reports, newest first. An empty status
 // returns every status.
-func (db *DB) ListBugReports(ctx context.Context, status string, limit, offset int) ([]types.BugReport, int, error) {
+func (db *DB) ListBugReports(ctx context.Context, status string, page ListPage) ([]types.BugReport, int, error) {
+	w := &whereBuilder{}
+	if status != "" {
+		w.add("b.status = " + w.arg(status))
+	}
+	if page.Search != "" {
+		p := w.arg(likePattern(page.Search))
+		w.add("(b.description ILIKE " + p + " OR u.email ILIKE " + p + " OR u.username ILIKE " + p + " OR b.contact_email ILIKE " + p + ")")
+	}
+	from := ` FROM bug_reports b LEFT JOIN users u ON b.user_id = u.id` + w.sql()
 	var total int
-	if err := db.pool.QueryRow(ctx,
-		`SELECT COUNT(*) FROM bug_reports WHERE ($1 = '' OR status = $1)`, status,
-	).Scan(&total); err != nil {
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*)`+from, w.args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count bug reports: %w", err)
 	}
 
 	rows, err := db.pool.Query(ctx,
 		`SELECT b.id, b.user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
 		        b.description, b.screenshot IS NOT NULL, b.app_version, b.platform,
-		        b.route, b.user_agent, b.status, b.kind, b.contact_email, b.created_at
-		 FROM bug_reports b LEFT JOIN users u ON b.user_id = u.id
-		 WHERE ($1 = '' OR b.status = $1)
-		 ORDER BY b.created_at DESC LIMIT $2 OFFSET $3`,
-		status, limit, offset,
+		        b.route, b.user_agent, b.status, b.kind, b.contact_email, b.created_at`+from+
+			orderSQL("b.created_at", page.Desc, "b.id")+` LIMIT `+w.arg(page.Limit)+` OFFSET `+w.arg(page.Offset),
+		w.args...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list bug reports: %w", err)
