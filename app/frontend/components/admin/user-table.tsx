@@ -1,729 +1,255 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { memo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
-import { ReauthFields, reauthReady, useUserActionConfirm } from "@/components/admin/reauth-fields";
-import { NotifyFields } from "@/components/admin/notify-fields";
-import { QuotaFields } from "@/components/admin/quota-fields";
-import { BulkActionBar } from "@/components/admin/bulk-action-bar";
-import { Checkbox } from "@/components/ui/checkbox";
-import { formatBytes, cn, bytesToGb } from "@/lib/utils";
-import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
-import { toast } from "@/store/toast";
-import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/icon-button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { RoleBadge, PlanBadge } from "./badges";
-import { Trash2, Check, X } from "@/lib/icons";
-import { Role } from "@/types";
+import { formatBytes, formatDateShort, formatRelativeTime } from "@/lib/utils";
+import { formatQuotaDisplay } from "@/lib/quota";
+import { countryName } from "@/lib/geo";
+import { parseUserAgent } from "@/lib/user-agent";
+import type { AdminList } from "@/hooks/useAdminList";
+import type { CountryCount } from "@/lib/api";
 import type { AdminUser, PlanConfig } from "@/types";
+import {
+  DataTable,
+  TableFilter,
+  TableSearch,
+  type DataTableColumn,
+} from "@/components/admin/data-table";
+import { BulkActionBar } from "@/components/admin/bulk-action-bar";
+import { LocationCell } from "@/components/admin/location-cell";
+import { useUserActions } from "@/components/admin/user-actions";
+import { RoleBadge, PlanBadge } from "@/components/admin/badges";
+import { Eye, ShieldCheck, Users } from "@/lib/icons";
 
-const planSelectClass = (plan: string) =>
-  cn(
-    "h-8 w-[7.5rem] text-xs font-medium",
-    plan === "pro"
-      ? "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400"
-      : plan === "plus"
-        ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-        : "",
-  );
-
-type PlanDetails = Record<
-  string,
-  { label: string; uploads: number; storage: string; fileSize: string }
->;
-
-/**
- * Callbacks + derived data a row/card needs from the parent. Bundled into one
- * object so a row only takes a single reference-stable prop for all of them
- * (React Compiler keeps this object stable across renders when its members are),
- * which keeps the `memo` comparison cheap and lets unchanged rows bail out.
- */
-interface RowHandlers {
-  planDetails: PlanDetails;
-  onNavigate: (userId: string) => void;
-  onPlanChange: (userId: string, username: string, newPlan: string) => void;
-  onRoleToggle: (userId: string, currentRole: Role, username: string) => void;
-  onDelete: (userId: string, username: string) => void;
-  onToggleSelect: (userId: string) => void;
-  onStartEditQuota: (u: AdminUser) => void;
-  onSaveQuota: (userId: string) => void | Promise<void>;
-  onCancelEditQuota: () => void;
-  onQuotaModeChange: (mode: QuotaMode) => void;
-  onQuotaInputChange: (value: string) => void;
-  getQuotaDisplay: (u: AdminUser) => string;
-  getQuotaLabel: (u: AdminUser) => string;
+function initials(name: string) {
+  return name.slice(0, 2).toUpperCase();
 }
 
-/**
- * Quota cell: either the inline editor (when this row is being edited) or a
- * click-to-edit button. `quotaMode` / `quotaInput` are only meaningful while
- * `editing` is true; non-editing rows are handed stable sentinel values so their
- * props (and thus the memoized row wrapping them) don't churn on every keystroke
- * in some *other* row's editor.
- */
-function QuotaEditor({
-  u,
-  editing,
-  busy,
-  quotaMode,
-  quotaInput,
-  h,
-}: {
-  u: AdminUser;
-  editing: boolean;
-  busy: boolean;
-  quotaMode: QuotaMode;
-  quotaInput: string;
-  h: RowHandlers;
-}) {
-  const t = useTranslations("admin.userTable");
-  if (!editing) {
-    return (
-      <button
-        onClick={() => h.onStartEditQuota(u)}
-        className="group rounded-md text-sm tabular-nums transition-colors hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-        title={t("editQuotaTitle")}
-        aria-label={t("editQuotaAria", { username: u.username })}
-      >
-        <span>{h.getQuotaDisplay(u)}</span>
-        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
-          ({h.getQuotaLabel(u)})
-        </span>
-      </button>
-    );
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <QuotaFields
-        mode={quotaMode}
-        input={quotaInput}
-        onModeChange={h.onQuotaModeChange}
-        onInputChange={h.onQuotaInputChange}
-      />
-      <IconButton
-        icon={Check}
-        label={t("saveQuota")}
-        variant="primary"
-        onClick={() => h.onSaveQuota(u.id)}
-        disabled={busy}
-        className="h-7 w-7"
-        iconClassName="h-3.5 w-3.5"
-      />
-      <IconButton
-        icon={X}
-        label={t("cancel")}
-        variant="ghost"
-        onClick={h.onCancelEditQuota}
-        className="h-7 w-7"
-        iconClassName="h-3.5 w-3.5"
-      />
-    </div>
-  );
-}
-
-/**
- * A single desktop table row. Memoized so parent state changes (another row's
- * `busy`, an unrelated quota edit, the confirm modal opening) don't re-render
- * every row: only rows whose own `user` / `busy` / `editing` / quota-edit
- * state actually changed. `h` is a reference-stable handler bundle, so React's
- * default shallow compare on it is a single identity check.
- */
-interface RowProps {
-  u: AdminUser;
-  isSelf: boolean;
-  selected: boolean;
-  busy: boolean;
-  editing: boolean;
-  quotaMode: QuotaMode;
-  quotaInput: string;
-  h: RowHandlers;
-}
-
-function RowCheckbox({ u, selected, h }: { u: AdminUser; selected: boolean; h: RowHandlers }) {
-  const t = useTranslations("admin.bulk");
-  return (
-    <Checkbox
-      checked={selected}
-      onCheckedChange={() => h.onToggleSelect(u.id)}
-      aria-label={t("selectRow", { username: u.username })}
-    />
-  );
-}
-
-/** Promote/demote + delete actions: shared by the table row and mobile card. */
-function UserRowActions({
-  u,
-  busy,
-  h,
-  className,
-}: {
-  u: AdminUser;
-  busy: boolean;
-  h: RowHandlers;
-  className: string;
-}) {
-  const t = useTranslations("admin.userTable");
-  return (
-    <div className={className}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => h.onRoleToggle(u.id, u.role, u.username)}
-        disabled={busy}
-      >
-        {u.role === Role.Admin ? t("demote") : t("promote")}
-      </Button>
-      <IconButton
-        icon={Trash2}
-        label={t("deleteUser")}
-        variant="ghost"
-        onClick={() => h.onDelete(u.id, u.username)}
-        disabled={busy}
-        className="hover:bg-red-500/10 hover:text-red-500"
-      />
-    </div>
-  );
-}
-
-const UserTableRow = memo(function UserTableRow({
-  u,
-  isSelf,
-  selected,
-  busy,
-  editing,
-  quotaMode,
-  quotaInput,
-  h,
-}: RowProps) {
-  const t = useTranslations("admin.userTable");
-  return (
-    <tr className="group border-b border-[var(--color-border)] transition-colors last:border-0 hover:bg-[var(--color-surface-1)]">
-      <td className="w-10 py-3.5 ps-5">
-        <RowCheckbox u={u} selected={selected} h={h} />
-      </td>
-      <td className="px-4 py-3.5">
-        <button
-          onClick={() => h.onNavigate(u.id)}
-          className="group/name rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-        >
-          <p className="text-sm font-medium text-[var(--color-text)] transition-colors group-hover/name:text-[var(--color-accent)]">
-            {u.username}
-            {isSelf && (
-              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">{t("you")}</span>
-            )}
-          </p>
-          <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
-        </button>
-      </td>
-      <td className="px-4 py-3.5">
-        <RoleBadge role={u.role} />
-      </td>
-      <td className="px-4 py-3.5">
-        {!isSelf ? (
-          <Select
-            value={u.plan || "free"}
-            onValueChange={(v) => h.onPlanChange(u.id, u.username, v)}
-            disabled={busy}
-          >
-            <SelectTrigger
-              className={planSelectClass(u.plan || "free")}
-              aria-label={t("planFor", { username: u.username })}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(h.planDetails).map(([id, detail]) => (
-                <SelectItem key={id} value={id}>
-                  {detail.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <PlanBadge plan={u.plan || "free"} />
-        )}
-      </td>
-      <td className="px-4 py-3.5 text-right text-sm tabular-nums text-[var(--color-text-secondary)]">
-        {u.file_count}
-      </td>
-      <td className="px-4 py-3.5 text-right text-sm tabular-nums text-[var(--color-text-secondary)]">
-        {formatBytes(u.total_size)}
-      </td>
-      <td className="px-4 py-3.5 text-right text-sm">
-        <QuotaEditor
-          u={u}
-          editing={editing}
-          busy={busy}
-          quotaMode={quotaMode}
-          quotaInput={quotaInput}
-          h={h}
-        />
-      </td>
-      <td className="px-4 py-3.5 text-sm text-[var(--color-text-muted)] tabular-nums">
-        {new Date(u.created_at).toLocaleDateString()}
-      </td>
-      <td className="px-5 py-3.5 text-right">
-        {!isSelf && (
-          <UserRowActions u={u} busy={busy} h={h} className="flex items-center justify-end gap-1" />
-        )}
-      </td>
-    </tr>
-  );
-});
-
-/** Mobile card equivalent of {@link UserTableRow}; same memoization rationale. */
-const UserMobileCard = memo(function UserMobileCard({
-  u,
-  isSelf,
-  selected,
-  busy,
-  editing,
-  quotaMode,
-  quotaInput,
-  h,
-}: RowProps) {
-  const t = useTranslations("admin.userTable");
-  return (
-    <div className="space-y-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="pt-0.5">
-          <RowCheckbox u={u} selected={selected} h={h} />
-        </div>
-        <button
-          onClick={() => h.onNavigate(u.id)}
-          className="group min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-        >
-          <p className="truncate text-sm font-medium text-[var(--color-text)] transition-colors group-hover:text-[var(--color-accent)]">
-            {u.username}
-            {isSelf && (
-              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">{t("you")}</span>
-            )}
-          </p>
-          <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
-        </button>
-        <div className="flex flex-shrink-0 items-center gap-1.5">
-          <RoleBadge role={u.role} />
-          {isSelf ? (
-            <PlanBadge plan={u.plan || "free"} />
-          ) : (
-            <Select
-              value={u.plan || "free"}
-              onValueChange={(v) => h.onPlanChange(u.id, u.username, v)}
-              disabled={busy}
-            >
-              <SelectTrigger
-                className={cn(planSelectClass(u.plan || "free"), "w-[6.5rem]")}
-                aria-label={t("planFor", { username: u.username })}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(h.planDetails).map(([id, detail]) => (
-                  <SelectItem key={id} value={id}>
-                    {detail.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3 text-xs">
-        <div>
-          <p className="text-[var(--color-text-muted)]">{t("files")}</p>
-          <p className="font-medium tabular-nums">{u.file_count}</p>
-        </div>
-        <div>
-          <p className="text-[var(--color-text-muted)]">{t("usage")}</p>
-          <p className="font-medium tabular-nums">{formatBytes(u.total_size)}</p>
-        </div>
-        <div>
-          <p className="text-[var(--color-text-muted)]">{t("joined")}</p>
-          <p className="font-medium tabular-nums">{new Date(u.created_at).toLocaleDateString()}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs">
-          <span className="mr-1 text-[var(--color-text-muted)]">{t("quota")}:</span>
-          <QuotaEditor
-            u={u}
-            editing={editing}
-            busy={busy}
-            quotaMode={quotaMode}
-            quotaInput={quotaInput}
-            h={h}
-          />
-        </div>
-        {!isSelf && (
-          <UserRowActions
-            u={u}
-            busy={busy}
-            h={h}
-            className="flex flex-shrink-0 items-center gap-1"
-          />
-        )}
-      </div>
-    </div>
-  );
-});
-
-// Stable sentinels for rows that are NOT being edited, so their quota props stay
-// referentially constant and the memoized row bails out while another row edits.
-const NO_QUOTA_MODE: QuotaMode = "default";
-const NO_QUOTA_INPUT = "";
-
+/** The users table: search, filters, sortable columns, row menu and bulk actions. */
 export function UserTable({
+  list,
   users,
+  total,
+  loading,
+  fetching,
+  error,
+  onRetry,
   currentUserId,
   defaultQuotaBytes,
-  onRefresh,
   planConfigs,
+  countries,
+  onRefresh,
 }: {
+  list: AdminList;
   users: AdminUser[];
+  total: number;
+  loading: boolean;
+  fetching: boolean;
+  error: boolean;
+  onRetry: () => void;
   currentUserId: string;
   defaultQuotaBytes: number;
+  planConfigs: PlanConfig[];
+  countries: CountryCount[];
   onRefresh: () => void;
-  planConfigs?: PlanConfig[];
 }) {
   const t = useTranslations("admin.userTable");
-  const tb = useTranslations("admin.bulk");
+  const tl = useTranslations("admin.location");
+  const tu = useTranslations("admin.users");
   const tRoles = useTranslations("admin.roles");
   const router = useRouter();
-  const [busy, setBusy] = useState<string | null>(null);
-  const [editingQuota, setEditingQuota] = useState<string | null>(null);
-  const [quotaInput, setQuotaInput] = useState("");
-  const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
-
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const {
-    confirmAction,
-    setConfirmAction,
-    reauth,
-    setReauth,
-    notify,
-    setNotify,
-    needsReauth,
-    closeConfirm,
-  } = useUserActionConfirm<{
-    type: "delete" | "role" | "plan" | "quota";
-    userId: string;
-    userName: string;
-    detail: string;
-    newValue?: string;
-    quotaBytes?: number | null;
-  }>();
+  const actions = useUserActions({ currentUserId, planConfigs, onDone: onRefresh });
 
-  const toggleSelect = (userId: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(userId)) next.add(userId);
-      return next;
-    });
-  const allSelected = users.length > 0 && users.every((u) => selected.has(u.id));
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(users.map((u) => u.id)));
-  const liveSelected = users.filter((u) => selected.has(u.id)).map((u) => u.id);
-
-  const startEditQuota = (u: AdminUser) => {
-    setEditingQuota(u.id);
-    const mode = quotaModeFor(u.storage_quota);
-    setQuotaMode(mode);
-    setQuotaInput(mode === "custom" ? bytesToGb(u.storage_quota!).toString() : "");
-  };
-
-  const saveQuota = (userId: string) => {
-    const parsed = parseQuotaInput(quotaMode, quotaInput);
-    if (!parsed.ok) {
-      toast.error(parsed.error);
-      return;
-    }
-    const username = users.find((u) => u.id === userId)?.username ?? "";
-    setConfirmAction({
-      type: "quota",
-      userId,
-      userName: username,
-      detail: t("quotaConfirmDetail", { username }),
-      quotaBytes: parsed.bytes,
-    });
-  };
-
-  const getQuotaDisplay = (u: AdminUser) => {
-    const planConfig = planConfigs?.find((p) => p.id === (u.plan || "free"));
-    return formatQuotaDisplay(u.storage_quota, {
-      planDisplay: planConfig?.storage_display,
+  const quotaOf = (u: AdminUser) =>
+    formatQuotaDisplay(u.storage_quota ?? null, {
+      planDisplay: planConfigs.find((p) => p.id === (u.plan || "free"))?.storage_display,
       defaultBytes: defaultQuotaBytes,
     });
-  };
 
-  const getQuotaLabel = (u: AdminUser) =>
-    u.storage_quota === null ? t("quotaPlan") : t("quotaOverride");
+  const columns: DataTableColumn<AdminUser>[] = [
+    {
+      id: "user",
+      header: t("colUser"),
+      sortKey: "username",
+      cell: (u) => (
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-2)] text-[11px] font-semibold text-[var(--color-text-secondary)] ring-1 ring-[var(--color-border)]"
+          >
+            {initials(u.username)}
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text)] group-hover:text-[var(--color-accent)]">
+              <span className="truncate">{u.username}</span>
+              {u.id === currentUserId && (
+                <span className="text-[10px] font-normal text-[var(--color-text-muted)]">
+                  {t("you")}
+                </span>
+              )}
+              {u.totp_enabled && (
+                <ShieldCheck
+                  className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]"
+                  aria-label="2FA"
+                />
+              )}
+            </span>
+            <span className="block truncate text-xs text-[var(--color-text-muted)]">{u.email}</span>
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: "location",
+      header: tl("column"),
+      sortKey: "country",
+      className: "max-w-[14rem]",
+      cell: (u) => <LocationCell user={u} />,
+    },
+    {
+      id: "access",
+      header: tu("colAccess"),
+      cell: (u) => (
+        <span className="flex items-center gap-1 whitespace-nowrap">
+          <RoleBadge role={u.role} />
+          <PlanBadge plan={u.plan || "free"} />
+        </span>
+      ),
+    },
+    {
+      id: "files",
+      header: t("files"),
+      sortKey: "file_count",
+      align: "end",
+      hideBelow: "xl",
+      cell: (u) => (
+        <span className="tabular-nums text-[var(--color-text-secondary)]">
+          {u.file_count.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      id: "storage",
+      header: t("usage"),
+      sortKey: "total_size",
+      align: "end",
+      cell: (u) => (
+        <span className="block tabular-nums">
+          <span className="text-[var(--color-text-secondary)]">{formatBytes(u.total_size)}</span>
+          <span className="block text-[11px] text-[var(--color-text-muted)]">
+            {tu("ofQuota", { quota: quotaOf(u) })}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: "seen",
+      header: tu("colLastSeen"),
+      sortKey: "last_seen_at",
+      hideBelow: "lg",
+      cell: (u) =>
+        u.last_seen_at ? (
+          <span className="block">
+            <span className="text-[var(--color-text-secondary)]">
+              {formatRelativeTime(u.last_seen_at)}
+            </span>
+            {u.last_user_agent && (
+              <span className="block truncate text-[11px] text-[var(--color-text-muted)]">
+                {parseUserAgent(u.last_user_agent)}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-[var(--color-text-muted)]">{tu("never")}</span>
+        ),
+    },
+    {
+      id: "joined",
+      header: t("joined"),
+      sortKey: "created_at",
+      hideBelow: "xl",
+      cell: (u) => (
+        <span className="whitespace-nowrap tabular-nums text-[var(--color-text-muted)]">
+          {formatDateShort(u.created_at)}
+        </span>
+      ),
+    },
+  ];
 
-  const handleRoleToggle = (userId: string, currentRole: Role, username: string) => {
-    const newRole = currentRole === Role.Admin ? Role.User : Role.Admin;
-    setConfirmAction({
-      type: "role",
-      userId,
-      userName: username,
-      detail:
-        currentRole === Role.Admin
-          ? t("roleDemoteDetail", { username })
-          : t("rolePromoteDetail", { username }),
-      newValue: newRole,
-    });
-  };
-
-  const handleDelete = (userId: string, username: string) => {
-    setConfirmAction({
-      type: "delete",
-      userId,
-      userName: username,
-      detail: t("deleteDetail", { username }),
-    });
-  };
-
-  const planDetails: PlanDetails = planConfigs
-    ? Object.fromEntries(
-        planConfigs.map((p) => [
-          p.id,
-          {
-            label: p.name,
-            uploads: p.max_concurrent_uploads,
-            storage: p.storage_display,
-            fileSize: p.max_file_display,
-          },
-        ]),
-      )
-    : {
-        free: { label: t("planFree"), uploads: 2, storage: "10 GB", fileSize: "500 MB" },
-        plus: { label: t("planPlus"), uploads: 5, storage: "200 GB", fileSize: "5 GB" },
-        pro: { label: t("planPro"), uploads: 10, storage: "2 TB", fileSize: "25 GB" },
-      };
-
-  const handlePlanChange = (userId: string, username: string, newPlan: string) => {
-    const plan = planDetails[newPlan] || planDetails.free;
-    const planOrder = Object.keys(planDetails);
-    const currentUser = users.find((u) => u.id === userId);
-    const currentPlanIdx = planOrder.indexOf(currentUser?.plan || "free");
-    const newPlanIdx = planOrder.indexOf(newPlan);
-    const isUpgrade = newPlanIdx > currentPlanIdx;
-
-    setConfirmAction({
-      type: "plan",
-      userId,
-      userName: username,
-      detail: t(isUpgrade ? "planUpgradeDetail" : "planChangeDetail", {
-        username,
-        plan: plan.label,
-        uploads: plan.uploads,
-        storage: plan.storage,
-        fileSize: plan.fileSize,
-      }),
-      newValue: newPlan,
-    });
-  };
-
-  const executeConfirmAction = async () => {
-    if (!confirmAction) return;
-    setBusy(confirmAction.userId);
-    try {
-      if (confirmAction.type === "delete") {
-        await adminDeleteUser(confirmAction.userId, reauth, notify);
-        toast.success(t("userDeleted"));
-      } else if (confirmAction.type === "role") {
-        await adminSetUserRole(confirmAction.userId, confirmAction.newValue!, reauth, notify);
-        toast.success(
-          t("roleUpdated", { role: tRoles(confirmAction.newValue === "admin" ? "admin" : "user") }),
-        );
-      } else if (confirmAction.type === "plan") {
-        await adminSetUserPlan(confirmAction.userId, confirmAction.newValue!, notify);
-        toast.success(t("planUpdated", { plan: confirmAction.newValue ?? "" }));
-      } else {
-        await adminSetUserQuota(confirmAction.userId, confirmAction.quotaBytes ?? null, notify);
-        toast.success(t("quotaUpdated"));
-        setEditingQuota(null);
-      }
-      closeConfirm();
-      onRefresh();
-    } catch (err) {
-      toast.error(
-        err instanceof Error
-          ? err.message
-          : t(
-              {
-                delete: "deleteFailed",
-                role: "roleFailed",
-                plan: "planFailed",
-                quota: "quotaFailed",
-              }[confirmAction.type],
-            ),
-      );
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const getConfirmModalProps = () => {
-    if (!confirmAction) return null;
-    switch (confirmAction.type) {
-      case "delete":
-        return {
-          title: t("deleteUser"),
-          description: confirmAction.detail,
-          confirmLabel: t("deleteUser"),
-          variant: "danger" as const,
-        };
-      case "role":
-        return {
-          title: confirmAction.newValue === "admin" ? t("promoteTitle") : t("demoteTitle"),
-          description: confirmAction.detail,
-          confirmLabel: confirmAction.newValue === "admin" ? t("promote") : t("demote"),
-          variant: "warning" as const,
-        };
-      case "quota":
-        return {
-          title: t("quotaConfirmTitle"),
-          description: confirmAction.detail,
-          confirmLabel: t("saveQuota"),
-          variant: "warning" as const,
-        };
-      case "plan": {
-        const planOrder = Object.keys(planDetails);
-        const targetUser = users.find((u) => u.id === confirmAction.userId);
-        const currentIdx = planOrder.indexOf(targetUser?.plan || "free");
-        const newIdx = planOrder.indexOf(confirmAction.newValue || "free");
-        const isUpgrade = newIdx > currentIdx;
-        const planLabel =
-          planDetails[confirmAction.newValue || "free"]?.label || confirmAction.newValue;
-        return {
-          title: isUpgrade
-            ? t("upgradeTitle", { plan: planLabel ?? "" })
-            : t("changeTitle", { plan: planLabel ?? "" }),
-          description: confirmAction.detail,
-          confirmLabel: isUpgrade ? t("upgrade") : t("changePlan"),
-          variant: isUpgrade ? ("info" as const) : ("warning" as const),
-        };
-      }
-    }
-  };
-
-  const modalProps = getConfirmModalProps();
-
-  // One reference-stable bundle of everything a row needs. React Compiler
-  // (enabled repo-wide) memoizes this object + its member callbacks, so the
-  // memoized rows see the same `h` identity across parent renders and bail out.
-  const handlers: RowHandlers = {
-    planDetails,
-    onNavigate: (userId) => router.push(`/admin/users/${userId}`),
-    onPlanChange: handlePlanChange,
-    onRoleToggle: handleRoleToggle,
-    onDelete: handleDelete,
-    onToggleSelect: toggleSelect,
-    onStartEditQuota: startEditQuota,
-    onSaveQuota: saveQuota,
-    onCancelEditQuota: () => setEditingQuota(null),
-    onQuotaModeChange: setQuotaMode,
-    onQuotaInputChange: setQuotaInput,
-    getQuotaDisplay,
-    getQuotaLabel,
-  };
-
-  // Per-user row props, computed once and shared by the desktop table and the
-  // mobile card list below: they render the same users with the same state.
-  const rows = users.map((u) => {
-    const editing = editingQuota === u.id;
-    return {
-      u,
-      isSelf: u.id === currentUserId,
-      selected: selected.has(u.id),
-      busy: busy === u.id,
-      editing,
-      quotaMode: editing ? quotaMode : NO_QUOTA_MODE,
-      quotaInput: editing ? quotaInput : NO_QUOTA_INPUT,
-    };
-  });
+  const countryOptions = [
+    ...countries
+      .filter((c) => c.country)
+      .map((c) => ({ value: c.country, label: `${countryName(c.country)} (${c.count})` })),
+    { value: "unknown", label: tl("unknown") },
+  ];
+  const planOptions = planConfigs.map((p) => ({ value: p.id, label: p.name }));
 
   return (
     <>
-      <section className="panel overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+      <DataTable
+        label={t("heading")}
+        title={
           <div>
             <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
               {t("heading")}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              {t("registered", { count: users.length })}
+              {list.q || Object.values(list.filters).some(Boolean)
+                ? tu("matching", { count: total })
+                : t("registered", { count: total })}
             </p>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-            <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-            {tb("selectAll")}
-          </label>
-        </div>
-
-        {/* Desktop table */}
-        <div className="hidden max-h-[65vh] overflow-x-auto lg:block">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                <th className="w-10 py-3 ps-5" aria-label={tb("selectColumn")} />
-                <th className="px-4 py-3 text-left font-medium">{t("colUser")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("colRole")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("colPlan")}</th>
-                <th className="px-4 py-3 text-right font-medium">{t("files")}</th>
-                <th className="px-4 py-3 text-right font-medium">{t("usage")}</th>
-                <th className="px-4 py-3 text-right font-medium">{t("quota")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("joined")}</th>
-                <th className="px-5 py-3 text-right font-medium">{t("colActions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <UserTableRow key={row.u.id} {...row} h={handlers} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile card layout */}
-        <div className="max-h-[65vh] divide-y divide-[var(--color-border)] overflow-y-auto lg:hidden">
-          {rows.map((row) => (
-            <UserMobileCard key={row.u.id} {...row} h={handlers} />
-          ))}
-        </div>
-      </section>
-
-      {modalProps && (
-        <ConfirmModal
-          open={!!confirmAction}
-          onConfirm={executeConfirmAction}
-          onClose={closeConfirm}
-          title={modalProps.title}
-          description={modalProps.description}
-          details={confirmAction?.userName}
-          confirmLabel={modalProps.confirmLabel}
-          variant={modalProps.variant}
-          loading={busy === confirmAction?.userId}
-          confirmDisabled={needsReauth && !reauthReady(reauth)}
-        >
-          {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
-          <NotifyFields value={notify} onChange={setNotify} />
-        </ConfirmModal>
-      )}
-
+        }
+        toolbar={
+          <>
+            <TableSearch list={list} placeholder={tu("search")} />
+            <TableFilter list={list} name="country" label={tl("column")} options={countryOptions} />
+            <TableFilter
+              list={list}
+              name="role"
+              label={t("colRole")}
+              options={[
+                { value: "admin", label: tRoles("admin") },
+                { value: "user", label: tRoles("user") },
+              ]}
+            />
+            {planOptions.length > 1 && (
+              <TableFilter list={list} name="plan" label={t("colPlan")} options={planOptions} />
+            )}
+          </>
+        }
+        rows={users}
+        rowKey={(u) => u.id}
+        columns={columns}
+        list={list}
+        total={total}
+        loading={loading}
+        fetching={fetching}
+        error={error}
+        onRetry={onRetry}
+        empty={{
+          icon: <Users className="h-7 w-7 text-[var(--color-text-muted)]" />,
+          title: tu("emptyTitle"),
+          description: tu("emptyDesc"),
+        }}
+        rowHref={(u) => `/admin/users/${u.id}`}
+        rowActions={(u) =>
+          actions.actionsFor(u, [
+            {
+              label: tu("open"),
+              icon: Eye,
+              onSelect: () => router.push(`/admin/users/${u.id}`),
+            },
+          ])
+        }
+        selection={{ selected, onChange: setSelected }}
+      />
+      {actions.dialog}
       <BulkActionBar
-        selectedIds={liveSelected}
+        selectedIds={users.filter((u) => selected.has(u.id)).map((u) => u.id)}
         currentUserId={currentUserId}
         planConfigs={planConfigs}
         onClear={() => setSelected(new Set())}
