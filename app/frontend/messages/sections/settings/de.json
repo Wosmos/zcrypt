@@ -522,6 +522,9 @@
       "test": "Test senden",
       "testTitle": "Benachrichtigungen sind an",
       "testBody": "So meldet sich zcrypt bei dir.",
+      "testSent": "Test gesendet",
+      "testSentHint": "Nichts zu sehen? Erlaube {app} in den Benachrichtigungseinstellungen deines Systems und schalte Fokus oder Nicht stören aus.",
+      "testFailed": "zcrypt konnte die Benachrichtigung nicht an den Browser übergeben. Lade die Seite neu und versuche es erneut.",
       "thumbnails": "Fotovorschauen zeigen",
       "thumbnailsDesc": "Eine kleine Vorschau des Fotos in Upload-Benachrichtigungen. Ausschalten, damit keine Fotos auf dem Sperrbildschirm erscheinen.",
       "iosHint": "Für Benachrichtigungen auf dem iPhone füge zcrypt zum Home-Bildschirm hinzu: Tippe auf Teilen, dann auf Zum Home-Bildschirm."

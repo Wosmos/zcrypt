@@ -12,6 +12,7 @@ vi.mock("@/lib/tauri", () => ({
   tauriInvoke: env.invoke,
 }));
 vi.mock("@/lib/sounds", () => ({ isInBackground: () => env.background }));
+vi.mock("@/lib/service-worker", () => ({ registerServiceWorker: vi.fn(async () => {}) }));
 
 type NotifyModule = typeof import("@/lib/notify");
 type Prefs = typeof import("@/store/preferences");
@@ -32,11 +33,21 @@ interface FakeRegistration {
 function installWorker(registration: FakeRegistration | undefined, permission: NotificationPermission) {
   Object.defineProperty(navigator, "serviceWorker", {
     configurable: true,
-    value: { getRegistration: vi.fn(async () => registration) },
+    value: { ready: registration ? Promise.resolve(registration) : new Promise(() => {}) },
   });
   const requestPermission = vi.fn(async () => "granted" as NotificationPermission);
-  vi.stubGlobal("Notification", { permission, requestPermission });
-  return { requestPermission };
+  const constructed: Array<{ title: string; options: Record<string, unknown>; close: ReturnType<typeof vi.fn>; onclick?: () => void }> = [];
+  class FakeNotification {
+    static permission = permission;
+    static requestPermission = requestPermission;
+    onclick?: () => void;
+    close = vi.fn();
+    constructor(title: string, options: Record<string, unknown>) {
+      constructed.push(Object.assign(this, { title, options }));
+    }
+  }
+  vi.stubGlobal("Notification", FakeNotification);
+  return { requestPermission, constructed };
 }
 
 function fakeRegistration(): FakeRegistration {
@@ -303,7 +314,7 @@ describe("notify through the service worker", () => {
     });
   });
 
-  it("stays silent in the foreground, for switched-off areas, without permission or a worker", async () => {
+  it("stays silent in the foreground, for switched-off areas and without permission", async () => {
     const reg = fakeRegistration();
     installWorker(reg, "granted");
     env.background = false;
@@ -314,9 +325,36 @@ describe("notify through the service worker", () => {
     P.usePreferencesStore.getState().setSoundArea("transfers", true);
     installWorker(reg, "denied");
     await expect(N.notify(done)).resolves.toBe(false);
-    installWorker(undefined, "granted");
-    await expect(N.notify(done)).resolves.toBe(false);
     expect(reg.showNotification).not.toHaveBeenCalled();
+  });
+
+  it("shows through the page itself when no worker becomes active in time", async () => {
+    vi.useFakeTimers();
+    const { constructed } = installWorker(undefined, "granted");
+    vi.stubGlobal("location", { ...location, assign: vi.fn() });
+    const pending = N.notify(done);
+    await vi.advanceTimersByTimeAsync(N.WORKER_READY_MS);
+    await expect(pending).resolves.toBe(true);
+    expect(constructed).toHaveLength(1);
+    expect(constructed[0].options).not.toHaveProperty("actions");
+    expect(constructed[0].options).toMatchObject({ tag: "zcrypt-upload", body: "2 saved to Family. 1 couldn't be sent." });
+    const focus = vi.spyOn(window, "focus").mockImplementation(() => {});
+    constructed[0].onclick?.();
+    expect(focus).toHaveBeenCalled();
+    expect(location.assign).toHaveBeenCalledWith("/dashboard?open=f1");
+    expect(constructed[0].close).toHaveBeenCalled();
+  });
+
+  it("only focuses on a click when the notification has no destination", async () => {
+    vi.useFakeTimers();
+    const { constructed } = installWorker(undefined, "granted");
+    vi.stubGlobal("location", { ...location, assign: vi.fn() });
+    const pending = N.notify({ type: "downloadDone", name: "a.bin" });
+    await vi.advanceTimersByTimeAsync(N.WORKER_READY_MS);
+    await pending;
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    constructed[0].onclick?.();
+    expect(location.assign).not.toHaveBeenCalled();
   });
 
   it("never throws when the worker refuses", async () => {
@@ -376,22 +414,62 @@ describe("notify through the Tauri shell", () => {
 });
 
 describe("sendTestNotification", () => {
-  it("does nothing without a channel", async () => {
-    await expect(N.sendTestNotification("t", "b")).resolves.toBe(false);
+  it("is unsupported without a channel", async () => {
+    await expect(N.sendTestNotification("t", "b")).resolves.toBe("unsupported");
   });
 
   it("shows right away, even in the foreground", async () => {
     const reg = fakeRegistration();
     installWorker(reg, "granted");
     env.background = false;
-    await expect(N.sendTestNotification("Hi", "There")).resolves.toBe(true);
+    await expect(N.sendTestNotification("Hi", "There")).resolves.toBe("shown");
     expect(reg.showNotification).toHaveBeenCalledWith("Hi", expect.objectContaining({ tag: "zcrypt-test", body: "There" }));
   });
 
-  it("reports false when the platform refuses", async () => {
+  it("says so when the browser has not granted permission", async () => {
+    installWorker(fakeRegistration(), "denied");
+    await expect(N.sendTestNotification("Hi", "There")).resolves.toBe("no-permission");
+  });
+
+  it("falls back to the page when the worker never activates", async () => {
+    vi.useFakeTimers();
+    const { constructed } = installWorker(undefined, "granted");
+    const pending = N.sendTestNotification("Hi", "There");
+    await vi.advanceTimersByTimeAsync(N.WORKER_READY_MS);
+    await expect(pending).resolves.toBe("fallback");
+    expect(constructed[0].options).toMatchObject({ tag: "zcrypt-test" });
+  });
+
+  it("reports an error when the platform refuses, and no permission when the shell has none", async () => {
     env.isTauri = true;
     env.invoke.mockRejectedValue(new Error("nope"));
-    await expect(N.sendTestNotification("Hi", "There")).resolves.toBe(false);
+    await expect(N.sendTestNotification("Hi", "There")).resolves.toBe("error");
+    env.invoke.mockReset();
+    env.invoke.mockResolvedValue(false);
+    await expect(N.sendTestNotification("Hi", "There")).resolves.toBe("no-permission");
+  });
+});
+
+describe("hostAppName", () => {
+  it("names the browser the operating system lists, or zcrypt inside the shell", () => {
+    const cases: Array<[string, string]> = [
+      ["Mozilla/5.0 Chrome/130 Safari/537 Edg/130", "Microsoft Edge"],
+      ["Mozilla/5.0 Chrome/130 Safari/537 OPR/115", "Opera"],
+      ["Mozilla/5.0 Gecko/20100101 Firefox/131", "Firefox"],
+      ["Mozilla/5.0 Chrome/130 Brave/1.70", "Brave"],
+      ["Mozilla/5.0 Chrome/130 Safari/537", "Google Chrome"],
+      ["Mozilla/5.0 (iPhone) CriOS/130 Safari/604", "Google Chrome"],
+      ["Mozilla/5.0 (Macintosh) Version/18 Safari/605", "Safari"],
+      ["curl/8", "your browser"],
+    ];
+    for (const [ua, name] of cases) {
+      setUA(ua);
+      expect(N.hostAppName()).toBe(name);
+    }
+    env.isTauri = true;
+    expect(N.hostAppName()).toBe("zcrypt");
+    vi.stubGlobal("navigator", undefined);
+    expect(N.hostAppName()).toBe("zcrypt");
   });
 });
 

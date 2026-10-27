@@ -522,6 +522,9 @@
       "test": "Enviar una prueba",
       "testTitle": "Las notificaciones están activadas",
       "testBody": "Así es como zcrypt te avisa.",
+      "testSent": "Prueba enviada",
+      "testSentHint": "¿No apareció nada? Permite {app} en los ajustes de notificaciones de tu sistema y desactiva Concentración o No molestar.",
+      "testFailed": "zcrypt no pudo entregar la notificación al navegador. Recarga la página e inténtalo de nuevo.",
       "thumbnails": "Mostrar vistas previas de fotos",
       "thumbnailsDesc": "Una pequeña vista previa de la foto en las notificaciones de subida. Desactívalo para que no aparezcan fotos en la pantalla de bloqueo.",
       "iosHint": "Para recibir notificaciones en iPhone, añade zcrypt a tu pantalla de inicio: toca Compartir y luego Añadir a pantalla de inicio."

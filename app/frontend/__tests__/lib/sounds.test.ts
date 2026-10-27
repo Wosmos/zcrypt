@@ -2,6 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as sounds from "@/lib/sounds";
 import { DEFAULT_SOUND_PREFS, usePreferencesStore, type SoundPrefs } from "@/store/preferences";
 
+const { SOUND_SETS } = sounds;
+
+/** Every oscillator frequency a note list strikes, in creation order. */
+function struck(notes: readonly sounds.Note[]): number[] {
+  return notes.flatMap((n) =>
+    [1, ...(n.partials ?? [])].flatMap((r) => (n.detune ? [n.freq * r, n.freq * r] : [n.freq * r])),
+  );
+}
+
 const tauri = vi.hoisted(() => ({ isTauri: false }));
 vi.mock("@/lib/tauri", () => ({
   get isTauri() {
@@ -14,8 +23,13 @@ interface FakeNode {
 }
 
 function makeContext(opts: { throwOnOscillator?: boolean; throwOnResume?: boolean } = {}) {
-  const oscillators: Array<{ type: string; frequency: { setValueAtTime: ReturnType<typeof vi.fn> } }> = [];
+  const oscillators: Array<{
+    type: string;
+    frequency: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> };
+    detune: { setValueAtTime: ReturnType<typeof vi.fn> };
+  }> = [];
   const gains: Array<{ gain: { linearRampToValueAtTime: ReturnType<typeof vi.fn> } }> = [];
+  const filters: Array<{ type: string; frequency: { setValueAtTime: ReturnType<typeof vi.fn> } }> = [];
   const ctx = {
     currentTime: 10,
     destination: {},
@@ -28,12 +42,22 @@ function makeContext(opts: { throwOnOscillator?: boolean; throwOnResume?: boolea
       if (opts.throwOnOscillator) throw new Error("no audio");
       const node = {
         type: "",
-        frequency: { setValueAtTime: vi.fn() },
+        frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        detune: { setValueAtTime: vi.fn() },
         connect: vi.fn((next: FakeNode) => next),
         start: vi.fn(),
         stop: vi.fn(),
       };
       oscillators.push(node);
+      return node;
+    }),
+    createBiquadFilter: vi.fn(() => {
+      const node = {
+        type: "",
+        frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        connect: vi.fn((next: unknown) => next),
+      };
+      filters.push(node);
       return node;
     }),
     createGain: vi.fn(() => {
@@ -49,7 +73,7 @@ function makeContext(opts: { throwOnOscillator?: boolean; throwOnResume?: boolea
       return node;
     }),
   };
-  return { ctx, oscillators, gains };
+  return { ctx, oscillators, gains, filters };
 }
 
 function install(opts?: Parameters<typeof makeContext>[0], key: "AudioContext" | "webkitAudioContext" = "AudioContext") {
@@ -124,43 +148,54 @@ describe("playSound", () => {
     vi.unstubAllGlobals();
   });
 
-  it("plays the soft done cue with the exact notes and buzzes on touch", async () => {
-    const { oscillators, gains } = install();
+  it("strikes the soft done cue as warm filtered wood, detuned for width, and buzzes on touch", async () => {
+    const { oscillators, gains, filters } = install();
     const { playSound, usePreferencesStore } = await load();
     setSound(usePreferencesStore, {});
     playSound("done", "transfers");
-    expect(oscillators.map((o) => o.frequency.setValueAtTime.mock.calls[0][0])).toEqual([523, 784]);
-    expect(oscillators.every((o) => o.type === "sine")).toBe(true);
-    expect(gains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.25, 10.012);
+    const notes = SOUND_SETS.soft.done;
+    expect(oscillators.map((o) => o.frequency.setValueAtTime.mock.calls[0][0])).toEqual(struck(notes));
+    expect(oscillators.every((o) => o.type === "triangle")).toBe(true);
+    expect(oscillators.map((o) => o.detune.setValueAtTime.mock.calls[0][0]).slice(0, 2)).toEqual([0, 6]);
+    expect(filters).toHaveLength(notes.length);
+    expect(filters[0].type).toBe("lowpass");
+    expect(filters[0].frequency.setValueAtTime).toHaveBeenCalledWith(2600, 10);
+    expect(gains[0].gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.22, 10.006);
     expect(navigator.vibrate).toHaveBeenCalledWith([30]);
   });
 
-  it("uses each set's own definitions", async () => {
-    const { oscillators } = install();
+  it("uses each set's own notes: bell partials for glass, pitch-dropping ticks for minimal", async () => {
+    const { oscillators, filters } = install();
     const { playSound, usePreferencesStore } = await load();
-    const notes = () => oscillators.splice(0).map((o) => [o.frequency.setValueAtTime.mock.calls[0][0], o.type]);
+    const freqs = () => oscillators.splice(0).map((o) => o.frequency.setValueAtTime.mock.calls[0][0]);
 
     setSound(usePreferencesStore, { set: "soft" });
     playSound("headsUp", "transfers");
-    expect(notes()).toEqual([[784, "sine"], [523, "sine"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.soft.headsUp));
     playSound("problem", "problems");
-    expect(notes()).toEqual([[330, "triangle"], [330, "triangle"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.soft.problem));
 
     setSound(usePreferencesStore, { set: "glass" });
+    filters.splice(0);
     playSound("done", "transfers");
-    expect(notes()).toEqual([[1047, "sine"], [1568, "sine"], [2093, "sine"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.glass.done));
+    expect(filters).toHaveLength(0);
+    expect(oscillators).toHaveLength(0);
     playSound("headsUp", "transfers");
-    expect(notes()).toEqual([[1568, "sine"], [1047, "sine"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.glass.headsUp));
     playSound("problem", "problems");
-    expect(notes()).toEqual([[1319, "sine"], [1319, "sine"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.glass.problem));
 
     setSound(usePreferencesStore, { set: "minimal" });
     playSound("done", "transfers");
-    expect(notes()).toEqual([[1200, "square"]]);
+    const ticks = oscillators.splice(0);
+    expect(ticks.map((o) => o.frequency.setValueAtTime.mock.calls[0][0])).toEqual(struck(SOUND_SETS.minimal.done));
+    expect(ticks[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(1400 * 0.55, 10 + 0.09 * 0.6);
+    expect(ticks.every((o) => o.type === "sine")).toBe(true);
     playSound("headsUp", "transfers");
-    expect(notes()).toEqual([[700, "square"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.minimal.headsUp));
     playSound("problem", "problems");
-    expect(notes()).toEqual([[900, "square"], [900, "square"]]);
+    expect(freqs()).toEqual(struck(SOUND_SETS.minimal.problem));
   });
 
   it("stays silent while the app is focused and in the foreground", async () => {
@@ -179,7 +214,7 @@ describe("playSound", () => {
     setSound(usePreferencesStore, { backgroundOnly: false });
     setBackground(false, true);
     playSound("done", "transfers");
-    expect(oscillators).toHaveLength(2);
+    expect(oscillators).toHaveLength(struck(SOUND_SETS.soft.done).length);
   });
 
   it("respects the master switch and the area switch", async () => {
@@ -315,15 +350,18 @@ describe("previewSound", () => {
     setSound(usePreferencesStore, { enabled: false, set: "minimal" });
     previewSound("done");
     expect(ctx.resume).toHaveBeenCalled();
-    expect(oscillators.map((o) => o.type)).toEqual(["square"]);
+    expect(oscillators.map((o) => o.frequency.setValueAtTime.mock.calls[0][0])).toEqual(
+      struck(SOUND_SETS.minimal.done),
+    );
   });
 
   it("can preview a set other than the saved one", async () => {
     const { oscillators } = install();
     const { previewSound } = await load();
     previewSound("problem", "glass");
-    expect(oscillators).toHaveLength(2);
-    expect(oscillators[0].frequency.setValueAtTime.mock.calls[0][0]).toBe(1319);
+    expect(oscillators.map((o) => o.frequency.setValueAtTime.mock.calls[0][0])).toEqual(
+      struck(SOUND_SETS.glass.problem),
+    );
   });
 
   it("never throws when audio is blocked", async () => {

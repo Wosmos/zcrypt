@@ -1,19 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { NotifyPermission } from "@/lib/notify";
+import type { NotifyPermission, TestResult } from "@/lib/notify";
 
 const n = vi.hoisted(() => ({
   permission: "default" as NotifyPermission,
   homeScreen: false,
   request: vi.fn(async (): Promise<NotifyPermission> => "granted"),
-  test: vi.fn(async () => true),
+  test: vi.fn(async (): Promise<TestResult> => "shown"),
+  toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() },
 }));
 vi.mock("@/lib/notify", () => ({
   notifyPermission: async () => n.permission,
   requestNotifyPermission: n.request,
   sendTestNotification: n.test,
   needsHomeScreenInstall: () => n.homeScreen,
+  hostAppName: () => "Google Chrome",
 }));
+vi.mock("@/store/toast", () => ({ toast: n.toast }));
 
 import { SystemNotificationSettings } from "@/components/settings/system-notifications";
 import { NotificationSettings } from "@/components/settings/notification-prefs";
@@ -31,6 +34,10 @@ describe("SystemNotificationSettings", () => {
     n.homeScreen = false;
     n.request.mockClear();
     n.test.mockClear();
+    n.test.mockResolvedValue("shown");
+    n.toast.success.mockClear();
+    n.toast.warning.mockClear();
+    n.toast.error.mockClear();
     usePreferencesStore.setState({ notify: DEFAULT_NOTIFY_PREFS });
   });
   afterEach(() => {
@@ -47,8 +54,54 @@ describe("SystemNotificationSettings", () => {
     });
     expect(n.request).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/^On\./)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    });
     expect(n.test).toHaveBeenCalledWith("Notifications are on", "This is how zcrypt lets you know.");
+    expect(n.toast.success).toHaveBeenCalledWith("Test sent", {
+      detail:
+        "Nothing appeared? Allow Google Chrome in your system's notification settings and turn off Focus or Do Not Disturb.",
+    });
+  });
+
+  it("waits on the test, then explains a block or a failure", async () => {
+    n.permission = "granted";
+    let finish: (r: TestResult) => void = () => {};
+    n.test.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    await renderReady();
+    const button = screen.getByRole("button", { name: "Send a test" });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(n.test).toHaveBeenCalledTimes(1);
+    n.permission = "denied";
+    await act(async () => finish("no-permission"));
+    expect(n.toast.warning).toHaveBeenCalledWith(
+      "Blocked. Allow notifications for zcrypt in your browser or system settings.",
+    );
+    expect(screen.getByText(/^Blocked\./)).toBeInTheDocument();
+
+    n.permission = "granted";
+    cleanup();
+    n.test.mockResolvedValueOnce("error");
+    await renderReady();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    });
+    expect(n.toast.error).toHaveBeenCalledWith(
+      "zcrypt couldn't hand the notification to the browser. Reload the page and try again.",
+    );
+  });
+
+  it("re-reads the permission when the tab comes back", async () => {
+    await renderReady();
+    n.permission = "granted";
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(screen.getByText(/^On\./)).toBeInTheDocument();
   });
 
   it("toggles photo previews", async () => {

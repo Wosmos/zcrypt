@@ -1,4 +1,5 @@
 import { isTauri, tauriInvoke } from "@/lib/tauri";
+import { registerServiceWorker } from "@/lib/service-worker";
 import { isInBackground } from "@/lib/sounds";
 import { usePreferencesStore, type SoundArea } from "@/store/preferences";
 import { errorLabel, translateLabel } from "@/lib/transfer-progress";
@@ -39,6 +40,15 @@ export type NotifyChannel = "sw" | "tauri" | "tauri-mobile" | "none";
 /** The notification permission, with "unsupported" when the channel is none. */
 export type NotifyPermission = NotificationPermission | "unsupported";
 
+/**
+ * What became of one notification: shown through the worker or the shell,
+ * shown through the page's own Notification API because no worker was active,
+ * refused for lack of permission, impossible on this runtime, or thrown.
+ */
+export type TestResult = "shown" | "fallback" | "no-permission" | "unsupported" | "error";
+
+type Delivery = TestResult | "skipped";
+
 type ActionId = "view" | "retry";
 
 /** The platform-neutral shape every channel renders. */
@@ -69,6 +79,8 @@ const TAURI_IDS: Record<string, number> = {
 };
 /** The desktop shell cannot replace a notification on every OS, so progress there is sparser. */
 export const TAURI_PROGRESS_GAP_MS = 15_000;
+/** How long to wait for the worker to become active before the page shows the notification itself. */
+export const WORKER_READY_MS = 3_000;
 
 let lastTauriProgress = 0;
 let tauriGranted = false;
@@ -246,10 +258,13 @@ export async function requestNotifyPermission(): Promise<NotifyPermission> {
   }
 }
 
-async function showViaWorker(p: NotifyPayload): Promise<boolean> {
-  if (Notification.permission !== "granted") return false;
-  const registration = await navigator.serviceWorker.getRegistration();
-  if (!registration) return false;
+async function activeRegistration(): Promise<ServiceWorkerRegistration | null> {
+  await registerServiceWorker();
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), WORKER_READY_MS));
+  return Promise.race([navigator.serviceWorker.ready, timeout]);
+}
+
+function workerOptions(p: NotifyPayload): NotificationOptions & Record<string, unknown> {
   const options: NotificationOptions & Record<string, unknown> = {
     body: p.body,
     tag: p.tag,
@@ -261,28 +276,51 @@ async function showViaWorker(p: NotifyPayload): Promise<boolean> {
     actions: p.actions.map((action) => ({ action, title: tr(`notify.${action}`) })),
   };
   if (p.image) options.image = p.image;
-  await registration.showNotification(p.title, options);
-  return true;
+  return options;
 }
 
-async function showViaTauri(p: NotifyPayload): Promise<boolean> {
+async function showViaWorker(p: NotifyPayload): Promise<Delivery> {
+  if (Notification.permission !== "granted") return "no-permission";
+  const options = workerOptions(p);
+  const registration = await activeRegistration();
+  if (registration) {
+    await registration.showNotification(p.title, options);
+    return "shown";
+  }
+  const { actions: _actions, ...plain } = options;
+  const shown = new Notification(p.title, plain);
+  shown.onclick = () => {
+    window.focus();
+    if (p.click === "view") location.assign(p.url);
+    shown.close();
+  };
+  return "fallback";
+}
+
+async function showViaTauri(p: NotifyPayload): Promise<Delivery> {
   if (p.progress) {
     const now = Date.now();
-    if (now - lastTauriProgress < TAURI_PROGRESS_GAP_MS) return false;
+    if (now - lastTauriProgress < TAURI_PROGRESS_GAP_MS) return "skipped";
     lastTauriProgress = now;
   } else if (p.tag.endsWith("upload") || p.tag.endsWith("download")) {
     lastTauriProgress = 0;
   }
-  if ((await tauriPermission()) !== "granted") return false;
+  if ((await tauriPermission()) !== "granted") return "no-permission";
   await tauriInvoke("plugin:notification|notify", {
     options: { id: TAURI_IDS[p.tag], title: p.title, body: p.body, silent: p.silent },
   });
-  return true;
+  return "shown";
 }
 
-function deliver(p: NotifyPayload, channel: NotifyChannel): Promise<boolean> {
-  return channel === "sw" ? showViaWorker(p) : showViaTauri(p);
+async function deliver(p: NotifyPayload, channel: NotifyChannel): Promise<Delivery> {
+  try {
+    return await (channel === "sw" ? showViaWorker(p) : showViaTauri(p));
+  } catch {
+    return "error";
+  }
 }
+
+const SHOWN = new Set<Delivery>(["shown", "fallback"]);
 
 /**
  * Tell the operating system about an event when zcrypt is in the background.
@@ -294,17 +332,13 @@ export async function notify(event: NotifyEvent): Promise<boolean> {
   const prefs = usePreferencesStore.getState();
   const payload = describeNotification(event, prefs.notify.thumbnails);
   if (!shouldNotify(payload, channel, isInBackground(), prefs.sound.areas)) return false;
-  try {
-    return await deliver(payload, channel);
-  } catch {
-    return false;
-  }
+  return SHOWN.has(await deliver(payload, channel));
 }
 
-/** Show a sample notification right away, for the test button in Settings. */
-export async function sendTestNotification(title: string, body: string): Promise<boolean> {
+/** Show a sample notification right away, for the test button in Settings, and say how it went. */
+export async function sendTestNotification(title: string, body: string): Promise<TestResult> {
   const channel = notifyChannel();
-  if (channel === "none") return false;
+  if (channel === "none") return "unsupported";
   const payload: NotifyPayload = {
     title,
     body,
@@ -315,11 +349,21 @@ export async function sendTestNotification(title: string, body: string): Promise
     progress: false,
     silent: false,
   };
-  try {
-    return await deliver(payload, channel);
-  } catch {
-    return false;
-  }
+  return (await deliver(payload, channel)) as TestResult;
+}
+
+/** The app the operating system lists under Notifications: the browser's name, or zcrypt itself in the shell. */
+export function hostAppName(): string {
+  if (typeof navigator === "undefined") return "zcrypt";
+  if (isTauri) return "zcrypt";
+  const ua = navigator.userAgent;
+  if (/Edg\//.test(ua)) return "Microsoft Edge";
+  if (/OPR\//.test(ua)) return "Opera";
+  if (/Firefox\//.test(ua)) return "Firefox";
+  if (/Brave/.test(ua)) return "Brave";
+  if (/Chrome\/|CriOS\//.test(ua)) return "Google Chrome";
+  if (/Safari\//.test(ua)) return "Safari";
+  return "your browser";
 }
 
 /** True on iPhone or iPad Safari outside a Home Screen install, where web notifications cannot work. */
