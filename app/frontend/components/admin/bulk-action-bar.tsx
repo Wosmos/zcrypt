@@ -30,12 +30,15 @@ const FALLBACK_PLANS = [
   { id: "pro", name: "Pro" },
 ];
 
-const REQUEST: Record<Pending, { action: AdminBulkAction; needsReauth: boolean }> = {
+const REQUEST: Record<
+  Pending,
+  { action: AdminBulkAction; needsReauth: boolean; codeOnly?: boolean }
+> = {
   set_plan: { action: "set_plan", needsReauth: false },
   set_quota: { action: "set_quota", needsReauth: false },
   promote: { action: "set_role", needsReauth: true },
   demote: { action: "set_role", needsReauth: true },
-  delete: { action: "delete", needsReauth: true },
+  delete: { action: "delete", needsReauth: true, codeOnly: true },
 };
 
 const VARIANT = {
@@ -77,6 +80,7 @@ export function BulkActionBar({
   const includesSelf = selectedIds.includes(currentUserId);
   const planChoice = plan || plans[0].id;
   const needsReauth = pending !== null && REQUEST[pending].needsReauth;
+  const codeOnly = pending !== null && REQUEST[pending].codeOnly === true;
 
   const close = () => {
     setPending(null);
@@ -210,7 +214,7 @@ export function BulkActionBar({
           variant={VARIANT[pending]}
           loading={loading}
           typeToConfirm={pending === "delete" ? t("deleteWord") : undefined}
-          confirmDisabled={needsReauth && !reauthReady(reauth)}
+          confirmDisabled={needsReauth && !reauthReady(reauth, codeOnly)}
         >
           {pending === "set_plan" && (
             <div className="mx-6 mt-4">
@@ -238,7 +242,7 @@ export function BulkActionBar({
               />
             </div>
           )}
-          {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
+          {needsReauth && <ReauthFields value={reauth} onChange={setReauth} codeOnly={codeOnly} />}
           <NotifyFields value={notify} onChange={setNotify} />
         </ConfirmModal>
       )}

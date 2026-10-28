@@ -15,13 +15,15 @@ type UserConfirm = {
   newValue?: string;
 };
 
-/** A pending user action plus the re-auth it needs (deletes and role changes ask
- *  for the admin's password) and the email-notification choice. */
+/** A pending user action plus the re-auth it needs (role changes ask for the
+ *  admin's password, deletes only for a 2FA code when it is on) and the
+ *  email-notification choice. */
 export function useUserActionConfirm<T extends UserConfirm>() {
   const [confirmAction, setConfirmAction] = useState<T | null>(null);
   const [reauth, setReauth] = useState(EMPTY_REAUTH);
   const [notify, setNotify] = useState<AdminNotify>(DEFAULT_NOTIFY);
   const needsReauth = confirmAction?.type === "delete" || confirmAction?.type === "role";
+  const codeOnly = confirmAction?.type === "delete";
   const closeConfirm = () => {
     setConfirmAction(null);
     setReauth(EMPTY_REAUTH);
@@ -35,6 +37,7 @@ export function useUserActionConfirm<T extends UserConfirm>() {
     notify,
     setNotify,
     needsReauth,
+    codeOnly,
     closeConfirm,
   };
 }
@@ -42,32 +45,38 @@ export function useUserActionConfirm<T extends UserConfirm>() {
 const inputClass =
   "w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all";
 
-/** The server refuses role changes, account deletions and platform-token
- *  changes on a bare session, so the acting admin re-enters their password
- *  (and a 2FA code if enabled). */
+/** The server refuses role changes and platform-token changes on a bare
+ *  session, so the acting admin re-enters their password (and a 2FA code if
+ *  enabled). With codeOnly, as for deletes, only the 2FA code is asked, and
+ *  nothing at all when 2FA is off. */
 export function ReauthFields({
   value,
   onChange,
   className = "mx-6 mt-4",
+  codeOnly = false,
 }: {
   value: AdminReauth;
   onChange: (next: AdminReauth) => void;
   className?: string;
+  codeOnly?: boolean;
 }) {
   const t = useTranslations("admin.reauth");
   const needsCode = useAuthStore((s) => s.user?.totp_enabled === true);
+  if (codeOnly && !needsCode) return null;
   return (
     <div className={cn("space-y-2", className)}>
       <p className="text-xs text-[var(--color-text-muted)]">{t("confirm")}</p>
-      <input
-        type="password"
-        autoComplete="current-password"
-        aria-label={t("password")}
-        placeholder={t("password")}
-        value={value.password}
-        onChange={(e) => onChange({ ...value, password: e.target.value })}
-        className={inputClass}
-      />
+      {!codeOnly && (
+        <input
+          type="password"
+          autoComplete="current-password"
+          aria-label={t("password")}
+          placeholder={t("password")}
+          value={value.password}
+          onChange={(e) => onChange({ ...value, password: e.target.value })}
+          className={inputClass}
+        />
+      )}
       {needsCode && (
         <input
           inputMode="numeric"
@@ -83,7 +92,7 @@ export function ReauthFields({
   );
 }
 
-export function reauthReady(value: AdminReauth): boolean {
-  if (!value.password) return false;
+export function reauthReady(value: AdminReauth, codeOnly = false): boolean {
+  if (!codeOnly && !value.password) return false;
   return useAuthStore.getState().user?.totp_enabled !== true || value.code.length > 0;
 }

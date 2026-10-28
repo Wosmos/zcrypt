@@ -54,8 +54,16 @@ export function useUserActions({
   const tRoles = useTranslations("admin.roles");
   const router = useRouter();
   const confirm = useUserActionConfirm<Pending>();
-  const { confirmAction, setConfirmAction, reauth, setReauth, notify, setNotify, needsReauth } =
-    confirm;
+  const {
+    confirmAction,
+    setConfirmAction,
+    reauth,
+    setReauth,
+    notify,
+    setNotify,
+    needsReauth,
+    codeOnly,
+  } = confirm;
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState("");
   const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
@@ -193,7 +201,7 @@ export function useUserActions({
       variant={VARIANT[confirmAction.type]}
       loading={busy}
       typeToConfirm={confirmAction.type === "delete" ? confirmAction.user.username : undefined}
-      confirmDisabled={(needsReauth && !reauthReady(reauth)) || planUnchanged}
+      confirmDisabled={(needsReauth && !reauthReady(reauth, codeOnly)) || planUnchanged}
     >
       {confirmAction.type === "plan" && (
         <div className="mx-6 mt-4">
@@ -221,7 +229,7 @@ export function useUserActions({
           />
         </div>
       )}
-      {needsReauth && <ReauthFields value={reauth} onChange={setReauth} />}
+      {needsReauth && <ReauthFields value={reauth} onChange={setReauth} codeOnly={codeOnly} />}
       <NotifyFields value={notify} onChange={setNotify} />
     </ConfirmModal>
   ) : null;
