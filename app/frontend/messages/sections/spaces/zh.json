@@ -57,7 +57,7 @@
       "dismiss": "关闭"
     },
     "invites": {
-      "errorNoSharing": "该用户尚未设置共享：需要登录并解锁一次保险库。",
+      "errorNoSharing": "暂时无法邀请此地址。请检查拼写。如果地址正确，对方需要先注册 zcrypt 账户并解锁一次保险库，然后你才能邀请。",
       "errorGeneric": "添加成员失败",
       "errorNoKey": "此空间没有可共享的密钥（它早于加密共享功能）。",
       "adminOwnerOnly": "只有所有者可以授予管理员权限。",

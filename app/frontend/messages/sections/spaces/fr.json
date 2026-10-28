@@ -57,7 +57,7 @@
       "dismiss": "Fermer"
     },
     "invites": {
-      "errorNoSharing": "Cette personne n’a pas encore configuré le partage : elle doit se connecter et déverrouiller son coffre une fois.",
+      "errorNoSharing": "Impossible d'inviter cette adresse pour l'instant. Vérifiez l'orthographe. Si elle est correcte, la personne doit avoir un compte zcrypt et déverrouiller son coffre une fois avant que vous puissiez l'inviter.",
       "errorGeneric": "Échec de l’ajout du membre",
       "errorNoKey": "Cet espace n’a pas de clé que vous puissiez partager (il date d’avant le partage chiffré).",
       "adminOwnerOnly": "Seul le propriétaire peut accorder le rôle d’administrateur.",

@@ -57,7 +57,7 @@
       "dismiss": "Dismiss"
     },
     "invites": {
-      "errorNoSharing": "That user hasn't set up sharing yet: they need to sign in and unlock their vault once.",
+      "errorNoSharing": "Can't invite this address yet. Check the spelling. If it's right, they need a zcrypt account and must unlock their vault once before you can invite them.",
       "errorGeneric": "Failed to add member",
       "errorNoKey": "This space has no key you can share (it predates encrypted sharing).",
       "adminOwnerOnly": "Only the owner can grant admin.",

@@ -234,7 +234,7 @@ export function ShareVignette() {
 function Burn() {
   return (
     <span className="zc-burn">
-      <span className="zc-switch">
+      <span className="zc-mini-switch">
         <i />
       </span>
       <span className="zc-burn-t">

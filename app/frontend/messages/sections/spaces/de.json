@@ -57,7 +57,7 @@
       "dismiss": "Schließen"
     },
     "invites": {
-      "errorNoSharing": "Dieser Nutzer hat die Freigabe noch nicht eingerichtet: Er muss sich anmelden und seinen Tresor einmal entsperren.",
+      "errorNoSharing": "Diese Adresse kann noch nicht eingeladen werden. Prüfe die Schreibweise. Stimmt sie, braucht die Person ein zcrypt-Konto und muss ihren Tresor einmal entsperren, bevor du sie einladen kannst.",
       "errorGeneric": "Mitglied konnte nicht hinzugefügt werden",
       "errorNoKey": "Dieser Space hat keinen Schlüssel, den du teilen kannst (er stammt aus der Zeit vor verschlüsselter Freigabe).",
       "adminOwnerOnly": "Nur der Besitzer kann Admin-Rechte vergeben.",

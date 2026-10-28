@@ -57,7 +57,7 @@
       "dismiss": "Descartar"
     },
     "invites": {
-      "errorNoSharing": "Esa persona aún no ha configurado el uso compartido: debe iniciar sesión y desbloquear su bóveda una vez.",
+      "errorNoSharing": "Aún no se puede invitar a esta dirección. Revisa cómo está escrita. Si es correcta, la persona necesita una cuenta de zcrypt y desbloquear su bóveda una vez antes de que puedas invitarla.",
       "errorGeneric": "No se pudo añadir al miembro",
       "errorNoKey": "Este espacio no tiene una clave que puedas compartir (es anterior al uso compartido cifrado).",
       "adminOwnerOnly": "Solo el propietario puede conceder el rol de administrador.",
