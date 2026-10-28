@@ -45,6 +45,10 @@ updates:
       # glib 0.18 is pinned by Tauri's gtk stack; nothing here can move it, so
       # the security job for it fails on every run until Tauri moves to gtk4.
       - dependency-name: "glib"
+      # 2.6.2 builds a rust-ini ParseOption with fields no published rust-ini has,
+      # so the Linux bundle fails to compile. 2.6.1 is fine.
+      - dependency-name: "tauri-plugin-deep-link"
+        versions: ["2.6.2"]
     open-pull-requests-limit: 3
 
   - package-ecosystem: bun
