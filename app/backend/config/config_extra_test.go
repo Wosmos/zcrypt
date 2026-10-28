@@ -19,6 +19,7 @@ func clearAllEnv(t *testing.T) {
 		"RESEND_API_KEY", "RESEND_FROM", "FRONTEND_URL", "BACKEND_URL",
 		"ZCRYPT_TRUSTED_PROXY_COUNT", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
 		"GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET",
+		"ZCRYPT_CLIENT_IP_HEADER", "RAILWAY_ENVIRONMENT_NAME", "ZCRYPT_GEOIP_DB",
 	} {
 		t.Setenv(k, "")
 	}
@@ -398,4 +399,29 @@ func TestSaveAndRoundTrip(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &onDisk))
 	assert.Equal(t, "huggingface", onDisk.DefaultPlatform)
 	assert.Equal(t, cfg.JWTSecret, onDisk.JWTSecret)
+}
+
+func TestApplyEnvOverridesClientLocation(t *testing.T) {
+	clearAllEnv(t)
+	cfg := DefaultConfig()
+	cfg.applyEnvOverrides()
+	assert.Equal(t, "", cfg.ClientIPHeader)
+	assert.Equal(t, DefaultGeoIPDB, cfg.GeoIPDB)
+
+	t.Setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+	cfg = DefaultConfig()
+	cfg.applyEnvOverrides()
+	assert.Equal(t, "X-Real-IP", cfg.ClientIPHeader)
+
+	t.Setenv("ZCRYPT_CLIENT_IP_HEADER", "none")
+	cfg = DefaultConfig()
+	cfg.applyEnvOverrides()
+	assert.Equal(t, "", cfg.ClientIPHeader)
+
+	t.Setenv("ZCRYPT_CLIENT_IP_HEADER", "CF-Connecting-IP")
+	t.Setenv("ZCRYPT_GEOIP_DB", "/tmp/geo.mmdb")
+	cfg = DefaultConfig()
+	cfg.applyEnvOverrides()
+	assert.Equal(t, "CF-Connecting-IP", cfg.ClientIPHeader)
+	assert.Equal(t, "/tmp/geo.mmdb", cfg.GeoIPDB)
 }

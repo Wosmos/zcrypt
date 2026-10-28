@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// DefaultGeoIPDB is where the container image puts the location database.
+const DefaultGeoIPDB = "/geo/dbip-city-lite.mmdb"
+
 // EmailConfig holds settings for sending transactional emails via Resend.
 type EmailConfig struct {
 	APIKey string `json:"api_key"`
@@ -73,8 +76,17 @@ type Config struct {
 	// that are trusted to set X-Forwarded-For. The real client IP is read that
 	// many hops in from the right of the chain. 0 (default) ignores forwarding
 	// headers entirely and uses the direct peer, so clients cannot spoof their
-	// IP to bypass rate limits. Set to 1 behind a single proxy (e.g. Railway).
+	// IP to bypass rate limits. Set to 1 behind a single proxy. Railway uses
+	// ClientIPHeader instead.
 	TrustedProxyCount int `json:"trusted_proxy_count,omitempty"`
+	// ClientIPHeader names a header the edge overwrites with the caller's
+	// address on every request, read before X-Forwarded-For. Railway's edge
+	// sets X-Real-IP this way, and appends its own address to X-Forwarded-For,
+	// so on Railway it defaults to X-Real-IP. "none" turns it off.
+	ClientIPHeader string `json:"client_ip_header,omitempty"`
+	// GeoIPDB is the path of the DB-IP Lite city database used to place
+	// sessions on the map. A missing file only leaves locations empty.
+	GeoIPDB string `json:"geoip_db,omitempty"`
 	// From environment only, never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
@@ -180,6 +192,19 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("METRICS_TOKEN"); v != "" {
 		c.MetricsToken = v
+	}
+	if v := os.Getenv("ZCRYPT_CLIENT_IP_HEADER"); v != "" {
+		c.ClientIPHeader = v
+	} else if c.ClientIPHeader == "" && os.Getenv("RAILWAY_ENVIRONMENT_NAME") != "" {
+		c.ClientIPHeader = "X-Real-IP"
+	}
+	if strings.EqualFold(c.ClientIPHeader, "none") {
+		c.ClientIPHeader = ""
+	}
+	if v := os.Getenv("ZCRYPT_GEOIP_DB"); v != "" {
+		c.GeoIPDB = v
+	} else if c.GeoIPDB == "" {
+		c.GeoIPDB = DefaultGeoIPDB
 	}
 	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {

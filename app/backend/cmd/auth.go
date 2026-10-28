@@ -49,7 +49,7 @@ func (s *Server) audit(r *http.Request, userID *string, eventType string, metada
 		metadata = map[string]interface{}{}
 	}
 	if locatedEvents[eventType] {
-		loc := visitorLocation(r)
+		loc := s.visitorLocation(r)
 		for k, v := range map[string]string{"country": loc.Country, "region": loc.Region, "city": loc.City} {
 			if _, set := metadata[k]; !set && v != "" {
 				metadata[k] = v
@@ -1616,7 +1616,7 @@ func (s *Server) newTokenPair(r *http.Request, user *types.User, sessionID strin
 		SessionStartedAt: startedAt,
 		Decoy:            decoy,
 	}
-	loc := visitorLocation(r)
+	loc := s.visitorLocation(r)
 	rt.Country, rt.Region, rt.City = loc.Country, loc.Region, loc.City
 	return accessToken, rt, refreshToken, nil
 }
@@ -1657,7 +1657,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 // recordSignupLocation keeps where a new account was created. Best-effort: a
 // failure only leaves the admin console without the signup country.
 func (s *Server) recordSignupLocation(ctx context.Context, r *http.Request, userID string) {
-	if err := s.db.SetSignupLocation(ctx, userID, visitorLocation(r)); err != nil {
+	if err := s.db.SetSignupLocation(ctx, userID, s.visitorLocation(r)); err != nil {
 		log.Printf("signup location: %v", err)
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/crypto"
+	"github.com/zcrypt/zcrypt/geoip"
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/reppool"
@@ -55,6 +56,7 @@ type Server struct {
 	// Failed-login limiter keyed on (email, IP): counts only failures, so a
 	// stranger's bad guesses cannot lock the owner out from their own IP.
 	loginFailLimiter *rateLimiter
+	geo              *geoip.DB
 	// Per-email send limiter for reset, verification and magic-link emails,
 	// keyed on (flow, email) so one flow never starves another or login.
 	emailSendLimiter *rateLimiter
@@ -233,7 +235,22 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		}
 		return s.db.SessionExists(ctx, userID, sessionID)
 	})
+	s.geo = openGeoIP(cfg.GeoIPDB)
 	return s
+}
+
+// openGeoIP loads the location database. Without it sign-ins still work and
+// only the admin console's location columns stay empty.
+func openGeoIP(path string) *geoip.DB {
+	if path == "" {
+		return nil
+	}
+	db, err := geoip.Open(path)
+	if err != nil {
+		log.Printf("geoip: %v (locations disabled)", err)
+		return nil
+	}
+	return db
 }
 
 // signalDeletion nudges the deletion worker to drain pending_deletions now instead

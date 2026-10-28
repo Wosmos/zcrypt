@@ -61,7 +61,22 @@ func hostOnly(addr string) string {
 // trusted-proxy count. Use this everywhere a client IP is needed (rate-limit
 // keys, audit logs) so the trust boundary is applied consistently.
 func (s *Server) clientIP(r *http.Request) string {
+	if ip := headerIP(r, s.cfg.ClientIPHeader); ip != "" {
+		return ip
+	}
 	return clientIP(r, s.cfg.TrustedProxyCount)
+}
+
+// headerIP reads the single address an edge proxy wrote into header, empty
+// when no header is configured or it does not hold a valid IP.
+func headerIP(r *http.Request, header string) string {
+	if header == "" {
+		return ""
+	}
+	if ip := net.ParseIP(strings.TrimSpace(r.Header.Get(header))); ip != nil {
+		return ip.String()
+	}
+	return ""
 }
 
 // anonIP coarsens an address before it is written to a long-lived row (audit

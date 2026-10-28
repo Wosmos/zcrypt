@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,16 +12,44 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
-// HandleGeoCountry reports the visitor's country as seen by the edge in front
-// of the backend (Cloudflare's CF-IPCountry, or Vercel's header when a request
-// arrives through the site's /api proxy). The client only uses it to suggest a
-// language, so a spoofed header costs nothing; the IP itself is never logged
-// or returned.
+// HandleGeoCountry reports the visitor's country (see visitorLocation). The
+// client only uses it to suggest a language, so a spoofed header costs
+// nothing; the IP itself is never logged or returned.
 // GET /api/geo/country
 func (s *Server) HandleGeoCountry(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "private, max-age=3600")
-	_ = json.NewEncoder(w).Encode(map[string]string{"country": visitorCountry(r)})
+	_ = json.NewEncoder(w).Encode(map[string]string{"country": s.visitorLocation(r).Country})
+}
+
+// visitorLocation places the person behind a request: the edge's own
+// location headers when it sent them, otherwise a lookup of their address in
+// the local database. A request relayed by the site's Vercel proxy (the
+// desktop and Android apps, /dl installers) reaches us from Vercel's address,
+// so the person's address is taken from the header Vercel adds. That header
+// only steers the location, never rate limits or audit addresses.
+func (s *Server) visitorLocation(r *http.Request) types.GeoLocation {
+	if loc := edgeLocation(r); loc.Country != "" {
+		return loc
+	}
+	ip := s.clientIP(r)
+	if fwd := firstForwarded(r.Header.Get("X-Vercel-Forwarded-For")); fwd != "" {
+		ip = fwd
+	}
+	p := s.geo.Lookup(ip)
+	return types.GeoLocation{
+		Country: p.Country,
+		Region:  cleanGeoText(p.Region, maxRegionRunes),
+		City:    cleanGeoText(p.City, maxCityRunes),
+	}
+}
+
+func firstForwarded(v string) string {
+	first, _, _ := strings.Cut(v, ",")
+	if ip := net.ParseIP(strings.TrimSpace(first)); ip != nil {
+		return ip.String()
+	}
+	return ""
 }
 
 // visitorCountry prefers Vercel's header: it is only present when the request
@@ -40,12 +69,12 @@ const (
 	maxCityRunes   = 64
 )
 
-// visitorLocation reports the country, region and city the edge attached to
+// edgeLocation reports the country, region and city the edge attached to
 // the request. Vercel URL-encodes the city; Cloudflare sends these only with
 // its visitor-location transform enabled. Region and city are free text from
 // a header, so they are decoded, stripped of control characters and capped
 // before anything stores them.
-func visitorLocation(r *http.Request) types.GeoLocation {
+func edgeLocation(r *http.Request) types.GeoLocation {
 	return types.GeoLocation{
 		Country: visitorCountry(r),
 		Region:  geoHeader(r, maxRegionRunes, "X-Vercel-IP-Country-Region", "CF-Region-Code", "CF-Region"),

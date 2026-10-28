@@ -220,17 +220,6 @@ func (s *Server) optionalUserID(r *http.Request) *string {
 	return &claims.Sub
 }
 
-// clientCountry reads the country the CDN already resolved. We never do our own
-// geo lookup on an IP, and the header is absent in local dev.
-func clientCountry(r *http.Request) string {
-	for _, h := range []string{"CF-IPCountry", "X-Vercel-IP-Country"} {
-		if v := r.Header.Get(h); v != "" && v != "XX" {
-			return strings.ToUpper(v)
-		}
-	}
-	return ""
-}
-
 // truncate bounds free-text columns so a hostile UA or referrer can't bloat a row.
 func truncate(s string, n int) string {
 	if len(s) > n {
@@ -264,7 +253,7 @@ func (s *Server) HandleAppDownload(w http.ResponseWriter, r *http.Request) {
 		Version:   version,
 		UserID:    s.optionalUserID(r),
 		IPPrefix:  anonIP(s.clientIP(r)),
-		Country:   clientCountry(r),
+		Country:   s.visitorLocation(r).Country,
 		UserAgent: truncate(r.UserAgent(), 400),
 		Referrer:  truncate(r.Referer(), 400),
 	}
