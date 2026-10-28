@@ -259,7 +259,7 @@ jobs:
 
       - name: Install Tauri CLI
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "${{ env.TAURI_CLI_VERSION }}" --locked
+        run: cargo install tauri-cli --version "${{ env.TAURI_CLI_VERSION }}" --locked --force
 
       # ── Updater artifact signing (optional, gated on secrets) ──
       # `cargo tauri build` only signs updater bundles (macOS .app.tar.gz,
@@ -743,7 +743,7 @@ jobs:
 
       - name: Install Tauri CLI
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "${{ env.TAURI_CLI_VERSION }}" --locked
+        run: cargo install tauri-cli --version "${{ env.TAURI_CLI_VERSION }}" --locked --force
 
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
       # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
