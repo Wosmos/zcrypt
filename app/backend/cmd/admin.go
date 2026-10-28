@@ -226,6 +226,30 @@ func (s *Server) adminReauth(w http.ResponseWriter, r *http.Request, password, c
 	return true
 }
 
+// adminSecondFactor gates an admin action that needs no password but still
+// asks for a fresh 2FA code when the acting admin has 2FA on, with the same
+// limits and audit trail as adminReauth.
+func (s *Server) adminSecondFactor(w http.ResponseWriter, r *http.Request, code, deniedAction string, details map[string]interface{}) bool {
+	adminID := GetUserID(r)
+	if !s.devMode && (s.twoFAUserLimiter.exceeded(adminID) || !s.authLimiter.allow(s.clientIP(r))) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return false
+	}
+	admin, err := s.db.GetUserByID(r.Context(), adminID)
+	if err != nil {
+		internalError(w, "admin second factor: load admin", err)
+		return false
+	}
+	if err := s.checkSecondFactor(r.Context(), admin, code); err != nil {
+		s.twoFAUserLimiter.record(adminID)
+		details["reason"] = err.Error()
+		s.audit(r, &adminID, deniedAction, details)
+		writeError(w, http.StatusForbidden, "re-authentication required: "+err.Error())
+		return false
+	}
+	return true
+}
+
 // HandleAdminSetRole updates a user's role.
 // PUT /api/admin/users/{id}/role
 func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
@@ -308,11 +332,10 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Destructive-op friction: a valid admin token is not enough to erase an
-	// account. Re-verify the acting admin (password + TOTP if they have 2FA).
+	// An admin with 2FA confirms the delete with a fresh code; the dialog's
+	// typed confirmation is the friction for everyone else.
 	var body struct {
-		Password string `json:"password"`
-		Code     string `json:"code"`
+		Code string `json:"code"`
 		notifyOpts
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
@@ -320,7 +343,7 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if !s.adminReauth(w, r, body.Password, body.Code, "admin_user_delete_denied", map[string]interface{}{"target_user": userID}) {
+	if !s.adminSecondFactor(w, r, body.Code, "admin_user_delete_denied", map[string]interface{}{"target_user": userID}) {
 		return
 	}
 

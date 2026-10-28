@@ -196,7 +196,7 @@ func TestSingleDeleteNotifiesUser(t *testing.T) {
 	ts.registerAndLogin("d-user@example.com", adminPass)
 	uid := ts.idOf("d-user@example.com")
 
-	resp := ts.send("DELETE", "/api/admin/users/"+uid, map[string]any{"password": adminPass, "note": "spam"}, admin)
+	resp := ts.send("DELETE", "/api/admin/users/"+uid, map[string]any{"note": "spam"}, admin)
 	requireStatus(t, resp, http.StatusOK)
 	items := rs.waitFor(t, 1)
 	assert.Equal(t, "Your zcrypt account was deleted", items[0]["subject"])
@@ -276,7 +276,7 @@ func TestBulkRoleAndDeleteRules(t *testing.T) {
 	assert.Contains(t, items[0]["html"].(string), "Account role:</strong> Member &rarr; Administrator")
 
 	resp = ts.send("POST", "/api/admin/users/bulk", map[string]any{
-		"ids": []string{u1, u2}, "action": "delete", "password": adminPass,
+		"ids": []string{u1, u2}, "action": "delete",
 	}, admin)
 	var out bulkResp
 	decodeJSON(t, resp, &out)

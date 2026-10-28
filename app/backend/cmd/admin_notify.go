@@ -267,12 +267,13 @@ func (s *Server) HandleAdminBulkUsers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if req.Action == "set_role" || req.Action == "delete" {
-		denied := "admin_role_change_denied"
-		if req.Action == "delete" {
-			denied = "admin_user_delete_denied"
+	switch req.Action {
+	case "set_role":
+		if !s.adminReauth(w, r, req.Password, req.Code, "admin_role_change_denied", map[string]interface{}{"bulk": len(req.IDs)}) {
+			return
 		}
-		if !s.adminReauth(w, r, req.Password, req.Code, denied, map[string]interface{}{"bulk": len(req.IDs)}) {
+	case "delete":
+		if !s.adminSecondFactor(w, r, req.Code, "admin_user_delete_denied", map[string]interface{}{"bulk": len(req.IDs)}) {
 			return
 		}
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zcrypt/zcrypt/auth"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -73,44 +74,44 @@ func (ts *testServer) clearAudit(ctx context.Context) {
 	require.NoError(ts.t, err)
 }
 
-func TestAdminDeleteUserRequiresReauth(t *testing.T) {
+func TestAdminDeleteUserNeedsNoPasswordButHonours2FA(t *testing.T) {
 	ts := setupTestServer(t)
 	ctx := context.Background()
 	const adminEmail = "lp-admin@example.com"
 	const adminPass = "SecurePass@123!"
 
-	adminToken := ts.registerAndLogin(adminEmail, adminPass)
+	ts.registerAndLogin(adminEmail, adminPass)
 	ts.makeAdmin(ctx, adminEmail)
 	// Re-login so the token carries the admin role.
-	adminToken = ts.loginToken(adminEmail, adminPass)
+	adminToken := ts.loginToken(adminEmail, adminPass)
 
-	victim := ts.registerAndLogin("lp-victim@example.com", "SecurePass@123!")
-	_ = victim
-	victimUser, err := ts.db.GetUserByEmail(ctx, "lp-victim@example.com")
+	victim := func(email string) string {
+		ts.registerAndLogin(email, "SecurePass@123!")
+		u, err := ts.db.GetUserByEmail(ctx, email)
+		require.NoError(t, err)
+		return u.ID
+	}
+	exists := func(id string) int {
+		return ts.countScalar(`SELECT count(*) FROM users WHERE id=$1`, id)
+	}
+
+	t.Run("an admin without 2FA deletes without a password", func(t *testing.T) {
+		id := victim("lp-victim@example.com")
+		requireStatus(t, ts.deleteWithBody("/api/admin/users/"+id, map[string]string{}, adminToken), http.StatusOK)
+		assert.Equal(t, 0, exists(id))
+	})
+
+	secret, err := auth.GenerateTOTPSecret()
 	require.NoError(t, err)
+	_, err = ts.db.Pool().Exec(ctx, `UPDATE users SET totp_secret = $1, totp_enabled = TRUE WHERE email = $2`, secret, adminEmail)
+	require.NoError(t, err)
+	id := victim("lp-victim2@example.com")
 
-	t.Run("no password is rejected", func(t *testing.T) {
-		resp := ts.deleteWithBody("/api/admin/users/"+victimUser.ID, map[string]string{}, adminToken)
+	t.Run("an admin with 2FA must send a code", func(t *testing.T) {
+		resp := ts.deleteWithBody("/api/admin/users/"+id, map[string]string{}, adminToken)
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 		resp.Body.Close()
-		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM users WHERE id=$1`, victimUser.ID),
-			"victim must still exist after a denied delete")
-	})
-
-	t.Run("wrong password is rejected", func(t *testing.T) {
-		resp := ts.deleteWithBody("/api/admin/users/"+victimUser.ID,
-			map[string]string{"password": "WrongPass@1!"}, adminToken)
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
-		resp.Body.Close()
-		assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM users WHERE id=$1`, victimUser.ID))
-	})
-
-	t.Run("correct password deletes", func(t *testing.T) {
-		resp := ts.deleteWithBody("/api/admin/users/"+victimUser.ID,
-			map[string]string{"password": adminPass}, adminToken)
-		requireStatus(t, resp, http.StatusOK)
-		assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM users WHERE id=$1`, victimUser.ID),
-			"victim removed after re-auth")
+		assert.Equal(t, 1, exists(id), "victim must still exist after a denied delete")
 	})
 
 	t.Run("a denied delete is itself audited", func(t *testing.T) {
@@ -118,6 +119,13 @@ func TestAdminDeleteUserRequiresReauth(t *testing.T) {
 		require.Eventually(t, func() bool {
 			return ts.countScalar(`SELECT count(*) FROM audit_events WHERE event_type='admin_user_delete_denied'`) >= 1
 		}, 3*time.Second, 50*time.Millisecond, "denied delete attempts leave an audit trail")
+	})
+
+	t.Run("a valid code deletes", func(t *testing.T) {
+		resp := ts.deleteWithBody("/api/admin/users/"+id,
+			map[string]string{"code": auth.TOTPCodeAt(secret, time.Now())}, adminToken)
+		requireStatus(t, resp, http.StatusOK)
+		assert.Equal(t, 0, exists(id))
 	})
 }
 
