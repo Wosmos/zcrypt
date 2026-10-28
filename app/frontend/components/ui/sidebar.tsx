@@ -54,7 +54,10 @@ const prefetchers: Record<string, () => Promise<unknown>> = {
   "/analytics": prefetchAnalytics,
   "/spaces": () => queryClient.prefetchQuery({ queryKey: qk.spaces, queryFn: listSharedVaults }),
   "/admin": () =>
-    queryClient.prefetchQuery({ queryKey: qk.adminOverview, queryFn: fetchAdminOverview }),
+    queryClient.prefetchQuery({
+      queryKey: qk.adminOverview(30),
+      queryFn: () => fetchAdminOverview(30),
+    }),
 };
 
 const TOUR_NAV: Record<string, string> = {

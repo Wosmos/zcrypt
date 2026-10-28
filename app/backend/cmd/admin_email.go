@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -24,7 +25,6 @@ const (
 	maxEmailBody      = 20000
 	maxEmailIDs       = 1000
 	campaignSendLimit = 30 * time.Minute
-	campaignListLimit = 50
 )
 
 type sendEmailRequest struct {
@@ -206,15 +206,20 @@ func (s *Server) sendTestEmail(w http.ResponseWriter, r *http.Request, adminID s
 	writeJSON(w, http.StatusOK, map[string]interface{}{"sent": 1, "to": admin.Email})
 }
 
-// HandleAdminListEmails returns recent campaigns.
-// GET /api/admin/emails
+// HandleAdminListEmails returns one page of campaigns.
+// GET /api/admin/emails?limit&offset&q&sort&order
 func (s *Server) HandleAdminListEmails(w http.ResponseWriter, r *http.Request) {
-	list, err := s.db.ListEmailCampaigns(r.Context(), campaignListLimit)
+	page, err := parseListPage(r, index.EmailCampaignSorts, "created_at")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	list, total, err := s.db.ListEmailCampaigns(r.Context(), page)
 	if err != nil {
 		internalError(w, "AdminListEmails", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, list)
+	writeJSON(w, http.StatusOK, pageBody("campaigns", list, total, page))
 }
 
 // HandleAdminGetEmail returns one campaign.

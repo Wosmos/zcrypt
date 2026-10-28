@@ -758,8 +758,173 @@ export async function createEventSource(): Promise<EventSource> {
 
 // ─── Admin API ───
 
-export function adminListUsers(): Promise<AdminUser[]> {
-  return request<AdminUser[]>("/api/admin/users");
+/** Shared admin list parameters. Empty values are left out of the query. */
+export type AdminListParams = Record<string, string | number | undefined>;
+
+/** One page of an admin list: `items` is keyed by the endpoint (users, events, ...). */
+export type AdminPage<K extends string, T> = { [key in K]: T[] } & {
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+/** Query string for an admin list, with a leading "?" when not empty. */
+export function adminListQuery(params: AdminListParams): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") qs.set(key, String(value));
+  }
+  const out = qs.toString();
+  return out ? `?${out}` : "";
+}
+
+export function adminListUsers(
+  params: AdminListParams = {},
+): Promise<AdminPage<"users", AdminUser>> {
+  return request(`/api/admin/users${adminListQuery(params)}`);
+}
+
+export interface CountryCount {
+  /** ISO code; empty for users whose country is not known. */
+  country: string;
+  count: number;
+}
+
+export function adminListUserCountries(): Promise<{ countries: CountryCount[] }> {
+  return request("/api/admin/users/countries");
+}
+
+export type JourneyFamily =
+  | "auth"
+  | "security"
+  | "files"
+  | "sharing"
+  | "storage"
+  | "admin"
+  | "account";
+
+export interface JourneyEvent {
+  id: string;
+  kind: string;
+  family: JourneyFamily;
+  created_at: string;
+  ip_prefix: string;
+  user_agent: string;
+  device: string;
+  metadata: Record<string, unknown>;
+  /** The admin who acted, for admin actions on this user. */
+  actor?: string;
+  /** Daily upload rollups: files and bytes that day. */
+  count?: number;
+  bytes?: number;
+}
+
+export type AdminJourneyPage = AdminPage<"events", JourneyEvent> & {
+  families: Record<JourneyFamily, number>;
+};
+
+export function adminGetUserJourney(
+  userId: string,
+  params: AdminListParams = {},
+): Promise<AdminJourneyPage> {
+  return request(`/api/admin/users/${userId}/journey${adminListQuery(params)}`);
+}
+
+export interface AdminSession {
+  id: string;
+  ip_prefix: string;
+  user_agent: string;
+  device: string;
+  country: string;
+  region: string;
+  city: string;
+  started_at: string;
+  last_active: string;
+  expires_at: string;
+}
+
+export interface RiskFlag {
+  code:
+    | "no_2fa"
+    | "unverified_email"
+    | "failed_sign_ins"
+    | "many_countries"
+    | "deletion_pending"
+    | "dormant";
+  severity: "high" | "medium" | "low";
+  value?: number;
+}
+
+export interface LabelCount {
+  label: string;
+  count: number;
+  bytes: number;
+}
+
+export interface AdminUserReport {
+  user: AdminUser;
+  used_bytes: number;
+  quota_bytes: number;
+  account_age_days: number;
+  stats: {
+    days_active: number;
+    last_active_at: string | null;
+    activity: { date: string; count: number }[];
+    files_by_type: LabelCount[];
+    platforms: LabelCount[];
+    shares: number;
+    spaces: number;
+    failed_sign_ins_7d: number;
+    countries_7d: string[];
+    sign_ins_7d: number;
+  };
+  storage_growth: { bucket: string; cumulative_bytes: number }[];
+  sessions: AdminSession[];
+  risk_flags: RiskFlag[];
+  generated_at: string;
+}
+
+export function adminGetUserReport(userId: string): Promise<AdminUserReport> {
+  return request(`/api/admin/users/${userId}/report`);
+}
+
+export function adminRevokeUserSession(
+  userId: string,
+  sessionId: string,
+): Promise<{ success: boolean }> {
+  return request(`/api/admin/users/${userId}/sessions/${sessionId}`, { method: "DELETE" });
+}
+
+export interface AdminOverview {
+  total_users: number;
+  active_7d: number;
+  active_30d: number;
+  signups_this_week: number;
+  signups_last_week: number;
+  total_files: number;
+  total_size: number;
+  open_bug_reports: number;
+  stale_bug_reports: number;
+  pending_reviews: number;
+  emails_sending: number;
+  emails_queued: number;
+  emails_failed_30d: number;
+  pending_deletions: number;
+  series: { date: string; signups: number; active: number }[];
+  countries: CountryCount[];
+  recent: {
+    id: string;
+    event_type: string;
+    user_id: string | null;
+    username: string;
+    country: string;
+    created_at: string;
+  }[];
+  stale_reports: { id: string; description: string; created_at: string }[];
+}
+
+export function adminGetOverview(days = 30): Promise<AdminOverview> {
+  return request(`/api/admin/overview?days=${days}`);
 }
 
 export function adminGetStats(): Promise<SystemStats> {
@@ -900,11 +1065,10 @@ export function adminDeleteUser(
   });
 }
 
-export function adminListTokens(): Promise<{
-  tokens: PlatformTokenInfo[];
-  others_count: number;
-}> {
-  return request<{ tokens: PlatformTokenInfo[]; others_count: number }>("/api/admin/tokens");
+export function adminListTokens(
+  params: AdminListParams = {},
+): Promise<AdminPage<"tokens", PlatformTokenInfo> & { others_count: number }> {
+  return request(`/api/admin/tokens${adminListQuery(params)}`);
 }
 
 export function adminCreateToken(
@@ -1110,8 +1274,10 @@ export function adminSendEmail(
   return postEmail(draft);
 }
 
-export function adminListEmails(): Promise<AdminEmailCampaign[]> {
-  return request<AdminEmailCampaign[]>("/api/admin/emails");
+export function adminListEmails(
+  params: AdminListParams = {},
+): Promise<AdminPage<"campaigns", AdminEmailCampaign>> {
+  return request(`/api/admin/emails${adminListQuery(params)}`);
 }
 
 export function adminGetEmail(id: string): Promise<AdminEmailCampaign> {
@@ -1177,19 +1343,11 @@ export interface AdminBugReport {
   created_at: string;
 }
 
-export interface AdminBugReportsResponse {
-  reports: AdminBugReport[];
-  total: number;
-}
-
 export function adminListBugReports(
   status: BugReportStatus | "",
-  limit = 20,
-  offset = 0,
-): Promise<AdminBugReportsResponse> {
-  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  if (status) q.set("status", status);
-  return request<AdminBugReportsResponse>(`/api/admin/bug-reports?${q}`);
+  params: AdminListParams = {},
+): Promise<AdminPage<"reports", AdminBugReport>> {
+  return request(`/api/admin/bug-reports${adminListQuery({ ...params, status })}`);
 }
 
 export function adminUpdateBugReport(
@@ -1248,12 +1406,9 @@ export async function getMyReview(): Promise<Review | null> {
 
 export function adminListReviews(
   status: ReviewStatus | "",
-  limit = 20,
-  offset = 0,
-): Promise<{ reviews: AdminReview[]; total: number }> {
-  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  if (status) q.set("status", status);
-  return request<{ reviews: AdminReview[]; total: number }>(`/api/admin/reviews?${q}`);
+  params: AdminListParams = {},
+): Promise<AdminPage<"reviews", AdminReview>> {
+  return request(`/api/admin/reviews${adminListQuery({ ...params, status })}`);
 }
 
 export function adminUpdateReview(
@@ -1269,18 +1424,22 @@ export function adminUpdateReview(
 
 // ─── Admin Audit API ───
 
-export interface AdminAuditResponse {
-  events: Array<{
+export type AdminAuditResponse = AdminPage<
+  "events",
+  {
     id: string;
     user_id?: string;
+    /** The acting user's name, when they still exist. */
+    username?: string;
+    /** The name of the user an admin action targeted. */
+    target_username?: string;
     event_type: string;
     ip: string;
     user_agent: string;
     metadata: Record<string, unknown>;
     created_at: string;
-  }>;
-  total: number;
-}
+  }
+>;
 
 // ─── Feedback API ───
 
@@ -1300,8 +1459,9 @@ export function getFeedbackStatus(): Promise<{ submitted: boolean }> {
   return request<{ submitted: boolean }>("/api/feedback/status");
 }
 
-export interface AdminFeedbackResponse {
-  feedback: Array<{
+export type AdminFeedbackResponse = AdminPage<
+  "feedback",
+  {
     id: string;
     user_id: string;
     rating: number;
@@ -1310,28 +1470,17 @@ export interface AdminFeedbackResponse {
     created_at: string;
     email: string;
     username: string;
-  }>;
-  total: number;
-}
+  }
+> & { average_rating: number };
 
-export function adminListFeedback(limit = 20, offset = 0): Promise<AdminFeedbackResponse> {
-  return request<AdminFeedbackResponse>(`/api/admin/feedback?limit=${limit}&offset=${offset}`);
+export function adminListFeedback(params: AdminListParams = {}): Promise<AdminFeedbackResponse> {
+  return request(`/api/admin/feedback${adminListQuery(params)}`);
 }
 
 // ─── Admin Audit API ───
 
-export function adminGetAuditLog(params: {
-  limit?: number;
-  offset?: number;
-  event_type?: string;
-  user_id?: string;
-}): Promise<AdminAuditResponse> {
-  const qs = new URLSearchParams();
-  if (params.limit) qs.set("limit", String(params.limit));
-  if (params.offset) qs.set("offset", String(params.offset));
-  if (params.event_type) qs.set("event_type", params.event_type);
-  if (params.user_id) qs.set("user_id", params.user_id);
-  return request<AdminAuditResponse>(`/api/admin/audit?${qs.toString()}`);
+export function adminGetAuditLog(params: AdminListParams): Promise<AdminAuditResponse> {
+  return request(`/api/admin/audit${adminListQuery(params)}`);
 }
 
 // ─── Plans API ───

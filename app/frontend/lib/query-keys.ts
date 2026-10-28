@@ -39,17 +39,18 @@ export const qk = {
   recentUploads: (limit: number) => ["analytics", "recent", limit] as const,
   // Admin console. One root so every admin view shares the 2m stale time and
   // keeps the previous page while a new filter/page loads.
-  adminOverview: ["admin", "overview", "v2"] as const,
-  adminUsers: ["admin", "users"] as const,
+  adminOverview: (days: number) => ["admin", "overview", "v3", days] as const,
+  /** One page of a server-paged admin table, keyed by its exact query. */
+  adminList: (id: string, params: Record<string, unknown>) =>
+    ["admin", "list", id, params] as const,
+  adminUsersMeta: ["admin", "users", "meta"] as const,
+  adminUserReport: (id: string) => ["admin", "user", id, "report"] as const,
+  adminUserJourney: (id: string, params: Record<string, unknown>) =>
+    ["admin", "user", id, "journey", params] as const,
   adminEmails: ["admin", "emails"] as const,
   emailPrefs: ["email-prefs"] as const,
   adminUser: (id: string) => ["admin", "user", id] as const,
-  adminAudit: (page: number, eventType: string) => ["admin", "audit", page, eventType] as const,
   adminDownloads: (days: string) => ["admin", "downloads", days] as const,
-  adminFeedback: (offset: number) => ["admin", "feedback", offset] as const,
-  adminBugReports: (status: string, offset: number) =>
-    ["admin", "bug-reports", status, offset] as const,
-  adminReviews: (status: string, offset: number) => ["admin", "reviews", status, offset] as const,
   myReview: ["review", "mine"] as const,
   adminPlans: ["admin", "plans"] as const,
   adminHealthDetails: ["admin", "health", "details"] as const,

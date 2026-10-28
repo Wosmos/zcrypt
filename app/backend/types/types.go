@@ -249,6 +249,17 @@ type RefreshToken struct {
 	// that sign-in happened.
 	SessionID        string
 	SessionStartedAt time.Time
+	Country          string
+	Region           string
+	City             string
+}
+
+// GeoLocation is where the edge in front of the backend placed a request.
+// Every field may be empty.
+type GeoLocation struct {
+	Country string `json:"country"`
+	Region  string `json:"region"`
+	City    string `json:"city"`
 }
 
 // Session is one signed-in device as shown to its owner.
@@ -283,13 +294,16 @@ type OAuthProvider struct {
 
 // AuditEvent represents a logged security or system event.
 type AuditEvent struct {
-	ID        string                 `json:"id"`
-	UserID    *string                `json:"user_id,omitempty"`
-	EventType string                 `json:"event_type"`
-	IP        string                 `json:"ip"`
-	UserAgent string                 `json:"user_agent"`
-	Metadata  map[string]interface{} `json:"metadata"`
-	CreatedAt time.Time              `json:"created_at"`
+	ID     string  `json:"id"`
+	UserID *string `json:"user_id,omitempty"`
+	// Username and TargetUsername are filled by the admin audit list only.
+	Username       string                 `json:"username,omitempty"`
+	TargetUsername string                 `json:"target_username,omitempty"`
+	EventType      string                 `json:"event_type"`
+	IP             string                 `json:"ip"`
+	UserAgent      string                 `json:"user_agent"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	CreatedAt      time.Time              `json:"created_at"`
 }
 
 // Manifest describes a file's chunk layout stored alongside chunks in the repo.
@@ -328,8 +342,19 @@ type PlatformTokenRow struct {
 // AdminUser is a user with aggregate stats for admin views.
 type AdminUser struct {
 	User
-	FileCount    int   `json:"file_count"`
-	TotalStorage int64 `json:"total_size"`
+	FileCount     int        `json:"file_count"`
+	TotalStorage  int64      `json:"total_size"`
+	SignupCountry string     `json:"signup_country"`
+	SignupRegion  string     `json:"signup_region"`
+	SignupCity    string     `json:"signup_city"`
+	LastCountry   string     `json:"last_country"`
+	LastRegion    string     `json:"last_region"`
+	LastCity      string     `json:"last_city"`
+	LastIPPrefix  string     `json:"last_ip_prefix"`
+	LastSeenAt    *time.Time `json:"last_seen_at"`
+	LastUserAgent string     `json:"last_user_agent"`
+	LastDevice    string     `json:"last_device"`
+	SessionCount  int        `json:"session_count"`
 }
 
 // QuotaInfo describes a user's storage quota status.

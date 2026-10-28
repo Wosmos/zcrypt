@@ -13,13 +13,22 @@ import {
   type AdminEmailDraft,
 } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatDateTime, formatRelativeTime } from "@/lib/utils";
+import { useAdminList } from "@/hooks/useAdminList";
+import { Badge } from "@/components/ui/badge";
+import { DataTable, TableSearch } from "@/components/admin/data-table";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { toast } from "@/store/toast";
 import { Role } from "@/types";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -27,7 +36,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LoadErrorPanel } from "@/components/admin/load-error-panel";
 import { AlertTriangle, Mail, Send } from "@/lib/icons";
 
 const SUBJECT_MAX = 150;
@@ -80,37 +88,58 @@ function BodyPreview({ body }: { body: string }) {
   );
 }
 
-function CampaignRow({ c, audienceLabel }: { c: AdminEmailCampaign; audienceLabel: string }) {
+function CampaignDrawer({
+  c,
+  audienceLabel,
+  onClose,
+}: {
+  c: AdminEmailCampaign | null;
+  audienceLabel: string;
+  onClose: () => void;
+}) {
+  const t = useTranslations("admin.emails");
+  return (
+    <Sheet open={!!c} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+        {c && (
+          <>
+            <SheetHeader>
+              <SheetTitle>{c.subject}</SheetTitle>
+              <SheetDescription>
+                {audienceLabel} · {formatDateTime(c.created_at)}
+              </SheetDescription>
+            </SheetHeader>
+            <dl className="mt-5 grid grid-cols-3 gap-3 rounded-xl bg-[var(--color-surface-1)] p-4 text-xs">
+              <div>
+                <dt className="text-[var(--color-text-muted)]">{t("colRecipients")}</dt>
+                <dd className="mt-0.5 text-base font-semibold tabular-nums">{c.recipient_count}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--color-text-muted)]">{t("colSent")}</dt>
+                <dd className="mt-0.5 text-base font-semibold tabular-nums">{c.sent_count}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--color-text-muted)]">{t("colFailed")}</dt>
+                <dd className="mt-0.5 text-base font-semibold tabular-nums">{c.failed_count}</dd>
+              </div>
+            </dl>
+            <div className="mt-5 rounded-xl border border-[var(--color-border)] p-5">
+              <BodyPreview body={c.body} />
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function CampaignStatus({ c }: { c: AdminEmailCampaign }) {
   const t = useTranslations("admin.emails");
   const done = Boolean(c.finished_at);
   return (
-    <li className="flex flex-col gap-1 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-[var(--color-text)]">{c.subject}</p>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          {audienceLabel} · {formatRelativeTime(c.created_at)}
-        </p>
-      </div>
-      <div className="flex flex-shrink-0 items-center gap-3 text-xs tabular-nums">
-        <span className="text-[var(--color-text-secondary)]">
-          {t("sentOf", { sent: c.sent_count, total: c.recipient_count })}
-        </span>
-        {c.failed_count > 0 && (
-          <span className="text-red-600 dark:text-red-400">
-            {t("failedCount", { failed: c.failed_count })}
-          </span>
-        )}
-        <span
-          className={
-            done
-              ? "rounded-full bg-green-500/10 px-2 py-0.5 font-medium text-green-600 dark:text-green-400"
-              : "rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600 dark:text-amber-400"
-          }
-        >
-          {done ? t("statusDone") : t("statusSending")}
-        </span>
-      </div>
-    </li>
+    <Badge variant={done ? (c.failed_count > 0 ? "amber" : "accent") : "blue"}>
+      {done ? t("statusDone") : t("statusSending")}
+    </Badge>
   );
 }
 
@@ -127,20 +156,24 @@ export function AdminEmailsContent() {
   const [busy, setBusy] = useState<"test" | "send" | null>(null);
 
   const plansQuery = useAdminQuery(qk.adminPlans, adminGetPlans);
-  const history = useAdminQuery(qk.adminEmails, adminListEmails);
+  const list = useAdminList("emails", { sort: "created_at", pageSize: 10 });
+  const history = useAdminQuery(qk.adminList("emails", list.params), () =>
+    adminListEmails(list.params),
+  );
+  const [openId, setOpenId] = useState<string | null>(null);
   const audienceDraft = { audience, ids: audience === "ids" ? selectedIds : undefined };
   const count = useAdminQuery([...qk.adminEmails, "count", audience, idsKey], () =>
     adminCountEmailRecipients({ subject: "count", body: "count", ...audienceDraft }),
   );
 
-  const campaigns = history.data;
-  const sending = campaigns?.some((c) => !c.finished_at) ?? false;
-  const { refresh } = history;
+  const campaigns = history.data?.campaigns ?? [];
+  const sending = campaigns.some((c) => !c.finished_at);
+  const { refresh, reload } = history;
   useEffect(() => {
     if (!sending) return;
-    const timer = setInterval(() => void refresh(), POLL_MS);
+    const timer = setInterval(() => void reload(), POLL_MS);
     return () => clearInterval(timer);
-  }, [sending, refresh]);
+  }, [sending, reload]);
 
   if (!history.user || history.user.role !== Role.Admin) return null;
 
@@ -293,33 +326,85 @@ export function AdminEmailsContent() {
         </section>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-[var(--color-border)] px-5 py-4">
+      <DataTable<AdminEmailCampaign>
+        label={t("history")}
+        title={
           <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
             {t("history")}
           </h2>
-        </div>
-        {history.error && !campaigns ? (
-          <LoadErrorPanel
-            icon={<AlertTriangle className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={t("errorTitle")}
-            description={t("errorDesc")}
-            onRetry={history.refresh}
-          />
-        ) : !campaigns || campaigns.length === 0 ? (
-          <EmptyState
-            icon={<Mail className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={history.loading ? t("loading") : t("historyEmpty")}
-            description={t("historyEmptyDesc")}
-          />
-        ) : (
-          <ul className="divide-y divide-[var(--color-border)]">
-            {campaigns.map((c) => (
-              <CampaignRow key={c.id} c={c} audienceLabel={audienceLabel(c.audience)} />
-            ))}
-          </ul>
-        )}
-      </section>
+        }
+        toolbar={<TableSearch list={list} placeholder={t("searchHistory")} />}
+        rows={campaigns}
+        rowKey={(c) => c.id}
+        list={list}
+        total={history.data?.total ?? 0}
+        loading={history.loading}
+        fetching={history.fetching}
+        error={history.error}
+        onRetry={refresh}
+        empty={{
+          icon: <Mail className="h-7 w-7 text-[var(--color-text-muted)]" />,
+          title: t("historyEmpty"),
+          description: t("historyEmptyDesc"),
+        }}
+        onRowOpen={(c) => setOpenId(c.id)}
+        columns={[
+          {
+            id: "subject",
+            header: t("subject"),
+            className: "min-w-[14rem]",
+            cell: (c) => (
+              <span className="block min-w-0">
+                <span className="block truncate text-sm font-medium text-[var(--color-text)]">
+                  {c.subject}
+                </span>
+                <span className="block truncate text-xs text-[var(--color-text-muted)]">
+                  {audienceLabel(c.audience)}
+                </span>
+              </span>
+            ),
+          },
+          {
+            id: "delivery",
+            header: t("colDelivery"),
+            sortKey: "recipient_count",
+            align: "end",
+            cell: (c) => (
+              <span className="block text-xs tabular-nums">
+                <span className="text-[var(--color-text-secondary)]">
+                  {t("sentOf", { sent: c.sent_count, total: c.recipient_count })}
+                </span>
+                {c.failed_count > 0 && (
+                  <span className="block text-red-600 dark:text-red-400">
+                    {t("failedCount", { failed: c.failed_count })}
+                  </span>
+                )}
+              </span>
+            ),
+          },
+          { id: "status", header: t("colStatus"), cell: (c) => <CampaignStatus c={c} /> },
+          {
+            id: "created",
+            header: t("colSentAt"),
+            sortKey: "created_at",
+            align: "end",
+            cell: (c) => (
+              <time
+                dateTime={c.created_at}
+                title={formatDateTime(c.created_at)}
+                className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-muted)]"
+              >
+                {formatRelativeTime(c.created_at)}
+              </time>
+            ),
+          },
+        ]}
+      />
+      <CampaignDrawer
+        c={campaigns.find((c) => c.id === openId) ?? null}
+        audienceLabel={audienceLabel(campaigns.find((c) => c.id === openId)?.audience ?? "all")}
+        onClose={() => setOpenId(null)}
+      />
 
       <ConfirmModal
         open={confirming}

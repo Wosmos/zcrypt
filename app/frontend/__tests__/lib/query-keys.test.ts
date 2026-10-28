@@ -55,14 +55,13 @@ describe("qk", () => {
   });
 
   it("admin keys share one root; settings/tools keys stay out of the persisted roots", () => {
-    expect(qk.adminOverview[0]).toBe("admin");
-    expect(qk.adminUsers).toEqual(["admin", "users"]);
+    expect(qk.adminOverview(30)).toEqual(["admin", "overview", "v3", 30]);
+    expect(qk.adminList("users", { limit: 25 })).toEqual(["admin", "list", "users", { limit: 25 }]);
+    expect(qk.adminUsersMeta).toEqual(["admin", "users", "meta"]);
     expect(qk.adminUser("u1")).toEqual(["admin", "user", "u1"]);
-    expect(qk.adminAudit(2, "login")).toEqual(["admin", "audit", 2, "login"]);
+    expect(qk.adminUserReport("u1")).toEqual(["admin", "user", "u1", "report"]);
+    expect(qk.adminUserJourney("u1", { offset: 0 })).toEqual(["admin", "user", "u1", "journey", { offset: 0 }]);
     expect(qk.adminDownloads("30")).toEqual(["admin", "downloads", "30"]);
-    expect(qk.adminFeedback(20)).toEqual(["admin", "feedback", 20]);
-    expect(qk.adminBugReports("open", 20)).toEqual(["admin", "bug-reports", "open", 20]);
-    expect(qk.adminReviews("pending", 20)).toEqual(["admin", "reviews", "pending", 20]);
     expect(qk.myReview).toEqual(["review", "mine"]);
     expect(qk.adminPlans).toEqual(["admin", "plans"]);
     expect(qk.devices("d1")).toEqual(["tools", "devices", "d1"]);

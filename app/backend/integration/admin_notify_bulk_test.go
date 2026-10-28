@@ -384,12 +384,16 @@ func TestEmailCampaignSendTestAndHistory(t *testing.T) {
 	assert.Equal(t, 3, camp.SentCount)
 	assert.Zero(t, camp.FailedCount)
 
-	var list []struct {
-		ID string `json:"id"`
+	var list struct {
+		Campaigns []struct {
+			ID string `json:"id"`
+		} `json:"campaigns"`
+		Total int `json:"total"`
 	}
 	decodeJSON(t, ts.GET("/api/admin/emails", admin), &list)
-	require.Len(t, list, 1)
-	assert.Equal(t, started.ID, list[0].ID)
+	require.Len(t, list.Campaigns, 1)
+	assert.Equal(t, 1, list.Total)
+	assert.Equal(t, started.ID, list.Campaigns[0].ID)
 
 	r := ts.GET("/api/admin/emails/00000000-0000-4000-8000-0000000000bb", admin)
 	assert.Equal(t, http.StatusNotFound, r.StatusCode)

@@ -250,6 +250,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		s.oauthError(w, r, "failed to create account", isDesktop, desktopSession)
 		return
 	}
+	s.recordSignupLocation(ctx, r, user.ID)
 
 	s.db.CreateOAuthProvider(ctx, &types.OAuthProvider{
 		ID:            uuid.New().String(),

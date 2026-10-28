@@ -147,9 +147,26 @@ export interface AdminUser {
   totp_enabled: boolean;
   file_count: number;
   total_size: number;
-  storage_quota: number | null;
+  /** Omitted when the user follows the plan default. */
+  storage_quota?: number | null;
+  deletion_scheduled_at?: string | null;
   created_at: string;
   updated_at: string;
+  /** Where the account was created, as the edge reported it. Empty when unknown. */
+  signup_country: string;
+  signup_region: string;
+  signup_city: string;
+  /** The latest sign-in or token refresh. */
+  last_country: string;
+  last_region: string;
+  last_city: string;
+  /** Coarse /24 or /48 prefix, never a full address. */
+  last_ip_prefix: string;
+  last_seen_at: string | null;
+  last_user_agent: string;
+  /** "Browser on OS", derived from last_user_agent. */
+  last_device: string;
+  session_count: number;
 }
 
 export interface SystemStats {
@@ -539,5 +556,4 @@ export interface AdminUserDetail {
   file_count: number;
   used_bytes: number;
   quota_bytes: number;
-  events: AuditEvent[];
 }

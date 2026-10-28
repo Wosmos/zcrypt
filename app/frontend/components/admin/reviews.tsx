@@ -2,33 +2,29 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { adminListReviews, adminUpdateReview, type ReviewStatus } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import {
+  adminListReviews,
+  adminUpdateReview,
+  type AdminReview,
+  type ReviewStatus,
+} from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
-import { queryClient } from "@/lib/query-client";
+import { useAdminList } from "@/hooks/useAdminList";
 import { qk } from "@/lib/query-keys";
 import { formatRelativeTime } from "@/lib/utils";
-import { toast } from "@/store/toast";
-import { Star } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Pagination } from "@/components/ui/pagination";
-import { SkeletonRow } from "@/components/ui/skeletons";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const PAGE_SIZE = 20;
-
-const STATUSES: { value: ReviewStatus; key: string }[] = [
-  { value: "pending", key: "statusPending" },
-  { value: "approved", key: "statusApproved" },
-  { value: "rejected", key: "statusRejected" },
-];
+  BulkBar,
+  DataTable,
+  TableFilter,
+  TableSearch,
+  TableTitle,
+} from "@/components/admin/data-table";
+import { Stars } from "@/components/admin/feedback-list";
+import { useBulkStatus } from "@/components/admin/status-bulk";
+import { Check, Eye, Star, X } from "@/lib/icons";
 
 const STATUS_KEY: Record<ReviewStatus, string> = {
   pending: "statusPending",
@@ -38,106 +34,68 @@ const STATUS_KEY: Record<ReviewStatus, string> = {
 
 const STATUS_VARIANT = { pending: "amber", approved: "accent", rejected: "muted" } as const;
 
-function Stars({ rating }: { rating: number }) {
-  const t = useTranslations("admin.feedback");
-  return (
-    <span className="inline-flex" role="img" aria-label={t("stars", { rating })}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star
-          key={n}
-          className={
-            n <= rating
-              ? "h-3.5 w-3.5 [&_path]:fill-current text-[var(--color-accent)]"
-              : "h-3.5 w-3.5 text-[var(--color-text-muted)]"
-          }
-        />
-      ))}
-    </span>
-  );
-}
-
 export function Reviews() {
   const t = useTranslations("admin.reviews");
-  const [page, setPage] = useState(0);
-  const [status, setStatus] = useState<ReviewStatus | "">("pending");
-
-  const { data, loading } = useAdminQuery(qk.adminReviews(status, page * PAGE_SIZE), () =>
-    adminListReviews(status, PAGE_SIZE, page * PAGE_SIZE),
+  const router = useRouter();
+  const list = useAdminList("reviews", { sort: "updated_at", filters: { status: "pending" } });
+  const status = (list.filters.status ?? "") as ReviewStatus | "";
+  const page = useAdminQuery(qk.adminList("reviews", list.params), () =>
+    adminListReviews(status, list.params),
   );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const bulk = useBulkStatus<ReviewStatus>(adminUpdateReview, ["admin", "list", "reviews"]);
+  const rows = page.data?.reviews ?? [];
+  const live = rows.filter((r) => selected.has(r.id)).map((r) => r.id);
 
-  const reviews = data?.reviews ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const moderate = async (id: string, next: ReviewStatus) => {
-    try {
-      await adminUpdateReview(id, next);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("updateFailed"));
-    }
+  const apply = async (ids: string[], next: ReviewStatus) => {
+    const failed = await bulk.run(ids, next, t(STATUS_KEY[next]));
+    setSelected(new Set(failed));
   };
 
-  return (
-    <section className="panel overflow-hidden">
-      <div className="flex flex-col justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <Star className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            {t("title")}
-          </h2>
-          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({total})</span>
-        </div>
-        <div className="sm:w-44">
-          <Select
-            value={status || "all"}
-            onValueChange={(v) => {
-              setStatus(v === "all" ? "" : (v as ReviewStatus));
-              setPage(0);
-            }}
-          >
-            <SelectTrigger className="h-9 text-xs" aria-label={t("filterStatus")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allStatuses")}</SelectItem>
-              {STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {t(s.key)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+  const statusOptions = (Object.keys(STATUS_KEY) as ReviewStatus[]).map((s) => ({
+    value: s,
+    label: t(STATUS_KEY[s]),
+  }));
 
-      {loading ? (
-        <div className="divide-y divide-[var(--color-border)] px-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonRow key={i} />
-          ))}
-        </div>
-      ) : reviews.length === 0 ? (
-        <EmptyState
-          icon={<Star className="h-7 w-7 text-[var(--color-text-muted)]" />}
-          title={t("emptyTitle")}
-          description={status ? t("emptyFiltered") : t("emptyAll")}
-        />
-      ) : (
-        <ul className="divide-y divide-[var(--color-border)]">
-          {reviews.map((r) => (
-            <li key={r.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Stars rating={r.rating} />
-                  <Badge variant={STATUS_VARIANT[r.status] ?? "muted"}>
-                    {STATUS_KEY[r.status] ? t(STATUS_KEY[r.status]) : r.status}
-                  </Badge>
-                  <Badge variant={r.public_ok ? "blue" : "muted"}>
-                    {r.public_ok ? t("okToShow") : t("private")}
-                  </Badge>
-                </div>
-                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-[var(--color-text)]">
+  return (
+    <>
+      <DataTable<AdminReview>
+        label={t("title")}
+        title={<TableTitle icon={Star} title={t("title")} count={page.data?.total ?? 0} />}
+        toolbar={
+          <>
+            <TableSearch list={list} placeholder={t("search")} />
+            <TableFilter
+              list={list}
+              name="status"
+              label={t("filterStatus")}
+              options={statusOptions}
+            />
+          </>
+        }
+        rows={rows}
+        rowKey={(r) => r.id}
+        list={list}
+        total={page.data?.total ?? 0}
+        loading={page.loading}
+        fetching={page.fetching}
+        error={page.error}
+        onRetry={page.refresh}
+        empty={{
+          icon: <Star className="h-7 w-7 text-[var(--color-text-muted)]" />,
+          title: t("emptyTitle"),
+          description: t("emptyAll"),
+        }}
+        selection={{ selected, onChange: setSelected }}
+        columns={[
+          {
+            id: "review",
+            header: t("colReview"),
+            className: "min-w-[18rem]",
+            cell: (r) => (
+              <div className="min-w-0">
+                <Stars rating={r.rating} />
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm text-[var(--color-text)]">
                   {r.quote}
                 </p>
                 <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
@@ -148,37 +106,87 @@ export function Reviews() {
                   })}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <Button
-                  size="sm"
-                  disabled={r.status === "approved"}
-                  onClick={() => void moderate(r.id, "approved")}
-                >
-                  {t("approve")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={r.status === "rejected"}
-                  onClick={() => void moderate(r.id, "rejected")}
-                >
-                  {t("reject")}
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {total > PAGE_SIZE && (
-        <Pagination
-          currentPage={page + 1}
-          totalPages={totalPages}
-          onPageChange={(p) => setPage(p - 1)}
-          totalItems={total}
-          pageSize={PAGE_SIZE}
-        />
-      )}
-    </section>
+            ),
+          },
+          {
+            id: "status",
+            header: t("colStatus"),
+            cell: (r) => (
+              <span className="flex flex-wrap gap-1">
+                <Badge variant={STATUS_VARIANT[r.status] ?? "muted"}>
+                  {STATUS_KEY[r.status] ? t(STATUS_KEY[r.status]) : r.status}
+                </Badge>
+                <Badge variant={r.public_ok ? "blue" : "muted"}>
+                  {r.public_ok ? t("okToShow") : t("private")}
+                </Badge>
+              </span>
+            ),
+          },
+          {
+            id: "rating",
+            header: t("colRating"),
+            sortKey: "rating",
+            align: "end",
+            hideBelow: "lg",
+            cell: (r) => <span className="tabular-nums">{r.rating}/5</span>,
+          },
+          {
+            id: "updated",
+            header: t("colUpdated"),
+            sortKey: "updated_at",
+            align: "end",
+            cell: (r) => (
+              <span className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-muted)]">
+                {formatRelativeTime(r.updated_at)}
+              </span>
+            ),
+          },
+        ]}
+        rowActions={(r) => [
+          {
+            label: t("approve"),
+            icon: Check,
+            disabled: r.status === "approved",
+            onSelect: () => void apply([r.id], "approved"),
+          },
+          {
+            label: t("reject"),
+            icon: X,
+            disabled: r.status === "rejected",
+            onSelect: () => void apply([r.id], "rejected"),
+          },
+          ...(r.user_id
+            ? [
+                {
+                  label: t("openUser"),
+                  icon: Eye,
+                  separatorBefore: true,
+                  onSelect: () => router.push(`/admin/users/${r.user_id}`),
+                },
+              ]
+            : []),
+        ]}
+      />
+      <BulkBar count={live.length} onClear={() => setSelected(new Set())}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={bulk.busy}
+          onClick={() => void apply(live, "approved")}
+        >
+          <Check className="h-3.5 w-3.5" />
+          {t("approve")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={bulk.busy}
+          onClick={() => void apply(live, "rejected")}
+        >
+          <X className="h-3.5 w-3.5" />
+          {t("reject")}
+        </Button>
+      </BulkBar>
+    </>
   );
 }

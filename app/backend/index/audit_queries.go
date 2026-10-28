@@ -190,57 +190,48 @@ func (db *DB) VerifyAuditChain(ctx context.Context) (*AuditChainResult, error) {
 	return res, rows.Err()
 }
 
-// ListAuditEvents returns paginated audit events with optional filters.
-func (db *DB) ListAuditEvents(ctx context.Context, limit, offset int, eventType, userID string) ([]types.AuditEvent, int, error) {
-	// Build count query
-	countQuery := `SELECT COUNT(*) FROM audit_events WHERE 1=1`
-	query := `SELECT id, user_id, event_type, ip, user_agent, metadata, created_at
-	          FROM audit_events WHERE 1=1`
-	var args []interface{}
-	argIdx := 1
-
+// ListAuditEvents returns one page of audit events, newest first unless
+// page.Desc is false, filtered by type, user and a search over the acting
+// user's email or username, plus the number matching.
+func (db *DB) ListAuditEvents(ctx context.Context, page ListPage, eventType, userID string) ([]types.AuditEvent, int, error) {
+	w := &whereBuilder{}
 	if eventType != "" {
-		filter := fmt.Sprintf(` AND event_type = $%d`, argIdx)
-		countQuery += filter
-		query += filter
-		args = append(args, eventType)
-		argIdx++
+		w.add("a.event_type = " + w.arg(eventType))
 	}
 	if userID != "" {
-		filter := fmt.Sprintf(` AND user_id = $%d`, argIdx)
-		countQuery += filter
-		query += filter
-		args = append(args, userID)
-		argIdx++
+		w.add("a.user_id = " + w.arg(userID))
 	}
+	if page.Search != "" {
+		p := w.arg(likePattern(page.Search))
+		w.add("(u.email ILIKE " + p + " OR u.username ILIKE " + p + " OR a.event_type ILIKE " + p + ")")
+	}
+	const base = ` FROM audit_events a LEFT JOIN users u ON u.id = a.user_id`
+	const target = ` LEFT JOIN users tu ON tu.id = CASE WHEN a.metadata->>'target_user' ~ '^[0-9a-f-]{36}$'
+		THEN (a.metadata->>'target_user')::uuid END`
 
 	var total int
-	if err := db.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*)`+base+w.sql(), w.args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count audit events: %w", err)
 	}
 
-	query += fmt.Sprintf(` ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
-	args = append(args, limit, offset)
-
-	rows, err := db.pool.Query(ctx, query, args...)
+	rows, err := db.pool.Query(ctx,
+		`SELECT a.id, a.user_id, COALESCE(u.username, ''), COALESCE(tu.username, ''),
+		        a.event_type, a.ip, a.user_agent, a.metadata, a.created_at`+base+target+w.sql()+
+			orderSQL("a.created_at", page.Desc, "a.id")+` LIMIT `+w.arg(page.Limit)+` OFFSET `+w.arg(page.Offset),
+		w.args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list audit events: %w", err)
 	}
 	defer rows.Close()
 
-	var events []types.AuditEvent
+	events := []types.AuditEvent{}
 	for rows.Next() {
 		var e types.AuditEvent
 		var metaBytes []byte
-		if err := rows.Scan(&e.ID, &e.UserID, &e.EventType, &e.IP, &e.UserAgent, &metaBytes, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.Username, &e.TargetUsername, &e.EventType, &e.IP, &e.UserAgent, &metaBytes, &e.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan audit event: %w", err)
 		}
-		if metaBytes != nil {
-			json.Unmarshal(metaBytes, &e.Metadata)
-		}
-		if e.Metadata == nil {
-			e.Metadata = map[string]interface{}{}
-		}
+		e.Metadata = decodeMeta(metaBytes)
 		events = append(events, e)
 	}
 	return events, total, rows.Err()

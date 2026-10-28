@@ -391,12 +391,14 @@ describe("optional-parameter + error branches", () => {
 
   it("adminGetAuditLog builds a query from all provided filters", async () => {
     fetchMock.mockResolvedValueOnce(mk(200, { json: { events: [], total: 0 } }));
-    await api.adminGetAuditLog({ limit: 10, offset: 5, event_type: "login", user_id: "u1" });
-    const u = url();
-    expect(u).toContain("limit=10");
-    expect(u).toContain("offset=5");
-    expect(u).toContain("event_type=login");
-    expect(u).toContain("user_id=u1");
+    await api.adminGetAuditLog({ limit: 10, offset: 5, event_type: "login", user_id: "u1", q: "" });
+    expect(url()).toMatch(/\/api\/admin\/audit\?limit=10&offset=5&event_type=login&user_id=u1$/);
+  });
+
+  it("adminListQuery drops empty values and adds no ? for an empty query", () => {
+    expect(api.adminListQuery({})).toBe("");
+    expect(api.adminListQuery({ q: "", sort: undefined, offset: 0, order: "asc" })).toBe("?offset=0&order=asc");
+    expect(api.adminListQuery({ q: "a b&c" })).toBe("?q=a+b%26c");
   });
 
   it("getFileChunk falls back to the raw body when the error isn't JSON", async () => {

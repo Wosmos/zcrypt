@@ -258,40 +258,6 @@ func (db *DB) DeleteUser(ctx context.Context, userID string) error {
 	return tx.Commit(ctx)
 }
 
-// ListUsers returns all users with file count and storage stats.
-func (db *DB) ListUsers(ctx context.Context) ([]types.AdminUser, error) {
-	rows, err := db.pool.Query(ctx,
-		`SELECT u.id, u.email, u.username, u.password_hash, u.email_verified,
-		        u.totp_secret, u.totp_enabled, u.role, u.plan, u.storage_quota_bytes, u.created_at, u.updated_at,
-		        COALESCE(f.cnt, 0), COALESCE(f.total, 0)
-		 FROM users u
-		 LEFT JOIN (
-		     SELECT user_id, COUNT(*) as cnt, COALESCE(SUM(original_size), 0) as total
-		     FROM files WHERE status = 'complete' GROUP BY user_id
-		 ) f ON f.user_id = u.id
-		 ORDER BY u.created_at DESC`,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("list users: %w", err)
-	}
-	defer rows.Close()
-
-	var users []types.AdminUser
-	for rows.Next() {
-		var u types.AdminUser
-		if err := rows.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash,
-			&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota,
-			&u.CreatedAt, &u.UpdatedAt, &u.FileCount, &u.TotalStorage); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, u)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate users: %w", err)
-	}
-	return users, nil
-}
-
 // GetSystemStats returns aggregate system statistics.
 func (db *DB) GetSystemStats(ctx context.Context) (*types.SystemStats, error) {
 	s := &types.SystemStats{}
@@ -299,8 +265,12 @@ func (db *DB) GetSystemStats(ctx context.Context) (*types.SystemStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.pool.QueryRow(ctx, `SELECT COUNT(*), COALESCE(SUM(original_size), 0) FROM files WHERE status = 'complete'`).Scan(&s.TotalFiles, &s.TotalStorageBytes)
-	db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM repos`).Scan(&s.TotalRepos)
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*), COALESCE(SUM(original_size), 0) FROM files WHERE status = 'complete'`).Scan(&s.TotalFiles, &s.TotalStorageBytes); err != nil {
+		return nil, fmt.Errorf("count files: %w", err)
+	}
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM repos`).Scan(&s.TotalRepos); err != nil {
+		return nil, fmt.Errorf("count repos: %w", err)
+	}
 	return s, nil
 }
 
@@ -369,11 +339,18 @@ func (db *DB) SetSystemSetting(ctx context.Context, key, value string) error {
 
 // --- Refresh Tokens ---
 
-const insertSessionRowSQL = `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at, decoy)
-	 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()), $9)`
+// insertSessionRowSQL stores a refresh token and, in the same statement,
+// records it as the user's latest sign-in place and time.
+const insertSessionRowSQL = `WITH ins AS (
+	INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at, decoy, country, region, city)
+	 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()), $9, $10, $11, $12)
+	 RETURNING user_id)
+	UPDATE users SET last_seen_at = NOW(), last_ip_prefix = $5, last_user_agent = $6,
+	       last_country = $10, last_region = $11, last_city = $12
+	 WHERE id = (SELECT user_id FROM ins)`
 
 func refreshTokenArgs(rt *types.RefreshToken) []any {
-	return []any{rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt), rt.Decoy}
+	return []any{rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt), rt.Decoy, rt.Country, rt.Region, rt.City}
 }
 
 // InsertRefreshToken stores a refresh token hash with client binding.

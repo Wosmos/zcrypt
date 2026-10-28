@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AdminUsersContent } from "@/components/admin/users-content";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AdminUsersPage() {
-  return <AdminUsersContent />;
+  return (
+    <Suspense>
+      <AdminUsersContent />
+    </Suspense>
+  );
 }

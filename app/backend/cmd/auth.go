@@ -36,10 +36,25 @@ var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
 // enumerate which emails have accounts by timing responses.
 const dummyPasswordHash = "$2a$12$jwwcg/vWlmCOz/dPW1to.OtzGR8q8t7A4OlpzO7f9PTPsjOBCi6rS"
 
+// locatedEvents are the sign-in and sign-up events that carry where they came
+// from, so an account's journey can show it and its report can count countries.
+var locatedEvents = map[string]bool{
+	"register": true, "oauth_register": true, "login": true, "login_decoy": true,
+	"login_failed": true, "oauth_login": true, "magic_link_used": true,
+}
+
 // audit logs an audit event asynchronously and emits it via SSE.
 func (s *Server) audit(r *http.Request, userID *string, eventType string, metadata map[string]interface{}) {
 	if metadata == nil {
 		metadata = map[string]interface{}{}
+	}
+	if locatedEvents[eventType] {
+		loc := visitorLocation(r)
+		for k, v := range map[string]string{"country": loc.Country, "region": loc.Region, "city": loc.City} {
+			if _, set := metadata[k]; !set && v != "" {
+				metadata[k] = v
+			}
+		}
 	}
 	e := types.AuditEvent{
 		ID:        uuid.New().String(),
@@ -215,6 +230,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"registration failed, please try again"}`, http.StatusInternalServerError)
 		return
 	}
+	s.recordSignupLocation(ctx, r, user.ID)
 
 	// Send verification email if SMTP configured (async to avoid blocking response)
 	if s.cfg.Email != nil {
@@ -1600,6 +1616,8 @@ func (s *Server) newTokenPair(r *http.Request, user *types.User, sessionID strin
 		SessionStartedAt: startedAt,
 		Decoy:            decoy,
 	}
+	loc := visitorLocation(r)
+	rt.Country, rt.Region, rt.City = loc.Country, loc.Region, loc.City
 	return accessToken, rt, refreshToken, nil
 }
 
@@ -1634,6 +1652,14 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 		"refresh_token": refreshToken,
 		"user":          user,
 	})
+}
+
+// recordSignupLocation keeps where a new account was created. Best-effort: a
+// failure only leaves the admin console without the signup country.
+func (s *Server) recordSignupLocation(ctx context.Context, r *http.Request, userID string) {
+	if err := s.db.SetSignupLocation(ctx, userID, visitorLocation(r)); err != nil {
+		log.Printf("signup location: %v", err)
+	}
 }
 
 // revokeSessions signs userID out everywhere: every outstanding access token

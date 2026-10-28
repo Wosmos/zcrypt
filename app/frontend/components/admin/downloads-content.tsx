@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -18,11 +18,12 @@ import {
   CHART_TOOLTIP_STYLE,
 } from "@/components/analytics/chart-theme";
 import { StatCard } from "@/components/ui/stat-card";
+import { BreakdownList } from "@/components/admin/breakdown-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Download, Globe, User, Box, CheckCircle2, XCircle } from "@/lib/icons";
-import { toast } from "@/store/toast";
+import { LoadErrorPanel } from "@/components/admin/load-error-panel";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -125,7 +126,7 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
   );
 }
 
-/** A labelled horizontal bar list: used for every breakdown on this page. */
+/** One breakdown card on this page. */
 function Breakdown({
   title,
   rows,
@@ -137,32 +138,13 @@ function Breakdown({
   empty: string;
   labels?: Record<string, string>;
 }) {
-  const max = Math.max(1, ...rows.map((r) => r.count));
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">{title}</h3>
-      {rows.length === 0 ? (
-        <p className="text-xs text-[var(--color-text-muted)]">{empty}</p>
-      ) : (
-        <ul className="space-y-2">
-          {rows.map((r) => (
-            <li key={r.key} className="space-y-1">
-              <div className="flex items-baseline justify-between gap-3 text-xs">
-                <span className="truncate text-[var(--color-text)]">
-                  {labels?.[r.key] ?? r.key}
-                </span>
-                <span className="tabular-nums text-[var(--color-text-muted)]">{r.count}</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-1)]">
-                <div
-                  className="h-full rounded-full bg-[var(--color-accent)]"
-                  style={{ width: `${(r.count / max) * 100}%` }}
-                />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <BreakdownList
+        rows={rows.map((r) => ({ key: r.key, label: labels?.[r.key] ?? r.key, count: r.count }))}
+        empty={empty}
+      />
     </div>
   );
 }
@@ -170,13 +152,9 @@ function Breakdown({
 export function DownloadsContent() {
   const t = useTranslations("admin.downloads");
   const [days, setDays] = useState<string>("30");
-  const { data, loading, error } = useAdminQuery(qk.adminDownloads(days), () =>
+  const { data, loading, refresh } = useAdminQuery(qk.adminDownloads(days), () =>
     adminGetDownloads(Number(days)),
   );
-
-  useEffect(() => {
-    if (error) toast.error(t("loadFailed"));
-  }, [error, t]);
 
   if (loading && !data) {
     return (
@@ -185,7 +163,16 @@ export function DownloadsContent() {
       </div>
     );
   }
-  if (!data) return null;
+  if (!data) {
+    return (
+      <LoadErrorPanel
+        icon={<Download className="h-7 w-7 text-[var(--color-text-muted)]" />}
+        title={t("loadFailed")}
+        description={t("loadFailedDesc")}
+        onRetry={refresh}
+      />
+    );
+  }
 
   const { stats, github, release } = data;
   // GitHub counts everyone, including people who went straight to the releases

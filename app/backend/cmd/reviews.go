@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -89,9 +89,9 @@ func (s *Server) HandlePublicReviews(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleAdminListReviews lists reviews for moderation.
-// GET /api/admin/reviews?status=&limit=&offset=
+// GET /api/admin/reviews?status&limit&offset&q&sort&order
 func (s *Server) HandleAdminListReviews(w http.ResponseWriter, r *http.Request) {
-	adminListByStatus(w, r, "reviews", reviewStatuses, s.db.ListReviews)
+	adminListByStatus(w, r, "reviews", reviewStatuses, index.ReviewSorts, "updated_at", s.db.ListReviews)
 }
 
 // HandleAdminUpdateReview approves or rejects a review.
@@ -100,30 +100,23 @@ func (s *Server) HandleAdminUpdateReview(w http.ResponseWriter, r *http.Request)
 	s.adminSetStatus(w, r, reviewStatuses, "status must be pending, approved or rejected", "review", "admin_review_status", s.db.UpdateReviewStatus)
 }
 
-func adminListByStatus[T any](w http.ResponseWriter, r *http.Request, key string, valid map[string]bool, list func(ctx context.Context, status string, limit, offset int) ([]T, int, error)) {
+func adminListByStatus[T any](w http.ResponseWriter, r *http.Request, key string, valid map[string]bool, sorts map[string]string, defaultSort string, list func(ctx context.Context, status string, page index.ListPage) ([]T, int, error)) {
 	status := r.URL.Query().Get("status")
 	if status != "" && !valid[status] {
 		http.Error(w, `{"error":"invalid status"}`, http.StatusBadRequest)
 		return
 	}
-	limit, offset := 50, 0
-	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 && n <= 100 {
-		limit = n
+	page, err := parseListPage(r, sorts, defaultSort)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	if n, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && n >= 0 {
-		offset = n
-	}
-	items, total, err := list(r.Context(), status, limit, offset)
+	items, total, err := list(r.Context(), status, page)
 	if err != nil {
 		internalError(w, "list "+key, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		key:      items,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	})
+	writeJSON(w, http.StatusOK, pageBody(key, items, total, page))
 }
 
 func (s *Server) adminSetStatus(w http.ResponseWriter, r *http.Request, valid map[string]bool, badMsg, noun, action string, update func(ctx context.Context, id, status string) (bool, error)) {

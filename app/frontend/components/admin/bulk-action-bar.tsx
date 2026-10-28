@@ -18,7 +18,8 @@ import {
 import { EMPTY_REAUTH, ReauthFields, reauthReady } from "@/components/admin/reauth-fields";
 import { DEFAULT_NOTIFY, NotifyFields } from "@/components/admin/notify-fields";
 import { QuotaFields } from "@/components/admin/quota-fields";
-import { Mail, Trash2, X } from "@/lib/icons";
+import { Mail, Trash2 } from "@/lib/icons";
+import { BulkBar } from "@/components/admin/data-table";
 import type { PlanConfig } from "@/types";
 
 type Pending = "set_plan" | "set_quota" | "promote" | "demote" | "delete";
@@ -152,62 +153,51 @@ export function BulkActionBar({
 
   return (
     <>
-      {count > 0 && (
-        <div
-          role="toolbar"
-          aria-label={t("barLabel")}
-          className="sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-2xl"
+      <BulkBar count={count} onClear={onClear}>
+        <Button variant="ghost" size="sm" onClick={() => setPending("set_plan")}>
+          {t("changePlan")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setPending("set_quota")}>
+          {t("setStorage")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={includesSelf}
+          title={roleBlocked}
+          onClick={() => setPending("promote")}
         >
-          <span className="px-2 text-sm font-medium tabular-nums text-[var(--color-text)]">
-            {t("selected", { count })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => setPending("set_plan")}>
-            {t("changePlan")}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setPending("set_quota")}>
-            {t("setStorage")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={includesSelf}
-            title={roleBlocked}
-            onClick={() => setPending("promote")}
-          >
-            {t("makeAdmin")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={includesSelf}
-            title={roleBlocked}
-            onClick={() => setPending("demote")}
-          >
-            {t("removeAdmin")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push(`/admin/emails?ids=${selectedIds.join(",")}`)}
-          >
-            <Mail className="h-3.5 w-3.5" />
-            {t("emailSelected")}
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={includesSelf}
-            title={roleBlocked}
-            onClick={() => setPending("delete")}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {t("delete")}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onClear} aria-label={t("clear")}>
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
+          {t("makeAdmin")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={includesSelf}
+          title={roleBlocked}
+          onClick={() => setPending("demote")}
+        >
+          {t("removeAdmin")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(`/admin/emails?ids=${selectedIds.join(",")}`)}
+        >
+          <Mail className="h-3.5 w-3.5" />
+          {t("emailSelected")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={includesSelf}
+          title={roleBlocked}
+          onClick={() => setPending("delete")}
+          className="text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {t("delete")}
+        </Button>
+      </BulkBar>
 
       {pending && copy && (
         <ConfirmModal
@@ -219,6 +209,7 @@ export function BulkActionBar({
           confirmLabel={t(copy.confirm)}
           variant={VARIANT[pending]}
           loading={loading}
+          typeToConfirm={pending === "delete" ? t("deleteWord") : undefined}
           confirmDisabled={needsReauth && !reauthReady(reauth)}
         >
           {pending === "set_plan" && (

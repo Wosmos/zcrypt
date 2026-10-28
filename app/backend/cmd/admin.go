@@ -3,13 +3,17 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/crypto"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -118,21 +122,53 @@ func (s *Server) SeedPlanConfigs(ctx context.Context) {
 	}
 }
 
-// HandleAdminListUsers returns all users with file count and storage stats.
-// GET /api/admin/users
+// HandleAdminListUsers returns one page of users with storage, sessions and
+// location.
+// GET /api/admin/users?limit&offset&q&sort&order&country&role&plan
 func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := s.db.ListUsers(r.Context())
+	page, err := parseListPage(r, index.AdminUserSorts, "created_at")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	q := r.URL.Query()
+	f := index.AdminUserFilter{ListPage: page, Country: strings.ToUpper(q.Get("country")), Role: q.Get("role"), Plan: q.Get("plan")}
+	if f.Country == strings.ToUpper(index.UnknownCountry) {
+		f.Country = index.UnknownCountry
+	} else if f.Country != "" && !isCountryCode(f.Country) {
+		writeError(w, http.StatusBadRequest, "country must be a two-letter code or unknown")
+		return
+	}
+	if f.Role != "" {
+		if _, ok := types.ParseRole(f.Role); !ok {
+			writeError(w, http.StatusBadRequest, "role must be user or admin")
+			return
+		}
+	}
+	if len(f.Plan) > 64 {
+		writeError(w, http.StatusBadRequest, "plan is too long")
+		return
+	}
+	users, total, err := s.db.ListAdminUsers(r.Context(), f)
 	if err != nil {
 		internalError(w, "AdminListUsers", err)
 		return
 	}
-
-	if users == nil {
-		users = []types.AdminUser{}
+	for i := range users {
+		users[i].LastDevice = deviceLabel(users[i].LastUserAgent)
 	}
+	writeJSON(w, http.StatusOK, pageBody("users", users, total, page))
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+// HandleAdminUserCountries counts users per country for the users filter.
+// GET /api/admin/users/countries
+func (s *Server) HandleAdminUserCountries(w http.ResponseWriter, r *http.Request) {
+	countries, err := s.db.UserCountries(r.Context(), 250)
+	if err != nil {
+		internalError(w, "AdminUserCountries", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"countries": countries})
 }
 
 // HandleAdminStats returns system-wide aggregate statistics.
@@ -151,6 +187,22 @@ func (s *Server) HandleAdminStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+// adminLoadUser loads the user an admin action targets so the action answers
+// 404 for a missing account instead of reporting success for an UPDATE that
+// matched nothing. It writes the error response itself.
+func (s *Server) adminLoadUser(w http.ResponseWriter, r *http.Request, userID string) (*types.User, bool) {
+	u, err := s.db.GetUserByID(r.Context(), userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "user not found")
+		return nil, false
+	}
+	if err != nil {
+		internalError(w, "admin load user", err)
+		return nil, false
+	}
+	return u, true
 }
 
 // adminReauth gates a sensitive admin action on the acting admin's password
@@ -218,7 +270,10 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldUser, _ := s.db.GetUserByID(ctx, userID)
+	oldUser, ok := s.adminLoadUser(w, r, userID)
+	if !ok {
+		return
+	}
 	if err := s.db.SetUserRole(ctx, userID, role); err != nil {
 		internalError(w, "AdminSetRole", err)
 		return
@@ -269,7 +324,10 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldUser, _ := s.db.GetUserByID(ctx, userID)
+	oldUser, ok := s.adminLoadUser(w, r, userID)
+	if !ok {
+		return
+	}
 	if err := s.db.DeleteUser(ctx, userID); err != nil {
 		internalError(w, "AdminDeleteUser", err)
 		return
@@ -291,11 +349,16 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// HandleAdminListTokens returns the calling admin's own tokens plus only the
-// count of everyone else's. Other users' tokens are never listed.
-// GET /api/admin/tokens
+// HandleAdminListTokens returns one page of the calling admin's own tokens
+// plus only the count of everyone else's. Other users' tokens are never listed.
+// GET /api/admin/tokens?limit&offset
 func (s *Server) HandleAdminListTokens(w http.ResponseWriter, r *http.Request) {
 	adminID := GetUserID(r)
+	page, err := parseListPage(r, tokenSorts, "created_at")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	tokens, err := s.db.ListOwnPlatformTokens(r.Context(), adminID)
 	if err != nil {
 		internalError(w, "AdminListTokens", err)
@@ -307,11 +370,14 @@ func (s *Server) HandleAdminListTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	total := len(tokens)
+	tokens = tokens[min(page.Offset, total):min(page.Offset+page.Limit, total)]
 	if tokens == nil {
 		tokens = []types.PlatformTokenInfo{}
 	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{"tokens": tokens, "others_count": others})
+	body := pageBody("tokens", tokens, total, page)
+	body["others_count"] = others
+	writeJSON(w, http.StatusOK, body)
 }
 
 // HandleAdminCreateToken creates a global token or assigns a token to any user.
@@ -380,6 +446,8 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 		internalError(w, "store token", err)
 		return
 	}
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_token_create", map[string]interface{}{"platform": req.Platform, "target_user": ownerID, "is_global": req.IsGlobal})
 
 	// Invalidate caches, if global, invalidate all cached users
 	if req.IsGlobal {
@@ -462,6 +530,8 @@ func (s *Server) HandleAdminDeleteToken(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"token not found or not owned by you"}`, http.StatusForbidden)
 		return
 	}
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_token_delete", map[string]interface{}{"token_id": tokenID})
 
 	// Invalidate all caches (we don't know which user this affected)
 	s.adapterMu.Lock()
@@ -504,6 +574,8 @@ func (s *Server) HandleAdminSetDefaultQuota(w http.ResponseWriter, r *http.Reque
 		internalError(w, "AdminSetDefaultQuota", err)
 		return
 	}
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_default_quota_change", map[string]interface{}{"quota_bytes": req.DefaultQuotaBytes})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -536,7 +608,10 @@ func (s *Server) HandleAdminSetUserQuota(w http.ResponseWriter, r *http.Request)
 	}
 
 	ctx := r.Context()
-	oldUser, _ := s.db.GetUserByID(ctx, userID)
+	oldUser, ok := s.adminLoadUser(w, r, userID)
+	if !ok {
+		return
+	}
 	if err := s.db.SetUserQuota(ctx, userID, req.QuotaBytes); err != nil {
 		internalError(w, "AdminSetUserQuota", err)
 		return
@@ -633,7 +708,10 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldUser, _ := s.db.GetUserByID(ctx, userID)
+	oldUser, ok := s.adminLoadUser(w, r, userID)
+	if !ok {
+		return
+	}
 	if err := s.db.SetUserPlan(ctx, userID, req.Plan); err != nil {
 		internalError(w, "AdminSetPlan", err)
 		return
@@ -648,41 +726,38 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleAdminAuditLog returns paginated audit events.
-// GET /api/admin/audit
+// GET /api/admin/audit?limit&offset&q&order&event_type&user_id
 func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
-	limit := 50
-	offset := 0
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
-			limit = n
-		}
+	page, err := parseListPage(r, auditSorts, "created_at")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	if v := r.URL.Query().Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
-		}
-	}
-
 	eventType := r.URL.Query().Get("event_type")
+	if len(eventType) > 64 {
+		writeError(w, http.StatusBadRequest, "event_type is too long")
+		return
+	}
 	userID := r.URL.Query().Get("user_id")
+	if userID != "" {
+		if _, err := uuid.Parse(userID); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid user_id")
+			return
+		}
+	}
 
-	events, total, err := s.db.ListAuditEvents(r.Context(), limit, offset, eventType, userID)
+	events, total, err := s.db.ListAuditEvents(r.Context(), page, eventType, userID)
 	if err != nil {
 		internalError(w, "AdminAuditLog", err)
 		return
 	}
-
-	if events == nil {
-		events = []types.AuditEvent{}
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"events": events,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	})
+	writeJSON(w, http.StatusOK, pageBody("events", events, total, page))
 }
+
+var (
+	auditSorts = map[string]string{"created_at": ""}
+	tokenSorts = map[string]string{"created_at": ""}
+)
 
 // HandleAdminVerifyAuditChain recomputes the audit-log hash chain and reports
 // whether it is intact. A break means a row was edited, deleted, or reordered:
@@ -771,36 +846,23 @@ func (s *Server) HandleGetFeedbackStatus(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]bool{"submitted": submitted})
 }
 
-// HandleAdminListFeedback returns all feedback for admin.
-// GET /api/admin/feedback
+// HandleAdminListFeedback returns one page of feedback and the average rating
+// across everything matching the search.
+// GET /api/admin/feedback?limit&offset&q&sort&order
 func (s *Server) HandleAdminListFeedback(w http.ResponseWriter, r *http.Request) {
-	limit := 50
-	offset := 0
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
-			limit = n
-		}
+	page, err := parseListPage(r, index.FeedbackSorts, "created_at")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	if v := r.URL.Query().Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
-		}
-	}
-
-	items, total, err := s.db.ListFeedback(r.Context(), limit, offset)
+	items, total, avg, err := s.db.ListFeedback(r.Context(), page)
 	if err != nil {
 		internalError(w, "AdminListFeedback", err)
 		return
 	}
-	if items == nil {
-		items = []types.FeedbackWithUser{}
-	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"feedback": items,
-		"total":    total,
-		"limit":    limit,
-		"offset":   offset,
-	})
+	body := pageBody("feedback", items, total, page)
+	body["average_rating"] = avg
+	writeJSON(w, http.StatusOK, body)
 }
 
 // HandleGetPlans returns plan configs for public consumption (landing page, pricing page).
@@ -882,27 +944,28 @@ func (s *Server) HandleAdminGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.db.GetUserByID(ctx, userID)
-	if err != nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+	user, err := s.db.GetAdminUser(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "user not found")
 		return
 	}
-
-	fileCount, _ := s.db.GetUserFileCount(ctx, userID)
-	usedBytes, _ := s.db.GetUserStorageUsed(ctx, userID)
-	quotaBytes := s.getEffectiveQuota(ctx, userID)
-
-	// Get recent audit events for this user
-	events, _ := s.db.ListUserAuditEvents(ctx, userID, 20)
-	if events == nil {
-		events = []types.AuditEvent{}
+	if err != nil {
+		internalError(w, "AdminGetUser", err)
+		return
 	}
+	user.LastDevice = deviceLabel(user.LastUserAgent)
+
+	usedBytes, err := s.db.GetUserStorageUsed(ctx, userID)
+	if err != nil {
+		internalError(w, "AdminGetUser: storage used", err)
+		return
+	}
+	quotaBytes := s.getEffectiveQuota(ctx, userID)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"user":        user,
-		"file_count":  fileCount,
+		"file_count":  user.FileCount,
 		"used_bytes":  usedBytes,
 		"quota_bytes": quotaBytes,
-		"events":      events,
 	})
 }

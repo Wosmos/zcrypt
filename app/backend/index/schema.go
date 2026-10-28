@@ -1047,4 +1047,34 @@ CREATE TABLE IF NOT EXISTS admin_email_campaigns (
 	finished_at     TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_admin_email_campaigns_created ON admin_email_campaigns(created_at DESC);
+
+-- Where people sign in from, for the admin console. Country is the edge's ISO
+-- code; region and city come from the edge when it supplies them. Sessions
+-- keep the place of each sign-in or refresh, and the users row keeps the
+-- latest one (sessions expire and are deleted) plus where the account was
+-- created. The address is the coarse /24 or /48 prefix already stored in ip.
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT '';
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS region TEXT NOT NULL DEFAULT '';
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_country TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_region TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_city TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_country TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_region TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_city TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ip_prefix TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_user_agent TEXT NOT NULL DEFAULT '';
+UPDATE users u SET last_seen_at = rt.created_at, last_ip_prefix = rt.ip, last_user_agent = rt.user_agent
+  FROM (SELECT DISTINCT ON (user_id) user_id, created_at, ip, user_agent
+          FROM refresh_tokens ORDER BY user_id, created_at DESC) rt
+ WHERE rt.user_id = u.id AND u.last_seen_at IS NULL;
+
+-- Admin list sorts and filters.
+CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen_at DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_users_country ON users((COALESCE(NULLIF(last_country, ''), signup_country)));
+CREATE INDEX IF NOT EXISTS idx_audit_events_user_time ON audit_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_events_target_user ON audit_events((metadata->>'target_user')) WHERE metadata ? 'target_user';
+CREATE INDEX IF NOT EXISTS idx_reviews_time ON reviews(updated_at DESC);
 `

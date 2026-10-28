@@ -10,6 +10,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   totalItems: number;
   pageSize: number;
+  /** Show the "Showing x to y of z" line. Off when the caller prints its own. */
+  summary?: boolean;
 }
 
 export function Pagination({
@@ -18,6 +20,7 @@ export function Pagination({
   onPageChange,
   totalItems,
   pageSize,
+  summary = true,
 }: PaginationProps) {
   const t = useTranslations("ui.pagination");
   if (totalPages <= 1) return null;
@@ -48,9 +51,11 @@ export function Pagination({
       aria-label={t("label")}
       className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2"
     >
-      <p className="text-xs text-[var(--color-text-muted)]">
-        {t("showing", { start, end, total: totalItems })}
-      </p>
+      {summary && (
+        <p className="text-xs text-[var(--color-text-muted)]">
+          {t("showing", { start, end, total: totalItems })}
+        </p>
+      )}
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(currentPage - 1)}

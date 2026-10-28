@@ -2,74 +2,34 @@
 
 import { useTranslations } from "next-intl";
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import { adminGetAuditLog, type AdminAuditResponse } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { useAdminList } from "@/hooks/useAdminList";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import type { AuditEvent } from "@/lib/auth-api";
 import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
-import { EVENT_ICONS, EVENT_LABELS, eventColorClass } from "@/lib/audit-events";
-import { Pagination } from "@/components/ui/pagination";
+import { EVENT_ICONS, eventColorClass } from "@/lib/audit-events";
+import { describeUserAgent } from "@/lib/user-agent";
 import { IconButton } from "@/components/ui/icon-button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { AuditLogSkeleton } from "@/components/admin/skeletons";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Shield, Pause, Play, FileText, Monitor, Globe, Smartphone, Clock } from "@/lib/icons";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { DataTable, TableFilter, TableSearch } from "@/components/admin/data-table";
+import { CountryLabel } from "@/components/admin/location-cell";
+import { useEventLabel } from "@/components/admin/user-journey";
+import { Shield, Pause, Play, FileText, Monitor, Smartphone } from "@/lib/icons";
 
-const PAGE_SIZE = 20;
-
-// Parse user agent into readable browser/OS/device info
-function parseUserAgent(ua: string): { browser: string; os: string; device: string } {
-  if (!ua) return { browser: "", os: "", device: "unknown" };
-
-  let browser = "";
-  let os = "";
-  let device = "desktop";
-
-  // Browser detection
-  if (ua.includes("Firefox/")) {
-    const m = ua.match(/Firefox\/([\d.]+)/);
-    browser = `Firefox ${m?.[1]?.split(".")[0] ?? ""}`;
-  } else if (ua.includes("Edg/")) {
-    const m = ua.match(/Edg\/([\d.]+)/);
-    browser = `Edge ${m?.[1]?.split(".")[0] ?? ""}`;
-  } else if (ua.includes("Chrome/") && !ua.includes("Edg/")) {
-    const m = ua.match(/Chrome\/([\d.]+)/);
-    browser = `Chrome ${m?.[1]?.split(".")[0] ?? ""}`;
-  } else if (ua.includes("Safari/") && !ua.includes("Chrome")) {
-    const m = ua.match(/Version\/([\d.]+)/);
-    browser = `Safari ${m?.[1]?.split(".")[0] ?? ""}`;
-  }
-
-  // OS detection
-  if (ua.includes("Windows NT 10")) os = "Windows";
-  else if (ua.includes("Windows")) os = "Windows";
-  else if (ua.includes("Mac OS X")) os = "macOS";
-  else if (ua.includes("Android")) {
-    os = "Android";
-    device = "mobile";
-  } else if (ua.includes("iPhone") || ua.includes("iPad")) {
-    os = "iOS";
-    device = ua.includes("iPad") ? "tablet" : "mobile";
-  } else if (ua.includes("Linux")) os = "Linux";
-  else if (ua.includes("zcrypt")) os = "CLI";
-
-  // Device detection
-  if (ua.includes("Mobile") || ua.includes("Android")) device = "mobile";
-  else if (ua.includes("Tablet") || ua.includes("iPad")) device = "tablet";
-
-  return { browser, os, device };
-}
+type AuditRow = AdminAuditResponse["events"][number];
 
 // Render human-readable metadata based on event type
-function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
+function EventDetails({ event }: { event: AuditRow }) {
   const t = useTranslations("admin.audit");
   const meta = event.metadata;
   if (!meta || Object.keys(meta).length === 0) return null;
@@ -119,22 +79,16 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
 
     case "file_download":
       if (meta.filename) details.push({ label: t("dFile"), value: String(meta.filename) });
-      if (meta.file_id)
-        details.push({ label: t("dFileId"), value: String(meta.file_id).slice(0, 8) + "..." });
       break;
 
     case "file_delete":
       if (meta.filename) details.push({ label: t("dFile"), value: String(meta.filename) });
-      if (meta.file_id)
-        details.push({ label: t("dFileId"), value: String(meta.file_id).slice(0, 8) + "..." });
       break;
 
     case "platform_connect":
     case "platform_disconnect":
       if (meta.platform) details.push({ label: t("dPlatform"), value: String(meta.platform) });
       if (meta.username) details.push({ label: t("dAccount"), value: `@${meta.username}` });
-      if (meta.token_id)
-        details.push({ label: t("dToken"), value: String(meta.token_id).slice(0, 8) + "..." });
       if (meta.is_global !== undefined)
         details.push({
           label: t("dScope"),
@@ -143,35 +97,31 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
       break;
 
     case "admin_role_change":
-      if (meta.target_user)
-        details.push({
-          label: t("dTargetUser"),
-          value: String(meta.target_user).slice(0, 8) + "...",
-        });
+      if (event.target_username)
+        details.push({ label: t("dTargetUser"), value: event.target_username });
       if (meta.role) details.push({ label: t("dNewRole"), value: String(meta.role), accent: true });
       break;
 
     case "admin_user_delete":
-      if (meta.target_user)
-        details.push({
-          label: t("dDeletedUser"),
-          value: String(meta.target_user).slice(0, 8) + "...",
-        });
+      details.push({
+        label: t("dDeletedUser"),
+        value: event.target_username || t("deletedAccount"),
+      });
       break;
 
     case "admin_plan_change":
-      if (meta.target_user)
-        details.push({
-          label: t("dTargetUser"),
-          value: String(meta.target_user).slice(0, 8) + "...",
-        });
+      if (event.target_username)
+        details.push({ label: t("dTargetUser"), value: event.target_username });
       if (meta.plan) details.push({ label: t("dNewPlan"), value: String(meta.plan), accent: true });
       break;
 
     default:
-      // Fallback: show all metadata keys
       Object.entries(meta).forEach(([key, value]) => {
-        details.push({ label: key.replace(/_/g, " "), value: String(value) });
+        if (HIDDEN_META.has(key)) return;
+        details.push({
+          label: key.replace(/_/g, " "),
+          value: typeof value === "object" ? JSON.stringify(value) : String(value),
+        });
       });
   }
 
@@ -196,276 +146,280 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
   );
 }
 
+// Keys that only carry ids or are shown elsewhere in the drawer.
+const HIDDEN_META = new Set([
+  "target_user",
+  "token_id",
+  "session_id",
+  "file_id",
+  "country",
+  "region",
+  "city",
+  "who",
+]);
+
+const EVENT_TYPES = [
+  "login",
+  "login_failed",
+  "register",
+  "logout",
+  "oauth_login",
+  "oauth_register",
+  "oauth_link",
+  "oauth_unlink",
+  "magic_link_sent",
+  "magic_link_used",
+  "upload_complete",
+  "file_delete",
+  "platform_connect",
+  "platform_disconnect",
+  "2fa_enable",
+  "2fa_disable",
+  "password_changed",
+  "session_revoke",
+  "admin_role_change",
+  "admin_user_delete",
+  "admin_plan_change",
+  "admin_quota_change",
+  "admin_session_revoke",
+];
+
+function AuditDrawer({ event, onClose }: { event: AuditRow | null; onClose: () => void }) {
+  const t = useTranslations("admin.audit");
+  const label = useEventLabel();
+  const ua = event ? describeUserAgent(event.user_agent) : null;
+  const country = event ? String(event.metadata?.country ?? "") : "";
+  return (
+    <Sheet open={!!event} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+        {event && ua && (
+          <>
+            <SheetHeader>
+              <SheetTitle>{label(event.event_type)}</SheetTitle>
+              <SheetDescription>
+                {formatDateTime(event.created_at, { seconds: true })}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-5 space-y-5">
+              <EventDetails event={event} />
+              <dl className="grid grid-cols-2 gap-3 rounded-xl bg-[var(--color-surface-1)] p-4 text-xs">
+                <div className="col-span-2">
+                  <dt className="text-[var(--color-text-muted)]">{t("user")}</dt>
+                  <dd className="mt-0.5 font-medium text-[var(--color-text-secondary)]">
+                    {event.user_id && event.username ? (
+                      <Link
+                        href={`/admin/users/${event.user_id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {event.username}
+                      </Link>
+                    ) : (
+                      t("noUser")
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">{t("location")}</dt>
+                  <dd className="mt-0.5 font-medium text-[var(--color-text-secondary)]">
+                    {country ? <CountryLabel code={country} /> : t("unknown")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">{t("ipAddress")}</dt>
+                  <dd className="mt-0.5 font-mono text-[var(--color-text-secondary)]">
+                    {event.ip || t("unknown")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">{t("browser")}</dt>
+                  <dd className="mt-0.5 text-[var(--color-text-secondary)]">{ua.browser}</dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">{t("os")}</dt>
+                  <dd className="mt-0.5 text-[var(--color-text-secondary)]">{ua.os}</dd>
+                </div>
+              </dl>
+              {event.user_agent && (
+                <p className="break-all text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                  <span className="font-medium">{t("ua")}:</span> {event.user_agent}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function AuditLog() {
   const t = useTranslations("admin.audit");
-  const [page, setPage] = useState(1);
-  const [eventTypeFilter, setEventTypeFilter] = useState("");
+  const label = useEventLabel();
+  const list = useAdminList("audit", { sort: "created_at" });
   const [paused, setPaused] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const key = qk.adminList("audit", list.params);
+  const page = useAdminQuery(key, () => adminGetAuditLog(list.params));
+  const events = page.data?.events ?? [];
+  const live = !paused && list.page === 1 && list.order === "desc" && !list.q;
+  const eventFilter = list.filters.event_type ?? "";
 
-  const auditKey = qk.adminAudit(page, eventTypeFilter);
-  const { data, loading } = useAdminQuery(auditKey, () =>
-    adminGetAuditLog({
-      limit: PAGE_SIZE,
-      offset: (page - 1) * PAGE_SIZE,
-      event_type: eventTypeFilter || undefined,
-    }),
-  );
-  const events = data?.events ?? [];
-  const total = data?.total ?? 0;
-
-  // Real-time SSE audit events: patched into the cached first page (if on page
-  // 1 and not paused) instead of refetching it.
   useOperationStatus(
     () => {},
     useCallback(
       (event: AuditEvent) => {
-        if (paused || page !== 1) return;
-        if (eventTypeFilter && event.event_type !== eventTypeFilter) return;
-        queryClient.setQueryData<AdminAuditResponse>(
-          qk.adminAudit(1, eventTypeFilter),
-          (prev) =>
-            prev && {
-              ...prev,
-              events: [event, ...prev.events].slice(0, PAGE_SIZE),
-              total: prev.total + 1,
-            },
+        if (!live) return;
+        if (eventFilter && event.event_type !== eventFilter) return;
+        queryClient.setQueryData<AdminAuditResponse>(key, (prev) =>
+          prev && prev.events.every((e) => e.id !== event.id)
+            ? {
+                ...prev,
+                events: [event, ...prev.events].slice(0, list.pageSize),
+                total: prev.total + 1,
+              }
+            : prev,
         );
       },
-      [paused, page, eventTypeFilter],
+      [live, eventFilter, key, list.pageSize],
     ),
   );
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const eventLabel = (type: string) =>
-    t.has(`events.${type}`) ? t(`events.${type}`) : (EVENT_LABELS[type] ?? type.replace(/_/g, " "));
-
-  const eventTypes = [
-    "login",
-    "login_failed",
-    "register",
-    "logout",
-    "oauth_login",
-    "oauth_register",
-    "oauth_link",
-    "oauth_unlink",
-    "magic_link_sent",
-    "magic_link_used",
-    "file_upload",
-    "file_download",
-    "file_delete",
-    "platform_connect",
-    "platform_disconnect",
-    "2fa_enable",
-    "2fa_disable",
-    "admin_role_change",
-    "admin_user_delete",
-    "admin_plan_change",
-  ];
-
-  if (loading && events.length === 0) {
-    return <AuditLogSkeleton />;
-  }
+  const opened = events.find((e) => e.id === openId) ?? null;
 
   return (
-    <section className="panel overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+    <>
+      <DataTable<AuditRow>
+        label={t("title")}
+        title={
+          <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
             {t("title")}
+            <span className="text-xs font-normal tabular-nums text-[var(--color-text-muted)]">
+              {t("eventCount", { count: page.data?.total ?? 0 })}
+            </span>
           </h2>
-          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
-            {t("eventCount", { count: total })}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <IconButton
-            icon={paused ? Play : Pause}
-            label={paused ? t("resume") : t("pause")}
-            variant="secondary"
-            onClick={() => setPaused(!paused)}
-            className={cn(
-              !paused && "text-[var(--color-accent)]",
-              paused && "text-amber-600 dark:text-amber-400",
-            )}
-          />
-          <div className="flex-1 sm:flex-initial sm:w-44">
-            <Select
-              value={eventTypeFilter || "all"}
-              onValueChange={(v) => {
-                setEventTypeFilter(v === "all" ? "" : v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9 text-xs" aria-label={t("filterType")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allEvents")}</SelectItem>
-                {eventTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {eventLabel(type)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      <div className="divide-y divide-[var(--color-border)]">
-        {events.length === 0 ? (
-          <EmptyState
-            icon={<FileText className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title={t("emptyTitle")}
-            description={eventTypeFilter ? t("emptyFiltered") : t("emptyAll")}
-          />
-        ) : (
-          events.map((event) => {
-            const Icon = EVENT_ICONS[event.event_type] ?? Shield;
-            const color = eventColorClass(event.event_type, { border: true });
-            const label = eventLabel(event.event_type);
-            const isExpanded = expandedId === event.id;
-            const ua = parseUserAgent(event.user_agent);
-            const DeviceIcon = ua.device === "mobile" ? Smartphone : Monitor;
-            const browserName = ua.browser || t("unknown");
-            const osName = ua.os || t("unknown");
-            const deviceName = t(
-              ua.device === "mobile"
-                ? "deviceMobile"
-                : ua.device === "tablet"
-                  ? "deviceTablet"
-                  : ua.device === "desktop"
-                    ? "deviceDesktop"
-                    : "unknown",
-            );
-
-            return (
-              <button
-                key={event.id}
-                onClick={() => setExpandedId(isExpanded ? null : event.id)}
-                className="w-full text-left px-5 py-3 hover:bg-[var(--color-surface-1)] transition-colors"
-              >
-                <div className="flex items-start gap-3">
-                  <div
+        }
+        toolbar={
+          <>
+            <TableSearch list={list} placeholder={t("search")} />
+            <TableFilter
+              list={list}
+              name="event_type"
+              label={t("filterType")}
+              options={EVENT_TYPES.map((type) => ({ value: type, label: label(type) }))}
+            />
+            <IconButton
+              icon={paused ? Play : Pause}
+              label={paused ? t("resume") : t("pause")}
+              variant="secondary"
+              onClick={() => setPaused(!paused)}
+              className={cn(
+                paused
+                  ? "text-amber-600 dark:text-amber-400"
+                  : live && "text-[var(--color-accent)]",
+              )}
+            />
+          </>
+        }
+        rows={events}
+        rowKey={(e) => e.id}
+        list={list}
+        total={page.data?.total ?? 0}
+        loading={page.loading}
+        fetching={page.fetching}
+        error={page.error}
+        onRetry={page.refresh}
+        empty={{
+          icon: <FileText className="h-7 w-7 text-[var(--color-text-muted)]" />,
+          title: t("emptyTitle"),
+          description: t("emptyAll"),
+        }}
+        onRowOpen={(e) => setOpenId(e.id)}
+        columns={[
+          {
+            id: "event",
+            header: t("colEvent"),
+            cell: (e) => {
+              const Icon = EVENT_ICONS[e.event_type] ?? Shield;
+              return (
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span
                     className={cn(
-                      "flex items-center justify-center h-8 w-8 rounded-lg border flex-shrink-0 mt-0.5",
-                      color,
+                      "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border",
+                      eventColorClass(e.event_type, { border: true }),
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {/* Row 1: event badge + IP + time */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={cn(
-                          "text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap",
-                          color,
-                        )}
-                      >
-                        {label}
-                      </span>
-                      <span className="text-xs text-[var(--color-text-muted)] truncate hidden sm:inline">
-                        {event.ip}
-                      </span>
-                      <span className="text-xs text-[var(--color-text-muted)] tabular-nums ml-auto flex-shrink-0 hidden sm:inline">
-                        {formatRelativeTime(event.created_at)}
-                      </span>
-                    </div>
-
-                    {/* Row 2 (always visible): quick context: device + browser on mobile, metadata summary */}
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
-                        <DeviceIcon className="h-3 w-3" />
-                        {browserName} / {osName}
-                      </span>
-                      <span className="text-[10px] text-[var(--color-text-muted)] inline-flex items-center gap-1 sm:hidden">
-                        <Globe className="h-3 w-3" />
-                        {event.ip}
-                      </span>
-                      <span className="text-[10px] text-[var(--color-text-muted)] tabular-nums sm:hidden ml-auto inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatRelativeTime(event.created_at)}
-                      </span>
-                    </div>
-
-                    {/* Expanded details */}
-                    {isExpanded && (
-                      <div className="mt-3 space-y-3 animate-fade-in">
-                        {/* Metadata details */}
-                        <EventDetails event={event} />
-
-                        {/* System info grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-lg bg-[var(--color-surface-1)]">
-                          {event.user_id && (
-                            <div className="text-xs">
-                              <span className="text-[var(--color-text-muted)]">
-                                {t("userId")}:{" "}
-                              </span>
-                              <span className="font-mono text-[var(--color-text-secondary)]">
-                                {event.user_id.slice(0, 12)}...
-                              </span>
-                            </div>
-                          )}
-                          <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">
-                              {t("ipAddress")}:{" "}
-                            </span>
-                            <span className="font-mono text-[var(--color-text-secondary)]">
-                              {event.ip}
-                            </span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">{t("browser")}: </span>
-                            <span className="text-[var(--color-text-secondary)]">
-                              {browserName}
-                            </span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">{t("os")}: </span>
-                            <span className="text-[var(--color-text-secondary)]">{osName}</span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">{t("device")}: </span>
-                            <span className="text-[var(--color-text-secondary)]">{deviceName}</span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">{t("time")}: </span>
-                            <span className="text-[var(--color-text-secondary)]">
-                              {formatDateTime(event.created_at, { seconds: true })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Raw user agent */}
-                        <div className="text-[10px] text-[var(--color-text-muted)] break-all leading-relaxed">
-                          <span className="font-medium">{t("ua")}:</span> {event.user_agent}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="px-5 py-3 border-t border-[var(--color-border)]">
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            totalItems={total}
-            pageSize={PAGE_SIZE}
-          />
-        </div>
-      )}
-    </section>
+                  </span>
+                  <span className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {label(e.event_type)}
+                  </span>
+                </span>
+              );
+            },
+          },
+          {
+            id: "user",
+            header: t("user"),
+            cell: (e) =>
+              e.user_id && e.username ? (
+                <Link
+                  href={`/admin/users/${e.user_id}`}
+                  className="truncate text-sm text-[var(--color-text-secondary)] underline-offset-2 hover:text-[var(--color-accent)] hover:underline"
+                >
+                  {e.username}
+                </Link>
+              ) : (
+                <span className="text-sm text-[var(--color-text-muted)]">{t("noUser")}</span>
+              ),
+          },
+          {
+            id: "where",
+            header: t("location"),
+            hideBelow: "lg",
+            cell: (e) => {
+              const country = String(e.metadata?.country ?? "");
+              return (
+                <span className="flex min-w-0 flex-col text-xs">
+                  {country ? <CountryLabel code={country} /> : null}
+                  <span className="font-mono text-[var(--color-text-muted)]">{e.ip}</span>
+                </span>
+              );
+            },
+          },
+          {
+            id: "device",
+            header: t("device"),
+            hideBelow: "xl",
+            cell: (e) => {
+              const ua = describeUserAgent(e.user_agent);
+              const DeviceIcon = ua.kind === "phone" ? Smartphone : Monitor;
+              return (
+                <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
+                  <DeviceIcon className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                  {ua.browser} · {ua.os}
+                </span>
+              );
+            },
+          },
+          {
+            id: "time",
+            header: t("time"),
+            sortKey: "created_at",
+            align: "end",
+            cell: (e) => (
+              <time
+                dateTime={e.created_at}
+                title={formatDateTime(e.created_at, { seconds: true })}
+                className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-muted)]"
+              >
+                {formatRelativeTime(e.created_at)}
+              </time>
+            ),
+          },
+        ]}
+      />
+      <AuditDrawer event={opened} onClose={() => setOpenId(null)} />
+    </>
   );
 }
