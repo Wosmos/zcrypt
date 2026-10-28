@@ -37,10 +37,12 @@ describe("docs and legal pages", () => {
         errors.push(a);
       });
       const Page = mod.default;
-      const { container } = render(<Page />);
+      const { container, unmount } = render(<Page />);
       spy.mockRestore();
+      const text = container.textContent;
+      unmount();
       expect(errors).toEqual([]);
-      expect(container.textContent).not.toMatch(/\b(docs|legal)\.[a-z0-9-]+\.[a-z0-9.-]+/i);
+      expect(text).not.toMatch(/\b(docs|legal)\.[a-z0-9-]+\.[a-z0-9.-]+/i);
     });
   }
 });
