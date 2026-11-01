@@ -23,7 +23,7 @@ describe("/changelog", () => {
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(headings).toContain("A tour, a bug button, a tidier vault");
     expect(container.querySelector("#v0\\.1\\.7")).not.toBeNull();
-    expect(screen.getByText("Upcoming")).toBeInTheDocument();
+    expect(screen.queryByText("Upcoming")).toBeNull();
     expect(screen.getByText("Latest")).toBeInTheDocument();
     expect(container.querySelectorAll('[data-kind="security"]').length).toBeGreaterThan(3);
     expect(screen.getByRole("link", { name: /Download zcrypt/ })).toHaveAttribute("href", "/download");
@@ -37,7 +37,7 @@ describe("/changelog/[version]", () => {
       "A tour, a bug button, a tidier vault",
     );
     expect(screen.getByRole("link", { name: /v0\.1\.6/ })).toHaveAttribute("href", "/changelog/0.1.6");
-    expect(screen.getByRole("link", { name: /v0\.1\.8/ })).toHaveAttribute("href", "/changelog/0.1.8");
+    expect(screen.getByRole("link", { name: /v0\.2\.0/ })).toHaveAttribute("href", "/changelog/0.2.0");
   });
 
   it("404s for unknown versions", async () => {

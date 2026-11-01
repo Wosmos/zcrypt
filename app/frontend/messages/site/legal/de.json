@@ -6,7 +6,7 @@
     "privacy": {
       "eyebrow": "Datenschutz",
       "title": "Datenschutzerklärung",
-      "lead": "Was wir speichern, was wir nicht sehen können, wer sonst noch beteiligt ist und wie du deine Daten herausbekommst oder löschen lässt. Zuletzt aktualisiert am 11. Oktober 2026.",
+      "lead": "Was wir speichern, was wir nicht sehen können, wer sonst noch beteiligt ist und wie du deine Daten herausbekommst oder löschen lässt. Zuletzt aktualisiert am 1. November 2026.",
       "seeAlso": "Nutzungsbedingungen",
       "contactMail": "Fragen zum Datenschutz oder eine Anfrage zu deinen Daten? Schreib an <l1>{email}</l1>. Eine Person liest mit.",
       "s1": {
@@ -34,6 +34,7 @@
         "l2": "Ein optionaler Anzeigename und ein Profilbild, gespeichert als eingebettetes Bild.",
         "l3": "Wenn du die Zwei-Faktor-Anmeldung aktivierst: das Authenticator-Geheimnis und gehashte Backup-Codes. Wenn du dich mit Google oder GitHub anmeldest: die Konto-ID des Anbieters.",
         "l4": "Sitzungen: pro angemeldetem Gerät ein gehashtes Refresh-Token, eine verkürzte IP-Adresse (der letzte Teil entfernt: /24 bei IPv4, /48 bei IPv6) und der User-Agent des Browsers. Diese kannst du in den Einstellungen einsehen und dort Geräte abmelden.",
+        "l4b": "Ungefährer Standort: Aus der IP-Adresse deiner Anfragen ermitteln wir Land, Region und Stadt und speichern sie bei deinem Konto (wo du dich registriert und zuletzt angemeldet hast). Wir nutzen das für die Sicherheit, um ungewöhnliche Anmeldungen zu erkennen, und für Länderstatistiken in der Summe. Die Abfrage läuft auf unserem eigenen Server gegen eine mitgelieferte Kopie einer kostenlosen Datenbank, deine IP-Adresse wird dafür also an niemanden sonst geschickt. Die bei jeder Sitzung gespeicherte IP bleibt gekürzt, wie oben beschrieben.",
         "h2": "Dateien und Freigaben",
         "l5": "Pro Datei: verschlüsselte Größe, Anzahl der Chunks, Zeitstempel, der Ordner, in dem sie liegt, der versiegelte Name und der umhüllte Schlüssel, der sie entsperrt. Pro Chunk: wo das verschlüsselte Teilstück gespeichert ist.",
         "l6": "Spaces: wer Mitglied ist und welche Rolle er hat. Freigabelinks: Aufrufzahlen, Ablaufdatum und ein optionales, mit bcrypt gehashtes Passwort.",
@@ -65,6 +66,7 @@
         "l5": "<strong>Google und GitHub</strong>, nur wenn du dich mit ihnen anmelden möchtest.",
         "l6": "<strong>GitHub, GitLab, Hugging Face und Telegram</strong> als Speicherplattformen (siehe oben).",
         "p1b": "Diese Anbieter können Daten außerhalb deines Landes verarbeiten, überwiegend in den Vereinigten Staaten.",
+        "p1c": "IP-Geolokalisierung von <dbip>DB-IP</dbip>, lizenziert unter CC BY 4.0.",
         "p2": "Wir verkaufen deine Daten nicht. Wenn wir rechtlich zur Offenlegung gezwungen wären, könnten wir nur herausgeben, was wir besitzen: die hier beschriebenen Kontodaten und Metadaten, niemals deine Dateiinhalte oder Namen."
       },
       "s6": {

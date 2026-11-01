@@ -2,6 +2,8 @@
 
 k6-based load tests for the zcrypt backend.
 
+> No results have been recorded yet; the p95 targets below are goals. `upload.js` still sends a plaintext `filename`, which the server refuses with HTTP 426 since 0.2.0, so the upload scenario fails until it sends a sealed `encrypted_name`. Run these only against the Docker sandbox (`make loadtest-docker-*`), never production.
+
 ## Prerequisites
 
 ```bash

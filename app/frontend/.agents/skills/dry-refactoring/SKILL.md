@@ -5,7 +5,7 @@ description: Guided workflow to eliminate copy-paste duplication detected by jsc
 
 # dry-refactoring
 
-Guided workflow to eliminate copy-paste duplication in source code. Use after running [jscpd](../jscpd/SKILL.md) to detect clones.
+Guided workflow to eliminate copy-paste duplication in source code. Use after running [jscpd](https://github.com/kucherenko/jscpd) to detect clones.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ First, run jscpd to identify duplications:
 npx jscpd --reporters ai <path>
 ```
 
-See the **[jscpd](../jscpd/SKILL.md)** skill for full option reference.
+See the **[jscpd](https://github.com/kucherenko/jscpd)** skill for full option reference.
 
 ## Workflow
 

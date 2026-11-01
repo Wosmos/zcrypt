@@ -875,7 +875,7 @@
           },
           "verify": {
             "title": "Decompress & verify",
-            "desc": "Chunks are zstd-decompressed and checked against a SHA-256 hash, so a corrupted or tampered file is caught before you ever see it."
+            "desc": "Each chunk is checked against its SHA-256 hash and authenticated by AES-GCM before it is decrypted and decompressed, so a corrupted or tampered file is caught before you ever see it."
           },
           "render": {
             "title": "Render from a local blob URL",

@@ -875,7 +875,7 @@
           },
           "verify": {
             "title": "Descomprimir y verificar",
-            "desc": "Los fragmentos se descomprimen con zstd y se comprueban contra un hash SHA-256, así un archivo dañado o manipulado se detecta antes de que lo veas."
+            "desc": "Cada fragmento se comprueba contra su hash SHA-256 y se autentica con AES-GCM antes de descifrarse y descomprimirse, así un archivo dañado o manipulado se detecta antes de que lo veas."
           },
           "render": {
             "title": "Renderizar desde una URL blob local",

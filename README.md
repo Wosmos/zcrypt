@@ -6,6 +6,8 @@
 
 Your files are split into chunks, and each chunk is compressed and encrypted, _on your device_ before anything moves. The server never sees your passphrase. The storage platforms never see your plaintext. zcrypt is free and open source. There are no paid tiers.
 
+**Current version: 0.2.0** ([release notes](docs/releases/0.2.0.md))
+
 [Report a vulnerability](docs/SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
 
 </div>
@@ -21,11 +23,14 @@ Your files are split into chunks, and each chunk is compressed and encrypted, _o
 - [Features](#features)
 - [Security](#security)
 - [Tech stack](#tech-stack)
+- [Install the desktop app](#install-the-desktop-app)
 - [Quick start](#quick-start)
 - [Environment variables](#environment-variables)
 - [Project structure](#project-structure)
 - [API overview](#api-overview)
+- [Using the API](#using-the-api)
 - [Storage platforms](#storage-platforms)
+- [Limits](#limits)
 - [Contributing](#contributing)
 - [Support](#support)
 - [Sponsor zcrypt](#sponsor-zcrypt)
@@ -121,7 +126,7 @@ Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that imple
 | ------ | ------ | ----- |
 | **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane. |
 | **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater. Installers are currently unsigned (see [Install the desktop app](#install-the-desktop-app)). |
-| **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Distributed as a sideload from the rolling [`android-latest`](https://github.com/Wosmos/zcrypt/releases) prerelease. Signed with an ephemeral CI key today, so it is not Play-Store-eligible and updates do not install over a prior sideload. |
+| **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Sideloaded APK from the [releases page](https://github.com/Wosmos/zcrypt/releases), signed with a permanent release key since v0.1.7, so updates install in place. Copies installed before v0.1.7 need one uninstall and reinstall. Not on the Play Store yet. |
 
 iOS compiles but is not yet built in CI. It is in development.
 
@@ -166,6 +171,8 @@ iOS compiles but is not yet built in CI. It is in development.
 ### Encryption design
 - **File encryption:** AES-256-GCM. A fresh random CEK per file; a 12-byte IV and 16-byte tag per chunk. (Batch uploads share one passphrase-derived salt/KEK for the batch, but every file still gets its own random CEK and unique nonces.)
 - **Key derivation:** PBKDF2-SHA256, 600,000 iterations (OWASP-recommended), identical on the web, Go, and Rust implementations and pinned by shared test vectors.
+- **Account master key (mk1):** an optional random account key that wraps each file's CEK, itself wrapped by your passphrase, so a future passphrase change re-wraps one key instead of every file. Clients write mk1 envelopes only while the admin rollout switch is on; existing files migrate in the background after unlock. Spec: [`docs/CRYPTO_FORMAT.md`](docs/CRYPTO_FORMAT.md).
+- **Integrity:** every encrypted chunk carries a SHA-256 checked by the server on upload and by the client before decrypting; AES-GCM authentication rejects any altered chunk. The whole-file digest is a per-user keyed HMAC-SHA256 of the plaintext (older files: plain SHA-256), checked before the file is saved.
 - **Platform tokens & TOTP secrets at rest:** AES-256-GCM sealed under a per-user KEK derived from `MASTER_KEY` via HKDF-SHA256.
 - **Passwords:** bcrypt (cost 12).
 - **Passphrase:** never stored, never logged, never sent to the server or the storage platforms.
@@ -191,7 +198,7 @@ iOS compiles but is not yet built in CI. It is in development.
 - **The server sees metadata:** file sizes, timestamps, and the sharing graph (who shared with whom). Names, labels, and Space names are sealed, but these are not.
 - **Weak passphrases can be guessed offline.** Anyone who gets the wrapped keys can try guesses at PBKDF2 speed. Use a long passphrase.
 - **The dead-man message is not end-to-end encrypted** (the UI says so). Do not put secrets in it.
-- Session IPs and server logs are coarsened (/24 for IPv4, /48 for IPv6), and login-failure logs no longer include emails.
+- Session IPs and server logs are coarsened (/24 for IPv4, /48 for IPv6), and login-failure logs no longer include emails. The server derives an approximate location (country, region, city) from the request IP with a local copy of the [DB-IP](https://db-ip.com) Lite database (CC BY 4.0); the IP is never sent to a third party.
 
 ## Tech stack
 
@@ -204,7 +211,7 @@ iOS compiles but is not yet built in CI. It is in development.
 | Database | PostgreSQL on Neon (serverless) |
 | Encryption | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF-SHA256, X25519 (sharing), bcrypt, TOTP |
 | Compression | zstd (WebCrypto/WASM in the browser; native in the Rust core) |
-| Deploy | Web on Vercel, backend self-hosted in Docker behind a Cloudflare Tunnel (see [`deploy/server`](deploy/server/README.md)), DB on Neon |
+| Deploy | Web on Vercel (deployed by CI after the tests pass), backend in Docker on Railway today with a self-hosted kit behind a Cloudflare Tunnel ready (see [`deploy/server`](deploy/server/README.md)), DB on Neon |
 
 ## Install the desktop app
 
@@ -251,6 +258,8 @@ openssl rand -hex 32
 go build -o zcrypt-server . && ./zcrypt-server
 ```
 
+The first account registered on a fresh database becomes the admin. Migrations run automatically on start.
+
 ### Frontend
 
 ```bash
@@ -276,6 +285,7 @@ To run the production setup on a server (Docker Compose plus a Cloudflare Tunnel
 
 ```bash
 docker build -t zcrypt .
+# The image bundles the DB-IP Lite city database at /geo/dbip-city-lite.mmdb.
 docker run -p 8080:8080 \
   -e DATABASE_URL="postgresql://..." \
   -e MASTER_KEY="$(openssl rand -hex 32)" \
@@ -323,6 +333,10 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `RESEND_API_KEY` / `RESEND_FROM` | [Resend](https://resend.com) credentials: enables verification / reset emails |
 | `CSP_REPORT_ONLY` | `1` downgrades the frontend Content-Security-Policy to report-only (enforced otherwise) |
 | `DEV_MODE` | `true` disables ALL rate limiting: local load testing only, never in production |
+| `ZCRYPT_CLIENT_IP_HEADER` | Header holding the real client IP set by your proxy. Defaults to `X-Real-IP` on Railway, unset elsewhere; `none` disables it |
+| `ZCRYPT_TRUSTED_PROXY_COUNT` | Reverse-proxy hops to trust in `X-Forwarded-For` when no client IP header is used |
+| `ZCRYPT_GEOIP_DB` | Path to a DB-IP / MaxMind city `.mmdb` file (default `/geo/dbip-city-lite.mmdb`); location lookups are skipped if the file is missing |
+| `MAINTENANCE_SECRET` | Enables the maintenance-mode switch used by the database rotation scripts (impossible to enable when unset) |
 | `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |
 
 ### Frontend
@@ -400,6 +414,46 @@ The backend speaks JSON over `net/http`, authenticated with `Authorization: Bear
 
 Sharing (`/api/shares`, `/api/folder-shares`, `/api/send`), Spaces (`/api/shared-vaults`, including `POST /api/shared-vaults/{id}/files/batch` to add many files at once), Timed Vaults (`/api/vaults`), Pad (`/api/pad`), keys (`/api/keys`), quota, snapshots/integrity, and admin (`/api/admin/*`, including `/audit` + `/audit/verify`) round out the surface.
 
+## Using the API
+
+Real requests against a local server (`./zcrypt-server` with `ZCRYPT_PORT=8081` on an empty database). Responses are trimmed.
+
+```bash
+B=http://localhost:8081
+
+curl -s $B/api/health
+# {"status":"ok"}
+
+curl -s -X POST $B/api/auth/register -H 'Content-Type: application/json' \
+  -d '{"email":"alice@example.com","username":"alice","password":"Correct-Horse-9"}'
+# {"message":"account created","success":true,"user":{"id":"…","email":"alice@example.com","username":"alice",…}}
+
+TOKEN=$(curl -s -X POST $B/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"alice@example.com","password":"Correct-Horse-9"}' | jq -r .access_token)
+
+curl -s -H "Authorization: Bearer $TOKEN" $B/api/auth/me
+# {"id":"…","email":"alice@example.com","username":"alice","role":"admin","plan":"free",…}
+
+curl -s -H "Authorization: Bearer $TOKEN" $B/api/quota
+# {"used_bytes":0,"quota_bytes":1073741824,"plan":"free","max_space_batch_files":200,"max_file_size":10737418240,"allows_byob":true,…}
+
+curl -s -H "Authorization: Bearer $TOKEN" "$B/api/files?limit=5"
+# []
+```
+
+Passwords need 8 to 72 bytes with an uppercase letter, a digit and a symbol; usernames are 3 to 32 letters, digits or underscores.
+
+Uploads are built by the clients, because the name, keys and chunks are encrypted on the device first. An `upload/init` that sends a plaintext `filename` instead of a sealed `encrypted_name` is refused:
+
+```bash
+curl -s -X POST $B/api/upload/init -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"filename":"notes.txt","original_size":40,"sha256":"…","salt":"…","chunk_count":1}'
+# HTTP 426 {"error":"Please update zcrypt to the latest version to keep uploading.","code":"client_update_required"}
+```
+
+The full byte format for building your own client is in [`docs/CRYPTO_FORMAT.md`](docs/CRYPTO_FORMAT.md).
+
 ## Storage platforms
 
 Each platform stores chunks differently: zcrypt hides that behind one adapter interface:
@@ -412,6 +466,21 @@ Each platform stores chunks differently: zcrypt hides that behind one adapter in
 | **Telegram** | Bot API `sendDocument` (chunks >19 MB auto-split around the 20 MB limit) | virtual (~50 GB) | No real repos; effectively the unlimited backend |
 
 Repo rotation (`app/backend/reppool`) deactivates a repo once it crosses its threshold and creates a fresh disguised replacement. HuggingFace batches deletes into a single commit to stay under its ~128 commits/hour/repo limit.
+
+## Limits
+
+| Limit | Value |
+| ----- | ----- |
+| Free plan storage | 1 GiB by default (plans and quotas are admin-editable at runtime) |
+| Largest file | 10 GiB on the free plan |
+| Chunk size | 4, 8, 10 or 16 MiB, picked from the device's memory and CPU |
+| Files per Spaces add | 200 on the free plan (`max_space_batch_files`) |
+| Anonymous Send | 50 MB per file, 500 MB per rolling 24 hours, kept up to 24 hours |
+| HuggingFace | about 128 commits per hour per repo; 100 GB per account |
+| Telegram | 20 MB per bot download, so larger chunks are split |
+| Rate limits | in memory, per server instance |
+
+The web app cannot keep transferring in the background on iPhone; use the desktop or Android app for long transfers.
 
 ## Contributing
 

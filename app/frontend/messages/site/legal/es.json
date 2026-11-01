@@ -6,7 +6,7 @@
     "privacy": {
       "eyebrow": "Privacidad",
       "title": "Política de privacidad",
-      "lead": "Qué almacenamos, qué no podemos ver, quién más interviene y cómo sacar tus datos o eliminarlos. Última actualización: 11 de octubre de 2026.",
+      "lead": "Qué almacenamos, qué no podemos ver, quién más interviene y cómo sacar tus datos o eliminarlos. Última actualización: 1 de noviembre de 2026.",
       "seeAlso": "Términos del servicio",
       "contactMail": "¿Preguntas sobre privacidad o una solicitud sobre tus datos? Escribe a <l1>{email}</l1>. Lo lee una persona.",
       "s1": {
@@ -34,6 +34,7 @@
         "l2": "Un nombre para mostrar y una foto de perfil opcionales, almacenada como imagen incrustada.",
         "l3": "Si activas el inicio de sesión en dos pasos: el secreto del autenticador y los códigos de respaldo con hash. Si inicias sesión con Google o GitHub: el ID de cuenta del proveedor.",
         "l4": "Sesiones: por cada dispositivo con sesión iniciada, un token de actualización con hash, una dirección IP acortada (se elimina la última parte: /24 para IPv4, /48 para IPv6) y el agente de usuario del navegador. Puedes verlas y cerrar sesión en dispositivos desde Ajustes.",
+        "l4b": "Ubicación aproximada: a partir de la dirección IP de tus solicitudes deducimos un país, una región y una ciudad, y las guardamos con tu cuenta (dónde te registraste y dónde iniciaste sesión por última vez). La usamos para la seguridad, para detectar inicios de sesión inusuales y para estadísticas agregadas por país. La consulta se hace en nuestro propio servidor con una copia incluida de una base de datos gratuita, así que tu dirección IP no se envía a nadie más para esto. La IP que se guarda con cada sesión sigue acortada, como se indica arriba.",
         "h2": "Archivos y uso compartido",
         "l5": "Por archivo: tamaño cifrado, número de fragmentos, marcas de tiempo, en qué carpeta está, el nombre sellado y la clave envuelta que lo desbloquea. Por fragmento: dónde se almacena la pieza cifrada.",
         "l6": "Spaces: quién es miembro y su rol. Enlaces compartidos: número de vistas, vencimiento y una contraseña opcional con hash bcrypt.",
@@ -65,6 +66,7 @@
         "l5": "<strong>Google y GitHub</strong>, solo si eliges iniciar sesión con ellos.",
         "l6": "<strong>GitHub, GitLab, Hugging Face y Telegram</strong>, como plataformas de almacenamiento (arriba).",
         "p1b": "Estos proveedores pueden tratar datos fuera de tu país, sobre todo en Estados Unidos.",
+        "p1c": "Geolocalización de IP por <dbip>DB-IP</dbip>, con licencia CC BY 4.0.",
         "p2": "No vendemos tus datos. Si estuviéramos obligados legalmente a divulgar algo, solo podríamos entregar lo que tenemos: los datos de la cuenta y los metadatos descritos aquí, nunca el contenido ni los nombres de tus archivos."
       },
       "s6": {

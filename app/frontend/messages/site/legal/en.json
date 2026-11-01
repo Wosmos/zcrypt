@@ -6,7 +6,7 @@
     "privacy": {
       "eyebrow": "Privacy",
       "title": "Privacy Policy",
-      "lead": "What we store, what we cannot see, who else is involved, and how to get your data out or deleted. Last updated October 11, 2026.",
+      "lead": "What we store, what we cannot see, who else is involved, and how to get your data out or deleted. Last updated November 1, 2026.",
       "seeAlso": "Terms of Service",
       "contactMail": "Privacy questions, or a request about your data? Email <l1>{email}</l1>. A person reads it.",
       "s1": {
@@ -34,6 +34,7 @@
         "l2": "An optional display name and profile picture, stored as an inline image.",
         "l3": "If you turn on two-factor sign-in: the authenticator secret and hashed backup codes. If you sign in with Google or GitHub: the provider's account ID.",
         "l4": "Sessions: for each signed-in device, a hashed refresh token, a shortened IP address (the last part removed: /24 for IPv4, /48 for IPv6) and the browser's user agent. You can see these and sign devices out in Settings.",
+        "l4b": "Approximate location: from the IP address of your requests we work out a country, region and city, and store it with your account (where you signed up and where you last signed in). We use it for security, to spot unusual sign-ins, and for aggregate country statistics. The lookup runs on our own server against a bundled copy of a free database, so your IP address is never sent to anyone else for this. The IP kept with each session stays shortened, as above.",
         "h2": "Files and sharing",
         "l5": "Per file: encrypted size, chunk count, timestamps, which folder it is in, the sealed name and the wrapped key that unlocks it. Per chunk: where the encrypted piece is stored.",
         "l6": "Spaces: who is a member and their role. Share links: view counts, expiry and an optional bcrypt-hashed password.",
@@ -65,6 +66,7 @@
         "l5": "<strong>Google and GitHub</strong>, only if you choose to sign in with them.",
         "l6": "<strong>GitHub, GitLab, Hugging Face and Telegram</strong>, as storage platforms (above).",
         "p1b": "These providers may process data outside your country, mostly in the United States.",
+        "p1c": "IP geolocation by <dbip>DB-IP</dbip>, licensed CC BY 4.0.",
         "p2": "We do not sell your data. If we were legally compelled to disclose something, we could only hand over what we hold: the account data and metadata described here, never your file contents or names."
       },
       "s6": {

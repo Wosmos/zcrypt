@@ -5,6 +5,79 @@ All notable changes to zcrypt are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.0] - 2026-11-01
+
+Full release notes: [docs/releases/0.2.0.md](docs/releases/0.2.0.md).
+
+### Breaking
+
+- The server refuses uploads that send a plaintext file name (HTTP 426 `client_update_required`); very old apps that don't seal file names must update before they can upload
+- Self-hosted servers on Railway now read the client IP from `X-Real-IP`; behind any other proxy set `ZCRYPT_CLIENT_IP_HEADER` (or `none`)
+
+### Added
+
+- The whole app, website, docs, privacy and terms pages in eight languages: English, Arabic, German, Spanish, French, Russian, Urdu and Chinese
+- System notifications on the web, desktop and Android for transfers, sign-in and full storage, with a Send a test button
+- Optional sounds for finished, heads-up and problem moments, with three sound sets
+- New transfers panel: failed items first, slim desktop bar, phone orb, drag files in to upload or out to download
+- Public `/feedback` page with an optional reply email
+- Account-change and announcement emails with one-click unsubscribe
+- Spaces as real pages with their own links and keyboard control
+- Recents and Starred views, one vault search in the top bar, and right-click menus on empty space
+- Quick settings panel, Get the apps dialog with an Android QR code, and command palette actions
+- Twelve new backgrounds and contrast-checked light and dark versions of custom themes
+- Changelog pages for every version, an RSS feed and an in-app What's new dialog
+- Connection status: the app says when you are offline, on a slow link, or our servers are down; `/api/health` reports maintenance
+- One-line installers for macOS, Linux and Windows, a Homebrew tap, and a self-hosting kit for a Linux box behind a Cloudflare Tunnel
+- Language suggestion based on the visitor's country, worked out on our own server
+- Profile photos wherever an avatar appears
+- Admin overview, one table for every admin list, bulk user actions and per-user reports (#46)
+
+### Changed
+
+- Upload and download progress in plain words, with a bar that never goes backwards and failures that say how to fix them
+- One toast style everywhere; deletes and moves happen straight away with Undo instead of a confirm
+- Confirmation dialogs name the count, preview what is affected and ask for a typed word before anything permanent
+- Redesigned sign-in and sign-up pages, a drifting brand light and frosted-glass navigation across the site
+- iOS-style switches in the theme color
+- Calmer vault: one storage notice, storage ring in the sidebar, loading skeletons, friendlier empty states
+- Cleaner phone and tablet layout
+- Update dialog and GitHub release notes come from the curated changelog
+- Deleting a user from the admin panel asks only for a 2FA code, and only when 2FA is on
+
+### Fixed
+
+- Big vaults no longer flicker or blank the page on weaker graphics chips
+- Previews from an unreachable platform retry twice, then offer Try again
+- A quick pause and resume no longer cancels a download; stopping a paused download stops it
+- Resumed uploads return to the right folder; identical files in one batch upload one at a time
+- Public links to files in password-protected folders open
+- Android app opens its local vault in its own folder
+- Desktop folder sync waits for files to settle and skips temporary files
+- Pad and Send keep your input on retry; Transfer no longer reports done after a dropped connection
+- Picking many photos on a phone keeps showing Preparing
+- Emails carry a plain-text part, so they stop landing in spam
+- Spaces ask you to unlock instead of failing, and space names stay readable after a key rotation
+- System theme follows the device's light or dark switch straight away
+- Landing-page switch styles no longer leak into real switches on public pages
+- Clearer Spaces invite error for addresses without an account
+- Sign-in sessions record the real client location instead of the proxy's
+
+### Security
+
+- Space names, the Send hash and every file name are sealed on your device; the app never sends a name or hash in the clear
+- Account master key (mk1) envelope support, with a background migration, behind an admin switch
+- Sharing keys are pinned per contact, with a warning if one changes
+- Minimum passphrase length
+- Content Security Policy enforced instead of report-only
+- Sessions keep only a shortened IP; login records no longer store the typed email
+- Previews from password-protected folders are never written to disk and are cleared on lock and sign-out
+- Desktop app validates deep links, allowlists keychain keys, pins the sync origin and zeroizes the cached passphrase
+- Server: ownership and limit checks on Send, folders, Pad, purge and 2FA; revocation survives restarts; transfer relay caps
+- Storage platform tokens are scrubbed from error messages
+- Dependency security updates: Go 1.26.10, rustls, rustls-webpki, zstd, zip, quinn-proto, DOMPurify, Next.js 16.4.3 (#40, #41, #42, #43, #44, #45, #47, #48, #49, #50)
 
 ## [0.1.7] - 2026-10-04
 

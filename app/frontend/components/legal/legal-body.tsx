@@ -11,6 +11,7 @@ export interface LegalSectionSpec {
   blocks: LegalBlock[];
 }
 
+const DBIP_URL = "https://db-ip.com";
 const POLICIES_URL = "https://github.com/basecamp/policies";
 
 export function LegalDocument({
@@ -77,7 +78,7 @@ export function LegalDocument({
                 <p>
                   <T
                     k={`${ns}.${s.key}.${b.p}`}
-                    links={{ l1: "/privacy" }}
+                    links={{ l1: "/privacy", dbip: DBIP_URL }}
                     linkClassName={proseLink}
                   />
                 </p>

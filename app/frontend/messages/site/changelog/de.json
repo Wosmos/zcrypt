@@ -33,9 +33,9 @@
       "filterAll": "Alles",
       "permalink": "Link zu dieser Version"
     },
-    "v0_1_8": {
-      "title": "Alles in acht Sprachen",
-      "summary": "zcrypt spricht jetzt durchgehend acht Sprachen, Spaces haben richtige Seiten bekommen, und im Hintergrund ist leise viel Datenschutzarbeit passiert.",
+    "v0_2_0": {
+      "title": "Benachrichtigungen, Töne und acht Sprachen",
+      "summary": "zcrypt spricht jetzt durchgehend acht Sprachen, sagt dir mit Benachrichtigungen, Tönen und Fortschritt in klaren Worten, was gerade passiert, und hat darunter viel leisere Arbeit an Datenschutz und Zuverlässigkeit bekommen.",
       "items": {
         "translation": "Die ganze App und die Website sind jetzt ins Arabische, Deutsche, Spanische, Französische, Russische, Urdu und Chinesische übersetzt, nicht nur die Menüs.",
         "spacesPages": "Spaces sind von Pop-up-Fenstern auf echte Seiten mit eigenen Links umgezogen, und du kannst sie per Tastatur bedienen.",
@@ -71,7 +71,31 @@
         "toolPages": "Die Seiten Pad, Send und Transfer zeigen wieder ihre Schritte und den Abschlusstext.",
         "systemTheme": "Steht das Design auf System, folgt die App jetzt sofort dem Hell-Dunkel-Wechsel deines Geräts.",
         "connectionStatus": "zcrypt sagt dir jetzt sofort, wenn dein Internet weg oder langsam ist oder unsere Server nicht erreichbar sind, und versucht es selbst erneut.",
-        "signInRedesign": "Aufgeräumtere Anmelde- und Registrierungsseiten: ein schlichtes ganzseitiges Layout mit dem Formular auf einer Seite und einem Live-Serverstatus darunter."
+        "signInRedesign": "Aufgeräumtere Anmelde- und Registrierungsseiten: ein schlichtes ganzseitiges Layout mit dem Formular auf einer Seite und einem Live-Serverstatus darunter.",
+        "notifications": "Systembenachrichtigungen im Web, auf dem Desktop und unter Android: Übertragungsfortschritt, Fotovorschau, Schaltflächen für Ansehen und Wiederholen, Warnungen bei Anmeldung und vollem Speicher und eine Schaltfläche zum Testsenden in den Einstellungen.",
+        "sounds": "Optionale Töne für Fertig, Hinweis und Problem, mit drei Klangsets und der Möglichkeit, sie nur abzuspielen, wenn zcrypt im Hintergrund läuft.",
+        "transfersPanel": "Ein neues Übertragungsfenster, das fehlgeschlagene Einträge zuerst zeigt, auf dem Desktop zu einer schmalen Leiste und auf dem Handy zu einer kleinen Kugel schrumpft und Ablegen in beide Richtungen kann: Dateien darauf ziehen zum Hochladen oder Dateien aus dem Tresor ziehen zum Herunterladen.",
+        "feedbackPage": "Eine öffentliche Feedback-Seite, auf der jeder eine Idee, ein Problem oder ein nettes Wort senden kann, optional mit E-Mail-Adresse, falls du eine Antwort möchtest.",
+        "accountEmails": "E-Mails über wichtige Änderungen an deinem Konto und gelegentliche Neuigkeiten, jeweils mit einem Abmeldelink für einen Klick.",
+        "plainProgress": "Fortschritt bei Uploads und Downloads in klaren Worten: ein Balken, der nie zurückspringt, eine gerundete Restzeit und bei Fehlern die Info, was schiefging und wie du es behebst.",
+        "messages": "Ein einheitlicher Stil für Meldungen: Wiederholungen werden zusammengefasst, Fehler bleiben, bis du sie schließt, Daraufzeigen hält sie an und Escape schließt sie.",
+        "confirmDialogs": "Klarere Warnungen und Bestätigungen, die sagen, wie viele Elemente betroffen sind, zeigen welche, vor allem Endgültigen ein Wort zum Eintippen verlangen und auf dem Handy als Bottom Sheet aufgehen.",
+        "siteLight": "Ein ruhigerer Look für die Website und die Anmeldung: ein sanftes Markenlicht schwebt hinter der Seite, dazu Navigation und Schaltflächen aus Milchglas.",
+        "largeVaults": "Große Tresore lassen sich flüssig entsperren und durchscrollen: Das Raster flackert nicht mehr und die Seite wird auf schwächeren Grafikchips nicht mehr leer.",
+        "previewRetry": "Vorschauen von einer nicht erreichbaren Speicherplattform versuchen es zweimal und bieten dann Erneut versuchen an, statt ewig zu drehen.",
+        "downloadPause": "Ein Download, den du pausierst und schnell fortsetzt, wird nicht mehr abgebrochen, und ein pausierter Download, den du stoppst, stoppt wirklich.",
+        "uploadResume": "Fortgesetzte Uploads landen wieder im richtigen Ordner, und identische Dateien in einem Stapel kommen sich nicht mehr in die Quere.",
+        "protectedLinks": "Öffentliche Links zu Dateien in einem passwortgeschützten Ordner öffnen sich jetzt richtig.",
+        "androidStart": "Die Android-App legt ihren lokalen Tresor in einem eigenen Ordner ab, was einen Fehler beim Start behebt.",
+        "folderWatch": "Die Ordnersynchronisierung auf dem Desktop wartet, bis sich eine Datei nicht mehr ändert, und überspringt temporäre und halb heruntergeladene Dateien.",
+        "toolsRetry": "Pad und Send behalten beim erneuten Versuch, was du getippt hast, und Transfer meldet nach einem Verbindungsabbruch nicht mehr, dass es fertig ist.",
+        "photoPrep": "Wenn du auf dem Handy viele Fotos auswählst, zeigt zcrypt weiter Wird vorbereitet an, bis sie bereit sind, statt nach drei Sekunden still zu werden.",
+        "emailSpam": "E-Mails von zcrypt enthalten jetzt auch eine Nur-Text-Version und landen deshalb nicht mehr im Spam.",
+        "protectedPreviews": "Vorschauen aus passwortgeschützten Ordnern werden nie auf der Festplatte gespeichert, und Sperren des Tresors oder Abmelden löscht sie.",
+        "desktopHardening": "Die Desktop-App prüft jeden Link, mit dem sie geöffnet wird, begrenzt, was sie im Schlüsselbund ablegt, und löscht die zwischengespeicherte Passphrase aus dem Speicher.",
+        "serverHardening": "Strengere Serverprüfungen bei Send, Ordnern, Pad und der Anmeldung mit Zwei-Faktor, und eine abgemeldete Sitzung bleibt auch nach einem Serverneustart abgemeldet.",
+        "tokenScrub": "Tokens der Speicherplattformen werden aus jeder Fehlermeldung entfernt, sodass sie nie in einem Protokoll landen.",
+        "dependencyFixes": "Sicherheitsupdates für Server, Apps und Website, darunter Korrekturen für Zertifikatsprüfungen und Kompressionsbibliotheken."
       }
     },
     "v0_1_7": {

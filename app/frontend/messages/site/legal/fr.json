@@ -6,7 +6,7 @@
     "privacy": {
       "eyebrow": "Confidentialité",
       "title": "Politique de confidentialité",
-      "lead": "Ce que nous stockons, ce que nous ne pouvons pas voir, qui d'autre intervient, et comment récupérer ou faire supprimer vos données. Dernière mise à jour : 11 octobre 2026.",
+      "lead": "Ce que nous stockons, ce que nous ne pouvons pas voir, qui d'autre intervient, et comment récupérer ou faire supprimer vos données. Dernière mise à jour : 1er novembre 2026.",
       "seeAlso": "Conditions d'utilisation",
       "contactMail": "Une question sur la confidentialité, ou une demande concernant vos données ? Écrivez à <l1>{email}</l1>. Une personne lit ces messages.",
       "s1": {
@@ -34,6 +34,7 @@
         "l2": "Un nom d'affichage et une photo de profil facultatifs, stockés sous forme d'image intégrée.",
         "l3": "Si vous activez la connexion à deux facteurs : le secret de l'authentificateur et des codes de secours hachés. Si vous vous connectez avec Google ou GitHub : l'identifiant de compte du fournisseur.",
         "l4": "Sessions : pour chaque appareil connecté, un jeton d'actualisation haché, une adresse IP raccourcie (dernière partie retirée : /24 pour IPv4, /48 pour IPv6) et l'agent utilisateur du navigateur. Vous pouvez les consulter et déconnecter des appareils dans les Paramètres.",
+        "l4b": "Localisation approximative : à partir de l’adresse IP de vos requêtes, nous déduisons un pays, une région et une ville, et nous les conservons avec votre compte (où vous vous êtes inscrit et où vous vous êtes connecté pour la dernière fois). Nous l’utilisons pour la sécurité, pour repérer les connexions inhabituelles et pour des statistiques agrégées par pays. La recherche se fait sur notre propre serveur, dans une copie intégrée d’une base de données gratuite : votre adresse IP n’est donc envoyée à personne d’autre pour cela. L’IP conservée avec chaque session reste raccourcie, comme ci-dessus.",
         "h2": "Fichiers et partage",
         "l5": "Par fichier : taille chiffrée, nombre de blocs, horodatages, dossier où il se trouve, nom scellé et clé enveloppée qui le déverrouille. Par bloc : l'endroit où la pièce chiffrée est stockée.",
         "l6": "Spaces : qui en est membre et son rôle. Liens de partage : nombre de vues, expiration et mot de passe facultatif haché avec bcrypt.",
@@ -65,6 +66,7 @@
         "l5": "<strong>Google et GitHub</strong>, uniquement si vous choisissez de vous connecter avec eux.",
         "l6": "<strong>GitHub, GitLab, Hugging Face et Telegram</strong>, en tant que plateformes de stockage (ci-dessus).",
         "p1b": "Ces fournisseurs peuvent traiter des données en dehors de votre pays, principalement aux États-Unis.",
+        "p1c": "Géolocalisation IP par <dbip>DB-IP</dbip>, sous licence CC BY 4.0.",
         "p2": "Nous ne vendons pas vos données. Si nous étions légalement contraints de divulguer quelque chose, nous ne pourrions transmettre que ce que nous détenons : les données de compte et les métadonnées décrites ici, jamais le contenu ni les noms de vos fichiers."
       },
       "s6": {

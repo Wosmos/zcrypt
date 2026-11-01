@@ -94,7 +94,7 @@ describe("WhatsNewHost", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 3200));
     });
-    expect(await screen.findByText("A tour, a bug button, a tidier vault")).toBeInTheDocument();
+    expect(await screen.findByText("Notifications, sounds and eight languages")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See full changelog" })).toHaveAttribute(
       "href",
       "/changelog",

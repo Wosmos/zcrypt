@@ -33,9 +33,9 @@
       "filterAll": "Todo",
       "permalink": "Enlace a esta versión"
     },
-    "v0_1_8": {
-      "title": "Todo en ocho idiomas",
-      "summary": "zcrypt ahora habla ocho idiomas de principio a fin, los espacios tienen páginas de verdad y se hizo mucho trabajo de privacidad en silencio, entre bambalinas.",
+    "v0_2_0": {
+      "title": "Notificaciones, sonidos y ocho idiomas",
+      "summary": "zcrypt ahora habla ocho idiomas de principio a fin, te cuenta lo que pasa con notificaciones, sonidos y un progreso en lenguaje claro, y tiene mucho trabajo más discreto de privacidad y fiabilidad por debajo.",
       "items": {
         "translation": "Toda la aplicación y el sitio web están traducidos al árabe, alemán, español, francés, ruso, urdu y chino, no solo los menús.",
         "spacesPages": "Los espacios pasaron de ventanas emergentes a páginas reales con su propio enlace, y puedes manejarlos con el teclado.",
@@ -71,7 +71,31 @@
         "toolPages": "Las páginas de Pad, Send y Transfer vuelven a mostrar sus pasos y el texto final.",
         "systemTheme": "Con el tema en Sistema, la app ahora sigue al instante el cambio entre claro y oscuro de tu dispositivo.",
         "connectionStatus": "zcrypt ahora te avisa al momento cuando tu internet se cae o va lento, o cuando no podemos llegar a nuestros servidores, y vuelve a intentarlo solo.",
-        "signInRedesign": "Páginas de inicio de sesión y registro más limpias: un diseño sencillo a página completa con el formulario a un lado y el estado de los servidores en directo debajo."
+        "signInRedesign": "Páginas de inicio de sesión y registro más limpias: un diseño sencillo a página completa con el formulario a un lado y el estado de los servidores en directo debajo.",
+        "notifications": "Notificaciones del sistema en la web, el escritorio y Android: progreso de las transferencias, vista previa de la foto, botones de Ver y Reintentar, avisos de inicio de sesión y de almacenamiento lleno, y un botón de Enviar una prueba en Ajustes.",
+        "sounds": "Sonidos opcionales para los momentos de terminado, aviso y problema, con tres juegos de sonidos y la opción de oírlos solo cuando zcrypt está en segundo plano.",
+        "transfersPanel": "Un nuevo panel de transferencias que muestra primero lo que falló, se reduce a una barra fina en el escritorio y a una bolita en el móvil, y admite soltar en los dos sentidos: suelta archivos en él para subirlos o arrastra archivos fuera de la bóveda para descargarlos.",
+        "feedbackPage": "Una página pública de comentarios donde cualquiera puede mandar una idea, un problema o unas palabras amables, con un correo opcional si quieres respuesta.",
+        "accountEmails": "Correos sobre cambios importantes en tu cuenta y algún anuncio ocasional, cada uno con un enlace para darte de baja con un clic.",
+        "plainProgress": "El progreso de subidas y descargas en palabras sencillas: una barra que nunca retrocede, un tiempo restante redondeado y, cuando algo falla, qué pasó y cómo arreglarlo.",
+        "messages": "Un estilo coherente para los mensajes: las repeticiones se fusionan en una, los errores se quedan hasta que los cierras, pasar el cursor los pausa y Escape los descarta.",
+        "confirmDialogs": "Avisos y confirmaciones más claros que dicen cuántos elementos afectan, muestran cuáles, piden escribir una palabra antes de algo permanente y se abren como hoja inferior en el móvil.",
+        "siteLight": "Un aspecto más sereno para el sitio web y el inicio de sesión: una luz suave de la marca flota tras la página, con navegación y botones de cristal esmerilado.",
+        "largeVaults": "Las bóvedas grandes se desbloquean y se desplazan con fluidez: la cuadrícula ya no parpadea y la página ya no se queda en blanco en chips gráficos más modestos.",
+        "previewRetry": "Las vistas previas de una plataforma de almacenamiento inalcanzable lo intentan dos veces y luego ofrecen Reintentar en vez de girar para siempre.",
+        "downloadPause": "Pausar una descarga y reanudarla enseguida ya no la cancela, y detener una descarga en pausa la detiene de verdad.",
+        "uploadResume": "Las subidas reanudadas vuelven a caer en la carpeta correcta, y los archivos idénticos de un mismo lote ya no se pisan entre sí.",
+        "protectedLinks": "Los enlaces públicos a archivos dentro de una carpeta protegida con contraseña ahora se abren bien.",
+        "androidStart": "La app de Android guarda su bóveda local en su propia carpeta, lo que arregla un fallo al arrancar.",
+        "folderWatch": "La sincronización de carpetas del escritorio espera a que un archivo deje de cambiar y se salta los archivos temporales y a medio descargar.",
+        "toolsRetry": "Pad y Send conservan lo que escribiste al reintentar, y Transfer ya no dice que terminó cuando se corta la conexión.",
+        "photoPrep": "Si eliges muchas fotos en el móvil, sigue mostrando Preparando hasta que estén listas, en vez de quedarse en silencio a los tres segundos.",
+        "emailSpam": "Los correos de zcrypt ahora incluyen una versión en texto plano, así que dejan de caer en el spam.",
+        "protectedPreviews": "Las vistas previas de carpetas protegidas con contraseña nunca se guardan en el disco, y bloquear la bóveda o cerrar sesión las borra.",
+        "desktopHardening": "La app de escritorio comprueba cada enlace con el que se abre, limita lo que guarda en el llavero y borra de la memoria la frase de contraseña en caché.",
+        "serverHardening": "Comprobaciones más estrictas del servidor en Send, carpetas, Pad y el inicio de sesión en dos pasos, y una sesión cerrada sigue cerrada tras reiniciar el servidor.",
+        "tokenScrub": "Los tokens de las plataformas de almacenamiento se eliminan de todos los mensajes de error, así que nunca llegan a un registro.",
+        "dependencyFixes": "Actualizaciones de seguridad en el servidor, las apps y el sitio web, con arreglos para la comprobación de certificados y las bibliotecas de compresión."
       }
     },
     "v0_1_7": {

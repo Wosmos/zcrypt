@@ -33,9 +33,9 @@
       "filterAll": "Everything",
       "permalink": "Link to this version"
     },
-    "v0_1_8": {
-      "title": "Everything in eight languages",
-      "summary": "zcrypt now speaks eight languages all the way through, Spaces got proper pages, and a lot of privacy work happened quietly in the background.",
+    "v0_2_0": {
+      "title": "Notifications, sounds and eight languages",
+      "summary": "zcrypt now speaks eight languages all the way through, tells you what is going on with notifications, sounds and plain-language progress, and got a lot of quieter privacy and reliability work underneath.",
       "items": {
         "translation": "The whole app and the website are now translated into Arabic, German, Spanish, French, Russian, Urdu and Chinese, not just the menus.",
         "spacesPages": "Spaces moved from pop-up windows to real pages with their own links, and you can drive them from the keyboard.",
@@ -71,7 +71,31 @@
         "toolPages": "The Pad, Send and Transfer pages show their steps and closing text again.",
         "systemTheme": "With the theme set to System, the app now follows your device's light or dark switch straight away.",
         "connectionStatus": "zcrypt now tells you right away when your internet is down or slow, or when our servers can't be reached, and retries on its own.",
-        "signInRedesign": "Cleaner sign-in and sign-up pages: a simple full-page layout with the form on one side, and a live server status under it."
+        "signInRedesign": "Cleaner sign-in and sign-up pages: a simple full-page layout with the form on one side, and a live server status under it.",
+        "notifications": "System notifications on the web, desktop and Android: transfer progress, a photo preview, View and Retry buttons, sign-in and storage-full alerts, and a Send a test button in Settings.",
+        "sounds": "Optional sounds for finished, heads-up and problem moments, with three sound sets and a choice to play them only when zcrypt is in the background.",
+        "transfersPanel": "A new transfers panel that lists failed items first, shrinks to a slim bar on desktop and a small orb on phones, and takes drops both ways: drop files on it to upload, or drag files out of the vault to download.",
+        "feedbackPage": "A public feedback page where anyone can send an idea, a problem or a kind word, with an optional email if you want a reply.",
+        "accountEmails": "Emails about important changes to your account and the occasional announcement, each with a one-click unsubscribe link.",
+        "plainProgress": "Upload and download progress in plain words: a bar that never jumps backwards, a rounded time left, and when something fails, what went wrong and how to fix it.",
+        "messages": "One consistent style for messages: repeats merge into one, errors stay until you close them, hovering pauses them and Escape dismisses them.",
+        "confirmDialogs": "Clearer warnings and confirmations that say how many items are affected, show which ones, ask you to type a word before anything permanent, and open as a bottom sheet on phones.",
+        "siteLight": "A calmer look for the website and sign-in: a soft brand light drifts behind the page, with frosted-glass navigation and buttons.",
+        "largeVaults": "Big vaults unlock and scroll smoothly: the grid no longer flickers and the page no longer goes blank on weaker graphics chips.",
+        "previewRetry": "Previews from a storage platform that can't be reached try twice, then offer Try again instead of spinning forever.",
+        "downloadPause": "Pausing and quickly resuming a download no longer cancels it, and stopping a paused download really stops it.",
+        "uploadResume": "Resumed uploads land back in the right folder, and identical files in one batch no longer trip over each other.",
+        "protectedLinks": "Public links to files inside a password-protected folder open correctly.",
+        "androidStart": "The Android app keeps its local vault in its own folder, which fixes a failure on start-up.",
+        "folderWatch": "Desktop folder sync waits until a file has stopped changing and skips temporary and half-downloaded files.",
+        "toolsRetry": "Pad and Send keep what you typed when you retry, and Transfer no longer says it is done after the connection drops.",
+        "photoPrep": "Picking a lot of photos on a phone keeps showing Preparing until they are ready, instead of going quiet after three seconds.",
+        "emailSpam": "Emails from zcrypt now include a plain-text version, so they stop landing in spam.",
+        "protectedPreviews": "Previews from password-protected folders are never saved to disk, and locking the vault or signing out clears them.",
+        "desktopHardening": "The desktop app checks every link it is opened with, limits what it keeps in the keychain, and wipes the cached passphrase from memory.",
+        "serverHardening": "Tighter server checks across Send, folders, Pad and two-factor sign-in, and a signed-out session stays signed out after a server restart.",
+        "tokenScrub": "Storage platform tokens are scrubbed from every error message, so they never reach a log.",
+        "dependencyFixes": "Security updates across the server, the apps and the website, including fixes for certificate checks and compression libraries."
       }
     },
     "v0_1_7": {

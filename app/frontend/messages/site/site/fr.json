@@ -875,7 +875,7 @@
           },
           "verify": {
             "title": "Décompresser et vérifier",
-            "desc": "Les fragments sont décompressés avec zstd et comparés à un hachage SHA-256, de sorte qu'un fichier corrompu ou altéré est repéré avant que vous ne le voyiez."
+            "desc": "Chaque fragment est comparé à son hachage SHA-256 et authentifié par AES-GCM avant d'être déchiffré et décompressé, de sorte qu'un fichier corrompu ou altéré est repéré avant que vous ne le voyiez."
           },
           "render": {
             "title": "Rendu depuis une URL blob locale",

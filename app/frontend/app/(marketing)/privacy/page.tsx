@@ -23,7 +23,7 @@ const SECTIONS = [
     blocks: [
       { p: "p1" },
       { h: "h1" },
-      { ul: ["l1", "l2", "l3", "l4"] },
+      { ul: ["l1", "l2", "l3", "l4", "l4b"] },
       { h: "h2" },
       { ul: ["l5", "l6", "l7"] },
       { h: "h3" },
@@ -42,7 +42,13 @@ const SECTIONS = [
   {
     id: "privacy-third-parties",
     key: "s5",
-    blocks: [{ p: "p1" }, { ul: ["l1", "l2", "l3", "l4", "l5", "l6"] }, { p: "p1b" }, { p: "p2" }],
+    blocks: [
+      { p: "p1" },
+      { ul: ["l1", "l2", "l3", "l4", "l5", "l6"] },
+      { p: "p1b" },
+      { p: "p1c" },
+      { p: "p2" },
+    ],
   },
   {
     id: "privacy-tools",

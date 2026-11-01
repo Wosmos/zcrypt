@@ -33,9 +33,9 @@
       "filterAll": "Tout",
       "permalink": "Lien vers cette version"
     },
-    "v0_1_8": {
-      "title": "Tout en huit langues",
-      "summary": "zcrypt parle désormais huit langues de bout en bout, les Espaces ont de vraies pages, et beaucoup de travail sur la confidentialité s'est fait discrètement en coulisses.",
+    "v0_2_0": {
+      "title": "Notifications, sons et huit langues",
+      "summary": "zcrypt parle désormais huit langues de bout en bout, vous dit ce qui se passe avec des notifications, des sons et une progression en langage clair, et a reçu beaucoup de travail plus discret sur la confidentialité et la fiabilité.",
       "items": {
         "translation": "Toute l'application et le site sont maintenant traduits en arabe, allemand, espagnol, français, russe, ourdou et chinois, pas seulement les menus.",
         "spacesPages": "Les Espaces ont quitté les fenêtres contextuelles pour de vraies pages avec leurs propres liens, et vous pouvez les piloter au clavier.",
@@ -71,7 +71,31 @@
         "toolPages": "Les pages Pad, Send et Transfer affichent à nouveau leurs étapes et leur texte de fin.",
         "systemTheme": "Avec le thème sur Système, l'appli suit désormais tout de suite le passage clair ou sombre de votre appareil.",
         "connectionStatus": "zcrypt vous prévient désormais tout de suite quand votre internet est coupé ou lent, ou quand nos serveurs sont injoignables, et réessaie tout seul.",
-        "signInRedesign": "Pages de connexion et d'inscription plus épurées : une mise en page simple en pleine page avec le formulaire d'un côté et l'état des serveurs en direct en dessous."
+        "signInRedesign": "Pages de connexion et d'inscription plus épurées : une mise en page simple en pleine page avec le formulaire d'un côté et l'état des serveurs en direct en dessous.",
+        "notifications": "Des notifications système sur le web, le bureau et Android : progression des transferts, aperçu de la photo, boutons Afficher et Réessayer, alertes de connexion et de stockage plein, et un bouton Envoyer un test dans les Réglages.",
+        "sounds": "Des sons facultatifs pour les moments de fin, d'avertissement et de problème, avec trois jeux de sons et le choix de ne les jouer que lorsque zcrypt est en arrière-plan.",
+        "transfersPanel": "Un nouveau panneau de transferts qui liste d'abord les éléments en échec, se réduit à une fine barre sur ordinateur et à une petite bulle sur téléphone, et accepte le glisser-déposer dans les deux sens : déposez des fichiers dessus pour les envoyer, ou faites glisser des fichiers hors du coffre pour les télécharger.",
+        "feedbackPage": "Une page de retours publique où chacun peut envoyer une idée, un problème ou un mot gentil, avec un e-mail facultatif si vous voulez une réponse.",
+        "accountEmails": "Des e-mails sur les changements importants de votre compte et quelques annonces occasionnelles, chacun avec un lien de désabonnement en un clic.",
+        "plainProgress": "La progression des envois et des téléchargements en mots simples : une barre qui ne recule jamais, un temps restant arrondi et, quand quelque chose échoue, ce qui s'est passé et comment y remédier.",
+        "messages": "Un style unique pour les messages : les répétitions fusionnent en une seule, les erreurs restent jusqu'à ce que vous les fermiez, le survol les met en pause et Échap les ferme.",
+        "confirmDialogs": "Des avertissements et confirmations plus clairs qui disent combien d'éléments sont concernés, montrent lesquels, demandent de taper un mot avant toute action définitive et s'ouvrent en feuille du bas sur téléphone.",
+        "siteLight": "Un look plus calme pour le site et la connexion : une douce lumière de la marque flotte derrière la page, avec une navigation et des boutons en verre dépoli.",
+        "largeVaults": "Les gros coffres se déverrouillent et défilent en douceur : la grille ne scintille plus et la page ne se vide plus sur les puces graphiques plus modestes.",
+        "previewRetry": "Les aperçus d'une plateforme de stockage injoignable réessaient deux fois, puis proposent Réessayer au lieu de tourner indéfiniment.",
+        "downloadPause": "Mettre un téléchargement en pause puis le reprendre aussitôt ne l'annule plus, et arrêter un téléchargement en pause l'arrête vraiment.",
+        "uploadResume": "Les envois repris atterrissent de nouveau dans le bon dossier, et des fichiers identiques dans un même lot ne se gênent plus.",
+        "protectedLinks": "Les liens publics vers des fichiers d'un dossier protégé par mot de passe s'ouvrent correctement.",
+        "androidStart": "L'app Android garde son coffre local dans son propre dossier, ce qui corrige un échec au démarrage.",
+        "folderWatch": "La synchronisation de dossier sur ordinateur attend qu'un fichier ait fini de changer et ignore les fichiers temporaires et à moitié téléchargés.",
+        "toolsRetry": "Pad et Send gardent ce que vous avez saisi quand vous réessayez, et Transfer n'annonce plus avoir terminé après une coupure de connexion.",
+        "photoPrep": "Choisir beaucoup de photos sur téléphone affiche Préparation en cours jusqu'à ce qu'elles soient prêtes, au lieu de se taire après trois secondes.",
+        "emailSpam": "Les e-mails de zcrypt incluent maintenant une version en texte brut, et n'atterrissent donc plus dans les spams.",
+        "protectedPreviews": "Les aperçus des dossiers protégés par mot de passe ne sont jamais enregistrés sur le disque, et verrouiller le coffre ou se déconnecter les efface.",
+        "desktopHardening": "L'app de bureau vérifie chaque lien avec lequel elle est ouverte, limite ce qu'elle garde dans le trousseau et efface de la mémoire la phrase secrète en cache.",
+        "serverHardening": "Des contrôles serveur plus stricts sur Send, les dossiers, Pad et la connexion en deux étapes, et une session fermée reste fermée après un redémarrage du serveur.",
+        "tokenScrub": "Les jetons des plateformes de stockage sont effacés de tous les messages d'erreur, et n'arrivent donc jamais dans un journal.",
+        "dependencyFixes": "Mises à jour de sécurité du serveur, des apps et du site, dont des correctifs pour la vérification des certificats et les bibliothèques de compression."
       }
     },
     "v0_1_7": {

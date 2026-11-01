@@ -3,6 +3,11 @@
 > **Note:** A broad QA guide; parts are aspirational: some k6 scripts and E2E specs it
 > references do not exist. For the current, real load tests see
 > [`load-tests-README.md`](./load-tests-README.md) and `tests/load/k6/`.
+>
+> **As of 0.2.0:** no k6 run has been recorded yet, so every capacity figure in this
+> guide is an estimate, not a measurement. `tests/load/k6/upload.js` still sends a
+> plaintext `filename`, which the server has refused with HTTP 426 since 0.2.0; it needs
+> a sealed `encrypted_name` before the upload scenario can run.
 
 Complete testing strategy covering unit, integration, end-to-end, load, and AI-assisted testing for the zcrypt zero-knowledge encrypted storage system.
 

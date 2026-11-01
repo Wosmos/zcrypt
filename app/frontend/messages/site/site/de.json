@@ -875,7 +875,7 @@
           },
           "verify": {
             "title": "Dekomprimieren und prüfen",
-            "desc": "Chunks werden mit zstd dekomprimiert und gegen einen SHA-256-Hash geprüft, sodass eine beschädigte oder manipulierte Datei auffällt, bevor du sie siehst."
+            "desc": "Jeder Chunk wird gegen seinen SHA-256-Hash geprüft und von AES-GCM authentifiziert, bevor er entschlüsselt und dekomprimiert wird, sodass eine beschädigte oder manipulierte Datei auffällt, bevor du sie siehst."
           },
           "render": {
             "title": "Aus lokaler Blob-URL rendern",
