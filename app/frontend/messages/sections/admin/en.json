@@ -103,7 +103,8 @@
       "viaShared": "admin's shared storage",
       "sharedPill": "Shared",
       "ownPlatforms": "Their own accounts",
-      "sharedPlatforms": "Using the admin's shared storage"
+      "sharedPlatforms": "Using the admin's shared storage",
+      "unlimitedOwn": "unlimited (own storage)"
     },
     "reauth": {
       "confirm": "Confirm it's you to continue.",

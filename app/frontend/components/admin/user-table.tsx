@@ -66,10 +66,12 @@ export function UserTable({
   const actions = useUserActions({ currentUserId, planConfigs, onDone: onRefresh });
 
   const quotaOf = (u: AdminUser) =>
-    formatQuotaDisplay(u.storage_quota ?? null, {
-      planDisplay: planConfigs.find((p) => p.id === (u.plan || "free"))?.storage_display,
-      defaultBytes: defaultQuotaBytes,
-    });
+    u.storage_quota == null && (u.platforms ?? []).some((p) => p.via === "web" && !p.shared)
+      ? tu("unlimitedOwn")
+      : formatQuotaDisplay(u.storage_quota ?? null, {
+          planDisplay: planConfigs.find((p) => p.id === (u.plan || "free"))?.storage_display,
+          defaultBytes: defaultQuotaBytes,
+        });
 
   const columns: DataTableColumn<AdminUser>[] = [
     {

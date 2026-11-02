@@ -103,7 +103,8 @@
       "viaShared": "管理员的共享存储",
       "sharedPill": "共享",
       "ownPlatforms": "自己的账户",
-      "sharedPlatforms": "使用管理员的共享存储"
+      "sharedPlatforms": "使用管理员的共享存储",
+      "unlimitedOwn": "无限制（自有存储）"
     },
     "reauth": {
       "confirm": "请确认是你本人以继续。",

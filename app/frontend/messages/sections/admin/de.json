@@ -103,7 +103,8 @@
       "viaShared": "geteilter Speicher des Admins",
       "sharedPill": "Geteilt",
       "ownPlatforms": "Eigene Konten",
-      "sharedPlatforms": "Nutzt den geteilten Speicher des Admins"
+      "sharedPlatforms": "Nutzt den geteilten Speicher des Admins",
+      "unlimitedOwn": "unbegrenzt (eigener Speicher)"
     },
     "reauth": {
       "confirm": "Bestätige, dass du es bist, um fortzufahren.",

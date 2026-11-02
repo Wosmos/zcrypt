@@ -103,7 +103,8 @@
       "viaShared": "almacenamiento compartido del administrador",
       "sharedPill": "Compartido",
       "ownPlatforms": "Sus propias cuentas",
-      "sharedPlatforms": "Usa el almacenamiento compartido del administrador"
+      "sharedPlatforms": "Usa el almacenamiento compartido del administrador",
+      "unlimitedOwn": "ilimitado (almacenamiento propio)"
     },
     "reauth": {
       "confirm": "Confirma que eres tú para continuar.",

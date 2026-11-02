@@ -92,6 +92,24 @@ describe("UserTable", () => {
     expect(within(t).getByText(/GitHub · octo · used by the desktop or Android app/)).toBeInTheDocument();
   });
 
+  it("shows unlimited storage for a user with their own platform token", () => {
+    renderTable([
+      user({
+        platforms: [{ platform: "telegram", account: "own_bot", via: "web", shared: false, connected_at: null }],
+      }),
+    ]);
+    expect(within(screen.getByRole("table")).getByText("of unlimited (own storage)")).toBeInTheDocument();
+  });
+
+  it("keeps the plan quota for a user only on shared storage", () => {
+    renderTable([
+      user({
+        platforms: [{ platform: "telegram", account: "admin_bot", via: "shared", shared: false, connected_at: null }],
+      }),
+    ]);
+    expect(within(screen.getByRole("table")).queryByText(/own storage/)).not.toBeInTheDocument();
+  });
+
   it("says when the user has no platform at all", () => {
     renderTable([user({})]);
     expect(within(screen.getByRole("table")).getByText("No own platform")).toBeInTheDocument();
