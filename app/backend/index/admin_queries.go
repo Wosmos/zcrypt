@@ -23,10 +23,14 @@ type ListPage struct {
 // AdminUserFilter narrows the admin user list.
 type AdminUserFilter struct {
 	ListPage
-	Country string
-	Role    string
-	Plan    string
+	Country  string
+	Role     string
+	Plan     string
+	Platform string
 }
+
+// NoPlatform selects users who have not connected any storage platform.
+const NoPlatform = "none"
 
 // UnknownCountry selects users whose country is not known.
 const UnknownCountry = "unknown"
@@ -82,14 +86,27 @@ const adminUserSelect = `WITH f AS (
 ), s AS (
 	SELECT user_id, COUNT(DISTINCT COALESCE(session_id, id)) AS cnt
 	  FROM refresh_tokens WHERE expires_at > NOW() GROUP BY user_id
+), p AS (
+	SELECT user_id, json_agg(json_build_object(
+	         'platform', platform, 'account', account, 'via', via, 'shared', shared, 'connected_at', connected_at)
+	         ORDER BY platform, account) AS list
+	  FROM (
+	    SELECT user_id, platform, username AS account, 'web' AS via, is_global AS shared, created_at AS connected_at
+	      FROM platform_tokens
+	    UNION ALL
+	    SELECT r.user_id, r.platform, r.account, 'app', FALSE, NULL
+	      FROM repos r
+	     WHERE NOT EXISTS (SELECT 1 FROM platform_tokens t WHERE t.user_id = r.user_id AND t.platform = r.platform)
+	     GROUP BY r.user_id, r.platform, r.account
+	  ) c GROUP BY user_id
 )
 SELECT u.id, u.email, u.username, u.email_verified, u.totp_enabled, u.role, u.plan,
        u.storage_quota_bytes, u.deletion_scheduled_at, u.created_at, u.updated_at,
        u.signup_country, u.signup_region, u.signup_city,
        u.last_country, u.last_region, u.last_city, u.last_ip_prefix, u.last_seen_at, u.last_user_agent,
        COALESCE(f.cnt, 0) AS file_count, COALESCE(f.total, 0) AS total_size, COALESCE(s.cnt, 0),
-       ` + userCountryExpr + ` AS country
-  FROM users u LEFT JOIN f ON f.user_id = u.id LEFT JOIN s ON s.user_id = u.id`
+       ` + userCountryExpr + ` AS country, COALESCE(p.list, '[]'::json)
+  FROM users u LEFT JOIN f ON f.user_id = u.id LEFT JOIN s ON s.user_id = u.id LEFT JOIN p ON p.user_id = u.id`
 
 func scanAdminUser(row interface{ Scan(...any) error }) (types.AdminUser, error) {
 	var u types.AdminUser
@@ -98,7 +115,7 @@ func scanAdminUser(row interface{ Scan(...any) error }) (types.AdminUser, error)
 		&u.StorageQuota, &u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
 		&u.SignupCountry, &u.SignupRegion, &u.SignupCity,
 		&u.LastCountry, &u.LastRegion, &u.LastCity, &u.LastIPPrefix, &u.LastSeenAt, &u.LastUserAgent,
-		&u.FileCount, &u.TotalStorage, &u.SessionCount, &country)
+		&u.FileCount, &u.TotalStorage, &u.SessionCount, &country, &u.Platforms)
 	return u, err
 }
 
@@ -119,6 +136,15 @@ func adminUserWhere(f AdminUserFilter) *whereBuilder {
 	}
 	if f.Plan != "" {
 		w.add("u.plan = " + w.arg(f.Plan))
+	}
+	const connected = `EXISTS (SELECT 1 FROM platform_tokens t WHERE t.user_id = u.id%[1]s)
+		OR EXISTS (SELECT 1 FROM repos r WHERE r.user_id = u.id%[2]s)`
+	switch {
+	case f.Platform == NoPlatform:
+		w.add("NOT (" + fmt.Sprintf(connected, "", "") + ")")
+	case f.Platform != "":
+		a := w.arg(f.Platform)
+		w.add("(" + fmt.Sprintf(connected, " AND t.platform = "+a, " AND r.platform = "+a) + ")")
 	}
 	return w
 }

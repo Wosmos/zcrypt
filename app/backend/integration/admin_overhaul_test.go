@@ -60,6 +60,11 @@ type adminUserRow struct {
 	LastDevice    string  `json:"last_device"`
 	SessionCount  int     `json:"session_count"`
 	FileCount     int     `json:"file_count"`
+	Platforms     []struct {
+		Platform string `json:"platform"`
+		Account  string `json:"account"`
+		Via      string `json:"via"`
+	} `json:"platforms"`
 }
 
 type adminUsersPage struct {
@@ -342,5 +347,45 @@ func TestAdminOverviewAndListShapes(t *testing.T) {
 	resp.Body.Close()
 	resp = ts.PUT("/api/admin/users/"+uuid.NewString()+"/quota", []byte(`{"quota_bytes":null,"notify":false}`), adminToken)
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	resp.Body.Close()
+}
+
+func TestAdminUsersShowConnectedPlatforms(t *testing.T) {
+	ts, adminToken, tag, _ := adminOverhaulFixture(t)
+	ctx := context.Background()
+	var page adminUsersPage
+	ts.adminGet("/api/admin/users?sort=email&order=asc&role=user&q="+tag, adminToken, http.StatusOK, &page)
+	require.Len(t, page.Users, 3)
+	webUser, appUser := page.Users[0].ID, page.Users[1].ID
+
+	pool := ts.db.Pool()
+	_, err := pool.Exec(ctx, `INSERT INTO platform_tokens (user_id, platform, username, token_encrypted, token_nonce)
+		VALUES ($1, 'telegram', 'vault_bot', '\x00', '\x00')`, webUser)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO repos (id, user_id, platform, account, name, max_bytes)
+		VALUES ($1, $2, 'github', 'octo', 'notes', 1), ($3, $2, 'github', 'octo', 'notes-2', 1)`,
+		"gh-"+tag+"-1", appUser, "gh-"+tag+"-2")
+	require.NoError(t, err)
+
+	ts.adminGet("/api/admin/users?sort=email&order=asc&role=user&q="+tag, adminToken, http.StatusOK, &page)
+	require.Len(t, page.Users, 3)
+	require.Len(t, page.Users[0].Platforms, 1)
+	assert.Equal(t, "telegram", page.Users[0].Platforms[0].Platform)
+	assert.Equal(t, "vault_bot", page.Users[0].Platforms[0].Account)
+	assert.Equal(t, "web", page.Users[0].Platforms[0].Via)
+	require.Len(t, page.Users[1].Platforms, 1, "an app account appears once however many repos it registered")
+	assert.Equal(t, "github", page.Users[1].Platforms[0].Platform)
+	assert.Equal(t, "app", page.Users[1].Platforms[0].Via)
+	assert.NotNil(t, page.Users[2].Platforms)
+	assert.Empty(t, page.Users[2].Platforms)
+
+	ts.adminGet("/api/admin/users?platform=github&q="+tag, adminToken, http.StatusOK, &page)
+	require.Len(t, page.Users, 1)
+	assert.Equal(t, appUser, page.Users[0].ID)
+	ts.adminGet("/api/admin/users?platform=none&role=user&q="+tag, adminToken, http.StatusOK, &page)
+	assert.Len(t, page.Users, 1)
+
+	resp := ts.GET("/api/admin/users?platform=dropbox", adminToken)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	resp.Body.Close()
 }

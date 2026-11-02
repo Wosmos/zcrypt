@@ -342,19 +342,32 @@ type PlatformTokenRow struct {
 // AdminUser is a user with aggregate stats for admin views.
 type AdminUser struct {
 	User
-	FileCount     int        `json:"file_count"`
-	TotalStorage  int64      `json:"total_size"`
-	SignupCountry string     `json:"signup_country"`
-	SignupRegion  string     `json:"signup_region"`
-	SignupCity    string     `json:"signup_city"`
-	LastCountry   string     `json:"last_country"`
-	LastRegion    string     `json:"last_region"`
-	LastCity      string     `json:"last_city"`
-	LastIPPrefix  string     `json:"last_ip_prefix"`
-	LastSeenAt    *time.Time `json:"last_seen_at"`
-	LastUserAgent string     `json:"last_user_agent"`
-	LastDevice    string     `json:"last_device"`
-	SessionCount  int        `json:"session_count"`
+	FileCount     int                 `json:"file_count"`
+	TotalStorage  int64               `json:"total_size"`
+	SignupCountry string              `json:"signup_country"`
+	SignupRegion  string              `json:"signup_region"`
+	SignupCity    string              `json:"signup_city"`
+	LastCountry   string              `json:"last_country"`
+	LastRegion    string              `json:"last_region"`
+	LastCity      string              `json:"last_city"`
+	LastIPPrefix  string              `json:"last_ip_prefix"`
+	LastSeenAt    *time.Time          `json:"last_seen_at"`
+	LastUserAgent string              `json:"last_user_agent"`
+	LastDevice    string              `json:"last_device"`
+	SessionCount  int                 `json:"session_count"`
+	Platforms     []ConnectedPlatform `json:"platforms"`
+}
+
+// ConnectedPlatform is one storage account a user has connected. Via is "web"
+// for a token stored on the server and "app" for an account the desktop or
+// Android app uses directly, known only from the repos it registered. Shared
+// marks a token the admin offers to every user.
+type ConnectedPlatform struct {
+	Platform    string     `json:"platform"`
+	Account     string     `json:"account"`
+	Via         string     `json:"via"`
+	Shared      bool       `json:"shared"`
+	ConnectedAt *time.Time `json:"connected_at"`
 }
 
 // QuotaInfo describes a user's storage quota status.

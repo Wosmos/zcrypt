@@ -132,7 +132,7 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	f := index.AdminUserFilter{ListPage: page, Country: strings.ToUpper(q.Get("country")), Role: q.Get("role"), Plan: q.Get("plan")}
+	f := index.AdminUserFilter{ListPage: page, Country: strings.ToUpper(q.Get("country")), Role: q.Get("role"), Plan: q.Get("plan"), Platform: q.Get("platform")}
 	if f.Country == strings.ToUpper(index.UnknownCountry) {
 		f.Country = index.UnknownCountry
 	} else if f.Country != "" && !isCountryCode(f.Country) {
@@ -144,6 +144,12 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "role must be user or admin")
 			return
 		}
+	}
+	switch f.Platform {
+	case "", index.NoPlatform, "github", "gitlab", "huggingface", "telegram":
+	default:
+		writeError(w, http.StatusBadRequest, "platform must be github, gitlab, huggingface, telegram or none")
+		return
 	}
 	if len(f.Plan) > 64 {
 		writeError(w, http.StatusBadRequest, "plan is too long")
