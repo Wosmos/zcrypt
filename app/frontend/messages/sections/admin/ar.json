@@ -95,11 +95,15 @@
       "open": "فتح الملف الشخصي",
       "search": "البحث بالاسم أو البريد",
       "colPlatforms": "المنصات",
-      "noPlatforms": "لا شيء",
+      "noPlatforms": "لا منصة خاصة",
       "noPlatformsLong": "لم يتم ربط أي منصة تخزين بعد.",
       "viaWeb": "محفوظ على الخادم",
       "viaApp": "يستخدمه تطبيق سطح المكتب أو Android",
-      "sharedToken": "مشترك مع الجميع"
+      "sharedToken": "مشترك مع الجميع",
+      "viaShared": "التخزين المشترك من المسؤول",
+      "sharedPill": "مشترك",
+      "ownPlatforms": "حساباته الخاصة",
+      "sharedPlatforms": "يستخدم التخزين المشترك من المسؤول"
     },
     "reauth": {
       "confirm": "أكّد أنك أنت للمتابعة.",

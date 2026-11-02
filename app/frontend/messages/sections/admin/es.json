@@ -95,11 +95,15 @@
       "open": "Abrir perfil",
       "search": "Buscar nombre o correo",
       "colPlatforms": "Plataformas",
-      "noPlatforms": "Ninguna",
+      "noPlatforms": "Sin plataforma propia",
       "noPlatformsLong": "Todavía no ha conectado ninguna plataforma de almacenamiento.",
       "viaWeb": "guardada en el servidor",
       "viaApp": "usada por la app de escritorio o Android",
-      "sharedToken": "compartida con todos"
+      "sharedToken": "compartida con todos",
+      "viaShared": "almacenamiento compartido del administrador",
+      "sharedPill": "Compartido",
+      "ownPlatforms": "Sus propias cuentas",
+      "sharedPlatforms": "Usa el almacenamiento compartido del administrador"
     },
     "reauth": {
       "confirm": "Confirma que eres tú para continuar.",

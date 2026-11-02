@@ -175,7 +175,7 @@ export interface AdminUser {
 export interface ConnectedPlatform {
   platform: string;
   account: string;
-  via: "web" | "app";
+  via: "web" | "app" | "shared";
   /** An admin token offered to every user as shared storage. */
   shared: boolean;
   connected_at: string | null;

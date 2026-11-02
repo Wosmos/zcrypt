@@ -92,9 +92,23 @@ describe("UserTable", () => {
     expect(within(t).getByText(/GitHub · octo · used by the desktop or Android app/)).toBeInTheDocument();
   });
 
-  it("says none when no platform is connected", () => {
+  it("says when the user has no platform at all", () => {
     renderTable([user({})]);
-    expect(within(screen.getByRole("table")).getByText("None")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("No own platform")).toBeInTheDocument();
+  });
+
+  it("marks the admin's shared storage apart from the user's own accounts", () => {
+    renderTable([
+      user({
+        platforms: [
+          { platform: "huggingface", account: "Mine", via: "web", shared: false, connected_at: null },
+          { platform: "telegram", account: "admin_bot", via: "shared", shared: false, connected_at: null },
+        ],
+      }),
+    ]);
+    const t = screen.getByRole("table");
+    expect(within(t).getByText(/Hugging Face · Mine · saved on the server/)).toBeInTheDocument();
+    expect(within(t).getByText("Shared")).toHaveTextContent(/Telegram · admin_bot · admin's shared storage/);
   });
 
   it("says unknown when no country was ever seen", () => {

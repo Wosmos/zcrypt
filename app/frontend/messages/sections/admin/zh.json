@@ -95,11 +95,15 @@
       "open": "打开资料",
       "search": "搜索姓名或邮箱",
       "colPlatforms": "平台",
-      "noPlatforms": "无",
+      "noPlatforms": "没有自己的平台",
       "noPlatformsLong": "尚未连接任何存储平台。",
       "viaWeb": "保存在服务器上",
       "viaApp": "由桌面或 Android 应用使用",
-      "sharedToken": "与所有人共享"
+      "sharedToken": "与所有人共享",
+      "viaShared": "管理员的共享存储",
+      "sharedPill": "共享",
+      "ownPlatforms": "自己的账户",
+      "sharedPlatforms": "使用管理员的共享存储"
     },
     "reauth": {
       "confirm": "请确认是你本人以继续。",

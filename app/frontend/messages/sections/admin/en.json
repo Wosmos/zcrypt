@@ -95,11 +95,15 @@
       "open": "Open profile",
       "search": "Search name or email",
       "colPlatforms": "Platforms",
-      "noPlatforms": "None",
+      "noPlatforms": "No own platform",
       "noPlatformsLong": "No storage platform connected yet.",
       "viaWeb": "saved on the server",
       "viaApp": "used by the desktop or Android app",
-      "sharedToken": "shared with everyone"
+      "sharedToken": "shared with everyone",
+      "viaShared": "admin's shared storage",
+      "sharedPill": "Shared",
+      "ownPlatforms": "Their own accounts",
+      "sharedPlatforms": "Using the admin's shared storage"
     },
     "reauth": {
       "confirm": "Confirm it's you to continue.",

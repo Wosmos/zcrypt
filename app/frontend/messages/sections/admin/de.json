@@ -95,11 +95,15 @@
       "open": "Profil öffnen",
       "search": "Name oder E-Mail suchen",
       "colPlatforms": "Plattformen",
-      "noPlatforms": "Keine",
+      "noPlatforms": "Keine eigene Plattform",
       "noPlatformsLong": "Noch keine Speicherplattform verbunden.",
       "viaWeb": "auf dem Server gespeichert",
       "viaApp": "von der Desktop- oder Android-App genutzt",
-      "sharedToken": "für alle freigegeben"
+      "sharedToken": "für alle freigegeben",
+      "viaShared": "geteilter Speicher des Admins",
+      "sharedPill": "Geteilt",
+      "ownPlatforms": "Eigene Konten",
+      "sharedPlatforms": "Nutzt den geteilten Speicher des Admins"
     },
     "reauth": {
       "confirm": "Bestätige, dass du es bist, um fortzufahren.",
