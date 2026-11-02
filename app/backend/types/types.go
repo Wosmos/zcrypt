@@ -358,10 +358,11 @@ type AdminUser struct {
 	Platforms     []ConnectedPlatform `json:"platforms"`
 }
 
-// ConnectedPlatform is one storage account a user has connected. Via is "web"
-// for a token stored on the server and "app" for an account the desktop or
-// Android app uses directly, known only from the repos it registered. Shared
-// marks a token the admin offers to every user.
+// ConnectedPlatform is one storage account a user stores files on. Via is
+// "web" for the user's own token saved on the server, "app" for the user's own
+// account that the desktop or Android app uses directly (known only from the
+// repos it registered), and "shared" for the admin's shared storage. Shared
+// marks the admin's own token that is offered to every user.
 type ConnectedPlatform struct {
 	Platform    string     `json:"platform"`
 	Account     string     `json:"account"`

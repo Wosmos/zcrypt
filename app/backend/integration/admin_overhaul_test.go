@@ -356,7 +356,7 @@ func TestAdminUsersShowConnectedPlatforms(t *testing.T) {
 	var page adminUsersPage
 	ts.adminGet("/api/admin/users?sort=email&order=asc&role=user&q="+tag, adminToken, http.StatusOK, &page)
 	require.Len(t, page.Users, 3)
-	webUser, appUser := page.Users[0].ID, page.Users[1].ID
+	webUser, appUser, sharedUser := page.Users[0].ID, page.Users[1].ID, page.Users[2].ID
 
 	pool := ts.db.Pool()
 	_, err := pool.Exec(ctx, `INSERT INTO platform_tokens (user_id, platform, username, token_encrypted, token_nonce)
@@ -365,6 +365,14 @@ func TestAdminUsersShowConnectedPlatforms(t *testing.T) {
 	_, err = pool.Exec(ctx, `INSERT INTO repos (id, user_id, platform, account, name, max_bytes)
 		VALUES ($1, $2, 'github', 'octo', 'notes', 1), ($3, $2, 'github', 'octo', 'notes-2', 1)`,
 		"gh-"+tag+"-1", appUser, "gh-"+tag+"-2")
+	require.NoError(t, err)
+	var adminID string
+	require.NoError(t, pool.QueryRow(ctx, `SELECT id FROM users WHERE email = $1`, fmt.Sprintf("ov-admin-%s@example.com", tag)).Scan(&adminID))
+	_, err = pool.Exec(ctx, `INSERT INTO platform_tokens (user_id, platform, username, token_encrypted, token_nonce, is_global)
+		VALUES ($1, 'huggingface', $2, '\x00', '\x00', TRUE)`, adminID, "pool-"+tag)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO repos (id, user_id, platform, account, name, max_bytes)
+		VALUES ($1, $2, 'huggingface', $3, 'pool-repo', 1)`, "hf-"+tag, sharedUser, "pool-"+tag)
 	require.NoError(t, err)
 
 	ts.adminGet("/api/admin/users?sort=email&order=asc&role=user&q="+tag, adminToken, http.StatusOK, &page)
@@ -376,14 +384,17 @@ func TestAdminUsersShowConnectedPlatforms(t *testing.T) {
 	require.Len(t, page.Users[1].Platforms, 1, "an app account appears once however many repos it registered")
 	assert.Equal(t, "github", page.Users[1].Platforms[0].Platform)
 	assert.Equal(t, "app", page.Users[1].Platforms[0].Via)
-	assert.NotNil(t, page.Users[2].Platforms)
-	assert.Empty(t, page.Users[2].Platforms)
+	require.Len(t, page.Users[2].Platforms, 1)
+	assert.Equal(t, "shared", page.Users[2].Platforms[0].Via, "a repo on the admin's shared token is not the user's own")
 
 	ts.adminGet("/api/admin/users?platform=github&q="+tag, adminToken, http.StatusOK, &page)
 	require.Len(t, page.Users, 1)
 	assert.Equal(t, appUser, page.Users[0].ID)
+	ts.adminGet("/api/admin/users?platform=huggingface&role=user&q="+tag, adminToken, http.StatusOK, &page)
+	assert.Empty(t, page.Users, "shared storage does not count as the user's platform")
 	ts.adminGet("/api/admin/users?platform=none&role=user&q="+tag, adminToken, http.StatusOK, &page)
-	assert.Len(t, page.Users, 1)
+	require.Len(t, page.Users, 1)
+	assert.Equal(t, sharedUser, page.Users[0].ID)
 
 	resp := ts.GET("/api/admin/users?platform=dropbox", adminToken)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)

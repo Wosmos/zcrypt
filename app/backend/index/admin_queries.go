@@ -29,7 +29,7 @@ type AdminUserFilter struct {
 	Platform string
 }
 
-// NoPlatform selects users who have not connected any storage platform.
+// NoPlatform selects users who have not connected a storage platform of their own.
 const NoPlatform = "none"
 
 // UnknownCountry selects users whose country is not known.
@@ -80,6 +80,11 @@ func orderSQL(expr string, desc bool, tie string) string {
 
 const userCountryExpr = `COALESCE(NULLIF(u.last_country, ''), u.signup_country)`
 
+// sharedRepoSQL is true for a repo r that lives on another user's shared
+// (global) token, i.e. the user stores on the admin's storage, not their own.
+const sharedRepoSQL = `EXISTS (SELECT 1 FROM platform_tokens g
+	WHERE g.is_global AND g.user_id <> r.user_id AND g.platform = r.platform AND g.username = r.account)`
+
 const adminUserSelect = `WITH f AS (
 	SELECT user_id, COUNT(*) AS cnt, COALESCE(SUM(original_size), 0) AS total
 	  FROM files WHERE status = 'complete' GROUP BY user_id
@@ -94,9 +99,11 @@ const adminUserSelect = `WITH f AS (
 	    SELECT user_id, platform, username AS account, 'web' AS via, is_global AS shared, created_at AS connected_at
 	      FROM platform_tokens
 	    UNION ALL
-	    SELECT r.user_id, r.platform, r.account, 'app', FALSE, NULL
+	    SELECT r.user_id, r.platform, r.account,
+	           CASE WHEN ` + sharedRepoSQL + ` THEN 'shared' ELSE 'app' END, FALSE, NULL
 	      FROM repos r
-	     WHERE NOT EXISTS (SELECT 1 FROM platform_tokens t WHERE t.user_id = r.user_id AND t.platform = r.platform)
+	     WHERE NOT EXISTS (SELECT 1 FROM platform_tokens t
+	                        WHERE t.user_id = r.user_id AND t.platform = r.platform AND t.username = r.account)
 	     GROUP BY r.user_id, r.platform, r.account
 	  ) c GROUP BY user_id
 )
@@ -137,8 +144,8 @@ func adminUserWhere(f AdminUserFilter) *whereBuilder {
 	if f.Plan != "" {
 		w.add("u.plan = " + w.arg(f.Plan))
 	}
-	const connected = `EXISTS (SELECT 1 FROM platform_tokens t WHERE t.user_id = u.id%[1]s)
-		OR EXISTS (SELECT 1 FROM repos r WHERE r.user_id = u.id%[2]s)`
+	connected := `EXISTS (SELECT 1 FROM platform_tokens t WHERE t.user_id = u.id%[1]s)
+		OR EXISTS (SELECT 1 FROM repos r WHERE r.user_id = u.id%[2]s AND NOT ` + sharedRepoSQL + `)`
 	switch {
 	case f.Platform == NoPlatform:
 		w.add("NOT (" + fmt.Sprintf(connected, "", "") + ")")
