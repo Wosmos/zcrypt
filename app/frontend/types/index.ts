@@ -167,6 +167,18 @@ export interface AdminUser {
   /** "Browser on OS", derived from last_user_agent. */
   last_device: string;
   session_count: number;
+  /** Storage accounts the user connected; tokens themselves are never sent. */
+  platforms: ConnectedPlatform[];
+}
+
+/** One connected storage account. "web" tokens live on the server; "app" accounts are used directly by the desktop or Android app and are known from the repos it registered. */
+export interface ConnectedPlatform {
+  platform: string;
+  account: string;
+  via: "web" | "app";
+  /** An admin token offered to every user as shared storage. */
+  shared: boolean;
+  connected_at: string | null;
 }
 
 export interface SystemStats {

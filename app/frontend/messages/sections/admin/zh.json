@@ -93,7 +93,13 @@
       "never": "从未",
       "ofQuota": "/ {quota}",
       "open": "打开资料",
-      "search": "搜索姓名或邮箱"
+      "search": "搜索姓名或邮箱",
+      "colPlatforms": "平台",
+      "noPlatforms": "无",
+      "noPlatformsLong": "尚未连接任何存储平台。",
+      "viaWeb": "保存在服务器上",
+      "viaApp": "由桌面或 Android 应用使用",
+      "sharedToken": "与所有人共享"
     },
     "reauth": {
       "confirm": "请确认是你本人以继续。",
@@ -733,7 +739,8 @@
         "many_countries": "{count, plural, other {7 天内从 # 个国家/地区登录}}",
         "deletion_pending": "已安排删除账户",
         "dormant": "已超过 90 天没有活动"
-      }
+      },
+      "connectedPlatforms": "已连接的平台"
     },
     "journey": {
       "title": "用户历程",

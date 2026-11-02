@@ -93,7 +93,13 @@
       "never": "Never",
       "ofQuota": "of {quota}",
       "open": "Open profile",
-      "search": "Search name or email"
+      "search": "Search name or email",
+      "colPlatforms": "Platforms",
+      "noPlatforms": "None",
+      "noPlatformsLong": "No storage platform connected yet.",
+      "viaWeb": "saved on the server",
+      "viaApp": "used by the desktop or Android app",
+      "sharedToken": "shared with everyone"
     },
     "reauth": {
       "confirm": "Confirm it's you to continue.",
@@ -733,7 +739,8 @@
         "many_countries": "{count, plural, one {Signed in from # country in 7 days} other {Signed in from # countries in 7 days}}",
         "deletion_pending": "Account deletion is scheduled",
         "dormant": "No activity for over 90 days"
-      }
+      },
+      "connectedPlatforms": "Connected platforms"
     },
     "journey": {
       "title": "User journey",

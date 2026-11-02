@@ -39,6 +39,7 @@ const user = (over: Partial<AdminUser>): AdminUser => ({
   last_user_agent: "",
   last_device: "Chrome on Linux",
   session_count: 1,
+  platforms: [],
   ...over,
 });
 
@@ -75,6 +76,25 @@ describe("UserTable", () => {
     expect(within(t).getByText("PK")).toBeInTheDocument();
     expect(within(t).getByText("Pakistan")).toBeInTheDocument();
     expect(within(t).getByText(/Lahore, Punjab/)).toHaveTextContent("Signed up from DE");
+  });
+
+  it("shows which platforms the user connected and how", () => {
+    renderTable([
+      user({
+        platforms: [
+          { platform: "telegram", account: "vault_bot", via: "web", shared: false, connected_at: null },
+          { platform: "github", account: "octo", via: "app", shared: false, connected_at: null },
+        ],
+      }),
+    ]);
+    const t = screen.getByRole("table");
+    expect(within(t).getByText(/Telegram · vault_bot · saved on the server/)).toBeInTheDocument();
+    expect(within(t).getByText(/GitHub · octo · used by the desktop or Android app/)).toBeInTheDocument();
+  });
+
+  it("says none when no platform is connected", () => {
+    renderTable([user({})]);
+    expect(within(screen.getByRole("table")).getByText("None")).toBeInTheDocument();
   });
 
   it("says unknown when no country was ever seen", () => {

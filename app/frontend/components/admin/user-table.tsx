@@ -18,8 +18,10 @@ import {
 } from "@/components/admin/data-table";
 import { BulkActionBar } from "@/components/admin/bulk-action-bar";
 import { LocationCell } from "@/components/admin/location-cell";
+import { PlatformIcons } from "@/components/admin/connected-platforms";
 import { useUserActions } from "@/components/admin/user-actions";
 import { RoleBadge, PlanBadge } from "@/components/admin/badges";
+import { PLATFORMS } from "@/lib/platforms";
 import { Eye, ShieldCheck, Users } from "@/lib/icons";
 
 function initials(name: string) {
@@ -120,6 +122,12 @@ export function UserTable({
       ),
     },
     {
+      id: "platforms",
+      header: tu("colPlatforms"),
+      hideBelow: "lg",
+      cell: (u) => <PlatformIcons platforms={u.platforms ?? []} />,
+    },
+    {
       id: "files",
       header: t("files"),
       sortKey: "file_count",
@@ -214,6 +222,15 @@ export function UserTable({
               options={[
                 { value: "admin", label: tRoles("admin") },
                 { value: "user", label: tRoles("user") },
+              ]}
+            />
+            <TableFilter
+              list={list}
+              name="platform"
+              label={tu("colPlatforms")}
+              options={[
+                ...PLATFORMS.map((p) => ({ value: p.id, label: p.name })),
+                { value: "none", label: tu("noPlatforms") },
               ]}
             />
             {planOptions.length > 1 && (

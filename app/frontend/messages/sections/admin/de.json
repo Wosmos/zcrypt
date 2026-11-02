@@ -93,7 +93,13 @@
       "never": "Nie",
       "ofQuota": "von {quota}",
       "open": "Profil öffnen",
-      "search": "Name oder E-Mail suchen"
+      "search": "Name oder E-Mail suchen",
+      "colPlatforms": "Plattformen",
+      "noPlatforms": "Keine",
+      "noPlatformsLong": "Noch keine Speicherplattform verbunden.",
+      "viaWeb": "auf dem Server gespeichert",
+      "viaApp": "von der Desktop- oder Android-App genutzt",
+      "sharedToken": "für alle freigegeben"
     },
     "reauth": {
       "confirm": "Bestätige, dass du es bist, um fortzufahren.",
@@ -733,7 +739,8 @@
         "many_countries": "{count, plural, one {In 7 Tagen aus # Land angemeldet} other {In 7 Tagen aus # Ländern angemeldet}}",
         "deletion_pending": "Kontolöschung ist geplant",
         "dormant": "Seit über 90 Tagen keine Aktivität"
-      }
+      },
+      "connectedPlatforms": "Verbundene Plattformen"
     },
     "journey": {
       "title": "Nutzerverlauf",

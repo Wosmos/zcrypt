@@ -93,7 +93,13 @@
       "never": "Nunca",
       "ofQuota": "de {quota}",
       "open": "Abrir perfil",
-      "search": "Buscar nombre o correo"
+      "search": "Buscar nombre o correo",
+      "colPlatforms": "Plataformas",
+      "noPlatforms": "Ninguna",
+      "noPlatformsLong": "Todavía no ha conectado ninguna plataforma de almacenamiento.",
+      "viaWeb": "guardada en el servidor",
+      "viaApp": "usada por la app de escritorio o Android",
+      "sharedToken": "compartida con todos"
     },
     "reauth": {
       "confirm": "Confirma que eres tú para continuar.",
@@ -733,7 +739,8 @@
         "many_countries": "{count, plural, one {Inició sesión desde # país en 7 días} other {Inició sesión desde # países en 7 días}}",
         "deletion_pending": "La eliminación de la cuenta está programada",
         "dormant": "Sin actividad desde hace más de 90 días"
-      }
+      },
+      "connectedPlatforms": "Plataformas conectadas"
     },
     "journey": {
       "title": "Recorrido del usuario",

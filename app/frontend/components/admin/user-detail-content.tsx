@@ -30,6 +30,7 @@ import { UserDetailSkeleton } from "@/components/admin/skeletons";
 import { RoleBadge, PlanBadge } from "@/components/admin/badges";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
 import { CountryLabel } from "@/components/admin/location-cell";
+import { PlatformChips, useConnectedPlatformLabel } from "@/components/admin/connected-platforms";
 import { RowActionsMenu } from "@/components/admin/data-table";
 import { useUserActions } from "@/components/admin/user-actions";
 import { UserReport, useRiskLabel } from "@/components/admin/user-report";
@@ -71,6 +72,7 @@ function useExportLabels() {
   const tj = useTranslations("admin.journey");
   const riskLabel = useRiskLabel();
   const eventLabel = useEventLabel();
+  const platformLabel = useConnectedPlatformLabel();
   return (r: AdminUserReport): ReportLabels => ({
     title: t("exportTitle"),
     generated: t("generated"),
@@ -97,6 +99,10 @@ function useExportLabels() {
         [countryName(displayCountry(r.user)), formatPlace(r.user.last_city, r.user.last_region)]
           .filter(Boolean)
           .join(", ") || t("unknown"),
+      ],
+      [
+        t("connectedPlatforms"),
+        (r.user.platforms ?? []).map(platformLabel).join(", ") || t("none"),
       ],
       [t("twoFactor"), r.user.totp_enabled ? t("yes") : t("no")],
       [t("emailVerified"), r.user.email_verified ? t("yes") : t("no")],
@@ -289,6 +295,13 @@ export function AdminUserDetailContent() {
               <RowActionsMenu actions={actions.actionsFor(u)} label={t("actions")} />
             </div>
           </div>
+        </section>
+
+        <section className="panel p-5 sm:p-6">
+          <h3 className="mb-3 text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            {tr("connectedPlatforms")}
+          </h3>
+          <PlatformChips platforms={u.platforms ?? []} />
         </section>
 
         <UserReport report={data} onChanged={report.refresh} />
