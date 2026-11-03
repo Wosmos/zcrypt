@@ -13,9 +13,6 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder};
 #[cfg(desktop)]
 use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
-// Only needed for the `.deep_link()` call below, which is itself macOS-gated
-// (macOS registers the scheme via the .app bundle's Info.plist instead).
-#[cfg(not(target_os = "macos"))]
 use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::sync::{RwLock, watch};
 
@@ -1415,7 +1412,12 @@ async fn remove_temp_file(path: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        focus_main_window(app);
+    }));
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -1516,6 +1518,12 @@ pub fn run() {
                 }
             });
 
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    handle_deep_link(app.handle(), url.as_str());
+                }
+            }
+
             #[cfg(desktop)]
             setup_tray(app)?;
 
@@ -1561,12 +1569,7 @@ fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     // Menu events are app-global in Tauri v2; this also receives tray menu clicks.
     app.on_menu_event(|app, event| match event.id().as_ref() {
-        "open" => {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-        }
+        "open" => focus_main_window(app),
         "sync-now" => {
             let _ = app.emit("zcrypt://sync-now", ());
         }
@@ -1602,9 +1605,48 @@ fn parse_oauth_callback(raw: &str) -> Option<OAuthCallback> {
     valid.then_some(OAuthCallback { session })
 }
 
-fn handle_deep_link(app: &tauri::AppHandle, raw: &str) {
+#[derive(Debug, PartialEq, Eq)]
+enum DeepLinkAction {
+    OAuth(OAuthCallback),
+    FocusWindow,
+    Ignore,
+}
+
+/// Decide what a `zcrypt://` link asks for. The OAuth callback is strict; every
+/// other zcrypt target (the browser's `zcrypt://open`) just brings the app forward
+/// and carries no data. A malformed OAuth link is dropped, never treated as "open".
+fn classify_deep_link(raw: &str) -> DeepLinkAction {
     if let Some(payload) = parse_oauth_callback(raw) {
-        let _ = app.emit_to("main", OAUTH_CALLBACK_EVENT, payload);
+        return DeepLinkAction::OAuth(payload);
+    }
+    let Ok(url) = url::Url::parse(raw.trim_matches(|c| c == '[' || c == ']' || c == '"')) else {
+        return DeepLinkAction::Ignore;
+    };
+    if url.scheme() != "zcrypt" || url.host_str() == Some("oauth") {
+        return DeepLinkAction::Ignore;
+    }
+    DeepLinkAction::FocusWindow
+}
+
+#[cfg(desktop)]
+fn focus_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[cfg(not(desktop))]
+fn focus_main_window(_app: &tauri::AppHandle) {}
+
+fn handle_deep_link(app: &tauri::AppHandle, raw: &str) {
+    match classify_deep_link(raw) {
+        DeepLinkAction::OAuth(payload) => {
+            let _ = app.emit_to("main", OAUTH_CALLBACK_EVENT, payload);
+        }
+        DeepLinkAction::FocusWindow => focus_main_window(app),
+        DeepLinkAction::Ignore => {}
     }
 }
 
@@ -1627,6 +1669,36 @@ mod deep_link_tests {
         assert!(parse_oauth_callback("zcrypt://evil/callback?session=ab12").is_none());
         assert!(parse_oauth_callback("https://oauth/callback?session=ab12").is_none());
         assert!(parse_oauth_callback("zcrypt://oauth/callback").is_none());
+    }
+
+    #[test]
+    fn open_links_focus_the_window_and_oauth_stays_strict() {
+        assert_eq!(
+            classify_deep_link("zcrypt://open"),
+            DeepLinkAction::FocusWindow
+        );
+        assert_eq!(
+            classify_deep_link("\"zcrypt://open/\""),
+            DeepLinkAction::FocusWindow
+        );
+        assert_eq!(
+            classify_deep_link("zcrypt://anything/else?x=1"),
+            DeepLinkAction::FocusWindow
+        );
+        assert!(matches!(
+            classify_deep_link("zcrypt://oauth/callback?session=ab12"),
+            DeepLinkAction::OAuth(_)
+        ));
+        assert_eq!(
+            classify_deep_link("zcrypt://oauth/callback?session=zz"),
+            DeepLinkAction::Ignore
+        );
+        assert_eq!(
+            classify_deep_link("zcrypt://oauth/other"),
+            DeepLinkAction::Ignore
+        );
+        assert_eq!(classify_deep_link("https://open"), DeepLinkAction::Ignore);
+        assert_eq!(classify_deep_link("not a url"), DeepLinkAction::Ignore);
     }
 }
 
