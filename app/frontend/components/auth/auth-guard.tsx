@@ -9,6 +9,7 @@ import { prefetchVault } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync, subscribeTokens } from "@/lib/tauri";
 import { API_BASE, DEV_API_URL } from "@/lib/config";
+import { pickUpDesktopPlatformCreds } from "@/lib/desktop-creds";
 
 export function AuthGuard({
   children,
@@ -259,6 +260,11 @@ export function AuthGuard({
     const apiUrl = API_BASE || DEV_API_URL;
     startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
   }, [accessToken, refreshTokenValue]);
+
+  const userId = user?.id;
+  useEffect(() => {
+    if (isTauri && userId) void pickUpDesktopPlatformCreds(userId);
+  }, [userId]);
 
   // A session that ends mid-use (refresh token rejected: expired, revoked, or
   // rotated by another tab) clears auth after the guard has initialized. Without
