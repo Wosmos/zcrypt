@@ -697,7 +697,7 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		Plan:                 plan,
 		MaxConcurrentUploads: 0, // 0 = unlimited
 		MaxSpaceBatchFiles:   s.maxSpaceBatchFiles(ctx, plan),
-		MaxFileSize:          maxUploadBytes, // per-file cap enforced by HandleUploadInit
+		MaxFileSize:          maxUploadBytes(), // per-file cap enforced by HandleUploadInit
 		CanUpload:            canUpload,
 		AllowsBYOB:           true,
 	}

@@ -23,15 +23,15 @@ func TestSizeBucket(t *testing.T) {
 	})
 
 	t.Run("never exceeds the per-file cap", func(t *testing.T) {
-		for _, n := range []int64{1, 1 << 20, maxUploadBytes - 1, maxUploadBytes} {
-			if got := SizeBucket(n); got > maxUploadBytes {
-				t.Errorf("SizeBucket(%d) = %d, must be <= maxUploadBytes %d", n, got, maxUploadBytes)
+		for _, n := range []int64{1, 1 << 20, maxUploadBytes() - 1, maxUploadBytes()} {
+			if got := SizeBucket(n); got > maxUploadBytes() {
+				t.Errorf("SizeBucket(%d) = %d, must be <= maxUploadBytes %d", n, got, maxUploadBytes())
 			}
 		}
 	})
 
 	t.Run("idempotent", func(t *testing.T) {
-		for _, n := range []int64{1, 999, 1000, 1500, 4_999_999, 1 << 30, maxUploadBytes} {
+		for _, n := range []int64{1, 999, 1000, 1500, 4_999_999, 1 << 30, maxUploadBytes()} {
 			once := SizeBucket(n)
 			if twice := SizeBucket(once); twice != once {
 				t.Errorf("SizeBucket not idempotent at %d: %d then %d", n, once, twice)

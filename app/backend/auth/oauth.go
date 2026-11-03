@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// githubAPIBase is the GitHub REST API origin.
+const githubAPIBase = "https://api.github.com"
+
 // OAuthProviderInfo holds static config for an OAuth provider.
 type OAuthProviderInfo struct {
 	AuthURL     string
@@ -29,7 +32,7 @@ var oauthProviders = map[string]OAuthProviderInfo{
 	"github": {
 		AuthURL:     "https://github.com/login/oauth/authorize",
 		TokenURL:    "https://github.com/login/oauth/access_token",
-		UserinfoURL: "https://api.github.com/user",
+		UserinfoURL: githubAPIBase + "/user",
 		Scopes:      []string{"read:user", "user:email"},
 	},
 }
@@ -185,7 +188,7 @@ func FetchOAuthUserInfo(ctx context.Context, provider, accessToken string) (*OAu
 
 // fetchGitHubPrimaryEmail fetches the primary verified email from GitHub.
 func fetchGitHubPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user/emails", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", githubAPIBase+"/user/emails", nil)
 	if err != nil {
 		return "", err
 	}

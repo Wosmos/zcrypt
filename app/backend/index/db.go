@@ -4,10 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	appconfig "github.com/zcrypt/zcrypt/config"
 )
+
+const defaultDBMaxConns = int64(25)
+
+// dbMaxConns is the pool ceiling, ZCRYPT_DB_MAX_CONNS when set to a positive
+// integer.
+func dbMaxConns() int32 {
+	return int32(min(appconfig.EnvPositiveInt64("ZCRYPT_DB_MAX_CONNS", defaultDBMaxConns), math.MaxInt32))
+}
 
 // DB wraps the PostgreSQL connection pool.
 type DB struct {
@@ -25,7 +36,7 @@ func Open(databaseURL string) (*DB, error) {
 	// background workers, and user traffic serialized behind it. MinConns stays 0 and
 	// idle conns drain in 30s so Neon can still auto-suspend when the app is idle.
 	// MaxConns is only a ceiling, never a floor, so raising it doesn't keep Neon awake.
-	config.MaxConns = 25
+	config.MaxConns = dbMaxConns()
 	config.MinConns = 0
 	config.MaxConnIdleTime = 30 * time.Second
 	config.MaxConnLifetime = 5 * time.Minute

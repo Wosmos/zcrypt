@@ -17,10 +17,14 @@ import "time"
 // per-file cap, so SizeBucket can round any real file size up to a coarse band.
 var sizeLadder = buildSizeLadder()
 
+// sizeLadderCeiling bounds the ladder far above any realistic per-file cap, so
+// raising ZCRYPT_MAX_UPLOAD_BYTES never outruns it.
+const sizeLadderCeiling = int64(1) << 50
+
 func buildSizeLadder() []int64 {
 	steps := []int64{1, 2, 5}
 	var ladder []int64
-	for base := int64(1000); base <= maxUploadBytes*10; base *= 10 { // 1KB … past 10GiB cap
+	for base := int64(1000); base <= sizeLadderCeiling; base *= 10 {
 		for _, m := range steps {
 			ladder = append(ladder, base*m)
 		}
@@ -37,15 +41,16 @@ func SizeBucket(n int64) int64 {
 	if n <= 0 {
 		return 0
 	}
+	limit := maxUploadBytes()
 	for _, v := range sizeLadder {
 		if v >= n {
-			if v > maxUploadBytes {
-				return maxUploadBytes
+			if v > limit {
+				return limit
 			}
 			return v
 		}
 	}
-	return maxUploadBytes
+	return limit
 }
 
 // CoarsenTimeUTC truncates a timestamp to UTC midnight (day granularity, timezone

@@ -34,7 +34,13 @@ const maxChunkSize = 17 * 1024 * 1024
 // browser-side encrypt/chunk beyond that is unreliable (tab memory pressure,
 // eviction mid-upload) and repos rotate long before one file that size pays
 // off. A future desktop/MTProto path can lift this per-client.
-const maxUploadBytes = int64(10) << 30
+const defaultMaxUploadBytes = int64(10) << 30
+
+// maxUploadBytes is the per-file cap, ZCRYPT_MAX_UPLOAD_BYTES when set to a
+// positive integer.
+func maxUploadBytes() int64 {
+	return config.EnvPositiveInt64("ZCRYPT_MAX_UPLOAD_BYTES", defaultMaxUploadBytes)
+}
 
 // minChunkBytes is the smallest plaintext chunk a real client slices with.
 // Per-chunk overhead is only credited for this many chunks, so splitting a file
@@ -164,7 +170,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"encrypted_name, original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
 		return
 	}
-	if req.OriginalSize > maxUploadBytes {
+	if req.OriginalSize > maxUploadBytes() {
 		http.Error(w, `{"error":"file exceeds the 10 GB per-file limit"}`, http.StatusRequestEntityTooLarge)
 		return
 	}

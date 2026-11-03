@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// pwnedPasswordsRangeURL is the HaveIBeenPwned k-anonymity range endpoint; the
+// 5-character hash prefix is appended.
+const pwnedPasswordsRangeURL = "https://api.pwnedpasswords.com/range/"
+
 // CheckPasswordBreach checks if a password has appeared in known data breaches
 // using the HaveIBeenPwned k-anonymity API. Returns the number of times the
 // password was found, or 0 if not breached. Fails open (returns 0 on error).
@@ -22,7 +26,7 @@ func CheckPasswordBreach(password string) (int, error) {
 	suffix := hash[5:]
 
 	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("https://api.pwnedpasswords.com/range/" + prefix)
+	resp, err := client.Get(pwnedPasswordsRangeURL + prefix)
 	if err != nil {
 		return 0, nil // fail open
 	}

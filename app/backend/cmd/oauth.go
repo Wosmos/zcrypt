@@ -371,7 +371,7 @@ func (s *Server) LogOAuthConfig() {
 			"provider", provider, "redirect_uri", redirect)
 	}
 	if s.cfg.FrontendURL == "" {
-		slog.Warn("oauth: FRONTEND_URL is not set: falling back to http://localhost:3000 after login")
+		slog.Warn("oauth: FRONTEND_URL is not set: falling back to the dev default after login", "fallback", config.DefaultFrontendURL)
 	} else {
 		slog.Info("oauth: post-login redirect", "frontend_url", strings.TrimRight(s.cfg.FrontendURL, "/"))
 	}
@@ -402,7 +402,7 @@ func (s *Server) HandleOAuthConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *types.User, desktop bool, session string) {
 	frontendURL := strings.TrimRight(s.cfg.FrontendURL, "/")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
+		frontendURL = config.DefaultFrontendURL
 	}
 
 	if user.TOTPEnabled {
@@ -452,7 +452,7 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 func (s *Server) oauthError(w http.ResponseWriter, r *http.Request, errMsg string, desktop bool, session string) {
 	frontendURL := strings.TrimRight(s.cfg.FrontendURL, "/")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
+		frontendURL = config.DefaultFrontendURL
 	}
 
 	if desktop && session != "" {

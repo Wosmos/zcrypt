@@ -15,6 +15,15 @@ import (
 // DefaultGeoIPDB is where the container image puts the location database.
 const DefaultGeoIPDB = "/geo/dbip-city-lite.mmdb"
 
+// DefaultFrontendURL is the web app origin assumed when FRONTEND_URL is unset.
+const DefaultFrontendURL = "http://localhost:3000"
+
+// DefaultBackendURL is the API origin assumed when BACKEND_URL is unset.
+const DefaultBackendURL = "http://localhost:8080"
+
+// DefaultPort is the listen port when no port variable is set.
+const DefaultPort = "8080"
+
 // EmailConfig holds settings for sending transactional emails via Resend.
 type EmailConfig struct {
 	APIKey string `json:"api_key"`
@@ -87,6 +96,9 @@ type Config struct {
 	// GeoIPDB is the path of the DB-IP Lite city database used to place
 	// sessions on the map. A missing file only leaves locations empty.
 	GeoIPDB string `json:"geoip_db,omitempty"`
+	// Port is the HTTP listen port: ZCRYPT_PORT, then legacy zcrypt_PORT, then
+	// PORT (set by cloud hosts), then DefaultPort. Environment only.
+	Port string `json:"-"`
 	// From environment only, never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
@@ -162,6 +174,12 @@ func (c *Config) applyEnvOverrides() {
 		c.JWTSecret = v
 	} else if v := os.Getenv("zcrypt_JWT_SECRET"); v != "" {
 		c.JWTSecret = v // backward compat
+	}
+	c.Port = DefaultPort
+	for _, name := range []string{"PORT", "zcrypt_PORT", "ZCRYPT_PORT"} {
+		if v := os.Getenv(name); v != "" {
+			c.Port = v
+		}
 	}
 	if v := os.Getenv("DATABASE_URL"); v != "" {
 		c.DatabaseURL = v

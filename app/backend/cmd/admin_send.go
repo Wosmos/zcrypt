@@ -96,8 +96,8 @@ func (s *Server) HandleAdminSendStorage(w http.ResponseWriter, r *http.Request) 
 		},
 		"limits": map[string]int64{
 			"max_file_bytes":   maxSendFileSize,
-			"anon_daily_bytes": sendAnonDailyBytes,
-			"user_daily_bytes": sendUserDailyBytes,
+			"anon_daily_bytes": sendAnonDailyBytes(),
+			"user_daily_bytes": sendUserDailyBytes(),
 		},
 	})
 }

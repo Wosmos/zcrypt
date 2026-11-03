@@ -141,16 +141,7 @@ func main() {
 	// Server.RegisterRoutes) so tests hit the exact routes that ship.
 	server.RegisterRoutes(mux)
 
-	port := os.Getenv("ZCRYPT_PORT")
-	if port == "" {
-		port = os.Getenv("zcrypt_PORT") // backward compat
-	}
-	if port == "" {
-		port = os.Getenv("PORT") // Railway / cloud providers
-	}
-	if port == "" {
-		port = "8080"
-	}
+	port := cfg.Port
 
 	srv = &http.Server{
 		Addr:              ":" + port,

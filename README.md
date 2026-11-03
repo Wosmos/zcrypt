@@ -337,6 +337,11 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `ZCRYPT_TRUSTED_PROXY_COUNT` | Reverse-proxy hops to trust in `X-Forwarded-For` when no client IP header is used |
 | `ZCRYPT_GEOIP_DB` | Path to a DB-IP / MaxMind city `.mmdb` file (default `/geo/dbip-city-lite.mmdb`); location lookups are skipped if the file is missing |
 | `ZCRYPT_RELEASES_REPO` | GitHub `owner/name` the app downloads and update checks come from (default `Wosmos/zcrypt`) |
+| `ZCRYPT_SHARED_QUOTA_BYTES` | Storage cap in bytes for users on the shared pool (default 1073741824, 1 GiB); non-positive or invalid values use the default |
+| `ZCRYPT_MAX_UPLOAD_BYTES` | Largest single file in bytes (default 10737418240, 10 GiB); non-positive or invalid values use the default |
+| `ZCRYPT_SEND_ANON_DAILY_BYTES` | Rolling 24h Send allowance in bytes for anonymous senders, per coarsened IP (default 524288000, 500 MiB) |
+| `ZCRYPT_SEND_USER_DAILY_BYTES` | Rolling 24h Send allowance in bytes for signed-in senders (default 5368709120, 5 GiB) |
+| `ZCRYPT_DB_MAX_CONNS` | Ceiling of the PostgreSQL connection pool (default 25); non-positive or invalid values use the default |
 | `MAINTENANCE_SECRET` | Enables the maintenance-mode switch used by the database rotation scripts (impossible to enable when unset) |
 | `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |
 

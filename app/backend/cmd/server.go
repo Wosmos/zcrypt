@@ -406,19 +406,7 @@ func (s *Server) getUserPools(ctx context.Context, userID string) (map[string]*r
 
 		threshold := s.cfg.Thresholds[platform]
 		if threshold == 0 {
-			switch platform {
-			case "github":
-				threshold = 850 * 1024 * 1024
-			case "gitlab":
-				threshold = 9000 * 1024 * 1024
-			case "huggingface":
-				// HF free tier = 100 GB TOTAL private storage per ACCOUNT (not
-				// per repo), so rotation adds no capacity. Keep the per-repo
-				// threshold under the whole-account allowance. See config.go.
-				threshold = 90 * 1024 * 1024 * 1024
-			case "telegram":
-				threshold = 50000 * 1024 * 1024
-			}
+			threshold = config.DefaultConfig().Thresholds[platform]
 		}
 
 		pools[key] = reppool.NewManager(s.db, adapter, userID, account, threshold)
@@ -541,7 +529,13 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 // 1 GiB is enough to try the product properly, and connecting your own storage
 // removes the cap entirely, which is exactly the behaviour we want to
 // encourage.
-const sharedStorageQuotaBytes = int64(1) << 30
+const defaultSharedStorageQuotaBytes = int64(1) << 30
+
+// sharedStorageQuotaBytes is the shared-pool cap, ZCRYPT_SHARED_QUOTA_BYTES
+// when set to a positive integer.
+func sharedStorageQuotaBytes() int64 {
+	return config.EnvPositiveInt64("ZCRYPT_SHARED_QUOTA_BYTES", defaultSharedStorageQuotaBytes)
+}
 
 // getEffectiveQuota returns the effective storage quota in bytes for a user,
 // where 0 means unlimited.
@@ -557,7 +551,7 @@ func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	if err != nil {
 		// Fail closed onto the shared cap. Failing open here would hand an
 		// unbounded allowance to any request whose user lookup hiccuped.
-		return sharedStorageQuotaBytes
+		return sharedStorageQuotaBytes()
 	}
 
 	if user.StorageQuota != nil {
@@ -566,13 +560,13 @@ func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 
 	hasPersonal, err := s.db.UserHasPersonalTokens(ctx, userID)
 	if err != nil {
-		return sharedStorageQuotaBytes
+		return sharedStorageQuotaBytes()
 	}
 	if hasPersonal {
 		return 0 // their own account, their own quota
 	}
 
-	return sharedStorageQuotaBytes
+	return sharedStorageQuotaBytes()
 }
 
 // getGlobalAdapters returns adapters created from global platform tokens (for anonymous send).

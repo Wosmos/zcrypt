@@ -5,14 +5,18 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/zcrypt/zcrypt/config"
 )
+
+// tauriOrigins are the desktop and Android webview origins. macOS and Linux
+// webviews use the tauri:// scheme; Windows (WebView2) uses http(s)://tauri.localhost.
+var tauriOrigins = []string{"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"}
 
 // AllowedOrigins returns the browser origins allowed to call the API with
 // credentials: ALLOWED_ORIGINS (comma-separated) and FRONTEND_URL, each with its
 // www/apex twin since a site is served on both, the local dev defaults when
 // neither is set, and the desktop (Tauri) webview origins.
-// macOS/Linux webviews use the tauri:// scheme; Windows (WebView2) uses
-// http(s)://tauri.localhost.
 func AllowedOrigins() map[string]bool {
 	allowed := map[string]bool{}
 	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
@@ -31,10 +35,10 @@ func AllowedOrigins() map[string]bool {
 		}
 	}
 	if len(allowed) == 0 {
-		allowed["http://localhost:3000"] = true
-		allowed["http://localhost:8080"] = true
+		allowed[config.DefaultFrontendURL] = true
+		allowed[config.DefaultBackendURL] = true
 	}
-	for _, o := range []string{"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"} {
+	for _, o := range tauriOrigins {
 		allowed[o] = true
 	}
 	return allowed

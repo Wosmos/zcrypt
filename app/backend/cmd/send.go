@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/disguise"
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
@@ -29,9 +30,21 @@ const maxSendFileSize = 50 * 1024 * 1024
 // Rolling 24h byte allowances for Send. An anonymous sender is keyed by its
 // coarsened IP; a signed-in sender by user id and is exempt from the IP cap.
 const (
-	sendAnonDailyBytes = 500 * 1024 * 1024
-	sendUserDailyBytes = 5 * 1024 * 1024 * 1024
+	defaultSendAnonDailyBytes = int64(500) * 1024 * 1024
+	defaultSendUserDailyBytes = int64(5) * 1024 * 1024 * 1024
 )
+
+// sendAnonDailyBytes is the anonymous sender allowance, ZCRYPT_SEND_ANON_DAILY_BYTES
+// when set to a positive integer.
+func sendAnonDailyBytes() int64 {
+	return config.EnvPositiveInt64("ZCRYPT_SEND_ANON_DAILY_BYTES", defaultSendAnonDailyBytes)
+}
+
+// sendUserDailyBytes is the signed-in sender allowance, ZCRYPT_SEND_USER_DAILY_BYTES
+// when set to a positive integer.
+func sendUserDailyBytes() int64 {
+	return config.EnvPositiveInt64("ZCRYPT_SEND_USER_DAILY_BYTES", defaultSendUserDailyBytes)
+}
 
 // minSendChunkSize bounds how many chunks a send may declare. The real limit on
 // stored bytes is the running size cap; this only rejects absurd chunk counts.
@@ -136,10 +149,10 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		SenderIP:      anonIP(s.clientIP(r)),
 	}
 
-	dailyLimit := int64(sendAnonDailyBytes)
+	dailyLimit := sendAnonDailyBytes()
 	if claims := GetUserClaims(r); claims != nil && !claims.Decoy {
 		transfer.UserID = claims.Sub
-		dailyLimit = sendUserDailyBytes
+		dailyLimit = sendUserDailyBytes()
 	}
 
 	if err := s.db.CreateSendTransferCapped(ctx, transfer, dailyLimit); err != nil {
