@@ -190,8 +190,8 @@
             "body": "zcrypt 尚未经过公证，因此首次打开时 macOS 会提示无法验证该应用。点击“完成”，然后打开“系统设置 → 隐私与安全性”，向下滚动并点击“仍要打开”。这只需操作一次。你也可以使用下方的一行命令安装，完全跳过这一步。"
           },
           "windows": {
-            "title": "Windows SmartScreen 会发出警告，这是正常的",
-            "body": "我们还没有购买代码签名证书，所以 Windows 会将安装程序视为未识别的程序。点击“更多信息”，然后点击“仍要运行”。对于没有付费证书、独立发布的应用，这很常见，并不意味着文件有问题。你也可以使用下方的 PowerShell 一行命令安装来跳过它。"
+            "title": "Windows 可能提示已保护你的电脑",
+            "body": "如果 Windows 提示已保护你的电脑，请点击<b>更多信息</b>，然后点击<b>仍要运行</b>。出现该提示是因为应用尚未进行代码签名。下方的 PowerShell 一行命令安装可以跳过它。"
           }
         },
         "tapHow": "：点击查看如何继续",
@@ -261,6 +261,18 @@
         "copied": "已复制",
         "copyCommand": "复制 {shell} 命令",
         "homebrew": "已经在用 Homebrew？"
+      },
+      "windows": {
+        "recommended": "推荐：一条命令，没有警告",
+        "downloadInstaller": "下载安装程序 (.exe)",
+        "smartScreen": "如果 Windows 提示已保护你的电脑，请点击<b>更多信息</b>，然后点击<b>仍要运行</b>。出现该提示是因为应用尚未进行代码签名。",
+        "mock": {
+          "title": "Windows 已保护你的电脑",
+          "body": "Microsoft Defender SmartScreen 阻止了未识别的应用启动。运行此应用可能会使你的电脑面临风险。",
+          "moreInfo": "更多信息",
+          "runAnyway": "仍要运行",
+          "dontRun": "不运行"
+        }
       }
     },
     "tools": {

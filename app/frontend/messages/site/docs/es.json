@@ -651,7 +651,9 @@
       "description": "Una versión nativa de zcrypt para escritorio para quienes prefieren una ventana de app real a una pestaña del navegador: con gestión de archivos a nivel del sistema operativo y exactamente el mismo cifrado en el cliente.",
       "directTitle": "Subidas directas y abrir la app",
       "directP1": "La app de escritorio sube directamente desde tu ordenador a tu propio almacenamiento. Nada pasa por el servidor de zcrypt, así que no hay límite de tamaño de archivo ni cupo mensual de transferencias web. El almacenamiento que conectaste en la web se detecta automáticamente: la app copia esos tokens al llavero de tu ordenador una vez por sesión, así que nunca conectas nada dos veces.",
-      "directP2": "Desde el navegador, <strong>Abrir la app de escritorio</strong> usa el enlace <code>zcrypt://open</code> para iniciar la app o traerla al frente si ya se está ejecutando. Solo se ejecuta una copia a la vez, así que abrirla de nuevo solo enfoca la ventana. El navegador no puede pasar archivos a la app: suéltalos en la ventana de la app."
+      "directP2": "Desde el navegador, <strong>Abrir la app de escritorio</strong> usa el enlace <code>zcrypt://open</code> para iniciar la app o traerla al frente si ya se está ejecutando. Solo se ejecuta una copia a la vez, así que abrirla de nuevo solo enfoca la ventana. El navegador no puede pasar archivos a la app: suéltalos en la ventana de la app.",
+      "winWarnTitle": "Windows puede decir que protegió tu PC",
+      "winWarnBody": "Si Windows dice que protegió tu PC, haz clic en <b>Más información</b> y luego en <b>Ejecutar de todas formas</b>. Aparece porque la app todavía no tiene firma de código."
     },
     "downloading": {
       "toc": {

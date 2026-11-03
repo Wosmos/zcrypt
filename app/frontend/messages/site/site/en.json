@@ -190,8 +190,8 @@
             "body": "zcrypt isn't notarized yet, so macOS says it can't verify the app the first time you open it. Click Done, then open System Settings → Privacy & Security, scroll down and click Open Anyway. A one-time step. Or skip it entirely with the one-line install below."
           },
           "windows": {
-            "title": "Windows SmartScreen will flag it, that's expected",
-            "body": "We haven't bought a code-signing certificate yet, so Windows treats the installer as unrecognized. Click \"More info\", then \"Run anyway\". Normal for an independently-published app without a paid certificate, not a sign anything's wrong with the file. Or skip it with the one-line PowerShell install below."
+            "title": "Windows may say it protected your PC",
+            "body": "If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet. The one-line PowerShell install below skips it."
           }
         },
         "tapHow": ": tap for how to proceed",
@@ -261,6 +261,18 @@
         "copied": "Copied",
         "copyCommand": "Copy the {shell} command",
         "homebrew": "Already use Homebrew?"
+      },
+      "windows": {
+        "recommended": "Recommended: one command, no warning",
+        "downloadInstaller": "Download the installer (.exe)",
+        "smartScreen": "If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet.",
+        "mock": {
+          "title": "Windows protected your PC",
+          "body": "Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.",
+          "moreInfo": "More info",
+          "runAnyway": "Run anyway",
+          "dontRun": "Don't run"
+        }
       }
     },
     "tools": {

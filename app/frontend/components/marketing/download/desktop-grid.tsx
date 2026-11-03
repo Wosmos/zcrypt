@@ -10,6 +10,7 @@ import { cardSurface } from "@/components/marketing/ui/card";
 import { pillClass } from "@/components/marketing/ui/pill-link";
 import { T } from "@/components/i18n/t";
 import { OS_GLYPHS } from "./os-glyphs";
+import { SmartScreenMock } from "./windows-install";
 
 const OPTION_LABEL_KEYS: Record<string, string> = {
   Installer: "installer",
@@ -96,6 +97,11 @@ function SecurityNote({ id }: { id: PlatformId }) {
       <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
         <T k={`site.download.desktop.security.${id}.body`} />
       </p>
+      {id === "windows" && (
+        <div className="mt-3">
+          <SmartScreenMock />
+        </div>
+      )}
     </details>
   );
 }

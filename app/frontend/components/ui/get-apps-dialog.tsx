@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
@@ -15,9 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { detectDevice } from "@/components/marketing/download/download-cta";
+import { POWERSHELL_INSTALL } from "@/components/marketing/download/command-line";
 import { MOBILE_GLYPHS, OS_GLYPHS } from "@/components/marketing/download/os-glyphs";
 import type { DownloadTarget, PlatformId } from "@/lib/releases";
-import { ChevronDown, Download, ExternalLink, MonitorSmartphone } from "@/lib/icons";
+import { Check, ChevronDown, Copy, Download, ExternalLink, MonitorSmartphone } from "@/lib/icons";
 import { SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +86,37 @@ function LaptopMock() {
       <div className="relative -mx-[6%] h-2.5 rounded-b-xl bg-gradient-to-b from-[#c9ccd6] to-[#7d8191] shadow-[0_10px_20px_-10px_rgba(0,0,0,0.7)]">
         <span className="absolute left-1/2 top-0 h-1 w-[14%] -translate-x-1/2 rounded-b-md bg-[#9a9eab]" />
       </div>
+    </div>
+  );
+}
+
+function WindowsHint() {
+  const t = useTranslations("ui.getApps");
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(POWERSHELL_INSTALL.command);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 flex w-full max-w-[260px] flex-col items-center gap-2">
+      <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        {t.rich("windowsHint", { b: (chunks) => <strong>{chunks}</strong> })}
+      </p>
+      <button
+        type="button"
+        onClick={copy}
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-accent)] hover:underline"
+      >
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? t("copied") : t("copyInstall")}
+      </button>
     </div>
   );
 }
@@ -194,6 +226,7 @@ export function GetAppsButton({ className }: { className?: string }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+              {os === "windows" ? <WindowsHint /> : null}
               <a
                 href={`${SITE_URL}/download`}
                 target="_blank"

@@ -298,7 +298,10 @@
         "linuxAppimage": "AppImage",
         "linuxDeb": "Debian / Ubuntu (.deb)",
         "linuxRpm": "Fedora / RHEL (.rpm)"
-      }
+      },
+      "windowsHint": "Si Windows indique qu'il a protégé votre ordinateur, cliquez sur <b>Informations complémentaires</b>, puis sur <b>Exécuter quand même</b>. Ce message apparaît parce que l'appli n'est pas encore signée.",
+      "copyInstall": "Ou copiez l'installation en une ligne",
+      "copied": "Copié"
     },
     "connection": {
       "offlineTitle": "Vous êtes hors ligne",

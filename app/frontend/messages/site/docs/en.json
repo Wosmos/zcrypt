@@ -651,7 +651,9 @@
       "description": "A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption.",
       "directTitle": "Direct uploads and opening the app",
       "directP1": "The desktop app uploads straight from your computer to your own storage. Nothing passes through zcrypt's server, so there is no file-size limit and no monthly web transfer allowance. Storage you connected on the web is picked up automatically: the app copies those tokens into your computer's keychain once per session, so you never connect anything twice.",
-      "directP2": "From the browser, <strong>Open the desktop app</strong> uses the <code>zcrypt://open</code> link to start the app, or to bring it to the front if it is already running. Only one copy runs at a time, so opening it again just focuses the window. The browser can't pass files to the app: drop them into the app window."
+      "directP2": "From the browser, <strong>Open the desktop app</strong> uses the <code>zcrypt://open</code> link to start the app, or to bring it to the front if it is already running. Only one copy runs at a time, so opening it again just focuses the window. The browser can't pass files to the app: drop them into the app window.",
+      "winWarnTitle": "Windows may say it protected your PC",
+      "winWarnBody": "If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet."
     },
     "downloading": {
       "toc": {

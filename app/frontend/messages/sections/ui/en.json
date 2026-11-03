@@ -298,7 +298,10 @@
         "linuxAppimage": "AppImage",
         "linuxDeb": "Debian / Ubuntu (.deb)",
         "linuxRpm": "Fedora / RHEL (.rpm)"
-      }
+      },
+      "windowsHint": "If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet.",
+      "copyInstall": "Or copy the one-line install",
+      "copied": "Copied"
     },
     "connection": {
       "offlineTitle": "You're offline",

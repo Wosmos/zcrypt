@@ -298,7 +298,10 @@
         "linuxAppimage": "AppImage",
         "linuxDeb": "Debian / Ubuntu (.deb)",
         "linuxRpm": "Fedora / RHEL (.rpm)"
-      }
+      },
+      "windowsHint": "Wenn Windows meldet, dass es deinen PC geschützt hat, klicke auf <b>Weitere Informationen</b> und dann auf <b>Trotzdem ausführen</b>. Das erscheint, weil die App noch nicht codesigniert ist.",
+      "copyInstall": "Oder die Ein-Zeilen-Installation kopieren",
+      "copied": "Kopiert"
     },
     "connection": {
       "offlineTitle": "Du bist offline",

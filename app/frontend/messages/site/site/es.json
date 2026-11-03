@@ -190,8 +190,8 @@
             "body": "zcrypt aún no está notarizado, así que macOS dice que no puede verificar la app la primera vez que la abres. Haz clic en Hecho, abre Ajustes del Sistema → Privacidad y seguridad, desplázate hacia abajo y haz clic en Abrir de todos modos. Es un paso que se hace una sola vez. O sáltatelo por completo con la instalación de una línea de abajo."
           },
           "windows": {
-            "title": "Windows SmartScreen la marcará, es lo esperado",
-            "body": "Todavía no hemos comprado un certificado de firma de código, así que Windows trata el instalador como no reconocido. Haz clic en \"Más información\" y luego en \"Ejecutar de todas formas\". Es normal en una app publicada de forma independiente sin certificado de pago y no significa que el archivo tenga algún problema. O sáltatelo con la instalación de PowerShell de una línea de abajo."
+            "title": "Windows puede decir que protegió tu PC",
+            "body": "Si Windows dice que protegió tu PC, haz clic en <b>Más información</b> y luego en <b>Ejecutar de todas formas</b>. Aparece porque la app todavía no tiene firma de código. La instalación de PowerShell de una línea de abajo lo evita."
           }
         },
         "tapHow": ": toca para ver cómo continuar",
@@ -261,6 +261,18 @@
         "copied": "Copiado",
         "copyCommand": "Copiar el comando de {shell}",
         "homebrew": "¿Ya usas Homebrew?"
+      },
+      "windows": {
+        "recommended": "Recomendado: un comando, sin avisos",
+        "downloadInstaller": "Descargar el instalador (.exe)",
+        "smartScreen": "Si Windows dice que protegió tu PC, haz clic en <b>Más información</b> y luego en <b>Ejecutar de todas formas</b>. Aparece porque la app todavía no tiene firma de código.",
+        "mock": {
+          "title": "Windows protegió su PC",
+          "body": "Microsoft Defender SmartScreen impidió el inicio de una aplicación desconocida. Ejecutar esta aplicación puede poner en riesgo su PC.",
+          "moreInfo": "Más información",
+          "runAnyway": "Ejecutar de todas formas",
+          "dontRun": "No ejecutar"
+        }
       }
     },
     "tools": {

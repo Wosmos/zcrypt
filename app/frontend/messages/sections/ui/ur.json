@@ -298,7 +298,10 @@
         "linuxAppimage": "AppImage",
         "linuxDeb": "Debian / Ubuntu (.deb)",
         "linuxRpm": "Fedora / RHEL (.rpm)"
-      }
+      },
+      "windowsHint": "اگر Windows کہے کہ اس نے آپ کے PC کی حفاظت کی ہے تو <b>مزید معلومات</b> پر کلک کریں، پھر <b>بہرحال چلائیں</b> پر۔ یہ اس لیے آتا ہے کہ ایپ پر ابھی کوڈ سائن نہیں ہوا۔",
+      "copyInstall": "یا ایک سطری انسٹالیشن کاپی کریں",
+      "copied": "کاپی ہو گیا"
     },
     "connection": {
       "offlineTitle": "آپ آف لائن ہیں",

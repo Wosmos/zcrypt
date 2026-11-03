@@ -110,6 +110,9 @@ brew install --cask zcrypt`}</DocCode>
         <DocNote type="info" title={<T k="docs.desktop-app.a23" />}>
           <T k="docs.desktop-app.p22" />
         </DocNote>
+        <DocNote type="info" title={<T k="docs.desktop-app.winWarnTitle" />}>
+          <T k="docs.desktop-app.winWarnBody" />
+        </DocNote>
         <DocNote type="info">
           <T
             k="docs.desktop-app.p24"

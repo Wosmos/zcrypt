@@ -298,7 +298,10 @@
         "linuxAppimage": "AppImage",
         "linuxDeb": "Debian / Ubuntu (.deb)",
         "linuxRpm": "Fedora / RHEL (.rpm)"
-      }
+      },
+      "windowsHint": "Si Windows dice que protegió tu PC, haz clic en <b>Más información</b> y luego en <b>Ejecutar de todas formas</b>. Aparece porque la app todavía no tiene firma de código.",
+      "copyInstall": "O copia la instalación de una línea",
+      "copied": "Copiado"
     },
     "connection": {
       "offlineTitle": "Sin conexión",

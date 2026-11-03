@@ -190,8 +190,8 @@
             "body": "zcrypt ist noch nicht notarisiert, deshalb meldet macOS beim ersten Öffnen, dass die App nicht überprüft werden kann. Klicke auf Fertig, öffne dann Systemeinstellungen → Datenschutz & Sicherheit, scrolle nach unten und klicke auf Trotzdem öffnen. Das ist nur einmal nötig. Oder überspringe es komplett mit der Ein-Zeilen-Installation unten."
           },
           "windows": {
-            "title": "Windows SmartScreen warnt davor, das ist normal",
-            "body": "Wir haben noch kein Codesignatur-Zertifikat gekauft, deshalb behandelt Windows das Installationsprogramm als unbekannt. Klicke auf \"Weitere Informationen\", dann auf \"Trotzdem ausführen\". Das ist bei einer unabhängig veröffentlichten App ohne bezahltes Zertifikat normal und kein Zeichen dafür, dass mit der Datei etwas nicht stimmt. Oder überspringe es mit der PowerShell-Ein-Zeilen-Installation unten."
+            "title": "Windows meldet möglicherweise, dass es deinen PC geschützt hat",
+            "body": "Wenn Windows meldet, dass es deinen PC geschützt hat, klicke auf <b>Weitere Informationen</b> und dann auf <b>Trotzdem ausführen</b>. Das erscheint, weil die App noch nicht codesigniert ist. Die PowerShell-Ein-Zeilen-Installation unten überspringt das."
           }
         },
         "tapHow": ": tippen, um zu sehen, wie es weitergeht",
@@ -261,6 +261,18 @@
         "copied": "Kopiert",
         "copyCommand": "{shell}-Befehl kopieren",
         "homebrew": "Du nutzt schon Homebrew?"
+      },
+      "windows": {
+        "recommended": "Empfohlen: ein Befehl, keine Warnung",
+        "downloadInstaller": "Installer herunterladen (.exe)",
+        "smartScreen": "Wenn Windows meldet, dass es deinen PC geschützt hat, klicke auf <b>Weitere Informationen</b> und dann auf <b>Trotzdem ausführen</b>. Das erscheint, weil die App noch nicht codesigniert ist.",
+        "mock": {
+          "title": "Der Computer wurde durch Windows geschützt",
+          "body": "Von Microsoft Defender SmartScreen wurde der Start einer unbekannten App verhindert. Wenn Sie diese App ausführen, ist Ihr PC möglicherweise gefährdet.",
+          "moreInfo": "Weitere Informationen",
+          "runAnyway": "Trotzdem ausführen",
+          "dontRun": "Nicht ausführen"
+        }
       }
     },
     "tools": {

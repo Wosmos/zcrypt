@@ -298,7 +298,10 @@
         "linuxAppimage": "AppImage",
         "linuxDeb": "Debian / Ubuntu (.deb)",
         "linuxRpm": "Fedora / RHEL (.rpm)"
-      }
+      },
+      "windowsHint": "إذا ظهرت رسالة من Windows تفيد بأنه حمى جهازك، فاضغط على <b>مزيد من المعلومات</b> ثم <b>التشغيل على أي حال</b>. تظهر هذه الرسالة لأن التطبيق لم يُوقَّع برمجيًا بعد.",
+      "copyInstall": "أو انسخ التثبيت بسطر واحد",
+      "copied": "تم النسخ"
     },
     "connection": {
       "offlineTitle": "أنت غير متصل",

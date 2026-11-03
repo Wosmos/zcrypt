@@ -651,7 +651,9 @@
       "description": "Une version de bureau native de zcrypt pour ceux qui préfèrent une vraie fenêtre d’application à un onglet de navigateur : avec la gestion de fichiers au niveau du système et exactement le même chiffrement côté client.",
       "directTitle": "Envois directs et ouverture de l'application",
       "directP1": "L'application de bureau envoie directement de votre ordinateur vers votre propre stockage. Rien ne passe par le serveur de zcrypt : il n'y a donc ni limite de taille de fichier ni quota mensuel de transferts web. Le stockage que vous avez connecté sur le web est repris automatiquement : l'application copie ces jetons dans le trousseau de votre ordinateur une fois par session, vous ne connectez donc jamais rien deux fois.",
-      "directP2": "Depuis le navigateur, <strong>Ouvrir l'application de bureau</strong> utilise le lien <code>zcrypt://open</code> pour lancer l'application ou la mettre au premier plan si elle tourne déjà. Une seule copie s'exécute à la fois : la rouvrir ne fait que donner le focus à la fenêtre. Le navigateur ne peut pas transmettre de fichiers à l'application : déposez-les dans sa fenêtre."
+      "directP2": "Depuis le navigateur, <strong>Ouvrir l'application de bureau</strong> utilise le lien <code>zcrypt://open</code> pour lancer l'application ou la mettre au premier plan si elle tourne déjà. Une seule copie s'exécute à la fois : la rouvrir ne fait que donner le focus à la fenêtre. Le navigateur ne peut pas transmettre de fichiers à l'application : déposez-les dans sa fenêtre.",
+      "winWarnTitle": "Windows peut indiquer qu'il a protégé votre ordinateur",
+      "winWarnBody": "Si Windows indique qu'il a protégé votre ordinateur, cliquez sur <b>Informations complémentaires</b>, puis sur <b>Exécuter quand même</b>. Ce message apparaît parce que l'appli n'est pas encore signée."
     },
     "downloading": {
       "toc": {

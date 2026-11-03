@@ -14,7 +14,9 @@ import {
 } from "@/lib/releases";
 import { cn } from "@/lib/utils";
 import { PillLink, pillClass } from "@/components/marketing/ui/pill-link";
+import { T } from "@/components/i18n/t";
 import { OS_GLYPHS, MOBILE_GLYPHS } from "./os-glyphs";
+import { WindowsInstall } from "./windows-install";
 
 const OS_LABEL: Record<PlatformId, string> = {
   macos: "macOS",
@@ -160,8 +162,27 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
     );
   }
 
-  // macOS / Windows / undetected from here on, device is narrowed to
-  // "macos" | "windows" | null by the returns above.
+  if (device === "windows") {
+    const installer = release?.desktop
+      .find((p) => p.id === "windows")
+      ?.options.find((o) => o.recommended);
+    const href = installer?.href ?? (release === null ? RELEASES_FALLBACK_URL : "#desktop");
+    return (
+      <>
+        <WindowsInstall />
+        <a href={href} className={cn("group", pillClass("secondary"))}>
+          <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+          {t("download.windows.downloadInstaller")}
+        </a>
+        <WebApp />
+        <p className="pv2-micro mx-auto w-full max-w-md text-center text-[var(--color-text-muted)]">
+          <T k="site.download.windows.smartScreen" />
+        </p>
+      </>
+    );
+  }
+
+  // macOS / undetected from here on.
   const platform = release && device ? release.desktop.find((p) => p.id === device) : null;
   let primary: DownloadOption | null = null;
   if (platform) {
