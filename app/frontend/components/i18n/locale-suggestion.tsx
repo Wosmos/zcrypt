@@ -5,6 +5,7 @@ import { useLocaleControl } from "@/components/providers/i18n-provider";
 import { LOCALES, isLocale, localeDir, readStoredLocale, type Locale } from "@/lib/i18n";
 import { isTauri } from "@/lib/tauri";
 import { Languages, X } from "@/lib/icons";
+import { API_BASE } from "@/lib/config";
 
 const DISMISSED_KEY = "zcrypt-locale-hint-dismissed";
 const OVERRIDE_PARAM = "zc_country";
@@ -72,8 +73,7 @@ function markDismissed() {
 async function visitorCountry(): Promise<string> {
   const override = new URLSearchParams(window.location.search).get(OVERRIDE_PARAM);
   if (override) return override.toUpperCase();
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-  const res = await fetch(`${base}/api/geo/country`, { credentials: "omit" });
+  const res = await fetch(`${API_BASE}/api/geo/country`, { credentials: "omit" });
   if (!res.ok) return "";
   const body = (await res.json()) as { country?: string };
   return typeof body.country === "string" ? body.country.toUpperCase() : "";

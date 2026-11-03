@@ -43,8 +43,7 @@ import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed"
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
 import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+import { API_BASE } from "@/lib/config";
 
 /** Build the chunk-download return payload from a response (body + chunk headers). */
 async function readChunkResponse(

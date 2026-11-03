@@ -1,10 +1,9 @@
 import { create } from "zustand";
 import { isVerySlowLink } from "@/lib/device-profile";
+import { API_BASE } from "@/lib/config";
 
 export type BackendState = "unknown" | "up" | "down" | "maintenance";
 export type ConnectionStatus = "ok" | "offline" | "down" | "maintenance" | "slow";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export const PROBE_TIMEOUT_MS = 5_000;
 export const SLOW_RTT_MS = 2_500;

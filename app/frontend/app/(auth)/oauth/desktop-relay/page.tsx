@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { API_BASE } from "@/lib/config";
 
 type Stage = "idle" | "approving" | "approved" | "failed";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 /**
  * Browser page shown after desktop OAuth completes.

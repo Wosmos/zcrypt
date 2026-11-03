@@ -1,5 +1,6 @@
 import { Download } from "@/lib/icons";
 import { T } from "@/components/i18n/t";
+import { API_BASE } from "@/lib/config";
 
 /**
  * Total installs across every platform, shown on the download page.
@@ -12,7 +13,7 @@ import { T } from "@/components/i18n/t";
 const MIN_TO_SHOW = 100;
 
 export async function DownloadCount() {
-  const api = process.env.NEXT_PUBLIC_API_URL;
+  const api = API_BASE;
   if (!api) return null;
 
   let total = 0;

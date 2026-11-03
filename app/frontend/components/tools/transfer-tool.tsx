@@ -28,8 +28,9 @@ import {
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ProgressBar } from "./shared/progress-bar";
 import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
+import { API_WS_BASE } from "@/lib/config";
 
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/^http/, "ws") + "/api/transfer/ws";
+const WS_URL = `${API_WS_BASE}/api/transfer/ws`;
 
 const MAX_BUFFERED_BYTES = 4 * 1024 * 1024;
 

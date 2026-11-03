@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fetchPublicReviews } from "@/lib/public-reviews";
 
+const config = vi.hoisted(() => ({ API_BASE: "https://api.test" }));
+vi.mock("@/lib/config", () => config);
+
 const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
-  vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.test");
+  config.API_BASE = "https://api.test";
 });
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
@@ -25,7 +27,7 @@ describe("fetchPublicReviews", () => {
   });
 
   it("returns nothing without an API base", async () => {
-    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    config.API_BASE = "";
     expect(await fetchPublicReviews()).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });

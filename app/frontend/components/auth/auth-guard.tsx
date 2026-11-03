@@ -8,6 +8,7 @@ import { refreshSessionToken, tryRefreshToken } from "@/lib/auth-fetch";
 import { prefetchVault } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync, subscribeTokens } from "@/lib/tauri";
+import { API_BASE, DEV_API_URL } from "@/lib/config";
 
 export function AuthGuard({
   children,
@@ -255,7 +256,7 @@ export function AuthGuard({
   // session check rather than after it. A rotated token re-runs this.
   useEffect(() => {
     if (!isTauri || !accessToken || !refreshTokenValue) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    const apiUrl = API_BASE || DEV_API_URL;
     startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
   }, [accessToken, refreshTokenValue]);
 

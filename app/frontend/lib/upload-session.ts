@@ -16,8 +16,7 @@
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
 import { ApiError, parseErrorBody, throwResponseError } from "@/lib/http-error";
 import { useAuthStore } from "@/store/auth";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+import { API_BASE } from "@/lib/config";
 
 // Every HTTP failure is thrown as an ApiError carrying its status, so the retry
 // layer decides by status code (408/429/5xx) rather than by message text.

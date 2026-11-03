@@ -16,6 +16,7 @@ import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
 import { isTauri, subscribeOAuthCallback } from "@/lib/tauri";
 import { useFriendlyError } from "@/hooks/useConnectivity";
 import { authScene } from "@/components/auth/auth-scene";
+import { API_BASE } from "@/lib/config";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,12 +57,11 @@ export default function LoginPage() {
       pendingSession = session;
       setApprovalCode(code);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const poll = async () => {
         if (stopped) return;
         try {
           const res = await fetch(
-            `${apiUrl}/api/auth/oauth/desktop-poll?session=${session}&verifier=${verifier}`,
+            `${API_BASE}/api/auth/oauth/desktop-poll?session=${session}&verifier=${verifier}`,
           );
           if (res.status === 404) return; // still pending
           if (!res.ok) return;

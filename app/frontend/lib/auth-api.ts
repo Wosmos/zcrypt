@@ -2,13 +2,12 @@ import type { AuthUser, AuditEvent } from "@/types";
 import { isTauri } from "@/lib/tauri";
 import { useAuthStore } from "@/store/auth";
 import { reportConnectivityFailure } from "@/store/connectivity";
+import { API_BASE } from "@/lib/config";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
 // types→lib inversion): re-exported here so its existing consumers keep
 // importing it from "@/lib/auth-api".
 export type { AuditEvent };
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
