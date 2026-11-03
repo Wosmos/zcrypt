@@ -1,3 +1,4 @@
+import { GITHUB_REPO } from "@/lib/config";
 import { SITE_URL } from "@/lib/site";
 
 export function OrganizationJsonLd() {
@@ -10,7 +11,7 @@ export function OrganizationJsonLd() {
     description:
       "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords: all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
     foundingDate: "2026",
-    sameAs: ["https://github.com/Wosmos/zcrypt"],
+    sameAs: [GITHUB_REPO],
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",

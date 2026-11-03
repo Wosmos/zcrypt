@@ -2,6 +2,8 @@
 // All static content used across marketing/landing components.
 // Icon references use string keys. Map them in the consuming component.
 
+import { GITHUB_REPO } from "@/lib/config";
+
 // ─── Types ────────────────────────────────────────────────────
 
 export interface BentoFeature {
@@ -228,7 +230,7 @@ export const desktopEngine = {
 // The /download page resolves actual download URLs at runtime from the latest
 // GitHub release (see lib/releases.ts), so no versions/filenames live here.
 
-export const GITHUB_REPO = "https://github.com/Wosmos/zcrypt";
+export { GITHUB_REPO };
 export const RELEASES_URL = `${GITHUB_REPO}/releases`;
 
 // ─── Docs Navigation ────────────────────────────────────────

@@ -14,6 +14,7 @@
  */
 
 /** The storage backends zcrypt can distribute encrypted chunks across. */
+import { BOTFATHER_URL } from "@/lib/config";
 import { tr } from "@/store/translate";
 
 export type PlatformId = "github" | "gitlab" | "huggingface" | "telegram";
@@ -155,7 +156,7 @@ const PLATFORM_DEFS: PlatformMeta[] = [
     fileLimit: "Unlimited (chunked)",
     rateInfo: "~20 msgs/min per chat",
     placeholder: "123456:ABC-DEF|@channel_name",
-    tokenUrl: "https://t.me/BotFather",
+    tokenUrl: BOTFATHER_URL,
     tokenLabel: "Create bot via @BotFather",
   },
 ];

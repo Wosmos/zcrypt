@@ -1,3 +1,4 @@
+import { GITHUB_REPO } from "@/lib/config";
 import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 
@@ -59,7 +60,7 @@ export default function LicenseDocPage() {
         <DocP>
           <T
             k="docs.license.p13"
-            links={{ l1: "https://github.com/Wosmos/zcrypt/blob/main/LICENSE" }}
+            links={{ l1: `${GITHUB_REPO}/blob/main/LICENSE` }}
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
         </DocP>

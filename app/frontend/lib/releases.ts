@@ -1,9 +1,7 @@
 // Runtime lookup of the latest GitHub release so the /download page always
 // reflects what's actually published, no hardcoded version or filenames.
 
-import { GITHUB_REPO } from "@/lib/data";
-
-const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/latest";
+import { GITHUB_REPO, LATEST_RELEASE_API } from "@/lib/config";
 
 /**
  * Every installer is served through our own redirect rather than linked at

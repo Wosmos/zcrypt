@@ -1,4 +1,6 @@
-const PROBE_URL = "https://api.telegram.org/";
+import { TELEGRAM_API_ORIGIN } from "@/lib/config";
+
+const PROBE_URL = `${TELEGRAM_API_ORIGIN}/`;
 const CACHE_KEY = "zcrypt:telegram-reach";
 const CACHE_FOR_MS = 10 * 60 * 1000;
 const TIMEOUT_MS = 6000;

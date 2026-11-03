@@ -1,3 +1,4 @@
+import { GITHUB_REPO } from "@/lib/config";
 import { pageMetadata } from "@/lib/page-metadata";
 import type { ComponentType } from "react";
 import Link from "next/link";
@@ -213,7 +214,7 @@ export default function DocsPage() {
         </p>
         <div className="pv2-ctas">
           <a
-            href="https://github.com/Wosmos/zcrypt"
+            href={GITHUB_REPO}
             target="_blank"
             rel="noopener noreferrer"
             className={pillClass("secondary")}

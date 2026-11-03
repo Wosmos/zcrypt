@@ -1,3 +1,4 @@
+import { GITHUB_REPO } from "@/lib/config";
 import { pageMetadata } from "@/lib/page-metadata";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
 
@@ -32,7 +33,7 @@ export default function ContributingDocPage() {
         <DocP>
           <T
             k="docs.contributing.p1"
-            links={{ l1: "https://github.com/Wosmos/zcrypt/blob/main/CONTRIBUTING.md" }}
+            links={{ l1: `${GITHUB_REPO}/blob/main/CONTRIBUTING.md` }}
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
         </DocP>
@@ -137,7 +138,7 @@ bash scripts/prepush.sh                # full: gates + advisory backlog scans ->
         <DocP>
           <T
             k="docs.contributing.p34"
-            links={{ l1: "https://github.com/Wosmos/zcrypt" }}
+            links={{ l1: GITHUB_REPO }}
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
         </DocP>

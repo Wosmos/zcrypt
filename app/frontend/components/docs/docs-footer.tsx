@@ -2,8 +2,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Github, Heart } from "@/lib/icons";
 
-const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
-const SPONSOR_URL = "https://github.com/sponsors/Wosmos";
+import { GITHUB_REPO, SPONSOR_URL } from "@/lib/config";
 
 /**
  * The docs section's own footer: deliberately smaller than the marketing
@@ -18,7 +17,7 @@ export function DocsFooter() {
         <p className="text-[12px] text-[var(--color-text-muted)]">© zcrypt</p>
         <div className="flex items-center gap-5 text-[12px] text-[var(--color-text-muted)]">
           <a
-            href={GITHUB_REPO_URL}
+            href={GITHUB_REPO}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 transition-colors hover:text-[var(--color-text)]"

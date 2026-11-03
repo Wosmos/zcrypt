@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { groupSlug, navSlug } from "@/components/docs/nav-keys";
+import { GITHUB_REPO, SPONSOR_URL } from "@/lib/config";
 import { docsNav, type DocsNavGroup, type DocsNavLink } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { ChevronRight, ExternalLink, Github, Heart, Menu, Search, X } from "@/lib/icons";
@@ -212,7 +213,7 @@ function SidebarFooterCard() {
       </p>
       <div className="mt-2.5 grid grid-cols-2 gap-1.5">
         <a
-          href="https://github.com/Wosmos/zcrypt"
+          href={GITHUB_REPO}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]"
@@ -221,7 +222,7 @@ function SidebarFooterCard() {
           GitHub
         </a>
         <a
-          href="https://github.com/sponsors/Wosmos"
+          href={SPONSOR_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-rose-500/40 hover:text-rose-600 dark:hover:text-rose-400"

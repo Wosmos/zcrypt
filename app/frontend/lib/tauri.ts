@@ -7,6 +7,8 @@
  * is used.
  */
 
+import { LATEST_RELEASE_API } from "@/lib/config";
+
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /** The shell's app version (tauri.conf), or null outside Tauri. */
@@ -342,8 +344,6 @@ export async function clearShellPassphrase(): Promise<void> {
 export async function checkForUpdates(): Promise<UpdateInfo> {
   return tauriInvoke("check_for_updates");
 }
-
-const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/latest";
 
 /** Parsed `X.Y.Z[-pre]` version. `dev` is the short sha of a rolling
  *  `-dev.<sha>` build, which CI stamps on top of the last released version. */

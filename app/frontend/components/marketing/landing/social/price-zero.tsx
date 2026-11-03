@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { GITHUB_REPO } from "@/lib/config";
 import { ArrowRight } from "@/lib/icons";
 
 const STEPS = [
@@ -83,7 +84,7 @@ export function PriceZero() {
         <p className="zs-thanks">
           {t.rich("home.price.thanks", {
             star: (chunks) => (
-              <a href="https://github.com/Wosmos/zcrypt" className="zs-link" rel="noopener">
+              <a href={GITHUB_REPO} className="zs-link" rel="noopener">
                 {chunks}
               </a>
             ),

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { toast } from "@/store/toast";
+import { BOTFATHER_URL } from "@/lib/config";
 import { openExternal } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 import {
@@ -187,7 +188,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
             {t.rich("pasteToken", {
               link: (chunks) => (
                 <a
-                  href="https://t.me/BotFather"
+                  href={BOTFATHER_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[var(--color-accent)] hover:underline"

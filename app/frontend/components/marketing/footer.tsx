@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Logo } from "@/components/ui/logo";
+import { GITHUB_REPO } from "@/lib/config";
 import { ArrowUpRight, BookOpen, Github } from "@/lib/icons";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
-const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
+const GITHUB_REPO_URL = GITHUB_REPO;
 
 type FooterLink = { key: string; href: string; external?: boolean; labelKey?: string };
 
