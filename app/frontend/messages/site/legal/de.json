@@ -166,6 +166,57 @@
       "s9": {
         "t": "Kontakt"
       }
+    },
+    "codeSigning": {
+      "eyebrow": "Codesignierung",
+      "title": "Richtlinie zur Codesignierung",
+      "lead": "Wie die Windows-Installer gebaut werden, wer sie veröffentlichen darf und wann sie signiert werden.",
+      "seeAlso": "Datenschutzerklärung",
+      "contactMail": "Fragen zur Codesignierung? Schreib an <l1>{email}</l1>.",
+      "s1": {
+        "t": "Stand",
+        "status": "Windows-Releases werden über <signpath>SignPath.io</signpath> mit einem Zertifikat der <foundation>SignPath Foundation</foundation> signiert, sobald das Projekt aufgenommen wurde. Bis dahin sind die Installer nicht signiert.",
+        "p1": "Solange nicht signiert wird, zeigt Windows für die Installer möglicherweise eine SmartScreen-Warnung an. Die einzeilige PowerShell-Installation auf der Download-Seite löst sie nicht aus. Diese Richtlinie gilt ab dem ersten signierten Release für jedes signierte Release."
+      },
+      "s2": {
+        "t": "Was signiert wird",
+        "p1": "Nur die Windows-Installer eines zcrypt-Releases:",
+        "l1": "Die Installer <b>.exe</b> und <b>.msi</b>, die jedem <releases>GitHub-Release</releases> angehängt sind.",
+        "l2": "Sie werden vom GitHub-Actions-Release-Workflow aus dem <repo>öffentlichen Quellcode</repo> auf GitHub-gehosteten Runnern gebaut.",
+        "l3": "Die Programmdateien innerhalb der Installer werden nicht einzeln signiert.",
+        "l4": "Nicht abgedeckt: die Builds für macOS, Linux und Android, die Website und der Server."
+      },
+      "s3": {
+        "t": "Wann signiert wird",
+        "l1": "Nur für Releases, die von der CI aus einem getaggten Versions-Commit gebaut wurden. Nichts, was auf einem privaten Rechner gebaut wurde, wird je zur Signierung eingereicht.",
+        "l2": "Jede Signieranfrage wird vom Freigebenden von Hand genehmigt, bevor das Zertifikat verwendet wird.",
+        "l3": "Signierte Dateien tragen den Produktnamen zcrypt und die Release-Version.",
+        "l4": "Der Signaturschlüssel liegt bei SignPath. Das Projekt besitzt keine Kopie davon.",
+        "l5": "Ein signiertes Release lässt sich dem genauen Quell-Commit im öffentlichen Repository zuordnen."
+      },
+      "s4": {
+        "t": "Team und Rollen",
+        "p1": "zcrypt wird von einer Person betreut, die alle folgenden Rollen innehat. Die Rollen folgen den Bedingungen der SignPath Foundation.",
+        "l1": "<b>Autoren</b> (dürfen den Quellcode ohne zweite Prüfung ändern): Muhammad Wasif Malik, GitHub-Konto Wosmos.",
+        "l2": "<b>Prüfer</b> (prüfen Änderungen von Personen ohne Commit-Recht): Muhammad Wasif Malik, GitHub-Konto Wosmos.",
+        "l3": "<b>Freigebende</b> (genehmigen jede Signieranfrage): Muhammad Wasif Malik, GitHub-Konto Wosmos.",
+        "p2": "Änderungen anderer Mitwirkender werden vor dem Merge vom Maintainer geprüft. Für die GitHub- und SignPath-Konten aller Mitglieder des Signierteams ist eine Multi-Faktor-Authentifizierung vorgeschrieben."
+      },
+      "s5": {
+        "t": "Datenschutz",
+        "p1": "zcrypt überträgt deine Informationen nur dann an andere vernetzte Systeme, wenn du es verlangst oder es nötig ist, um auszuführen, was du verlangt hast. Das wird gesendet:",
+        "l1": "Verschlüsselte Datei-Chunks an die Speicherkonten, die du verbunden hast, oder an von zcrypt betriebenen Speicher, falls du keines verbunden hast. Wir können sie nicht lesen.",
+        "l2": "Kontodaten und Datei-Metadaten (Größen, Zeitstempel, versiegelte Namen, umhüllte Schlüssel) an den Server von zcrypt.",
+        "l3": "Die Desktop-App fragt GitHub, ob es eine neuere Version gibt. Diese Anfrage enthält keine Konto- oder Dateiinformationen. Installationen aus dem Microsoft Store tun das nicht.",
+        "p2": "Alle Einzelheiten, einschließlich der beteiligten Dienste und dessen, was jeder davon sieht, stehen in der <l1>Datenschutzerklärung</l1>."
+      },
+      "s6": {
+        "t": "Installieren und Entfernen",
+        "p1": "Der Installer fügt zcrypt und einen Handler für zcrypt://-Links hinzu, über die der Browser die Anmeldung an die App zurückgibt. Sonst wird nichts auf deinem System verändert. Der Start bei der Anmeldung bleibt aus, bis du ihn in den App-Einstellungen einschaltest. Du kannst zcrypt jederzeit über Windows-Einstellungen, Apps deinstallieren."
+      },
+      "s7": {
+        "t": "Kontakt"
+      }
     }
   }
 }

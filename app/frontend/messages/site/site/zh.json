@@ -272,7 +272,8 @@
           "moreInfo": "更多信息",
           "runAnyway": "仍要运行",
           "dontRun": "不运行"
-        }
+        },
+        "codeSigning": "请参阅<l1>代码签名政策</l1>。"
       }
     },
     "tools": {

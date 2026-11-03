@@ -166,6 +166,57 @@
       "s9": {
         "t": "Contacto"
       }
+    },
+    "codeSigning": {
+      "eyebrow": "Firma de código",
+      "title": "Política de firma de código",
+      "lead": "Cómo se compilan los instaladores de Windows, quién puede publicarlos y cuándo se firman.",
+      "seeAlso": "Política de privacidad",
+      "contactMail": "¿Preguntas sobre la firma de código? Escribe a <l1>{email}</l1>.",
+      "s1": {
+        "t": "Estado",
+        "status": "Las versiones de Windows se firmarán a través de <signpath>SignPath.io</signpath> con un certificado de <foundation>SignPath Foundation</foundation> cuando el proyecto sea aprobado. Hasta entonces, los instaladores no están firmados.",
+        "p1": "Mientras no se firme, Windows puede mostrar una advertencia de SmartScreen con los instaladores. La instalación de una línea con PowerShell de la página de descarga no la activa. Esta política se aplica a todas las versiones firmadas desde la primera."
+      },
+      "s2": {
+        "t": "Qué se firma",
+        "p1": "Solo los instaladores de Windows de una versión de zcrypt:",
+        "l1": "Los instaladores <b>.exe</b> y <b>.msi</b> adjuntos a cada <releases>release de GitHub</releases>.",
+        "l2": "Se compilan con el flujo de publicación de GitHub Actions a partir del <repo>código fuente público</repo>, en ejecutores alojados por GitHub.",
+        "l3": "Los archivos del programa dentro de los instaladores no se firman por separado.",
+        "l4": "No cubre: las compilaciones de macOS, Linux y Android, el sitio web ni el servidor."
+      },
+      "s3": {
+        "t": "Cuándo se firma",
+        "l1": "Solo las versiones compiladas por CI desde un commit de versión etiquetado. Nada compilado en un ordenador personal se envía nunca a firmar.",
+        "l2": "Cada solicitud de firma la aprueba a mano el aprobador antes de usar el certificado.",
+        "l3": "Los archivos firmados llevan el nombre de producto zcrypt y la versión de la publicación.",
+        "l4": "La clave de firma la guarda SignPath. El proyecto nunca tiene una copia.",
+        "l5": "Una versión firmada puede relacionarse con su commit de origen exacto en el repositorio público."
+      },
+      "s4": {
+        "t": "Equipo y funciones",
+        "p1": "zcrypt lo mantiene una sola persona, que desempeña todas las funciones siguientes. Las funciones siguen los términos de SignPath Foundation.",
+        "l1": "<b>Autores</b> (pueden cambiar el código fuente sin una segunda revisión): Muhammad Wasif Malik, cuenta de GitHub Wosmos.",
+        "l2": "<b>Revisores</b> (revisan los cambios de quienes no pueden hacer commit): Muhammad Wasif Malik, cuenta de GitHub Wosmos.",
+        "l3": "<b>Aprobadores</b> (aprueban cada solicitud de firma): Muhammad Wasif Malik, cuenta de GitHub Wosmos.",
+        "p2": "Los cambios de otros colaboradores los revisa el responsable antes de fusionarse. Se exige autenticación multifactor en las cuentas de GitHub y SignPath de todos los miembros del equipo de firma."
+      },
+      "s5": {
+        "t": "Privacidad",
+        "p1": "zcrypt no transfiere tu información a otros sistemas en red a menos que se lo pidas o sea necesario para hacer lo que pediste. Esto es lo que envía:",
+        "l1": "Fragmentos cifrados de archivos, a las cuentas de almacenamiento que conectaste o, si no conectaste ninguna, al almacenamiento operado por zcrypt. No podemos leerlos.",
+        "l2": "Datos de la cuenta y metadatos de los archivos (tamaños, marcas de tiempo, nombres sellados, claves envueltas), al servidor de zcrypt.",
+        "l3": "La app de escritorio pregunta a GitHub si existe una versión más reciente. Esa petición no lleva información de cuenta ni de archivos. Las instalaciones desde Microsoft Store no lo hacen.",
+        "p2": "Todos los detalles, incluidos los servicios implicados y lo que ve cada uno, están en la <l1>política de privacidad</l1>."
+      },
+      "s6": {
+        "t": "Instalar y desinstalar",
+        "p1": "El instalador añade zcrypt y un controlador para enlaces zcrypt://, que el navegador usa para devolver el inicio de sesión a la app. No se cambia nada más en tu sistema. El inicio al iniciar sesión permanece desactivado hasta que lo actives en los ajustes de la app. Puedes desinstalar zcrypt en cualquier momento desde Configuración de Windows, Aplicaciones."
+      },
+      "s7": {
+        "t": "Contacto"
+      }
     }
   }
 }

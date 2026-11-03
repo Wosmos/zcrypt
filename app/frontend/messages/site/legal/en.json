@@ -166,6 +166,57 @@
       "s9": {
         "t": "Contact"
       }
+    },
+    "codeSigning": {
+      "eyebrow": "Code signing",
+      "title": "Code signing policy",
+      "lead": "How the Windows installers are built, who can release them, and when they are signed.",
+      "seeAlso": "Privacy Policy",
+      "contactMail": "Questions about code signing? Email <l1>{email}</l1>.",
+      "s1": {
+        "t": "Status",
+        "status": "Windows releases will be signed through <signpath>SignPath.io</signpath> with a certificate from <foundation>SignPath Foundation</foundation> once the project is approved. Until then the installers are unsigned.",
+        "p1": "Until signing starts, Windows may show a SmartScreen warning for the installers. The one-line PowerShell install on the download page does not trigger it. This policy applies to every signed release from the first one."
+      },
+      "s2": {
+        "t": "What gets signed",
+        "p1": "Only the Windows installers of a zcrypt release:",
+        "l1": "The <b>.exe</b> and <b>.msi</b> installers attached to each <releases>GitHub release</releases>.",
+        "l2": "They are built by the GitHub Actions release workflow from the <repo>public source code</repo>, on GitHub-hosted runners.",
+        "l3": "The program files inside the installers are not signed separately.",
+        "l4": "Not covered: the macOS, Linux and Android builds, the website and the server."
+      },
+      "s3": {
+        "t": "When signing happens",
+        "l1": "Only for releases built by CI from a tagged version commit. Nothing built on a personal computer is ever submitted for signing.",
+        "l2": "Every signing request is approved by hand by the approver before the certificate is used.",
+        "l3": "Signed files carry the product name zcrypt and the release version.",
+        "l4": "The signing key is held by SignPath. The project never has a copy of it.",
+        "l5": "A signed release can be matched to its exact source commit in the public repository."
+      },
+      "s4": {
+        "t": "Team and roles",
+        "p1": "zcrypt is maintained by one person, who holds every role below. The roles follow the SignPath Foundation terms.",
+        "l1": "<b>Authors</b> (can change the source code without a second review): Muhammad Wasif Malik, GitHub account Wosmos.",
+        "l2": "<b>Reviewers</b> (review changes from people who cannot commit): Muhammad Wasif Malik, GitHub account Wosmos.",
+        "l3": "<b>Approvers</b> (approve each signing request): Muhammad Wasif Malik, GitHub account Wosmos.",
+        "p2": "Changes from other contributors are reviewed by the maintainer before they are merged. Multi-factor authentication is required on the GitHub and SignPath accounts of everyone on the signing team."
+      },
+      "s5": {
+        "t": "Privacy",
+        "p1": "zcrypt does not transfer your information to other networked systems unless you ask it to, or it is needed to do what you asked. What it sends:",
+        "l1": "Encrypted file chunks, to the storage accounts you connected, or to zcrypt-operated storage if you did not. We cannot read them.",
+        "l2": "Account details and file metadata (sizes, timestamps, sealed names, wrapped keys), to zcrypt's server.",
+        "l3": "The desktop app asks GitHub whether a newer version exists. That request carries no account or file information. Installs from the Microsoft Store do not do this.",
+        "p2": "The full details, including the services involved and what each one sees, are in the <l1>privacy policy</l1>."
+      },
+      "s6": {
+        "t": "Installing and removing",
+        "p1": "The installer adds zcrypt and a handler for zcrypt:// links, which the browser uses to hand sign-in back to the app. Nothing else on your system is changed. Launch at login stays off until you turn it on in the app's settings. You can uninstall zcrypt at any time from Windows Settings, Apps."
+      },
+      "s7": {
+        "t": "Contact"
+      }
     }
   }
 }

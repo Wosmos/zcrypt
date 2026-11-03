@@ -272,7 +272,8 @@
           "moreInfo": "Weitere Informationen",
           "runAnyway": "Trotzdem ausführen",
           "dontRun": "Nicht ausführen"
-        }
+        },
+        "codeSigning": "Siehe die <l1>Richtlinie zur Codesignierung</l1>."
       }
     },
     "tools": {

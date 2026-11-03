@@ -178,7 +178,12 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           <WebApp />
         </div>
         <p className="pv2-micro mx-auto w-full max-w-md text-balance text-center text-[var(--color-text-muted)]">
-          <T k="site.download.windows.smartScreen" />
+          <T k="site.download.windows.smartScreen" />{" "}
+          <T
+            k="site.download.windows.codeSigning"
+            links={{ l1: "/code-signing" }}
+            linkClassName="underline underline-offset-2 hover:text-[var(--color-text)]"
+          />
         </p>
       </div>
     );

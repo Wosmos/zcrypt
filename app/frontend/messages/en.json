@@ -452,7 +452,8 @@
         "privacy": "Privacy",
         "terms": "Terms",
         "security": "Security",
-        "feedback": "Feedback"
+        "feedback": "Feedback",
+        "codeSigning": "Code signing policy"
       }
     }
   }

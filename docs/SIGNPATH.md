@@ -32,13 +32,13 @@ From https://signpath.org/terms:
 - No malware, no hacking tools, no undisclosed data transfers, no system changes without warning, and an uninstall path for every install method.
 - Multi-factor authentication on SignPath and on GitHub for everyone on the signing team.
 - Defined roles: Authors, Reviewers, Approvers. For a solo project you hold all three.
-- A **Code signing policy** section on the home page and the download page of the site, naming the SignPath attribution, the team roles, and a link to the privacy policy. This does not exist on zcrypt.cloud yet and needs adding before applying.
+- A **Code signing policy** on the home page and the download page of the site, naming the SignPath attribution, the team roles, and the privacy policy. The site has a dedicated page for this at https://zcrypt.cloud/code-signing (heading "Code signing policy"), linked from the footer of every marketing page (so from the home page) and from the Windows block of the download page next to the SmartScreen hint.
 - Product name and version metadata enforced on signed binaries.
 - Manual approval of every release signing request.
 
 ## Steps for the owner
 
-1. **Prepare the site.** Add the Code signing policy section to `/` and `/download` (SignPath wording: "Free code signing provided by SignPath.io, certificate by SignPath Foundation", plus roles and the privacy policy link). Turn on MFA on GitHub and SignPath.
+1. **Prepare the site.** Done: the page above exists. Check that the roles and the privacy paragraph still match reality, then turn on MFA on GitHub and SignPath (the page states MFA is required for the signing team).
 2. **Apply.** Go to https://signpath.org/apply and submit the repository URL (https://github.com/Wosmos/zcrypt), the download page, and a short description. Acceptance is at their discretion and can take days to weeks.
 3. **Create the project in SignPath** once accepted. Add the trusted build system `GitHub.com` and link it to the project.
 4. **Create the artifact configuration** and set it as the default:
@@ -65,6 +65,14 @@ From https://signpath.org/terms:
    - Variable `SIGNPATH_SIGNING_POLICY_SLUG`: for example `release-signing`
 7. **Release.** Push a version tag. `sign-windows` starts, and SignPath emails you an approval request. Approve it within the hour (the job waits 3600 seconds, after which the release has no Windows installers and must be re-run).
 8. Check the published `.exe` shows a valid digital signature in file Properties.
+
+## After SignPath approves the project
+
+The page is written as policy plus a clearly marked pending status, so it is honest before approval. Once SignPath accepts the project and the first signed release is out, flip one message key in each of the 8 files `app/frontend/messages/site/legal/{en,ar,de,es,fr,ru,ur,zh}.json`:
+
+- `legal.codeSigning.s1.status`. Today: "Windows releases will be signed through SignPath.io with a certificate from SignPath Foundation once the project is approved. Until then the installers are unsigned." Replace with SignPath's own sentence, with both links: "Free code signing provided by SignPath.io, certificate by SignPath Foundation." (keep the `<signpath>` and `<foundation>` tags around the two names).
+
+Optionally also reword `legal.codeSigning.s1.p1` (it says Windows may show a SmartScreen warning until signing starts) and the download page hint `site.download.windows.smartScreen` ("the app isn't code-signed yet") in `messages/site/site/*.json` once signed builds ship.
 
 ## Until it is on
 

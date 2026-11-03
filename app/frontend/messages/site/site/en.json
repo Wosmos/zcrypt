@@ -272,7 +272,8 @@
           "moreInfo": "More info",
           "runAnyway": "Run anyway",
           "dontRun": "Don't run"
-        }
+        },
+        "codeSigning": "See the <l1>code signing policy</l1>."
       }
     },
     "tools": {

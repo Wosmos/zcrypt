@@ -452,7 +452,8 @@
         "privacy": "Privacidad",
         "terms": "Términos",
         "security": "Seguridad",
-        "feedback": "Comentarios"
+        "feedback": "Comentarios",
+        "codeSigning": "Política de firma de código"
       }
     }
   }

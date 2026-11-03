@@ -102,6 +102,11 @@ const companyLinks: Array<[string, string, string]> = [
     "What zcrypt can see, what it collects, and what it never touches.",
   ],
   ["Terms of Service", "/terms", "The rules of engagement, in plain language."],
+  [
+    "Code signing policy",
+    "/code-signing",
+    "Which Windows installers are signed, by whom, and how signing is approved.",
+  ],
 ];
 
 export function buildLlmsTxt(): string {

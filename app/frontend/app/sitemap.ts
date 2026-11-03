@@ -31,6 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     make("/transfer", 0.7, "monthly"),
     make("/privacy", 0.4, "yearly"),
     make("/terms", 0.4, "yearly"),
+    make("/code-signing", 0.4, "yearly"),
     make("/login", 0.3, "yearly"),
     make("/register", 0.4, "yearly"),
   ];

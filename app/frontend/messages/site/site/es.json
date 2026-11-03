@@ -272,7 +272,8 @@
           "moreInfo": "Más información",
           "runAnyway": "Ejecutar de todas formas",
           "dontRun": "No ejecutar"
-        }
+        },
+        "codeSigning": "Consulta la <l1>política de firma de código</l1>."
       }
     },
     "tools": {

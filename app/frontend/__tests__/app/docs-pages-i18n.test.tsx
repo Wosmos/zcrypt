@@ -21,6 +21,7 @@ const pages = import.meta.glob(
     "../../app/\\(marketing\\)/docs/page.tsx",
     "../../app/\\(marketing\\)/privacy/page.tsx",
     "../../app/\\(marketing\\)/terms/page.tsx",
+    "../../app/\\(marketing\\)/code-signing/page.tsx",
   ],
   { eager: true },
 ) as Record<string, { default: () => React.ReactElement }>;

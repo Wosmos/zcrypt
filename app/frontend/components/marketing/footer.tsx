@@ -49,6 +49,7 @@ const FOOTER_COLUMNS: { titleKey: string; links: FooterLink[] }[] = [
       { key: "feedback", href: "/feedback" },
       { key: "privacy", href: "/privacy" },
       { key: "terms", href: "/terms" },
+      { key: "codeSigning", href: "/code-signing" },
       { key: "security", href: `${GITHUB_REPO_URL}/blob/main/SECURITY.md`, external: true },
     ],
   },

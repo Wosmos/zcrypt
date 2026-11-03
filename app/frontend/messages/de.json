@@ -452,7 +452,8 @@
         "privacy": "Datenschutz",
         "terms": "Nutzungsbedingungen",
         "security": "Sicherheit",
-        "feedback": "Feedback"
+        "feedback": "Feedback",
+        "codeSigning": "Richtlinie zur Codesignierung"
       }
     }
   }

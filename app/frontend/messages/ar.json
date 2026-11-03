@@ -452,7 +452,8 @@
         "privacy": "الخصوصية",
         "terms": "الشروط",
         "security": "الأمان",
-        "feedback": "ملاحظات"
+        "feedback": "ملاحظات",
+        "codeSigning": "سياسة توقيع الشيفرة"
       }
     }
   }

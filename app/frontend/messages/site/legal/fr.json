@@ -166,6 +166,57 @@
       "s9": {
         "t": "Contact"
       }
+    },
+    "codeSigning": {
+      "eyebrow": "Signature de code",
+      "title": "Politique de signature de code",
+      "lead": "Comment les installateurs Windows sont construits, qui peut les publier et quand ils sont signés.",
+      "seeAlso": "Politique de confidentialité",
+      "contactMail": "Des questions sur la signature de code ? Écrivez à <l1>{email}</l1>.",
+      "s1": {
+        "t": "Statut",
+        "status": "Les versions Windows seront signées via <signpath>SignPath.io</signpath> avec un certificat de la <foundation>SignPath Foundation</foundation> une fois le projet approuvé. D'ici là, les installateurs ne sont pas signés.",
+        "p1": "Tant que la signature n'a pas commencé, Windows peut afficher un avertissement SmartScreen pour les installateurs. L'installation en une ligne avec PowerShell, sur la page de téléchargement, ne le déclenche pas. Cette politique s'applique à toutes les versions signées, dès la première."
+      },
+      "s2": {
+        "t": "Ce qui est signé",
+        "p1": "Uniquement les installateurs Windows d'une version de zcrypt :",
+        "l1": "Les installateurs <b>.exe</b> et <b>.msi</b> joints à chaque <releases>release GitHub</releases>.",
+        "l2": "Ils sont construits par le workflow de publication GitHub Actions à partir du <repo>code source public</repo>, sur des exécuteurs hébergés par GitHub.",
+        "l3": "Les fichiers du programme contenus dans les installateurs ne sont pas signés séparément.",
+        "l4": "Non couverts : les versions macOS, Linux et Android, le site web et le serveur."
+      },
+      "s3": {
+        "t": "Quand la signature a lieu",
+        "l1": "Uniquement pour les versions construites par la CI à partir d'un commit de version étiqueté. Rien de ce qui est construit sur un ordinateur personnel n'est jamais soumis à la signature.",
+        "l2": "Chaque demande de signature est approuvée à la main par l'approbateur avant l'utilisation du certificat.",
+        "l3": "Les fichiers signés portent le nom de produit zcrypt et la version de la release.",
+        "l4": "La clé de signature est détenue par SignPath. Le projet n'en possède jamais de copie.",
+        "l5": "Une version signée peut être rapprochée de son commit source exact dans le dépôt public."
+      },
+      "s4": {
+        "t": "Équipe et rôles",
+        "p1": "zcrypt est maintenu par une seule personne, qui tient tous les rôles ci-dessous. Les rôles suivent les conditions de la SignPath Foundation.",
+        "l1": "<b>Auteurs</b> (peuvent modifier le code source sans seconde relecture) : Muhammad Wasif Malik, compte GitHub Wosmos.",
+        "l2": "<b>Relecteurs</b> (relisent les changements de personnes sans droit de commit) : Muhammad Wasif Malik, compte GitHub Wosmos.",
+        "l3": "<b>Approbateurs</b> (approuvent chaque demande de signature) : Muhammad Wasif Malik, compte GitHub Wosmos.",
+        "p2": "Les changements d'autres contributeurs sont relus par le mainteneur avant d'être fusionnés. L'authentification multifacteur est exigée sur les comptes GitHub et SignPath de toutes les personnes de l'équipe de signature."
+      },
+      "s5": {
+        "t": "Confidentialité",
+        "p1": "zcrypt ne transfère pas vos informations vers d'autres systèmes en réseau, sauf si vous le demandez ou si c'est nécessaire pour faire ce que vous avez demandé. Voici ce qu'il envoie :",
+        "l1": "Des fragments de fichiers chiffrés, vers les comptes de stockage que vous avez connectés ou, à défaut, vers un stockage exploité par zcrypt. Nous ne pouvons pas les lire.",
+        "l2": "Les données du compte et les métadonnées des fichiers (tailles, horodatages, noms scellés, clés enveloppées), vers le serveur de zcrypt.",
+        "l3": "L'application de bureau demande à GitHub s'il existe une version plus récente. Cette requête ne contient aucune information de compte ni de fichier. Les installations depuis le Microsoft Store ne le font pas.",
+        "p2": "Tous les détails, y compris les services concernés et ce que chacun voit, figurent dans la <l1>politique de confidentialité</l1>."
+      },
+      "s6": {
+        "t": "Installation et désinstallation",
+        "p1": "L'installateur ajoute zcrypt et un gestionnaire pour les liens zcrypt://, que le navigateur utilise pour rendre la connexion à l'application. Rien d'autre n'est modifié sur votre système. Le lancement à l'ouverture de session reste désactivé tant que vous ne l'activez pas dans les réglages de l'application. Vous pouvez désinstaller zcrypt à tout moment depuis Paramètres Windows, Applications."
+      },
+      "s7": {
+        "t": "Contact"
+      }
     }
   }
 }
