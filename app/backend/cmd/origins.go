@@ -1,14 +1,16 @@
 package cmd
 
 import (
+	"net"
 	"net/http"
 	"os"
 	"strings"
 )
 
 // AllowedOrigins returns the browser origins allowed to call the API with
-// credentials: ALLOWED_ORIGINS (comma-separated) and FRONTEND_URL, the local
-// dev defaults when neither is set, and the desktop (Tauri) webview origins.
+// credentials: ALLOWED_ORIGINS (comma-separated) and FRONTEND_URL, each with its
+// www/apex twin since a site is served on both, the local dev defaults when
+// neither is set, and the desktop (Tauri) webview origins.
 // macOS/Linux webviews use the tauri:// scheme; Windows (WebView2) uses
 // http(s)://tauri.localhost.
 func AllowedOrigins() map[string]bool {
@@ -23,6 +25,11 @@ func AllowedOrigins() map[string]bool {
 	if frontend := os.Getenv("FRONTEND_URL"); frontend != "" {
 		allowed[strings.TrimRight(frontend, "/")] = true
 	}
+	for o := range allowed {
+		if twin := wwwTwin(o); twin != "" {
+			allowed[twin] = true
+		}
+	}
 	if len(allowed) == 0 {
 		allowed["http://localhost:3000"] = true
 		allowed["http://localhost:8080"] = true
@@ -31,6 +38,26 @@ func AllowedOrigins() map[string]bool {
 		allowed[o] = true
 	}
 	return allowed
+}
+
+// wwwTwin returns the https origin's www/apex counterpart (https://www.a.com for
+// https://a.com and back), or "" for anything else, such as localhost, an IP, or
+// a single-label host.
+func wwwTwin(origin string) string {
+	host, ok := strings.CutPrefix(origin, "https://")
+	if !ok || strings.ContainsAny(host, ":/") {
+		return ""
+	}
+	if apex, ok := strings.CutPrefix(host, "www."); ok {
+		if strings.Contains(apex, ".") {
+			return "https://" + apex
+		}
+		return ""
+	}
+	if !strings.Contains(host, ".") || net.ParseIP(host) != nil {
+		return ""
+	}
+	return "https://www." + host
 }
 
 // refreshCookieCrossSite reports whether a request carrying the refresh cookie

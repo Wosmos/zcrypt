@@ -31,6 +31,33 @@ func TestAllowedOrigins(t *testing.T) {
 	}
 }
 
+func TestAllowedOriginsAddWWWTwin(t *testing.T) {
+	t.Setenv("ALLOWED_ORIGINS", "")
+	t.Setenv("FRONTEND_URL", "https://www.zcrypt.cloud")
+	got := AllowedOrigins()
+	if !got["https://zcrypt.cloud"] || !got["https://www.zcrypt.cloud"] {
+		t.Errorf("both the www and apex origins must be allowed, got %v", got)
+	}
+}
+
+func TestWWWTwin(t *testing.T) {
+	cases := map[string]string{
+		"https://zcrypt.cloud":     "https://www.zcrypt.cloud",
+		"https://www.zcrypt.cloud": "https://zcrypt.cloud",
+		"http://zcrypt.cloud":      "",
+		"https://localhost":        "",
+		"https://www.localhost":    "",
+		"https://127.0.0.1":        "",
+		"https://a.example:8443":   "",
+		"tauri://localhost":        "",
+	}
+	for in, want := range cases {
+		if got := wwwTwin(in); got != want {
+			t.Errorf("wwwTwin(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestRefreshCookieCrossSite(t *testing.T) {
 	s := &Server{allowedOrigins: map[string]bool{"https://app.example": true}}
 	cases := []struct {
