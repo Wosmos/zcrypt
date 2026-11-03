@@ -17,6 +17,7 @@ import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fet
 import { ApiError, parseErrorBody, throwResponseError } from "@/lib/http-error";
 import { useAuthStore } from "@/store/auth";
 import { API_BASE } from "@/lib/config";
+import { webTransferLimitFrom } from "@/lib/web-transfer-limit";
 import type { UploadMode } from "@/types";
 
 // Every HTTP failure is thrown as an ApiError carrying its status, so the retry
@@ -219,14 +220,19 @@ export interface UploadInitResponse {
   mode?: UploadMode;
 }
 
-/** POST /api/upload/init. Start a new chunked upload session. */
+/** POST /api/upload/init. Start a new chunked upload session. A web upload the
+ *  server refuses for its size or the monthly allowance throws a WebTransferLimitError. */
 export async function initUpload(params: UploadInitParams): Promise<UploadInitResponse> {
   const res = await authedFetch(`${API_BASE}/api/upload/init`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
-  return handleResponse<UploadInitResponse>(res);
+  if (!res.ok) {
+    const body = await res.text();
+    throw webTransferLimitFrom(body, res.status) ?? new ApiError(parseErrorBody(body), res.status);
+  }
+  return res.json() as Promise<UploadInitResponse>;
 }
 
 /** PUT /api/upload/{sid}/chunk/{idx}: upload a single encrypted chunk.

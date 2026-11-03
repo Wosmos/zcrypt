@@ -924,7 +924,11 @@
       "zipFailed": "Échec du téléchargement du ZIP",
       "zipFailedMsg": "Échec du téléchargement du ZIP : {msg}",
       "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau.",
-      "zipFilesLabel": "{count, plural, one {# fichier (ZIP)} other {# fichiers (ZIP)}}"
+      "zipFilesLabel": "{count, plural, one {# fichier (ZIP)} other {# fichiers (ZIP)}}",
+      "webFileTooLarge": "Les fichiers de plus de {limit} ne peuvent pas être envoyés depuis le navigateur. Les gros fichiers ont leur place dans l'application de bureau : elle est plus rapide, continue en arrière-plan et n'a aucune limite de taille.",
+      "webAllowanceUsed": "Vous avez utilisé vos {limit} de transferts web ce mois-ci. Remise à zéro le {date}. L'application de bureau n'a aucune limite.",
+      "webAllowanceUsedNoDate": "Vous avez utilisé vos {limit} de transferts web ce mois-ci. L'application de bureau n'a aucune limite.",
+      "getDesktopApp": "Obtenir l'application de bureau"
     },
     "l10n": {
       "justNow": "à l'instant",

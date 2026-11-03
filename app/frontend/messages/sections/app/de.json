@@ -924,7 +924,11 @@
       "zipFailed": "ZIP-Download fehlgeschlagen",
       "zipFailedMsg": "ZIP-Download fehlgeschlagen: {msg}",
       "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben.",
-      "zipFilesLabel": "{count, plural, one {# Datei (ZIP)} other {# Dateien (ZIP)}}"
+      "zipFilesLabel": "{count, plural, one {# Datei (ZIP)} other {# Dateien (ZIP)}}",
+      "webFileTooLarge": "Dateien über {limit} können nicht im Browser hochgeladen werden. Große Dateien gehören in die Desktop-App: Sie ist schneller, arbeitet im Hintergrund weiter und hat keine Größenbeschränkung.",
+      "webAllowanceUsed": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Es wird am {date} zurückgesetzt. Die Desktop-App hat kein Limit.",
+      "webAllowanceUsedNoDate": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Die Desktop-App hat kein Limit.",
+      "getDesktopApp": "Desktop-App holen"
     },
     "l10n": {
       "justNow": "gerade eben",

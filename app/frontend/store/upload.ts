@@ -60,6 +60,8 @@ import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
 import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
+import { WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
 import { createFrameBatch } from "@/lib/frame-batch";
 import type { WorkerOutput } from "@/workers/crypto-worker";
 
@@ -681,6 +683,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // the whole run: hashing can take minutes, long enough for auto-lock to wipe
       // the cached vault passphrase. There is no plaintext fallback; without them
       // the upload stops with a retryable error.
+      const tooBigForWeb = await webFileLimitFor(file.size, platform);
+      if (tooBigForWeb) throw tooBigForWeb;
       const dedupUserId = useAuthStore.getState().user?.id;
       const vaultPass = usePassphraseStore.getState().getPassphrase();
       if (!dedupUserId || !vaultPass) throw new Error(VAULT_LOCKED_MSG);
@@ -1285,6 +1289,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       /* v8 ignore stop */
       return;
     }
+    if (err instanceof WebTransferLimitError) showWebTransferLimit(err);
     const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
     const friendlyMsg = msg.includes("storage not available") ? tr("hooks.noPlatform") : msg;
     if (isCurrentRun()) setError(id, friendlyMsg);

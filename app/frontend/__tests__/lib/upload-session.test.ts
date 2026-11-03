@@ -28,6 +28,7 @@ import {
   type UploadInitParams,
 } from "@/lib/upload-session";
 import { ApiError } from "@/lib/http-error";
+import { WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 function resp(status: number, body: unknown): Response {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -156,6 +157,19 @@ describe("plain JSON endpoints (authedFetch-backed)", () => {
     const err = await initUpload(initParams).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(503);
+  });
+
+  it("initUpload turns a refused web upload into a WebTransferLimitError with a friendly message", async () => {
+    authedFetch.mockResolvedValueOnce(
+      resp(413, { error: "too large", code: "relay_file_too_large", limit_bytes: 2 * 1024 ** 3 })
+    );
+    const err = await initUpload(initParams).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(WebTransferLimitError);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as WebTransferLimitError).status).toBe(413);
+    expect((err as WebTransferLimitError).code).toBe("relay_file_too_large");
+    expect((err as Error).message).toContain("2 GB");
+    expect((err as Error).message).toContain("desktop app");
   });
 
   it("initUpload throws the raw body when the error response isn't JSON", async () => {

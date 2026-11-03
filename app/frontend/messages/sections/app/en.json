@@ -924,7 +924,11 @@
       "zipFailed": "ZIP download failed",
       "zipFailedMsg": "ZIP download failed: {msg}",
       "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it.",
-      "zipFilesLabel": "{count, plural, one {# file (ZIP)} other {# files (ZIP)}}"
+      "zipFilesLabel": "{count, plural, one {# file (ZIP)} other {# files (ZIP)}}",
+      "webFileTooLarge": "Files over {limit} can't be uploaded from the browser. Big files belong in the desktop app: it's faster, keeps going in the background and has no size limit.",
+      "webAllowanceUsed": "You've used your {limit} of web transfers this month. Resets on {date}. The desktop app has no limit.",
+      "webAllowanceUsedNoDate": "You've used your {limit} of web transfers this month. The desktop app has no limit.",
+      "getDesktopApp": "Get the desktop app"
     },
     "l10n": {
       "justNow": "just now",

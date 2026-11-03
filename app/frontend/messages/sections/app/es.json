@@ -924,7 +924,11 @@
       "zipFailed": "Error al descargar el ZIP",
       "zipFailedMsg": "Error al descargar el ZIP: {msg}",
       "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla.",
-      "zipFilesLabel": "{count, plural, one {# archivo (ZIP)} other {# archivos (ZIP)}}"
+      "zipFilesLabel": "{count, plural, one {# archivo (ZIP)} other {# archivos (ZIP)}}",
+      "webFileTooLarge": "Los archivos de más de {limit} no se pueden subir desde el navegador. Los archivos grandes van en la app de escritorio: es más rápida, sigue trabajando en segundo plano y no tiene límite de tamaño.",
+      "webAllowanceUsed": "Has usado tus {limit} de transferencias web de este mes. Se restablece el {date}. La app de escritorio no tiene límite.",
+      "webAllowanceUsedNoDate": "Has usado tus {limit} de transferencias web de este mes. La app de escritorio no tiene límite.",
+      "getDesktopApp": "Descargar la app de escritorio"
     },
     "l10n": {
       "justNow": "ahora mismo",

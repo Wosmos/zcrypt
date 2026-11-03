@@ -229,6 +229,12 @@ export interface AdminUser {
   session_count: number;
   /** Storage accounts the user connected; tokens themselves are never sent. */
   platforms: ConnectedPlatform[];
+  /** Bytes moved through the server today and yesterday (UTC). */
+  relay_24h_bytes?: number;
+  /** Bytes moved through the server this UTC month. */
+  relay_month_bytes?: number;
+  /** Over the server's heavy web transfer threshold for the last day. */
+  heavy_relay?: boolean;
 }
 
 /** One connected storage account. "web" tokens live on the server; "app" accounts are used directly by the desktop or Android app and are known from the repos it registered. */
@@ -292,6 +298,14 @@ export interface QuotaInfo {
   max_file_size: number;
   can_upload: boolean;
   allows_byob: boolean;
+  /** Bytes moved through the server (web uploads and downloads) this UTC month. */
+  relay_used_bytes?: number;
+  /** Monthly allowance for web transfers through the server. 0 = unlimited. */
+  relay_limit_bytes?: number;
+  /** Largest file a web upload through the server may carry. 0 = unlimited. */
+  relay_max_file_bytes?: number;
+  /** When the monthly web transfer allowance starts over (ISO 8601). */
+  relay_resets_at?: string;
 }
 
 export interface PlatformTokenInfo {

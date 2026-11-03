@@ -50,6 +50,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import type { SidecarProgress } from "@/lib/tauri";
 import { useTransferDockStore } from "@/store/transfer-dock";
+import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 const { notifyMock, getCachedThumbnailMock } = vi.hoisted(() => ({
   notifyMock: vi.fn(async (_event: import("@/lib/notify").NotifyEvent) => true),
@@ -88,6 +89,12 @@ const byosMock = vi.hoisted(() => ({
   isDirectUnreachable: vi.fn((err: unknown) => err instanceof TypeError),
 }));
 vi.mock("@/lib/byos-direct", () => byosMock);
+
+const guardMock = vi.hoisted(() => ({
+  webFileLimitFor: vi.fn(),
+  showWebTransferLimit: vi.fn(),
+}));
+vi.mock("@/lib/web-transfer-guard", () => guardMock);
 
 vi.mock("@/store/files", () => ({
   setFilesData: vi.fn(),
@@ -287,6 +294,8 @@ describe("useUploadStore", () => {
     byosMock.resolveDirectRepo.mockReset();
     byosMock.pushDirectChunk.mockReset();
     byosMock.disableWebDirect.mockReset();
+    guardMock.webFileLimitFor.mockReset().mockResolvedValue(null);
+    guardMock.showWebTransferLimit.mockReset();
     (initUpload as Mock).mockReset().mockResolvedValue(defaultInitResponse());
     (uploadChunk as Mock).mockReset().mockResolvedValue(undefined);
     (completeUpload as Mock).mockReset().mockResolvedValue({ file_id: "file-1" });
@@ -760,6 +769,37 @@ describe("useUploadStore", () => {
       useUploadStore.getState().startUpload(files, "pw", "telegram", 1, undefined, null);
       await flush();
       expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
+    });
+  });
+
+  describe("web transfer limits", () => {
+    it("does not start a file too big for a web upload, and points at the desktop app", async () => {
+      const limit = new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes: 5 }, 413);
+      guardMock.webFileLimitFor.mockResolvedValue(limit);
+      useUploadStore.getState().startUpload([makeFile("big.bin", 10)], "pw", undefined, undefined, undefined, null);
+      await flush();
+      expect(guardMock.webFileLimitFor).toHaveBeenCalledWith(10, undefined);
+      expect(contentMacFile).not.toHaveBeenCalled();
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(limit);
+      expect(getItem(queueIdFor())).toMatchObject({ status: "failed", error: limit.message });
+    });
+
+    it("explains a server refusal over the monthly allowance", async () => {
+      const limit = new WebTransferLimitError(
+        WebTransferLimitCode.AllowanceExceeded,
+        { limitBytes: 20, resetsAt: "2026-12-01T00:00:00Z" },
+        403,
+      );
+      (initUpload as Mock).mockRejectedValue(limit);
+      useUploadStore.getState().startUpload([makeFile("a.bin", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(limit);
+      expect(getItem(queueIdFor())).toMatchObject({
+        status: "failed",
+        error: expect.stringContaining("Resets on December 1"),
+      });
     });
   });
 
