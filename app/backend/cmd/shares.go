@@ -415,5 +415,7 @@ func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID 
 	if chunk.Compressed {
 		w.Header().Set("X-Chunk-Compressed", "true")
 	}
-	w.Write(data)
+	if n, _ := w.Write(data); n > 0 {
+		s.recordRelay(r.Context(), ownerID, 0, int64(n))
+	}
 }

@@ -341,6 +341,9 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `ZCRYPT_MAX_UPLOAD_BYTES` | Largest single file in bytes (default 10737418240, 10 GiB); non-positive or invalid values use the default |
 | `ZCRYPT_SEND_ANON_DAILY_BYTES` | Rolling 24h Send allowance in bytes for anonymous senders, per coarsened IP (default 524288000, 500 MiB) |
 | `ZCRYPT_SEND_USER_DAILY_BYTES` | Rolling 24h Send allowance in bytes for signed-in senders (default 5368709120, 5 GiB) |
+| `ZCRYPT_RELAY_MAX_FILE_BYTES` | Largest file in bytes a web upload may send through the server (default 2147483648, 2 GiB); larger relay uploads are refused with `relay_file_too_large`. Direct uploads to a user's own storage and admins are never limited; `0` means unlimited |
+| `ZCRYPT_RELAY_MONTHLY_BYTES` | Per-user allowance in bytes for relay uploads plus API downloads in the current UTC calendar month (default 21474836480, 20 GiB); once used up, new relay uploads are refused with `relay_allowance_exceeded`. Downloads are never blocked but still count. Admins are exempt; `0` means unlimited |
+| `ZCRYPT_RELAY_ALERT_DAILY_BYTES` | Flags a user as a heavy web-transfer user in the admin console when their relayed bytes for today plus yesterday (UTC days, an approximation of the last 24h) pass this (default 10737418240, 10 GiB); `0` turns the flag off |
 | `ZCRYPT_DB_MAX_CONNS` | Ceiling of the PostgreSQL connection pool (default 25); non-positive or invalid values use the default |
 | `MAINTENANCE_SECRET` | Enables the maintenance-mode switch used by the database rotation scripts (impossible to enable when unset) |
 | `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |

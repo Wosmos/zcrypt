@@ -56,3 +56,26 @@ func TestPortPrecedence(t *testing.T) {
 		})
 	}
 }
+
+func TestEnvNonNegativeInt64(t *testing.T) {
+	const name = "ZCRYPT_TEST_NON_NEGATIVE_INT"
+	cases := []struct {
+		name string
+		val  string
+		want int64
+	}{
+		{"unset", "", 7},
+		{"valid", "42", 42},
+		{"padded", " 42 ", 42},
+		{"zero means unlimited", "0", 0},
+		{"negative", "-5", 7},
+		{"text", "abc", 7},
+		{"max", "9223372036854775807", math.MaxInt64},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv(name, c.val)
+			assert.Equal(t, c.want, EnvNonNegativeInt64(name, 7))
+		})
+	}
+}

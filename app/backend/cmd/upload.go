@@ -301,7 +301,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// Select the adapter + repo pool to use. Beyond the shared cap above,
 		// users are bounded only by the real git-platform thresholds enforced
 		// in reppool.
-		key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
+		key, selected, pool, err := s.selectAdapter(ctx, userID, req.Platform)
 		if err != nil {
 			hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 			if hasPersonal {
@@ -310,6 +310,9 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 			} else {
 				http.Error(w, `{"error":"storage not available yet: managed storage is being configured"}`, http.StatusServiceUnavailable)
 			}
+			return
+		}
+		if _, presigned := selected.(adapters.DirectUploader); !presigned && !s.relayUploadAllowed(w, r, userID, req.OriginalSize) {
 			return
 		}
 
@@ -576,6 +579,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		} else {
 			uploadedCount = c
 		}
+		s.recordRelay(ctx, userID, int64(len(data)), 0)
 	}
 
 	// Emit progress

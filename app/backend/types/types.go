@@ -356,6 +356,13 @@ type AdminUser struct {
 	LastDevice    string              `json:"last_device"`
 	SessionCount  int                 `json:"session_count"`
 	Platforms     []ConnectedPlatform `json:"platforms"`
+	// Relay24hBytes is what the user moved through the server today and
+	// yesterday (UTC), an approximation of the last 24 hours.
+	Relay24hBytes int64 `json:"relay_24h_bytes"`
+	// RelayMonthBytes is what the user moved through the server this UTC month.
+	RelayMonthBytes int64 `json:"relay_month_bytes"`
+	// HeavyRelay marks a user whose Relay24hBytes is over the alert threshold.
+	HeavyRelay bool `json:"heavy_relay"`
 }
 
 // ConnectedPlatform is one storage account a user stores files on. Via is
@@ -383,6 +390,16 @@ type QuotaInfo struct {
 	MaxFileSize          int64  `json:"max_file_size"`
 	CanUpload            bool   `json:"can_upload"`
 	AllowsBYOB           bool   `json:"allows_byob"`
+	// RelayUsedBytes is what the user moved through the server this UTC month.
+	RelayUsedBytes int64 `json:"relay_used_bytes"`
+	// RelayLimitBytes is the monthly allowance for transfers through the
+	// server; 0 means unlimited.
+	RelayLimitBytes int64 `json:"relay_limit_bytes"`
+	// RelayMaxFileBytes is the largest file an upload through the server may
+	// carry; 0 means unlimited.
+	RelayMaxFileBytes int64 `json:"relay_max_file_bytes"`
+	// RelayResetsAt is when the monthly allowance starts over.
+	RelayResetsAt time.Time `json:"relay_resets_at"`
 }
 
 // Feedback represents user-submitted feedback.

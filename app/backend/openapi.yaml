@@ -86,6 +86,18 @@ components:
           type: integer
         plan:
           type: string
+        relay_used_bytes:
+          type: integer
+          description: Bytes moved through the server this UTC month
+        relay_limit_bytes:
+          type: integer
+          description: Monthly allowance for transfers through the server, 0 means unlimited
+        relay_max_file_bytes:
+          type: integer
+          description: Largest file a web upload through the server may carry, 0 means unlimited
+        relay_resets_at:
+          type: string
+          format: date-time
 
 security:
   - bearerAuth: []

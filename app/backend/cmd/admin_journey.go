@@ -41,6 +41,7 @@ func (s *Server) adminTargetUser(w http.ResponseWriter, r *http.Request) (*types
 		return nil, false
 	}
 	u.LastDevice = deviceLabel(u.LastUserAgent)
+	markHeavyRelay(u)
 	return u, true
 }
 

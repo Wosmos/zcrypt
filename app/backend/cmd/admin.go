@@ -124,7 +124,7 @@ func (s *Server) SeedPlanConfigs(ctx context.Context) {
 
 // HandleAdminListUsers returns one page of users with storage, sessions and
 // location.
-// GET /api/admin/users?limit&offset&q&sort&order&country&role&plan
+// GET /api/admin/users?limit&offset&q&sort&order&country&role&plan&platform&heavy_relay
 func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 	page, err := parseListPage(r, index.AdminUserSorts, "created_at")
 	if err != nil {
@@ -133,6 +133,17 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	f := index.AdminUserFilter{ListPage: page, Country: strings.ToUpper(q.Get("country")), Role: q.Get("role"), Plan: q.Get("plan"), Platform: q.Get("platform")}
+	switch q.Get("heavy_relay") {
+	case "", "0":
+	case "1":
+		if f.HeavyRelayOver = relayAlertDailyBytes(); f.HeavyRelayOver == 0 {
+			writeJSON(w, http.StatusOK, pageBody("users", []types.AdminUser{}, 0, page))
+			return
+		}
+	default:
+		writeError(w, http.StatusBadRequest, "heavy_relay must be 0 or 1")
+		return
+	}
 	if f.Country == strings.ToUpper(index.UnknownCountry) {
 		f.Country = index.UnknownCountry
 	} else if f.Country != "" && !isCountryCode(f.Country) {
@@ -162,6 +173,7 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range users {
 		users[i].LastDevice = deviceLabel(users[i].LastUserAgent)
+		markHeavyRelay(&users[i])
 	}
 	writeJSON(w, http.StatusOK, pageBody("users", users, total, page))
 }
@@ -701,6 +713,7 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		CanUpload:            canUpload,
 		AllowsBYOB:           true,
 	}
+	s.relayQuota(ctx, userID, IsAdmin(r), &info)
 
 	writeJSON(w, http.StatusOK, info)
 }
@@ -983,6 +996,7 @@ func (s *Server) HandleAdminGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user.LastDevice = deviceLabel(user.LastUserAgent)
+	markHeavyRelay(user)
 
 	usedBytes, err := s.db.GetUserStorageUsed(ctx, userID)
 	if err != nil {

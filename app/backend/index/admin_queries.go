@@ -27,6 +27,9 @@ type AdminUserFilter struct {
 	Role     string
 	Plan     string
 	Platform string
+	// HeavyRelayOver, when positive, keeps only users who moved more than this
+	// many bytes through the server today and yesterday (UTC).
+	HeavyRelayOver int64
 }
 
 // NoPlatform selects users who have not connected a storage platform of their own.
@@ -106,14 +109,21 @@ const adminUserSelect = `WITH f AS (
 	                        WHERE t.user_id = r.user_id AND t.platform = r.platform AND t.username = r.account)
 	     GROUP BY r.user_id, r.platform, r.account
 	  ) c GROUP BY user_id
+), ru AS (
+	SELECT user_id,
+	       COALESCE(SUM(up_bytes + down_bytes) FILTER (WHERE day >= ` + relayToday + ` - 1), 0)::bigint AS recent,
+	       COALESCE(SUM(up_bytes + down_bytes) FILTER (WHERE day >= ` + relayMonthStart + `), 0)::bigint AS month
+	  FROM relay_usage WHERE day >= LEAST(` + relayToday + ` - 1, ` + relayMonthStart + `) GROUP BY user_id
 )
 SELECT u.id, u.email, u.username, u.email_verified, u.totp_enabled, u.role, u.plan,
        u.storage_quota_bytes, u.deletion_scheduled_at, u.created_at, u.updated_at,
        u.signup_country, u.signup_region, u.signup_city,
        u.last_country, u.last_region, u.last_city, u.last_ip_prefix, u.last_seen_at, u.last_user_agent,
        COALESCE(f.cnt, 0) AS file_count, COALESCE(f.total, 0) AS total_size, COALESCE(s.cnt, 0),
-       ` + userCountryExpr + ` AS country, COALESCE(p.list, '[]'::json)
-  FROM users u LEFT JOIN f ON f.user_id = u.id LEFT JOIN s ON s.user_id = u.id LEFT JOIN p ON p.user_id = u.id`
+       ` + userCountryExpr + ` AS country, COALESCE(p.list, '[]'::json),
+       COALESCE(ru.recent, 0), COALESCE(ru.month, 0)
+  FROM users u LEFT JOIN f ON f.user_id = u.id LEFT JOIN s ON s.user_id = u.id LEFT JOIN p ON p.user_id = u.id
+  LEFT JOIN ru ON ru.user_id = u.id`
 
 func scanAdminUser(row interface{ Scan(...any) error }) (types.AdminUser, error) {
 	var u types.AdminUser
@@ -122,7 +132,8 @@ func scanAdminUser(row interface{ Scan(...any) error }) (types.AdminUser, error)
 		&u.StorageQuota, &u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
 		&u.SignupCountry, &u.SignupRegion, &u.SignupCity,
 		&u.LastCountry, &u.LastRegion, &u.LastCity, &u.LastIPPrefix, &u.LastSeenAt, &u.LastUserAgent,
-		&u.FileCount, &u.TotalStorage, &u.SessionCount, &country, &u.Platforms)
+		&u.FileCount, &u.TotalStorage, &u.SessionCount, &country, &u.Platforms,
+		&u.Relay24hBytes, &u.RelayMonthBytes)
 	return u, err
 }
 
@@ -152,6 +163,10 @@ func adminUserWhere(f AdminUserFilter) *whereBuilder {
 	case f.Platform != "":
 		a := w.arg(f.Platform)
 		w.add("(" + fmt.Sprintf(connected, " AND t.platform = "+a, " AND r.platform = "+a) + ")")
+	}
+	if f.HeavyRelayOver > 0 {
+		w.add(`(SELECT COALESCE(SUM(x.up_bytes + x.down_bytes), 0) FROM relay_usage x
+			WHERE x.user_id = u.id AND x.day >= ` + relayToday + ` - 1) > ` + w.arg(f.HeavyRelayOver))
 	}
 	return w
 }

@@ -297,7 +297,9 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 			if streamer, ok := adapter.(adapters.ChunkStreamer); ok {
 				if serr := relayStreamedChunk(ctx, w, streamer, *chunk); serr != nil {
 					s.writeChunkFetchError(ctx, w, adapter, ownerID, chunk, serr, "download")
+					return
 				}
+				s.recordRelay(ctx, userID, 0, chunk.Size)
 				return
 			}
 
@@ -314,7 +316,9 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 
 	setChunkHeaders(w, *chunk)
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	_, _ = io.Copy(w, bytes.NewReader(data))
+	if n, _ := io.Copy(w, bytes.NewReader(data)); n > 0 {
+		s.recordRelay(ctx, userID, 0, n)
+	}
 }
 
 // setChunkHeaders marks a raw encrypted chunk response. Chunks are immutable by

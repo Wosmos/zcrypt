@@ -1077,4 +1077,13 @@ CREATE INDEX IF NOT EXISTS idx_users_country ON users((COALESCE(NULLIF(last_coun
 CREATE INDEX IF NOT EXISTS idx_audit_events_user_time ON audit_events(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_events_target_user ON audit_events((metadata->>'target_user')) WHERE metadata ? 'target_user';
 CREATE INDEX IF NOT EXISTS idx_reviews_time ON reviews(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS relay_usage (
+	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	day        DATE NOT NULL,
+	up_bytes   BIGINT NOT NULL DEFAULT 0,
+	down_bytes BIGINT NOT NULL DEFAULT 0,
+	PRIMARY KEY (user_id, day)
+);
+CREATE INDEX IF NOT EXISTS idx_relay_usage_day ON relay_usage(day);
 `

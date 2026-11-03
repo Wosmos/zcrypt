@@ -64,3 +64,10 @@ const (
 	IntegrityOK      = "ok"
 	IntegrityChanged = "changed"
 )
+
+// Stable error codes for a refused web (relay) upload, where the file's bytes
+// would pass through the server.
+const (
+	ErrCodeRelayFileTooLarge      = "relay_file_too_large"
+	ErrCodeRelayAllowanceExceeded = "relay_allowance_exceeded"
+)
