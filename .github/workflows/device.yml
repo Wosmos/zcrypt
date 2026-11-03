@@ -334,6 +334,28 @@ jobs:
             app/desktop/src-tauri/${{ matrix.bundle }}/nsis/*.exe
             app/desktop/src-tauri/${{ matrix.bundle }}/nsis/*.exe.sig
 
+      # The Microsoft Store package below is built from the bare app binary,
+      # not from an installer, so keep it for the package-msix job. Only when
+      # the Store identity variables are set, so nobody pays for it otherwise.
+      - name: Locate the app binary for the Store package
+        id: msix-bin
+        if: matrix.platform == 'windows-latest' && vars.MSIX_IDENTITY_NAME != '' && vars.MSIX_PUBLISHER != '' && vars.MSIX_PUBLISHER_DISPLAY_NAME != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$(cargo metadata --no-deps --format-version 1 --manifest-path app/desktop/src-tauri/Cargo.toml | jq -r '.packages[0].targets[] | select(.kind | index("bin")) | .name' | head -n1)"
+          exe="app/desktop/src-tauri/target/release/${bin}.exe"
+          test -f "$exe"
+          echo "path=$exe" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the app binary for the Store package
+        if: steps.msix-bin.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: zcrypt-windows-app-binary
+          path: ${{ steps.msix-bin.outputs.path }}
+          retention-days: 1
+
       - name: Upload artifacts (macOS)
         if: startsWith(matrix.platform, 'macos')
         uses: actions/upload-artifact@v7
@@ -465,6 +487,13 @@ jobs:
     needs: [build-desktop, check-windows-signing, check-updater-signing]
     if: startsWith(github.ref, 'refs/tags/v') && needs.check-windows-signing.outputs.configured == 'true'
     runs-on: ubuntu-latest
+    # The workflow-level block above grants only contents: write, which drops
+    # every other scope to none. The SignPath action reads the uploaded
+    # artifact through the GitHub API with the job token, so it also needs
+    # actions: read.
+    permissions:
+      actions: read
+      contents: write
     steps:
       - uses: actions/checkout@v7
 
@@ -545,6 +574,71 @@ jobs:
           done
           mapfile -t files < <(find signed -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.sig' \))
           bash scripts/publish-installers.sh "$TAG" "${files[@]}"
+
+  # ── Microsoft Store package (tag pushes and manual runs, Store identity set) ─
+  # The Store signs MSIX packages itself, so this needs no certificate: the
+  # .msix built here is deliberately unsigned and is submitted by hand in
+  # Partner Center (see docs/MICROSOFT_STORE.md). It goes up as a workflow
+  # artifact only, never to the public release, because an unsigned MSIX cannot
+  # be installed outside the Store. Identity values come from the reserved
+  # product in Partner Center; without all three repository variables the job
+  # is skipped.
+  package-msix:
+    name: Package Microsoft Store MSIX
+    needs: [build-desktop]
+    if: >-
+      (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+      && vars.MSIX_IDENTITY_NAME != ''
+      && vars.MSIX_PUBLISHER != ''
+      && vars.MSIX_PUBLISHER_DISPLAY_NAME != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the Windows app binary
+        uses: actions/download-artifact@v8
+        with:
+          name: zcrypt-windows-app-binary
+          path: app-binary
+
+      - name: Work out the package version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            ver="${GITHUB_REF_NAME#v}"
+          else
+            ver="$(jq -r .version app/desktop/src-tauri/tauri.conf.json)"
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "MSIX version: $ver.0"
+
+      - name: Build the MSIX
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          $exe = (Get-ChildItem app-binary -Filter *.exe -Recurse | Select-Object -First 1).FullName
+          if (-not $exe) { throw "no app binary in the artifact" }
+          ./app/desktop/msix/build-msix.ps1 `
+            -Exe $exe `
+            -Icon app/desktop/src-tauri/icons/icon.png `
+            -Version "${{ steps.ver.outputs.version }}" `
+            -IdentityName $env:MSIX_IDENTITY_NAME `
+            -Publisher $env:MSIX_PUBLISHER `
+            -PublisherDisplayName $env:MSIX_PUBLISHER_DISPLAY_NAME `
+            -Out "$env:GITHUB_WORKSPACE/msix-out/zcrypt_${{ steps.ver.outputs.version }}_x64.msix"
+
+      - name: Upload the MSIX for Store submission
+        uses: actions/upload-artifact@v7
+        with:
+          name: zcrypt-store-msix
+          path: msix-out/*.msix
+          retention-days: 30
+          if-no-files-found: error
 
   # ── Updater manifest (tag pushes, signing configured only) ──────────────────
   # Builds the Tauri updater's latest.json from each platform's .sig sidecar
