@@ -26,7 +26,7 @@ export const GITHUB_REPO = normalizeRepo(process.env.NEXT_PUBLIC_GITHUB_REPO);
 const GITHUB_PATH = GITHUB_REPO.replace(/^https?:\/\/[^/]+\//, "");
 
 /** GitHub account or organisation that owns GITHUB_REPO. */
-export const GITHUB_OWNER = GITHUB_PATH.split("/")[0] ?? "";
+export const GITHUB_OWNER = GITHUB_PATH.replace(/\/.*/, "");
 
 /** GitHub Sponsors page for the repository owner. */
 export const SPONSOR_URL = `https://github.com/sponsors/${GITHUB_OWNER}`;
