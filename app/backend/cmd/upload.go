@@ -877,6 +877,7 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 		"platform":        session.Platform,
 		"chunk_count":     session.ChunkCount,
 		"chunk_size":      session.ChunkSize,
+		"mode":            session.Mode,
 		"uploaded_chunks": uploadedIndices,
 		"completed_count": len(uploadedIndices),
 	})
@@ -1155,6 +1156,11 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			log.Printf("upload: check direct account ownership: %v", oerr)
 			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 			return
+		}
+		if !owns && platform == types.PlatformTelegram {
+			if name, ok := s.telegramAccountForChat(ctx, userID, account); ok {
+				account, owns = name, true
+			}
 		}
 		if !owns {
 			http.Error(w, `{"error":"account is not one of your own connected accounts"}`, http.StatusForbidden)

@@ -49,6 +49,7 @@ const (
 	AuditTokenScopeChange            = "token_scope_change"
 	AuditRepoRegister                = "repo_register"
 	AuditRepoDeactivate              = "repo_deactivate"
+	AuditPlatformCredentialsRead     = "platform_credentials_read"
 	AuditUploadInit                  = "upload_init"
 	AuditUploadComplete              = "upload_complete"
 	AuditUploadResume                = "upload_resume"

@@ -91,7 +91,8 @@ type Server struct {
 	// so 100 leaves headroom for a dozen-plus reloads/range-switches in a 5 min
 	// window without ever being a realistic ceiling for a human clicking around,
 	// while still being nowhere near what a scripted scrape/DoS attempt would want.
-	analyticsLimiter *rateLimiter
+	analyticsLimiter   *rateLimiter
+	credentialsLimiter *rateLimiter
 	// Bug-report limiters: per-IP and per-user, 10 reports per hour each
 	bugIPLimiter   *rateLimiter
 	bugUserLimiter *rateLimiter
@@ -205,6 +206,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		transferCreateLimiter: newRateLimiter(20, 10*time.Minute),
 		desktopPollLimiter:    newRateLimiter(30, time.Minute),
 		analyticsLimiter:      newRateLimiter(100, 5*time.Minute),
+		credentialsLimiter:    newRateLimiter(20, 10*time.Minute),
 		bugIPLimiter:          newRateLimiter(10, time.Hour),
 		bugUserLimiter:        newRateLimiter(10, time.Hour),
 		bugAnonIPLimiter:      newRateLimiter(5, time.Hour),
@@ -777,10 +779,11 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/platforms/connect", maxJSON(s.AuthMiddleware(s.HandleConnectPlatform)))
 	mux.HandleFunc("POST /api/platforms/telegram/probe", maxJSON(s.AuthMiddleware(s.HandleTelegramProbe)))
 	mux.HandleFunc("DELETE /api/platforms/disconnect", maxJSON(s.AuthMiddleware(s.HandleDisconnectPlatform)))
+	mux.HandleFunc("GET /api/platforms/credentials", s.AuthMiddleware(s.HandlePlatformCredentials))
 	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleToggleTokenScope, "id"))))
 	mux.HandleFunc("GET /api/repos", s.AuthMiddleware(s.HandleListRepos))
 	mux.HandleFunc("POST /api/repos/register", maxJSON(s.AuthMiddleware(s.HandleRegisterRepo)))
-	mux.HandleFunc("POST /api/repos/{id}/deactivate", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleDeactivateRepo, "id"))))
+	mux.HandleFunc("POST /api/repos/{id}/deactivate", maxJSON(s.AuthMiddleware(s.HandleDeactivateRepo)))
 	mux.HandleFunc("GET /api/config", s.AuthMiddleware(s.HandleGetConfig))
 	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
 	mux.HandleFunc("POST /api/sse/ticket", s.AuthMiddleware(s.HandleSSETicket))

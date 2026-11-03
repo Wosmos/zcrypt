@@ -295,3 +295,35 @@ func (db *DB) GetChangesSince(ctx context.Context, userID string, since int64, l
 	}
 	return changes, cursor, nil
 }
+
+// PersonalTokens returns the user's OWN (non-global) tokens for a platform,
+// ordered exactly as PersonalTokenAccount picks, so the first row is the
+// account a byos-direct session is opened against. A token the user shared
+// with everyone (is_global = TRUE) is never returned, even to its owner.
+func (db *DB) PersonalTokens(ctx context.Context, userID, platform string) ([]types.PlatformTokenRow, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, user_id, platform, username, token_encrypted, token_nonce, is_global, created_at
+		 FROM platform_tokens
+		 WHERE user_id = $1 AND platform = $2 AND is_global = FALSE
+		 ORDER BY username`,
+		userID, platform,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("personal tokens: %w", err)
+	}
+	defer rows.Close()
+
+	var tokens []types.PlatformTokenRow
+	for rows.Next() {
+		var t types.PlatformTokenRow
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Platform, &t.Username,
+			&t.TokenEncrypted, &t.TokenNonce, &t.IsGlobal, &t.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan personal token: %w", err)
+		}
+		tokens = append(tokens, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate personal tokens: %w", err)
+	}
+	return tokens, nil
+}

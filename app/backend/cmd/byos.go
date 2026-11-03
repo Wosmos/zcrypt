@@ -7,8 +7,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/zcrypt/zcrypt/crypto"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -20,6 +22,94 @@ var byosPlatforms = map[string]bool{
 	types.PlatformGitHub:      true,
 	types.PlatformGitLab:      true,
 	types.PlatformHuggingFace: true,
+}
+
+// HandlePlatformCredentials hands the caller their OWN connected token for a
+// byos platform, so a client can push chunks straight to the user's storage
+// instead of relaying every byte through this server: the web app for direct
+// Telegram uploads, and the desktop app picking up a token connected on the
+// web. Only the caller's personal (non-global) token is ever returned; a token
+// shared with everyone, the managed pool's, or another user's never is. The
+// token comes back exactly as it was connected (Telegram: "BOT_TOKEN|CHAT_ID")
+// with the account name the server records chunks under, the same pair the
+// connect flow hands the desktop keychain.
+// GET /api/platforms/credentials?platform=<id>
+func (s *Server) HandlePlatformCredentials(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	platform := r.URL.Query().Get("platform")
+	if !byosPlatforms[platform] {
+		writeError(w, http.StatusBadRequest, "unsupported platform")
+		return
+	}
+	if !s.credentialsLimiter.allow(userID) {
+		w.Header().Set("Retry-After", "60")
+		writeError(w, http.StatusTooManyRequests, "too many credential requests, please slow down")
+		return
+	}
+
+	tokens, err := s.db.PersonalTokens(ctx, userID, platform)
+	if err != nil {
+		internalError(w, "platforms/credentials: personal token lookup", err)
+		return
+	}
+	if len(tokens) == 0 || tokens[0].UserID != userID || tokens[0].IsGlobal {
+		writeError(w, http.StatusNotFound, "no personal token for this platform")
+		return
+	}
+	tok := tokens[0]
+
+	kek, err := crypto.DeriveUserKEK(s.masterKey, userID)
+	if err != nil {
+		internalError(w, "platforms/credentials: derive KEK", err)
+		return
+	}
+	plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
+	if err != nil {
+		internalError(w, "platforms/credentials: decrypt token "+tok.ID, err)
+		return
+	}
+
+	s.audit(r, &userID, types.AuditPlatformCredentialsRead, map[string]interface{}{
+		"platform": platform,
+		"account":  tok.Username,
+	})
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"platform": platform,
+		"token":    plaintext,
+		"account":  tok.Username,
+	})
+}
+
+func (s *Server) telegramAccountForChat(ctx context.Context, userID, chatID string) (string, bool) {
+	chatID = strings.TrimSpace(chatID)
+	if chatID == "" {
+		return "", false
+	}
+	tokens, err := s.db.PersonalTokens(ctx, userID, types.PlatformTelegram)
+	if err != nil {
+		log.Printf("upload: telegram chat lookup for user %s: %v", userID, err)
+		return "", false
+	}
+	kek, err := crypto.DeriveUserKEK(s.masterKey, userID)
+	if err != nil {
+		return "", false
+	}
+	for _, tok := range tokens {
+		plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
+		if err != nil {
+			continue
+		}
+		parts := strings.SplitN(plaintext, "|", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[1]) == chatID {
+			return tok.Username, true
+		}
+	}
+	return "", false
 }
 
 // HandleRegisterRepo records a repo the client created on the user's own

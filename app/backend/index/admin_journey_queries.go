@@ -22,7 +22,7 @@ var JourneyFamilies = map[string][]string{
 	"files": {"uploads", types.AuditFileDelete, types.AuditFileRestore, types.AuditFilePurge, types.AuditFilePurgeClient, types.AuditFolderDelete,
 		types.AuditFolderPasswordSet, types.AuditFolderPasswordRemove, types.AuditFilesVerify, types.AuditAccountExport},
 	"sharing": {"share_create", "space_join", types.AuditSendInit, types.AuditSendComplete},
-	"storage": {types.AuditPlatformConnect, types.AuditPlatformDisconnect, types.AuditTokenScopeChange, types.AuditRepoRegister, types.AuditRepoDeactivate},
+	"storage": {types.AuditPlatformConnect, types.AuditPlatformDisconnect, types.AuditTokenScopeChange, types.AuditRepoRegister, types.AuditRepoDeactivate, types.AuditPlatformCredentialsRead},
 }
 
 // JourneyFamilyNames lists every family, including the catch-alls.
