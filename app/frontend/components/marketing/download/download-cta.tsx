@@ -168,17 +168,19 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
       ?.options.find((o) => o.recommended);
     const href = installer?.href ?? (release === null ? RELEASES_FALLBACK_URL : "#desktop");
     return (
-      <>
+      <div className="flex w-full flex-col items-center gap-5">
         <WindowsInstall />
-        <a href={href} className={cn("group", pillClass("secondary"))}>
-          <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
-          {t("download.windows.downloadInstaller")}
-        </a>
-        <WebApp />
-        <p className="pv2-micro mx-auto w-full max-w-md text-center text-[var(--color-text-muted)]">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <a href={href} className={cn("group", pillClass("secondary"))}>
+            <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+            {t("download.windows.downloadInstaller")}
+          </a>
+          <WebApp />
+        </div>
+        <p className="pv2-micro mx-auto w-full max-w-md text-balance text-center text-[var(--color-text-muted)]">
           <T k="site.download.windows.smartScreen" />
         </p>
-      </>
+      </div>
     );
   }
 
