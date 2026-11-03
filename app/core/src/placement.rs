@@ -10,6 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::types::Platform;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PlacementMode {
@@ -36,12 +38,12 @@ pub struct PlatformState {
 
 /// Base preference under `Smart`, capacity-unlimited and rate-generous first.
 fn base_weight(platform: &str) -> f64 {
-    match platform {
-        "telegram" => 1.0,
-        "github" => 0.6,
-        "gitlab" => 0.5,
-        "huggingface" => 0.25,
-        _ => 0.1,
+    match Platform::from_id(platform) {
+        Some(Platform::Telegram) => 1.0,
+        Some(Platform::GitHub) => 0.6,
+        Some(Platform::GitLab) => 0.5,
+        Some(Platform::HuggingFace) => 0.25,
+        None => 0.1,
     }
 }
 
@@ -114,45 +116,45 @@ mod tests {
     #[test]
     fn smart_prefers_telegram_for_big_files() {
         let states = vec![
-            state("github", Some(GB), 100),
-            state("telegram", None, 1000),
-            state("huggingface", Some(50 * GB), 100),
+            state(Platform::GitHub.as_str(), Some(GB), 100),
+            state(Platform::Telegram.as_str(), None, 1000),
+            state(Platform::HuggingFace.as_str(), Some(50 * GB), 100),
         ];
         let pick = pick_platform(PlacementMode::Smart, &states, 2 * GB, 200, 0);
-        assert_eq!(pick.as_deref(), Some("telegram"));
+        assert_eq!(pick.as_deref(), Some(Platform::Telegram.as_str()));
     }
 
     #[test]
     fn capacity_filter_excludes_full_platforms() {
         let states = vec![
-            state("github", Some(10), 100),
-            state("gitlab", Some(GB), 100),
+            state(Platform::GitHub.as_str(), Some(10), 100),
+            state(Platform::GitLab.as_str(), Some(GB), 100),
         ];
         let pick = pick_platform(PlacementMode::Smart, &states, 1024, 1, 0);
-        assert_eq!(pick.as_deref(), Some("gitlab"));
+        assert_eq!(pick.as_deref(), Some(Platform::GitLab.as_str()));
     }
 
     #[test]
     fn rate_budget_filter_excludes_exhausted() {
         let states = vec![
-            state("huggingface", Some(GB), 2),
-            state("github", Some(GB), 500),
+            state(Platform::HuggingFace.as_str(), Some(GB), 2),
+            state(Platform::GitHub.as_str(), Some(GB), 500),
         ];
         let pick = pick_platform(PlacementMode::Smart, &states, 1024, 50, 0);
-        assert_eq!(pick.as_deref(), Some("github"));
+        assert_eq!(pick.as_deref(), Some(Platform::GitHub.as_str()));
     }
 
     #[test]
     fn nothing_eligible_returns_none() {
-        let states = vec![state("github", Some(0), 0)];
+        let states = vec![state(Platform::GitHub.as_str(), Some(0), 0)];
         assert!(pick_platform(PlacementMode::Smart, &states, 1024, 1, 0).is_none());
     }
 
     #[test]
     fn spread_round_robins() {
         let states = vec![
-            state("github", Some(GB), 100),
-            state("gitlab", Some(GB), 100),
+            state(Platform::GitHub.as_str(), Some(GB), 100),
+            state(Platform::GitLab.as_str(), Some(GB), 100),
         ];
         let a = pick_platform(PlacementMode::Spread, &states, 1, 1, 0).unwrap();
         let b = pick_platform(PlacementMode::Spread, &states, 1, 1, 1).unwrap();

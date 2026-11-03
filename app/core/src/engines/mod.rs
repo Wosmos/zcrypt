@@ -22,7 +22,7 @@ use std::sync::Arc;
 use crate::api::Client;
 use crate::localdb::{LocalDb, SyncStats};
 use crate::profiles::Profile;
-use crate::types::ProgressFn;
+use crate::types::{Platform, ProgressFn, UploadMode};
 
 pub use bulk_download::BulkFile;
 pub use pipeline::ProcessedChunk;
@@ -91,19 +91,19 @@ pub fn no_creds() -> CredProvider {
 /// byos-direct platform preference, mirroring the backend's Auto order
 /// (`cmd/server.go` adapterPreferenceOrder): Telegram first (effectively
 /// unbounded, the primary backend), then the git platforms, HuggingFace last.
-const BYOS_PREFERENCE: [&str; 4] = ["telegram", "github", "gitlab", "huggingface"];
+const BYOS_PREFERENCE: [Platform; 4] = Platform::ALL;
 
 /// Decide the data plane for a new upload. If the device holds the user's own
 /// token for a supported platform, upload byos-direct to that platform (client
 /// owns placement); otherwise relay through the server, which picks + manages
-/// the repo. Returns `(mode, platform)`: platform is empty for relay.
-pub(crate) fn choose_plane(creds: &CredProvider) -> (String, String) {
+/// the repo. Returns `(mode, platform)`: platform is `None` for relay.
+pub(crate) fn choose_plane(creds: &CredProvider) -> (UploadMode, Option<Platform>) {
     for p in BYOS_PREFERENCE {
-        if creds(p).is_some() {
-            return ("byos-direct".to_string(), p.to_string());
+        if creds(p.as_str()).is_some() {
+            return (UploadMode::ByosDirect, Some(p));
         }
     }
-    ("relay".to_string(), String::new())
+    (UploadMode::Relay, None)
 }
 
 /// Everything an engine call needs. The Tauri shell constructs one per

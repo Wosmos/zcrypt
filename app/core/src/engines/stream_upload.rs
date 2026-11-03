@@ -24,7 +24,7 @@ use crate::adapters;
 use crate::api::types::{ConfirmChunkRequest, UploadInitRequest, UploadInitResponse};
 use crate::compression;
 use crate::crypto;
-use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage};
+use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage, UploadMode};
 
 use super::pipeline::{self, ProcessedChunk};
 use super::{EngineContext, EngineError};
@@ -145,7 +145,8 @@ pub async fn run(
     // Init (or resume) the backend session. Relay leaves mode empty; byos-direct
     // sends the chosen platform so the server makes a metadata-only session.
     let (mode, plat) = super::choose_plane(&ctx.creds);
-    let byos = mode == "byos-direct";
+    let plat = plat.map(|p| p.to_string()).unwrap_or_default();
+    let byos = mode == UploadMode::ByosDirect;
     let b64 = base64::engine::general_purpose::STANDARD;
     let req = UploadInitRequest {
         original_size: file_size,
@@ -158,11 +159,7 @@ pub async fn run(
         } else {
             platform.clone().unwrap_or_else(|| plat.clone())
         },
-        mode: if byos {
-            "byos-direct".to_string()
-        } else {
-            String::new()
-        },
+        mode: mode.init_field().to_string(),
         folder_id,
         ..Default::default()
     }

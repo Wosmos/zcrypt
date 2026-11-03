@@ -9,6 +9,8 @@ use std::sync::{Mutex, OnceLock};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 
+use crate::types::{SyncStatus, UploadMode};
+
 #[derive(Debug, thiserror::Error)]
 pub enum DbError {
     #[error("sqlite: {0}")]
@@ -208,7 +210,7 @@ impl LocalDb {
         // picked up by the 1s loop mid-encryption, which init'd a session and
         // even called complete against a partial chunk list.
         let sync_status = if f.sync_status.is_empty() {
-            "pending"
+            S_PENDING
         } else {
             &f.sync_status
         };
@@ -257,9 +259,11 @@ impl LocalDb {
     pub fn update_file_sync_error(&self, file_id: &str, err_msg: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
-                "UPDATE files SET attempts=attempts+1, last_attempt=?1, error_msg=?2,
-                        sync_status=CASE WHEN attempts+1 >= ?3 THEN 'failed' ELSE 'error' END
-                 WHERE id=?4",
+                &format!(
+                    "UPDATE files SET attempts=attempts+1, last_attempt=?1, error_msg=?2,
+                        sync_status=CASE WHEN attempts+1 >= ?3 THEN '{S_FAILED}' ELSE '{S_ERROR}' END
+                 WHERE id=?4"
+                ),
                 params![unix_now(), err_msg, MAX_SYNC_ATTEMPTS, file_id],
             )
             .map(|_| ())
@@ -274,14 +278,14 @@ impl LocalDb {
 
     fn pending_files_at(&self, user_id: &str, now: i64) -> Result<Vec<LocalFile>, DbError> {
         self.with(|c| {
-            let mut stmt = c.prepare(
+            let mut stmt = c.prepare(&format!(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
                         backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE user_id=?1 AND (
-                        sync_status IN ('pending','init_done','uploading')
-                     OR (sync_status='error' AND last_attempt + min(?2, ?3 << min(attempts, 10)) <= ?4))
-                 ORDER BY created_at",
-            )?;
+                        sync_status IN ('{S_PENDING}','{S_INIT_DONE}','{S_UPLOADING}')
+                     OR (sync_status='{S_ERROR}' AND last_attempt + min(?2, ?3 << min(attempts, 10)) <= ?4))
+                 ORDER BY created_at"
+            ))?;
             let rows = stmt.query_map(
                 params![user_id, MAX_BACKOFF_SECS, BASE_BACKOFF_SECS, now],
                 row_to_file,
@@ -330,10 +334,10 @@ impl LocalDb {
 
     pub fn get_pending_chunks(&self, file_id: &str) -> Result<Vec<LocalChunk>, DbError> {
         self.with(|c| {
-            let mut stmt = c.prepare(
+            let mut stmt = c.prepare(&format!(
                 "SELECT id, file_id, idx, size, encrypted_size, compressed_size, sha256, compressed, staging_path, sync_status
-                 FROM chunks WHERE file_id=?1 AND sync_status='pending' ORDER BY idx",
-            )?;
+                 FROM chunks WHERE file_id=?1 AND sync_status='{S_PENDING}' ORDER BY idx"
+            ))?;
             let rows = stmt.query_map(params![file_id], row_to_chunk)?;
             rows.collect()
         })
@@ -345,10 +349,10 @@ impl LocalDb {
     /// deleted after a successful push).
     pub fn get_unsynced_chunks(&self, file_id: &str) -> Result<Vec<LocalChunk>, DbError> {
         self.with(|c| {
-            let mut stmt = c.prepare(
+            let mut stmt = c.prepare(&format!(
                 "SELECT id, file_id, idx, size, encrypted_size, compressed_size, sha256, compressed, staging_path, sync_status
-                 FROM chunks WHERE file_id=?1 AND sync_status != 'synced' ORDER BY idx",
-            )?;
+                 FROM chunks WHERE file_id=?1 AND sync_status != '{S_SYNCED}' ORDER BY idx"
+            ))?;
             let rows = stmt.query_map(params![file_id], row_to_chunk)?;
             rows.collect()
         })
@@ -371,11 +375,13 @@ impl LocalDb {
     ) -> Result<Option<LocalFile>, DbError> {
         self.with(|c| {
             c.query_row(
-                "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
+                &format!(
+                    "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
                         backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE user_id=?3 AND sha256=?1 AND original_size=?2
-                   AND sync_status IN ('staging','pending','init_done','uploading')
-                 ORDER BY created_at DESC LIMIT 1",
+                   AND sync_status IN ('{S_STAGING}','{S_PENDING}','{S_INIT_DONE}','{S_UPLOADING}')
+                 ORDER BY created_at DESC LIMIT 1"
+                ),
                 params![sha256, size, user_id],
                 row_to_file,
             )
@@ -392,11 +398,11 @@ impl LocalDb {
     pub fn reset_file_for_retry(&self, file_id: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
-                "UPDATE files SET sync_status='pending', session_id='', backend_file_id='', direct_upload=0, error_msg='' WHERE id=?1",
+                &format!("UPDATE files SET sync_status='{S_PENDING}', session_id='', backend_file_id='', direct_upload=0, error_msg='' WHERE id=?1"),
                 params![file_id],
             )?;
             c.execute(
-                "UPDATE chunks SET sync_status='pending', remote_path='', error_msg='' WHERE file_id=?1",
+                &format!("UPDATE chunks SET sync_status='{S_PENDING}', remote_path='', error_msg='' WHERE file_id=?1"),
                 params![file_id],
             )?;
             Ok(())
@@ -443,7 +449,7 @@ impl LocalDb {
     pub fn update_chunk_synced(&self, chunk_id: &str, remote_path: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
-                "UPDATE chunks SET sync_status='synced', remote_path=?1 WHERE id=?2",
+                &format!("UPDATE chunks SET sync_status='{S_SYNCED}', remote_path=?1 WHERE id=?2"),
                 params![remote_path, chunk_id],
             )
             .map(|_| ())
@@ -453,7 +459,7 @@ impl LocalDb {
     pub fn update_chunk_error(&self, chunk_id: &str, err_msg: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
-                "UPDATE chunks SET sync_status='error', error_msg=?1 WHERE id=?2",
+                &format!("UPDATE chunks SET sync_status='{S_ERROR}', error_msg=?1 WHERE id=?2"),
                 params![err_msg, chunk_id],
             )
             .map(|_| ())
@@ -468,8 +474,10 @@ impl LocalDb {
             // let a sync pass call complete against a partial upload ("not all
             // chunks have been uploaded" 400s every tick).
             let (synced, expected): (i64, i64) = c.query_row(
-                "SELECT (SELECT COUNT(*) FROM chunks WHERE file_id=?1 AND sync_status='synced'),
-                        (SELECT chunk_count FROM files WHERE id=?1)",
+                &format!(
+                    "SELECT (SELECT COUNT(*) FROM chunks WHERE file_id=?1 AND sync_status='{S_SYNCED}'),
+                        (SELECT chunk_count FROM files WHERE id=?1)"
+                ),
                 params![file_id],
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
@@ -497,11 +505,11 @@ impl LocalDb {
             let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
             for row in rows {
                 let (status, count) = row?;
-                match status.as_str() {
-                    "pending" | "init_done" => s.pending_files += count,
-                    "uploading" => s.syncing_files += count,
-                    "synced" => s.synced_files += count,
-                    "error" | "failed" => s.error_files += count,
+                match status.parse::<SyncStatus>() {
+                    Ok(SyncStatus::Pending | SyncStatus::InitDone) => s.pending_files += count,
+                    Ok(SyncStatus::Uploading) => s.syncing_files += count,
+                    Ok(SyncStatus::Synced) => s.synced_files += count,
+                    Ok(SyncStatus::Error | SyncStatus::Failed) => s.error_files += count,
                     _ => {}
                 }
             }
@@ -509,6 +517,14 @@ impl LocalDb {
         })
     }
 }
+
+const S_STAGING: &str = SyncStatus::Staging.as_str();
+const S_PENDING: &str = SyncStatus::Pending.as_str();
+const S_INIT_DONE: &str = SyncStatus::InitDone.as_str();
+const S_UPLOADING: &str = SyncStatus::Uploading.as_str();
+const S_SYNCED: &str = SyncStatus::Synced.as_str();
+const S_ERROR: &str = SyncStatus::Error.as_str();
+const S_FAILED: &str = SyncStatus::Failed.as_str();
 
 const MAX_SYNC_ATTEMPTS: i64 = 8;
 const BASE_BACKOFF_SECS: i64 = 15;
@@ -548,7 +564,7 @@ fn row_to_file(r: &rusqlite::Row<'_>) -> Result<LocalFile, rusqlite::Error> {
 /// Normalize an empty/legacy mode to "relay".
 fn mode_or_default(m: &str) -> &str {
     if m.is_empty() {
-        "relay"
+        UploadMode::Relay.as_str()
     } else {
         m
     }
@@ -572,6 +588,7 @@ fn row_to_chunk(r: &rusqlite::Row<'_>) -> Result<LocalChunk, rusqlite::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{Platform, FILE_STATUS_COMPLETE};
 
     fn temp_db() -> (LocalDb, PathBuf) {
         let dir = std::env::temp_dir().join(format!("zcrypt-localdb-{}", uuid::Uuid::new_v4()));
@@ -591,7 +608,7 @@ mod tests {
             salt: vec![1; 32],
             wrapped_cek: vec![2; 60],
             chunk_count: 2,
-            status: "complete".into(),
+            status: FILE_STATUS_COMPLETE.into(),
             user_id: "u1".into(),
             ..Default::default()
         };
@@ -616,21 +633,21 @@ mod tests {
         // pending → init_done → uploading → synced
         let pending = db.get_pending_files("u1").unwrap();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].sync_status, "pending");
+        assert_eq!(pending[0].sync_status, S_PENDING);
 
         db.update_file_sync_state(
             "f1",
-            "init_done",
+            S_INIT_DONE,
             "sess",
             "backend-id",
-            "telegram",
+            Platform::Telegram.as_str(),
             "tg:1/x",
             false,
         )
         .unwrap();
         let f1 = db.get_file_by_id("f1").unwrap().unwrap();
-        assert_eq!(f1.sync_status, "init_done");
-        assert_eq!(f1.platform, "telegram");
+        assert_eq!(f1.sync_status, S_INIT_DONE);
+        assert_eq!(f1.platform, Platform::Telegram.as_str());
 
         let chunks = db.get_pending_chunks("f1").unwrap();
         assert_eq!(chunks.len(), 2);
@@ -641,7 +658,7 @@ mod tests {
         assert!(db.all_chunks_synced("f1").unwrap());
         assert_eq!(db.get_chunk_totals("f1").unwrap(), (98, 42));
 
-        db.update_file_sync_status("f1", "synced").unwrap();
+        db.update_file_sync_status("f1", S_SYNCED).unwrap();
         let stats = db.get_sync_stats().unwrap();
         assert_eq!(stats.synced_files, 1);
         assert_eq!(stats.pending_files, 0);
@@ -677,7 +694,7 @@ mod tests {
             db.update_file_sync_error("f1", "net").unwrap();
         }
         let f = db.get_file_by_id("f1").unwrap().unwrap();
-        assert_eq!(f.sync_status, "failed");
+        assert_eq!(f.sync_status, S_FAILED);
         assert!(db.pending_files_at("u1", now + 86_400).unwrap().is_empty());
         assert_eq!(db.get_sync_stats().unwrap().error_files, 1);
 

@@ -23,10 +23,10 @@ use serde::Deserialize;
 use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::crypto;
 use crate::disguise;
-use crate::types::{Chunk, ChunkRef};
+use crate::types::{Chunk, ChunkRef, Platform};
 
 const ENDPOINT: &str = "https://huggingface.co";
-const PLATFORM: &str = "huggingface";
+const PLATFORM: &str = Platform::HuggingFace.as_str();
 const MAX_RETRIES: u32 = 3;
 
 pub struct HuggingFace {
@@ -543,7 +543,7 @@ mod tests {
         assert!(matches!(
             classify(429, String::new(), Some(60), "commit"),
             AdapterError::RateLimited {
-                platform: "huggingface",
+                platform: PLATFORM,
                 retry_after_secs: Some(60)
             }
         ));

@@ -5,7 +5,7 @@
 
 use crate::adapters::{AdapterError, PlatformAdapter};
 use crate::disguise;
-use crate::types::RepoInfo;
+use crate::types::{Platform, RepoInfo};
 
 use aes_gcm::aead::rand_core::RngCore;
 use aes_gcm::aead::OsRng;
@@ -100,11 +100,11 @@ pub fn new_repo_id(platform: &str, account: &str, name: &str) -> String {
 pub fn default_threshold(platform: &str) -> i64 {
     const MB: i64 = 1024 * 1024;
     const GB: i64 = 1024 * MB;
-    match platform {
-        "github" => 850 * MB,
-        "gitlab" => 9 * GB,
-        "huggingface" => 90 * GB,
-        _ => 50 * GB, // telegram
+    match Platform::from_id(platform) {
+        Some(Platform::GitHub) => 850 * MB,
+        Some(Platform::GitLab) => 9 * GB,
+        Some(Platform::HuggingFace) => 90 * GB,
+        Some(Platform::Telegram) | None => 50 * GB,
     }
 }
 
@@ -114,8 +114,8 @@ mod tests {
 
     #[test]
     fn repo_ids_unique_for_identical_inputs() {
-        let a = new_repo_id("github", "acct", "swift-otter-v1");
-        let b = new_repo_id("github", "acct", "swift-otter-v1");
+        let a = new_repo_id(Platform::GitHub.as_str(), "acct", "swift-otter-v1");
+        let b = new_repo_id(Platform::GitHub.as_str(), "acct", "swift-otter-v1");
         assert_ne!(a, b);
         assert!(a.starts_with("github_acct_swift-otter-v1_"));
     }

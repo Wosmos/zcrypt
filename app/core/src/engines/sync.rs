@@ -14,7 +14,7 @@ use crate::api::types::{ConfirmChunkRequest, UploadInitRequest};
 use crate::api::Client;
 use crate::localdb::{LocalChunk, LocalFile};
 use crate::reppool::{self, RepoStore};
-use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage};
+use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage, SyncStatus, UploadMode};
 
 use super::{EngineContext, EngineError};
 
@@ -138,12 +138,12 @@ pub async fn sync_file_by_id(
         let Some(f) = ctx.db.get_file_by_id(file_id)? else {
             return Ok(());
         };
-        match f.sync_status.as_str() {
-            "synced" => return Ok(()),
+        match f.sync_status.parse::<SyncStatus>() {
+            Ok(SyncStatus::Synced) => return Ok(()),
             // Chunks still being staged by local_upload (a dedup'd duplicate
             // invocation lands here while the winner encrypts), wait, never
             // sync a partial chunk list.
-            "staging" => {
+            Ok(SyncStatus::Staging) => {
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 continue;
             }
@@ -196,15 +196,15 @@ async fn sync_file(
     // Defense in depth: never sync a row whose chunks are still being staged.
     // get_pending_files excludes 'staging' and sync_file_by_id waits it out, so
     // reaching here with one is a caller bug: skip the pass, don't corrupt it.
-    if f.sync_status == "staging" {
+    if f.sync_status == SyncStatus::Staging.as_str() {
         return Ok(());
     }
-    if f.sync_status == "pending" {
+    if f.sync_status == SyncStatus::Pending.as_str() {
         match init_remote_session(ctx, &f, platform).await {
             Ok((session_id, backend_id, plat, repo_url, direct)) => {
                 ctx.db.update_file_sync_state(
                     &f.id,
-                    "init_done",
+                    SyncStatus::InitDone.as_str(),
                     &session_id,
                     &backend_id,
                     &plat,
@@ -214,7 +214,7 @@ async fn sync_file(
                 f.session_id = session_id;
                 f.backend_file_id = backend_id;
                 f.direct_upload = direct;
-                f.sync_status = "init_done".into();
+                f.sync_status = SyncStatus::InitDone.to_string();
             }
             Err(e) => {
                 let _ = ctx
@@ -227,11 +227,13 @@ async fn sync_file(
 
     if f.session_id.is_empty() {
         // Lost the session somehow: reset and retry next pass.
-        ctx.db.update_file_sync_status(&f.id, "pending")?;
+        ctx.db
+            .update_file_sync_status(&f.id, SyncStatus::Pending.as_str())?;
         return Ok(());
     }
 
-    ctx.db.update_file_sync_status(&f.id, "uploading")?;
+    ctx.db
+        .update_file_sync_status(&f.id, SyncStatus::Uploading.as_str())?;
     // Unsynced = pending AND error: a chunk that errored on an earlier pass is
     // retried here (its staging file still exists; staging is only deleted
     // after a successful push). get_pending_chunks would strand errored chunks
@@ -244,7 +246,7 @@ async fn sync_file(
     // doing that per-chunk inside the concurrent tasks below would race N
     // chunks into N near-simultaneous get_or_create_repo calls and could create
     // N repos for one file.
-    let byos_repo = if f.mode == "byos-direct" {
+    let byos_repo = if f.mode == UploadMode::ByosDirect.as_str() {
         Some(resolve_byos_repo(ctx, &f.platform).await?)
     } else {
         None
@@ -345,7 +347,8 @@ async fn sync_file(
     });
     let (enc, comp) = ctx.db.get_chunk_totals(&f.id)?;
     ctx.client.complete_upload(&f.session_id, enc, comp).await?;
-    ctx.db.update_file_sync_status(&f.id, "synced")?;
+    ctx.db
+        .update_file_sync_status(&f.id, SyncStatus::Synced.as_str())?;
     Ok(())
 }
 
@@ -367,7 +370,7 @@ async fn sync_file(
 /// `sync_once`/`sync_file_by_id` for the one place a session collision IS
 /// handled, and why it resets-and-retries rather than deleting.
 pub async fn gc_ledger(ctx: &EngineContext) {
-    if let Ok(rows) = ctx.db.list_files_in_status("staging") {
+    if let Ok(rows) = ctx.db.list_files_in_status(SyncStatus::Staging.as_str()) {
         for f in rows {
             if super::local_upload::is_staging_live(&f.id) {
                 continue;
@@ -422,7 +425,12 @@ async fn init_remote_session(
     // byos-direct: the client owns placement: send the chosen platform + mode so
     // the server creates a metadata-only session (no server repo). Relay leaves
     // mode empty and lets the server pick + create the repo.
-    let byos = f.mode == "byos-direct";
+    let mode = if f.mode == UploadMode::ByosDirect.as_str() {
+        UploadMode::ByosDirect
+    } else {
+        UploadMode::Relay
+    };
+    let byos = mode == UploadMode::ByosDirect;
     if f.encrypted_name.is_empty() || f.sha256_scheme != crate::crypto::CONTENT_MAC_SCHEME {
         return Err(EngineError::Other(
             "this file was staged by an older version and its name and hash are not sealed; \
@@ -440,11 +448,7 @@ async fn init_remote_session(
         } else {
             platform.unwrap_or(&f.platform).to_string()
         },
-        mode: if byos {
-            "byos-direct".to_string()
-        } else {
-            String::new()
-        },
+        mode: mode.init_field().to_string(),
         ..Default::default()
     }
     .with_identity(f.encrypted_name.clone(), f.sha256.clone());

@@ -14,10 +14,10 @@ use serde::Deserialize;
 
 use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::disguise;
-use crate::types::{Chunk, ChunkRef};
+use crate::types::{Chunk, ChunkRef, Platform};
 
 const API: &str = "https://gitlab.com/api/v4";
-const PLATFORM: &str = "gitlab";
+const PLATFORM: &str = Platform::GitLab.as_str();
 const TREE_PER_PAGE: usize = 100;
 
 pub struct GitLab {
@@ -314,7 +314,7 @@ mod tests {
         assert!(matches!(
             classify(429, String::new(), Some(30), "x"),
             AdapterError::RateLimited {
-                platform: "gitlab",
+                platform: PLATFORM,
                 retry_after_secs: Some(30)
             }
         ));

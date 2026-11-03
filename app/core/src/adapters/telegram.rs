@@ -18,7 +18,7 @@ use serde::Deserialize;
 
 use crate::adapters::{AdapterError, PlatformAdapter};
 use crate::disguise;
-use crate::types::{Chunk, ChunkRef};
+use crate::types::{Chunk, ChunkRef, Platform};
 
 const API_BASE: &str = "https://api.telegram.org";
 
@@ -29,7 +29,7 @@ const MAX_PART_SIZE: usize = 19 * 1024 * 1024;
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE: Duration = Duration::from_secs(2);
 
-const PLATFORM: &str = "telegram";
+const PLATFORM: &str = Platform::Telegram.as_str();
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 /// Short on purpose, and downloads only: when api.telegram.org is filtered on
@@ -573,17 +573,17 @@ mod tests {
     #[test]
     fn is_delete_final_matches_terminal_descriptions() {
         let gone = AdapterError::Api {
-            platform: "telegram",
+            platform: PLATFORM,
             status: 400,
             body: "Bad Request: message to delete not found".into(),
         };
         let undeletable = AdapterError::Api {
-            platform: "telegram",
+            platform: PLATFORM,
             status: 400,
             body: "Bad Request: message can't be deleted".into(),
         };
         let other = AdapterError::Api {
-            platform: "telegram",
+            platform: PLATFORM,
             status: 400,
             body: "Bad Request: chat not found".into(),
         };
@@ -595,21 +595,21 @@ mod tests {
     #[test]
     fn is_retryable_classification() {
         assert!(is_retryable(&AdapterError::RateLimited {
-            platform: "telegram",
+            platform: PLATFORM,
             retry_after_secs: Some(5),
         }));
         assert!(is_retryable(&AdapterError::Api {
-            platform: "telegram",
+            platform: PLATFORM,
             status: 500,
             body: "internal".into(),
         }));
         assert!(is_retryable(&AdapterError::Api {
-            platform: "telegram",
+            platform: PLATFORM,
             status: 429,
             body: "too many requests".into(),
         }));
         assert!(!is_retryable(&AdapterError::Api {
-            platform: "telegram",
+            platform: PLATFORM,
             status: 400,
             body: "bad request".into(),
         }));
@@ -626,7 +626,7 @@ mod tests {
                 platform,
                 retry_after_secs,
             } => {
-                assert_eq!(platform, "telegram");
+                assert_eq!(platform, PLATFORM);
                 assert_eq!(retry_after_secs, Some(33));
             }
             other => panic!("expected RateLimited, got: {other}"),
@@ -643,7 +643,7 @@ mod tests {
                 status,
                 body,
             } => {
-                assert_eq!(platform, "telegram");
+                assert_eq!(platform, PLATFORM);
                 assert_eq!(status, 400);
                 assert_eq!(body, "Bad Request: chat not found");
             }

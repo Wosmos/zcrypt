@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use async_trait::async_trait;
 
-use crate::types::{Chunk, ChunkRef};
+use crate::types::{Chunk, ChunkRef, Platform};
 
 pub mod github;
 pub mod gitlab;
@@ -117,12 +117,11 @@ pub(crate) fn validate_locator(
 /// Construct the adapter for a platform with the user's own token.
 /// `account` is the platform username/owner (git platforms) or chat id (Telegram).
 pub fn new_adapter(platform: &str, token: &str, account: &str) -> Option<Box<dyn PlatformAdapter>> {
-    match platform {
-        "github" => Some(Box::new(github::GitHub::new(token, account))),
-        "gitlab" => Some(Box::new(gitlab::GitLab::new(token, account))),
-        "huggingface" => Some(Box::new(huggingface::HuggingFace::new(token, account))),
-        "telegram" => Some(Box::new(telegram::Telegram::new(token, account))),
-        _ => None,
+    match Platform::from_id(platform)? {
+        Platform::GitHub => Some(Box::new(github::GitHub::new(token, account))),
+        Platform::GitLab => Some(Box::new(gitlab::GitLab::new(token, account))),
+        Platform::HuggingFace => Some(Box::new(huggingface::HuggingFace::new(token, account))),
+        Platform::Telegram => Some(Box::new(telegram::Telegram::new(token, account))),
     }
 }
 
@@ -160,9 +159,9 @@ mod tests {
 
     #[test]
     fn shared_adapter_reuses_per_token() {
-        let a = shared_adapter("github", "tok-shared-a", "acct").unwrap();
-        let b = shared_adapter("github", "tok-shared-a", "acct").unwrap();
-        let c = shared_adapter("github", "tok-shared-b", "acct").unwrap();
+        let a = shared_adapter(Platform::GitHub.as_str(), "tok-shared-a", "acct").unwrap();
+        let b = shared_adapter(Platform::GitHub.as_str(), "tok-shared-a", "acct").unwrap();
+        let c = shared_adapter(Platform::GitHub.as_str(), "tok-shared-b", "acct").unwrap();
         assert!(Arc::ptr_eq(&a, &b));
         assert!(!Arc::ptr_eq(&a, &c));
         assert!(shared_adapter("nope", "tok", "acct").is_none());

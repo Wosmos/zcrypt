@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 use crate::compression;
 use crate::crypto;
 use crate::localdb::{staging_dir, LocalChunk, LocalFile};
-use crate::types::{Progress, Stage};
+use crate::types::{Progress, Stage, SyncStatus, FILE_STATUS_COMPLETE};
 
 use super::{pipeline, EngineContext, EngineError};
 
@@ -168,10 +168,10 @@ pub async fn run(
         salt: salt.to_vec(),
         wrapped_cek: wrapped_cek.clone(),
         chunk_count,
-        status: "complete".into(),
-        sync_status: "staging".into(),
-        platform,
-        mode,
+        status: FILE_STATUS_COMPLETE.into(),
+        sync_status: SyncStatus::Staging.to_string(),
+        platform: platform.map(|p| p.to_string()).unwrap_or_default(),
+        mode: mode.to_string(),
         ..Default::default()
     })?;
 
@@ -279,7 +279,8 @@ pub async fn run(
     }
 
     // All chunks staged. NOW the row becomes visible to sync.
-    ctx.db.update_file_sync_status(&file_id, "pending")?;
+    ctx.db
+        .update_file_sync_status(&file_id, SyncStatus::Pending.as_str())?;
 
     emit(
         Stage::Done,
@@ -391,7 +392,7 @@ mod tests {
 
         let f = db.get_file_by_id(&file_id).unwrap().unwrap();
         assert_eq!(f.chunk_count, 1);
-        assert_eq!(f.sync_status, "pending");
+        assert_eq!(f.sync_status, SyncStatus::Pending.as_str());
         assert!(!f.wrapped_cek.is_empty());
         let chunks = db.get_pending_chunks(&file_id).unwrap();
         assert_eq!(chunks.len(), 1);

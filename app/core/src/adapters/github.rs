@@ -17,11 +17,11 @@ use serde::Deserialize;
 
 use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::disguise;
-use crate::types::{Chunk, ChunkRef};
+use crate::types::{Chunk, ChunkRef, Platform};
 
 const API: &str = "https://api.github.com";
 const RAW: &str = "https://raw.githubusercontent.com";
-const PLATFORM: &str = "github";
+const PLATFORM: &str = Platform::GitHub.as_str();
 
 pub struct GitHub {
     token: String,
@@ -417,7 +417,7 @@ mod tests {
         assert!(matches!(
             classify(429, String::new(), Some(7), "x"),
             AdapterError::RateLimited {
-                platform: "github",
+                platform: PLATFORM,
                 retry_after_secs: Some(7)
             }
         ));
@@ -430,7 +430,7 @@ mod tests {
                 "x"
             ),
             AdapterError::RateLimited {
-                platform: "github",
+                platform: PLATFORM,
                 retry_after_secs: None
             }
         ));
