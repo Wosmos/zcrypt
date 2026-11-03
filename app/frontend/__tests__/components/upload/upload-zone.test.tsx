@@ -92,3 +92,21 @@ describe("UploadZone preparing state", () => {
     }
   });
 });
+
+describe("UploadZone drops", () => {
+  afterEach(cleanup);
+
+  it("marks a drop as handled, so a page-wide drop target does not upload it again", () => {
+    const onFiles = vi.fn();
+    const handled: boolean[] = [];
+    render(
+      <div onDrop={(e) => handled.push(e.defaultPrevented)}>
+        <UploadZone onFiles={onFiles} />
+      </div>,
+    );
+    const file = new File(["x"], "a.bin");
+    fireEvent.drop(screen.getByRole("button"), { dataTransfer: { files: [file] } });
+    expect(onFiles).toHaveBeenCalledWith([file]);
+    expect(handled).toEqual([true]);
+  });
+});

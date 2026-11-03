@@ -411,9 +411,10 @@ export default function VaultPage() {
   const handlePageDrop = useCallback(
     (e: React.DragEvent) => {
       if (!isOSFileDrag(e)) return;
-      e.preventDefault();
       dragDepth.current = 0;
       setDragActive(false);
+      if (e.defaultPrevented) return;
+      e.preventDefault();
       const dropped = Array.from(e.dataTransfer.files);
       if (dropped.length > 0) actions.handleFilesSelected(dropped);
     },

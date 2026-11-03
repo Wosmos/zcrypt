@@ -246,7 +246,7 @@ function TransferItemBase({
             />
           )}
           <span
-            className={cn("min-w-0", failed ? "line-clamp-2" : "truncate")}
+            className={cn("min-w-0", failed || needsApp ? "line-clamp-2" : "truncate")}
             style={
               failed
                 ? { color: TONE.err }
