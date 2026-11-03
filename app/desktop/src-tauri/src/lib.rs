@@ -28,6 +28,14 @@ use zeroize::Zeroize;
 
 /// OS keychain service name for all zcrypt desktop secrets.
 const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
+/// Keychain key under which the vault passphrase is cached.
+const KEYCHAIN_VAULT_PASSPHRASE: &str = "vault.passphrase";
+/// Prefix of the per-platform credential keys (`platform.<id>.token`).
+const KEYCHAIN_PLATFORM_PREFIX: &str = "platform.";
+/// Field suffix of a platform's token key.
+const KEYCHAIN_TOKEN_FIELD: &str = "token";
+/// Field suffix of a platform's account key.
+const KEYCHAIN_ACCOUNT_FIELD: &str = "account";
 /// Tauri event carrying `zcrypt_core::types::Progress` payloads.
 const PROGRESS_EVENT: &str = "zcrypt://progress";
 /// Emitted when the inactivity auto-lock clears the cached passphrase, so the
@@ -206,17 +214,21 @@ fn spawn_inactivity_autolock(app: tauri::AppHandle) {
     });
 }
 
+fn keychain_platform_key(platform: &str, field: &str) -> String {
+    format!("{KEYCHAIN_PLATFORM_PREFIX}{platform}.{field}")
+}
+
 fn keychain_key_allowed(key: &str) -> bool {
-    if key == "vault.passphrase" {
+    if key == KEYCHAIN_VAULT_PASSPHRASE {
         return true;
     }
-    let Some(rest) = key.strip_prefix("platform.") else {
+    let Some(rest) = key.strip_prefix(KEYCHAIN_PLATFORM_PREFIX) else {
         return false;
     };
     let Some((id, field)) = rest.rsplit_once('.') else {
         return false;
     };
-    matches!(field, "token" | "account")
+    matches!(field, KEYCHAIN_TOKEN_FIELD | KEYCHAIN_ACCOUNT_FIELD)
         && !id.is_empty()
         && id.len() <= 32
         && id
@@ -253,11 +265,13 @@ fn keychain_creds() -> CredProvider {
             }
             cache.generation
         };
-        let creds = keychain_read(&format!("platform.{platform}.token")).map(|token| {
-            let account =
-                keychain_read(&format!("platform.{platform}.account")).unwrap_or_default();
-            PlatformCreds { token, account }
-        });
+        let creds =
+            keychain_read(&keychain_platform_key(platform, KEYCHAIN_TOKEN_FIELD)).map(|token| {
+                let account =
+                    keychain_read(&keychain_platform_key(platform, KEYCHAIN_ACCOUNT_FIELD))
+                        .unwrap_or_default();
+                PlatformCreds { token, account }
+            });
         let mut cache = creds_cache().lock().unwrap();
         if cache.generation == generation {
             cache.entries.insert(platform.to_string(), creds.clone());
@@ -1619,6 +1633,7 @@ mod deep_link_tests {
 #[cfg(test)]
 mod origin_tests {
     use super::*;
+    use zcrypt_core::types::Platform;
 
     #[test]
     fn pins_the_api_origin() {
@@ -1637,6 +1652,14 @@ mod origin_tests {
         assert!(keychain_key_allowed("vault.passphrase"));
         assert!(keychain_key_allowed("platform.github.token"));
         assert!(keychain_key_allowed("platform.telegram.account"));
+        for p in Platform::ALL {
+            let token = keychain_platform_key(p.as_str(), KEYCHAIN_TOKEN_FIELD);
+            let account = keychain_platform_key(p.as_str(), KEYCHAIN_ACCOUNT_FIELD);
+            assert_eq!(token, format!("platform.{}.token", p.as_str()));
+            assert_eq!(account, format!("platform.{}.account", p.as_str()));
+            assert!(keychain_key_allowed(&token));
+            assert!(keychain_key_allowed(&account));
+        }
         assert!(!keychain_key_allowed("auth.access"));
         assert!(!keychain_key_allowed("platform..token"));
         assert!(!keychain_key_allowed("platform.a.b.token"));
