@@ -13,7 +13,7 @@
 # red instead of reporting success for requests that all failed.
 set -euo pipefail
 
-SITE="https://zcrypt.cloud"
+SITE="${SITE_URL:-https://zcrypt.cloud}"
 SITE_HOST="${SITE#https://}"
 SITEMAP_URL="$SITE/sitemap.xml"
 INDEXNOW_KEY="21e77bf9a5bb60bbac0bf2b10a664299"

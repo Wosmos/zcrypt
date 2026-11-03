@@ -4,25 +4,26 @@
 #
 # Downloads the current installer, runs it silently for the current user (no
 # admin prompt) and starts zcrypt. Set $env:ZCRYPT_NO_OPEN = "1" to skip the
-# launch.
+# launch, and $env:ZCRYPT_SITE to download from another site.
 
 & {
   $ErrorActionPreference = "Stop"
   # The progress bar makes Invoke-WebRequest many times slower on Windows PowerShell 5.
   $ProgressPreference = "SilentlyContinue"
+  $site = if ($env:ZCRYPT_SITE) { $env:ZCRYPT_SITE.TrimEnd("/") } else { "https://zcrypt.cloud" }
   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
   if (-not [Environment]::Is64BitOperatingSystem) {
-    throw "zcrypt for Windows needs a 64-bit version of Windows. The web app works on any device: https://zcrypt.cloud"
+    throw "zcrypt for Windows needs a 64-bit version of Windows. The web app works on any device: $site"
   }
 
   $setup = Join-Path ([IO.Path]::GetTempPath()) "zcrypt-setup-$([guid]::NewGuid().ToString('N')).exe"
 
   Write-Host "==> Downloading zcrypt for Windows"
   try {
-    Invoke-WebRequest -UseBasicParsing -Uri "https://zcrypt.cloud/dl/windows-exe" -OutFile $setup
+    Invoke-WebRequest -UseBasicParsing -Uri "$site/dl/windows-exe" -OutFile $setup
   } catch {
-    Write-Host "zcrypt.cloud didn't answer, downloading from GitHub instead"
+    Write-Host "$site didn't answer, downloading from GitHub instead"
     Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/Wosmos/zcrypt/releases/latest/download/zcrypt-windows-x64-setup.exe" -OutFile $setup
   }
 

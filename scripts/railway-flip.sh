@@ -100,7 +100,7 @@ Follow-ups (run in order):
   cd app/frontend
   vercel env rm NEXT_PUBLIC_API_URL production --yes
   printf '%s' '$API_URL' | vercel env add NEXT_PUBLIC_API_URL production
-  vercel redeploy https://zcrypt.cloud   # rebuilds the live production deployment; never 'vercel --prod' (uploads the local tree)
+  vercel redeploy "${SITE_URL:-https://zcrypt.cloud}"   # rebuilds the live production deployment; never 'vercel --prod' (uploads the local tree)
   gh variable set BACKEND_HEALTH_URL --body '$HEALTH'
   gh secret set RAILWAY_TOKEN        # project token: Railway dashboard > Project > Settings > Tokens
 MSG
@@ -110,7 +110,7 @@ if [ "$APPLY" = 1 ]; then
   cd "$ROOT/app/frontend"
   vercel env rm NEXT_PUBLIC_API_URL production --yes || log "no existing NEXT_PUBLIC_API_URL to remove"
   printf '%s' "$API_URL" | vercel env add NEXT_PUBLIC_API_URL production
-  vercel redeploy https://zcrypt.cloud   # rebuilds the live production deployment; never 'vercel --prod' (uploads the local tree)
+  vercel redeploy "${SITE_URL:-https://zcrypt.cloud}"   # rebuilds the live production deployment; never 'vercel --prod' (uploads the local tree)
   gh variable set BACKEND_HEALTH_URL --body "$HEALTH"
   log "done. RAILWAY_TOKEN must still be set by hand: gh secret set RAILWAY_TOKEN"
 fi

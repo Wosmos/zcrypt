@@ -12,10 +12,12 @@
 #   ZCRYPT_INSTALL_DIR  macOS: folder to put zcrypt.app in
 #   ZCRYPT_NO_OPEN=1    don't launch zcrypt after installing
 #   ZCRYPT_LINUX_FORMAT deb | rpm | appimage, skips detection
+#   ZCRYPT_SITE         site to download from, defaults to https://zcrypt.cloud
 
 set -eu
 
-SITE_DL="https://zcrypt.cloud/dl"
+SITE="${ZCRYPT_SITE:-https://zcrypt.cloud}"
+SITE_DL="$SITE/dl"
 GITHUB_DL="https://github.com/Wosmos/zcrypt/releases/latest/download"
 
 say() { printf '%s\n' "$*"; }
@@ -29,7 +31,7 @@ need() { command -v "$1" >/dev/null 2>&1 || die "$1 is required but not installe
 # GitHub directly if the site is unreachable.
 download() {
   if ! curl -fL --progress-bar --retry 2 -o "$3" "$SITE_DL/$1"; then
-    say "zcrypt.cloud didn't answer, downloading from GitHub instead"
+    say "${SITE#https://} didn't answer, downloading from GitHub instead"
     curl -fL --progress-bar --retry 2 -o "$3" "$GITHUB_DL/$2" || die "download failed"
   fi
 }
@@ -131,7 +133,7 @@ EOF
 install_linux() {
   case "$(uname -m)" in
     x86_64 | amd64) ;;
-    *) die "zcrypt for Linux is only built for x86_64 right now. The web app works on any device: https://zcrypt.cloud" ;;
+    *) die "zcrypt for Linux is only built for x86_64 right now. The web app works on any device: $SITE" ;;
   esac
 
   format="${ZCRYPT_LINUX_FORMAT:-}"
@@ -185,7 +187,7 @@ main() {
   case "$(uname -s)" in
     Darwin) install_macos ;;
     Linux) install_linux ;;
-    *) die "this installer is for macOS and Linux. On Windows, run in PowerShell: irm https://zcrypt.cloud/install.ps1 | iex" ;;
+    *) die "this installer is for macOS and Linux. On Windows, run in PowerShell: irm $SITE/install.ps1 | iex" ;;
   esac
 }
 
