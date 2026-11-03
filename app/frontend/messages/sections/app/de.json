@@ -200,7 +200,8 @@
         "savedSomeFailed": "{count} in {folder} gespeichert. {failed} konnten nicht gesendet werden.",
         "allFailed": "{failed} konnten nicht gesendet werden.",
         "downloaded": "{count} heruntergeladen.",
-        "downloadedSomeFailed": "{count} heruntergeladen. {failed} konnten nicht geladen werden."
+        "downloadedSomeFailed": "{count} heruntergeladen. {failed} konnten nicht geladen werden.",
+        "needsApp": "{count, plural, one {# Datei braucht} other {# Dateien brauchen}} die Desktop-App."
       },
       "legend": {
         "done": "Fertig",
@@ -222,7 +223,12 @@
         "uploadShort": "{count, plural, one {# Datei} other {# Dateien}} zum Hochladen ablegen → {folder}",
         "downloadShort": "{count, plural, one {# Datei} other {# Dateien}} zum Herunterladen ablegen"
       },
-      "orb": "Übertragungen, noch {left}. Tippen zum Öffnen, gedrückt halten zum Pausieren oder Fortsetzen."
+      "orb": "Übertragungen, noch {left}. Tippen zum Öffnen, gedrückt halten zum Pausieren oder Fortsetzen.",
+      "needsApp": {
+        "tooBig": "Zu groß für den Browser",
+        "allowance": "Web-Übertragungen für diesen Monat aufgebraucht",
+        "action": "App nutzen"
+      }
     },
     "tokens": {
       "expired": "Abgelaufen",
@@ -930,8 +936,7 @@
       "getDesktopApp": "Desktop-App holen",
       "openDesktopApp": "Desktop-App öffnen",
       "desktopAppMissing": "Die Desktop-App ließ sich nicht öffnen. Noch nicht installiert?",
-      "downloadDesktopApp": "Desktop-App herunterladen",
-      "desktopHandoff": "Der Browser kann die Datei nicht an die App übergeben. Öffne die App und ziehe die Datei dort hinein."
+      "downloadDesktopApp": "Desktop-App herunterladen"
     },
     "l10n": {
       "justNow": "gerade eben",
@@ -1032,6 +1037,23 @@
       "view": "Ansehen",
       "retry": "Erneut versuchen",
       "open": "Öffnen"
+    },
+    "webLimit": {
+      "tooBigTitle": "Zu groß für den Browser",
+      "tooBigManyTitle": "{count} Dateien sind zu groß für den Browser",
+      "tooBigBody": "{name} ist {size} groß. Uploads im Browser sind auf {limit} begrenzt, weil sie über unsere Server laufen. Die Desktop-App schickt Dateien direkt in deinen Speicher, ohne Größenlimit.",
+      "capBody": "Uploads im Browser sind auf {limit} begrenzt, weil sie über unsere Server laufen. Die Desktop-App schickt Dateien direkt in deinen Speicher, ohne Größenlimit.",
+      "allowanceTitle": "Deine Web-Übertragungen für diesen Monat sind aufgebraucht",
+      "allowanceBody": "{used} von {limit}. Am {date} geht es wieder von vorn los. Die Desktop-App hat kein Limit.",
+      "allowanceBodyNoDate": "{used} von {limit}. Die Desktop-App hat kein Limit.",
+      "hint": "Öffne die App und zieh {count, plural, one {die Datei} other {die Dateien}} dort hinein.",
+      "more": "und {count} weitere",
+      "open": "Desktop-App öffnen",
+      "opening": "App wird geöffnet…",
+      "get": "Desktop-App holen",
+      "missing": "Nichts passiert? Desktop-App holen",
+      "missingNote": "Es hat sich nichts geöffnet, die App ist auf diesem Gerät wohl noch nicht installiert.",
+      "notNow": "Nicht jetzt"
     }
   }
 }

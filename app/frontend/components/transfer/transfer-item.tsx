@@ -2,7 +2,7 @@
 
 import { memo, type ComponentType } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Pause, Play, StopCircle, X, type IconProps } from "@/lib/icons";
+import { Check, Monitor, Pause, Play, StopCircle, X, type IconProps } from "@/lib/icons";
 import { cn, formatBytes } from "@/lib/utils";
 import { translateLabel, type TransferPhase, type TransferView } from "@/lib/transfer-progress";
 import { TONE, TransferThumb } from "./transfer-parts";
@@ -14,6 +14,8 @@ export const TransferState = {
   Paused: "paused",
   Done: "done",
   Failed: "failed",
+  /** Refused by the web limits: only the desktop app can send it, so there is no retry. */
+  NeedsApp: "needs-app",
   Cancelled: "cancelled",
 } as const;
 
@@ -53,6 +55,8 @@ export interface TransferItemControls {
   onResumeDownload: (id: string) => void;
   onStopDownload: (id: string) => void;
   onRetryDownload: (id: string) => void;
+  /** Explain again why an upload needs the desktop app, with the way into it. */
+  onNeedsApp: (id: string) => void;
   onDismiss: (entry: TransferEntry) => void;
 }
 
@@ -99,6 +103,7 @@ function RowControls({
   if (
     state === TransferState.Done ||
     state === TransferState.Failed ||
+    state === TransferState.NeedsApp ||
     state === TransferState.Cancelled
   )
     return (
@@ -182,6 +187,8 @@ function TransferItemBase({
   const text = translateLabel(t, entry.view.label);
   const failed = entry.state === TransferState.Failed || entry.state === TransferState.Cancelled;
   const done = entry.state === TransferState.Done;
+  const needsApp = entry.state === TransferState.NeedsApp;
+  const settled = failed || done || needsApp;
   const { phase, bar } = entry.view;
   const retryLabel = entry.direction === "upload" && entry.desktop ? t("resumeUpload") : t("retry");
   const retry = () =>
@@ -204,7 +211,7 @@ function TransferItemBase({
           {entry.name}
         </p>
         <div className="mt-1 flex items-center gap-2 text-[11.5px] leading-snug text-[var(--color-text-muted)]">
-          {!failed && !done && (
+          {!settled && (
             <span
               className="relative block h-1 w-[30%] min-w-12 max-w-[130px] flex-none overflow-hidden rounded-full bg-[var(--color-surface-2)]"
               role="progressbar"
@@ -230,9 +237,25 @@ function TransferItemBase({
           {done && (
             <Check className="h-3.5 w-3.5 flex-none" weight="bold" style={{ color: TONE.ok }} />
           )}
+          {needsApp && (
+            <Monitor
+              className="h-3.5 w-3.5 flex-none"
+              weight="bold"
+              style={{ color: TONE.warn }}
+              aria-hidden="true"
+            />
+          )}
           <span
             className={cn("min-w-0", failed ? "line-clamp-2" : "truncate")}
-            style={failed ? { color: TONE.err } : done ? { color: TONE.ok } : undefined}
+            style={
+              failed
+                ? { color: TONE.err }
+                : done
+                  ? { color: TONE.ok }
+                  : needsApp
+                    ? { color: "var(--color-text-secondary)" }
+                    : undefined
+            }
           >
             {text}
             {done && entry.sizeBytes ? ` · ${formatBytes(entry.sizeBytes)}` : ""}
@@ -246,6 +269,15 @@ function TransferItemBase({
           className="flex-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
         >
           {retryLabel}
+        </button>
+      )}
+      {needsApp && (
+        <button
+          type="button"
+          onClick={() => controls.onNeedsApp(entry.id)}
+          className="flex-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        >
+          {t("needsApp.action")}
         </button>
       )}
       <div

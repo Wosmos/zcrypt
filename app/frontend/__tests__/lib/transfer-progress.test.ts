@@ -317,3 +317,45 @@ describe("translateLabel", () => {
     ).toBe("progress.sendingEta(time=time.fewSeconds,n=2)");
   });
 });
+
+describe("uploads held back for the desktop app", () => {
+  it("says why instead of offering a retry", () => {
+    const tooBig = describeUpload(
+      up({ status: "failed", error: "nope", limit: { code: "relay_file_too_large" } }),
+      ctx,
+    );
+    expect(tooBig.phase).toBe("needsApp");
+    expect(tooBig.label).toEqual({ key: "needsApp.tooBig" });
+    const allowance = describeUpload(
+      up({ status: "failed", limit: { code: "relay_allowance_exceeded" } }),
+      ctx,
+    );
+    expect(allowance.label).toEqual({ key: "needsApp.allowance" });
+  });
+
+  it("sums the batch up as needing the app when nothing else happened", () => {
+    const base: BatchCounts = {
+      direction: "upload",
+      done: 0,
+      failed: 0,
+      active: 0,
+      waiting: 0,
+      paused: 0,
+      photos: false,
+      folderName: "Family",
+      online: true,
+    };
+    expect(batchSentence({ ...base, needsApp: 2 })).toEqual({
+      key: "batch.needsApp",
+      values: { count: 2 },
+    });
+    expect(batchSentence({ ...base, needsApp: 1, done: 3 })).toEqual({
+      key: "batch.saved",
+      values: { count: 3, folder: "Family" },
+    });
+    expect(batchSentence({ ...base, needsApp: 1, failed: 1 })).toEqual({
+      key: "batch.allFailed",
+      values: { failed: 1 },
+    });
+  });
+});

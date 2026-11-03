@@ -5,6 +5,7 @@ import { CommandPalette } from "@/components/ui/command-palette";
 import { VaultLockProvider } from "@/components/providers/vault-lock-provider";
 import { AppScope } from "@/components/providers/app-scope";
 import { AppTransfers } from "@/components/transfer/app-transfers";
+import { WebTransferLimitDialog } from "@/components/upload/web-transfer-limit-dialog";
 import { FileEventsBridge } from "@/components/providers/file-events-bridge";
 import { BackgroundAlerts } from "@/components/providers/background-alerts";
 import { SpaceAddsStrip, SpaceAddsGuard } from "@/components/share/space-adds-strip";
@@ -62,6 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {/* Unified transfer manager, docked bottom-right, persists across
               navigation (stores are singletons). Renders null when idle. */}
               <AppTransfers />
+              <WebTransferLimitDialog />
               <FileEventsBridge />
               <BackgroundAlerts />
               <ReviewPrompt />

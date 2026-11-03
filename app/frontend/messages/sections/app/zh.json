@@ -200,7 +200,8 @@
         "savedSomeFailed": "{count} 个已保存到 {folder}。{failed} 个无法发送。",
         "allFailed": "{failed} 个无法发送。",
         "downloaded": "已下载 {count} 个。",
-        "downloadedSomeFailed": "已下载 {count} 个。{failed} 个无法下载。"
+        "downloadedSomeFailed": "已下载 {count} 个。{failed} 个无法下载。",
+        "needsApp": "{count} 个文件需要桌面应用。"
       },
       "legend": {
         "done": "已完成",
@@ -222,7 +223,12 @@
         "uploadShort": "松开以上传 {count} 个文件 → {folder}",
         "downloadShort": "松开以下载 {count} 个文件"
       },
-      "orb": "传输，还剩 {left} 个。点按打开，长按暂停或继续。"
+      "orb": "传输，还剩 {left} 个。点按打开，长按暂停或继续。",
+      "needsApp": {
+        "tooBig": "太大，无法在浏览器中上传",
+        "allowance": "本月网页传输额度已用完",
+        "action": "使用应用"
+      }
     },
     "tokens": {
       "expired": "已过期",
@@ -930,8 +936,7 @@
       "getDesktopApp": "获取桌面应用",
       "openDesktopApp": "打开桌面应用",
       "desktopAppMissing": "无法打开桌面应用。还没有安装？",
-      "downloadDesktopApp": "下载桌面应用",
-      "desktopHandoff": "浏览器无法把文件交给应用。请打开应用，把文件拖到里面。"
+      "downloadDesktopApp": "下载桌面应用"
     },
     "l10n": {
       "justNow": "刚刚",
@@ -1032,6 +1037,23 @@
       "view": "查看",
       "retry": "重试",
       "open": "打开"
+    },
+    "webLimit": {
+      "tooBigTitle": "文件太大，无法在浏览器中上传",
+      "tooBigManyTitle": "{count} 个文件太大，无法在浏览器中上传",
+      "tooBigBody": "{name} 的大小为 {size}。浏览器上传会经过我们的服务器，因此上限为 {limit}。桌面应用会把文件直接发送到你的存储，没有大小限制。",
+      "capBody": "浏览器上传会经过我们的服务器，因此上限为 {limit}。桌面应用会把文件直接发送到你的存储，没有大小限制。",
+      "allowanceTitle": "本月的网页传输额度已用完",
+      "allowanceBody": "已用 {used}，共 {limit}。将于 {date} 重置。桌面应用没有限制。",
+      "allowanceBodyNoDate": "已用 {used}，共 {limit}。桌面应用没有限制。",
+      "hint": "打开应用，然后把{count, plural, other {文件}}拖进去。",
+      "more": "还有 {count} 个",
+      "open": "打开桌面应用",
+      "opening": "正在打开应用…",
+      "get": "获取桌面应用",
+      "missing": "没有看到？获取桌面应用",
+      "missingNote": "没有打开任何内容，这台设备上可能还没有安装应用。",
+      "notNow": "以后再说"
     }
   }
 }

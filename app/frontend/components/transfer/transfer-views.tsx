@@ -18,6 +18,8 @@ export interface TransferSummary {
   total: number;
   done: number;
   failed: number;
+  /** Files held back for the desktop app: settled, but not done either. */
+  needsApp: number;
   active: number;
   waiting: number;
   left: number;
@@ -228,7 +230,7 @@ export function TransferOrb({
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   };
-  const doneAll = summary.settled && summary.failed === 0;
+  const doneAll = summary.settled && summary.failed === 0 && summary.needsApp === 0;
   const size = 64;
   let ring;
   let centre;

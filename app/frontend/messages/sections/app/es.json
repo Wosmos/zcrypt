@@ -200,7 +200,8 @@
         "savedSomeFailed": "{count} guardados en {folder}. {failed} no se pudieron enviar.",
         "allFailed": "{failed} no se pudieron enviar.",
         "downloaded": "{count} descargados.",
-        "downloadedSomeFailed": "{count} descargados. {failed} no se pudieron descargar."
+        "downloadedSomeFailed": "{count} descargados. {failed} no se pudieron descargar.",
+        "needsApp": "{count, plural, one {# archivo necesita} other {# archivos necesitan}} la app de escritorio."
       },
       "legend": {
         "done": "Listos",
@@ -222,7 +223,12 @@
         "uploadShort": "Suelta para subir {count, plural, one {# archivo} other {# archivos}} → {folder}",
         "downloadShort": "Suelta para descargar {count, plural, one {# archivo} other {# archivos}}"
       },
-      "orb": "Transferencias, quedan {left}. Toca para abrir, mantén pulsado para pausar o reanudar."
+      "orb": "Transferencias, quedan {left}. Toca para abrir, mantén pulsado para pausar o reanudar.",
+      "needsApp": {
+        "tooBig": "Demasiado grande para el navegador",
+        "allowance": "Sin transferencias web este mes",
+        "action": "Usar la app"
+      }
     },
     "tokens": {
       "expired": "Caducado",
@@ -930,8 +936,7 @@
       "getDesktopApp": "Descargar la app de escritorio",
       "openDesktopApp": "Abrir la app de escritorio",
       "desktopAppMissing": "No se pudo abrir la app de escritorio. ¿Aún no la tienes?",
-      "downloadDesktopApp": "Descargar la app de escritorio",
-      "desktopHandoff": "El navegador no puede pasar el archivo a la app. Abre la app y suelta el archivo allí."
+      "downloadDesktopApp": "Descargar la app de escritorio"
     },
     "l10n": {
       "justNow": "ahora mismo",
@@ -1032,6 +1037,23 @@
       "view": "Ver",
       "retry": "Reintentar",
       "open": "Abrir"
+    },
+    "webLimit": {
+      "tooBigTitle": "Demasiado grande para el navegador",
+      "tooBigManyTitle": "{count} archivos son demasiado grandes para el navegador",
+      "tooBigBody": "{name} ocupa {size}. Las subidas desde el navegador tienen un tope de {limit} porque pasan por nuestros servidores. La app de escritorio envía los archivos directamente a tu almacenamiento, sin límite de tamaño.",
+      "capBody": "Las subidas desde el navegador tienen un tope de {limit} porque pasan por nuestros servidores. La app de escritorio envía los archivos directamente a tu almacenamiento, sin límite de tamaño.",
+      "allowanceTitle": "Has usado las transferencias web de este mes",
+      "allowanceBody": "{used} de {limit}. Se restablece el {date}. La app de escritorio no tiene límite.",
+      "allowanceBodyNoDate": "{used} de {limit}. La app de escritorio no tiene límite.",
+      "hint": "Abre la app y suelta {count, plural, one {el archivo} other {los archivos}} allí.",
+      "more": "y {count} más",
+      "open": "Abrir la app de escritorio",
+      "opening": "Abriendo la app…",
+      "get": "Descargar la app de escritorio",
+      "missing": "¿No aparece? Descarga la app de escritorio",
+      "missingNote": "No se abrió nada, así que puede que la app aún no esté en este dispositivo.",
+      "notNow": "Ahora no"
     }
   }
 }

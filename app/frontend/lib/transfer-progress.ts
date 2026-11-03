@@ -5,6 +5,7 @@
  * key (relative to the `app.transfer` namespace) with its values.
  */
 
+import { WebTransferLimitCode, type WebTransferLimit } from "@/lib/web-transfer-limit";
 import { DownloadStatus, UploadStatus } from "@/types";
 
 export type TransferDirection = "upload" | "download";
@@ -24,6 +25,7 @@ export type TransferPhase =
   | "paused"
   | "offline"
   | "failed"
+  | "needsApp"
   | "stopped";
 
 /** A message key under `app.transfer` plus its values; values may nest labels. */
@@ -48,6 +50,8 @@ export interface UploadProgressInput {
   totalBytes?: number;
   error?: string;
   etaSeconds?: number;
+  /** Refused by the web limits: only the desktop app can send it. */
+  limit?: Pick<WebTransferLimit, "code">;
 }
 
 /** Raw download fields, exactly as the download store keeps them. */
@@ -185,7 +189,7 @@ export function describeUpload(i: UploadProgressInput, ctx: ProgressContext): Tr
   const stage = i.stage ?? "";
   let phase: TransferPhase;
   if (i.status === UploadStatus.Done) phase = "saved";
-  else if (i.status === UploadStatus.Failed) phase = "failed";
+  else if (i.status === UploadStatus.Failed) phase = i.limit ? "needsApp" : "failed";
   else if (i.status === UploadStatus.Paused) phase = "paused";
   else if (!ctx.online) phase = "offline";
   else if (i.status === UploadStatus.Queued)
@@ -199,6 +203,14 @@ export function describeUpload(i: UploadProgressInput, ctx: ProgressContext): Tr
       break;
     case "failed":
       label = errorLabel("upload", i.error, bar, ctx.noPlatformText);
+      break;
+    case "needsApp":
+      label = {
+        key:
+          i.limit?.code === WebTransferLimitCode.AllowanceExceeded
+            ? "needsApp.allowance"
+            : "needsApp.tooBig",
+      };
       break;
     case "sending":
       label = sendingLabel(i);
@@ -249,6 +261,8 @@ export interface BatchCounts {
   direction: TransferDirection;
   done: number;
   failed: number;
+  /** Files held back for the desktop app: settled, but neither saved nor failed. */
+  needsApp?: number;
   active: number;
   waiting: number;
   paused: number;
@@ -261,6 +275,9 @@ export interface BatchCounts {
 export function batchSentence(c: BatchCounts): TransferLabel {
   const open = c.active + c.waiting + c.paused;
   if (open === 0) {
+    const needsApp = c.needsApp ?? 0;
+    if (needsApp > 0 && c.done === 0 && c.failed === 0)
+      return { key: "batch.needsApp", values: { count: needsApp } };
     if (c.failed > 0 && c.done === 0)
       return { key: "batch.allFailed", values: { failed: c.failed } };
     if (c.direction === "download")

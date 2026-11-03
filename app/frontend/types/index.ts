@@ -1,5 +1,6 @@
 import type { CustomStyle } from "@/lib/name-crypto";
 import type { PlatformId } from "@/lib/platforms";
+import type { WebTransferLimit } from "@/lib/web-transfer-limit";
 
 export interface FileMetadata {
   id: string;
@@ -147,6 +148,9 @@ export interface UploadItem {
   /** Core-driven desktop (Tauri) item: bytes never enter the webview and the
    *  Rust core has no pause, so the pause control is hidden for these. */
   desktop?: boolean;
+  /** Set on a failed item the browser was not allowed to upload (too big, or
+   *  over the month's web transfers). Retrying cannot help: it needs the desktop app. */
+  limit?: WebTransferLimit;
 }
 
 export enum Role {

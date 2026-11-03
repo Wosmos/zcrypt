@@ -1,11 +1,13 @@
 import { resolveWebDirect } from "@/lib/byos-direct";
-import { desktopAppAction } from "@/lib/open-desktop-app";
 import { Platform } from "@/lib/platforms";
 import { isTauri } from "@/lib/tauri";
-import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
+import {
+  WebTransferLimitCode,
+  WebTransferLimitError,
+  type WebTransferLimit,
+} from "@/lib/web-transfer-limit";
 import { getQuotaData } from "@/store/quota";
-import { toast } from "@/store/toast";
-import { tr } from "@/store/translate";
+import { useWebTransferNotice, type RefusedFile } from "@/store/web-transfer-notice";
 
 /**
  * Whether a file is too big to upload from this browser. Only an upload whose
@@ -24,10 +26,14 @@ export async function webFileLimitFor(
   return new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes }, 413);
 }
 
-/** Tell the user why a web upload was held back, with a way into the desktop app. */
-export function showWebTransferLimit(err: WebTransferLimitError): void {
-  toast.error(err.message, desktopAppAction(), {
-    key: `web-transfer-limit:${err.code}`,
-    detail: tr("toasts.desktopHandoff"),
-  });
+/**
+ * Explain a refused web upload in the "use the desktop app" dialog. Refusals
+ * that share a `batch` collect in one dialog, and stay quiet once it was closed.
+ */
+export function showWebTransferLimit(
+  limit: WebTransferLimit,
+  file?: RefusedFile,
+  batch?: string,
+): void {
+  useWebTransferNotice.getState().show(limit, file, batch);
 }

@@ -104,6 +104,17 @@ export function attemptOpenDesktopApp(timeoutMs: number = OPEN_DETECT_MS): Promi
 }
 
 /**
+ * Try the link and remember how it went, so the next prompt leads with the
+ * right button. Resolves to whether the app seemed to open; what to offer when
+ * it did not is up to the caller.
+ */
+export async function tryOpenDesktopApp(): Promise<boolean> {
+  const opened = await attemptOpenDesktopApp();
+  writeMemory(opened ? "opened" : "missing");
+  return opened;
+}
+
+/**
  * The whole "open the app" flow: try the link, remember how it went so the next
  * prompt leads with the right button, and when nothing opened offer the download
  * in a new tab. Resolves to whether the app seemed to open.
@@ -113,8 +124,7 @@ export async function launchDesktopApp(): Promise<boolean> {
     openDesktopDownload();
     return false;
   }
-  const opened = await attemptOpenDesktopApp();
-  writeMemory(opened ? "opened" : "missing");
+  const opened = await tryOpenDesktopApp();
   if (!opened) {
     toast.info(
       tr("toasts.desktopAppMissing"),

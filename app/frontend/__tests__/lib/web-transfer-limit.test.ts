@@ -68,7 +68,7 @@ describe("webTransferLimitFrom", () => {
       413,
     );
     expect(err?.code).toBe(WebTransferLimitCode.FileTooLarge);
-    expect(err?.info).toEqual({ limitBytes: 2 * GIB, resetsAt: undefined });
+    expect(err?.info).toEqual({ limitBytes: 2 * GIB, usedBytes: undefined, resetsAt: undefined });
     expect(err?.status).toBe(413);
   });
 
@@ -83,15 +83,30 @@ describe("webTransferLimitFrom", () => {
       403,
     );
     expect(err?.code).toBe(WebTransferLimitCode.AllowanceExceeded);
-    expect(err?.info).toEqual({ limitBytes: 20 * GIB, resetsAt: "2026-12-01T00:00:00Z" });
+    expect(err?.info).toEqual({
+      limitBytes: 20 * GIB,
+      usedBytes: 21 * GIB,
+      resetsAt: "2026-12-01T00:00:00Z",
+    });
+    expect(err?.limit).toEqual({
+      code: WebTransferLimitCode.AllowanceExceeded,
+      limitBytes: 20 * GIB,
+      usedBytes: 21 * GIB,
+      resetsAt: "2026-12-01T00:00:00Z",
+    });
   });
 
   it("tolerates missing or malformed numbers", () => {
     const err = webTransferLimitFrom(
-      JSON.stringify({ code: "relay_allowance_exceeded", limit_bytes: "lots", resets_at: 5 }),
+      JSON.stringify({
+        code: "relay_allowance_exceeded",
+        limit_bytes: "lots",
+        used_bytes: "some",
+        resets_at: 5,
+      }),
       403,
     );
-    expect(err?.info).toEqual({ limitBytes: 0, resetsAt: undefined });
+    expect(err?.info).toEqual({ limitBytes: 0, usedBytes: undefined, resetsAt: undefined });
   });
 
   it("ignores every other error", () => {

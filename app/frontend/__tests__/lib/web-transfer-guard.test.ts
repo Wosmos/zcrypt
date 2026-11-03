@@ -5,8 +5,7 @@ const h = vi.hoisted(() => ({
   tauri: false,
   quota: null as Partial<QuotaInfo> | null,
   resolveWebDirect: vi.fn(),
-  toastError: vi.fn(),
-  action: { label: "Open the desktop app", onClick: vi.fn() },
+  show: vi.fn(),
 }));
 
 vi.mock("@/lib/tauri", () => ({
@@ -16,8 +15,9 @@ vi.mock("@/lib/tauri", () => ({
 }));
 vi.mock("@/store/quota", () => ({ getQuotaData: () => h.quota }));
 vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: h.resolveWebDirect }));
-vi.mock("@/store/toast", () => ({ toast: { error: h.toastError } }));
-vi.mock("@/lib/open-desktop-app", () => ({ desktopAppAction: () => h.action }));
+vi.mock("@/store/web-transfer-notice", () => ({
+  useWebTransferNotice: { getState: () => ({ show: h.show }) },
+}));
 
 import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
 import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
@@ -28,7 +28,7 @@ beforeEach(() => {
   h.tauri = false;
   h.quota = { relay_max_file_bytes: LIMIT };
   h.resolveWebDirect.mockReset().mockResolvedValue(null);
-  h.toastError.mockReset();
+  h.show.mockReset();
 });
 
 describe("webFileLimitFor", () => {
@@ -75,12 +75,14 @@ describe("webFileLimitFor", () => {
 });
 
 describe("showWebTransferLimit", () => {
-  it("shows the friendly message with the way into the desktop app and the hand-off hint", () => {
+  it("opens the desktop app dialog for the refused file and its batch", () => {
     const err = new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes: LIMIT }, 413);
-    showWebTransferLimit(err);
-    expect(h.toastError).toHaveBeenCalledWith(err.message, h.action, {
-      key: "web-transfer-limit:relay_file_too_large",
-      detail: "The browser can't hand the file to the app. Open the app and drop the file there.",
-    });
+    const file = { name: "big.bin", size: LIMIT + 1 };
+    showWebTransferLimit(err.limit, file, "batch-1");
+    expect(h.show).toHaveBeenCalledWith(
+      { code: WebTransferLimitCode.FileTooLarge, limitBytes: LIMIT },
+      file,
+      "batch-1",
+    );
   });
 });

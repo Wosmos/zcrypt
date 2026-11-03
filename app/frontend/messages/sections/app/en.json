@@ -200,7 +200,8 @@
         "savedSomeFailed": "{count} saved to {folder}. {failed} couldn't be sent.",
         "allFailed": "{failed} couldn't be sent.",
         "downloaded": "{count} downloaded.",
-        "downloadedSomeFailed": "{count} downloaded. {failed} couldn't be downloaded."
+        "downloadedSomeFailed": "{count} downloaded. {failed} couldn't be downloaded.",
+        "needsApp": "{count, plural, one {# file needs} other {# files need}} the desktop app."
       },
       "legend": {
         "done": "Done",
@@ -222,7 +223,12 @@
         "uploadShort": "Drop to upload {count, plural, one {# file} other {# files}} → {folder}",
         "downloadShort": "Drop to download {count, plural, one {# file} other {# files}}"
       },
-      "orb": "Transfers, {left} left. Tap to open, press and hold to pause or resume."
+      "orb": "Transfers, {left} left. Tap to open, press and hold to pause or resume.",
+      "needsApp": {
+        "tooBig": "Too big for the browser",
+        "allowance": "Over this month's web transfers",
+        "action": "Use the app"
+      }
     },
     "tokens": {
       "expired": "Expired",
@@ -930,8 +936,7 @@
       "getDesktopApp": "Get the desktop app",
       "openDesktopApp": "Open the desktop app",
       "desktopAppMissing": "Couldn't open the desktop app. Don't have it yet?",
-      "downloadDesktopApp": "Download the desktop app",
-      "desktopHandoff": "The browser can't hand the file to the app. Open the app and drop the file there."
+      "downloadDesktopApp": "Download the desktop app"
     },
     "l10n": {
       "justNow": "just now",
@@ -1032,6 +1037,23 @@
       "view": "View",
       "retry": "Retry",
       "open": "Open"
+    },
+    "webLimit": {
+      "tooBigTitle": "Too big for the browser",
+      "tooBigManyTitle": "{count} files are too big for the browser",
+      "tooBigBody": "{name} is {size}. Browser uploads are capped at {limit} because they pass through our servers. The desktop app sends files straight to your storage, with no size limit.",
+      "capBody": "Browser uploads are capped at {limit} because they pass through our servers. The desktop app sends files straight to your storage, with no size limit.",
+      "allowanceTitle": "You've used this month's web transfers",
+      "allowanceBody": "{used} of {limit}. It resets on {date}. The desktop app has no limit.",
+      "allowanceBodyNoDate": "{used} of {limit}. The desktop app has no limit.",
+      "hint": "Open the app, then drop {count, plural, one {the file} other {the files}} there.",
+      "more": "and {count} more",
+      "open": "Open the desktop app",
+      "opening": "Opening the app…",
+      "get": "Get the desktop app",
+      "missing": "Don't see it? Get the desktop app",
+      "missingNote": "Nothing opened, so the app may not be on this device yet.",
+      "notNow": "Not now"
     }
   }
 }

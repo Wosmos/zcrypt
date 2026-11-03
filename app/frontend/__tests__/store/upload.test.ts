@@ -773,33 +773,154 @@ describe("useUploadStore", () => {
   });
 
   describe("web transfer limits", () => {
-    it("does not start a file too big for a web upload, and points at the desktop app", async () => {
-      const limit = new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes: 5 }, 413);
+    const tooBig = () =>
+      new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes: 5 }, 413);
+    const noToasts = () => {
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.warning).not.toHaveBeenCalled();
+      expect(notifyMock).not.toHaveBeenCalled();
+    };
+
+    it("does not start a file too big for a web upload, and opens the desktop app dialog instead of a failure toast", async () => {
+      const limit = tooBig();
       guardMock.webFileLimitFor.mockResolvedValue(limit);
       useUploadStore.getState().startUpload([makeFile("big.bin", 10)], "pw", undefined, undefined, undefined, null);
       await flush();
       expect(guardMock.webFileLimitFor).toHaveBeenCalledWith(10, undefined);
       expect(contentMacFile).not.toHaveBeenCalled();
+      expect(deriveKeyBytes).not.toHaveBeenCalled();
       expect(initUpload).not.toHaveBeenCalled();
-      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(limit);
-      expect(getItem(queueIdFor())).toMatchObject({ status: "failed", error: limit.message });
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledTimes(1);
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(
+        limit.limit,
+        { name: "big.bin", size: 10 },
+        expect.stringMatching(/^batch/),
+      );
+      expect(getItem(queueIdFor())).toMatchObject({
+        status: "failed",
+        error: limit.message,
+        limit: { code: WebTransferLimitCode.FileTooLarge, limitBytes: 5 },
+      });
+      noToasts();
     });
 
-    it("explains a server refusal over the monthly allowance", async () => {
+    it("holds back every big file of a batch under one dialog and sends the rest", async () => {
+      guardMock.webFileLimitFor.mockImplementation(async (size: number) => (size > 5 ? tooBig() : null));
+      useUploadStore
+        .getState()
+        .startUpload(
+          [makeFile("big1.bin", 10), makeFile("small.txt", 3), makeFile("big2.bin", 12)],
+          "pw",
+          "telegram",
+          undefined,
+          undefined,
+          null,
+        );
+      await flush();
+      const calls = guardMock.showWebTransferLimit.mock.calls;
+      expect(calls.map((c) => c[1])).toEqual([
+        { name: "big1.bin", size: 10 },
+        { name: "big2.bin", size: 12 },
+      ]);
+      expect(calls[0][2]).toBe(calls[1][2]);
+      const queue = useUploadStore.getState().queue;
+      expect(queue.map((i) => [i.file.name, i.status, !!i.limit])).toEqual([
+        ["big1.bin", "failed", true],
+        ["small.txt", "done", false],
+        ["big2.bin", "failed", true],
+      ]);
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(toast.success).toHaveBeenCalledWith("small.txt uploaded", expect.anything());
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(toast.warning).not.toHaveBeenCalled();
+    });
+
+    it("leaves a limit check that fails to the file's own run", async () => {
+      guardMock.webFileLimitFor.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(null);
+      useUploadStore.getState().startUpload([makeFile("a.bin", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      expect(guardMock.webFileLimitFor).toHaveBeenCalledTimes(2);
+      expect(getItem(queueIdFor())?.status).toBe("done");
+    });
+
+    it("catches a file the run's own check refuses", async () => {
+      const limit = tooBig();
+      guardMock.webFileLimitFor.mockResolvedValueOnce(null).mockResolvedValue(limit);
+      useUploadStore.getState().startUpload([makeFile("a.bin", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      expect(contentMacFile).not.toHaveBeenCalled();
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(
+        limit.limit,
+        { name: "a.bin", size: 10 },
+        expect.stringMatching(/^batch/),
+      );
+      expect(getItem(queueIdFor())).toMatchObject({ status: "failed", limit: limit.limit });
+      noToasts();
+    });
+
+    it("explains a server refusal over the monthly allowance with the dialog alone", async () => {
       const limit = new WebTransferLimitError(
         WebTransferLimitCode.AllowanceExceeded,
-        { limitBytes: 20, resetsAt: "2026-12-01T00:00:00Z" },
+        { limitBytes: 20, usedBytes: 21, resetsAt: "2026-12-01T00:00:00Z" },
         403,
       );
       (initUpload as Mock).mockRejectedValue(limit);
       useUploadStore.getState().startUpload([makeFile("a.bin", 10)], "pw", "telegram", undefined, undefined, null);
       await flush();
       expect(initUpload).toHaveBeenCalledTimes(1);
-      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(limit);
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(
+        limit.limit,
+        { name: "a.bin", size: 10 },
+        expect.stringMatching(/^batch/),
+      );
       expect(getItem(queueIdFor())).toMatchObject({
         status: "failed",
         error: expect.stringContaining("Resets on December 1"),
+        limit: limit.limit,
       });
+      noToasts();
+    });
+
+    it("stays silent about a refusal for an upload that was cancelled meanwhile", async () => {
+      let refuse: () => void = () => {};
+      const limit = new WebTransferLimitError(WebTransferLimitCode.AllowanceExceeded, { limitBytes: 20 }, 403);
+      (initUpload as Mock).mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            refuse = () => reject(limit);
+          }),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.bin", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      useUploadStore.getState().removeFromQueue(queueIdFor());
+      refuse();
+      await flush();
+      expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
+    });
+
+    it("never retries a held-back file: Retry opens the dialog again", async () => {
+      guardMock.webFileLimitFor.mockResolvedValue(tooBig());
+      useUploadStore.getState().startUpload([makeFile("big.bin", 10)], "pw", undefined, undefined, undefined, null);
+      await flush();
+      guardMock.showWebTransferLimit.mockClear();
+      guardMock.webFileLimitFor.mockClear();
+      const id = queueIdFor();
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush();
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(getItem(id)?.limit, {
+        name: "big.bin",
+        size: 10,
+      });
+      expect(guardMock.webFileLimitFor).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
+    it("drops the limit mark when an item fails for an ordinary reason", () => {
+      const id = useUploadStore.getState().addToQueue(makeFile("a.bin", 10));
+      useUploadStore.getState().setError(id, "limit", tooBig().limit);
+      useUploadStore.getState().setError(id, "network");
+      expect(getItem(id)?.limit).toBeUndefined();
     });
   });
 

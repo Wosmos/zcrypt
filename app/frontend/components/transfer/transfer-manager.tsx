@@ -13,7 +13,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
-import { DownloadStatus, UploadStatus } from "@/types";
+import { DownloadStatus, UploadStatus, type UploadItem } from "@/types";
 import { usePassphraseStore } from "@/store/passphrase";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -26,6 +26,7 @@ import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
+import { showWebTransferLimit } from "@/lib/web-transfer-guard";
 import { ChevronDown, Lock, X } from "@/lib/icons";
 import { cn, extOf, formatBytes, isImageFile, isVideoFile } from "@/lib/utils";
 import {
@@ -57,17 +58,19 @@ export interface TransferManagerProps {
 
 const STATE_RANK: Record<TransferState, number> = {
   [TransferState.Failed]: 0,
-  [TransferState.Active]: 1,
-  [TransferState.Paused]: 2,
-  [TransferState.Queued]: 3,
-  [TransferState.Cancelled]: 4,
-  [TransferState.Done]: 5,
+  [TransferState.NeedsApp]: 1,
+  [TransferState.Active]: 2,
+  [TransferState.Paused]: 3,
+  [TransferState.Queued]: 4,
+  [TransferState.Cancelled]: 5,
+  [TransferState.Done]: 6,
 };
 const BATCH_MIN = 10;
 const FOLD_DONE_MS = 5000;
 const ORB_FADE_MS = 4000;
 
-function uploadState(status: UploadStatus): TransferState {
+function uploadState({ status, limit }: UploadItem): TransferState {
+  if (status === UploadStatus.Failed && limit) return TransferState.NeedsApp;
   if (
     status === UploadStatus.Done ||
     status === UploadStatus.Failed ||
@@ -245,7 +248,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         direction: "upload",
         name: item.file.name,
         fileId: item.fileId,
-        state: uploadState(item.status),
+        state: uploadState(item),
         view: describeUpload(
           { ...item, etaSeconds },
           { online, folderName: folderName(folderId), prevBar: bars[key], noPlatformText },
@@ -291,6 +294,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const count = (s: TransferState) => entries.filter((e) => e.state === s).length;
   const done = count(TransferState.Done);
   const failed = count(TransferState.Failed);
+  const needsApp = count(TransferState.NeedsApp);
   const active = count(TransferState.Active);
   const waiting = count(TransferState.Queued);
   const paused = count(TransferState.Paused);
@@ -328,7 +332,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     return () => clearTimeout(timer);
   }, [doneKeys]);
 
-  const orbDone = isPhone && collapsed && settled && failed === 0 && entries.length > 0;
+  const orbDone =
+    isPhone && collapsed && settled && failed === 0 && needsApp === 0 && entries.length > 0;
   useEffect(() => {
     if (!orbDone) return;
     const timer = setTimeout(() => setDismissed(true), ORB_FADE_MS);
@@ -355,6 +360,11 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         withDownloadPassword(item.fileId, (pass) =>
           retryDownload(id, pass, resolveFilePasswordGlobal),
         );
+    },
+    onNeedsApp: (id: string) => {
+      const item = uploadQueue.find((u) => u.id === id);
+      if (item?.limit)
+        showWebTransferLimit(item.limit, { name: item.file.name, size: item.file.size });
     },
     onDismiss: (entry: TransferEntry) =>
       entry.direction === "upload" ? dismissUpload(entry.id) : removeDownload(entry.id),
@@ -438,6 +448,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     direction: uploads.length > 0 ? "upload" : "download",
     done: sentenceList.filter((e) => e.state === TransferState.Done).length,
     failed: sentenceList.filter((e) => e.state === TransferState.Failed).length,
+    needsApp: sentenceList.filter((e) => e.state === TransferState.NeedsApp).length,
     active: sentenceList.filter((e) => e.state === TransferState.Active).length,
     waiting: sentenceList.filter((e) => e.state === TransferState.Queued).length,
     paused: sentenceList.filter((e) => e.state === TransferState.Paused).length,
@@ -476,6 +487,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
             sum +
             (e.state === TransferState.Done ||
             e.state === TransferState.Failed ||
+            e.state === TransferState.NeedsApp ||
             e.state === TransferState.Cancelled
               ? 100
               : e.view.bar),
@@ -502,6 +514,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     total: entries.length,
     done,
     failed,
+    needsApp,
     active,
     waiting,
     left,

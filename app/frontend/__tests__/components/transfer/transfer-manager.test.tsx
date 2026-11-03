@@ -15,6 +15,7 @@ import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
 import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
+import { useWebTransferNotice } from "@/store/web-transfer-notice";
 import type { UploadItem } from "@/types";
 
 const MB = 1024 * 1024;
@@ -187,6 +188,50 @@ describe("TransferManager panel", () => {
     expect(within(rows[0] as HTMLElement).getByText(/the connection dropped at 59%/)).toBeInTheDocument();
     fireEvent.click(within(rows[0] as HTMLElement).getByRole("button", { name: "Retry" }));
     expect(actions.retryUpload).toHaveBeenCalledWith("bad", "pass");
+  });
+
+  it("a file held back for the desktop app says why, offers the app instead of Retry, and stays out of Retry failed", () => {
+    const limit = { code: "relay_file_too_large" as const, limitBytes: 1024 * 1024 };
+    seed([
+      up("big", { status: "failed", error: "too big", limit }, "big-2.5mb.bin", 2.5 * MB),
+      up("bad", { status: "failed", error: "x" }),
+    ]);
+    render(<TransferManager />);
+    const row = document.querySelector('[data-transfer-row="up:big"]') as HTMLElement;
+    expect(row).toHaveAttribute("data-state", "needs-app");
+    expect(within(row).getByText("Too big for the browser")).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "Retry" })).toBeNull();
+    fireEvent.click(within(row).getByRole("button", { name: "Use the app" }));
+    expect(useWebTransferNotice.getState().notice).toEqual({
+      ...limit,
+      files: [{ name: "big-2.5mb.bin", size: 2.5 * MB }],
+    });
+    act(() => useWebTransferNotice.getState().close());
+    fireEvent.click(within(row).getByRole("button", { name: "Dismiss" }));
+    expect(actions.dismissUpload).toHaveBeenCalledWith("big");
+    fireEvent.click(screen.getByRole("button", { name: "Retry failed" }));
+    expect(actions.retryUpload).toHaveBeenCalledTimes(1);
+    expect(actions.retryUpload).toHaveBeenCalledWith("bad", "pass");
+  });
+
+  it("with only held-back files there is nothing to retry, and the header says the app is needed", () => {
+    seed([
+      up("big", {
+        status: "failed",
+        limit: { code: "relay_allowance_exceeded", limitBytes: 3 },
+      }),
+    ]);
+    render(<TransferManager />);
+    expect(screen.getByText("Over this month's web transfers")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry failed" })).toBeNull();
+    expect(header()).toHaveTextContent("0/1 · done");
+    expect(header().querySelector("[data-header-sub]")).toHaveTextContent(
+      "1 file needs the desktop app.",
+    );
+    act(() => {
+      window.dispatchEvent(new Event(RETRY_TRANSFERS_EVENT));
+    });
+    expect(actions.retryUpload).not.toHaveBeenCalled();
   });
 
   it("retries every failure when a notification's Retry is tapped", () => {
@@ -442,6 +487,18 @@ describe("TransferManager phone orb", () => {
     fireEvent.pointerDown(paused);
     act(() => vi.advanceTimersByTime(500));
     expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass");
+  });
+
+  it("does not turn green or fade while a file still needs the desktop app", () => {
+    vi.useFakeTimers();
+    seed([
+      up("a", { status: "done", progress: 100 }),
+      up("b", { status: "failed", limit: { code: "relay_file_too_large", limitBytes: 3 } }),
+    ]);
+    const { container } = render(<TransferManager />);
+    expect(screen.getByRole("button", { name: /Transfers/ })).not.toHaveAttribute("data-orb", "done");
+    act(() => vi.advanceTimersByTime(4000));
+    expect(container).not.toBeEmptyDOMElement();
   });
 
   it("turns green when done and fades after 4 seconds", () => {

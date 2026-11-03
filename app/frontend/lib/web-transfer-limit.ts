@@ -16,8 +16,15 @@ export const DESKTOP_DOWNLOAD_PATH = "/download";
 /** The numbers behind a refused web upload. */
 export interface WebTransferLimitInfo {
   limitBytes: number;
+  /** How much of the monthly allowance is gone. Only set for the allowance. */
+  usedBytes?: number;
   /** When the monthly allowance starts over (ISO 8601). Only set for the allowance. */
   resetsAt?: string;
+}
+
+/** A refused web upload, as the upload queue keeps it and the dialog explains it. */
+export interface WebTransferLimit extends WebTransferLimitInfo {
+  code: WebTransferLimitCode;
 }
 
 /** The day the monthly allowance starts over, in the reader's language. The server counts UTC days. */
@@ -54,6 +61,11 @@ export class WebTransferLimitError extends ApiError {
     this.code = code;
     this.info = info;
   }
+
+  /** The refusal as plain data, for the upload queue and the dialog. */
+  get limit(): WebTransferLimit {
+    return { code: this.code, ...this.info };
+  }
 }
 
 function isLimitCode(value: unknown): value is WebTransferLimitCode {
@@ -64,7 +76,12 @@ function isLimitCode(value: unknown): value is WebTransferLimitCode {
 
 /** Read a refused upload's response body. Returns null for any other error. */
 export function webTransferLimitFrom(body: string, status: number): WebTransferLimitError | null {
-  let data: { code?: unknown; limit_bytes?: unknown; resets_at?: unknown } | null;
+  let data: {
+    code?: unknown;
+    limit_bytes?: unknown;
+    used_bytes?: unknown;
+    resets_at?: unknown;
+  } | null;
   try {
     data = JSON.parse(body);
   } catch {
@@ -73,5 +90,6 @@ export function webTransferLimitFrom(body: string, status: number): WebTransferL
   if (!isLimitCode(data?.code)) return null;
   const limitBytes = Number(data.limit_bytes) || 0;
   const resetsAt = typeof data.resets_at === "string" ? data.resets_at : undefined;
-  return new WebTransferLimitError(data.code, { limitBytes, resetsAt }, status);
+  const usedBytes = typeof data.used_bytes === "number" ? data.used_bytes : undefined;
+  return new WebTransferLimitError(data.code, { limitBytes, usedBytes, resetsAt }, status);
 }

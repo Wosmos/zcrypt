@@ -60,7 +60,7 @@ import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
 import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
-import { WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { WebTransferLimitError, type WebTransferLimit } from "@/lib/web-transfer-limit";
 import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
 import { createFrameBatch } from "@/lib/frame-batch";
 import type { WorkerOutput } from "@/workers/crypto-worker";
@@ -206,7 +206,8 @@ interface UploadStore {
     totalBytes?: number,
     rateBps?: number,
   ) => void;
-  setError: (id: string, error: string) => void;
+  /** Mark an item failed. `limit` marks a refusal only the desktop app gets past. */
+  setError: (id: string, error: string, limit?: WebTransferLimit) => void;
   removeFromQueue: (id: string) => void; // DESTRUCTIVE: cancels the session + deletes staged data. Explicit "Cancel" only.
   dismissUpload: (id: string) => void; // NON-destructive: clears the dock row but keeps the upload recoverable.
   clearCompleted: () => void;
@@ -547,6 +548,8 @@ interface UploadFileOpts {
    * (and own) a transient pool per call.
    */
   pool?: WorkerPool;
+  /** The startUpload call this run belongs to, so its web-limit refusals share one dialog. */
+  batch?: string;
 }
 
 // Runs one file through the client-side crypto + upload pipeline.
@@ -1289,7 +1292,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       /* v8 ignore stop */
       return;
     }
-    if (err instanceof WebTransferLimitError) showWebTransferLimit(err);
+    if (err instanceof WebTransferLimitError) {
+      if (!isCurrentRun()) return;
+      setError(id, err.message, err.limit);
+      showWebTransferLimit(err.limit, { name: file.name, size: file.size }, opts.batch);
+      return;
+    }
     const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
     const friendlyMsg = msg.includes("storage not available") ? tr("hooks.noPlatform") : msg;
     if (isCurrentRun()) setError(id, friendlyMsg);
@@ -1353,6 +1361,28 @@ async function adoptServerSession(
   } catch {
     return undefined; // wrong passphrase for the original envelope / transient
   }
+}
+
+/** Hold back, up front, every file in a batch too big for a web upload, so the
+ *  batch gets one dialog right away instead of one per file as each turn comes.
+ *  Returns the ids it held back. A check that fails is left to the file's run. */
+async function refuseTooBigForWeb(
+  items: { file: File; id: string }[],
+  platform: string | undefined,
+  batch: string,
+): Promise<Set<string>> {
+  const limits = await Promise.all(
+    items.map(({ file }) => webFileLimitFor(file.size, platform).catch(() => null)),
+  );
+  const refused = new Set<string>();
+  limits.forEach((err, n) => {
+    if (!err) return;
+    const { file, id } = items[n];
+    refused.add(id);
+    useUploadStore.getState().setError(id, err.message, err.limit);
+    showWebTransferLimit(err.limit, { name: file.name, size: file.size }, batch);
+  });
+  return refused;
 }
 
 // Launch a run and record its promise so resume/retry can await the previous
@@ -1475,7 +1505,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     progressBatch.queue(id, { status, progress, stage, bytesProcessed, totalBytes, rateBps });
   },
 
-  setError: (id, error) => {
+  setError: (id, error, limit) => {
     // Sets "failed" directly, bypassing updateStatus's throttle, so it must
     // also purge any still-queued progress write for this id, the same way
     // updateStatus's own terminal branch does. Otherwise a requestAnimationFrame
@@ -1485,7 +1515,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     progressBatch.drop(id);
     set((state) => ({
       queue: state.queue.map((item) =>
-        item.id === id ? { ...item, status: UploadStatus.Failed, error } : item,
+        item.id === id ? { ...item, status: UploadStatus.Failed, error, limit } : item,
       ),
     }));
   },
@@ -1630,13 +1660,17 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // every uploadOneFile call and torn down when the batch settles, the
     // finally runs even if setup or an upload throws. uploadOneFile catches its
     // own per-file errors (setError), so Promise.all settles when all files do.
+    const batch = genId("batch");
     void (async () => {
       const pool = new WorkerPool();
       try {
+        const refused = await refuseTooBigForWeb(items, platform, batch);
+        const runnable = items.filter((it) => !refused.has(it.id));
+        if (runnable.length === 0) return;
         const batchSalt = generateSalt();
         const batchKek = { salt: batchSalt, kekBytes: await deriveKeyBytes(passphrase, batchSalt) };
         await Promise.all(
-          items.map(async ({ file, id }) => {
+          runnable.map(async ({ file, id }) => {
             await sem.acquire();
             try {
               const meta = itemMeta.get(id);
@@ -1648,6 +1682,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
                 folderId: meta?.folderId,
                 batchKek,
                 pool,
+                batch,
               });
             } finally {
               sem.release();
@@ -1659,9 +1694,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         stopBackgroundNotifications();
       }
 
-      // Batch complete: show a single summary toast
-      const { queue } = get();
-      const batchItems = queue.filter((q) => batchIds.has(q.id));
+      // Batch complete: show a single summary toast. Files the browser was not
+      // allowed to upload already have their own dialog, so they are left out.
+      const batchItems = get().queue.filter((q) => batchIds.has(q.id) && !q.limit);
       const doneCount = batchItems.filter((i) => i.status === UploadStatus.Done).length;
       const failedCount = batchItems.filter((i) => i.status === UploadStatus.Failed).length;
       const pausedCount = batchItems.filter((i) => i.status === UploadStatus.Paused).length;
@@ -1670,15 +1705,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       // If any item is paused, the batch isn't truly finished, suppress the
       // summary toast. Resuming re-runs uploadOneFile (via resumeUpload), and the
       // user will see the per-item completion in the transfer manager.
-      if (pausedCount === 0) {
+      if (pausedCount === 0 && total > 0) {
         notifyBatchEnd(batchItems, folderId);
         if (total === 1) {
           if (doneCount === 1)
-            toast.success(tr("toasts.uploaded", { name: items[0].file.name }), {
+            toast.success(tr("toasts.uploaded", { name: batchItems[0].file.name }), {
               sound: { event: "done", area: "transfers" },
             });
           else if (failedCount === 1)
-            toast.error(tr("toasts.failedName", { name: items[0].file.name }));
+            toast.error(tr("toasts.failedName", { name: batchItems[0].file.name }));
         } else if (failedCount === 0) {
           toast.success(tr("toasts.allUploaded", { count: doneCount }), {
             sound: { event: "done", area: "transfers" },
@@ -1699,6 +1734,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   retryUpload: (id, passphrase) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
+    if (item.limit) {
+      showWebTransferLimit(item.limit, { name: item.file.name, size: item.file.size });
+      return;
+    }
     const meta = itemMeta.get(id);
     // Desktop-core item: NEVER route into the web pipeline, item.file is a
     // 0-byte placeholder, so the web path inits with size 0 and fails with the

@@ -200,7 +200,8 @@
         "savedSomeFailed": "{count} enregistrés dans {folder}. {failed} n'ont pas pu être envoyés.",
         "allFailed": "{failed} n'ont pas pu être envoyés.",
         "downloaded": "{count} téléchargés.",
-        "downloadedSomeFailed": "{count} téléchargés. {failed} n'ont pas pu être téléchargés."
+        "downloadedSomeFailed": "{count} téléchargés. {failed} n'ont pas pu être téléchargés.",
+        "needsApp": "{count, plural, one {# fichier nécessite} other {# fichiers nécessitent}} l'application de bureau."
       },
       "legend": {
         "done": "Terminés",
@@ -222,7 +223,12 @@
         "uploadShort": "Déposez pour envoyer {count, plural, one {# fichier} other {# fichiers}} → {folder}",
         "downloadShort": "Déposez pour télécharger {count, plural, one {# fichier} other {# fichiers}}"
       },
-      "orb": "Transferts, encore {left}. Touchez pour ouvrir, maintenez pour mettre en pause ou reprendre."
+      "orb": "Transferts, encore {left}. Touchez pour ouvrir, maintenez pour mettre en pause ou reprendre.",
+      "needsApp": {
+        "tooBig": "Trop volumineux pour le navigateur",
+        "allowance": "Transferts web du mois épuisés",
+        "action": "Utiliser l'app"
+      }
     },
     "tokens": {
       "expired": "Expiré",
@@ -930,8 +936,7 @@
       "getDesktopApp": "Obtenir l'application de bureau",
       "openDesktopApp": "Ouvrir l'application de bureau",
       "desktopAppMissing": "Impossible d'ouvrir l'application de bureau. Vous ne l'avez pas encore ?",
-      "downloadDesktopApp": "Télécharger l'application de bureau",
-      "desktopHandoff": "Le navigateur ne peut pas transmettre le fichier à l'application. Ouvrez l'application et déposez-y le fichier."
+      "downloadDesktopApp": "Télécharger l'application de bureau"
     },
     "l10n": {
       "justNow": "à l'instant",
@@ -1032,6 +1037,23 @@
       "view": "Voir",
       "retry": "Réessayer",
       "open": "Ouvrir"
+    },
+    "webLimit": {
+      "tooBigTitle": "Trop volumineux pour le navigateur",
+      "tooBigManyTitle": "{count} fichiers sont trop volumineux pour le navigateur",
+      "tooBigBody": "{name} fait {size}. Les envois depuis le navigateur sont limités à {limit}, car ils passent par nos serveurs. L'application de bureau envoie les fichiers directement vers votre stockage, sans limite de taille.",
+      "capBody": "Les envois depuis le navigateur sont limités à {limit}, car ils passent par nos serveurs. L'application de bureau envoie les fichiers directement vers votre stockage, sans limite de taille.",
+      "allowanceTitle": "Vous avez utilisé vos transferts web du mois",
+      "allowanceBody": "{used} sur {limit}. Remise à zéro le {date}. L'application de bureau n'a aucune limite.",
+      "allowanceBodyNoDate": "{used} sur {limit}. L'application de bureau n'a aucune limite.",
+      "hint": "Ouvrez l'application, puis déposez-y {count, plural, one {le fichier} other {les fichiers}}.",
+      "more": "et {count} de plus",
+      "open": "Ouvrir l'application de bureau",
+      "opening": "Ouverture de l'application…",
+      "get": "Obtenir l'application de bureau",
+      "missing": "Rien ne s'affiche ? Obtenir l'application de bureau",
+      "missingNote": "Rien ne s'est ouvert : l'application n'est peut-être pas encore installée sur cet appareil.",
+      "notNow": "Pas maintenant"
     }
   }
 }
