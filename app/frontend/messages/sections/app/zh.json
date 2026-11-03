@@ -31,6 +31,12 @@
       "connectOwn": "连接自己的存储",
       "dismiss": "今天不再显示"
     },
+    "telegramBlocked": {
+      "title": "此网络似乎屏蔽了 Telegram。",
+      "body": "你的文件是安全的。打开 VPN,zcrypt 就能直接连接你的 Telegram 存储,速度更快。",
+      "checkAgain": "重新检查",
+      "checking": "正在检查"
+    },
     "incomplete": {
       "expiringNow": "即将过期",
       "expiresMinutes": "{count} 分钟后过期",

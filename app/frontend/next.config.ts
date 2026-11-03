@@ -20,7 +20,8 @@ const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 //    nonce + 'strict-dynamic' policy is the stronger web-only follow-up.
 //  - 'wasm-unsafe-eval' is required by the zstd + sql.js WebAssembly modules.
 //  - connect-src must include the cross-origin API + its WebSocket origin
-//    (device-to-device transfer) + Vercel analytics.
+//    (device-to-device transfer) + Vercel analytics + the Telegram Bot API
+//    (reachability check and direct uploads to the user's own bot).
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const apiWss = apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
 const cspValue = [
@@ -29,7 +30,7 @@ const cspValue = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWss} https://va.vercel-scripts.com https://vitals.vercel-insights.com`
+  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org https://va.vercel-scripts.com https://vitals.vercel-insights.com`
     .replace(/\s+/g, " ")
     .trim(),
   "media-src 'self' blob:",

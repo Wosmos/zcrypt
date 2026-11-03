@@ -21,6 +21,7 @@ import { UploadZone } from "@/components/upload/upload-zone";
 import { PlatformSelector } from "@/components/upload/platform-selector";
 import { IncompleteUploads } from "@/components/upload/incomplete-uploads";
 import { SharedStorageBanner } from "@/components/dashboard/shared-storage-banner";
+import { TelegramBlockedBanner } from "@/components/dashboard/telegram-blocked-banner";
 import { ConnectStorageDialog } from "@/components/dashboard/connect-storage-dialog";
 
 import { EmptyState } from "@/components/ui/empty-state";
@@ -491,6 +492,7 @@ export default function VaultPage() {
               shared-storage nudge for users riding the global token. Above the
               uploads so it is seen before a transfer the cap would refuse. */}
         <SharedStorageBanner />
+        <TelegramBlockedBanner />
         <ConnectStorageDialog />
 
         {/* Unfinished uploads (started but never completed), resume or discard.

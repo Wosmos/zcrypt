@@ -31,6 +31,12 @@
       "connectOwn": "اربط تخزينك",
       "dismiss": "إخفاء لليوم"
     },
+    "telegramBlocked": {
+      "title": "يبدو أن تيليجرام محجوب على هذه الشبكة.",
+      "body": "ملفاتك بأمان. شغّل VPN حتى يصل zcrypt إلى تخزينك على تيليجرام مباشرة، وهذا أسرع.",
+      "checkAgain": "تحقق مرة أخرى",
+      "checking": "جارٍ التحقق"
+    },
     "incomplete": {
       "expiringNow": "تنتهي صلاحيته الآن",
       "expiresMinutes": "تنتهي صلاحيته خلال {count} د",

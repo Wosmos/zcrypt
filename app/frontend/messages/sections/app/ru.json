@@ -31,6 +31,12 @@
       "connectOwn": "Подключить своё",
       "dismiss": "Скрыть на сегодня"
     },
+    "telegramBlocked": {
+      "title": "Похоже, Telegram заблокирован в этой сети.",
+      "body": "Ваши файлы в безопасности. Включите VPN, чтобы zcrypt напрямую подключался к вашему хранилищу в Telegram, так быстрее.",
+      "checkAgain": "Проверить снова",
+      "checking": "Проверка"
+    },
     "incomplete": {
       "expiringNow": "срок истекает",
       "expiresMinutes": "истекает через {count} мин",

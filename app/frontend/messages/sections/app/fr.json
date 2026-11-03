@@ -31,6 +31,12 @@
       "connectOwn": "Connecter le vôtre",
       "dismiss": "Masquer pour aujourd'hui"
     },
+    "telegramBlocked": {
+      "title": "Telegram semble bloqué sur ce réseau.",
+      "body": "Tes fichiers sont en sécurité. Active un VPN pour que zcrypt atteigne directement ton stockage Telegram, c'est plus rapide.",
+      "checkAgain": "Vérifier à nouveau",
+      "checking": "Vérification"
+    },
     "incomplete": {
       "expiringNow": "expire maintenant",
       "expiresMinutes": "expire dans {count} min",
