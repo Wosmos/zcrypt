@@ -27,7 +27,7 @@ import { Plan, Role } from "@/types";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
 import { qk } from "@/lib/query-keys";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
-import { RoleBadge, PlanBadge } from "@/components/admin/badges";
+import { RoleBadge, PlanBadge, HeavyRelayBadge } from "@/components/admin/badges";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
 import { CountryLabel } from "@/components/admin/location-cell";
 import { PlatformChips, useConnectedPlatformLabel } from "@/components/admin/connected-platforms";
@@ -255,8 +255,12 @@ export function AdminUserDetailContent() {
                       {t("twoFa")}
                     </span>
                   )}
+                  {u.heavy_relay && <HeavyRelayBadge bytes={u.relay_24h_bytes ?? 0} />}
                   <span className="text-xs text-[var(--color-text-muted)]">
                     {u.email_verified ? t("verified") : t("unverified")}
+                  </span>
+                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
+                    · {t("webTransfersMonth", { amount: formatBytes(u.relay_month_bytes ?? 0) })}
                   </span>
                   {u.last_seen_at && (
                     <span className="text-xs text-[var(--color-text-muted)]">

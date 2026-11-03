@@ -104,7 +104,11 @@
       "sharedPill": "مشترکہ",
       "ownPlatforms": "اپنے اکاؤنٹس",
       "sharedPlatforms": "ایڈمن کا مشترکہ اسٹوریج استعمال کر رہا ہے",
-      "unlimitedOwn": "لامحدود (اپنا اسٹوریج)"
+      "unlimitedOwn": "لامحدود (اپنا اسٹوریج)",
+      "heavyRelay": "زیادہ ویب ٹرانسفر",
+      "heavyRelayHint": "پچھلے ایک دن میں سرور کے ذریعے {amount}",
+      "webTransfers": "ویب ٹرانسفرز",
+      "heavyRelayOnly": "زیادہ ویب ٹرانسفر"
     },
     "reauth": {
       "confirm": "جاری رکھنے کے لیے تصدیق کریں کہ یہ آپ ہیں۔",
@@ -497,7 +501,8 @@
       "actions": "صارف کی اقدامات",
       "lastSeen": "{time} دیکھا گیا",
       "signedUpIn": "{country} میں رجسٹر ہوا",
-      "unverified": "ای میل کی تصدیق نہیں ہوئی"
+      "unverified": "ای میل کی تصدیق نہیں ہوئی",
+      "webTransfersMonth": "اس مہینے ویب ٹرانسفرز: {amount}"
     },
     "pricing": {
       "loadFailed": "پلانز لوڈ کرنے میں ناکامی",

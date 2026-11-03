@@ -104,7 +104,11 @@
       "sharedPill": "Partagé",
       "ownPlatforms": "Ses propres comptes",
       "sharedPlatforms": "Utilise le stockage partagé de l'administrateur",
-      "unlimitedOwn": "illimité (stockage personnel)"
+      "unlimitedOwn": "illimité (stockage personnel)",
+      "heavyRelay": "Gros transferts web",
+      "heavyRelayHint": "{amount} via le serveur au cours du dernier jour",
+      "webTransfers": "Transferts web",
+      "heavyRelayOnly": "Gros transferts web"
     },
     "reauth": {
       "confirm": "Confirmez que c'est bien vous pour continuer.",
@@ -497,7 +501,8 @@
       "actions": "Actions utilisateur",
       "lastSeen": "vu {time}",
       "signedUpIn": "inscrit en {country}",
-      "unverified": "E-mail non vérifié"
+      "unverified": "E-mail non vérifié",
+      "webTransfersMonth": "Transferts web ce mois-ci : {amount}"
     },
     "pricing": {
       "loadFailed": "Échec du chargement des offres",

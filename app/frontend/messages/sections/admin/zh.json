@@ -104,7 +104,11 @@
       "sharedPill": "共享",
       "ownPlatforms": "自己的账户",
       "sharedPlatforms": "使用管理员的共享存储",
-      "unlimitedOwn": "无限制（自有存储）"
+      "unlimitedOwn": "无限制（自有存储）",
+      "heavyRelay": "网页传输量大",
+      "heavyRelayHint": "最近一天经服务器传输 {amount}",
+      "webTransfers": "网页传输",
+      "heavyRelayOnly": "网页传输量大"
     },
     "reauth": {
       "confirm": "请确认是你本人以继续。",
@@ -497,7 +501,8 @@
       "actions": "用户操作",
       "lastSeen": "{time}活跃",
       "signedUpIn": "注册于{country}",
-      "unverified": "邮箱未验证"
+      "unverified": "邮箱未验证",
+      "webTransfersMonth": "本月网页传输：{amount}"
     },
     "pricing": {
       "loadFailed": "加载套餐失败",

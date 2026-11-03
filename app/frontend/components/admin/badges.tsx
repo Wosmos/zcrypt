@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, User, Crown } from "@/lib/icons";
+import { ShieldCheck, User, Crown, Gauge } from "@/lib/icons";
+import { formatBytes } from "@/lib/utils";
 import { Plan, Role } from "@/types";
 
 // Pill shape shared by the admin badges (rounded-full, tighter padding, medium weight)
@@ -73,5 +74,19 @@ export function PlanBadge({ plan, bordered = false }: { plan: string; bordered?:
       {showCrown && <Crown className="h-3 w-3" />}
       {plan}
     </Badge>
+  );
+}
+
+/** A quiet marker for a user who moved more than the alert threshold through the server in the last day. */
+export function HeavyRelayBadge({ bytes }: { bytes: number }) {
+  const t = useTranslations("admin.users");
+  return (
+    <span
+      title={t("heavyRelayHint", { amount: formatBytes(bytes) })}
+      className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/10 px-1.5 py-px text-[10px] font-medium text-orange-600 dark:text-orange-400"
+    >
+      <Gauge className="h-3 w-3" />
+      {t("heavyRelay")}
+    </span>
   );
 }

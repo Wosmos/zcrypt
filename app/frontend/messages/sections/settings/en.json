@@ -529,6 +529,14 @@
       "thumbnails": "Show photo previews",
       "thumbnailsDesc": "A small preview of the photo in upload notifications. Turn off to keep photos off your lock screen.",
       "iosHint": "To get notifications on iPhone, add zcrypt to your Home Screen: tap Share, then Add to Home Screen."
+    },
+    "webTransfers": {
+      "title": "Web transfers this month",
+      "description": "Files you upload or download in the browser count toward a monthly allowance. Uploads that go straight to your own Telegram don't count.",
+      "usage": "{used} of {limit}",
+      "resets": "Resets on {date}",
+      "desktopHint": "The desktop app has no limit.",
+      "getDesktop": "Get the desktop app"
     }
   }
 }

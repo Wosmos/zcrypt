@@ -104,7 +104,11 @@
       "sharedPill": "Geteilt",
       "ownPlatforms": "Eigene Konten",
       "sharedPlatforms": "Nutzt den geteilten Speicher des Admins",
-      "unlimitedOwn": "unbegrenzt (eigener Speicher)"
+      "unlimitedOwn": "unbegrenzt (eigener Speicher)",
+      "heavyRelay": "Viele Web-Übertragungen",
+      "heavyRelayHint": "{amount} über den Server am letzten Tag",
+      "webTransfers": "Web-Übertragungen",
+      "heavyRelayOnly": "Viele Web-Übertragungen"
     },
     "reauth": {
       "confirm": "Bestätige, dass du es bist, um fortzufahren.",
@@ -497,7 +501,8 @@
       "actions": "Nutzeraktionen",
       "lastSeen": "gesehen {time}",
       "signedUpIn": "registriert in {country}",
-      "unverified": "E-Mail nicht bestätigt"
+      "unverified": "E-Mail nicht bestätigt",
+      "webTransfersMonth": "Web-Übertragungen diesen Monat: {amount}"
     },
     "pricing": {
       "loadFailed": "Tarife konnten nicht geladen werden",

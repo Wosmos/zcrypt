@@ -529,6 +529,14 @@
       "thumbnails": "Fotovorschauen zeigen",
       "thumbnailsDesc": "Eine kleine Vorschau des Fotos in Upload-Benachrichtigungen. Ausschalten, damit keine Fotos auf dem Sperrbildschirm erscheinen.",
       "iosHint": "Für Benachrichtigungen auf dem iPhone füge zcrypt zum Home-Bildschirm hinzu: Tippe auf Teilen, dann auf Zum Home-Bildschirm."
+    },
+    "webTransfers": {
+      "title": "Web-Übertragungen diesen Monat",
+      "description": "Dateien, die du im Browser hoch- oder herunterlädst, zählen zu einem monatlichen Kontingent. Uploads direkt in dein eigenes Telegram zählen nicht.",
+      "usage": "{used} von {limit}",
+      "resets": "Wird am {date} zurückgesetzt",
+      "desktopHint": "Die Desktop-App hat kein Limit.",
+      "getDesktop": "Desktop-App holen"
     }
   }
 }

@@ -20,7 +20,7 @@ import { BulkActionBar } from "@/components/admin/bulk-action-bar";
 import { LocationCell } from "@/components/admin/location-cell";
 import { PlatformIcons } from "@/components/admin/connected-platforms";
 import { useUserActions } from "@/components/admin/user-actions";
-import { RoleBadge, PlanBadge } from "@/components/admin/badges";
+import { RoleBadge, PlanBadge, HeavyRelayBadge } from "@/components/admin/badges";
 import { PLATFORMS } from "@/lib/platforms";
 import { Eye, ShieldCheck, Users } from "@/lib/icons";
 
@@ -100,6 +100,7 @@ export function UserTable({
                   aria-label="2FA"
                 />
               )}
+              {u.heavy_relay && <HeavyRelayBadge bytes={u.relay_24h_bytes ?? 0} />}
             </span>
             <span className="block truncate text-xs text-[var(--color-text-muted)]">{u.email}</span>
           </span>
@@ -238,6 +239,12 @@ export function UserTable({
             {planOptions.length > 1 && (
               <TableFilter list={list} name="plan" label={t("colPlan")} options={planOptions} />
             )}
+            <TableFilter
+              list={list}
+              name="heavy_relay"
+              label={tu("webTransfers")}
+              options={[{ value: "1", label: tu("heavyRelayOnly") }]}
+            />
           </>
         }
         rows={users}

@@ -529,6 +529,14 @@
       "thumbnails": "显示照片预览",
       "thumbnailsDesc": "在上传通知中显示照片的小预览。关闭后锁屏上不会出现照片。",
       "iosHint": "要在 iPhone 上接收通知，请将 zcrypt 添加到主屏幕：点按共享，然后点按添加到主屏幕。"
+    },
+    "webTransfers": {
+      "title": "本月网页传输",
+      "description": "在浏览器中上传或下载的文件会计入每月额度。直接上传到你自己的 Telegram 不计入。",
+      "usage": "{used} / {limit}",
+      "resets": "{date} 重置",
+      "desktopHint": "桌面应用没有限制。",
+      "getDesktop": "获取桌面应用"
     }
   }
 }

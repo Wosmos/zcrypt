@@ -104,7 +104,11 @@
       "sharedPill": "Общее",
       "ownPlatforms": "Собственные аккаунты",
       "sharedPlatforms": "Использует общее хранилище администратора",
-      "unlimitedOwn": "без ограничений (своё хранилище)"
+      "unlimitedOwn": "без ограничений (своё хранилище)",
+      "heavyRelay": "Много веб-передач",
+      "heavyRelayHint": "{amount} через сервер за последние сутки",
+      "webTransfers": "Веб-передачи",
+      "heavyRelayOnly": "Много веб-передач"
     },
     "reauth": {
       "confirm": "Подтвердите, что это вы, чтобы продолжить.",
@@ -497,7 +501,8 @@
       "actions": "Действия с пользователем",
       "lastSeen": "был: {time}",
       "signedUpIn": "регистрация: {country}",
-      "unverified": "Email не подтверждён"
+      "unverified": "Email не подтверждён",
+      "webTransfersMonth": "Веб-передачи в этом месяце: {amount}"
     },
     "pricing": {
       "loadFailed": "Не удалось загрузить тарифы",

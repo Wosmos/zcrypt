@@ -104,7 +104,11 @@
       "sharedPill": "Compartido",
       "ownPlatforms": "Sus propias cuentas",
       "sharedPlatforms": "Usa el almacenamiento compartido del administrador",
-      "unlimitedOwn": "ilimitado (almacenamiento propio)"
+      "unlimitedOwn": "ilimitado (almacenamiento propio)",
+      "heavyRelay": "Uso web intenso",
+      "heavyRelayHint": "{amount} a través del servidor en el último día",
+      "webTransfers": "Transferencias web",
+      "heavyRelayOnly": "Uso web intenso"
     },
     "reauth": {
       "confirm": "Confirma que eres tú para continuar.",
@@ -497,7 +501,8 @@
       "actions": "Acciones del usuario",
       "lastSeen": "visto {time}",
       "signedUpIn": "registrado en {country}",
-      "unverified": "Correo sin verificar"
+      "unverified": "Correo sin verificar",
+      "webTransfersMonth": "Transferencias web este mes: {amount}"
     },
     "pricing": {
       "loadFailed": "No se pudieron cargar los planes",

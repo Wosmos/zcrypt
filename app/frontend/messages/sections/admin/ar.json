@@ -104,7 +104,11 @@
       "sharedPill": "مشترك",
       "ownPlatforms": "حساباته الخاصة",
       "sharedPlatforms": "يستخدم التخزين المشترك من المسؤول",
-      "unlimitedOwn": "غير محدود (تخزينه الخاص)"
+      "unlimitedOwn": "غير محدود (تخزينه الخاص)",
+      "heavyRelay": "نقل كثيف عبر الويب",
+      "heavyRelayHint": "{amount} عبر الخادم خلال اليوم الأخير",
+      "webTransfers": "النقل عبر الويب",
+      "heavyRelayOnly": "نقل كثيف عبر الويب"
     },
     "reauth": {
       "confirm": "أكّد أنك أنت للمتابعة.",
@@ -497,7 +501,8 @@
       "actions": "إجراءات المستخدم",
       "lastSeen": "شوهد {time}",
       "signedUpIn": "سجّل في {country}",
-      "unverified": "البريد غير موثّق"
+      "unverified": "البريد غير موثّق",
+      "webTransfersMonth": "النقل عبر الويب هذا الشهر: {amount}"
     },
     "pricing": {
       "loadFailed": "فشل تحميل الخطط",

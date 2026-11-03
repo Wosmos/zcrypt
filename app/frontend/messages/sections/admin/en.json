@@ -104,7 +104,11 @@
       "sharedPill": "Shared",
       "ownPlatforms": "Their own accounts",
       "sharedPlatforms": "Using the admin's shared storage",
-      "unlimitedOwn": "unlimited (own storage)"
+      "unlimitedOwn": "unlimited (own storage)",
+      "heavyRelay": "Heavy web transfer",
+      "heavyRelayHint": "{amount} through the server in the last day",
+      "webTransfers": "Web transfers",
+      "heavyRelayOnly": "Heavy web transfer"
     },
     "reauth": {
       "confirm": "Confirm it's you to continue.",
@@ -497,7 +501,8 @@
       "actions": "User actions",
       "lastSeen": "seen {time}",
       "signedUpIn": "signed up in {country}",
-      "unverified": "Email not verified"
+      "unverified": "Email not verified",
+      "webTransfersMonth": "Web transfers this month: {amount}"
     },
     "pricing": {
       "loadFailed": "Failed to load plans",
