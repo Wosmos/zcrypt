@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Copy } from "@/lib/icons";
 import { type PlatformId } from "@/lib/releases";
+import { SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { cardSurface } from "@/components/marketing/ui/card";
 import { detectDevice } from "./download-cta";
@@ -14,7 +15,7 @@ type Method = { shell: string; command: string };
 const METHODS: Record<PlatformId, { name: string; primary: Method; alt?: Method }> = {
   macos: {
     name: "macOS",
-    primary: { shell: "Terminal", command: "curl -fsSL https://zcrypt.cloud/install.sh | sh" },
+    primary: { shell: "Terminal", command: `curl -fsSL ${SITE_URL}/install.sh | sh` },
     alt: {
       shell: "Homebrew",
       command: "brew tap wosmos/zcrypt\nbrew trust wosmos/zcrypt\nbrew install --cask zcrypt",
@@ -22,11 +23,11 @@ const METHODS: Record<PlatformId, { name: string; primary: Method; alt?: Method 
   },
   windows: {
     name: "Windows",
-    primary: { shell: "PowerShell", command: "irm https://zcrypt.cloud/install.ps1 | iex" },
+    primary: { shell: "PowerShell", command: `irm ${SITE_URL}/install.ps1 | iex` },
   },
   linux: {
     name: "Linux",
-    primary: { shell: "Terminal", command: "curl -fsSL https://zcrypt.cloud/install.sh | sh" },
+    primary: { shell: "Terminal", command: `curl -fsSL ${SITE_URL}/install.sh | sh` },
   },
 };
 

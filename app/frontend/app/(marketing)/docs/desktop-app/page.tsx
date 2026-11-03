@@ -1,4 +1,5 @@
 import { pageMetadata } from "@/lib/page-metadata";
+import { SITE_URL } from "@/lib/site";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocCode } from "@/components/docs/doc-page";
 
 import { T } from "@/components/i18n/t";
@@ -89,10 +90,10 @@ export default function DesktopAppDocPage() {
         </DocP>
         <DocCode
           label={<T k="docs.desktop-app.a17" />}
-        >{`curl -fsSL https://zcrypt.cloud/install.sh | sh`}</DocCode>
+        >{`curl -fsSL ${SITE_URL}/install.sh | sh`}</DocCode>
         <DocCode
           label={<T k="docs.desktop-app.a19" />}
-        >{`irm https://zcrypt.cloud/install.ps1 | iex`}</DocCode>
+        >{`irm ${SITE_URL}/install.ps1 | iex`}</DocCode>
         <DocCode label={<T k="docs.desktop-app.a21" />}>{`brew tap wosmos/zcrypt
 brew trust wosmos/zcrypt
 brew install --cask zcrypt`}</DocCode>
