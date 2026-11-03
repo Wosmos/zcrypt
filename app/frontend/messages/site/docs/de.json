@@ -466,7 +466,8 @@
         "tokens": "Welche Tokens du brauchst",
         "at-rest": "Tokens sind im Ruhezustand verschlüsselt",
         "grows": "Speicher wächst automatisch",
-        "next": "Wie es weitergeht"
+        "next": "Wie es weitergeht",
+        "telegramWeb": "Telegram im Browser"
       },
       "p1": "zcrypt ist kostenlos und Open Source und betreibt keine Speicherfarm. Deine verschlüsselten Chunks liegen in einem Plattformkonto, das du verbindest, deine Kapazität ist also schlicht der freie Speicherplatz, den diese Plattform dir bietet. Heute unterstützt zcrypt <strong>GitHub</strong>, <strong>GitLab</strong>, <strong>Hugging Face</strong> und <strong>Telegram</strong>.",
       "a2": "Bring deinen eigenen Speicher mit",
@@ -498,7 +499,10 @@
       "p28": "<l1>Repo-Pool & Rotation: wie Speicher über Repositories hinweg wächst</l1>",
       "a29": "Wie es weitergeht",
       "title": "Speicher verbinden",
-      "description": "zcrypt verkauft dir keinen Speicher: Du bringst ein Konto mit, das du schon hast. Verbinde ein Backend einmal, und deine verschlüsselten Dateien liegen dort, unter deiner Kontrolle."
+      "description": "zcrypt verkauft dir keinen Speicher: Du bringst ein Konto mit, das du schon hast. Verbinde ein Backend einmal, und deine verschlüsselten Dateien liegen dort, unter deiner Kontrolle.",
+      "tgTitle": "Telegram im Browser",
+      "tgP1": "Wenn du aus der Web-App in dein eigenes Telegram hochlädst, sendet der Browser jeden verschlüsselten Chunk mit deinem Bot-Token direkt an Telegram. Nichts läuft über den Server von zcrypt, diese Uploads zählen also weder für deine Web-Transfers noch für das 2-GB-Dateilimit. Schlägt ein direkter Upload fehl, sendet zcrypt ihn ersatzweise über den Server, und diese Bytes zählen dann.",
+      "tgP2": "Telegram ist in manchen Ländern und Netzwerken gesperrt. Kann der Browser es nicht erreichen, weist ein Banner darauf hin. Schalte ein VPN ein, dann laufen Uploads wieder direkt. Ohne VPN funktionieren sie weiterhin, laufen aber über den Server und zählen für deine Web-Transfers."
     },
     "contributing": {
       "toc": {
@@ -613,7 +617,8 @@
         "native": "Native Annehmlichkeiten",
         "same-core": "Derselbe Zero-Knowledge-Kern",
         "download": "Bezugsquelle",
-        "next": "Wie es weitergeht"
+        "next": "Wie es weitergeht",
+        "direct": "Direkte Uploads und die App öffnen"
       },
       "p1": "Die zcrypt-Desktop-App ist ein nativer Build für <strong>macOS, Windows und Linux</strong>, verpackt mit <strong>Tauri</strong>. Tauri rendert dieselbe zcrypt-Oberfläche in einer leichtgewichtigen nativen Hülle mit dem Webview deines Betriebssystems, sodass du ein richtiges Anwendungsfenster und OS-Integration erhältst, ohne einen schweren mitgelieferten Browser.",
       "p2": "Unter dieser Hülle laufen Verschlüsselung, Komprimierung, Chunking und Speicher-Sync in <strong>zcrypt-core</strong>, einer Rust-Engine im selben Prozess, weder eine Browser-Sandbox noch ein Hintergrund-Subprozess. Dieselbe Engine steckt in der Android-App, sodass eine am Desktop verschlüsselte Datei dort ebenfalls sauber aufgeht.",
@@ -643,7 +648,10 @@
       "p29": "<l1>zcrypt überall: derselbe Tresor auf Web, Desktop und Android</l1>",
       "a30": "Wie es weitergeht",
       "title": "Desktop-App",
-      "description": "Ein nativer Desktop-Build von zcrypt für alle, die lieber ein echtes App-Fenster als einen Browser-Tab haben: mit Dateiverwaltung auf Betriebssystemebene und exakt derselben clientseitigen Verschlüsselung."
+      "description": "Ein nativer Desktop-Build von zcrypt für alle, die lieber ein echtes App-Fenster als einen Browser-Tab haben: mit Dateiverwaltung auf Betriebssystemebene und exakt derselben clientseitigen Verschlüsselung.",
+      "directTitle": "Direkte Uploads und die App öffnen",
+      "directP1": "Die Desktop-App lädt direkt von deinem Computer in deinen eigenen Speicher hoch. Nichts läuft über den Server von zcrypt, deshalb gibt es weder ein Dateigrößenlimit noch ein monatliches Web-Transfer-Kontingent. Speicher, den du im Web verbunden hast, wird automatisch übernommen: Die App kopiert diese Tokens einmal pro Sitzung in den Schlüsselbund deines Computers, du verbindest also nie etwas doppelt.",
+      "directP2": "Im Browser startet <strong>Desktop-App öffnen</strong> die App über den Link <code>zcrypt://open</code> oder holt sie in den Vordergrund, falls sie schon läuft. Es läuft immer nur eine Kopie, ein erneutes Öffnen fokussiert also nur das Fenster. Der Browser kann keine Dateien an die App übergeben: Ziehe sie in das App-Fenster."
     },
     "downloading": {
       "toc": {
@@ -1538,7 +1546,8 @@
         "optional": "Optionale Umgebungsvariablen",
         "oauth": "OAuth (Google / GitHub)",
         "frontend": "Frontend",
-        "next": "Wie es weitergeht"
+        "next": "Wie es weitergeht",
+        "limits": "Limits und Feintuning"
       },
       "p1": "Ein zcrypt-Deployment besteht aus zwei Teilen: einem zustandslosen Go-Backend (die API, gebaut in ein winziges Distroless-Container-Image) und einem Next.js-Frontend. Das Backend spricht mit einer PostgreSQL-Datenbank und wird vollständig über Umgebungsvariablen konfiguriert. Es hält weder Klartext noch Verschlüsselungsschlüssel (Ver- und Entschlüsselung geschehen im Browser), sodass das einzige langlebige Geheimnis, das du schützen musst, der <code>MASTER_KEY</code> ist, der deine verbundenen Speicher-Tokens im Ruhezustand verpackt.",
       "p2": "Eine dokumentierte Vorlage mit Platzhalterwerten liegt unter <code>app/backend/.env.example</code>. Kopiere sie nach <code>app/backend/.env</code> und trage deine eigenen Werte ein: Die <code>.env</code>-Datei steht in der gitignore, committe also nie echte Secrets.",
@@ -1597,7 +1606,21 @@
       "p58": "<l1>Bring deinen eigenen Speicher mit: verbinde GitHub, GitLab, Hugging Face oder Telegram</l1>",
       "a59": "Wie es weitergeht",
       "title": "Self-Hosting",
-      "description": "zcrypt ist Open Source. Betreibe dein eigenes Backend mit Docker für volle Kontrolle über Datenbank, Master-Schlüssel und Speicher. Das Frontend ist eine Standard-Next.js-App, die du überall deployen kannst."
+      "description": "zcrypt ist Open Source. Betreibe dein eigenes Backend mit Docker für volle Kontrolle über Datenbank, Master-Schlüssel und Speicher. Das Frontend ist eine Standard-Next.js-App, die du überall deployen kannst.",
+      "limTitle": "Limits und Feintuning",
+      "limP1": "Für alle gibt es Standardwerte, setze sie also nur, um ein Limit zu ändern. Größen sind in Bytes angegeben, ein ungültiger Wert fällt auf den Standard zurück. Bei den Web-Transfer-Limits bedeutet <code>0</code> unbegrenzt, und Admins sind nie begrenzt.",
+      "limP2": "Wenn deine Seite unter <code>example.com</code> und <code>www.example.com</code> erreichbar ist, genügt es, eine davon in <code>FRONTEND_URL</code> oder <code>ALLOWED_ORIGINS</code> einzutragen: Die andere wird ebenfalls akzeptiert.",
+      "limR1": "Größte Datei in Bytes, die ein Web-Upload über den Server senden darf. Standard 2147483648 (2 GiB). Direkte Uploads und Admins werden nie begrenzt. <code>0</code> bedeutet unbegrenzt.",
+      "limR2": "Web-Transfers (Uploads über den Server plus Downloads) pro Nutzer und UTC-Kalendermonat, in Bytes. Standard 21474836480 (20 GiB). Admins sind ausgenommen. <code>0</code> bedeutet unbegrenzt.",
+      "limR3": "Markiert einen Nutzer in der Admin-Konsole als Vielnutzer von Web-Transfers, wenn heute plus gestern diese Bytezahl überschreiten. Standard 10737418240 (10 GiB). <code>0</code> schaltet die Markierung aus.",
+      "limR4": "Speicherobergrenze in Bytes für Nutzer im gemeinsamen Pool. Standard 1073741824 (1 GiB).",
+      "limR5": "Größte einzelne Datei in Bytes. Standard 10737418240 (10 GiB).",
+      "limR6": "Send-Kontingent pro gleitenden 24 Stunden für anonyme Absender, pro Netzwerk, in Bytes. Standard 524288000 (500 MiB).",
+      "limR7": "Send-Kontingent pro gleitenden 24 Stunden für angemeldete Absender, in Bytes. Standard 5368709120 (5 GiB).",
+      "limR8": "Maximale Größe des PostgreSQL-Verbindungspools. Standard 25.",
+      "limR9": "GitHub-<code>owner/name</code>, aus dem Download-Links und Update-Prüfungen Releases lesen. Standard <code>Wosmos/zcrypt</code>.",
+      "limR10": "Frontend. Das GitHub-Repository, auf das die Seite verlinkt und aus dem sie Releases liest, als <code>owner/name</code> oder vollständige URL. Standard ist das zcrypt-Repository.",
+      "limR11": "Frontend. Die Kontakt- und Support-Adresse, die auf der Seite angezeigt wird."
     },
     "send": {
       "toc": {
@@ -2124,7 +2147,8 @@
         "upload-stalled": "Ein Upload hängt",
         "too-large": "Datei zu groß für eine Plattform",
         "disconnected": "Plattform getrennt oder Token abgelaufen",
-        "rate-limited": "Ratenbegrenzt"
+        "rate-limited": "Ratenbegrenzt",
+        "web-limits": "Web-Upload-Limits und Telegram"
       },
       "p1": "Schlägt die Entschlüsselung immer wieder fehl oder landest du in einer Entsperren-/Wiederholen-Schleife, ist die wahrscheinlichste Ursache eine Passphrase, die nicht mit der übereinstimmt, mit der eine Datei verschlüsselt wurde: ein Tippfehler, ein anderes Tastaturlayout oder eine alte Passphrase. zcrypt kann dir nicht sagen, dass die Passphrase falsch ist, bevor es versucht zu entschlüsseln, weil auf dem Server nichts Lesbares existiert, wogegen sie geprüft werden könnte.",
       "p2": "Gib die Passphrase sorgfältig neu ein: Achte auf die Feststelltaste und Leerzeichen am Ende.",
@@ -2165,7 +2189,13 @@
       "a37": "Auch Speicherplattformen begrenzen Raten",
       "a38": "Ratenbegrenzt",
       "title": "Fehlerbehebung",
-      "description": "Die Handvoll Probleme, auf die Leute am häufigsten stoßen, und wie du sie behebst. Die meisten haben eine einfache Ursache: den falschen Schlüssel, einen vorübergehenden Netzwerkaussetzer oder ein Plattformlimit, das seine Arbeit tut."
+      "description": "Die Handvoll Probleme, auf die Leute am häufigsten stoßen, und wie du sie behebst. Die meisten haben eine einfache Ursache: den falschen Schlüssel, einen vorübergehenden Netzwerkaussetzer oder ein Plattformlimit, das seine Arbeit tut.",
+      "wlTitle": "Web-Upload-Limits und Telegram",
+      "wlP1": "Uploads aus der Web-App sind begrenzt, weil sie über den Server von zcrypt laufen. Die Desktop-App hat keine Limits.",
+      "wlL1": "<strong>Zu groß für einen Web-Upload.</strong> Eine einzelne Datei über 2 GB lässt sich nicht aus dem Browser hochladen. Lade sie stattdessen mit der Desktop-App hoch.",
+      "wlL2": "<strong>Du hast deine Web-Transfers diesen Monat aufgebraucht.</strong> Das monatliche Kontingent von 20 GB ist verbraucht. Es beginnt am 1. des Monats (UTC) von vorn; das Datum steht unter Einstellungen, Speicher. Bis dahin nutze die Desktop-App, die nicht zählt. Downloads werden nie blockiert.",
+      "wlL3": "<strong>Telegram scheint blockiert.</strong> Dein Netzwerk oder Land blockiert Telegram. Schalte ein VPN ein und versuche es erneut. Uploads funktionieren auch ohne, laufen dann aber über den Server und zählen für deine Web-Transfers.",
+      "wlP2": "Passiert bei <strong>Desktop-App öffnen</strong> nichts, installiere die App, öffne sie einmal und versuche es dann erneut. Du kannst die App jederzeit selbst öffnen und die Datei dort hineinziehen."
     },
     "uploading": {
       "toc": {
@@ -2177,7 +2207,8 @@
         "modes": "Relay vs. direkter Upload",
         "parallel": "Parallel und mobilfreundlich",
         "folders": "Ordnerbewusste Uploads",
-        "next": "Wie es weitergeht"
+        "next": "Wie es weitergeht",
+        "limits": "Web-Limits und die Desktop-App"
       },
       "p1": "Wenn ein Upload beginnt, ist die Datei auf deinem Gerät in Chunks zerlegt, und jeder Chunk wurde mit zstd komprimiert und mit AES-256-GCM verschlüsselt (siehe <l1>So funktioniert es</l1>). Gesendet wird eine Folge verschlüsselter Chunks: Der Server erhält nur Chiffretext.",
       "p2": "Die Chunk-Größe richtet sich nach deinem Gerät: 4, 8, 10 oder 16 MiB, vom speicherknappen Handy bis zum leistungsstarken Desktop, mit 10 MiB als üblicher Mitte. Die gewählte Größe wird serverseitig gespeichert, sodass eine Fortsetzung von <em>jedem</em> Gerät die Datei an exakt denselben Grenzen zerteilt: Eine abweichende Größe würde jeden Chunk nach dem ersten verschieben.",
@@ -2225,7 +2256,11 @@
       "p44": "<l1>Der Transfer-Manager, die Funktionstour</l1>",
       "a45": "Wie es weitergeht",
       "title": "Hochladen",
-      "description": "Dateien werden auf deinem Gerät komprimiert, verschlüsselt und in Chunks zerlegt und dann Chunk für Chunk zu deinem Speicher gestreamt. Der Upload übersteht Neuladen, Abbrüche und sogar den Wechsel zu einem anderen Gerät, und er landet genau dort, wo du dich in deinem Laufwerk befindest."
+      "description": "Dateien werden auf deinem Gerät komprimiert, verschlüsselt und in Chunks zerlegt und dann Chunk für Chunk zu deinem Speicher gestreamt. Der Upload übersteht Neuladen, Abbrüche und sogar den Wechsel zu einem anderen Gerät, und er landet genau dort, wo du dich in deinem Laufwerk befindest.",
+      "limitsTitle": "Web-Limits und die Desktop-App",
+      "limitsP1": "Alles, was die Web-App über den Server von zcrypt sendet, ist begrenzt: Eine Datei darf bis zu <strong>2 GB</strong> groß sein, und jedes Konto hat <strong>20 GB Web-Transfers pro Monat</strong>. Uploads zählen, Downloads ebenso. Die Anzeige findest du unter <strong>Einstellungen, Speicher</strong>; sie beginnt am 1. jedes Monats (UTC) von vorn.",
+      "limitsP2": "Uploads, die direkt von deinem Browser zu deinem Speicher gehen, umgehen den Server und werden weder begrenzt noch gezählt. Das gilt für Hugging Face und für dein eigenes Telegram (siehe <l1>Speicher verbinden</l1>). Die Desktop-App lädt immer so hoch und hat deshalb gar keine Limits.",
+      "limitsP3": "Liegt ein Upload über einem Limit, erscheint eine Meldung mit der Schaltfläche <strong>Desktop-App öffnen</strong>. Der Browser kann die Datei nicht an die App übergeben: Öffne die App und ziehe die Datei dort hinein. Ist die App nicht installiert, wird daraus <strong>Desktop-App herunterladen</strong> und die Download-Seite öffnet sich in einem neuen Tab, sodass laufende Uploads hier weiterlaufen."
     },
     "viewing-files": {
       "toc": {
@@ -2275,7 +2310,8 @@
         "vault-lock": "Die Tresorsperre",
         "remember": "Auf diesem Gerät entsperrt lassen",
         "notifications": "Hintergrund-Benachrichtigungen",
-        "next": "Wie es weitergeht"
+        "next": "Wie es weitergeht",
+        "limits": "Limits im Browser"
       },
       "p1": "zcrypt funktioniert in jedem modernen Browser auf Desktop oder Mobilgerät. Es muss nichts installiert werden. Ver- und Entschlüsselung geschehen auf deinem Gerät mit der Web Crypto API, sodass deine Dateien lokal versiegelt und geöffnet werden und der Server immer nur Geheimtext verarbeitet.",
       "a2": "Läuft in deinem Browser",
@@ -2303,7 +2339,9 @@
       "p24": "<l1>zcrypt überall: derselbe Tresor auf Web, Desktop und Android</l1>",
       "a25": "Wie es weitergeht",
       "title": "Web-App",
-      "description": "Die zcrypt-Web-App ist das volle Produkt in einem Browser-Tab: ein echtes verschlüsseltes Laufwerk mit clientseitiger Verschlüsselung, einer einzigen Sitzungssperre und einer optionalen Möglichkeit, auf einem vertrauenswürdigen Gerät entsperrt zu bleiben."
+      "description": "Die zcrypt-Web-App ist das volle Produkt in einem Browser-Tab: ein echtes verschlüsseltes Laufwerk mit clientseitiger Verschlüsselung, einer einzigen Sitzungssperre und einer optionalen Möglichkeit, auf einem vertrauenswürdigen Gerät entsperrt zu bleiben.",
+      "limTitle": "Limits im Browser",
+      "limP1": "Was die Web-App über den Server von zcrypt sendet, ist begrenzt: 2 GB pro Datei und 20 GB Web-Transfers pro Monat. Uploads direkt in dein eigenes Telegram oder zu Hugging Face zählen nicht, und die Desktop-App hat keine Limits. Details stehen unter <l1>Hochladen</l1>."
     },
     "zero-knowledge": {
       "toc": {

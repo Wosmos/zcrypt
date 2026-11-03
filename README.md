@@ -115,7 +115,7 @@ flowchart LR
     CP --> DB
 ```
 
-- **Relay plane (web):** browser sandboxing blocks direct platform access, so the web app encrypts locally and relays ciphertext through the backend, which commits it to the storage platforms.
+- **Relay plane (web):** browser sandboxing blocks direct access to most platforms, so the web app encrypts locally and relays ciphertext through the backend, which commits it to the storage platforms. Uploads to your own Telegram are the exception: the browser sends them straight to Telegram and only falls back to the relay when Telegram is unreachable. Relayed bytes are capped per file and per month (see [Limits](#limits)).
 - **BYOS-direct plane (desktop + Android):** the native clients hold your platform tokens in the OS keychain and push/pull encrypted chunks **straight to your own accounts**. The backend is used only for auth and metadata. It never touches your storage token or your chunks.
 
 Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that implements the crypto, compression, chunk pipeline, offline ledger, and platform adapters. Its byte-format is locked to the Go backend and the TypeScript web client by a shared conformance test suite, so a file encrypted by one client decrypts identically on another.
@@ -124,8 +124,8 @@ Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that imple
 
 | Client | Status | Notes |
 | ------ | ------ | ----- |
-| **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane. |
-| **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater. Installers are currently unsigned (see [Install the desktop app](#install-the-desktop-app)). |
+| **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane, with direct browser-to-Telegram uploads and a per-file and monthly web transfer cap; its prompts open the desktop app through `zcrypt://open` or point to the download. |
+| **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater, single instance (a `zcrypt://open` link from the browser focuses the running window). Installers are currently unsigned (see [Install the desktop app](#install-the-desktop-app)). |
 | **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Sideloaded APK from the [releases page](https://github.com/Wosmos/zcrypt/releases), signed with a permanent release key since v0.1.7, so updates install in place. Copies installed before v0.1.7 need one uninstall and reinstall. Not on the Play Store yet. |
 
 iOS compiles but is not yet built in CI. It is in development.
@@ -141,7 +141,8 @@ iOS compiles but is not yet built in CI. It is in development.
 
 **Storage**
 - Multi-platform backends: GitHub, GitLab, HuggingFace, and Telegram
-- Bring-your-own-storage (BYOS-direct) on desktop/mobile: chunks go straight to your own accounts
+- Bring-your-own-storage (BYOS-direct) on desktop/mobile: chunks go straight to your own accounts; the desktop copies storage you connected on the web into its keychain once per session
+- Web uploads to your own Telegram go straight from the browser (relay fallback when Telegram is blocked, with a banner suggesting a VPN); web uploads through the server are capped at 2 GiB per file and 20 GiB per month, and the desktop app has no cap
 - Repository disguise: repos, commit messages, and filenames look like ordinary developer projects
 - Automatic repo rotation as size thresholds are hit (most useful on GitHub/GitLab; see [Storage platforms](#storage-platforms))
 - Resumable, chunked uploads that survive restarts; concurrent chunk transfer with live progress over SSE
@@ -308,7 +309,7 @@ The backend is configured entirely through environment variables. A documented t
 | `ZCRYPT_JWT_SECRET` | JWT signing secret (≥32 chars). Set it explicitly, if empty it is auto-generated and will not persist across restarts on ephemeral hosts, logging everyone out. |
 | `FRONTEND_URL` | Frontend URL: used for email links and the post-OAuth redirect; also added to the CORS allow-list |
 | `BACKEND_URL` | Public backend URL, no trailing slash. **Required for OAuth**: it builds the `redirect_uri`, which must exactly match what is registered with Google/GitHub. If unset it is derived per request and usually breaks OAuth. |
-| `ALLOWED_ORIGINS` | Comma-separated CORS allow-list (defaults to localhost; `FRONTEND_URL` and the Tauri desktop origins are added automatically) |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allow-list (defaults to localhost; `FRONTEND_URL` and the Tauri desktop origins are added automatically, and each https origin also accepts its `www` or apex twin) |
 
 ### OAuth (optional. Google / GitHub login)
 
@@ -353,6 +354,9 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | Variable | Description |
 | -------- | ----------- |
 | `NEXT_PUBLIC_API_URL` | Backend API URL |
+| `NEXT_PUBLIC_SITE_URL` | Public site URL used for canonical links and metadata (default `https://zcrypt.cloud`) |
+| `NEXT_PUBLIC_GITHUB_REPO` | GitHub repository the site links to and reads releases from, as `owner/name` or a full URL (default `https://github.com/Wosmos/zcrypt`) |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | Contact and support address shown on the site |
 
 ## Project structure
 
@@ -482,6 +486,8 @@ Repo rotation (`app/backend/reppool`) deactivates a repo once it crosses its thr
 | ----- | ----- |
 | Free plan storage | 1 GiB by default (plans and quotas are admin-editable at runtime) |
 | Largest file | 10 GiB on the free plan |
+| Largest web upload through the server | 2 GiB per file (`ZCRYPT_RELAY_MAX_FILE_BYTES`); direct uploads, the desktop app and admins are not limited |
+| Web transfers per month | 20 GiB of relayed uploads plus downloads per user, starting over on the 1st (UTC) (`ZCRYPT_RELAY_MONTHLY_BYTES`); the meter is in Settings, Storage |
 | Chunk size | 4, 8, 10 or 16 MiB, picked from the device's memory and CPU |
 | Files per Spaces add | 200 on the free plan (`max_space_batch_files`) |
 | Anonymous Send | 50 MB per file, 500 MB per rolling 24 hours, kept up to 24 hours |

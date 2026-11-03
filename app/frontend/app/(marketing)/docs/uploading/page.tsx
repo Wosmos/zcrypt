@@ -18,6 +18,7 @@ const toc = [
   { id: "unfinished", k: "docs.uploading.toc.unfinished" },
   { id: "pause", k: "docs.uploading.toc.pause" },
   { id: "modes", k: "docs.uploading.toc.modes" },
+  { id: "limits", k: "docs.uploading.toc.limits" },
   { id: "parallel", k: "docs.uploading.toc.parallel" },
   { id: "folders", k: "docs.uploading.toc.folders" },
   { id: "next", k: "docs.uploading.toc.next" },
@@ -116,6 +117,22 @@ export default function UploadingDocPage() {
         <DocNote type="security" title={<T k="docs.uploading.a32" />}>
           <T k="docs.uploading.p31" />
         </DocNote>
+      </DocSection>
+
+      <DocSection id="limits" title={<T k="docs.uploading.limitsTitle" />}>
+        <DocP>
+          <T k="docs.uploading.limitsP1" />
+        </DocP>
+        <DocP>
+          <T
+            k="docs.uploading.limitsP2"
+            links={{ l1: "/docs/connect-storage" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
+        </DocP>
+        <DocP>
+          <T k="docs.uploading.limitsP3" />
+        </DocP>
       </DocSection>
 
       <DocSection id="parallel" title={<T k="docs.uploading.a36" />}>

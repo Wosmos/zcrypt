@@ -15,6 +15,7 @@ const toc = [
   { id: "byo", k: "docs.connect-storage.toc.byo" },
   { id: "connect", k: "docs.connect-storage.toc.connect" },
   { id: "tokens", k: "docs.connect-storage.toc.tokens" },
+  { id: "telegram-web", k: "docs.connect-storage.toc.telegramWeb" },
   { id: "at-rest", k: "docs.connect-storage.toc.at-rest" },
   { id: "grows", k: "docs.connect-storage.toc.grows" },
   { id: "next", k: "docs.connect-storage.toc.next" },
@@ -74,6 +75,15 @@ export default function ConnectStorageDocPage() {
             links={{ l1: "/docs/platform-adapters" }}
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
+        </DocP>
+      </DocSection>
+
+      <DocSection id="telegram-web" title={<T k="docs.connect-storage.tgTitle" />}>
+        <DocP>
+          <T k="docs.connect-storage.tgP1" />
+        </DocP>
+        <DocP>
+          <T k="docs.connect-storage.tgP2" />
         </DocP>
       </DocSection>
 

@@ -466,7 +466,8 @@
         "tokens": "Quels jetons vous faut-il",
         "at-rest": "Jetons chiffrés au repos",
         "grows": "L’espace grandit automatiquement",
-        "next": "Pour aller plus loin"
+        "next": "Pour aller plus loin",
+        "telegramWeb": "Telegram depuis le navigateur"
       },
       "p1": "zcrypt est gratuit et open source, et ne gère pas de ferme de stockage. Vos chunks chiffrés vivent dans un compte de plateforme que vous connectez : votre capacité est donc simplement l’espace libre que cette plateforme vous offre. Aujourd’hui, zcrypt prend en charge <strong>GitHub</strong>, <strong>GitLab</strong>, <strong>Hugging Face</strong> et <strong>Telegram</strong>.",
       "a2": "Apportez votre propre stockage",
@@ -498,7 +499,10 @@
       "p28": "<l1>Pool de dépôts et rotation : comment le stockage s’étend sur plusieurs dépôts</l1>",
       "a29": "Pour aller plus loin",
       "title": "Connecter votre stockage",
-      "description": "zcrypt ne vous vend pas de stockage : vous apportez un compte que vous possédez déjà. Connectez un backend une fois et vos fichiers chiffrés y vivent, sous votre contrôle."
+      "description": "zcrypt ne vous vend pas de stockage : vous apportez un compte que vous possédez déjà. Connectez un backend une fois et vos fichiers chiffrés y vivent, sous votre contrôle.",
+      "tgTitle": "Telegram depuis le navigateur",
+      "tgP1": "Quand vous envoyez depuis l'application web vers votre propre Telegram, le navigateur envoie chaque bloc chiffré directement à Telegram avec le jeton de votre bot. Rien ne passe par le serveur de zcrypt : ces envois ne comptent donc ni dans vos transferts web ni dans la limite de 2 Go par fichier. Si un envoi direct échoue, zcrypt l'envoie par le serveur, et ces octets comptent alors.",
+      "tgP2": "Telegram est bloqué dans certains pays et sur certains réseaux. Quand le navigateur ne peut pas l'atteindre, une bannière vous le signale. Activez un VPN et les envois repassent en direct. Sans VPN, ils fonctionnent toujours, mais passent par le serveur et comptent dans vos transferts web."
     },
     "contributing": {
       "toc": {
@@ -613,7 +617,8 @@
         "native": "Avantages natifs",
         "same-core": "Le même cœur zero-knowledge",
         "download": "L’obtenir",
-        "next": "Pour aller plus loin"
+        "next": "Pour aller plus loin",
+        "direct": "Envois directs et ouverture de l'application"
       },
       "p1": "L’application de bureau zcrypt est une version native pour <strong>macOS, Windows et Linux</strong>, empaquetée avec <strong>Tauri</strong>. Tauri affiche la même interface zcrypt dans une enveloppe native légère, en s’appuyant sur la webview propre à votre système d’exploitation : vous obtenez ainsi une vraie fenêtre d’application et une intégration au système sans navigateur lourd embarqué.",
       "p2": "Sous cette coque, le chiffrement, la compression, le découpage et la synchronisation du stockage tournent dans <strong>zcrypt-core</strong>, un moteur Rust dans le même processus, ni bac à sable de navigateur ni sous-processus en arrière-plan. Le même moteur équipe l'application Android, donc un fichier chiffré sur ordinateur s'y ouvre aussi sans problème.",
@@ -643,7 +648,10 @@
       "p29": "<l1>zcrypt partout : le même coffre sur le web, le bureau et Android</l1>",
       "a30": "Pour aller plus loin",
       "title": "Application de bureau",
-      "description": "Une version de bureau native de zcrypt pour ceux qui préfèrent une vraie fenêtre d’application à un onglet de navigateur : avec la gestion de fichiers au niveau du système et exactement le même chiffrement côté client."
+      "description": "Une version de bureau native de zcrypt pour ceux qui préfèrent une vraie fenêtre d’application à un onglet de navigateur : avec la gestion de fichiers au niveau du système et exactement le même chiffrement côté client.",
+      "directTitle": "Envois directs et ouverture de l'application",
+      "directP1": "L'application de bureau envoie directement de votre ordinateur vers votre propre stockage. Rien ne passe par le serveur de zcrypt : il n'y a donc ni limite de taille de fichier ni quota mensuel de transferts web. Le stockage que vous avez connecté sur le web est repris automatiquement : l'application copie ces jetons dans le trousseau de votre ordinateur une fois par session, vous ne connectez donc jamais rien deux fois.",
+      "directP2": "Depuis le navigateur, <strong>Ouvrir l'application de bureau</strong> utilise le lien <code>zcrypt://open</code> pour lancer l'application ou la mettre au premier plan si elle tourne déjà. Une seule copie s'exécute à la fois : la rouvrir ne fait que donner le focus à la fenêtre. Le navigateur ne peut pas transmettre de fichiers à l'application : déposez-les dans sa fenêtre."
     },
     "downloading": {
       "toc": {
@@ -1538,7 +1546,8 @@
         "optional": "Variables d’environnement facultatives",
         "oauth": "OAuth (Google / GitHub)",
         "frontend": "Frontend",
-        "next": "Pour aller plus loin"
+        "next": "Pour aller plus loin",
+        "limits": "Limites et réglages"
       },
       "p1": "Un déploiement zcrypt se compose de deux éléments : un backend Go sans état (l’API, intégrée dans une minuscule image de conteneur distroless) et un frontend Next.js. Le backend dialogue avec une base de données PostgreSQL et se configure entièrement par variables d’environnement. Il ne détient ni texte en clair ni clés de chiffrement (le chiffrement et le déchiffrement se font dans le navigateur) : le seul secret durable que vous devez protéger est donc la <code>MASTER_KEY</code>, qui enveloppe au repos vos jetons de stockage connectés.",
       "p2": "Un modèle documenté avec des valeurs d’exemple se trouve dans <code>app/backend/.env.example</code>. Copiez-le vers <code>app/backend/.env</code> et renseignez vos propres valeurs : le fichier <code>.env</code> est ignoré par git, ne commitez donc jamais de vrais secrets.",
@@ -1597,7 +1606,21 @@
       "p58": "<l1>Apportez votre propre stockage : connectez GitHub, GitLab, Hugging Face ou Telegram</l1>",
       "a59": "Pour aller plus loin",
       "title": "Auto-hébergement",
-      "description": "zcrypt est open source. Exécutez votre propre backend avec Docker pour un contrôle total sur la base de données, la clé maîtresse et le stockage. Le frontend est une application Next.js standard que vous pouvez déployer n’importe où."
+      "description": "zcrypt est open source. Exécutez votre propre backend avec Docker pour un contrôle total sur la base de données, la clé maîtresse et le stockage. Le frontend est une application Next.js standard que vous pouvez déployer n’importe où.",
+      "limTitle": "Limites et réglages",
+      "limP1": "Toutes ont une valeur par défaut : ne les définissez que pour modifier une limite. Les tailles sont en octets, et une valeur invalide revient à la valeur par défaut. Pour les limites de transferts web, <code>0</code> signifie illimité, et les administrateurs ne sont jamais limités.",
+      "limP2": "Si votre site répond à la fois sur <code>example.com</code> et sur <code>www.example.com</code>, il suffit d'en indiquer un dans <code>FRONTEND_URL</code> ou <code>ALLOWED_ORIGINS</code> : l'autre est accepté aussi.",
+      "limR1": "Plus gros fichier, en octets, qu'un envoi web peut faire passer par le serveur. Par défaut 2147483648 (2 Gio). Les envois directs et les administrateurs ne sont jamais limités. <code>0</code> signifie illimité.",
+      "limR2": "Transferts web (envois par le serveur plus téléchargements) de chaque utilisateur par mois calendaire UTC, en octets. Par défaut 21474836480 (20 Gio). Les administrateurs sont exemptés. <code>0</code> signifie illimité.",
+      "limR3": "Signale un utilisateur comme gros consommateur de transferts web dans la console d'administration quand aujourd'hui plus hier dépassent ce nombre d'octets. Par défaut 10737418240 (10 Gio). <code>0</code> désactive le signalement.",
+      "limR4": "Plafond de stockage, en octets, pour les utilisateurs du pool partagé. Par défaut 1073741824 (1 Gio).",
+      "limR5": "Plus gros fichier unique, en octets. Par défaut 10737418240 (10 Gio).",
+      "limR6": "Quota Send par tranche glissante de 24 heures pour les expéditeurs anonymes, par réseau, en octets. Par défaut 524288000 (500 Mio).",
+      "limR7": "Quota Send par tranche glissante de 24 heures pour les expéditeurs connectés, en octets. Par défaut 5368709120 (5 Gio).",
+      "limR8": "Taille maximale du pool de connexions PostgreSQL. Par défaut 25.",
+      "limR9": "<code>owner/name</code> GitHub d'où les liens de téléchargement et les vérifications de mise à jour lisent les versions. Par défaut <code>Wosmos/zcrypt</code>.",
+      "limR10": "Frontend. Le dépôt GitHub vers lequel le site pointe et dont il lit les versions, sous la forme <code>owner/name</code> ou d'une URL complète. Par défaut, le dépôt zcrypt.",
+      "limR11": "Frontend. L'adresse de contact et d'assistance affichée sur le site."
     },
     "send": {
       "toc": {
@@ -2124,7 +2147,8 @@
         "upload-stalled": "Un envoi est bloqué",
         "too-large": "Fichier trop volumineux pour une plateforme",
         "disconnected": "Plateforme déconnectée ou jeton expiré",
-        "rate-limited": "Limite de débit atteinte"
+        "rate-limited": "Limite de débit atteinte",
+        "web-limits": "Limites d'envoi web et Telegram"
       },
       "p1": "Si le déchiffrement échoue sans cesse ou si vous tournez en boucle entre déverrouillage et nouvelle tentative, la cause la plus probable est une phrase secrète qui ne correspond pas à celle avec laquelle un fichier a été chiffré : une faute de frappe, une autre disposition de clavier ou une ancienne phrase secrète. zcrypt ne peut pas vous dire que la phrase secrète est incorrecte avant d’essayer de déchiffrer, car il n’y a rien de lisible sur le serveur pour la vérifier.",
       "p2": "Ressaisissez soigneusement la phrase secrète : attention aux majuscules verrouillées et aux espaces en fin de saisie.",
@@ -2165,7 +2189,13 @@
       "a37": "Les plateformes de stockage limitent aussi le débit",
       "a38": "Limite de débit atteinte",
       "title": "Dépannage",
-      "description": "La poignée de problèmes les plus fréquents, et comment les résoudre. La plupart ont une cause simple : la mauvaise clé, un petit accroc réseau passager, ou une limite de plateforme qui fait son travail."
+      "description": "La poignée de problèmes les plus fréquents, et comment les résoudre. La plupart ont une cause simple : la mauvaise clé, un petit accroc réseau passager, ou une limite de plateforme qui fait son travail.",
+      "wlTitle": "Limites d'envoi web et Telegram",
+      "wlP1": "Les envois depuis l'application web sont limités parce qu'ils passent par le serveur de zcrypt. L'application de bureau n'a aucune limite.",
+      "wlL1": "<strong>Trop volumineux pour un envoi web.</strong> Un fichier de plus de 2 Go ne peut pas être envoyé depuis le navigateur. Envoyez-le depuis l'application de bureau.",
+      "wlL2": "<strong>Vous avez utilisé vos transferts web ce mois-ci.</strong> Le quota mensuel de 20 Go est épuisé. Il repart de zéro le 1er du mois (UTC), et Paramètres, Stockage indique la date. D'ici là, utilisez l'application de bureau, qui ne compte pas. Les téléchargements ne sont jamais bloqués.",
+      "wlL3": "<strong>Telegram semble bloqué.</strong> Votre réseau ou votre pays bloque Telegram. Activez un VPN et réessayez. Les envois fonctionnent aussi sans VPN, mais ils passent par le serveur et comptent dans vos transferts web.",
+      "wlP2": "Si <strong>Ouvrir l'application de bureau</strong> ne fait rien, installez l'application, ouvrez-la une fois, puis réessayez. Vous pouvez toujours ouvrir l'application vous-même et y déposer le fichier."
     },
     "uploading": {
       "toc": {
@@ -2177,7 +2207,8 @@
         "modes": "Relais ou envoi direct",
         "parallel": "Parallèle, et adapté au mobile",
         "folders": "Envois adaptés aux dossiers",
-        "next": "Pour aller plus loin"
+        "next": "Pour aller plus loin",
+        "limits": "Limites web et application de bureau"
       },
       "p1": "Au début d'un envoi, le fichier est déjà découpé en fragments sur votre appareil, et chaque fragment a été compressé avec zstd et chiffré avec AES-256-GCM (voir <l1>Comment ça marche</l1>). Ce qui est envoyé est une suite de fragments chiffrés : le serveur ne reçoit que du chiffré.",
       "p2": "Les fragments sont dimensionnés selon votre appareil : 4, 8, 10 ou 16 MiB, d'un téléphone à mémoire limitée à un ordinateur puissant, avec 10 MiB comme milieu courant. La taille choisie est enregistrée côté serveur, si bien qu'une reprise depuis <em>n'importe quel</em> appareil redécoupe le fichier exactement aux mêmes limites : une taille différente décalerait tous les fragments après le premier.",
@@ -2225,7 +2256,11 @@
       "p44": "<l1>Le gestionnaire de transferts, la visite des fonctionnalités</l1>",
       "a45": "Pour aller plus loin",
       "title": "Envoi",
-      "description": "Les fichiers sont compressés, chiffrés et découpés en chunks sur votre appareil, puis diffusés vers votre stockage un chunk à la fois. L’envoi survit aux rafraîchissements, aux coupures et même à un changement d’appareil, et il atterrit exactement là où vous êtes dans votre disque."
+      "description": "Les fichiers sont compressés, chiffrés et découpés en chunks sur votre appareil, puis diffusés vers votre stockage un chunk à la fois. L’envoi survit aux rafraîchissements, aux coupures et même à un changement d’appareil, et il atterrit exactement là où vous êtes dans votre disque.",
+      "limitsTitle": "Limites web et application de bureau",
+      "limitsP1": "Tout ce que l'application web envoie par le serveur de zcrypt est limité : un fichier peut atteindre <strong>2 Go</strong>, et chaque compte dispose de <strong>20 Go de transferts web par mois</strong>. Les envois comptent, les téléchargements aussi. Le compteur se trouve dans <strong>Paramètres, Stockage</strong> et repart de zéro le 1er de chaque mois (UTC).",
+      "limitsP2": "Les envois qui vont directement de votre navigateur vers votre stockage évitent le serveur : ils ne sont ni limités ni comptés. C'est le cas de Hugging Face et de votre propre Telegram (voir <l1>Connecter un stockage</l1>). L'application de bureau envoie toujours ainsi, elle n'a donc aucune limite.",
+      "limitsP3": "Quand un envoi dépasse une limite, un message s'affiche avec un bouton <strong>Ouvrir l'application de bureau</strong>. Le navigateur ne peut pas transmettre le fichier à l'application : ouvrez l'application et déposez-y le fichier. Si l'application n'est pas installée, le bouton devient <strong>Télécharger l'application de bureau</strong> et ouvre la page de téléchargement dans un nouvel onglet, pour que les envois déjà en cours ici continuent."
     },
     "viewing-files": {
       "toc": {
@@ -2275,7 +2310,8 @@
         "vault-lock": "Le verrou du coffre",
         "remember": "Me garder déverrouillé sur cet appareil",
         "notifications": "Notifications en arrière-plan",
-        "next": "Pour aller plus loin"
+        "next": "Pour aller plus loin",
+        "limits": "Limites dans le navigateur"
       },
       "p1": "zcrypt fonctionne dans n’importe quel navigateur moderne, sur ordinateur ou mobile. Il n’y a rien à installer. Tout le chiffrement et le déchiffrement se font sur votre appareil grâce à l’API Web Crypto : vos fichiers sont donc scellés et ouverts localement et le serveur ne manipule jamais que du texte chiffré.",
       "a2": "Fonctionne dans votre navigateur",
@@ -2303,7 +2339,9 @@
       "p24": "<l1>zcrypt partout : le même coffre sur le web, le bureau et Android</l1>",
       "a25": "Pour aller plus loin",
       "title": "Application web",
-      "description": "L’application web zcrypt est le produit complet dans un onglet de navigateur : un vrai disque chiffré avec chiffrement côté client, un verrou de session unique et un moyen facultatif de rester déverrouillé sur un appareil de confiance."
+      "description": "L’application web zcrypt est le produit complet dans un onglet de navigateur : un vrai disque chiffré avec chiffrement côté client, un verrou de session unique et un moyen facultatif de rester déverrouillé sur un appareil de confiance.",
+      "limTitle": "Limites dans le navigateur",
+      "limP1": "Ce que l'application web envoie par le serveur de zcrypt est limité : 2 Go par fichier et 20 Go de transferts web par mois. Les envois directs vers votre propre Telegram ou vers Hugging Face ne comptent pas, et l'application de bureau n'a aucune limite. Les détails sont dans <l1>Envoi de fichiers</l1>."
     },
     "zero-knowledge": {
       "toc": {

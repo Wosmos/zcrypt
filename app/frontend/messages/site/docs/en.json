@@ -466,7 +466,8 @@
         "tokens": "What tokens you need",
         "at-rest": "Tokens are encrypted at rest",
         "grows": "Space grows automatically",
-        "next": "Where to go next"
+        "next": "Where to go next",
+        "telegramWeb": "Telegram from the browser"
       },
       "p1": "zcrypt is free and open source and does not run a storage farm. Your encrypted chunks live inside a platform account you connect, which means your capacity is simply the free space that platform gives you. Today zcrypt supports <strong>GitHub</strong>, <strong>GitLab</strong>, <strong>Hugging Face</strong>, and <strong>Telegram</strong>.",
       "a2": "Bring your own storage",
@@ -498,7 +499,10 @@
       "p28": "<l1>Repo pool & rotation: how storage grows across repositories</l1>",
       "a29": "Where to go next",
       "title": "Connect your storage",
-      "description": "zcrypt doesn't sell you storage: you bring an account you already have. Connect a backend once and your encrypted files live there, under your control."
+      "description": "zcrypt doesn't sell you storage: you bring an account you already have. Connect a backend once and your encrypted files live there, under your control.",
+      "tgTitle": "Telegram from the browser",
+      "tgP1": "When you upload from the web app to your own Telegram, the browser sends each encrypted chunk straight to Telegram with your bot token. Nothing passes through zcrypt's server, so these uploads don't count toward your web transfers or the 2 GB file limit. If a direct upload fails, zcrypt falls back to sending it through the server, and those bytes do count.",
+      "tgP2": "Telegram is blocked in some countries and on some networks. When the browser can't reach it, a banner tells you so. Turn on a VPN and uploads go direct again. Without one they still work, but they pass through the server and count toward your web transfers."
     },
     "contributing": {
       "toc": {
@@ -613,7 +617,8 @@
         "native": "Native conveniences",
         "same-core": "Same zero-knowledge core",
         "download": "Getting it",
-        "next": "Where to go next"
+        "next": "Where to go next",
+        "direct": "Direct uploads and opening the app"
       },
       "p1": "The zcrypt desktop app is a native build for <strong>macOS, Windows, and Linux</strong>, packaged with <strong>Tauri</strong>. Tauri renders the same zcrypt interface in a lightweight native shell using your operating system's own webview, so you get a proper application window and OS integration without a heavy bundled browser.",
       "p2": "Underneath that shell, encryption, compression, chunking, and storage sync run in <strong>zcrypt-core</strong>, an in-process Rust engine, not a browser sandbox and not a background subprocess. The same engine backs the Android app, so a file encrypted on desktop opens cleanly there too.",
@@ -643,7 +648,10 @@
       "p29": "<l1>zcrypt everywhere: the same vault across web, desktop, and Android</l1>",
       "a30": "Where to go next",
       "title": "Desktop app",
-      "description": "A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption."
+      "description": "A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption.",
+      "directTitle": "Direct uploads and opening the app",
+      "directP1": "The desktop app uploads straight from your computer to your own storage. Nothing passes through zcrypt's server, so there is no file-size limit and no monthly web transfer allowance. Storage you connected on the web is picked up automatically: the app copies those tokens into your computer's keychain once per session, so you never connect anything twice.",
+      "directP2": "From the browser, <strong>Open the desktop app</strong> uses the <code>zcrypt://open</code> link to start the app, or to bring it to the front if it is already running. Only one copy runs at a time, so opening it again just focuses the window. The browser can't pass files to the app: drop them into the app window."
     },
     "downloading": {
       "toc": {
@@ -1538,7 +1546,8 @@
         "optional": "Optional environment variables",
         "oauth": "OAuth (Google / GitHub)",
         "frontend": "Frontend",
-        "next": "Where to go next"
+        "next": "Where to go next",
+        "limits": "Limits and tuning"
       },
       "p1": "A zcrypt deployment is two pieces: a stateless Go backend (the API, built into a tiny distroless container image) and a Next.js frontend. The backend talks to a PostgreSQL database and is configured entirely through environment variables. It holds no plaintext and no encryption keys (encryption and decryption happen in the browser) so the only long-lived secret you must protect is the <code>MASTER_KEY</code>, which wraps your connected storage tokens at rest.",
       "p2": "A documented template with placeholder values lives at <code>app/backend/.env.example</code>. Copy it to <code>app/backend/.env</code> and fill in your own values: the <code>.env</code> file is gitignored, so never commit real secrets.",
@@ -1597,7 +1606,21 @@
       "p58": "<l1>Bring your own storage: connect GitHub, GitLab, Hugging Face, or Telegram</l1>",
       "a59": "Where to go next",
       "title": "Self-hosting",
-      "description": "zcrypt is open source. Run your own backend with Docker for full control over the database, master key, and storage. The frontend is a standard Next.js app you can deploy anywhere."
+      "description": "zcrypt is open source. Run your own backend with Docker for full control over the database, master key, and storage. The frontend is a standard Next.js app you can deploy anywhere.",
+      "limTitle": "Limits and tuning",
+      "limP1": "All of these have defaults, so set them only to change a limit. Sizes are in bytes, and a bad value falls back to the default. For the web transfer limits, <code>0</code> means unlimited, and admins are never limited.",
+      "limP2": "If your site answers on both <code>example.com</code> and <code>www.example.com</code>, listing one in <code>FRONTEND_URL</code> or <code>ALLOWED_ORIGINS</code> is enough: the other is accepted too.",
+      "limR1": "Largest file, in bytes, a web upload may send through the server. Default 2147483648 (2 GiB). Direct uploads and admins are never limited. <code>0</code> means unlimited.",
+      "limR2": "Web transfers (uploads through the server plus downloads) each user gets per UTC calendar month, in bytes. Default 21474836480 (20 GiB). Admins are exempt. <code>0</code> means unlimited.",
+      "limR3": "Marks a user as a heavy web-transfer user in the admin console when today plus yesterday pass this many bytes. Default 10737418240 (10 GiB). <code>0</code> turns the marker off.",
+      "limR4": "Storage cap, in bytes, for users on the shared pool. Default 1073741824 (1 GiB).",
+      "limR5": "Largest single file, in bytes. Default 10737418240 (10 GiB).",
+      "limR6": "Send allowance per rolling 24 hours for anonymous senders, per network, in bytes. Default 524288000 (500 MiB).",
+      "limR7": "Send allowance per rolling 24 hours for signed-in senders, in bytes. Default 5368709120 (5 GiB).",
+      "limR8": "Maximum size of the PostgreSQL connection pool. Default 25.",
+      "limR9": "GitHub <code>owner/name</code> that download links and update checks read releases from. Default <code>Wosmos/zcrypt</code>.",
+      "limR10": "Frontend. The GitHub repository the site links to and reads releases from, as <code>owner/name</code> or a full URL. Defaults to the zcrypt repository.",
+      "limR11": "Frontend. The contact and support address shown on the site."
     },
     "send": {
       "toc": {
@@ -2124,7 +2147,8 @@
         "upload-stalled": "An upload stalled",
         "too-large": "File too large for a platform",
         "disconnected": "Platform disconnected or token expired",
-        "rate-limited": "Rate limited"
+        "rate-limited": "Rate limited",
+        "web-limits": "Web upload limits and Telegram"
       },
       "p1": "If decryption keeps failing or you land in a unlock/Retry loop, the most likely cause is a passphrase that doesn't match the one a file was encrypted with, a typo, a different keyboard layout, or an old passphrase. zcrypt can't tell you the passphrase is wrong before it tries to decrypt, because there's nothing readable on the server to check it against.",
       "p2": "Re-enter the passphrase carefully: watch for caps lock and trailing spaces.",
@@ -2165,7 +2189,13 @@
       "a37": "Storage platforms rate-limit too",
       "a38": "Rate limited",
       "title": "Troubleshooting",
-      "description": "The handful of issues people hit most, and how to clear them. Most have a simple cause: the wrong key, a transient network hiccup, or a platform limit doing its job."
+      "description": "The handful of issues people hit most, and how to clear them. Most have a simple cause: the wrong key, a transient network hiccup, or a platform limit doing its job.",
+      "wlTitle": "Web upload limits and Telegram",
+      "wlP1": "Uploads from the web app have limits because they pass through zcrypt's server. The desktop app has none.",
+      "wlL1": "<strong>Too big for a web upload.</strong> A single file over 2 GB can't be uploaded from the browser. Upload it from the desktop app instead.",
+      "wlL2": "<strong>You've used your web transfers this month.</strong> The 20 GB monthly allowance is used up. It starts over on the 1st of the month (UTC), and Settings, Storage shows the date. Until then, use the desktop app, which doesn't count. Downloads are never blocked.",
+      "wlL3": "<strong>Telegram looks blocked.</strong> Your network or country blocks Telegram. Turn on a VPN and retry. Uploads still work without one, but they pass through the server and count toward your web transfers.",
+      "wlP2": "If <strong>Open the desktop app</strong> does nothing, install the app and open it once, then try again. You can always open the app yourself and drop the file there."
     },
     "uploading": {
       "toc": {
@@ -2177,7 +2207,8 @@
         "modes": "Relay vs. direct upload",
         "parallel": "Parallel, and mobile-friendly",
         "folders": "Folder-aware uploads",
-        "next": "Where to go next"
+        "next": "Where to go next",
+        "limits": "Web limits and the desktop app"
       },
       "p1": "By the time an upload begins, the file is split into chunks on your device, and each chunk has been compressed with zstd and encrypted with AES-256-GCM (see <l1>How it works</l1>). What gets sent is a sequence of encrypted chunks: the server receives only ciphertext.",
       "p2": "Chunks are sized to your device: 4, 8, 10 or 16 MiB, from a memory-constrained phone up to a powerful desktop, with 10 MiB the common middle. The chosen size is recorded server-side, so a resume from <em>any</em> device re-slices the file at exactly the same boundaries: a mismatched size would misalign every chunk after the first.",
@@ -2225,7 +2256,11 @@
       "p44": "<l1>The transfer manager, the feature tour</l1>",
       "a45": "Where to go next",
       "title": "Uploading",
-      "description": "Files are compressed, encrypted, and chunked on your device, then streamed to your storage one chunk at a time. The upload survives refreshes, drops, and even a switch to another device, and it lands exactly where you are in your drive."
+      "description": "Files are compressed, encrypted, and chunked on your device, then streamed to your storage one chunk at a time. The upload survives refreshes, drops, and even a switch to another device, and it lands exactly where you are in your drive.",
+      "limitsTitle": "Web limits and the desktop app",
+      "limitsP1": "Whatever the web app sends through zcrypt's server has limits: one file can be up to <strong>2 GB</strong>, and each account gets <strong>20 GB of web transfers per month</strong>. Uploads count, and so do downloads. The meter is in <strong>Settings, Storage</strong> and starts over on the 1st of each month (UTC).",
+      "limitsP2": "Uploads that go straight from your browser to your storage skip the server, so they are never limited or counted. That covers Hugging Face and your own Telegram (see <l1>Connect storage</l1>). The desktop app always uploads this way, so it has no limits at all.",
+      "limitsP3": "When an upload is over a limit, you get a message with an <strong>Open the desktop app</strong> button. The browser can't hand the file to the app, so open the app and drop the file there. If the app isn't installed, the button becomes <strong>Download the desktop app</strong> and opens the download page in a new tab, so uploads already running here keep going."
     },
     "viewing-files": {
       "toc": {
@@ -2275,7 +2310,8 @@
         "vault-lock": "The vault lock",
         "remember": "Keep me unlocked on this device",
         "notifications": "Background notifications",
-        "next": "Where to go next"
+        "next": "Where to go next",
+        "limits": "Limits in the browser"
       },
       "p1": "zcrypt works in any modern browser on desktop or mobile. There is nothing to install. All encryption and decryption happen on your device using the Web Crypto API, so your files are sealed and opened locally and the server only ever handles ciphertext.",
       "a2": "Runs in your browser",
@@ -2303,7 +2339,9 @@
       "p24": "<l1>zcrypt everywhere: the same vault across web, desktop, and Android</l1>",
       "a25": "Where to go next",
       "title": "Web app",
-      "description": "The zcrypt web app is the full product in a browser tab: a real encrypted drive with client-side encryption, a single session lock, and an optional way to stay unlocked on a device you trust."
+      "description": "The zcrypt web app is the full product in a browser tab: a real encrypted drive with client-side encryption, a single session lock, and an optional way to stay unlocked on a device you trust.",
+      "limTitle": "Limits in the browser",
+      "limP1": "What the web app sends through zcrypt's server is limited: 2 GB per file and 20 GB of web transfers per month. Uploads straight to your own Telegram or Hugging Face don't count, and the desktop app has no limits. Details are in <l1>Uploading</l1>."
     },
     "zero-knowledge": {
       "toc": {

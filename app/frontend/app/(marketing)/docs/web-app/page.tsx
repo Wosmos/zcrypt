@@ -16,6 +16,7 @@ const toc = [
   { id: "vault-lock", k: "docs.web-app.toc.vault-lock" },
   { id: "remember", k: "docs.web-app.toc.remember" },
   { id: "notifications", k: "docs.web-app.toc.notifications" },
+  { id: "limits", k: "docs.web-app.toc.limits" },
   { id: "next", k: "docs.web-app.toc.next" },
 ];
 
@@ -78,6 +79,16 @@ export default function WebAppDocPage() {
         <DocNote type="info">
           <T k="docs.web-app.p19" />
         </DocNote>
+      </DocSection>
+
+      <DocSection id="limits" title={<T k="docs.web-app.limTitle" />}>
+        <DocP>
+          <T
+            k="docs.web-app.limP1"
+            links={{ l1: "/docs/uploading" }}
+            linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
+          />
+        </DocP>
       </DocSection>
 
       <DocSection id="next" title={<T k="docs.web-app.a25" />}>

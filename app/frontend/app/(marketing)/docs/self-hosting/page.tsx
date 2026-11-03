@@ -25,6 +25,7 @@ const toc = [
   { id: "docker", k: "docs.self-hosting.toc.docker" },
   { id: "required", k: "docs.self-hosting.toc.required" },
   { id: "optional", k: "docs.self-hosting.toc.optional" },
+  { id: "limits", k: "docs.self-hosting.toc.limits" },
   { id: "oauth", k: "docs.self-hosting.toc.oauth" },
   { id: "frontend", k: "docs.self-hosting.toc.frontend" },
   { id: "next", k: "docs.self-hosting.toc.next" },
@@ -156,6 +157,67 @@ docker run -p 8080:8080 \\
         <DocNote type="info" title={<T k="docs.self-hosting.a35" />}>
           <T k="docs.self-hosting.p34" />
         </DocNote>
+      </DocSection>
+
+      <DocSection id="limits" title={<T k="docs.self-hosting.limTitle" />}>
+        <DocP>
+          <T k="docs.self-hosting.limP1" />
+        </DocP>
+        <DocTable
+          head={[
+            <T key="docs.self-hosting.p26" k="docs.self-hosting.p26" />,
+            <T key="docs.self-hosting.p27" k="docs.self-hosting.p27" />,
+          ]}
+          rows={[
+            [
+              <code key="v">ZCRYPT_RELAY_MAX_FILE_BYTES</code>,
+              <T key="docs.self-hosting.limR1" k="docs.self-hosting.limR1" />,
+            ],
+            [
+              <code key="v">ZCRYPT_RELAY_MONTHLY_BYTES</code>,
+              <T key="docs.self-hosting.limR2" k="docs.self-hosting.limR2" />,
+            ],
+            [
+              <code key="v">ZCRYPT_RELAY_ALERT_DAILY_BYTES</code>,
+              <T key="docs.self-hosting.limR3" k="docs.self-hosting.limR3" />,
+            ],
+            [
+              <code key="v">ZCRYPT_SHARED_QUOTA_BYTES</code>,
+              <T key="docs.self-hosting.limR4" k="docs.self-hosting.limR4" />,
+            ],
+            [
+              <code key="v">ZCRYPT_MAX_UPLOAD_BYTES</code>,
+              <T key="docs.self-hosting.limR5" k="docs.self-hosting.limR5" />,
+            ],
+            [
+              <code key="v">ZCRYPT_SEND_ANON_DAILY_BYTES</code>,
+              <T key="docs.self-hosting.limR6" k="docs.self-hosting.limR6" />,
+            ],
+            [
+              <code key="v">ZCRYPT_SEND_USER_DAILY_BYTES</code>,
+              <T key="docs.self-hosting.limR7" k="docs.self-hosting.limR7" />,
+            ],
+            [
+              <code key="v">ZCRYPT_DB_MAX_CONNS</code>,
+              <T key="docs.self-hosting.limR8" k="docs.self-hosting.limR8" />,
+            ],
+            [
+              <code key="v">ZCRYPT_RELEASES_REPO</code>,
+              <T key="docs.self-hosting.limR9" k="docs.self-hosting.limR9" />,
+            ],
+            [
+              <code key="v">NEXT_PUBLIC_GITHUB_REPO</code>,
+              <T key="docs.self-hosting.limR10" k="docs.self-hosting.limR10" />,
+            ],
+            [
+              <code key="v">NEXT_PUBLIC_CONTACT_EMAIL</code>,
+              <T key="docs.self-hosting.limR11" k="docs.self-hosting.limR11" />,
+            ],
+          ]}
+        />
+        <DocP>
+          <T k="docs.self-hosting.limP2" />
+        </DocP>
       </DocSection>
 
       <DocSection id="oauth" title={<T k="docs.self-hosting.a48" />}>

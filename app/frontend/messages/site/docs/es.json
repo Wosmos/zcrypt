@@ -466,7 +466,8 @@
         "tokens": "Qué tokens necesitas",
         "at-rest": "Los tokens se cifran en reposo",
         "grows": "El espacio crece automáticamente",
-        "next": "Adónde ir después"
+        "next": "Adónde ir después",
+        "telegramWeb": "Telegram desde el navegador"
       },
       "p1": "zcrypt es gratuito y de código abierto, y no opera una granja de almacenamiento. Tus fragmentos cifrados viven dentro de una cuenta de plataforma que conectas, lo que significa que tu capacidad es simplemente el espacio gratuito que te da esa plataforma. Hoy zcrypt admite <strong>GitHub</strong>, <strong>GitLab</strong>, <strong>Hugging Face</strong> y <strong>Telegram</strong>.",
       "a2": "Trae tu propio almacenamiento",
@@ -498,7 +499,10 @@
       "p28": "<l1>Grupo de repos y rotación: cómo crece el almacenamiento entre repositorios</l1>",
       "a29": "Adónde ir después",
       "title": "Conecta tu almacenamiento",
-      "description": "zcrypt no te vende almacenamiento: traes una cuenta que ya tienes. Conecta un backend una vez y tus archivos cifrados viven allí, bajo tu control."
+      "description": "zcrypt no te vende almacenamiento: traes una cuenta que ya tienes. Conecta un backend una vez y tus archivos cifrados viven allí, bajo tu control.",
+      "tgTitle": "Telegram desde el navegador",
+      "tgP1": "Cuando subes desde la app web a tu propio Telegram, el navegador envía cada fragmento cifrado directamente a Telegram con el token de tu bot. Nada pasa por el servidor de zcrypt, así que estas subidas no cuentan para tus transferencias web ni para el límite de 2 GB por archivo. Si una subida directa falla, zcrypt la envía a través del servidor, y esos bytes sí cuentan.",
+      "tgP2": "Telegram está bloqueado en algunos países y redes. Cuando el navegador no puede alcanzarlo, un aviso te lo indica. Activa una VPN y las subidas vuelven a ser directas. Sin ella siguen funcionando, pero pasan por el servidor y cuentan para tus transferencias web."
     },
     "contributing": {
       "toc": {
@@ -613,7 +617,8 @@
         "native": "Comodidades nativas",
         "same-core": "El mismo núcleo de conocimiento cero",
         "download": "Cómo conseguirla",
-        "next": "Adónde ir después"
+        "next": "Adónde ir después",
+        "direct": "Subidas directas y abrir la app"
       },
       "p1": "La app de escritorio de zcrypt es una versión nativa para <strong>macOS, Windows y Linux</strong>, empaquetada con <strong>Tauri</strong>. Tauri muestra la misma interfaz de zcrypt en una carcasa nativa ligera usando el webview de tu propio sistema operativo, así que obtienes una ventana de aplicación propia e integración con el sistema operativo sin un navegador pesado incluido.",
       "p2": "Bajo esa carcasa, el cifrado, la compresión, la fragmentación y la sincronización del almacenamiento se ejecutan en <strong>zcrypt-core</strong>, un motor Rust dentro del mismo proceso, ni un sandbox de navegador ni un subproceso en segundo plano. El mismo motor respalda la app de Android, así que un archivo cifrado en el escritorio también se abre sin problemas allí.",
@@ -643,7 +648,10 @@
       "p29": "<l1>zcrypt en todas partes: la misma bóveda en web, escritorio y Android</l1>",
       "a30": "Adónde ir después",
       "title": "App de escritorio",
-      "description": "Una versión nativa de zcrypt para escritorio para quienes prefieren una ventana de app real a una pestaña del navegador: con gestión de archivos a nivel del sistema operativo y exactamente el mismo cifrado en el cliente."
+      "description": "Una versión nativa de zcrypt para escritorio para quienes prefieren una ventana de app real a una pestaña del navegador: con gestión de archivos a nivel del sistema operativo y exactamente el mismo cifrado en el cliente.",
+      "directTitle": "Subidas directas y abrir la app",
+      "directP1": "La app de escritorio sube directamente desde tu ordenador a tu propio almacenamiento. Nada pasa por el servidor de zcrypt, así que no hay límite de tamaño de archivo ni cupo mensual de transferencias web. El almacenamiento que conectaste en la web se detecta automáticamente: la app copia esos tokens al llavero de tu ordenador una vez por sesión, así que nunca conectas nada dos veces.",
+      "directP2": "Desde el navegador, <strong>Abrir la app de escritorio</strong> usa el enlace <code>zcrypt://open</code> para iniciar la app o traerla al frente si ya se está ejecutando. Solo se ejecuta una copia a la vez, así que abrirla de nuevo solo enfoca la ventana. El navegador no puede pasar archivos a la app: suéltalos en la ventana de la app."
     },
     "downloading": {
       "toc": {
@@ -1538,7 +1546,8 @@
         "optional": "Variables de entorno opcionales",
         "oauth": "OAuth (Google / GitHub)",
         "frontend": "Frontend",
-        "next": "Adónde ir después"
+        "next": "Adónde ir después",
+        "limits": "Límites y ajustes"
       },
       "p1": "Un despliegue de zcrypt consta de dos piezas: un backend en Go sin estado (la API, compilada en una diminuta imagen de contenedor distroless) y un frontend en Next.js. El backend habla con una base de datos PostgreSQL y se configura por completo mediante variables de entorno. No contiene texto plano ni claves de cifrado (el cifrado y el descifrado ocurren en el navegador), así que el único secreto de larga duración que debes proteger es la <code>MASTER_KEY</code>, que envuelve en reposo tus tokens de almacenamiento conectados.",
       "p2": "Una plantilla documentada con valores de ejemplo está en <code>app/backend/.env.example</code>. Cópiala a <code>app/backend/.env</code> y rellena tus propios valores: el archivo <code>.env</code> está en gitignore, así que nunca subas secretos reales.",
@@ -1597,7 +1606,21 @@
       "p58": "<l1>Trae tu propio almacenamiento: conecta GitHub, GitLab, Hugging Face o Telegram</l1>",
       "a59": "Adónde ir después",
       "title": "Autoalojamiento",
-      "description": "zcrypt es de código abierto. Ejecuta tu propio backend con Docker para tener control total sobre la base de datos, la clave maestra y el almacenamiento. El frontend es una app estándar de Next.js que puedes desplegar donde quieras."
+      "description": "zcrypt es de código abierto. Ejecuta tu propio backend con Docker para tener control total sobre la base de datos, la clave maestra y el almacenamiento. El frontend es una app estándar de Next.js que puedes desplegar donde quieras.",
+      "limTitle": "Límites y ajustes",
+      "limP1": "Todas tienen un valor por defecto, así que defínelas solo para cambiar un límite. Los tamaños van en bytes y un valor no válido vuelve al valor por defecto. En los límites de transferencia web, <code>0</code> significa sin límite, y los administradores nunca están limitados.",
+      "limP2": "Si tu sitio responde en <code>example.com</code> y en <code>www.example.com</code>, basta con indicar uno en <code>FRONTEND_URL</code> o <code>ALLOWED_ORIGINS</code>: el otro también se acepta.",
+      "limR1": "Archivo más grande, en bytes, que una subida web puede enviar a través del servidor. Por defecto 2147483648 (2 GiB). Las subidas directas y los administradores nunca tienen límite. <code>0</code> significa sin límite.",
+      "limR2": "Transferencias web (subidas a través del servidor más descargas) de cada usuario por mes natural UTC, en bytes. Por defecto 21474836480 (20 GiB). Los administradores quedan exentos. <code>0</code> significa sin límite.",
+      "limR3": "Marca a un usuario como de mucho tráfico web en la consola de administración cuando hoy más ayer superan esta cantidad de bytes. Por defecto 10737418240 (10 GiB). <code>0</code> desactiva la marca.",
+      "limR4": "Tope de almacenamiento, en bytes, para los usuarios del grupo compartido. Por defecto 1073741824 (1 GiB).",
+      "limR5": "Archivo individual más grande, en bytes. Por defecto 10737418240 (10 GiB).",
+      "limR6": "Cupo de Send por cada 24 horas móviles para remitentes anónimos, por red, en bytes. Por defecto 524288000 (500 MiB).",
+      "limR7": "Cupo de Send por cada 24 horas móviles para remitentes con sesión iniciada, en bytes. Por defecto 5368709120 (5 GiB).",
+      "limR8": "Tamaño máximo del grupo de conexiones de PostgreSQL. Por defecto 25.",
+      "limR9": "<code>owner/name</code> de GitHub del que los enlaces de descarga y las comprobaciones de actualización leen las versiones. Por defecto <code>Wosmos/zcrypt</code>.",
+      "limR10": "Frontend. El repositorio de GitHub al que enlaza el sitio y del que lee las versiones, como <code>owner/name</code> o una URL completa. Por defecto, el repositorio de zcrypt.",
+      "limR11": "Frontend. La dirección de contacto y soporte que se muestra en el sitio."
     },
     "send": {
       "toc": {
@@ -2124,7 +2147,8 @@
         "upload-stalled": "Una subida se detuvo",
         "too-large": "Archivo demasiado grande para una plataforma",
         "disconnected": "Plataforma desconectada o token caducado",
-        "rate-limited": "Límite de frecuencia alcanzado"
+        "rate-limited": "Límite de frecuencia alcanzado",
+        "web-limits": "Límites de subida en la web y Telegram"
       },
       "p1": "Si el descifrado sigue fallando o entras en un bucle de desbloqueo/Reintentar, la causa más probable es una frase de contraseña que no coincide con la que se usó para cifrar un archivo: un error tipográfico, una distribución de teclado distinta o una frase de contraseña antigua. zcrypt no puede decirte que la frase de contraseña es incorrecta antes de intentar descifrar, porque en el servidor no hay nada legible contra lo que comprobarla.",
       "p2": "Vuelve a introducir la frase de contraseña con cuidado: fíjate en las mayúsculas bloqueadas y en los espacios finales.",
@@ -2165,7 +2189,13 @@
       "a37": "Las plataformas de almacenamiento también limitan la frecuencia",
       "a38": "Límite de frecuencia alcanzado",
       "title": "Solución de problemas",
-      "description": "Los pocos problemas que más se encuentran, y cómo resolverlos. La mayoría tienen una causa sencilla: la clave equivocada, un fallo de red transitorio o un límite de plataforma haciendo su trabajo."
+      "description": "Los pocos problemas que más se encuentran, y cómo resolverlos. La mayoría tienen una causa sencilla: la clave equivocada, un fallo de red transitorio o un límite de plataforma haciendo su trabajo.",
+      "wlTitle": "Límites de subida en la web y Telegram",
+      "wlP1": "Las subidas desde la app web tienen límites porque pasan por el servidor de zcrypt. La app de escritorio no tiene ninguno.",
+      "wlL1": "<strong>Demasiado grande para subirlo desde la web.</strong> Un archivo de más de 2 GB no se puede subir desde el navegador. Súbelo desde la app de escritorio.",
+      "wlL2": "<strong>Has usado tus transferencias web de este mes.</strong> Se agotó el cupo mensual de 20 GB. Se reinicia el día 1 del mes (UTC) y Ajustes, Almacenamiento muestra la fecha. Hasta entonces, usa la app de escritorio, que no cuenta. Las descargas nunca se bloquean.",
+      "wlL3": "<strong>Telegram parece bloqueado.</strong> Tu red o tu país bloquea Telegram. Activa una VPN y vuelve a intentarlo. Las subidas siguen funcionando sin ella, pero pasan por el servidor y cuentan para tus transferencias web.",
+      "wlP2": "Si <strong>Abrir la app de escritorio</strong> no hace nada, instala la app, ábrela una vez y vuelve a intentarlo. Siempre puedes abrir la app tú mismo y soltar el archivo allí."
     },
     "uploading": {
       "toc": {
@@ -2177,7 +2207,8 @@
         "modes": "Retransmisión frente a subida directa",
         "parallel": "En paralelo y apta para móviles",
         "folders": "Subidas conscientes de las carpetas",
-        "next": "Adónde ir después"
+        "next": "Adónde ir después",
+        "limits": "Límites en la web y la app de escritorio"
       },
       "p1": "Cuando empieza una subida, el archivo ya está dividido en fragmentos en tu dispositivo, y cada fragmento se ha comprimido con zstd y cifrado con AES-256-GCM (consulta <l1>Cómo funciona</l1>). Lo que se envía es una secuencia de fragmentos cifrados: el servidor solo recibe texto cifrado.",
       "p2": "Los fragmentos se dimensionan según tu dispositivo: 4, 8, 10 o 16 MiB, desde un teléfono con poca memoria hasta un escritorio potente, con 10 MiB como punto medio habitual. El tamaño elegido se guarda en el servidor, de modo que reanudar desde <em>cualquier</em> dispositivo vuelve a cortar el archivo exactamente por los mismos límites: un tamaño distinto desalinearía todos los fragmentos tras el primero.",
@@ -2225,7 +2256,11 @@
       "p44": "<l1>El gestor de transferencias, el recorrido de funciones</l1>",
       "a45": "Adónde ir después",
       "title": "Subir",
-      "description": "Los archivos se comprimen, cifran y dividen en fragmentos en tu dispositivo, y luego se transmiten a tu almacenamiento fragmento a fragmento. La subida sobrevive a recargas, caídas e incluso a un cambio a otro dispositivo, y llega exactamente al lugar de tu unidad donde estás."
+      "description": "Los archivos se comprimen, cifran y dividen en fragmentos en tu dispositivo, y luego se transmiten a tu almacenamiento fragmento a fragmento. La subida sobrevive a recargas, caídas e incluso a un cambio a otro dispositivo, y llega exactamente al lugar de tu unidad donde estás.",
+      "limitsTitle": "Límites en la web y la app de escritorio",
+      "limitsP1": "Todo lo que la app web envía a través del servidor de zcrypt tiene límites: un archivo puede pesar hasta <strong>2 GB</strong>, y cada cuenta dispone de <strong>20 GB de transferencias web al mes</strong>. Cuentan las subidas y también las descargas. El contador está en <strong>Ajustes, Almacenamiento</strong> y se reinicia el día 1 de cada mes (UTC).",
+      "limitsP2": "Las subidas que van directamente de tu navegador a tu almacenamiento no pasan por el servidor, así que nunca tienen límite ni se cuentan. Es el caso de Hugging Face y de tu propio Telegram (consulta <l1>Conectar almacenamiento</l1>). La app de escritorio siempre sube así, por lo que no tiene ningún límite.",
+      "limitsP3": "Cuando una subida supera un límite, ves un mensaje con el botón <strong>Abrir la app de escritorio</strong>. El navegador no puede pasar el archivo a la app: abre la app y suelta el archivo allí. Si la app no está instalada, el botón pasa a ser <strong>Descargar la app de escritorio</strong> y abre la página de descarga en otra pestaña, para que las subidas que ya están en marcha aquí sigan."
     },
     "viewing-files": {
       "toc": {
@@ -2275,7 +2310,8 @@
         "vault-lock": "El bloqueo de la bóveda",
         "remember": "Mantenerme desbloqueado en este dispositivo",
         "notifications": "Notificaciones en segundo plano",
-        "next": "Adónde ir después"
+        "next": "Adónde ir después",
+        "limits": "Límites en el navegador"
       },
       "p1": "zcrypt funciona en cualquier navegador moderno, de escritorio o móvil. No hay nada que instalar. Todo el cifrado y descifrado ocurre en tu dispositivo mediante la Web Crypto API, así que tus archivos se sellan y se abren en local y el servidor solo maneja texto cifrado.",
       "a2": "Se ejecuta en tu navegador",
@@ -2303,7 +2339,9 @@
       "p24": "<l1>zcrypt en todas partes: la misma bóveda en web, escritorio y Android</l1>",
       "a25": "Adónde ir después",
       "title": "App web",
-      "description": "La app web de zcrypt es el producto completo en una pestaña del navegador: una unidad cifrada real con cifrado en el cliente, un único bloqueo de sesión y una forma opcional de mantenerse desbloqueado en un dispositivo de confianza."
+      "description": "La app web de zcrypt es el producto completo en una pestaña del navegador: una unidad cifrada real con cifrado en el cliente, un único bloqueo de sesión y una forma opcional de mantenerse desbloqueado en un dispositivo de confianza.",
+      "limTitle": "Límites en el navegador",
+      "limP1": "Lo que la app web envía a través del servidor de zcrypt tiene límite: 2 GB por archivo y 20 GB de transferencias web al mes. Las subidas directas a tu propio Telegram o a Hugging Face no cuentan, y la app de escritorio no tiene límites. Los detalles están en <l1>Subir archivos</l1>."
     },
     "zero-knowledge": {
       "toc": {

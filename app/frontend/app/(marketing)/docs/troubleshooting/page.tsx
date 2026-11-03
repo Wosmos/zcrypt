@@ -18,6 +18,7 @@ const toc = [
   { id: "too-large", k: "docs.troubleshooting.toc.too-large" },
   { id: "disconnected", k: "docs.troubleshooting.toc.disconnected" },
   { id: "rate-limited", k: "docs.troubleshooting.toc.rate-limited" },
+  { id: "web-limits", k: "docs.troubleshooting.toc.web-limits" },
 ];
 
 export default function TroubleshootingDocPage() {
@@ -142,6 +143,22 @@ export default function TroubleshootingDocPage() {
         <DocNote type="info" title={<T k="docs.troubleshooting.a37" />}>
           <T k="docs.troubleshooting.p36" />
         </DocNote>
+      </DocSection>
+
+      <DocSection id="web-limits" title={<T k="docs.troubleshooting.wlTitle" />}>
+        <DocP>
+          <T k="docs.troubleshooting.wlP1" />
+        </DocP>
+        <DocList
+          items={[
+            <T key="docs.troubleshooting.wlL1" k="docs.troubleshooting.wlL1" />,
+            <T key="docs.troubleshooting.wlL2" k="docs.troubleshooting.wlL2" />,
+            <T key="docs.troubleshooting.wlL3" k="docs.troubleshooting.wlL3" />,
+          ]}
+        />
+        <DocP>
+          <T k="docs.troubleshooting.wlP2" />
+        </DocP>
       </DocSection>
     </DocPage>
   );

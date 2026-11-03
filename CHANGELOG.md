@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Web uploads to your own Telegram go straight from your browser to Telegram, so they skip our server, and fall back to going through it only when Telegram can't be reached
+- A banner tells you when your network seems to block Telegram and suggests a VPN, in all eight languages
+- Web transfers are limited to protect the server: one file up to 2 GB, and 20 GB of uploads and downloads through the server per month, starting over on the 1st (UTC). Direct uploads and the desktop app have no limit
+- Settings, Storage shows a "Web transfers this month" meter with the date it resets
+- Files over a web limit, or over the month's web transfers, now say why and offer an Open the desktop app button that falls back to a download when the app isn't installed
+- `zcrypt://open` links bring the desktop app to the front, whether or not it is already running; a second launch focuses the running window instead of opening another
+- The desktop app picks up storage you connected on the web, so desktop uploads go straight to your storage without connecting twice
+- Admins see a heavy web transfer badge and a filter in the users list
+- New self-hosting settings: `ZCRYPT_RELAY_MAX_FILE_BYTES`, `ZCRYPT_RELAY_MONTHLY_BYTES`, `ZCRYPT_RELAY_ALERT_DAILY_BYTES`, `ZCRYPT_SHARED_QUOTA_BYTES`, `ZCRYPT_MAX_UPLOAD_BYTES`, `ZCRYPT_SEND_ANON_DAILY_BYTES`, `ZCRYPT_SEND_USER_DAILY_BYTES`, `ZCRYPT_DB_MAX_CONNS`, `ZCRYPT_RELEASES_REPO`, `NEXT_PUBLIC_GITHUB_REPO` and `NEXT_PUBLIC_CONTACT_EMAIL`
+
+### Changed
+
+- The "get the app" prompts lead with Open the desktop app once it has worked on this device, and with the download otherwise
+- Docs cover web limits, direct Telegram uploads, opening the desktop app, and every new server setting
+
+### Fixed
+
+- The site works on both the apex domain (zcrypt.cloud) and www: either is accepted for sign-in and API calls
+- Desktop uploads straight to Telegram were being rejected by the server
+- Full storage repositories could not be retired, so uploads kept pointing at them
+
 ## [0.2.0] - 2026-11-01
 
 Full release notes: [docs/releases/0.2.0.md](docs/releases/0.2.0.md).

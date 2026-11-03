@@ -16,6 +16,7 @@ const toc = [
   { id: "what", k: "docs.desktop-app.toc.what" },
   { id: "native", k: "docs.desktop-app.toc.native" },
   { id: "same-core", k: "docs.desktop-app.toc.same-core" },
+  { id: "direct", k: "docs.desktop-app.toc.direct" },
   { id: "download", k: "docs.desktop-app.toc.download" },
   { id: "next", k: "docs.desktop-app.toc.next" },
 ];
@@ -69,6 +70,15 @@ export default function DesktopAppDocPage() {
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
         </DocNote>
+      </DocSection>
+
+      <DocSection id="direct" title={<T k="docs.desktop-app.directTitle" />}>
+        <DocP>
+          <T k="docs.desktop-app.directP1" />
+        </DocP>
+        <DocP>
+          <T k="docs.desktop-app.directP2" />
+        </DocP>
       </DocSection>
 
       <DocSection id="download" title={<T k="docs.desktop-app.a25" />}>
