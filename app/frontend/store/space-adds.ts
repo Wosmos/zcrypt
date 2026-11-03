@@ -9,7 +9,7 @@ import { shareFilesIntoSpace } from "@/lib/spaces";
 import { useAuthStore } from "@/store/auth";
 import { useKeysStore } from "@/store/keys";
 import { usePassphraseStore } from "@/store/passphrase";
-import type { SharedVault } from "@/types";
+import { SpaceAddStatus, type SharedVault } from "@/types";
 
 export type SpaceAddJob = {
   vaultId: string;
@@ -18,7 +18,7 @@ export type SpaceAddJob = {
   done: number;
   total: number;
   failed: { fileId: string; error: string }[];
-  status: "queued" | "running" | "paused" | "done" | "error";
+  status: SpaceAddStatus;
 };
 
 interface PersistedJob {
@@ -50,7 +50,7 @@ async function persist(): Promise<void> {
   const key = storageKey();
   if (!key) return;
   const pending: PersistedJob[] = Object.values(useSpaceAdds.getState().jobs)
-    .filter((j) => j.status !== "done")
+    .filter((j) => j.status !== SpaceAddStatus.Done)
     .map((j) => {
       const finished = settled.get(j.vaultId);
       const failed = new Set(j.failed.map((f) => f.fileId));
@@ -82,15 +82,15 @@ function invalidateSpace(vaultId: string): void {
 async function runJob(vaultId: string): Promise<void> {
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) {
-    patch(vaultId, { status: "paused" });
+    patch(vaultId, { status: SpaceAddStatus.Paused });
     return;
   }
   if (!useKeysStore.getState().ready) {
-    patch(vaultId, { status: "paused" });
+    patch(vaultId, { status: SpaceAddStatus.Paused });
     void ensureUserKeypair(passphrase).catch(() => {});
     return;
   }
-  patch(vaultId, { status: "running" });
+  patch(vaultId, { status: SpaceAddStatus.Running });
   controller = new AbortController();
   const signal = controller.signal;
   try {
@@ -123,7 +123,7 @@ async function runJob(vaultId: string): Promise<void> {
       patch(vaultId, { failed: [...current.failed, ...res.failed], done: base + todo.length });
       await persist();
     }
-    patch(vaultId, { status: "done", done: total });
+    patch(vaultId, { status: SpaceAddStatus.Done, done: total });
     invalidateSpace(vaultId);
     void queryClient.invalidateQueries({ queryKey: qk.spaces });
   } catch (err) {
@@ -133,13 +133,13 @@ async function runJob(vaultId: string): Promise<void> {
     const unlockNeeded = !usePassphraseStore.getState().getPassphrase();
     if (unlockNeeded) {
       attempted.delete(vaultId);
-      patch(vaultId, { status: "paused" });
+      patch(vaultId, { status: SpaceAddStatus.Paused });
     } else {
       const finished = settled.get(vaultId);
       const failedIds = new Set(job.failed.map((f) => f.fileId));
       const rest = job.fileIds.filter((id) => !failedIds.has(id) && !finished?.has(id));
       patch(vaultId, {
-        status: "error",
+        status: SpaceAddStatus.Error,
         failed: [...job.failed, ...rest.map((fileId) => ({ fileId, error: message }))],
       });
     }
@@ -150,7 +150,9 @@ async function runJob(vaultId: string): Promise<void> {
 
 async function pump(): Promise<void> {
   if (running) return;
-  const next = Object.values(useSpaceAdds.getState().jobs).find((j) => j.status === "queued");
+  const next = Object.values(useSpaceAdds.getState().jobs).find(
+    (j) => j.status === SpaceAddStatus.Queued,
+  );
   if (!next) return;
   running = true;
   try {
@@ -168,13 +170,16 @@ export const useSpaceAdds = create<SpaceAddsStore>((setState, getState) => ({
   enqueue: (vault, fileIds, vaultName) => {
     vaultRefs.set(vault.id, vault);
     const existing = getState().jobs[vault.id];
-    if (existing && existing.status !== "done") {
+    if (existing && existing.status !== SpaceAddStatus.Done) {
       const have = new Set(existing.fileIds);
       const added = [...new Set(fileIds)].filter((id) => !have.has(id));
       patch(vault.id, {
         fileIds: [...existing.fileIds, ...added],
         total: existing.total + added.length,
-        status: existing.status === "running" ? "running" : "queued",
+        status:
+          existing.status === SpaceAddStatus.Running
+            ? SpaceAddStatus.Running
+            : SpaceAddStatus.Queued,
       });
     } else {
       const unique = [...new Set(fileIds)];
@@ -190,7 +195,7 @@ export const useSpaceAdds = create<SpaceAddsStore>((setState, getState) => ({
             done: 0,
             total: unique.length,
             failed: [],
-            status: "queued",
+            status: SpaceAddStatus.Queued,
           },
         },
       }));
@@ -200,17 +205,23 @@ export const useSpaceAdds = create<SpaceAddsStore>((setState, getState) => ({
 
   retryFailed: (vaultId) => {
     const job = getState().jobs[vaultId];
-    if (!job || job.failed.length === 0 || job.status === "running") return;
+    if (!job || job.failed.length === 0 || job.status === SpaceAddStatus.Running) return;
     const ids = job.failed.map((f) => f.fileId);
     attempted.delete(vaultId);
     settled.delete(vaultId);
-    patch(vaultId, { fileIds: ids, total: ids.length, done: 0, failed: [], status: "queued" });
+    patch(vaultId, {
+      fileIds: ids,
+      total: ids.length,
+      done: 0,
+      failed: [],
+      status: SpaceAddStatus.Queued,
+    });
     void persist().then(() => pump());
   },
 
   dismiss: (vaultId) => {
     const job = getState().jobs[vaultId];
-    if (!job || job.status === "running") return;
+    if (!job || job.status === SpaceAddStatus.Running) return;
     attempted.delete(vaultId);
     settled.delete(vaultId);
     setState((s) => {
@@ -240,11 +251,12 @@ export const useSpaceAdds = create<SpaceAddsStore>((setState, getState) => ({
           done: 0,
           total: p.fileIds.length,
           failed: [],
-          status: "queued",
+          status: SpaceAddStatus.Queued,
         };
       }
       for (const id of Object.keys(jobs)) {
-        if (jobs[id].status === "paused") jobs[id] = { ...jobs[id], status: "queued" };
+        if (jobs[id].status === SpaceAddStatus.Paused)
+          jobs[id] = { ...jobs[id], status: SpaceAddStatus.Queued };
       }
       return { jobs };
     });

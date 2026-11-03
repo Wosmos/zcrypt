@@ -1,4 +1,5 @@
 import type { CustomStyle } from "@/lib/name-crypto";
+import type { PlatformId } from "@/lib/platforms";
 
 export interface FileMetadata {
   id: string;
@@ -82,12 +83,45 @@ export interface ProgressEvent {
 }
 
 export interface AppConfig {
-  default_platform: string;
-  thresholds: Record<string, number>;
+  default_platform: PlatformId;
+  thresholds: Partial<Record<PlatformId, number>>;
   token_count: number;
 }
 
-export type UploadStatus = "queued" | "encrypting" | "uploading" | "paused" | "done" | "failed";
+/** Lifecycle of one queued upload. */
+export const UploadStatus = {
+  Queued: "queued",
+  Encrypting: "encrypting",
+  Uploading: "uploading",
+  Paused: "paused",
+  Done: "done",
+  Failed: "failed",
+} as const;
+
+export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus];
+
+/** Lifecycle of one queued download. */
+export const DownloadStatus = {
+  Queued: "queued",
+  Downloading: "downloading",
+  Paused: "paused",
+  Done: "done",
+  Failed: "failed",
+  Cancelled: "cancelled",
+} as const;
+
+export type DownloadStatus = (typeof DownloadStatus)[keyof typeof DownloadStatus];
+
+/** Lifecycle of one batch of files being added to a space. */
+export const SpaceAddStatus = {
+  Queued: "queued",
+  Running: "running",
+  Paused: "paused",
+  Done: "done",
+  Error: "error",
+} as const;
+
+export type SpaceAddStatus = (typeof SpaceAddStatus)[keyof typeof SpaceAddStatus];
 
 export interface UploadItem {
   id: string;
@@ -111,6 +145,24 @@ export enum Role {
   User = "user",
   Admin = "admin",
 }
+
+/** Subscription plan ids. Plans are admin-editable at runtime, so a user's `plan` stays a plain string. */
+export const Plan = {
+  Free: "free",
+  Plus: "plus",
+  Pro: "pro",
+} as const;
+
+export type PlanId = (typeof Plan)[keyof typeof Plan];
+
+/** A member's role inside a shared space. */
+export const SpaceRole = {
+  Viewer: "viewer",
+  Editor: "editor",
+  Admin: "admin",
+} as const;
+
+export type SpaceRole = (typeof SpaceRole)[keyof typeof SpaceRole];
 
 export interface AuthUser {
   id: string;
@@ -484,7 +536,7 @@ export interface SharedVault {
   /** The caller's own key grant (space key sealed to their public key), base64. */
   wrapped_space_key?: string;
   /** The caller's role in this space. */
-  role?: "viewer" | "editor" | "admin";
+  role?: SpaceRole;
   /** Optional size cap in bytes (sum of shared files' original sizes). 0 = no limit. */
   size_limit_bytes: number;
   /** True after a member removal until the key is rotated; new files are refused. */
@@ -509,7 +561,7 @@ export interface SharedVaultMember {
   email?: string;
   has_avatar?: boolean;
   avatar_version?: string;
-  role: "viewer" | "editor" | "admin";
+  role: SpaceRole;
   joined_at: string;
   /** Space key sealed to THIS member's public key (opaque to the server). */
   wrapped_space_key?: string;

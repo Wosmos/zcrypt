@@ -17,7 +17,15 @@
 import { BOTFATHER_URL } from "@/lib/config";
 import { tr } from "@/store/translate";
 
-export type PlatformId = "github" | "gitlab" | "huggingface" | "telegram";
+/** Wire ids of the supported storage platforms. */
+export const Platform = {
+  Github: "github",
+  Gitlab: "gitlab",
+  HuggingFace: "huggingface",
+  Telegram: "telegram",
+} as const;
+
+export type PlatformId = (typeof Platform)[keyof typeof Platform];
 
 export interface PlatformMeta {
   id: PlatformId;
@@ -70,7 +78,7 @@ function localized(meta: PlatformMeta): PlatformMeta {
 
 const PLATFORM_DEFS: PlatformMeta[] = [
   {
-    id: "github",
+    id: Platform.Github,
     name: "GitHub",
     short: "GH",
     color: "#6366f1",
@@ -94,7 +102,7 @@ const PLATFORM_DEFS: PlatformMeta[] = [
     tokenLabel: "Generate token on GitHub",
   },
   {
-    id: "gitlab",
+    id: Platform.Gitlab,
     name: "GitLab",
     short: "GL",
     color: "#f97316",
@@ -117,7 +125,7 @@ const PLATFORM_DEFS: PlatformMeta[] = [
     tokenLabel: "Generate token on GitLab",
   },
   {
-    id: "huggingface",
+    id: Platform.HuggingFace,
     name: "Hugging Face",
     short: "HF",
     color: "#eab308",
@@ -142,7 +150,7 @@ const PLATFORM_DEFS: PlatformMeta[] = [
     tokenLabel: "Generate token on Hugging Face",
   },
   {
-    id: "telegram",
+    id: Platform.Telegram,
     name: "Telegram",
     short: "TG",
     color: "#0ea5e9",

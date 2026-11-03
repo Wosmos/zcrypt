@@ -31,7 +31,7 @@ import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import type { PlatformTokenInfo } from "@/types";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
-import { PLATFORM_NAMES as platformNames } from "@/lib/platforms";
+import { PLATFORM_NAMES as platformNames, Platform } from "@/lib/platforms";
 import { useOverridesFor } from "@/hooks/useOverridesFor";
 
 /** The acting admin's own platform tokens, paged, plus adding a new one. */
@@ -45,7 +45,7 @@ export function TokenManagement() {
   const othersCount = page.data?.others_count ?? 0;
   const onRefresh = page.refresh;
   const [showForm, setShowForm] = useState(false);
-  const [platform, setPlatform] = useState("github");
+  const [platform, setPlatform] = useState<string>(Platform.Github);
   const [token, setToken] = useState("");
   const [isGlobal, setIsGlobal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -163,9 +163,9 @@ export function TokenManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="github">GitHub</SelectItem>
-                      <SelectItem value="gitlab">GitLab</SelectItem>
-                      <SelectItem value="huggingface">Hugging Face</SelectItem>
+                      <SelectItem value={Platform.Github}>GitHub</SelectItem>
+                      <SelectItem value={Platform.Gitlab}>GitLab</SelectItem>
+                      <SelectItem value={Platform.HuggingFace}>Hugging Face</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

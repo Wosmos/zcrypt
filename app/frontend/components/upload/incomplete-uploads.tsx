@@ -11,6 +11,7 @@ import { cancelUpload } from "@/lib/upload-session";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import { useUploadStore } from "@/store/upload";
+import { UploadStatus } from "@/types";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
 import { platformName } from "@/lib/platforms";
 import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
@@ -78,13 +79,15 @@ export function IncompleteUploads({
   const liveKeys = useMemo(
     () =>
       new Set(
-        queue.filter((i) => i.status !== "done").map((i) => `${i.file.name}::${i.file.size}`),
+        queue
+          .filter((i) => i.status !== UploadStatus.Done)
+          .map((i) => `${i.file.name}::${i.file.size}`),
       ),
     [queue],
   );
   // When an in-tab upload finishes, its server session flips to complete, re-fetch
   // so it drops off the list instead of lingering as "unfinished".
-  const doneCount = queue.filter((i) => i.status === "done").length;
+  const doneCount = queue.filter((i) => i.status === UploadStatus.Done).length;
   const lastDone = useRef(doneCount);
   useEffect(() => {
     if (doneCount === lastDone.current) return;

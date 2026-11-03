@@ -35,6 +35,7 @@ import type {
   SharedVault,
   SharedVaultDetail,
   SharedVaultMember,
+  SpaceRole,
   OfflinePin,
   PublicResourceInfo,
 } from "@/types";
@@ -2165,7 +2166,7 @@ export function updateSharedVault(
 export function updateSharedVaultMemberRole(
   vaultId: string,
   userId: string,
-  role: "viewer" | "editor" | "admin",
+  role: SpaceRole,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, {
     method: "PATCH",

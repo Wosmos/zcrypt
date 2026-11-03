@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { loadSpaceKey, shareSpace, type SpaceRole } from "@/lib/spaces";
+import { loadSpaceKey, shareSpace } from "@/lib/spaces";
 import { withKeyConfirm, KeyChangeDeclinedError } from "@/components/spaces/key-change";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { SharedVault, SharedVaultMember } from "@/types";
+import { SpaceRole, type SharedVault, type SharedVaultMember } from "@/types";
 
 export function inviteRoles(isOwner: boolean): SpaceRole[] {
-  return isOwner ? ["viewer", "editor", "admin"] : ["viewer", "editor"];
+  return isOwner
+    ? [SpaceRole.Viewer, SpaceRole.Editor, SpaceRole.Admin]
+    : [SpaceRole.Viewer, SpaceRole.Editor];
 }
 
 export class NoSpaceKeyError extends Error {
@@ -104,7 +106,7 @@ export function InviteForm({
 }) {
   const t = useTranslations("spaces");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<SpaceRole>("viewer");
+  const [role, setRole] = useState<SpaceRole>(SpaceRole.Viewer);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -151,7 +153,7 @@ export function InviteForm({
       </div>
       <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
         <span>{t(`role.${role}`)}</span>: {t(`role.${role}Help`)}
-        {!roles.includes("admin") && ` ${t("invites.adminOwnerOnly")}`}
+        {!roles.includes(SpaceRole.Admin) && ` ${t("invites.adminOwnerOnly")}`}
       </p>
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

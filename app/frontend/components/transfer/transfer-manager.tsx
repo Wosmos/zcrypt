@@ -12,8 +12,8 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { useUploadStore } from "@/store/upload";
-import { useDownloadStore, type DownloadStatus } from "@/store/download";
-import type { UploadStatus } from "@/types";
+import { useDownloadStore } from "@/store/download";
+import { DownloadStatus, UploadStatus } from "@/types";
 import { usePassphraseStore } from "@/store/passphrase";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -37,7 +37,7 @@ import {
   translateLabel,
   type TransferLabel,
 } from "@/lib/transfer-progress";
-import { TransferItem, type TransferEntry, type TransferState } from "./transfer-item";
+import { TransferItem, TransferState, type TransferEntry } from "./transfer-item";
 import { ProgressRing, TONE, type Segment } from "./transfer-parts";
 import {
   BatchBlock,
@@ -56,25 +56,30 @@ export interface TransferManagerProps {
 }
 
 const STATE_RANK: Record<TransferState, number> = {
-  failed: 0,
-  active: 1,
-  paused: 2,
-  queued: 3,
-  cancelled: 4,
-  done: 5,
+  [TransferState.Failed]: 0,
+  [TransferState.Active]: 1,
+  [TransferState.Paused]: 2,
+  [TransferState.Queued]: 3,
+  [TransferState.Cancelled]: 4,
+  [TransferState.Done]: 5,
 };
 const BATCH_MIN = 10;
 const FOLD_DONE_MS = 5000;
 const ORB_FADE_MS = 4000;
 
 function uploadState(status: UploadStatus): TransferState {
-  if (status === "done" || status === "failed" || status === "paused" || status === "queued")
+  if (
+    status === UploadStatus.Done ||
+    status === UploadStatus.Failed ||
+    status === UploadStatus.Paused ||
+    status === UploadStatus.Queued
+  )
     return status;
-  return "active";
+  return TransferState.Active;
 }
 
 function downloadState(status: DownloadStatus): TransferState {
-  return status === "downloading" ? "active" : status;
+  return status === DownloadStatus.Downloading ? TransferState.Active : status;
 }
 
 function isPhoto(name: string): boolean {
@@ -218,7 +223,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const recordBars = useTransferDockStore((s) => s.recordBars);
   const noPlatformText = ta("hooks.noPlatform");
   const [now, setNow] = useState(() => Date.now());
-  const downloading = downloadQueue.some((d) => d.status === "downloading");
+  const downloading = downloadQueue.some((d) => d.status === DownloadStatus.Downloading);
   useEffect(() => {
     if (!downloading) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -284,11 +289,11 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   }, [entries, recordBars]);
 
   const count = (s: TransferState) => entries.filter((e) => e.state === s).length;
-  const done = count("done");
-  const failed = count("failed");
-  const active = count("active");
-  const waiting = count("queued");
-  const paused = count("paused");
+  const done = count(TransferState.Done);
+  const failed = count(TransferState.Failed);
+  const active = count(TransferState.Active);
+  const waiting = count(TransferState.Queued);
+  const paused = count(TransferState.Paused);
   const left = active + waiting + paused;
   const settled = left === 0;
   const transferring = active + waiting > 0;
@@ -313,7 +318,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   }, [transferring]);
 
   const doneKeys = entries
-    .filter((e) => e.state === "done" && !folded.has(e.key))
+    .filter((e) => e.state === TransferState.Done && !folded.has(e.key))
     .map((e) => e.key)
     .join("|");
   useEffect(() => {
@@ -357,9 +362,10 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
 
   const pausable = entries.filter(
     (e) =>
-      (e.state === "active" || e.state === "queued") && !(e.direction === "upload" && e.desktop),
+      (e.state === TransferState.Active || e.state === TransferState.Queued) &&
+      !(e.direction === "upload" && e.desktop),
   );
-  const resumable = entries.filter((e) => e.state === "paused");
+  const resumable = entries.filter((e) => e.state === TransferState.Paused);
   const pauseAll = () => {
     for (const e of pausable)
       (e.direction === "upload" ? controls.onPause : controls.onPauseDownload)(e.id);
@@ -369,7 +375,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       (e.direction === "upload" ? controls.onResume : controls.onResumeDownload)(e.id);
   };
   const retryFailed = () => {
-    for (const e of entries.filter((x) => x.state === "failed"))
+    for (const e of entries.filter((x) => x.state === TransferState.Failed))
       (e.direction === "upload" ? controls.onRetryUpload : controls.onRetryDownload)(e.id);
   };
   const retryFailedRef = useRef(retryFailed);
@@ -401,26 +407,26 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
 
   const segmentsOf = (list: TransferEntry[]): Segment[] => {
     const n = (s: TransferState) => list.filter((e) => e.state === s).length;
-    const w = n("queued") + n("paused");
+    const w = n(TransferState.Queued) + n(TransferState.Paused);
     return [
       {
         id: "done",
-        count: n("done"),
+        count: n(TransferState.Done),
         color: TONE.ok,
-        title: t("segment.done", { count: n("done") }),
+        title: t("segment.done", { count: n(TransferState.Done) }),
       },
       {
         id: "uploading",
-        count: n("active"),
+        count: n(TransferState.Active),
         color: TONE.accent,
-        title: t("segment.uploading", { count: n("active") }),
+        title: t("segment.uploading", { count: n(TransferState.Active) }),
       },
       { id: "waiting", count: w, color: TONE.waiting, title: t("segment.waiting", { count: w }) },
       {
         id: "failed",
-        count: n("failed"),
+        count: n(TransferState.Failed),
         color: TONE.err,
-        title: t("segment.failed", { count: n("failed") }),
+        title: t("segment.failed", { count: n(TransferState.Failed) }),
       },
     ];
   };
@@ -430,26 +436,29 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const sentenceList = uploads.length > 0 ? uploads : entries;
   const sentence: TransferLabel = batchSentence({
     direction: uploads.length > 0 ? "upload" : "download",
-    done: sentenceList.filter((e) => e.state === "done").length,
-    failed: sentenceList.filter((e) => e.state === "failed").length,
-    active: sentenceList.filter((e) => e.state === "active").length,
-    waiting: sentenceList.filter((e) => e.state === "queued").length,
-    paused: sentenceList.filter((e) => e.state === "paused").length,
+    done: sentenceList.filter((e) => e.state === TransferState.Done).length,
+    failed: sentenceList.filter((e) => e.state === TransferState.Failed).length,
+    active: sentenceList.filter((e) => e.state === TransferState.Active).length,
+    waiting: sentenceList.filter((e) => e.state === TransferState.Queued).length,
+    paused: sentenceList.filter((e) => e.state === TransferState.Paused).length,
     photos: sentenceList.length > 0 && sentenceList.every((e) => isPhoto(e.name)),
     folderName: folderName(mainFolder),
     online,
   });
 
-  const rate = entries.reduce((sum, e) => sum + (e.state === "active" ? (e.rateBps ?? 0) : 0), 0);
+  const rate = entries.reduce(
+    (sum, e) => sum + (e.state === TransferState.Active ? (e.rateBps ?? 0) : 0),
+    0,
+  );
   const remainingBytes = uploads.reduce(
     (sum, e) =>
-      e.state === "active" || e.state === "queued"
+      e.state === TransferState.Active || e.state === TransferState.Queued
         ? sum + Math.max(0, (e.totalBytes ?? 0) - (e.bytesProcessed ?? 0))
         : sum,
     0,
   );
   const downloadEtas = entries
-    .filter((e) => e.direction === "download" && e.state === "active")
+    .filter((e) => e.direction === "download" && e.state === TransferState.Active)
     .map((e) => e.etaSeconds ?? 0);
   const etaSeconds = rate > 0 ? remainingBytes / rate : Math.max(0, ...downloadEtas);
   const timeLeft = timeLeftLabel(etaSeconds);
@@ -465,14 +474,18 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       ? entries.reduce(
           (sum, e) =>
             sum +
-            (e.state === "done" || e.state === "failed" || e.state === "cancelled"
+            (e.state === TransferState.Done ||
+            e.state === TransferState.Failed ||
+            e.state === TransferState.Cancelled
               ? 100
               : e.view.bar),
           0,
         ) / entries.length
       : 100;
   const activeDownloads = entries.filter(
-    (e) => e.direction === "download" && (e.state === "active" || e.state === "queued"),
+    (e) =>
+      e.direction === "download" &&
+      (e.state === TransferState.Active || e.state === TransferState.Queued),
   ).length;
   const speedLine = [
     rate > 0 ? t("header.speed", { speed: formatBytes(rate) }) : "",
@@ -482,8 +495,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     .join(" · ");
   const sentenceText = translateLabel(t, sentence);
   const current =
-    entries.find((e) => e.state === "active" && e.direction === "upload") ??
-    entries.find((e) => e.state === "active");
+    entries.find((e) => e.state === TransferState.Active && e.direction === "upload") ??
+    entries.find((e) => e.state === TransferState.Active);
 
   const summary: TransferSummary = {
     total: entries.length,
@@ -501,7 +514,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   };
 
   const rows = entries.filter(
-    (e) => !folded.has(e.key) && !(batch && batch.keys.has(e.key) && e.state === "queued"),
+    (e) =>
+      !folded.has(e.key) && !(batch && batch.keys.has(e.key) && e.state === TransferState.Queued),
   );
   const shown = entries.length > 0 && !dismissed;
   const dropFolder = dropTarget?.folderName ?? "";
@@ -745,9 +759,9 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           ) : resumable.length > 0 ? (
             <FooterLink onClick={resumeAll}>{t("resumeAll")}</FooterLink>
           ) : null}
-          {entries.some((e) => e.state === "done" || e.state === "cancelled") && (
-            <FooterLink onClick={clearDone}>{t("clearDone")}</FooterLink>
-          )}
+          {entries.some(
+            (e) => e.state === TransferState.Done || e.state === TransferState.Cancelled,
+          ) && <FooterLink onClick={clearDone}>{t("clearDone")}</FooterLink>}
         </span>
       </div>
 

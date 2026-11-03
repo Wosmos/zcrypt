@@ -8,7 +8,7 @@ import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { platformName } from "@/lib/platforms";
+import { Platform, platformName } from "@/lib/platforms";
 
 interface PlatformHealthProps {
   statuses: PlatformStatus[];
@@ -16,10 +16,10 @@ interface PlatformHealthProps {
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
-  github: <Github className="h-3.5 w-3.5" />,
-  gitlab: <GitlabIcon className="h-3.5 w-3.5" />,
-  huggingface: <HuggingFaceIcon className="h-3.5 w-3.5" />,
-  telegram: <TelegramIcon className="h-3.5 w-3.5" />,
+  [Platform.Github]: <Github className="h-3.5 w-3.5" />,
+  [Platform.Gitlab]: <GitlabIcon className="h-3.5 w-3.5" />,
+  [Platform.HuggingFace]: <HuggingFaceIcon className="h-3.5 w-3.5" />,
+  [Platform.Telegram]: <TelegramIcon className="h-3.5 w-3.5" />,
 };
 
 export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {

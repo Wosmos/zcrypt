@@ -9,7 +9,7 @@ import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { Role } from "@/types";
+import { Plan, Role } from "@/types";
 import type { PlanConfig, PlanFeature } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -223,7 +223,7 @@ export default function AdminPricingPage() {
   };
 
   const deletePlan = (id: string) => {
-    if (id === "free") {
+    if (id === Plan.Free) {
       toast.error(t("cannotDeleteFree"));
       return;
     }
@@ -233,7 +233,7 @@ export default function AdminPricingPage() {
   };
 
   const handleSave = async () => {
-    if (!plans.some((p) => p.id === "free")) {
+    if (!plans.some((p) => p.id === Plan.Free)) {
       toast.error(t("freeRequired"));
       return;
     }
@@ -339,7 +339,7 @@ export default function AdminPricingPage() {
                     </div>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
-                    {plan.id !== "free" && (
+                    {plan.id !== Plan.Free && (
                       <span
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => e.stopPropagation()}
@@ -403,7 +403,7 @@ export default function AdminPricingPage() {
                           });
                           if (expandedPlan === oldId) setExpandedPlan(newId);
                         }}
-                        disabled={plan.id === "free"}
+                        disabled={plan.id === Plan.Free}
                         className={cn(fieldClass, "font-mono disabled:opacity-50")}
                         placeholder={t("planIdPlaceholder")}
                       />

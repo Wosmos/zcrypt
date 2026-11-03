@@ -5,6 +5,8 @@
  * key (relative to the `app.transfer` namespace) with its values.
  */
 
+import { DownloadStatus, UploadStatus } from "@/types";
+
 export type TransferDirection = "upload" | "download";
 
 export type TransferPhase =
@@ -39,7 +41,7 @@ export interface TransferView {
 
 /** Raw upload fields, exactly as the upload store keeps them. */
 export interface UploadProgressInput {
-  status: "queued" | "encrypting" | "uploading" | "paused" | "done" | "failed";
+  status: UploadStatus;
   progress: number;
   stage?: string;
   bytesProcessed?: number;
@@ -50,7 +52,7 @@ export interface UploadProgressInput {
 
 /** Raw download fields, exactly as the download store keeps them. */
 export interface DownloadProgressInput {
-  status: "queued" | "downloading" | "paused" | "done" | "failed" | "cancelled";
+  status: DownloadStatus;
   progress: number;
   stage?: string;
   fileSize?: number;
@@ -161,9 +163,9 @@ function uploadEstimate(i: UploadProgressInput): { phase: TransferPhase; bar: nu
   if (/^deriving/i.test(stage)) return { phase: "ready", bar: 6 };
   if (/^(Starting upload session|Waiting for slot)/.test(stage)) return { phase: "ready", bar: 7 };
   if (bytes > 0 && total > 0) return { phase: "sending", bar: 20 + 77 * frac };
-  if (i.status === "uploading" && i.progress >= 10)
+  if (i.status === UploadStatus.Uploading && i.progress >= 10)
     return { phase: "sending", bar: 20 + 77 * clamp01((i.progress - 3) / 92) };
-  if (i.status === "uploading" || /^(encrypting|processing|uploading)/i.test(stage))
+  if (i.status === UploadStatus.Uploading || /^(encrypting|processing|uploading)/i.test(stage))
     return { phase: "securing", bar: 12 };
   return { phase: "ready", bar: Math.min(7, Math.max(0, i.progress) * 2) };
 }
@@ -182,11 +184,11 @@ export function describeUpload(i: UploadProgressInput, ctx: ProgressContext): Tr
   const est = uploadEstimate(i);
   const stage = i.stage ?? "";
   let phase: TransferPhase;
-  if (i.status === "done") phase = "saved";
-  else if (i.status === "failed") phase = "failed";
-  else if (i.status === "paused") phase = "paused";
+  if (i.status === UploadStatus.Done) phase = "saved";
+  else if (i.status === UploadStatus.Failed) phase = "failed";
+  else if (i.status === UploadStatus.Paused) phase = "paused";
   else if (!ctx.online) phase = "offline";
-  else if (i.status === "queued")
+  else if (i.status === UploadStatus.Queued)
     phase = /^(Waiting for slot|Retrying)/.test(stage) ? "ready" : "queued";
   else phase = est.phase;
   const bar = settle(phase, est.bar, ctx.prevBar);
@@ -226,12 +228,13 @@ function fetchingLabel(i: DownloadProgressInput): TransferLabel {
 export function describeDownload(i: DownloadProgressInput, ctx: ProgressContext): TransferView {
   const est = downloadEstimate(i);
   let phase: TransferPhase;
-  if (i.status === "done") phase = "downloaded";
-  else if (i.status === "failed") phase = "failed";
-  else if (i.status === "cancelled") phase = "stopped";
-  else if (i.status === "paused") phase = "paused";
+  if (i.status === DownloadStatus.Done) phase = "downloaded";
+  else if (i.status === DownloadStatus.Failed) phase = "failed";
+  else if (i.status === DownloadStatus.Cancelled) phase = "stopped";
+  else if (i.status === DownloadStatus.Paused) phase = "paused";
   else if (!ctx.online) phase = "offline";
-  else if (i.status === "queued") phase = /^Choose where/.test(i.stage ?? "") ? "choose" : "queued";
+  else if (i.status === DownloadStatus.Queued)
+    phase = /^Choose where/.test(i.stage ?? "") ? "choose" : "queued";
   else phase = est.phase;
   const bar = settle(phase, est.bar, ctx.prevBar);
   let label: TransferLabel;

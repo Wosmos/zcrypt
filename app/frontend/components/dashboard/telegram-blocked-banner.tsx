@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, RefreshCw } from "@/lib/icons";
 import { Banner } from "@/components/ui/banner";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
-import type { PlatformId } from "@/lib/platforms";
+import { Platform, type PlatformId } from "@/lib/platforms";
 import { probeTelegram } from "@/lib/telegram-reach";
 
-const TELEGRAM: PlatformId = "telegram";
+const TELEGRAM: PlatformId = Platform.Telegram;
 const DISMISS_KEY = "zcrypt:telegram-blocked-banner-dismissed-at";
 const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
 

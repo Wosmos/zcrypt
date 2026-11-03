@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { X } from "@/lib/icons";
 import { useSpaceAdds, type SpaceAddJob } from "@/store/space-adds";
+import { SpaceAddStatus } from "@/types";
 
 const AUTO_DISMISS_MS = 4000;
 
@@ -11,12 +12,12 @@ type Translate = (key: string, values?: Record<string, string | number>) => stri
 
 function label(job: SpaceAddJob, t: Translate): string {
   const name = job.vaultName;
-  if (job.status === "done") {
+  if (job.status === SpaceAddStatus.Done) {
     return t("strip.done", { count: job.total - job.failed.length, name });
   }
-  if (job.status === "paused") return t("strip.paused", { name });
-  if (job.status === "error") return t("strip.error", { name });
-  if (job.status === "queued") return t("strip.queued", { count: job.total, name });
+  if (job.status === SpaceAddStatus.Paused) return t("strip.paused", { name });
+  if (job.status === SpaceAddStatus.Error) return t("strip.error", { name });
+  if (job.status === SpaceAddStatus.Queued) return t("strip.queued", { count: job.total, name });
   return t("strip.running", { done: job.done, total: job.total, name });
 }
 
@@ -28,9 +29,11 @@ export function SpaceAddsStrip() {
 
   const list = Object.values(jobs);
   const job =
-    list.find((j) => j.status === "running") ?? list.find((j) => j.status !== "done") ?? list[0];
+    list.find((j) => j.status === SpaceAddStatus.Running) ??
+    list.find((j) => j.status !== SpaceAddStatus.Done) ??
+    list[0];
 
-  const quietDone = job?.status === "done" && job.failed.length === 0;
+  const quietDone = job?.status === SpaceAddStatus.Done && job.failed.length === 0;
   const doneId = quietDone ? job.vaultId : null;
   useEffect(() => {
     if (!doneId) return;
@@ -41,7 +44,7 @@ export function SpaceAddsStrip() {
   if (!job) return null;
 
   const pct = job.total > 0 ? Math.min(100, Math.round((job.done / job.total) * 100)) : 0;
-  const finished = job.status === "done" || job.status === "error";
+  const finished = job.status === SpaceAddStatus.Done || job.status === SpaceAddStatus.Error;
 
   return (
     <div
@@ -59,7 +62,7 @@ export function SpaceAddsStrip() {
               </p>
             )}
           </div>
-          {job.failed.length > 0 && job.status !== "running" && (
+          {job.failed.length > 0 && job.status !== SpaceAddStatus.Running && (
             <button
               type="button"
               onClick={() => retryFailed(job.vaultId)}
@@ -91,7 +94,9 @@ export function SpaceAddsStrip() {
 }
 
 export function SpaceAddsGuard() {
-  const active = useSpaceAdds((s) => Object.values(s.jobs).some((j) => j.status === "running"));
+  const active = useSpaceAdds((s) =>
+    Object.values(s.jobs).some((j) => j.status === SpaceAddStatus.Running),
+  );
 
   useEffect(() => {
     if (!active) return;

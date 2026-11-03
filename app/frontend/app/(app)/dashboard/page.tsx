@@ -63,6 +63,7 @@ import type { DecryptedFolder } from "@/hooks/useFolders";
 
 import { Shield, RefreshCw, FileUpload, FolderAdd } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
+import { Platform } from "@/lib/platforms";
 import { useAutoTour } from "@/components/onboarding/tour-provider";
 
 /**
@@ -423,7 +424,7 @@ export default function VaultPage() {
     quotaInfo && !quotaInfo.can_upload
       ? t("storageUnavailable")
       : statuses.some((s) => s.connected) &&
-          !statuses.some((s) => s.platform === "huggingface" && s.connected)
+          !statuses.some((s) => s.platform === Platform.HuggingFace && s.connected)
         ? t("hintHuggingFace")
         : vault.unlocked
           ? t("hintUnlocked")

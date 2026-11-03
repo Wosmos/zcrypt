@@ -39,7 +39,7 @@ import { ApiError } from "@/lib/http-error";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
-import type { SharedVault, SharedVaultMember, SharedVaultFile } from "@/types";
+import { SpaceRole, type SharedVault, type SharedVaultMember, type SharedVaultFile } from "@/types";
 import { tr } from "@/store/translate";
 
 /** Create a shared space: generate its key, seal it to yourself, and create the
@@ -435,7 +435,7 @@ export async function shareSpace(
   vaultId: string,
   spaceKey: Uint8Array,
   email: string,
-  role: "viewer" | "editor" | "admin",
+  role: SpaceRole,
   opts?: SealOptions,
 ): Promise<SharedVaultMember> {
   const recipient = await lookupUserKey(email);
@@ -446,7 +446,7 @@ export async function shareSpace(
   return member;
 }
 
-export type SpaceRole = "viewer" | "editor" | "admin";
+export { SpaceRole };
 
 export interface SpacePerms {
   label: "Owner" | "Admin" | "Editor" | "Viewer";
@@ -467,8 +467,8 @@ export function spacePerms(
   userId: string | undefined,
 ): SpacePerms {
   const owner = !!userId && vault.owner_id === userId;
-  const admin = owner || vault.role === "admin";
-  const editor = admin || vault.role === "editor";
+  const admin = owner || vault.role === SpaceRole.Admin;
+  const editor = admin || vault.role === SpaceRole.Editor;
   return {
     label: owner ? "Owner" : admin ? "Admin" : editor ? "Editor" : "Viewer",
     editFiles: editor,
@@ -486,5 +486,5 @@ export function canManageMember(
   member: Pick<SharedVaultMember, "user_id" | "role">,
 ): boolean {
   if (!perms.manage || member.user_id === vault.owner_id) return false;
-  return perms.owner || member.role !== "admin";
+  return perms.owner || member.role !== SpaceRole.Admin;
 }

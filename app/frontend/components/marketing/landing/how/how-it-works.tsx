@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { T } from "@/components/i18n/t";
 import { MOTION_REDUCE, ScrollTrigger, gsap, useGSAP } from "@/components/marketing/landing/gsap";
 import { ArrowRight } from "@/lib/icons";
+import { Platform } from "@/lib/platforms";
 import { SectionHead } from "../section-head";
 import { CAPTIONS, type HowPart } from "./how-data";
 import { HowScene, type ScenePart } from "./how-scene";
@@ -77,7 +78,7 @@ function setStart(stage: HTMLElement, part: ScenePart) {
   if (part === "all" || part === "store") {
     gsap.set(q(".zw-stack i"), { scaleY: 0 });
     gsap.set(q(".zw-count"), { scale: 0, opacity: 0 });
-    gsap.set(q('[data-p="telegram"] .zw-glow'), { opacity: 0 });
+    gsap.set(q(`[data-p="${Platform.Telegram}"] .zw-glow`), { opacity: 0 });
     gsap.set(q(".zw-meter-fill"), { scaleX: 0.6 });
     gsap.set(q(".zw-ghost"), { opacity: 0, y: -8 });
   }
@@ -243,7 +244,7 @@ const store: Build = (tl, stage, at, span, c) => {
       t(0.33),
     )
     .fromTo(
-      q('[data-p="telegram"] .zw-glow'),
+      q(`[data-p="${Platform.Telegram}"] .zw-glow`),
       { opacity: 0 },
       { opacity: 1, duration: d(0.14), ease: "none", ...ir },
       t(0.36),

@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/http-error";
 import { cn, formatBytes, midTrunc } from "@/lib/utils";
 import { useFilesQuery } from "@/store/files";
 import { useSpaceAdds } from "@/store/space-adds";
+import { SpaceAddStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { useSpaceMeta } from "@/hooks/useSpaceMeta";
 import { useKeyboardSelection } from "@/hooks/useKeyboardSelection";
@@ -138,7 +139,7 @@ export function SpaceHome() {
   const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
   const pendingRows = useMemo(() => {
-    if (!job || job.status === "done") return [];
+    if (!job || job.status === SpaceAddStatus.Done) return [];
     const have = new Set(rows.map((r) => r.id));
     const failed = new Set(job.failed.map((f) => f.fileId));
     const names = new Map(myFiles.map((f) => [f.id, f.original_name]));
@@ -277,7 +278,7 @@ export function SpaceHome() {
   }));
   const allSelected = ids.length > 0 && ids.every((x) => selected.has(x));
   const selectMode = selected.size > 0;
-  const inFlight = job && job.status !== "done" ? job : null;
+  const inFlight = job && job.status !== SpaceAddStatus.Done ? job : null;
 
   return (
     <PageShell>
@@ -368,7 +369,7 @@ export function SpaceHome() {
           className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3.5 py-2 text-sm text-[var(--color-text-secondary)]"
         >
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {inFlight.status === "paused"
+          {inFlight.status === SpaceAddStatus.Paused
             ? t("home.unlockToFinish")
             : t("home.addingProgress", { done: inFlight.done, total: inFlight.total })}
         </div>

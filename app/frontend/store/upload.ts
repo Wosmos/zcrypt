@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { tr } from "@/store/translate";
-import type { FileMetadata, UploadItem, UploadStatus } from "@/types";
+import { UploadStatus, type FileMetadata, type UploadItem } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import {
@@ -108,7 +108,9 @@ function stopBackgroundNotifications() {
 
 /** The thumbnail of the newest item in `items` that has one cached, preferring ones in flight. */
 function batchThumbnail(items: UploadItem[]): string | undefined {
-  const moving = items.filter((i) => i.status !== "done" && i.status !== "failed");
+  const moving = items.filter(
+    (i) => i.status !== UploadStatus.Done && i.status !== UploadStatus.Failed,
+  );
   for (const list of [moving, items]) {
     for (let n = list.length - 1; n >= 0; n--) {
       const thumb = getCachedThumbnail(list[n].fileId);
@@ -125,8 +127,8 @@ function folderLabel(folderId: string | null | undefined): string {
 
 function notifyBatchEnd(items: UploadItem[], folderId: string | null | undefined) {
   if (items.length === 0) return;
-  const done = items.filter((i) => i.status === "done").length;
-  const failed = items.filter((i) => i.status === "failed");
+  const done = items.filter((i) => i.status === UploadStatus.Done).length;
+  const failed = items.filter((i) => i.status === UploadStatus.Failed);
   if (items.length === 1 && failed.length === 1) {
     const item = failed[0];
     const reason = failureReason("upload", item.error, item.progress);
@@ -570,7 +572,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // a new one, so no superseded run is ever still executing. The token check
     // stays as the invariant that makes that safe to rely on.
     /* v8 ignore start */
-    if (isCurrentRun()) updateStatus(id, "paused", undefined, "Paused");
+    if (isCurrentRun()) updateStatus(id, UploadStatus.Paused, undefined, "Paused");
     /* v8 ignore stop */
     return true;
   };
@@ -625,7 +627,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // decryptable by decryptFileNames and independent of the file's content key.
       const nameKey = await nameKeyFor(vaultPass, dedupUserId);
       const dedupKey = await deriveDedupKeyBytes(passphrase, dedupUserId);
-      updateStatus(id, "encrypting", 1, "Hashing file…", 0, file.size);
+      updateStatus(id, UploadStatus.Encrypting, 1, "Hashing file…", 0, file.size);
       const onHashProgress = (hashed: number) => {
         // Feed hash progress into the STAGE text (the bar's byte unit stays
         // reserved for upload bytes) so a multi-GB pre-hash visibly moves.
@@ -633,7 +635,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         const frac = file.size > 0 ? hashed / file.size : 1;
         updateStatus(
           id,
-          "encrypting",
+          UploadStatus.Encrypting,
           1 + Math.round(frac * 2),
           `Hashing file… ${Math.round(frac * 100)}%`,
           0,
@@ -657,7 +659,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           open();
         };
         if (prior) {
-          updateStatus(id, "queued", 0, "Waiting for identical file…");
+          updateStatus(id, UploadStatus.Queued, 0, "Waiting for identical file…");
           await prior;
           if (pauseCheckpoint()) return;
         }
@@ -665,7 +667,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
       encryptedName = await encryptName(file.name, nameKey);
 
-      updateStatus(id, "encrypting", 2, "Deriving encryption key...");
+      updateStatus(id, UploadStatus.Encrypting, 2, "Deriving encryption key...");
       // Batch path: reuse the salt + KEK startUpload derived once for the whole
       // batch (see UploadFileOpts.batchKek for why sharing the salt is safe).
       // The file's stored `salt` becomes the shared batch salt. Retry/resume
@@ -687,7 +689,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
       shouldCompress = !COMPRESSED_EXTENSIONS.has(extOf(file.name));
 
-      updateStatus(id, "encrypting", 3, "Starting upload session...");
+      updateStatus(id, UploadStatus.Encrypting, 3, "Starting upload session...");
       // Init with a wait-for-slot retry loop. `explicitPlatform` overrides the
       // picker choice (used when a dead resumed session forces a restart, the
       // restart must stay on the ORIGINAL platform).
@@ -722,7 +724,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               msg.includes("too many requests") ||
               msg.includes("slow down");
             if (isRetryable && attempt < 59) {
-              updateStatus(id, "queued", 0, `Waiting for slot (${attempt + 1})...`);
+              updateStatus(id, UploadStatus.Queued, 0, `Waiting for slot (${attempt + 1})...`);
               await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
               continue;
             }
@@ -918,7 +920,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       const current = Math.min(uploadedChunks + (inFlightPlainBytes.size > 0 ? 1 : 0), chunkCount);
       updateStatus(
         id,
-        "uploading",
+        UploadStatus.Uploading,
         percent,
         `Uploading chunk ${current}/${chunkCount}`,
         bytes,
@@ -940,7 +942,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         Math.round(
           (file.size > 0 ? completedPlainBytes / file.size : uploadedChunks / chunkCount) * 92,
         );
-      updateStatus(id, "paused", percent, "Paused", completedPlainBytes, file.size);
+      updateStatus(id, UploadStatus.Paused, percent, "Paused", completedPlainBytes, file.size);
     };
 
     // Pipeline depth: let workers pre-process several chunks ahead of uploads.
@@ -1105,14 +1107,14 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     /* v8 ignore stop */
 
     // Finalize
-    updateStatus(id, "uploading", 97, "Finalizing...");
+    updateStatus(id, UploadStatus.Uploading, 97, "Finalizing...");
     await withRetry(() => completeUpload(sessionId, totalEncryptedSize, totalCompressedSize));
 
     // FIX-1b: no post-complete moveFile. The file was created in its destination
     // folder atomically at init (initUpload's folder_id), so it is already filed
     // in the right folder AND keyed correctly. There is no stranding window.
 
-    updateStatus(id, "done", 100, "Done");
+    updateStatus(id, UploadStatus.Done, 100, "Done");
     patchMeta(id, { resume: undefined }); // complete, nothing to resume
     clearPersistedResume(file, destFolderId); // drop the cross-session resume record
 
@@ -1150,7 +1152,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // serialized by relaunchAfterPrior), so the token half of this check is an
       // invariant rather than a branch a test can drive.
       /* v8 ignore start */
-      if (isCurrentRun() && isPaused()) updateStatus(id, "paused", undefined, "Paused");
+      if (isCurrentRun() && isPaused()) updateStatus(id, UploadStatus.Paused, undefined, "Paused");
       /* v8 ignore stop */
       return;
     }
@@ -1254,7 +1256,14 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        { id, file, status: "queued", progress: 0, stage: "Queued", startedAt: Date.now() },
+        {
+          id,
+          file,
+          status: UploadStatus.Queued,
+          progress: 0,
+          stage: "Queued",
+          startedAt: Date.now(),
+        },
       ],
     }));
     return id;
@@ -1272,7 +1281,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         ...items.map(({ id, file }) => ({
           id,
           file,
-          status: "queued" as const,
+          status: UploadStatus.Queued,
           progress: 0,
           stage: "Queued",
           startedAt: now,
@@ -1292,13 +1301,22 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // A paused item accepts only pause/terminal writes. Anything else, a
     // straggling in-flight emit, an SSE event from the backend, must not flip
     // it back to "uploading" (that was how pause visibly undid itself).
-    if (pausedIds.has(id) && status !== "paused" && status !== "failed" && status !== "done")
+    if (
+      pausedIds.has(id) &&
+      status !== UploadStatus.Paused &&
+      status !== UploadStatus.Failed &&
+      status !== UploadStatus.Done
+    )
       return;
     // Terminal states flush immediately so UI reflects completion/failure.
     // "paused" is not terminal, but we flush it immediately too (and drop any
     // pending batched update for this id) so a stale in-flight progress frame
     // can't overwrite the paused state a frame later.
-    if (status === "done" || status === "failed" || status === "paused") {
+    if (
+      status === UploadStatus.Done ||
+      status === UploadStatus.Failed ||
+      status === UploadStatus.Paused
+    ) {
       progressBatch.drop(id);
       set((state) => ({
         queue: state.queue.map((item) =>
@@ -1331,7 +1349,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     progressBatch.drop(id);
     set((state) => ({
       queue: state.queue.map((item) =>
-        item.id === id ? { ...item, status: "failed" as const, error } : item,
+        item.id === id ? { ...item, status: UploadStatus.Failed, error } : item,
       ),
     }));
   },
@@ -1381,7 +1399,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
   clearCompleted: () => {
     set((state) => ({
-      queue: state.queue.filter((item) => item.status !== "done"),
+      queue: state.queue.filter((item) => item.status !== UploadStatus.Done),
     }));
   },
 
@@ -1449,14 +1467,19 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     startBackgroundNotifications(() => {
       const { queue } = get();
       const batch = queue.filter((q) => batchIds.has(q.id));
-      const done = batch.filter((i) => i.status === "done").length;
-      const failed = batch.filter((i) => i.status === "failed").length;
+      const done = batch.filter((i) => i.status === UploadStatus.Done).length;
+      const failed = batch.filter((i) => i.status === UploadStatus.Failed).length;
       const percent =
         batch.length > 0
           ? Math.round(
               batch.reduce(
                 (sum, i) =>
-                  sum + (i.status === "done" ? 100 : i.status === "failed" ? 100 : i.progress || 0),
+                  sum +
+                  (i.status === UploadStatus.Done
+                    ? 100
+                    : i.status === UploadStatus.Failed
+                      ? 100
+                      : i.progress || 0),
                 0,
               ) / batch.length,
             )
@@ -1503,9 +1526,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       // Batch complete: show a single summary toast
       const { queue } = get();
       const batchItems = queue.filter((q) => batchIds.has(q.id));
-      const doneCount = batchItems.filter((i) => i.status === "done").length;
-      const failedCount = batchItems.filter((i) => i.status === "failed").length;
-      const pausedCount = batchItems.filter((i) => i.status === "paused").length;
+      const doneCount = batchItems.filter((i) => i.status === UploadStatus.Done).length;
+      const failedCount = batchItems.filter((i) => i.status === UploadStatus.Failed).length;
+      const pausedCount = batchItems.filter((i) => i.status === UploadStatus.Paused).length;
       const total = batchItems.length;
 
       // If any item is paused, the batch isn't truly finished, suppress the
@@ -1552,7 +1575,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       set((state) => ({
         queue: state.queue.map((i) =>
           i.id === id
-            ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." }
+            ? { ...i, status: UploadStatus.Queued, error: undefined, stage: "Retrying..." }
             : i,
         ),
       }));
@@ -1571,7 +1594,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           if (percent === undefined) return;
           updateStatus(
             id,
-            "encrypting",
+            UploadStatus.Encrypting,
             percent,
             progress.stage,
             progress.bytes_done,
@@ -1579,13 +1602,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           );
         });
         try {
-          updateStatus(id, "encrypting", undefined, "Uploading...");
+          updateStatus(id, UploadStatus.Encrypting, undefined, "Uploading...");
           // Pass the queue id as the transfer id so an explicit Cancel
           // (removeFromQueue) can abort this in-flight core upload.
           await sidecarUpload(desktopPath, passphrase, meta.platform, id, meta.folderId);
           forgetUploadPath(desktopPath);
           releaseSharedFile(desktopPath);
-          updateStatus(id, "done", 100, "Done");
+          updateStatus(id, UploadStatus.Done, 100, "Done");
           void meta.onRefresh?.();
         } catch (err) {
           setError(id, err instanceof Error ? err.message : tr("toasts.uploadFailed"));
@@ -1601,7 +1624,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     set((state) => ({
       queue: state.queue.map((i) =>
         i.id === id
-          ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." }
+          ? { ...i, status: UploadStatus.Queued, error: undefined, stage: "Retrying..." }
           : i,
       ),
     }));
@@ -1624,10 +1647,22 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // for these rows; this guard covers any stray caller.
     if (itemMeta.get(id)?.desktopPath) return;
     // Only meaningful while queued/encrypting/uploading; ignore terminal states.
-    if (item.status === "done" || item.status === "failed" || item.status === "paused") return;
+    if (
+      item.status === UploadStatus.Done ||
+      item.status === UploadStatus.Failed ||
+      item.status === UploadStatus.Paused
+    )
+      return;
     pausedIds.add(id);
     itemMeta.get(id)?.abort?.abort();
-    get().updateStatus(id, "paused", item.progress, "Paused", item.bytesProcessed, item.totalBytes);
+    get().updateStatus(
+      id,
+      UploadStatus.Paused,
+      item.progress,
+      "Paused",
+      item.bytesProcessed,
+      item.totalBytes,
+    );
   },
 
   // Resume a paused upload. Clears the paused flag, waits for the previous run
@@ -1650,7 +1685,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     set((state) => ({
       queue: state.queue.map((i) =>
         i.id === id
-          ? { ...i, status: "uploading" as const, error: undefined, stage: "Resuming…" }
+          ? { ...i, status: UploadStatus.Uploading, error: undefined, stage: "Resuming…" }
           : i,
       ),
     }));
@@ -1659,7 +1694,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
   getResumableUploadIds: () =>
     get()
-      .queue.filter((i) => i.status === "failed" && !!itemMeta.get(i.id)?.resume?.sessionId)
+      .queue.filter(
+        (i) => i.status === UploadStatus.Failed && !!itemMeta.get(i.id)?.resume?.sessionId,
+      )
       .map((i) => i.id),
 
   // Desktop-only: encrypts locally via the in-process core. No browser File
@@ -1705,7 +1742,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const unlisten = await subscribeProgress((progress) => {
       const state = get();
       const item = state.queue.find(
-        (i) => i.file.name === progress.file_name && i.status !== "done" && i.status !== "failed",
+        (i) =>
+          i.file.name === progress.file_name &&
+          i.status !== UploadStatus.Done &&
+          i.status !== UploadStatus.Failed,
       );
       if (!item) return;
       const percent = blendDesktopUploadProgress(
@@ -1715,7 +1755,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       );
       updateStatus(
         item.id,
-        "encrypting",
+        UploadStatus.Encrypting,
         percent ?? item.progress,
         progress.stage,
         progress.bytes_done,
@@ -1756,11 +1796,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const batchNow = () => get().queue.filter((q) => ids.has(q.id));
     startBackgroundNotifications(() => {
       const batch = batchNow();
-      const done = batch.filter((i) => i.status === "done").length;
-      const failed = batch.filter((i) => i.status === "failed").length;
+      const done = batch.filter((i) => i.status === UploadStatus.Done).length;
+      const failed = batch.filter((i) => i.status === UploadStatus.Failed).length;
       const percent = Math.round(
-        batch.reduce((sum, i) => sum + (i.status === "done" ? 100 : i.progress || 0), 0) /
-          batch.length,
+        batch.reduce(
+          (sum, i) => sum + (i.status === UploadStatus.Done ? 100 : i.progress || 0),
+          0,
+        ) / batch.length,
       );
       return { done, failed, total: batch.length, percent };
     });
@@ -1781,13 +1823,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
             // without it the backend defaults to Auto (Telegram-first), which
             // silently ignored the selection. Live percent comes from the progress
             // subscription; a retry auto-resumes core-side.
-            updateStatus(id, "encrypting", undefined, "Uploading...");
+            updateStatus(id, UploadStatus.Encrypting, undefined, "Uploading...");
             // Queue id doubles as the transfer id so an explicit Cancel can abort
             // this core upload mid-flight (see removeFromQueue).
             await sidecarUpload(filePath, passphrase, platform, id, folderId);
             forgetUploadPath(filePath);
             releaseSharedFile(filePath);
-            updateStatus(id, "done", 100, "Done");
+            updateStatus(id, UploadStatus.Done, 100, "Done");
           } catch (err) {
             const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
             setError(id, msg);

@@ -3,7 +3,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
-import { PLATFORM_NAMES, type PlatformId } from "@/lib/platforms";
+import { PLATFORM_NAMES, Platform, type PlatformId } from "@/lib/platforms";
 
 export interface StoragePlatform {
   id: PlatformId;
@@ -17,8 +17,8 @@ export interface StoragePlatform {
 
 export const STORAGE_PLATFORMS: readonly StoragePlatform[] = [
   {
-    id: "telegram",
-    name: PLATFORM_NAMES.telegram,
+    id: Platform.Telegram,
+    name: PLATFORM_NAMES[Platform.Telegram],
     Mark: TelegramIcon,
     tint: "#0ea5e9",
     limit: "No ceiling",
@@ -26,8 +26,8 @@ export const STORAGE_PLATFORMS: readonly StoragePlatform[] = [
     note: "Many small chunks, spread wide.",
   },
   {
-    id: "github",
-    name: PLATFORM_NAMES.github,
+    id: Platform.Github,
+    name: PLATFORM_NAMES[Platform.Github],
     Mark: GitHubIcon,
     tint: "var(--color-text)",
     limit: "850 MB per project",
@@ -35,8 +35,8 @@ export const STORAGE_PLATFORMS: readonly StoragePlatform[] = [
     note: "The default. Spin up as many repos as you like.",
   },
   {
-    id: "gitlab",
-    name: PLATFORM_NAMES.gitlab,
+    id: Platform.Gitlab,
+    name: PLATFORM_NAMES[Platform.Gitlab],
     Mark: GitlabIcon,
     tint: "#f97316",
     limit: "9 GB per project",
@@ -44,8 +44,8 @@ export const STORAGE_PLATFORMS: readonly StoragePlatform[] = [
     note: "Roomier repos for heavier vaults.",
   },
   {
-    id: "huggingface",
-    name: PLATFORM_NAMES.huggingface,
+    id: Platform.HuggingFace,
+    name: PLATFORM_NAMES[Platform.HuggingFace],
     Mark: HuggingFaceIcon,
     tint: "#eab308",
     limit: "90 GB per account",

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { T } from "@/components/i18n/t";
 import { Lock, Plus, UploadCloud, Video } from "@/lib/icons";
+import { Platform, type PlatformId } from "@/lib/platforms";
 import {
   CAPTIONS,
   FILE,
@@ -13,7 +14,7 @@ import {
 
 export type ScenePart = "all" | HowPart;
 
-const STORE_TILES = new Set(["telegram", "github"]);
+const STORE_TILES = new Set<PlatformId>([Platform.Telegram, Platform.Github]);
 
 function captionsFor(part: ScenePart): readonly Caption[] {
   if (part === "all") return [...CAPTIONS.connect, ...CAPTIONS.drop, ...CAPTIONS.store];
@@ -97,7 +98,7 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                 <span className="zw-limit">
                   <T k={`site.home.how.limits.${key}`} />
                 </span>
-                {key === "github" ? (
+                {key === Platform.Github ? (
                   <span className="zw-meter">
                     <i className="zw-meter-fill" />
                   </span>
@@ -106,7 +107,7 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                   <i className="zw-live" />
                   <T k="site.home.how.connected" />
                 </span>
-                {key === "telegram" ? (
+                {key === Platform.Telegram ? (
                   <>
                     <span className="zw-count">
                       <T k="site.home.how.pieces" />
@@ -119,7 +120,7 @@ export function HowScene({ part = "all" }: { part?: ScenePart }) {
                     </span>
                   </>
                 ) : null}
-                {key === "github" ? (
+                {key === Platform.Github ? (
                   <span className="zw-ghost">
                     <Plus className="h-3 w-3" />
                     <T k="site.home.how.newSpot" />

@@ -20,14 +20,14 @@ import { DEFAULT_NOTIFY, NotifyFields } from "@/components/admin/notify-fields";
 import { QuotaFields } from "@/components/admin/quota-fields";
 import { Mail, Trash2 } from "@/lib/icons";
 import { BulkBar } from "@/components/admin/data-table";
-import type { PlanConfig } from "@/types";
+import { Plan, Role, type PlanConfig } from "@/types";
 
 type Pending = "set_plan" | "set_quota" | "promote" | "demote" | "delete";
 
 const FALLBACK_PLANS = [
-  { id: "free", name: "Free" },
-  { id: "plus", name: "Plus" },
-  { id: "pro", name: "Pro" },
+  { id: Plan.Free, name: "Free" },
+  { id: Plan.Plus, name: "Plus" },
+  { id: Plan.Pro, name: "Pro" },
 ];
 
 const REQUEST: Record<
@@ -93,8 +93,8 @@ export function BulkActionBar({
 
   const valueFor = (action: Pending): string | number | null | undefined => {
     if (action === "set_plan") return planChoice;
-    if (action === "promote") return "admin";
-    if (action === "demote") return "user";
+    if (action === "promote") return Role.Admin;
+    if (action === "demote") return Role.User;
     if (action === "delete") return null;
     const parsed = parseQuotaInput(quotaMode, quotaInput);
     if (!parsed.ok) {

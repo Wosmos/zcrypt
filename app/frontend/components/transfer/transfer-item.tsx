@@ -7,7 +7,17 @@ import { cn, formatBytes } from "@/lib/utils";
 import { translateLabel, type TransferPhase, type TransferView } from "@/lib/transfer-progress";
 import { TONE, TransferThumb } from "./transfer-parts";
 
-export type TransferState = "queued" | "active" | "paused" | "done" | "failed" | "cancelled";
+/** What a transfer row is doing, uploads and downloads alike. */
+export const TransferState = {
+  Queued: "queued",
+  Active: "active",
+  Paused: "paused",
+  Done: "done",
+  Failed: "failed",
+  Cancelled: "cancelled",
+} as const;
+
+export type TransferState = (typeof TransferState)[keyof typeof TransferState];
 
 /** One upload or download as the panel shows it. */
 export interface TransferEntry {
@@ -86,7 +96,11 @@ function RowControls({
 }) {
   const t = useTranslations("app.transfer");
   const { id, state } = entry;
-  if (state === "done" || state === "failed" || state === "cancelled")
+  if (
+    state === TransferState.Done ||
+    state === TransferState.Failed ||
+    state === TransferState.Cancelled
+  )
     return (
       <ControlButton icon={X} label={t("dismiss")} onClick={() => controls.onDismiss(entry)} />
     );
@@ -98,7 +112,7 @@ function RowControls({
         onClick={() => controls.onCancelUpload(id)}
       />
     );
-    if (state === "paused")
+    if (state === TransferState.Paused)
       return (
         <>
           <ControlButton
@@ -111,7 +125,7 @@ function RowControls({
       );
     return (
       <>
-        {state === "active" && !entry.desktop && (
+        {state === TransferState.Active && !entry.desktop && (
           <ControlButton
             icon={Pause}
             label={t("pauseUpload")}
@@ -129,7 +143,7 @@ function RowControls({
       onClick={() => controls.onStopDownload(id)}
     />
   );
-  if (state === "paused")
+  if (state === TransferState.Paused)
     return (
       <>
         <ControlButton
@@ -142,7 +156,7 @@ function RowControls({
     );
   return (
     <>
-      {state === "active" && (
+      {state === TransferState.Active && (
         <ControlButton
           icon={Pause}
           label={t("pauseDownload")}
@@ -166,8 +180,8 @@ function TransferItemBase({
 }) {
   const t = useTranslations("app.transfer");
   const text = translateLabel(t, entry.view.label);
-  const failed = entry.state === "failed" || entry.state === "cancelled";
-  const done = entry.state === "done";
+  const failed = entry.state === TransferState.Failed || entry.state === TransferState.Cancelled;
+  const done = entry.state === TransferState.Done;
   const { phase, bar } = entry.view;
   const retryLabel = entry.direction === "upload" && entry.desktop ? t("resumeUpload") : t("retry");
   const retry = () =>

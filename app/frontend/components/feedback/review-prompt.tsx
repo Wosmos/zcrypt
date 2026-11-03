@@ -12,6 +12,7 @@ import {
 } from "@/lib/review-prompt";
 import { useAuthStore } from "@/store/auth";
 import { useUploadStore } from "@/store/upload";
+import { UploadStatus } from "@/types";
 import { ReviewDialog } from "./review-dialog";
 
 const SHOW_DELAY_MS = 4000;
@@ -29,7 +30,7 @@ export function ReviewPrompt() {
     if (!userId) return;
     return useUploadStore.subscribe((state) => {
       for (const item of state.queue) {
-        if (item.status !== "done" || counted.current.has(item.id)) continue;
+        if (item.status !== UploadStatus.Done || counted.current.has(item.id)) continue;
         counted.current.add(item.id);
         recordSuccessfulUpload(userId);
       }
@@ -41,7 +42,12 @@ export function ReviewPrompt() {
     const t = setTimeout(() => {
       const busy = useUploadStore
         .getState()
-        .queue.some((i) => i.status !== "done" && i.status !== "failed" && i.status !== "paused");
+        .queue.some(
+          (i) =>
+            i.status !== UploadStatus.Done &&
+            i.status !== UploadStatus.Failed &&
+            i.status !== UploadStatus.Paused,
+        );
       if (busy || !shouldPromptForReview(userId, createdAt)) return;
       markReviewPrompted(userId);
       setVisible(true);

@@ -7,7 +7,7 @@ import { Github } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
-import { PLATFORM_COLORS, platformName } from "@/lib/platforms";
+import { PLATFORM_COLORS, Platform, platformName } from "@/lib/platforms";
 
 interface PlatformBreakdownProps {
   statuses: PlatformStatus[];
@@ -15,10 +15,10 @@ interface PlatformBreakdownProps {
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
-  github: <Github className="h-4 w-4" />,
-  gitlab: <GitlabIcon className="h-4 w-4 text-orange-500" />,
-  huggingface: <HuggingFaceIcon className="h-4 w-4 text-yellow-500" />,
-  telegram: <TelegramIcon className="h-4 w-4 text-sky-500" />,
+  [Platform.Github]: <Github className="h-4 w-4" />,
+  [Platform.Gitlab]: <GitlabIcon className="h-4 w-4 text-orange-500" />,
+  [Platform.HuggingFace]: <HuggingFaceIcon className="h-4 w-4 text-yellow-500" />,
+  [Platform.Telegram]: <TelegramIcon className="h-4 w-4 text-sky-500" />,
 };
 
 export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {

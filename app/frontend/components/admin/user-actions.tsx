@@ -7,7 +7,7 @@ import { adminDeleteUser, adminSetUserPlan, adminSetUserQuota, adminSetUserRole 
 import { parseQuotaInput, quotaModeFor, type QuotaMode } from "@/lib/quota";
 import { bytesToGb } from "@/lib/utils";
 import { toast } from "@/store/toast";
-import { Role, type AdminUser, type PlanConfig } from "@/types";
+import { Plan, Role, type AdminUser, type PlanConfig } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import {
   Select,
@@ -84,7 +84,7 @@ export function useUserActions({
       setQuotaMode(mode);
       setQuotaInput(mode === "custom" ? bytesToGb(user.storage_quota as number).toString() : "");
     }
-    if (type === "plan") setPlan(user.plan || "free");
+    if (type === "plan") setPlan(user.plan || Plan.Free);
     const toAdmin = user.role !== Role.Admin;
     const detail = {
       delete: t("deleteDetail", { username }),
@@ -187,7 +187,7 @@ export function useUserActions({
     quota: t("saveQuota"),
   };
   const planUnchanged =
-    confirmAction?.type === "plan" && plan === (confirmAction.user.plan || "free");
+    confirmAction?.type === "plan" && plan === (confirmAction.user.plan || Plan.Free);
 
   const dialog = confirmAction ? (
     <ConfirmModal

@@ -31,7 +31,7 @@ import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { IncorrectPassphraseError } from "@/lib/crypto";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
-import type { FileMetadata, QuotaInfo } from "@/types";
+import { DownloadStatus, UploadStatus, type FileMetadata, type QuotaInfo } from "@/types";
 import type { UseVaultLock } from "@/hooks/useVaultLock";
 import type { UseFolderProtection } from "@/hooks/useFolderProtection";
 
@@ -196,7 +196,7 @@ export function useVaultActions({
     if (stageLower === "done") {
       updateStatus(
         target.id,
-        "done",
+        UploadStatus.Done,
         event.percent,
         event.stage,
         event.bytes_processed,
@@ -404,7 +404,9 @@ export function useVaultActions({
       const active = downloadQueue.find(
         (d) =>
           d.fileId === file.id &&
-          (d.status === "downloading" || d.status === "queued" || d.status === "paused"),
+          (d.status === DownloadStatus.Downloading ||
+            d.status === DownloadStatus.Queued ||
+            d.status === DownloadStatus.Paused),
       );
       if (active) return; // already downloading / queued / paused
 

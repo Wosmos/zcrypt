@@ -4,7 +4,7 @@ import { spaceHref } from "@/lib/space-routes";
 import { useSpaceId } from "@/hooks/useSpaceId";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { FileMetadata } from "@/types";
+import { SpaceAddStatus, type FileMetadata } from "@/types";
 import { useVaultReady } from "@/components/spaces/use-vault-ready";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -53,7 +53,7 @@ export function SpaceAdd() {
   const available = useMemo(() => {
     if (!detail) return [];
     const taken = new Set(detail.files.map((f) => f.file_id));
-    if (job && job.status !== "done") for (const fid of job.fileIds) taken.add(fid);
+    if (job && job.status !== SpaceAddStatus.Done) for (const fid of job.fileIds) taken.add(fid);
     return files.filter((f) => !taken.has(f.id));
   }, [files, detail, job]);
 

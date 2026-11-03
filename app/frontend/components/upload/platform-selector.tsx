@@ -7,7 +7,7 @@ import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
 import type { PlatformStatus } from "@/types";
-import { platformName } from "@/lib/platforms";
+import { Platform, platformName } from "@/lib/platforms";
 
 interface PlatformSelectorProps {
   statuses: PlatformStatus[];
@@ -16,10 +16,10 @@ interface PlatformSelectorProps {
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
-  github: <Github className="h-4 w-4" />,
-  gitlab: <GitlabIcon className="h-4 w-4" />,
-  huggingface: <HuggingFaceIcon className="h-4 w-4" />,
-  telegram: <TelegramIcon className="h-4 w-4" />,
+  [Platform.Github]: <Github className="h-4 w-4" />,
+  [Platform.Gitlab]: <GitlabIcon className="h-4 w-4" />,
+  [Platform.HuggingFace]: <HuggingFaceIcon className="h-4 w-4" />,
+  [Platform.Telegram]: <TelegramIcon className="h-4 w-4" />,
 };
 
 export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelectorProps) {

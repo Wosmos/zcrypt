@@ -23,7 +23,7 @@ import {
 import { metaText } from "@/lib/journey";
 import { parseUserAgent } from "@/lib/user-agent";
 import { toast } from "@/store/toast";
-import { Role } from "@/types";
+import { Plan, Role } from "@/types";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
 import { qk } from "@/lib/query-keys";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
@@ -90,7 +90,7 @@ function useExportLabels() {
     accountRows: [
       [t("email"), r.user.email],
       [t("role"), r.user.role],
-      [t("plan"), r.user.plan || "free"],
+      [t("plan"), r.user.plan || Plan.Free],
       [t("joinedOn"), formatDateShort(r.user.created_at)],
       [t("accountAge"), t("days", { count: r.account_age_days })],
       [t("signupFrom"), countryName(r.user.signup_country) || t("unknown")],
@@ -248,7 +248,7 @@ export function AdminUserDetailContent() {
                 </div>
                 <div className="mt-2.5 flex flex-wrap items-center gap-2">
                   <RoleBadge role={u.role} bordered />
-                  <PlanBadge plan={u.plan || "free"} bordered />
+                  <PlanBadge plan={u.plan || Plan.Free} bordered />
                   {u.totp_enabled && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
                       <Shield className="h-3 w-3" />

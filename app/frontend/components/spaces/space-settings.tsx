@@ -10,13 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { deleteSharedVault, removeSharedVaultMember, updateSharedVaultMemberRole } from "@/lib/api";
 import { pinPeerKey } from "@/lib/key-pins";
 import { localFingerprint } from "@/lib/keys";
-import {
-  canManageMember,
-  memberKeyStatus,
-  rotateSpaceKey,
-  updateSpaceDetails,
-  type SpaceRole,
-} from "@/lib/spaces";
+import { canManageMember, memberKeyStatus, rotateSpaceKey, updateSpaceDetails } from "@/lib/spaces";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -46,7 +40,7 @@ import {
   refreshSpaces,
   useSpaceDetail,
 } from "@/components/spaces/use-space";
-import type { SharedVaultDetail, SharedVaultMember } from "@/types";
+import { SpaceRole, type SharedVaultDetail, type SharedVaultMember } from "@/types";
 import {
   AlertTriangle,
   Check,
@@ -429,9 +423,9 @@ export function SpaceSettings() {
   const roleLabel = (m: SharedVaultMember) =>
     m.user_id === d.owner_id
       ? "Owner"
-      : m.role === "admin"
+      : m.role === SpaceRole.Admin
         ? "Admin"
-        : m.role === "editor"
+        : m.role === SpaceRole.Editor
           ? "Editor"
           : "Viewer";
 

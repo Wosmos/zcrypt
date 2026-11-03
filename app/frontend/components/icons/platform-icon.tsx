@@ -2,16 +2,16 @@ import { GitHubIcon } from "./github";
 import { GitlabIcon } from "./gitlab";
 import { HuggingFaceIcon } from "./huggingface";
 import { TelegramIcon } from "./telegram";
-import { PLATFORM_BY_ID, type PlatformId } from "@/lib/platforms";
+import { PLATFORM_BY_ID, Platform, type PlatformId } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 
 type IconComponent = (props: { className?: string }) => React.ReactNode;
 
 const ICONS: Record<PlatformId, IconComponent> = {
-  github: GitHubIcon,
-  gitlab: GitlabIcon,
-  huggingface: HuggingFaceIcon,
-  telegram: TelegramIcon,
+  [Platform.Github]: GitHubIcon,
+  [Platform.Gitlab]: GitlabIcon,
+  [Platform.HuggingFace]: HuggingFaceIcon,
+  [Platform.Telegram]: TelegramIcon,
 };
 
 /**

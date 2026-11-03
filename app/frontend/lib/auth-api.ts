@@ -381,6 +381,14 @@ export function exportAccount(accessToken: string): Promise<Record<string, unkno
 
 // --- OAuth ---
 
+/** Wire ids of the sign-in providers, distinct from the storage platforms. */
+export const OAuthProvider = {
+  Google: "google",
+  Github: "github",
+} as const;
+
+export type OAuthProviderId = (typeof OAuthProvider)[keyof typeof OAuthProvider];
+
 /**
  * The OAuth start URL. The backend sets the CSRF state cookie on whichever
  * host serves this request and registers its callback on BACKEND_URL

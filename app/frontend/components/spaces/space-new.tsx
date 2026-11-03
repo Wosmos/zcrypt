@@ -26,8 +26,7 @@ import {
 } from "@/components/spaces/invites";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Notice, PageShell, SpaceBreadcrumb } from "@/components/spaces/shared";
-import type { SpaceRole } from "@/lib/spaces";
-import type { FileMetadata, SharedVault } from "@/types";
+import type { FileMetadata, SharedVault, SpaceRole } from "@/types";
 import { Plus, X } from "@/lib/icons";
 
 interface PendingInvite {

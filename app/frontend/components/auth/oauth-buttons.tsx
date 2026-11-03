@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Github } from "@/lib/icons";
 import { GoogleIcon } from "@/components/icons/google";
-import { getOAuthURL } from "@/lib/auth-api";
+import { getOAuthURL, OAuthProvider } from "@/lib/auth-api";
 import { isTauri } from "@/lib/tauri";
 import { bytesToHex, sha256Hex } from "@/lib/crypto";
 import { toast } from "@/store/toast";
@@ -60,7 +60,7 @@ export function OAuthButtons() {
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
-          onClick={() => startOAuth("google", t("oauthFailed"))}
+          onClick={() => startOAuth(OAuthProvider.Google, t("oauthFailed"))}
           disabled={blocked}
           className={btn}
         >
@@ -69,7 +69,7 @@ export function OAuthButtons() {
         </button>
         <button
           type="button"
-          onClick={() => startOAuth("github", t("oauthFailed"))}
+          onClick={() => startOAuth(OAuthProvider.Github, t("oauthFailed"))}
           disabled={blocked}
           className={btn}
         >

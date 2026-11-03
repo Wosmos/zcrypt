@@ -9,7 +9,7 @@ import { countryName } from "@/lib/geo";
 import { parseUserAgent } from "@/lib/user-agent";
 import type { AdminList } from "@/hooks/useAdminList";
 import type { CountryCount } from "@/lib/api";
-import type { AdminUser, PlanConfig } from "@/types";
+import { Plan, Role, type AdminUser, type PlanConfig } from "@/types";
 import {
   DataTable,
   TableFilter,
@@ -69,7 +69,7 @@ export function UserTable({
     u.storage_quota == null && (u.platforms ?? []).some((p) => p.via === "web" && !p.shared)
       ? tu("unlimitedOwn")
       : formatQuotaDisplay(u.storage_quota ?? null, {
-          planDisplay: planConfigs.find((p) => p.id === (u.plan || "free"))?.storage_display,
+          planDisplay: planConfigs.find((p) => p.id === (u.plan || Plan.Free))?.storage_display,
           defaultBytes: defaultQuotaBytes,
         });
 
@@ -119,7 +119,7 @@ export function UserTable({
       cell: (u) => (
         <span className="flex items-center gap-1 whitespace-nowrap">
           <RoleBadge role={u.role} />
-          <PlanBadge plan={u.plan || "free"} />
+          <PlanBadge plan={u.plan || Plan.Free} />
         </span>
       ),
     },
@@ -222,8 +222,8 @@ export function UserTable({
               name="role"
               label={t("colRole")}
               options={[
-                { value: "admin", label: tRoles("admin") },
-                { value: "user", label: tRoles("user") },
+                { value: Role.Admin, label: tRoles("admin") },
+                { value: Role.User, label: tRoles("user") },
               ]}
             />
             <TableFilter

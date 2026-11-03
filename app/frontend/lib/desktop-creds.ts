@@ -1,5 +1,5 @@
 import { isTauri, keychainSet, keychainDelete } from "@/lib/tauri";
-import { parseTelegramToken } from "@/lib/platforms";
+import { Platform, parseTelegramToken } from "@/lib/platforms";
 
 /**
  * Desktop-only: mirror a freshly connected platform token into the OS keychain
@@ -13,7 +13,7 @@ export async function storeDesktopPlatformCreds(
 ): Promise<void> {
   if (!isTauri) return;
   try {
-    const parsed = platform === "telegram" ? parseTelegramToken(rawToken) : null;
+    const parsed = platform === Platform.Telegram ? parseTelegramToken(rawToken) : null;
     const keychainToken = parsed?.token ?? rawToken;
     const keychainAccount = parsed?.account ?? username;
     await keychainSet(`platform.${platform}.token`, keychainToken);

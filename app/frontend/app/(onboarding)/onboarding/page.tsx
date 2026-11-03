@@ -11,7 +11,7 @@ import { invalidatePlatforms } from "@/store/platform";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
 import { toast } from "@/store/toast";
 import { PlatformIcon } from "@/components/icons/platform-icon";
-import { PLATFORMS } from "@/lib/platforms";
+import { PLATFORMS, Platform } from "@/lib/platforms";
 import { ArrowRight, Lock, Zap, Shield, Key, CheckCircle2, SkipForward } from "@/lib/icons";
 import { markOnboarded } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -58,8 +58,8 @@ export default function OnboardingPage() {
   const handleConnectTelegram = async (fullToken: string): Promise<boolean> => {
     setConnecting(true);
     try {
-      const res = await connectPlatform("telegram", fullToken);
-      await storeDesktopPlatformCreds("telegram", fullToken, res.username);
+      const res = await connectPlatform(Platform.Telegram, fullToken);
+      await storeDesktopPlatformCreds(Platform.Telegram, fullToken, res.username);
       void invalidatePlatforms();
       toast.success(t("connected", { name: "Telegram" }));
       setStep("done");
@@ -235,7 +235,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="space-y-4">
-              {platform.id === "telegram" ? (
+              {platform.id === Platform.Telegram ? (
                 <TelegramConnect
                   onConnect={handleConnectTelegram}
                   connecting={connecting}

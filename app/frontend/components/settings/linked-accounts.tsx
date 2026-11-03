@@ -9,6 +9,7 @@ import {
   getLinkedAccounts,
   unlinkAccount,
   getOAuthURL,
+  OAuthProvider,
   type LinkedAccountsResponse,
 } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
@@ -48,8 +49,8 @@ export function LinkedAccounts() {
   };
 
   const providers = [
-    { id: "google", name: "Google", icon: <GoogleIcon className="h-4 w-4" /> },
-    { id: "github", name: "GitHub", icon: <Github className="h-4 w-4" /> },
+    { id: OAuthProvider.Google, name: "Google", icon: <GoogleIcon className="h-4 w-4" /> },
+    { id: OAuthProvider.Github, name: "GitHub", icon: <Github className="h-4 w-4" /> },
   ];
 
   const linked = data?.providers ?? [];

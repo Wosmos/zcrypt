@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/store/toast";
-import type { FileMetadata, QuotaInfo, RepoInfo } from "@/types";
+import { Plan, type FileMetadata, type QuotaInfo, type RepoInfo } from "@/types";
 import { cn, getFileCategory } from "@/lib/utils";
+import { Platform } from "@/lib/platforms";
 import { Shield, Search, Info, LayoutGrid, TableProperties, CheckSquare, Lock } from "@/lib/icons";
 
 const PAGE_SIZE = 12;
@@ -127,7 +128,7 @@ const MOCK_QUOTA: QuotaInfo = {
   quota_bytes: 50_000_000_000,
   has_personal_key: true,
   is_unlimited: false,
-  plan: "pro",
+  plan: Plan.Pro,
   max_concurrent_uploads: 3,
   max_file_size: 25 * 1024 * 1024 * 1024,
   can_upload: true,
@@ -137,7 +138,7 @@ const MOCK_QUOTA: QuotaInfo = {
 const MOCK_REPOS: RepoInfo[] = [
   {
     id: "r1",
-    platform: "huggingface",
+    platform: Platform.HuggingFace,
     name: "zcrypt-vault-01",
     url: "https://huggingface.co/datasets/user/zcrypt-vault-01",
     used_bytes: 12_400_000_000,
@@ -146,7 +147,7 @@ const MOCK_REPOS: RepoInfo[] = [
   },
   {
     id: "r2",
-    platform: "huggingface",
+    platform: Platform.HuggingFace,
     name: "zcrypt-vault-02",
     url: "https://huggingface.co/datasets/user/zcrypt-vault-02",
     used_bytes: 4_000_000_000,

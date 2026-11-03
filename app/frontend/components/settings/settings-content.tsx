@@ -45,7 +45,7 @@ import {
   ValueRow,
   LinkRow,
 } from "@/components/settings/settings-primitives";
-import type { PlatformStatus } from "@/types";
+import { Role, type PlatformStatus } from "@/types";
 import {
   CheckCircle2,
   Key,
@@ -70,7 +70,7 @@ import {
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { PLATFORMS, platformName } from "@/lib/platforms";
+import { PLATFORMS, Platform, platformName } from "@/lib/platforms";
 import { useOverridesFor } from "@/hooks/useOverridesFor";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -179,7 +179,7 @@ export function SettingsContent() {
   const user = useAuthStore((s) => s.user);
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === Role.Admin;
 
   const visibleSections = SECTIONS.filter(
     (s) => (!s.adminOnly || isAdmin) && (!s.desktopOnly || isTauri),
@@ -338,11 +338,11 @@ export function SettingsContent() {
                 }
                 isAdmin={isAdmin}
                 customConnect={
-                  p.id === "telegram" ? (
+                  p.id === Platform.Telegram ? (
                     <TelegramConnect
-                      onConnect={(token) => handleConnect("telegram", token)}
-                      connecting={connecting === "telegram"}
-                      hasAccounts={accountsFor("telegram").length > 0}
+                      onConnect={(token) => handleConnect(Platform.Telegram, token)}
+                      connecting={connecting === Platform.Telegram}
+                      hasAccounts={accountsFor(Platform.Telegram).length > 0}
                     />
                   ) : undefined
                 }
