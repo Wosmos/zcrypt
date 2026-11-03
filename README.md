@@ -336,6 +336,7 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `ZCRYPT_CLIENT_IP_HEADER` | Header holding the real client IP set by your proxy. Defaults to `X-Real-IP` on Railway, unset elsewhere; `none` disables it |
 | `ZCRYPT_TRUSTED_PROXY_COUNT` | Reverse-proxy hops to trust in `X-Forwarded-For` when no client IP header is used |
 | `ZCRYPT_GEOIP_DB` | Path to a DB-IP / MaxMind city `.mmdb` file (default `/geo/dbip-city-lite.mmdb`); location lookups are skipped if the file is missing |
+| `ZCRYPT_RELEASES_REPO` | GitHub `owner/name` the app downloads and update checks come from (default `Wosmos/zcrypt`) |
 | `MAINTENANCE_SECRET` | Enables the maintenance-mode switch used by the database rotation scripts (impossible to enable when unset) |
 | `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |
 

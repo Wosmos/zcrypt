@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,15 +26,30 @@ import (
 // falls out of the URL fix rather than needing its own tracker.
 
 const (
-	githubReleasesAPI = "https://api.github.com/repos/Wosmos/zcrypt/releases"
+	defaultReleasesRepo = "Wosmos/zcrypt"
+	releaseCacheTTL     = 15 * time.Minute
+)
+
+// releasesRepo is the GitHub owner/name the apps are published from, so a fork
+// serves its own builds by setting ZCRYPT_RELEASES_REPO.
+var releasesRepo = envOr("ZCRYPT_RELEASES_REPO", defaultReleasesRepo)
+
+// envOr returns the trimmed environment variable, or def when it is unset or blank.
+func envOr(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
+
+var (
+	githubReleasesAPI = "https://api.github.com/repos/" + releasesRepo + "/releases"
 	githubLatestAPI   = githubReleasesAPI + "/latest"
 	// androidReleaseAPI is the rolling sideload prerelease. It carries the
 	// newest APK, which is often ahead of the last tagged release, and being a
 	// prerelease it never shows up as /latest.
 	androidReleaseAPI = githubReleasesAPI + "/tags/android-latest"
-	releasesPageURL   = "https://github.com/Wosmos/zcrypt/releases/latest"
-
-	releaseCacheTTL = 15 * time.Minute
+	releasesPageURL   = "https://github.com/" + releasesRepo + "/releases/latest"
 )
 
 // downloadTarget maps a stable URL segment to the asset that satisfies it.
