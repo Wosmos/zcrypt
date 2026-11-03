@@ -79,6 +79,16 @@ vi.mock("@/lib/api", () => ({
   getFileMeta: vi.fn(),
 }));
 
+const byosMock = vi.hoisted(() => ({
+  resolveWebDirect: vi.fn(),
+  directTargetForResume: vi.fn(),
+  resolveDirectRepo: vi.fn(),
+  pushDirectChunk: vi.fn(),
+  disableWebDirect: vi.fn(),
+  isDirectUnreachable: vi.fn((err: unknown) => err instanceof TypeError),
+}));
+vi.mock("@/lib/byos-direct", () => byosMock);
+
 vi.mock("@/store/files", () => ({
   setFilesData: vi.fn(),
 }));
@@ -272,6 +282,11 @@ describe("useUploadStore", () => {
     useUploadStore.setState({ queue: [] });
     localStorage.clear();
 
+    byosMock.resolveWebDirect.mockReset().mockResolvedValue(null);
+    byosMock.directTargetForResume.mockReset().mockResolvedValue(null);
+    byosMock.resolveDirectRepo.mockReset();
+    byosMock.pushDirectChunk.mockReset();
+    byosMock.disableWebDirect.mockReset();
     (initUpload as Mock).mockReset().mockResolvedValue(defaultInitResponse());
     (uploadChunk as Mock).mockReset().mockResolvedValue(undefined);
     (completeUpload as Mock).mockReset().mockResolvedValue({ file_id: "file-1" });
@@ -465,6 +480,251 @@ describe("useUploadStore", () => {
 
       expect(directUploadToURL).not.toHaveBeenCalled();
       expect(confirmChunk).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("startUpload: byos-direct to the user's own Telegram", () => {
+    const TARGET = {
+      platform: "telegram",
+      account: "vault_bot",
+      telegram: { botToken: "123:SECRET", chatId: "-100777" },
+    };
+    const REPO = {
+      id: "telegram_vault_bot_core-cache-v1_aaaaaaaaaaaa",
+      platform: "telegram",
+      account: "vault_bot",
+      name: "core-cache-v1",
+      url: "tg:-100777/core-cache-v1",
+      used_bytes: 0,
+      max_bytes: 1,
+      active: true,
+    };
+    const PLACEMENT = { platform: "telegram", account: "vault_bot", repo_id: REPO.id };
+
+    beforeEach(() => {
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      byosMock.directTargetForResume.mockResolvedValue(TARGET);
+      byosMock.resolveDirectRepo.mockResolvedValue(REPO);
+      byosMock.pushDirectChunk.mockImplementation(async (_t: unknown, data: Uint8Array) => `${data.byteLength}:FID`);
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ mode: "byos-direct", direct_upload: true, chunk_count: 3 }),
+      );
+    });
+
+    it("opens a byos-direct session and pushes every chunk straight to Telegram, first chunk first", async () => {
+      let releaseFirst: (v: string) => void = () => {};
+      byosMock.pushDirectChunk.mockImplementationOnce(
+        () => new Promise<string>((resolve) => (releaseFirst = resolve)),
+      );
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(10);
+
+      expect(byosMock.resolveWebDirect).toHaveBeenCalledWith("telegram");
+      expect(initUpload).toHaveBeenCalledWith(
+        expect.objectContaining({ platform: "telegram", mode: "byos-direct" }),
+      );
+      expect(byosMock.resolveDirectRepo).toHaveBeenCalledWith(TARGET);
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(1);
+      expect(byosMock.pushDirectChunk.mock.calls[0][2]).toMatchObject({ probe: true });
+
+      releaseFirst("1:FIRST");
+      await flush();
+
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(3);
+      expect(byosMock.pushDirectChunk.mock.calls[1][2]).not.toHaveProperty("probe");
+      expect(confirmChunk).toHaveBeenCalledWith("sess-1", 0, "chunk-sha-0", SMALL_PROFILE.chunkSize, "1:FIRST", true, PLACEMENT);
+      expect(confirmChunk).toHaveBeenCalledWith("sess-1", 2, "chunk-sha-2", SMALL_PROFILE.chunkSize, `${SMALL_PROFILE.chunkSize}:FID`, true, PLACEMENT);
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(presignChunk).not.toHaveBeenCalled();
+      expect(completeUpload).toHaveBeenCalledWith("sess-1", SMALL_PROFILE.chunkSize * 3, SMALL_PROFILE.chunkSize * 3);
+      expect(getItem(id)?.status).toBe("done");
+      const persisted = JSON.parse(localStorage.getItem("zc_upl:big.bin:3072:1000:") ?? "null");
+      expect(persisted).toBeNull();
+    });
+
+    it("relays when the direct path is not available", async () => {
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", undefined, undefined, undefined, null);
+      await flush();
+
+      expect(byosMock.resolveWebDirect).toHaveBeenCalledWith(undefined);
+      expect((initUpload as Mock).mock.calls[0][0]).not.toHaveProperty("mode");
+      expect(byosMock.pushDirectChunk).not.toHaveBeenCalled();
+      expect(uploadChunk).toHaveBeenCalledTimes(1);
+    });
+
+    it("restarts the file through the relay when the first push cannot reach Telegram", async () => {
+      (initUpload as Mock)
+        .mockResolvedValueOnce(defaultInitResponse({ direct_upload: true, chunk_count: 3 }))
+        .mockResolvedValueOnce(
+          defaultInitResponse({ session_id: "sess-relay", file_id: "file-2", mode: "relay", chunk_count: 3 }),
+        );
+      byosMock.pushDirectChunk.mockRejectedValue(new TypeError("Network request failed"));
+      (cancelUpload as Mock).mockRejectedValueOnce(new Error("gone"));
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(1);
+      expect(byosMock.disableWebDirect).toHaveBeenCalledTimes(1);
+      expect(cancelUpload).toHaveBeenCalledWith("sess-1");
+      expect(initUpload).toHaveBeenCalledTimes(2);
+      const relayInit = (initUpload as Mock).mock.calls[1][0];
+      expect(relayInit).not.toHaveProperty("mode");
+      expect(relayInit.platform).toBe("telegram");
+      expect(relayInit.wrapped_cek).toBe((initUpload as Mock).mock.calls[0][0].wrapped_cek);
+      expect((uploadChunk as Mock).mock.calls.map((c) => [c[0], c[1]]).sort()).toEqual([
+        ["sess-relay", 0],
+        ["sess-relay", 1],
+        ["sess-relay", 2],
+      ]);
+      expect(confirmChunk).not.toHaveBeenCalled();
+      expect(completeUpload).toHaveBeenCalledWith("sess-relay", expect.any(Number), expect.any(Number));
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("fails without switching when the server resumes another session during the fallback", async () => {
+      (initUpload as Mock)
+        .mockResolvedValueOnce(defaultInitResponse({ mode: "byos-direct", direct_upload: true }))
+        .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-other", resumed: true }));
+      byosMock.pushDirectChunk.mockRejectedValue(new TypeError("Network request failed"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(completeUpload).not.toHaveBeenCalled();
+    });
+
+    it("stops at pause when the fallback is interrupted", async () => {
+      let failFirst: (err: Error) => void = () => {};
+      byosMock.pushDirectChunk.mockImplementationOnce(
+        () => new Promise<string>((_resolve, reject) => (failFirst = reject)),
+      );
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ mode: "byos-direct", direct_upload: true }),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(10);
+      useUploadStore.getState().pauseUpload(id);
+      failFirst(new TypeError("Network request failed"));
+      await flush();
+
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(getItem(id)?.status).toBe("paused");
+    });
+
+    it("fails the file without falling back when Telegram refuses the first chunk", async () => {
+      byosMock.pushDirectChunk.mockRejectedValue(new Error("Bad Request: chat not found"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toMatch(/chat not found/);
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(cancelUpload).not.toHaveBeenCalled();
+    });
+
+    it("never switches to relay once the first chunk went through", async () => {
+      byosMock.pushDirectChunk
+        .mockResolvedValueOnce("1:OK")
+        .mockRejectedValue(new TypeError("Network request failed"));
+      useUploadStore.getState().startUpload(
+        [makeFile("big.bin", SMALL_PROFILE.chunkSize * 3)],
+        "pw",
+        "telegram",
+        undefined,
+        undefined,
+        null,
+      );
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(cancelUpload).not.toHaveBeenCalled();
+      expect(uploadChunk).not.toHaveBeenCalled();
+    });
+
+    it("continues a resumed byos-direct session directly, without a reachability fallback", async () => {
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ resumed: true, mode: "byos-direct", direct_upload: true, session_id: "sess-old" }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-old",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 1,
+        uploaded_chunks: [],
+        completed_count: 0,
+      });
+      byosMock.pushDirectChunk.mockRejectedValueOnce(new TypeError("Network request failed"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(byosMock.directTargetForResume).toHaveBeenCalledWith("telegram");
+      expect(byosMock.pushDirectChunk.mock.calls[0][2]).not.toHaveProperty("probe");
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(cancelUpload).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
+    it("resumes a direct session after a page reload in its original mode", async () => {
+      const file = makeFile("a.txt", 10);
+      localStorage.setItem(
+        "zc_upl:a.txt:10:1000:",
+        JSON.stringify({
+          sessionId: "sess-persisted",
+          fileId: "file-1",
+          chunkCount: 1,
+          chunkSize: SMALL_PROFILE.chunkSize,
+          directUpload: true,
+          shouldCompress: true,
+          platform: "telegram",
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-persisted",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 1,
+        uploaded_chunks: [],
+        completed_count: 0,
+        mode: "byos-direct",
+      });
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(confirmChunk).toHaveBeenCalledWith("sess-persisted", 0, "chunk-sha-0", 10, "10:FID", true, PLACEMENT);
+      expect(presignChunk).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("refuses to continue a direct session this browser cannot push to", async () => {
+      byosMock.directTargetForResume.mockResolvedValue(null);
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ resumed: true, mode: "byos-direct", platform: "", session_id: "sess-old" }),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", undefined, undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(byosMock.directTargetForResume).toHaveBeenCalledWith("");
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toMatch(/a\.txt/);
+      expect(byosMock.pushDirectChunk).not.toHaveBeenCalled();
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(cancelUpload).not.toHaveBeenCalled();
     });
   });
 

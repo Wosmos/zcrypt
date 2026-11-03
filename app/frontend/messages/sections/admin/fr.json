@@ -371,6 +371,7 @@
         "token_scope_change": "Portée du jeton modifiée",
         "repo_register": "Dépôt ajouté",
         "repo_deactivate": "Dépôt retiré",
+        "platform_credentials_read": "Jeton de stockage lu",
         "session_revoke": "Appareil déconnecté",
         "sessions_revoke_others": "Autres appareils déconnectés",
         "password_changed": "Mot de passe modifié",

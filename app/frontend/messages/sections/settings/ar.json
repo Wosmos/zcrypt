@@ -158,6 +158,7 @@
         "send_complete": "اكتمل الإرسال",
         "repo_register": "تم تسجيل مستودع",
         "repo_deactivate": "تم تعطيل مستودع",
+        "platform_credentials_read": "أُرسل رمز التخزين إلى جهازك للرفع المباشر",
         "bug_report": "تم إرسال بلاغ خطأ",
         "review_submit": "تم إرسال تقييم",
         "user_feedback": "تم إرسال ملاحظات",

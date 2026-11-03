@@ -158,6 +158,7 @@
         "send_complete": "Envoi terminé",
         "repo_register": "Dépôt enregistré",
         "repo_deactivate": "Dépôt désactivé",
+        "platform_credentials_read": "Jeton de stockage envoyé à votre appareil pour les envois directs",
         "bug_report": "Rapport de bug envoyé",
         "review_submit": "Avis envoyé",
         "user_feedback": "Commentaires envoyés",

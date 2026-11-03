@@ -65,6 +65,9 @@ const cases: Case[] = [
   { name: "disconnectPlatform", run: () => api.disconnectPlatform("github", "u"), path: "/api/platforms/disconnect", method: "DELETE" },
   { name: "toggleTokenScope", run: () => api.toggleTokenScope("tid", true), path: "/api/platforms/tokens/tid/scope", method: "PUT" },
   { name: "listRepos", run: () => api.listRepos(), path: "/api/repos" },
+  { name: "getPlatformCredentials", run: () => api.getPlatformCredentials("telegram"), path: "/api/platforms/credentials?platform=telegram" },
+  { name: "registerRepo", run: () => api.registerRepo({ id: "r" } as never), path: "/api/repos/register", method: "POST" },
+  { name: "deactivateRepo", run: () => api.deactivateRepo("telegram_bot_x"), path: "/api/repos/telegram_bot_x/deactivate", method: "POST" },
   { name: "updateConfig", run: () => api.updateConfig({ a: 1 }), path: "/api/config", method: "PUT" },
   { name: "getQuota", run: () => api.getQuota(), path: "/api/quota" },
   // admin

@@ -901,6 +901,7 @@
     },
     "toasts": {
       "restartUpload": "تعذّر متابعة عملية الرفع السابقة لـ \"{name}\"، لذا ستبدأ من جديد على {platform}.",
+      "directResumeElsewhere": "كان \"{name}\" يُرفع مباشرةً إلى حسابك على {platform} ولا يمكن إكماله في هذا المتصفح. أزله وارفعه من جديد.",
       "andMore": "و{count} أخرى",
       "tooBig": "{names} {count, plural, one {يتجاوز حد} two {يتجاوزان حد} few {تتجاوز حد} many {تتجاوز حد} other {تتجاوز حد}} {limit} للملف الواحد.",
       "uploaded": "تم رفع {name}",

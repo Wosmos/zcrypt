@@ -901,6 +901,7 @@
     },
     "toasts": {
       "restartUpload": "Impossible de poursuivre l'envoi précédent de « {name} », reprise depuis le début sur {platform}.",
+      "directResumeElsewhere": "« {name} » était envoyé directement vers votre propre {platform} et ne peut pas être terminé dans ce navigateur. Retirez-le et envoyez-le à nouveau.",
       "andMore": "et {count} autres",
       "tooBig": "{names} {count, plural, one {dépasse la limite de} other {dépassent la limite de}} {limit} par fichier.",
       "uploaded": "{name} envoyé",

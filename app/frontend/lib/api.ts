@@ -45,6 +45,7 @@ import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fet
 import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
+import type { PlatformCredentials } from "@/lib/platform-credentials";
 
 /** Build the chunk-download return payload from a response (body + chunk headers). */
 async function readChunkResponse(
@@ -722,6 +723,31 @@ export function toggleTokenScope(
 
 export function listRepos(): Promise<RepoInfo[]> {
   return request<RepoInfo[]>("/api/repos");
+}
+
+/** The caller's own connected token for a platform. Rejects with a 404 ApiError when there is none. */
+export function getPlatformCredentials(platform: string): Promise<PlatformCredentials> {
+  return request<PlatformCredentials>(
+    `/api/platforms/credentials?platform=${encodeURIComponent(platform)}`,
+    { cache: "no-store" },
+  );
+}
+
+/** Record a repo the client created on the user's own platform. */
+export function registerRepo(repo: RepoInfo): Promise<{ repo_id: string; stored: boolean }> {
+  return request<{ repo_id: string; stored: boolean }>("/api/repos/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(repo),
+  });
+}
+
+/** Retire a full client-owned repo so the next upload rotates to a fresh one. */
+export function deactivateRepo(id: string): Promise<{ repo_id: string; deactivated: boolean }> {
+  return request<{ repo_id: string; deactivated: boolean }>(
+    `/api/repos/${encodeURIComponent(id)}/deactivate`,
+    { method: "POST" },
+  );
 }
 
 export function getConfig(): Promise<AppConfig> {

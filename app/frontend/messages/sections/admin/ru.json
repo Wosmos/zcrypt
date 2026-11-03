@@ -371,6 +371,7 @@
         "token_scope_change": "Область токена изменена",
         "repo_register": "Репозиторий добавлен",
         "repo_deactivate": "Репозиторий выведен из работы",
+        "platform_credentials_read": "Токен хранилища прочитан",
         "session_revoke": "Сеанс устройства завершён",
         "sessions_revoke_others": "Сеансы других устройств завершены",
         "password_changed": "Пароль изменён",

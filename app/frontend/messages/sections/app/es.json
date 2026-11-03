@@ -901,6 +901,7 @@
     },
     "toasts": {
       "restartUpload": "No se pudo continuar la subida anterior de «{name}», se reinicia en {platform}.",
+      "directResumeElsewhere": "«{name}» se estaba subiendo directamente a tu propio {platform} y no se puede terminar en este navegador. Quítalo y vuelve a subirlo.",
       "andMore": "y {count} más",
       "tooBig": "{names} {count, plural, one {supera el límite de} other {superan el límite de}} {limit} por archivo.",
       "uploaded": "{name} subido",

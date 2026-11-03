@@ -371,6 +371,7 @@
         "token_scope_change": "Token-Bereich geändert",
         "repo_register": "Repo hinzugefügt",
         "repo_deactivate": "Repo außer Betrieb genommen",
+        "platform_credentials_read": "Speicher-Token abgerufen",
         "session_revoke": "Gerät abgemeldet",
         "sessions_revoke_others": "Andere Geräte abgemeldet",
         "password_changed": "Passwort geändert",

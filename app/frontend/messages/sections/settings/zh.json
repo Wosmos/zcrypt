@@ -158,6 +158,7 @@
         "send_complete": "发送已完成",
         "repo_register": "仓库已注册",
         "repo_deactivate": "仓库已停用",
+        "platform_credentials_read": "存储令牌已发送到你的设备用于直接上传",
         "bug_report": "已提交问题报告",
         "review_submit": "已提交评价",
         "user_feedback": "已提交反馈",

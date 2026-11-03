@@ -158,6 +158,7 @@
         "send_complete": "بھیجنا مکمل ہوا",
         "repo_register": "ریپوزیٹری رجسٹر ہوئی",
         "repo_deactivate": "ریپوزیٹری غیر فعال ہوئی",
+        "platform_credentials_read": "براہِ راست اپ لوڈ کے لیے اسٹوریج ٹوکن آپ کے ڈیوائس کو بھیجا گیا",
         "bug_report": "بگ رپورٹ جمع ہوئی",
         "review_submit": "جائزہ جمع ہوا",
         "user_feedback": "فیڈبیک جمع ہوا",

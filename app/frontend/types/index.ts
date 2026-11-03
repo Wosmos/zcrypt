@@ -100,6 +100,14 @@ export const UploadStatus = {
 
 export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus];
 
+/** Data plane of an upload session: bytes through the server, or straight to the user's own storage. */
+export const UploadMode = {
+  Relay: "relay",
+  ByosDirect: "byos-direct",
+} as const;
+
+export type UploadMode = (typeof UploadMode)[keyof typeof UploadMode];
+
 /** Lifecycle of one queued download. */
 export const DownloadStatus = {
   Queued: "queued",

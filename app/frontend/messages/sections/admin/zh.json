@@ -371,6 +371,7 @@
         "token_scope_change": "令牌范围已更改",
         "repo_register": "已添加仓库",
         "repo_deactivate": "仓库已停用",
+        "platform_credentials_read": "存储令牌已读取",
         "session_revoke": "设备已退出登录",
         "sessions_revoke_others": "其他设备已退出登录",
         "password_changed": "密码已更改",

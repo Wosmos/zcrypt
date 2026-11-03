@@ -371,6 +371,7 @@
         "token_scope_change": "ٹوکن کا دائرہ کار تبدیل ہوا",
         "repo_register": "ریپو شامل ہوا",
         "repo_deactivate": "ریپو ریٹائر ہوا",
+        "platform_credentials_read": "اسٹوریج ٹوکن پڑھا گیا",
         "session_revoke": "ڈیوائس لاگ آؤٹ ہوئی",
         "sessions_revoke_others": "دیگر ڈیوائسز لاگ آؤٹ ہوئیں",
         "password_changed": "پاس ورڈ تبدیل ہوا",

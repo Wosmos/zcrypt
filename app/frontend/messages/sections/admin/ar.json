@@ -371,6 +371,7 @@
         "token_scope_change": "تغيير نطاق الرمز",
         "repo_register": "إضافة مستودع",
         "repo_deactivate": "إيقاف مستودع",
+        "platform_credentials_read": "قراءة رمز التخزين",
         "session_revoke": "تسجيل خروج جهاز",
         "sessions_revoke_others": "تسجيل خروج الأجهزة الأخرى",
         "password_changed": "تغيير كلمة المرور",

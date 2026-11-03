@@ -158,6 +158,7 @@
         "send_complete": "Send completed",
         "repo_register": "Repository registered",
         "repo_deactivate": "Repository deactivated",
+        "platform_credentials_read": "Storage token sent to your device for direct uploads",
         "bug_report": "Bug report submitted",
         "review_submit": "Review submitted",
         "user_feedback": "Feedback submitted",

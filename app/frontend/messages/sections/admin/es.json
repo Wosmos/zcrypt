@@ -371,6 +371,7 @@
         "token_scope_change": "Alcance del token cambiado",
         "repo_register": "Repo añadido",
         "repo_deactivate": "Repo retirado",
+        "platform_credentials_read": "Token de almacenamiento leído",
         "session_revoke": "Sesión de dispositivo cerrada",
         "sessions_revoke_others": "Sesiones de otros dispositivos cerradas",
         "password_changed": "Contraseña cambiada",

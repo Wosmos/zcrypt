@@ -371,6 +371,7 @@
         "token_scope_change": "Token Scope Changed",
         "repo_register": "Repo Added",
         "repo_deactivate": "Repo Retired",
+        "platform_credentials_read": "Storage Token Read",
         "session_revoke": "Device Signed Out",
         "sessions_revoke_others": "Other Devices Signed Out",
         "password_changed": "Password Changed",

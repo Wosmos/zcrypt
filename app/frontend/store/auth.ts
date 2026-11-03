@@ -8,6 +8,7 @@ import { clearAvatarCache } from "@/lib/avatar-cache";
 import { isTauri } from "@/lib/tauri";
 import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
 import { broadcastTokens, onTokensFromOtherTabs } from "@/lib/auth-sync";
+import { forgetPlatformCredentials } from "@/lib/platform-credentials";
 
 const USER_KEY = "zcrypt-user";
 const ACCESS_KEY = "zcrypt-access-token";
@@ -140,6 +141,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     useKeysStore.getState().reset(); // drop the in-memory private key
     useSpacesStore.getState().reset(); // drop cached space keys
     clearAvatarCache();
+    forgetPlatformCredentials();
     writeCachedUser(null);
     setPersistUser(null);
     void wipeQueryCache(); // every cached list, in memory and the IndexedDB snapshot

@@ -193,6 +193,26 @@ describe("plain JSON endpoints (authedFetch-backed)", () => {
     });
   });
 
+  it("confirmChunk reports a byos-direct chunk's placement as committed on the user's storage", async () => {
+    authedFetch.mockResolvedValueOnce(resp(200, {}));
+    await confirmChunk("sess-1", 2, "sha", 50, "11:FID", false, {
+      platform: "telegram",
+      account: "vault_bot",
+      repo_id: "telegram_vault_bot_x",
+    });
+    const [, init] = authedFetch.mock.calls[0];
+    expect(JSON.parse(init.body as string)).toEqual({
+      sha256: "sha",
+      size: 50,
+      remote_path: "11:FID",
+      compressed: false,
+      platform: "telegram",
+      account: "vault_bot",
+      repo_id: "telegram_vault_bot_x",
+      committed: true,
+    });
+  });
+
   it("confirmChunk throws the parsed {error} message on failure", async () => {
     authedFetch.mockResolvedValueOnce(resp(400, { error: "bad chunk" }));
     await expect(confirmChunk("sess-1", 0, "sha", 1, "p", false)).rejects.toThrow("bad chunk");

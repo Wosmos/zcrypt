@@ -17,6 +17,7 @@ import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fet
 import { ApiError, parseErrorBody, throwResponseError } from "@/lib/http-error";
 import { useAuthStore } from "@/store/auth";
 import { API_BASE } from "@/lib/config";
+import type { UploadMode } from "@/types";
 
 // Every HTTP failure is thrown as an ApiError carrying its status, so the retry
 // layer decides by status code (408/429/5xx) rather than by message text.
@@ -187,6 +188,9 @@ export interface UploadInitParams {
    *  ANY device can reslice at the same boundaries. */
   chunk_size?: number;
   platform?: string;
+  /** Data plane: omitted or "relay" sends bytes through the server; "byos-direct"
+   *  opens a metadata-only session the client pushes to its own storage for. */
+  mode?: UploadMode;
   /**
    * Destination folder (FIX-1b). When set, the backend creates the file row IN
    * this folder atomically at init: so a protected-folder file is born in its
@@ -211,6 +215,8 @@ export interface UploadInitResponse {
   resumed?: boolean;
   chunk_size?: number;
   chunk_count?: number;
+  /** The session's data plane. A resumed session keeps the mode it was opened with. */
+  mode?: UploadMode;
 }
 
 /** POST /api/upload/init. Start a new chunked upload session. */
@@ -315,7 +321,16 @@ export async function directUploadToURL(
   throw lastError;
 }
 
-/** POST /api/upload/{sid}/confirm/{idx}, confirm a directly-uploaded chunk. */
+/** Where a byos-direct chunk was pushed: the user's own platform account and repo. */
+export interface DirectChunkPlacement {
+  platform: string;
+  account: string;
+  repo_id: string;
+}
+
+/** POST /api/upload/{sid}/confirm/{idx}, confirm a directly-uploaded chunk.
+ *  `placement` marks a byos-direct chunk, already stored on the user's own
+ *  platform, so it is confirmed as committed there. */
 export async function confirmChunk(
   sessionId: string,
   index: number,
@@ -323,6 +338,7 @@ export async function confirmChunk(
   size: number,
   remotePath: string,
   compressed: boolean,
+  placement?: DirectChunkPlacement,
 ): Promise<void> {
   const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/confirm/${index}`, {
     method: "POST",
@@ -332,6 +348,7 @@ export async function confirmChunk(
       size,
       remote_path: remotePath,
       compressed,
+      ...(placement ? { ...placement, committed: true } : {}),
     }),
   });
   await throwIfNotOk(res);
@@ -374,6 +391,7 @@ export interface UploadStatusResponse {
    *  device can resume with the right slicing on the right platform. */
   chunk_size?: number;
   platform?: string;
+  mode?: UploadMode;
 }
 
 /** GET /api/upload/{sid}/status. Check upload session progress. */

@@ -901,6 +901,7 @@
     },
     "toasts": {
       "restartUpload": "Couldn't continue the previous upload of \"{name}\", restarting on {platform}.",
+      "directResumeElsewhere": "\"{name}\" was going straight to your own {platform} and can't be finished in this browser. Remove it and upload it again.",
       "andMore": "and {count} more",
       "tooBig": "{names} {count, plural, one {exceeds the} other {exceed the}} {limit} per-file limit.",
       "uploaded": "{name} uploaded",

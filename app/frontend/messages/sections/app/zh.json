@@ -901,6 +901,7 @@
     },
     "toasts": {
       "restartUpload": "无法继续之前对“{name}”的上传，将在 {platform} 上重新开始。",
+      "directResumeElsewhere": "“{name}”原本直接上传到你自己的 {platform}，无法在此浏览器中完成。请移除后重新上传。",
       "andMore": "等另外 {count} 个",
       "tooBig": "{names} 超过了单个文件 {limit} 的上限（{count} 个）。",
       "uploaded": "{name} 已上传",

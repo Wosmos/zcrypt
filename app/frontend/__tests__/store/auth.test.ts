@@ -33,6 +33,11 @@ import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { wipeDecryptedPlaintext } from "@/lib/decrypt-cache";
 import { Role, type AuthUser } from "@/types";
+import {
+  cachedPlatformCredentials,
+  credentialsGeneration,
+  rememberPlatformCredentials,
+} from "@/lib/platform-credentials";
 
 // auth.ts's clearAuth() fans out to decrypt-cache directly; mock it so the test
 // only asserts that logout wires it up, not decrypt-cache's own internals
@@ -205,6 +210,18 @@ describe("useAuthStore", () => {
       expect(s.user).toBeNull();
       expect(s.accessToken).toBeNull();
       expect(s.refreshTokenValue).toBeNull();
+    });
+
+    it("forgets platform tokens fetched for direct uploads", () => {
+      rememberPlatformCredentials(
+        { platform: "telegram", token: "123:SECRET|-100", account: "vault_bot" },
+        credentialsGeneration(),
+      );
+      expect(cachedPlatformCredentials("telegram")).toBeDefined();
+
+      useAuthStore.getState().clearAuth();
+
+      expect(cachedPlatformCredentials("telegram")).toBeUndefined();
     });
 
     it("is safe to call when nothing was ever set", () => {

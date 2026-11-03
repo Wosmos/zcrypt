@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { tr } from "@/store/translate";
-import { UploadStatus, type FileMetadata, type UploadItem } from "@/types";
+import {
+  UploadMode,
+  UploadStatus,
+  type FileMetadata,
+  type RepoInfo,
+  type UploadItem,
+} from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import {
@@ -28,7 +34,17 @@ import {
   confirmChunk,
   cancelUpload,
   getUploadStatus,
+  type UploadInitResponse,
 } from "@/lib/upload-session";
+import {
+  directTargetForResume,
+  disableWebDirect,
+  isDirectUnreachable,
+  pushDirectChunk,
+  resolveDirectRepo,
+  resolveWebDirect,
+  type DirectTarget,
+} from "@/lib/byos-direct";
 import { getFileMeta } from "@/lib/api";
 import { getCachedThumbnail, seedThumbnailFromFile } from "@/hooks/useThumbnail";
 import { failureReason, notify } from "@/lib/notify";
@@ -45,6 +61,7 @@ import { genId } from "@/lib/id";
 import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
 import { extOf } from "@/lib/media-formats";
 import { createFrameBatch } from "@/lib/frame-batch";
+import type { WorkerOutput } from "@/workers/crypto-worker";
 
 // Mirrors the server's per-file cap (HandleUploadInit rejects larger with
 // 413). Checked before queueing so a 30GB drop fails instantly with a clear
@@ -238,6 +255,7 @@ interface ResumeCtx {
    *  this platform: the already-uploaded chunks are there, and silently
    *  switching (the old HF re-route bug) restarted the upload from zero. */
   platform?: string;
+  mode?: UploadMode;
 }
 
 // --- Cross-session upload resume (survives a page reload) --------------------
@@ -258,6 +276,7 @@ interface PersistedResume {
   directUpload: boolean;
   shouldCompress: boolean;
   platform?: string;
+  mode?: UploadMode;
 }
 function resumeStoreKey(file: File, folderId: string | null): string {
   return `zc_upl:${file.name}:${file.size}:${file.lastModified}:${folderId ?? ""}`;
@@ -324,6 +343,7 @@ async function loadPersistedResume(
       directUpload: rec.directUpload,
       shouldCompress: rec.shouldCompress,
       platform: rec.platform ?? status.platform,
+      mode: status.mode ?? rec.mode,
     };
   } catch {
     return undefined; // session gone / wrong passphrase / transient → fresh init (which may still server-resume)
@@ -601,6 +621,48 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let encryptedName = ""; // zero-knowledge file name (base64)
     let fileId = "";
     let wasResumed = false;
+    let sessionMode: UploadMode = UploadMode.Relay;
+    let direct: DirectTarget | null = null;
+    let reinitRelay: (() => Promise<UploadInitResponse | null>) | null = null;
+
+    const adoptFreshSession = (session: UploadInitResponse, mode: UploadMode) => {
+      sessionId = session.session_id;
+      useDirectUpload = session.direct_upload;
+      sessionMode = mode;
+      fileId = session.file_id;
+      setFileId(id, fileId);
+      void seedThumbnailFromFile(fileId, file, file.name);
+      // The server's returned platform is the session's REAL home (it applies
+      // the default when the picker was on Auto): remember it so any retry
+      // or resume of this item stays there.
+      patchMeta(id, { platform: session.platform || itemMeta.get(id)?.platform });
+
+      // Persist the resume context NOW so a mid-upload failure can continue.
+      const ctx: ResumeCtx = {
+        sessionId,
+        fileId,
+        cekBytes,
+        chunkCount,
+        chunkSize,
+        directUpload: useDirectUpload,
+        shouldCompress,
+        platform: session.platform,
+        mode,
+      };
+      patchMeta(id, { resume: ctx });
+      // Also persist session pointers (NOT the key) so this upload can resume
+      // after a page reload. See loadPersistedResume.
+      savePersistedResume(file, destFolderId, {
+        sessionId,
+        fileId,
+        chunkCount,
+        chunkSize,
+        directUpload: useDirectUpload,
+        shouldCompress,
+        platform: session.platform,
+        mode,
+      });
+    };
 
     if (!resume) {
       // FRESH: hash, derive keys, create the session.
@@ -695,7 +757,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // restart must stay on the ORIGINAL platform).
       const doInit = async (
         explicitPlatform?: string,
-      ): Promise<Awaited<ReturnType<typeof initUpload>> | null> => {
+        target: DirectTarget | null = null,
+      ): Promise<UploadInitResponse | null> => {
         for (let attempt = 0; attempt < 60; attempt++) {
           if (isPaused()) return null;
           try {
@@ -710,7 +773,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               wrapped_cek: wrappedCek,
               chunk_count: chunkCount,
               chunk_size: chunkSize,
-              platform: explicitPlatform ?? platform,
+              platform: target?.platform ?? explicitPlatform ?? platform,
+              ...(target ? { mode: UploadMode.ByosDirect } : {}),
               // FIX-1b: create the row directly in its destination folder. For a
               // protected folder the CEK was already wrapped under the folder
               // password above, so the file is born correctly folder-keyed AND
@@ -734,7 +798,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         return null;
       };
 
-      let session = await doInit();
+      direct = await resolveWebDirect(platform);
+      let session = await doInit(undefined, direct);
       // doInit only ever returns null via its own pause check (retry
       // exhaustion re-throws the underlying error directly instead of
       // falling through), so reaching here always means paused; surface
@@ -776,6 +841,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             directUpload: adopted.directUpload,
             shouldCompress: adopted.shouldCompress,
             platform: adopted.platform,
+            mode: adopted.mode,
           });
         } else {
           // Can't continue the old session (its envelope won't unwrap with this
@@ -788,7 +854,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             /* best-effort */
           });
           clearPersistedResume(file, destFolderId);
-          session = await doInit(session.platform);
+          direct = await resolveWebDirect(session.platform);
+          session = await doInit(session.platform, direct);
           if (!session) {
             pauseCheckpoint();
             return;
@@ -797,40 +864,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       }
 
       if (!resume) {
-        // Genuinely fresh session.
-        sessionId = session.session_id;
-        useDirectUpload = session.direct_upload;
-        fileId = session.file_id;
-        setFileId(id, fileId);
-        void seedThumbnailFromFile(fileId, file, file.name);
-        // The server's returned platform is the session's REAL home (it applies
-        // the default when the picker was on Auto): remember it so any retry
-        // or resume of this item stays there.
-        patchMeta(id, { platform: session.platform || itemMeta.get(id)?.platform });
-
-        // Persist the resume context NOW so a mid-upload failure can continue.
-        const ctx: ResumeCtx = {
-          sessionId,
-          fileId,
-          cekBytes,
-          chunkCount,
-          chunkSize,
-          directUpload: useDirectUpload,
-          shouldCompress,
-          platform: session.platform,
-        };
-        patchMeta(id, { resume: ctx });
-        // Also persist session pointers (NOT the key) so this upload can resume
-        // after a page reload. See loadPersistedResume.
-        savePersistedResume(file, destFolderId, {
-          sessionId,
-          fileId,
-          chunkCount,
-          chunkSize,
-          directUpload: useDirectUpload,
-          shouldCompress,
-          platform: session.platform,
-        });
+        const mode = session.mode ?? (direct ? UploadMode.ByosDirect : UploadMode.Relay);
+        if (mode === UploadMode.ByosDirect) reinitRelay = () => doInit();
+        adoptFreshSession(session, mode);
       }
     }
 
@@ -845,6 +881,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       chunkSize = resume.chunkSize;
       useDirectUpload = resume.directUpload;
       shouldCompress = resume.shouldCompress;
+      sessionMode = resume.mode ?? UploadMode.Relay;
       fileId = resume.fileId;
       if (resume.platform) patchMeta(id, { platform: resume.platform });
       setFileId(id, fileId);
@@ -855,6 +892,16 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       } catch {
         done = new Set(); // status unavailable: re-send all (chunks are idempotent by SHA)
       }
+    }
+
+    let byos: { target: DirectTarget; repo: RepoInfo } | null = null;
+    if (sessionMode === UploadMode.ByosDirect) {
+      const home = resume?.platform ?? "";
+      if (wasResumed) direct = await directTargetForResume(home);
+      if (!direct) {
+        throw new Error(tr("toasts.directResumeElsewhere", { name: file.name, platform: home }));
+      }
+      byos = { target: direct, repo: await resolveDirectRepo(direct) };
     }
 
     // Chunk pipeline. TWO-STAGE BACKPRESSURE:
@@ -957,6 +1004,125 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let firstError: Error | null = null;
     const shouldStop = () => isPaused() || abort.signal.aborted;
 
+    const confirmDirect = (
+      target: DirectTarget,
+      repo: RepoInfo,
+      result: WorkerOutput,
+      size: number,
+      remotePath: string,
+    ) =>
+      withRetry(
+        () =>
+          confirmChunk(
+            sessionId,
+            result.chunkIndex,
+            result.sha256,
+            size,
+            remotePath,
+            result.compressed,
+            {
+              platform: target.platform,
+              account: target.account,
+              repo_id: repo.id,
+            },
+          ),
+        shouldStop,
+      );
+
+    const sendChunk = async (
+      result: WorkerOutput,
+      encrypted: Uint8Array,
+      onChunkProgress: (sentBytes: number) => void,
+    ) => {
+      if (byos) {
+        const { target, repo } = byos;
+        const remotePath = await pushDirectChunk(target, encrypted, {
+          onProgress: onChunkProgress,
+          signal: abort.signal,
+        });
+        await confirmDirect(target, repo, result, encrypted.byteLength, remotePath);
+      } else if (useDirectUpload) {
+        // DIRECT MODE: presign -> upload to platform -> confirm
+        const presign = await withRetry(
+          () => presignChunk(sessionId, result.chunkIndex, result.sha256, encrypted.byteLength),
+          shouldStop,
+        );
+        if (!presign.already_exists) {
+          await directUploadToURL(
+            presign.upload_url,
+            presign.upload_headers,
+            encrypted,
+            onChunkProgress,
+            abort.signal,
+          );
+        }
+        await withRetry(
+          () =>
+            confirmChunk(
+              sessionId,
+              result.chunkIndex,
+              result.sha256,
+              encrypted.byteLength,
+              presign.remote_path,
+              result.compressed,
+            ),
+          shouldStop,
+        );
+      } else {
+        // RELAY MODE: upload to server (server relays to platform)
+        await withRetry(
+          () =>
+            uploadChunk(
+              sessionId,
+              result.chunkIndex,
+              encrypted,
+              result.sha256,
+              result.compressed,
+              onChunkProgress,
+              abort.signal,
+            ),
+          shouldStop,
+        );
+      }
+    };
+
+    const restartOnRelay = async () => {
+      disableWebDirect();
+      const restart = reinitRelay as () => Promise<UploadInitResponse | null>;
+      patchMeta(id, { resume: undefined });
+      clearPersistedResume(file, destFolderId);
+      await cancelUpload(sessionId).catch(() => {
+        /* best-effort */
+      });
+      const relay = await restart();
+      if (!relay) throw new PausedError();
+      if (relay.resumed) throw new Error(tr("toasts.uploadFailed"));
+      byos = null;
+      adoptFreshSession(relay, UploadMode.Relay);
+    };
+    const pushFirstChunk = async (
+      result: WorkerOutput,
+      encrypted: Uint8Array,
+      onChunkProgress: (sentBytes: number) => void,
+    ) => {
+      const { target, repo } = byos as { target: DirectTarget; repo: RepoInfo };
+      let remotePath: string;
+      try {
+        remotePath = await pushDirectChunk(target, encrypted, {
+          probe: true,
+          onProgress: onChunkProgress,
+          signal: abort.signal,
+        });
+      } catch (err) {
+        if (!isDirectUnreachable(err)) throw err;
+        await restartOnRelay();
+        return sendChunk(result, encrypted, onChunkProgress);
+      }
+      await confirmDirect(target, repo, result, encrypted.byteLength, remotePath);
+    };
+    const canFallBack = byos !== null && reinitRelay !== null;
+    let firstPush: Promise<void> | null = null;
+
     for (let i = 0; i < chunkCount; i++) {
       if (firstError) break;
       // Pause boundary 1: stop launching new chunks.
@@ -1005,49 +1171,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               emitByteProgress();
             };
 
-            if (useDirectUpload) {
-              // DIRECT MODE: presign -> upload to platform -> confirm
-              const presign = await withRetry(
-                () =>
-                  presignChunk(sessionId, result.chunkIndex, result.sha256, encrypted.byteLength),
-                shouldStop,
-              );
-              if (!presign.already_exists) {
-                await directUploadToURL(
-                  presign.upload_url,
-                  presign.upload_headers,
-                  encrypted,
-                  onChunkProgress,
-                  abort.signal,
-                );
-              }
-              await withRetry(
-                () =>
-                  confirmChunk(
-                    sessionId,
-                    result.chunkIndex,
-                    result.sha256,
-                    encrypted.byteLength,
-                    presign.remote_path,
-                    result.compressed,
-                  ),
-                shouldStop,
-              );
+            if (canFallBack && !firstPush) {
+              firstPush = pushFirstChunk(result, encrypted, onChunkProgress);
+              await firstPush;
             } else {
-              // RELAY MODE: upload to server (server relays to platform)
-              await withRetry(
-                () =>
-                  uploadChunk(
-                    sessionId,
-                    result.chunkIndex,
-                    encrypted,
-                    result.sha256,
-                    result.compressed,
-                    onChunkProgress,
-                    abort.signal,
-                  ),
-                shouldStop,
-              );
+              if (firstPush) await firstPush;
+              await sendChunk(result, encrypted, onChunkProgress);
             }
 
             uploadedChunks++;
@@ -1183,6 +1312,7 @@ async function adoptServerSession(
     direct_upload: boolean;
     chunk_size?: number;
     chunk_count?: number;
+    mode?: UploadMode;
   },
   file: File,
   passphrase: string,
@@ -1213,6 +1343,7 @@ async function adoptServerSession(
       directUpload: session.direct_upload,
       shouldCompress: rec?.shouldCompress ?? !COMPRESSED_EXTENSIONS.has(extOf(file.name)),
       platform: session.platform,
+      mode: session.mode,
     };
   } catch {
     return undefined; // wrong passphrase for the original envelope / transient
