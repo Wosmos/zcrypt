@@ -105,7 +105,7 @@ func NewTelegramAdapter(token string) (*TelegramAdapter, error) {
 	return adapter, nil
 }
 
-func (t *TelegramAdapter) PlatformName() string { return "telegram" }
+func (t *TelegramAdapter) PlatformName() string { return types.PlatformTelegram }
 
 // GetUsername returns the bot username.
 func (t *TelegramAdapter) GetUsername() string { return t.botUser }
@@ -155,7 +155,7 @@ func (t *TelegramAdapter) Upload(ctx context.Context, repo string, chunk types.C
 	}
 
 	ref := chunk.Ref
-	ref.Platform = "telegram"
+	ref.Platform = types.PlatformTelegram
 	ref.Repo = repo
 	ref.RemotePath = strings.Join(partRefs, ",")
 	return ref, nil

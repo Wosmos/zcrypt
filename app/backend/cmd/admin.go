@@ -29,7 +29,7 @@ func defaultPlanConfigs() *types.PlanConfigs {
 	return &types.PlanConfigs{
 		Plans: []types.PlanConfig{
 			{
-				ID: "free", Name: "Free", MonthlyPrice: 0, AnnualPrice: 0,
+				ID: types.PlanFree, Name: "Free", MonthlyPrice: 0, AnnualPrice: 0,
 				Description:          "Free and open source. No limits beyond the storage platforms you connect.",
 				StorageBytes:         0, // 0 = unlimited
 				MaxFileBytes:         0, // 0 = unlimited
@@ -146,7 +146,7 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	switch f.Platform {
-	case "", index.NoPlatform, "github", "gitlab", "huggingface", "telegram":
+	case "", index.NoPlatform, types.PlatformGitHub, types.PlatformGitLab, types.PlatformHuggingFace, types.PlatformTelegram:
 	default:
 		writeError(w, http.StatusBadRequest, "platform must be github, gitlab, huggingface, telegram or none")
 		return
@@ -433,7 +433,7 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 	}
 
 	switch req.Platform {
-	case "github", "gitlab", "huggingface":
+	case types.PlatformGitHub, types.PlatformGitLab, types.PlatformHuggingFace:
 	default:
 		http.Error(w, `{"error":"unsupported platform"}`, http.StatusBadRequest)
 		return
@@ -574,7 +574,7 @@ func (s *Server) HandleAdminDeleteToken(w http.ResponseWriter, r *http.Request) 
 // HandleAdminGetDefaultQuota returns the system-wide default storage quota.
 // GET /api/admin/quota
 func (s *Server) HandleAdminGetDefaultQuota(w http.ResponseWriter, r *http.Request) {
-	val, err := s.db.GetSystemSetting(r.Context(), "default_storage_quota_bytes")
+	val, err := s.db.GetSystemSetting(r.Context(), types.SettingDefaultStorageQuotaBytes)
 	var quota int64
 	if err == nil {
 		quota, _ = strconv.ParseInt(val, 10, 64)
@@ -599,7 +599,7 @@ func (s *Server) HandleAdminSetDefaultQuota(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := s.db.SetSystemSetting(r.Context(), "default_storage_quota_bytes", strconv.FormatInt(req.DefaultQuotaBytes, 10)); err != nil {
+	if err := s.db.SetSystemSetting(r.Context(), types.SettingDefaultStorageQuotaBytes, strconv.FormatInt(req.DefaultQuotaBytes, 10)); err != nil {
 		internalError(w, "AdminSetDefaultQuota", err)
 		return
 	}
@@ -678,7 +678,7 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 	// start a transfer that will be refused.
 	quota := s.getEffectiveQuota(ctx, userID)
 
-	plan := "free"
+	plan := types.PlanFree
 	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil {
 		if user.Plan != "" {
 			plan = user.Plan
@@ -935,7 +935,7 @@ func (s *Server) HandleAdminSetPlans(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ids[p.ID] = true
-		if p.ID == "free" {
+		if p.ID == types.PlanFree {
 			hasFree = true
 		}
 	}

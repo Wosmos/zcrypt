@@ -6,21 +6,23 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // JourneyFamilies groups event kinds for the admin user journey. Kinds not
 // listed fall into "account"; any admin_* kind is "admin".
 var JourneyFamilies = map[string][]string{
-	"auth": {"register", "oauth_register", "login", "login_decoy", "oauth_login", "magic_link_sent",
-		"magic_link_used", "logout", "email_verify", "session_revoke", "sessions_revoke_others"},
-	"security": {"login_failed", "2fa_enable", "2fa_disable", "2fa_failed", "2fa_replay", "2fa_ratelimited",
-		"2fa_backup_codes_regenerated", "password_changed", "password_change_failed", "password_reset",
-		"password_reset_requested", "oauth_link", "oauth_unlink", "oauth_link_rejected", "file_rekey",
-		"account_deletion_requested", "account_deletion_denied", "account_deletion_cancelled"},
-	"files": {"uploads", "file_delete", "file_restore", "file_purge", "file_purge_client", "folder_delete",
-		"folder_password_set", "folder_password_remove", "files_verify", "account_export"},
-	"sharing": {"share_create", "space_join", "send_init", "send_complete"},
-	"storage": {"platform_connect", "platform_disconnect", "token_scope_change", "repo_register", "repo_deactivate"},
+	"auth": {types.AuditRegister, types.AuditOAuthRegister, types.AuditLogin, types.AuditLoginDecoy, types.AuditOAuthLogin, types.AuditMagicLinkSent,
+		types.AuditMagicLinkUsed, types.AuditLogout, types.AuditEmailVerify, types.AuditSessionRevoke, types.AuditSessionsRevokeOthers},
+	"security": {types.AuditLoginFailed, types.AuditTwoFAEnable, types.AuditTwoFADisable, types.AuditTwoFAFailed, types.AuditTwoFAReplay, types.AuditTwoFARatelimited,
+		types.AuditTwoFABackupCodesRegenerated, types.AuditPasswordChanged, types.AuditPasswordChangeFailed, types.AuditPasswordReset,
+		types.AuditPasswordResetRequested, types.AuditOAuthLink, types.AuditOAuthUnlink, types.AuditOAuthLinkRejected, types.AuditFileRekey,
+		types.AuditAccountDeletionRequested, types.AuditAccountDeletionDenied, types.AuditAccountDeletionCancelled},
+	"files": {"uploads", types.AuditFileDelete, types.AuditFileRestore, types.AuditFilePurge, types.AuditFilePurgeClient, types.AuditFolderDelete,
+		types.AuditFolderPasswordSet, types.AuditFolderPasswordRemove, types.AuditFilesVerify, types.AuditAccountExport},
+	"sharing": {"share_create", "space_join", types.AuditSendInit, types.AuditSendComplete},
+	"storage": {types.AuditPlatformConnect, types.AuditPlatformDisconnect, types.AuditTokenScopeChange, types.AuditRepoRegister, types.AuditRepoDeactivate},
 }
 
 // JourneyFamilyNames lists every family, including the catch-alls.
@@ -28,7 +30,7 @@ var JourneyFamilyNames = []string{"auth", "security", "files", "sharing", "stora
 
 // journeyHiddenKinds are per-file upload events: the journey shows uploads as
 // one entry per day from the files table instead.
-var journeyHiddenKinds = []string{"upload_init", "upload_complete", "upload_resume"}
+var journeyHiddenKinds = []string{types.AuditUploadInit, types.AuditUploadComplete, types.AuditUploadResume}
 
 // JourneyEvent is one entry of a user's journey.
 type JourneyEvent struct {

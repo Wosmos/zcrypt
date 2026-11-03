@@ -22,7 +22,7 @@ func init() {
 			return
 		}
 		mux.HandleFunc("POST /api/dev/mock-storage", s.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			s.InjectTestAdapter(GetUserID(r), "mock", "e2e", newMemAdapter(), 10<<30)
+			s.InjectTestAdapter(GetUserID(r), types.PlatformMock, "e2e", newMemAdapter(), 10<<30)
 			writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 		}))
 		mux.HandleFunc("POST /api/dev/mock-global-storage", s.AuthMiddleware(func(w http.ResponseWriter, _ *http.Request) {
@@ -43,7 +43,7 @@ type memAdapter struct {
 
 func newMemAdapter() *memAdapter { return &memAdapter{data: make(map[string][]byte)} }
 
-func (m *memAdapter) PlatformName() string { return "mock" }
+func (m *memAdapter) PlatformName() string { return types.PlatformMock }
 
 func (m *memAdapter) CreateRepo(_ context.Context, name string) (string, error) {
 	return "mock://" + name, nil
@@ -53,7 +53,7 @@ func (m *memAdapter) Upload(_ context.Context, repo string, chunk types.Chunk) (
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ref := chunk.Ref
-	ref.Platform, ref.Account, ref.Repo = "mock", "e2e", repo
+	ref.Platform, ref.Account, ref.Repo = types.PlatformMock, "e2e", repo
 	m.data[repo+"\x00"+ref.RemotePath] = append([]byte(nil), chunk.Data...)
 	return ref, nil
 }
@@ -93,7 +93,7 @@ func (m *memAdapter) ListChunks(_ context.Context, repo string) ([]types.ChunkRe
 	var refs []types.ChunkRef
 	for k, v := range m.data {
 		if len(k) > len(repo) && k[:len(repo)+1] == repo+"\x00" {
-			refs = append(refs, types.ChunkRef{Platform: "mock", Repo: repo, RemotePath: k[len(repo)+1:], Size: int64(len(v))})
+			refs = append(refs, types.ChunkRef{Platform: types.PlatformMock, Repo: repo, RemotePath: k[len(repo)+1:], Size: int64(len(v))})
 		}
 	}
 	return refs, nil

@@ -104,7 +104,7 @@ func (s *Server) HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.revokeSessionIDs(userID, sessionID)
-	s.audit(r, &userID, "session_revoke", map[string]interface{}{"session_id": sessionID})
+	s.audit(r, &userID, types.AuditSessionRevoke, map[string]interface{}{"session_id": sessionID})
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -128,7 +128,7 @@ func (s *Server) HandleRevokeOtherSessions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	s.revokeSessionIDs(userID, ids...)
-	s.audit(r, &userID, "sessions_revoke_others", map[string]interface{}{"count": len(ids)})
+	s.audit(r, &userID, types.AuditSessionsRevokeOthers, map[string]interface{}{"count": len(ids)})
 	writeJSON(w, http.StatusOK, map[string]int{"revoked": len(ids)})
 }
 

@@ -55,9 +55,9 @@ func (db *DB) CheckFileIntegrity(ctx context.Context, userID, fileID, currentSHA
 		return nil, err
 	}
 
-	status := "ok"
+	status := types.IntegrityOK
 	if currentSHA256 != latestSHA256 || currentSize != latestSize {
-		status = "changed"
+		status = types.IntegrityChanged
 	}
 
 	// Create a new check record

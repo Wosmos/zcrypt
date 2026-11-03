@@ -162,7 +162,7 @@ type Server struct {
 func defaultPushLimits() map[string]int64 {
 	const gb = int64(1) << 30
 	return map[string]int64{
-		"github": 7 * gb,
+		types.PlatformGitHub: 7 * gb,
 	}
 }
 
@@ -475,7 +475,7 @@ func (s *Server) selectAdapter(ctx context.Context, userID, targetPlatform strin
 // adapterPreferenceOrder is the product decision for "Auto" uploads: Telegram
 // is the primary storage backend (no capacity ceiling), then github, gitlab,
 // huggingface (HF last: its free tier is a 100 GB per-ACCOUNT cap).
-var adapterPreferenceOrder = []string{"telegram", "github", "gitlab", "huggingface"}
+var adapterPreferenceOrder = types.AllPlatforms
 
 // preferredAdapterKey picks the first key (from a pre-sorted "platform:account"
 // list) whose platform appears earliest in adapterPreferenceOrder. Keys for
@@ -699,15 +699,15 @@ func (s *Server) PadRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc 
 // createAdapter creates a PlatformAdapter for a given platform and token.
 func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
 	switch platform {
-	case "github":
+	case types.PlatformGitHub:
 		return adapters.NewGithubAdapter(token)
-	case "gitlab":
+	case types.PlatformGitLab:
 		return adapters.NewGitlabAdapter(token)
-	case "huggingface":
+	case types.PlatformHuggingFace:
 		return adapters.NewHuggingFaceAdapter(token)
-	case "telegram":
+	case types.PlatformTelegram:
 		return adapters.NewTelegramAdapter(token)
-	case "mock":
+	case types.PlatformMock:
 		// Load-testing sandbox only (docker-compose.loadtest.yml). Never
 		// reachable unless the operator explicitly opts in, so this can
 		// never appear in a real deployment by accident.

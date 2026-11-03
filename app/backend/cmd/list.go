@@ -115,7 +115,7 @@ func decoyFileList(decoyFiles []types.DecoyFile) []types.FileMetadata {
 			ID:           df.ID,
 			OriginalSize: df.Size,
 			CreatedAt:    df.CreatedAt,
-			Status:       "complete",
+			Status:       types.StatusComplete,
 		}
 		// Sealed names (enc1:) travel exactly like a real file's encrypted_name,
 		// so the client opens them with the session passphrase, which in a

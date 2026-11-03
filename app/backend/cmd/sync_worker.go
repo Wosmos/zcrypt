@@ -310,7 +310,7 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	remotePath := chunk.PlannedRemotePath
 	isRetry := remotePath != ""
 	if remotePath == "" {
-		if chunk.Platform == "telegram" {
+		if chunk.Platform == types.PlatformTelegram {
 			remotePath, err = disguise.ChunkFilename()
 		} else {
 			remotePath, err = disguise.ShardedChunkFilename()
@@ -333,7 +333,7 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	// create. A 404 delete is a harmless no-op, and the git adapters treat it as
 	// success. Telegram is skipped: its planned path is a filename, not a message
 	// locator, so there is nothing to delete and re-upload just makes a new message.
-	if isRetry && chunk.Platform != "telegram" {
+	if isRetry && chunk.Platform != types.PlatformTelegram {
 		if delErr := adapter.Delete(ctx, types.ChunkRef{
 			Platform:   chunk.Platform,
 			Account:    chunk.Account,

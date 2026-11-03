@@ -206,7 +206,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// A byos-direct session resumes as byos-direct regardless of adapter type
 		// (the client pushes with its own token); relay sessions keep the
 		// adapter-capability answer (HuggingFace presign vs GitHub/Telegram relay).
-		directUpload := existing.Mode == "byos-direct"
+		directUpload := existing.Mode == types.UploadModeBYOSDirect
 		if !directUpload {
 			adapter := s.resolveAdapterForUser(ctx, userID, existing.Platform, existing.Account)
 			_, directUpload = adapter.(adapters.DirectUploader)
@@ -214,7 +214,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 		// Deliberately no filename: for a zero-knowledge upload it is empty, and
 		// logging a legacy plaintext name would persist it in audit_events.
-		s.audit(r, &userID, "upload_resume", map[string]interface{}{
+		s.audit(r, &userID, types.AuditUploadResume, map[string]interface{}{
 			"file_id":    existing.FileID,
 			"session_id": existing.ID,
 			"size":       existing.OriginalSize,
@@ -248,14 +248,14 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	//                  POST /api/repos/register); the managed pool is never used.
 	mode := req.Mode
 	if mode == "" {
-		mode = "relay"
+		mode = types.UploadModeRelay
 	}
 
 	var platform, account, repoID, repoURL string
 	var directUpload bool
 	var quota int64
 
-	if mode == "byos-direct" {
+	if mode == types.UploadModeBYOSDirect {
 		if req.Platform == "" || !byosPlatforms[req.Platform] {
 			http.Error(w, `{"error":"byos-direct requires a supported platform (telegram, github, gitlab, huggingface)"}`, http.StatusBadRequest)
 			return
@@ -349,7 +349,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		Salt:          salt,
 		IV:            []byte{}, // not used for client-side encryption
 		WrappedCEK:    req.WrappedCEK,
-		Status:        "uploading",
+		Status:        types.StatusUploading,
 		FolderID:      req.FolderID,
 	}
 
@@ -399,14 +399,14 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	// Relay path: does the adapter support presigned direct upload (HuggingFace)?
 	// byos-direct already set directUpload = true above (the client pushes with
 	// its own token, independent of adapter type).
-	if mode != "byos-direct" {
+	if mode != types.UploadModeBYOSDirect {
 		adapter := s.resolveAdapterForUser(ctx, userID, platform, account)
 		_, directUpload = adapter.(adapters.DirectUploader)
 	}
 
 	// No filename in the audit trail: a zero-knowledge upload has none, and a
 	// legacy plaintext name must not be persisted in audit_events.
-	s.audit(r, &userID, "upload_init", map[string]interface{}{
+	s.audit(r, &userID, types.AuditUploadInit, map[string]interface{}{
 		"file_id":    fileID,
 		"session_id": sessionID,
 		"size":       req.OriginalSize,
@@ -457,7 +457,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
 		return
 	}
-	if session.Status != "active" {
+	if session.Status != types.SessionActive {
 		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -631,10 +631,10 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
 		return
 	}
-	if session.Status == "complete" {
+	if session.Status == types.SessionComplete {
 		// A retried complete whose first response was lost: the upload is done,
 		// so answer exactly as the first call did instead of failing it.
-		if file, ferr := s.db.GetFileByID(ctx, userID, session.FileID); ferr == nil && file.Status == "complete" {
+		if file, ferr := s.db.GetFileByID(ctx, userID, session.FileID); ferr == nil && file.Status == types.StatusComplete {
 			writeJSON(w, http.StatusOK, map[string]interface{}{
 				"success": true,
 				"file_id": session.FileID,
@@ -642,7 +642,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if session.Status != "active" {
+	if session.Status != types.SessionActive {
 		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -673,7 +673,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 
 	// Mark file as complete and return immediately.
 	// Size verification, FlushCommits, and bookkeeping run in the background.
-	if err := s.db.UpdateFileStatus(ctx, session.FileID, "complete"); err != nil {
+	if err := s.db.UpdateFileStatus(ctx, session.FileID, types.StatusComplete); err != nil {
 		log.Printf("upload: update file status failed: %v", err)
 		http.Error(w, `{"error":"failed to complete upload"}`, http.StatusInternalServerError)
 		return
@@ -698,7 +698,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	// Audit synchronously, before returning: s.audit reads the request (IP,
 	// User-Agent) and must not be called from the background goroutine after the
 	// handler returns and the request context is cancelled.
-	s.audit(r, &userID, "upload_complete", map[string]interface{}{
+	s.audit(r, &userID, types.AuditUploadComplete, map[string]interface{}{
 		"file_id":    session.FileID,
 		"session_id": sessionID,
 		"chunks":     session.ChunkCount,
@@ -823,7 +823,7 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
 		return
 	}
-	if session.Status != "active" {
+	if session.Status != types.SessionActive {
 		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -916,7 +916,7 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
 		return
 	}
-	if session.Status != "active" {
+	if session.Status != types.SessionActive {
 		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -945,7 +945,7 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 	// directory so no folder ever approaches HuggingFace's hard 10k-entries-
 	// per-folder limit; Telegram keeps the flat name (a chat has no folders).
 	var remotePath string
-	if session.Platform == "telegram" {
+	if session.Platform == types.PlatformTelegram {
 		remotePath, err = disguise.ChunkFilename()
 	} else {
 		remotePath, err = disguise.ShardedChunkFilename()
@@ -1097,7 +1097,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
 		return
 	}
-	if session.Status != "active" {
+	if session.Status != types.SessionActive {
 		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -1122,7 +1122,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 	maxTotal := maxEncryptedTotal(session.OriginalSize, session.ChunkCount)
 	var inserted bool
 
-	if session.Mode == "byos-direct" {
+	if session.Mode == types.UploadModeBYOSDirect {
 		// byos-direct: the client pushed the ciphertext to its OWN platform with
 		// its OWN token and reports it committed. That claim is not trusted: the
 		// chunk is recorded committed = FALSE and only flipped once the server

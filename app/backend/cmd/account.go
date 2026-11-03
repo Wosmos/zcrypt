@@ -43,7 +43,7 @@ func (s *Server) HandleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := GetUserID(r)
 	if err := s.reauthActingUser(ctx, r, body.Password, body.Code); err != nil {
-		s.audit(r, &userID, "account_deletion_denied", map[string]interface{}{"reason": err.Error()})
+		s.audit(r, &userID, types.AuditAccountDeletionDenied, map[string]interface{}{"reason": err.Error()})
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
 	}
@@ -70,7 +70,7 @@ func (s *Server) HandleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 			log.Printf("send account deletion email: %v", err)
 		}
 	})
-	s.audit(r, &userID, "account_deletion_requested", map[string]interface{}{"delete_at": deleteAt})
+	s.audit(r, &userID, types.AuditAccountDeletionRequested, map[string]interface{}{"delete_at": deleteAt})
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"deletion_scheduled_at": deleteAt})
 }
@@ -122,7 +122,7 @@ func (s *Server) HandleCancelAccountDeletion(w http.ResponseWriter, r *http.Requ
 		http.Error(w, `{"error":"no deletion is scheduled"}`, http.StatusNotFound)
 		return
 	}
-	s.audit(r, &userID, "account_deletion_cancelled", nil)
+	s.audit(r, &userID, types.AuditAccountDeletionCancelled, nil)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -169,7 +169,7 @@ func (s *Server) HandleExportAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !IsDecoy(r) {
-		s.audit(r, &userID, "account_export", nil)
+		s.audit(r, &userID, types.AuditAccountExport, nil)
 	}
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="zcrypt-account-%s.json"`, out.ExportedAt.Format("2006-01-02")))
 	writeJSON(w, http.StatusOK, out)

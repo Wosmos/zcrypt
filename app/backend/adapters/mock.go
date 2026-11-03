@@ -50,7 +50,7 @@ func NewMockAdapter(_ string) (*MockAdapter, error) {
 }
 
 // PlatformName returns the name of this platform.
-func (m *MockAdapter) PlatformName() string { return "mock" }
+func (m *MockAdapter) PlatformName() string { return types.PlatformMock }
 
 // GetUsername matches the GetUsername() convention the other adapters expose
 // for cmd/server.go's getAdapterUsername switch.
@@ -115,7 +115,7 @@ func (m *MockAdapter) Upload(_ context.Context, repo string, chunk types.Chunk) 
 	}
 
 	ref := chunk.Ref
-	ref.Platform = "mock"
+	ref.Platform = types.PlatformMock
 	ref.Account = "loadtest"
 	ref.Repo = repo
 	ref.RemotePath = remotePath
@@ -201,7 +201,7 @@ func (m *MockAdapter) ListChunks(_ context.Context, repo string) ([]types.ChunkR
 		}
 		sum := sha256.Sum256(data)
 		out = append(out, types.ChunkRef{
-			Platform:   "mock",
+			Platform:   types.PlatformMock,
 			Account:    "loadtest",
 			Repo:       repo,
 			RemotePath: rel,

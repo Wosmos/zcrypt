@@ -143,7 +143,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		ChunkCount:    req.ChunkCount,
 		SHA256:        req.SHA256,
 		Salt:          salt,
-		Status:        "uploading",
+		Status:        types.StatusUploading,
 		BurnAfterRead: req.BurnAfterRead,
 		ExpiresAt:     time.Now().Add(time.Duration(expiresHours) * time.Hour),
 		SenderIP:      anonIP(s.clientIP(r)),
@@ -173,7 +173,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, nil, "send_init", map[string]interface{}{
+	s.audit(r, nil, types.AuditSendInit, map[string]interface{}{
 		"transfer_id": transferID,
 		"filename":    req.Filename,
 		"size":        req.OriginalSize,
@@ -216,7 +216,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"send session not found"}`, http.StatusNotFound)
 		return
 	}
-	if transfer.Status != "uploading" {
+	if transfer.Status != types.StatusUploading {
 		http.Error(w, `{"error":"send session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -388,7 +388,7 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"send session not found"}`, http.StatusNotFound)
 		return
 	}
-	if transfer.Status != "uploading" {
+	if transfer.Status != types.StatusUploading {
 		http.Error(w, `{"error":"send session is not active"}`, http.StatusBadRequest)
 		return
 	}
@@ -417,13 +417,13 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.UpdateSendTransferSize(ctx, transfer.ID, totalSize); err != nil {
 		log.Printf("send: update size: %v", err)
 	}
-	if err := s.db.UpdateSendTransferStatus(ctx, transfer.ID, "complete"); err != nil {
+	if err := s.db.UpdateSendTransferStatus(ctx, transfer.ID, types.StatusComplete); err != nil {
 		log.Printf("send: update status: %v", err)
 		http.Error(w, `{"error":"failed to finalize transfer"}`, http.StatusInternalServerError)
 		return
 	}
 
-	s.audit(r, nil, "send_complete", map[string]interface{}{
+	s.audit(r, nil, types.AuditSendComplete, map[string]interface{}{
 		"transfer_id": transfer.ID,
 		"filename":    transfer.OriginalName,
 		"size":        transfer.OriginalSize,
@@ -602,7 +602,7 @@ func (s *Server) burnIfFullyServed(ctx context.Context, t *types.SendTransfer, i
 
 // validateSendTransfer checks if a send transfer is still valid.
 func validateSendTransfer(t *types.SendTransfer) (string, bool) {
-	if t.Status != "complete" {
+	if t.Status != types.StatusComplete {
 		return "transfer is not ready", false
 	}
 	if time.Now().After(t.ExpiresAt) {

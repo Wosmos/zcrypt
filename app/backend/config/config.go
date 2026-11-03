@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // DefaultGeoIPDB is where the container image puts the location database.
@@ -114,17 +116,17 @@ type Config struct {
 // DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
-		DefaultPlatform: "github",
+		DefaultPlatform: types.PlatformGitHub,
 		Thresholds: map[string]int64{
-			"github": 850 * 1024 * 1024,  // 850MB
-			"gitlab": 9000 * 1024 * 1024, // 9GB
+			types.PlatformGitHub: 850 * 1024 * 1024,  // 850MB
+			types.PlatformGitLab: 9000 * 1024 * 1024, // 9GB
 			// HF free tier is 100 GB TOTAL private storage per ACCOUNT (not per
 			// repo): rotating to a new repo adds NO capacity. Keep the per-repo
 			// threshold safely under the whole-account allowance so a single
 			// repo can never claim more than the account can actually hold.
-			"huggingface": 90 * 1024 * 1024 * 1024, // 90GiB (real limit: 100GB/account)
-			"telegram":    50000 * 1024 * 1024,     // 50GB (virtual. Telegram has no hard repo limit)
-			"mock":        5 * 1024 * 1024 * 1024,  // 5GB, load-test sandbox only
+			types.PlatformHuggingFace: 90 * 1024 * 1024 * 1024, // 90GiB (real limit: 100GB/account)
+			types.PlatformTelegram:    50000 * 1024 * 1024,     // 50GB (virtual. Telegram has no hard repo limit)
+			types.PlatformMock:        5 * 1024 * 1024 * 1024,  // 5GB, load-test sandbox only
 		},
 	}
 }

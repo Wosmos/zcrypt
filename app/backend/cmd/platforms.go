@@ -90,7 +90,7 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add disconnected entries for platforms with no accounts
-	for _, p := range []string{"github", "gitlab", "huggingface", "telegram"} {
+	for _, p := range []string{types.PlatformGitHub, types.PlatformGitLab, types.PlatformHuggingFace, types.PlatformTelegram} {
 		if !platformHasAccount[p] {
 			statuses = append(statuses, types.PlatformStatus{
 				Platform:  p,
@@ -135,7 +135,7 @@ func (s *Server) HandleToggleTokenScope(w http.ResponseWriter, r *http.Request) 
 	// Invalidate adapter cache
 	s.invalidateUserCache(userID)
 
-	s.audit(r, &userID, "token_scope_change", map[string]interface{}{"token_id": tokenID, "is_global": req.IsGlobal})
+	s.audit(r, &userID, types.AuditTokenScopeChange, map[string]interface{}{"token_id": tokenID, "is_global": req.IsGlobal})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -162,9 +162,9 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 	// never gated by plan.
 
 	switch req.Platform {
-	case "github", "gitlab", "huggingface", "telegram":
+	case types.PlatformGitHub, types.PlatformGitLab, types.PlatformHuggingFace, types.PlatformTelegram:
 		// supported
-	case "mock":
+	case types.PlatformMock:
 		// Load-testing sandbox only, gated the same way as createAdapter's
 		// "mock" case: rejected outright unless explicitly opted into.
 		if os.Getenv("ZCRYPT_ENABLE_MOCK_ADAPTER") != "true" {
@@ -209,7 +209,7 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 	// Invalidate adapter cache so it reloads from DB
 	s.invalidateUserCache(userID)
 
-	s.audit(r, &userID, "platform_connect", map[string]interface{}{"platform": req.Platform, "username": username})
+	s.audit(r, &userID, types.AuditPlatformConnect, map[string]interface{}{"platform": req.Platform, "username": username})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -292,7 +292,7 @@ func (s *Server) HandleDisconnectPlatform(w http.ResponseWriter, r *http.Request
 	// Invalidate adapter cache
 	s.invalidateUserCache(userID)
 
-	s.audit(r, &userID, "platform_disconnect", map[string]interface{}{"platform": req.Platform, "username": req.Username})
+	s.audit(r, &userID, types.AuditPlatformDisconnect, map[string]interface{}{"platform": req.Platform, "username": req.Username})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"success":true}`))

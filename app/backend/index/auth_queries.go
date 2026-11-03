@@ -14,7 +14,7 @@ import (
 func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 	plan := u.Plan
 	if plan == "" {
-		plan = "free"
+		plan = types.PlanFree
 	}
 	// Atomically set role: if no users exist yet, the first user becomes admin.
 	// This prevents a TOCTOU race where two concurrent registrations both see count=0.

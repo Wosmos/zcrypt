@@ -62,6 +62,12 @@ func (s *Server) HandleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 // omits the field then.
 var deployedCommit = os.Getenv("RAILWAY_GIT_COMMIT_SHA")
 
+// Liveness statuses reported by GET /api/health.
+const (
+	livenessOK          = "ok"
+	livenessMaintenance = "maintenance"
+)
+
 // HandleHealth reports liveness and which commit is actually serving.
 // GET /api/health
 //
@@ -73,9 +79,9 @@ var deployedCommit = os.Getenv("RAILWAY_GIT_COMMIT_SHA")
 // and CI compares it to the SHA it just pushed.
 func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	status := "ok"
+	status := livenessOK
 	if s.InMaintenanceMode() {
-		status = "maintenance"
+		status = livenessMaintenance
 	}
 	fields := map[string]string{"status": status}
 	if deployedCommit != "" {

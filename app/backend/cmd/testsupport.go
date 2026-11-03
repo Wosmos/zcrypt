@@ -164,9 +164,9 @@ func (s *Server) EnableTestOAuth(provider, clientID, clientSecret string) {
 	}
 	pc := &config.OAuthProviderConfig{ClientID: clientID, ClientSecret: clientSecret}
 	switch provider {
-	case "google":
+	case types.OAuthGoogle:
 		s.cfg.OAuth.Google = pc
-	case "github":
+	case types.OAuthGitHub:
 		s.cfg.OAuth.GitHub = pc
 	}
 }

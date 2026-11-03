@@ -32,13 +32,13 @@ const (
 
 func spaceRank(role string) int {
 	switch role {
-	case "viewer":
+	case types.SpaceRoleViewer:
 		return spaceRoleViewer
-	case "editor":
+	case types.SpaceRoleEditor:
 		return spaceRoleEditor
-	case "admin":
+	case types.SpaceRoleAdmin:
 		return spaceRoleAdmin
-	case "owner":
+	case types.SpaceRoleOwner:
 		return spaceRoleOwner
 	}
 	return spaceRoleNone
@@ -58,7 +58,7 @@ func (s *Server) spaceActorRank(ctx context.Context, vaultID, userID string) int
 }
 
 func validSpaceRole(role string) bool {
-	return role == "viewer" || role == "editor" || role == "admin"
+	return role == types.SpaceRoleViewer || role == types.SpaceRoleEditor || role == types.SpaceRoleAdmin
 }
 
 // HandleListSharedVaults returns all shared vaults the user is a member of.
@@ -160,14 +160,14 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if req.Role == "" {
-		req.Role = "viewer"
+		req.Role = types.SpaceRoleViewer
 	}
 	if !validSpaceRole(req.Role) {
 		http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
 		return
 	}
 	if actor < spaceRoleOwner {
-		if req.Role == "admin" {
+		if req.Role == types.SpaceRoleAdmin {
 			http.Error(w, `{"error":"only the owner can grant the admin role"}`, http.StatusForbidden)
 			return
 		}
@@ -176,7 +176,7 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 			http.Error(w, `{"error":"failed to add member"}`, http.StatusInternalServerError)
 			return
 		}
-		if existing == "admin" {
+		if existing == types.SpaceRoleAdmin {
 			http.Error(w, `{"error":"only the owner can change an admin"}`, http.StatusForbidden)
 			return
 		}
@@ -205,7 +205,7 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 	vaultID := r.PathValue("id")
 
 	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
-	if err != nil || (role != "admin" && role != "editor") {
+	if err != nil || (role != types.SpaceRoleAdmin && role != types.SpaceRoleEditor) {
 		http.Error(w, `{"error":"only editors or admins can add files"}`, http.StatusForbidden)
 		return
 	}
@@ -287,7 +287,7 @@ func (s *Server) HandleAddSharedVaultFiles(w http.ResponseWriter, r *http.Reques
 	vaultID := r.PathValue("id")
 
 	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
-	if err != nil || (role != "admin" && role != "editor") {
+	if err != nil || (role != types.SpaceRoleAdmin && role != types.SpaceRoleEditor) {
 		http.Error(w, `{"error":"only editors or admins can add files"}`, http.StatusForbidden)
 		return
 	}
@@ -313,7 +313,7 @@ func (s *Server) HandleAddSharedVaultFiles(w http.ResponseWriter, r *http.Reques
 	}
 
 	maxFiles := maxSpaceBatchHardCap
-	plan := "free"
+	plan := types.PlanFree
 	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
 		plan = user.Plan
 	}
@@ -420,7 +420,7 @@ func (s *Server) HandleRemoveSharedVaultFile(w http.ResponseWriter, r *http.Requ
 	fileID := r.PathValue("fid")
 
 	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
-	if err != nil || (role != "admin" && role != "editor") {
+	if err != nil || (role != types.SpaceRoleAdmin && role != types.SpaceRoleEditor) {
 		http.Error(w, `{"error":"only editors or admins can remove files"}`, http.StatusForbidden)
 		return
 	}
@@ -620,7 +620,7 @@ func (s *Server) HandleUpdateSharedVaultMemberRole(w http.ResponseWriter, r *htt
 		return
 	}
 	if actor < spaceRoleOwner {
-		if req.Role == "admin" {
+		if req.Role == types.SpaceRoleAdmin {
 			http.Error(w, `{"error":"only the owner can grant the admin role"}`, http.StatusForbidden)
 			return
 		}

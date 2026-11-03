@@ -25,9 +25,9 @@ func getOAuthProviderConfig(cfg *config.Config, provider string) *config.OAuthPr
 		return nil
 	}
 	switch provider {
-	case "google":
+	case types.OAuthGoogle:
 		return cfg.OAuth.Google
-	case "github":
+	case types.OAuthGitHub:
 		return cfg.OAuth.GitHub
 	default:
 		return nil
@@ -38,7 +38,7 @@ func getOAuthProviderConfig(cfg *config.Config, provider string) *config.OAuthPr
 // GET /api/auth/oauth/{provider}
 func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
-	if provider != "google" && provider != "github" {
+	if provider != types.OAuthGoogle && provider != types.OAuthGitHub {
 		http.Error(w, `{"error":"unsupported provider"}`, http.StatusBadRequest)
 		return
 	}
@@ -101,7 +101,7 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 // GET /api/auth/oauth/{provider}/callback
 func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
-	if provider != "google" && provider != "github" {
+	if provider != types.OAuthGoogle && provider != types.OAuthGitHub {
 		s.oauthError(w, r, "unsupported provider", false, "")
 		return
 	}
@@ -190,7 +190,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 			s.oauthError(w, r, "user not found", isDesktop, desktopSession)
 			return
 		}
-		s.audit(r, &user.ID, "oauth_login", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
+		s.audit(r, &user.ID, types.AuditOAuthLogin, map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
 		s.oauthRedirect(w, r, user, isDesktop, desktopSession)
 		return
 	}
@@ -202,7 +202,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		// attacker controlling an OAuth account for an unverified local email could
 		// hijack it. Require logging in with the existing method, then link in Settings.
 		if !existingUser.EmailVerified {
-			s.audit(r, &existingUser.ID, "oauth_link_rejected", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email), "reason": "local_email_unverified"})
+			s.audit(r, &existingUser.ID, types.AuditOAuthLinkRejected, map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email), "reason": "local_email_unverified"})
 			s.oauthError(w, r, "an account with this email already exists: log in with your existing method, then link "+provider+" in Settings", isDesktop, desktopSession)
 			return
 		}
@@ -214,7 +214,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 			ProviderID:    userInfo.ProviderID,
 			ProviderEmail: userInfo.Email,
 		})
-		s.audit(r, &existingUser.ID, "oauth_link", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
+		s.audit(r, &existingUser.ID, types.AuditOAuthLink, map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
 		s.oauthRedirect(w, r, existingUser, isDesktop, desktopSession)
 		return
 	}
@@ -260,7 +260,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		ProviderEmail: userInfo.Email,
 	})
 
-	s.audit(r, &user.ID, "oauth_register", map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
+	s.audit(r, &user.ID, types.AuditOAuthRegister, map[string]interface{}{"provider": provider, "who": emailTag(userInfo.Email)})
 	s.oauthRedirect(w, r, user, isDesktop, desktopSession)
 }
 
@@ -293,7 +293,7 @@ func (s *Server) HandleLinkedAccounts(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleUnlinkAccount(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
 	provider := r.PathValue("provider")
-	if provider != "google" && provider != "github" {
+	if provider != types.OAuthGoogle && provider != types.OAuthGitHub {
 		http.Error(w, `{"error":"unsupported provider"}`, http.StatusBadRequest)
 		return
 	}
@@ -315,7 +315,7 @@ func (s *Server) HandleUnlinkAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "oauth_unlink", map[string]interface{}{"provider": provider})
+	s.audit(r, &userID, types.AuditOAuthUnlink, map[string]interface{}{"provider": provider})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -358,7 +358,7 @@ func (s *Server) LogOAuthConfig() {
 			"This frequently mismatches what is registered with Google/GitHub and breaks login. " +
 			"Set BACKEND_URL to your public backend URL, e.g. https://NEXT_PUBLIC_API_URL")
 	}
-	for _, provider := range []string{"google", "github"} {
+	for _, provider := range []string{types.OAuthGoogle, types.OAuthGitHub} {
 		if getOAuthProviderConfig(s.cfg, provider) == nil {
 			slog.Info("oauth: provider disabled (client id/secret not set)", "provider", provider)
 			continue
@@ -383,7 +383,7 @@ func (s *Server) LogOAuthConfig() {
 // GET /api/auth/oauth/config
 func (s *Server) HandleOAuthConfig(w http.ResponseWriter, r *http.Request) {
 	providers := map[string]interface{}{}
-	for _, provider := range []string{"google", "github"} {
+	for _, provider := range []string{types.OAuthGoogle, types.OAuthGitHub} {
 		providers[provider] = map[string]interface{}{
 			"configured":   getOAuthProviderConfig(s.cfg, provider) != nil,
 			"redirect_uri": s.oauthCallbackURL(r, provider),

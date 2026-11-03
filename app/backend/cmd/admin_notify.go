@@ -162,7 +162,7 @@ func (s *Server) notifyChange(ctx context.Context, old *types.User, ch adminChan
 }
 
 func (s *Server) validPlanID(ctx context.Context, id string) bool {
-	if id == "free" || id == "plus" || id == "pro" {
+	if id == types.PlanFree || id == types.PlanPlus || id == types.PlanPro {
 		return true
 	}
 	for _, p := range s.loadPlanConfigs(ctx).Plans {

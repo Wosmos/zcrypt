@@ -16,10 +16,10 @@ import (
 // byosPlatforms is the set of platforms that support byos-direct (client pushes
 // to the user's own storage with the user's own token). All four in v1.
 var byosPlatforms = map[string]bool{
-	"telegram":    true,
-	"github":      true,
-	"gitlab":      true,
-	"huggingface": true,
+	types.PlatformTelegram:    true,
+	types.PlatformGitHub:      true,
+	types.PlatformGitLab:      true,
+	types.PlatformHuggingFace: true,
 }
 
 // HandleRegisterRepo records a repo the client created on the user's own
@@ -79,7 +79,7 @@ func (s *Server) HandleRegisterRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "repo_register", map[string]interface{}{
+	s.audit(r, &userID, types.AuditRepoRegister, map[string]interface{}{
 		"repo_id":  req.ID,
 		"platform": req.Platform,
 	})
@@ -116,7 +116,7 @@ func (s *Server) HandleDeactivateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "repo_deactivate", map[string]interface{}{
+	s.audit(r, &userID, types.AuditRepoDeactivate, map[string]interface{}{
 		"repo_id": repoID,
 	})
 

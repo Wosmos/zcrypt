@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // githubAPIBase is the GitHub REST API origin.
@@ -23,13 +25,13 @@ type OAuthProviderInfo struct {
 }
 
 var oauthProviders = map[string]OAuthProviderInfo{
-	"google": {
+	types.OAuthGoogle: {
 		AuthURL:     "https://accounts.google.com/o/oauth2/v2/auth",
 		TokenURL:    "https://oauth2.googleapis.com/token",
 		UserinfoURL: "https://www.googleapis.com/oauth2/v2/userinfo",
 		Scopes:      []string{"openid", "email", "profile"},
 	},
-	"github": {
+	types.OAuthGitHub: {
 		AuthURL:     "https://github.com/login/oauth/authorize",
 		TokenURL:    "https://github.com/login/oauth/access_token",
 		UserinfoURL: githubAPIBase + "/user",
@@ -59,7 +61,7 @@ func BuildOAuthURL(provider, clientID, redirectURI, state string) (string, error
 		"scope":         {strings.Join(info.Scopes, " ")},
 	}
 
-	if provider == "google" {
+	if provider == types.OAuthGoogle {
 		params.Set("access_type", "offline")
 		params.Set("prompt", "select_account")
 	}
@@ -147,7 +149,7 @@ func FetchOAuthUserInfo(ctx context.Context, provider, accessToken string) (*OAu
 	userInfo := &OAuthUserInfo{}
 
 	switch provider {
-	case "google":
+	case types.OAuthGoogle:
 		if id, ok := result["id"].(string); ok {
 			userInfo.ProviderID = id
 		}
@@ -157,7 +159,7 @@ func FetchOAuthUserInfo(ctx context.Context, provider, accessToken string) (*OAu
 		if name, ok := result["name"].(string); ok {
 			userInfo.Name = name
 		}
-	case "github":
+	case types.OAuthGitHub:
 		if id, ok := result["id"].(float64); ok {
 			userInfo.ProviderID = fmt.Sprintf("%.0f", id)
 		}

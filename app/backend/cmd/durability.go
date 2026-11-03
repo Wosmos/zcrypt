@@ -143,7 +143,7 @@ func (s *Server) verifyRepo(ctx context.Context, userID string, repo types.RepoI
 		e, _ := s.db.ListCommittedRepoChunks(ctx, userID, repo.Platform, repo.Account, repo.URL)
 		return RepoChunkDiff{Expected: e}
 	}
-	if repo.Platform == "telegram" {
+	if repo.Platform == types.PlatformTelegram {
 		return expected(), false
 	}
 	adapter := s.resolveAdapterForUser(ctx, userID, repo.Platform, repo.Account)
@@ -189,7 +189,7 @@ func (s *Server) HandleVerifyFiles(w http.ResponseWriter, r *http.Request) {
 	if len(report.DamagedFiles) > 0 {
 		log.Printf("verify: user %s has %d damaged file(s)", logSafe(userID), len(report.DamagedFiles)) // #nosec G706 -- control chars stripped via logSafe
 	}
-	s.audit(r, &userID, "files_verify", map[string]interface{}{
+	s.audit(r, &userID, types.AuditFilesVerify, map[string]interface{}{
 		"checked": report.CheckedFiles,
 		"damaged": len(report.DamagedFiles),
 	})

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/index"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // HandleDeleteFile soft-deletes a file (moves it to Trash) so it stays recoverable.
@@ -33,7 +34,7 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	// pushes a "deleted" event; offline devices pick it up via /api/changes.
 	s.emitFileChange(ctx, userID, fileID, "deleted")
 
-	s.audit(r, &userID, "file_delete", map[string]interface{}{"file_id": fileID})
+	s.audit(r, &userID, types.AuditFileDelete, map[string]interface{}{"file_id": fileID})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"success":true}`))
@@ -81,7 +82,7 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			s.emitFileChange(ctx, userID, fileID, "deleted")
-			s.audit(r, &userID, "file_purge_client", map[string]interface{}{"file_id": fileID})
+			s.audit(r, &userID, types.AuditFilePurgeClient, map[string]interface{}{"file_id": fileID})
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"success":true}`))
 			return
@@ -102,7 +103,7 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 	s.signalDeletion()
 
 	s.emitFileChange(ctx, userID, fileID, "deleted")
-	s.audit(r, &userID, "file_purge", map[string]interface{}{"file_id": fileID})
+	s.audit(r, &userID, types.AuditFilePurge, map[string]interface{}{"file_id": fileID})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"success":true}`))

@@ -7,12 +7,14 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/zcrypt/zcrypt/types"
 )
 
 const sendPlatformSetting = "send_platform"
 
 var sendPlatformChoices = map[string]bool{
-	"auto": true, "telegram": true, "huggingface": true, "github": true, "gitlab": true,
+	"auto": true, types.PlatformTelegram: true, types.PlatformHuggingFace: true, types.PlatformGitHub: true, types.PlatformGitLab: true,
 }
 
 type sendStorageOption struct {

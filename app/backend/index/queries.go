@@ -77,7 +77,7 @@ func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types
 func insertFile(ctx context.Context, q execer, userID string, f *types.FileMetadata) error {
 	status := f.Status
 	if status == "" {
-		status = "complete"
+		status = types.StatusComplete
 	}
 	_, err := q.Exec(ctx,
 		`INSERT INTO files (id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, folder_id)
@@ -104,7 +104,7 @@ func sha256SchemeOrDefault(s string) string {
 // uploadModeOrDefault normalizes an empty/legacy upload mode to "relay".
 func uploadModeOrDefault(m string) string {
 	if m == "" {
-		return "relay"
+		return types.UploadModeRelay
 	}
 	return m
 }
@@ -905,7 +905,7 @@ func (db *DB) InsertFileWithChunks(ctx context.Context, userID string, f *types.
 
 	status := f.Status
 	if status == "" {
-		status = "complete"
+		status = types.StatusComplete
 	}
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO files (id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status)

@@ -43,7 +43,7 @@ func NewGitlabAdapter(token string) (*GitlabAdapter, error) {
 }
 
 func (g *GitlabAdapter) PlatformName() string {
-	return "gitlab"
+	return types.PlatformGitLab
 }
 
 // GetUsername returns the authenticated GitLab username.
@@ -118,7 +118,7 @@ func (g *GitlabAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 	}
 
 	ref := chunk.Ref
-	ref.Platform = "gitlab"
+	ref.Platform = types.PlatformGitLab
 	ref.Repo = repo
 	ref.RemotePath = remotePath
 	return ref, nil
@@ -250,7 +250,7 @@ func (g *GitlabAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 		for _, item := range items {
 			if item.Type == "blob" && strings.HasSuffix(item.Path, ".bin") {
 				refs = append(refs, types.ChunkRef{
-					Platform:   "gitlab",
+					Platform:   types.PlatformGitLab,
 					Repo:       repo,
 					RemotePath: item.Path,
 				})

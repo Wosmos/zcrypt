@@ -39,8 +39,8 @@ const dummyPasswordHash = "$2a$12$jwwcg/vWlmCOz/dPW1to.OtzGR8q8t7A4OlpzO7f9PTPsj
 // locatedEvents are the sign-in and sign-up events that carry where they came
 // from, so an account's journey can show it and its report can count countries.
 var locatedEvents = map[string]bool{
-	"register": true, "oauth_register": true, "login": true, "login_decoy": true,
-	"login_failed": true, "oauth_login": true, "magic_link_used": true,
+	types.AuditRegister: true, types.AuditOAuthRegister: true, types.AuditLogin: true, types.AuditLoginDecoy: true,
+	types.AuditLoginFailed: true, types.AuditOAuthLogin: true, types.AuditMagicLinkUsed: true,
 }
 
 // audit logs an audit event asynchronously and emits it via SSE.
@@ -252,7 +252,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	s.audit(r, &user.ID, "register", nil)
+	s.audit(r, &user.ID, types.AuditRegister, nil)
 
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"success": true,
@@ -298,7 +298,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
 		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed who=%s ip=%q reason=not_found", emailTag(req.Email), anonIP(clientIP)) //nolint:gosec // hashed tag and a quoted, coarsened IP
-		s.audit(r, nil, "login_failed", map[string]interface{}{"who": emailTag(req.Email), "reason": "not_found"})
+		s.audit(r, nil, types.AuditLoginFailed, map[string]interface{}{"who": emailTag(req.Email), "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
@@ -321,7 +321,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 					})
 					return
 				}
-				s.audit(r, &user.ID, "login_decoy", nil)
+				s.audit(r, &user.ID, types.AuditLoginDecoy, nil)
 				s.issueDecoyTokens(w, r, user)
 				return
 			}
@@ -329,7 +329,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed user=%s ip=%q reason=wrong_password", user.ID, anonIP(clientIP)) //nolint:gosec // database id and a quoted, coarsened IP
-		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"reason": "wrong_password"})
+		s.audit(r, &user.ID, types.AuditLoginFailed, map[string]interface{}{"reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
@@ -348,7 +348,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &user.ID, "login", nil)
+	s.audit(r, &user.ID, types.AuditLogin, nil)
 
 	s.issueTokens(w, r, user)
 }
@@ -429,7 +429,7 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 	userID := GetUserID(r)
 	if userID != "" {
-		s.audit(r, &userID, "logout", nil)
+		s.audit(r, &userID, types.AuditLogout, nil)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
@@ -498,7 +498,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	s.audit(r, &user.ID, "password_reset_requested", nil)
+	s.audit(r, &user.ID, types.AuditPasswordResetRequested, nil)
 
 	// Always return same response regardless of outcome
 	writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -571,7 +571,7 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		log.Printf("reset password: delete reset token: %v", err)
 	}
 
-	s.audit(r, &et.UserID, "password_reset", nil)
+	s.audit(r, &et.UserID, types.AuditPasswordReset, nil)
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -604,7 +604,7 @@ func (s *Server) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	s.db.SetEmailVerified(ctx, et.UserID)
 	s.db.DeleteEmailToken(ctx, et.ID)
 
-	s.audit(r, &et.UserID, "email_verify", nil)
+	s.audit(r, &et.UserID, types.AuditEmailVerify, nil)
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -865,7 +865,7 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &user.ID, "2fa_enable", nil)
+	s.audit(r, &user.ID, types.AuditTwoFAEnable, nil)
 
 	s.rotateCallerSession(w, r, claims, map[string]interface{}{"success": true, "backup_codes": codes})
 }
@@ -950,7 +950,7 @@ func (s *Server) Handle2FARegenerateBackupCodes(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	s.audit(r, &user.ID, "2fa_backup_codes_regenerated", nil)
+	s.audit(r, &user.ID, types.AuditTwoFABackupCodesRegenerated, nil)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true, "backup_codes": codes})
 }
@@ -983,7 +983,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 	// buy an attacker more guesses against one account.
 	if !s.devMode && !s.twoFAUserLimiter.allow(claims.Sub) {
 		uid := claims.Sub
-		s.audit(r, &uid, "2fa_ratelimited", nil)
+		s.audit(r, &uid, types.AuditTwoFARatelimited, nil)
 		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -1010,17 +1010,17 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !consumed {
-			s.audit(r, &user.ID, "2fa_failed", nil)
+			s.audit(r, &user.ID, types.AuditTwoFAFailed, nil)
 			http.Error(w, `{"error":"invalid 2FA code"}`, http.StatusUnauthorized)
 			return
 		}
 		remaining, _ := s.db.CountUnusedBackupCodes(ctx, user.ID)
 		if claims.Decoy {
-			s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"method": "backup_code"})
+			s.audit(r, &user.ID, types.AuditLoginDecoy, map[string]interface{}{"method": "backup_code"})
 			s.issueDecoyTokens(w, r, user)
 			return
 		}
-		s.audit(r, &user.ID, "login", map[string]interface{}{"method": "backup_code", "backup_codes_remaining": remaining})
+		s.audit(r, &user.ID, types.AuditLogin, map[string]interface{}{"method": "backup_code", "backup_codes_remaining": remaining})
 		s.issueTokens(w, r, user)
 		return
 	}
@@ -1033,7 +1033,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 	if !claimed {
 		// Correct code, but its time step was already consumed, a replayed or
 		// intercepted code. Refuse it and leave a trace.
-		s.audit(r, &user.ID, "2fa_replay", nil)
+		s.audit(r, &user.ID, types.AuditTwoFAReplay, nil)
 		http.Error(w, `{"error":"this code was already used: wait for the next one"}`, http.StatusUnauthorized)
 		return
 	}
@@ -1051,11 +1051,11 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims.Decoy {
-		s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"method": "2fa"})
+		s.audit(r, &user.ID, types.AuditLoginDecoy, map[string]interface{}{"method": "2fa"})
 		s.issueDecoyTokens(w, r, user)
 		return
 	}
-	s.audit(r, &user.ID, "login", map[string]interface{}{"method": "2fa"})
+	s.audit(r, &user.ID, types.AuditLogin, map[string]interface{}{"method": "2fa"})
 	s.issueTokens(w, r, user)
 }
 
@@ -1122,7 +1122,7 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &user.ID, "2fa_disable", nil)
+	s.audit(r, &user.ID, types.AuditTwoFADisable, nil)
 
 	s.rotateCallerSession(w, r, claims, map[string]interface{}{"success": true})
 }
@@ -1291,7 +1291,7 @@ func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := auth.CheckPassword(req.CurrentPassword, user.PasswordHash); err != nil {
-		s.audit(r, &userID, "password_change_failed", nil)
+		s.audit(r, &userID, types.AuditPasswordChangeFailed, nil)
 		http.Error(w, `{"error":"current password is incorrect"}`, http.StatusUnauthorized)
 		return
 	}
@@ -1334,7 +1334,7 @@ func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "password_changed", nil)
+	s.audit(r, &userID, types.AuditPasswordChanged, nil)
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -1403,7 +1403,7 @@ func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 		}
 	}()
 
-	s.audit(r, &user.ID, "magic_link_sent", nil)
+	s.audit(r, &user.ID, types.AuditMagicLinkSent, nil)
 
 	writeJSON(w, http.StatusOK, genericResp)
 }
@@ -1448,7 +1448,7 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	// Delete used token
 	s.db.DeleteEmailToken(ctx, et.ID)
 
-	s.audit(r, &user.ID, "magic_link_used", nil)
+	s.audit(r, &user.ID, types.AuditMagicLinkUsed, nil)
 
 	if user.TOTPEnabled {
 		tempToken, err := auth.GenerateTempToken(s.cfg.JWTSecret, user.ID)

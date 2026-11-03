@@ -38,7 +38,7 @@ func NewGithubAdapter(token string) (*GithubAdapter, error) {
 }
 
 func (g *GithubAdapter) PlatformName() string {
-	return "github"
+	return types.PlatformGitHub
 }
 
 func (g *GithubAdapter) CreateRepo(ctx context.Context, name string) (string, error) {
@@ -98,7 +98,7 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 		_, _, err := g.client.Repositories.CreateFile(ctx, owner, repoName, remotePath, opts)
 		if err == nil {
 			ref := chunk.Ref
-			ref.Platform = "github"
+			ref.Platform = types.PlatformGitHub
 			ref.Repo = repo
 			ref.RemotePath = remotePath
 			return ref, nil
@@ -247,7 +247,7 @@ func (g *GithubAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 		path := entry.GetPath()
 		if strings.HasSuffix(path, ".bin") {
 			refs = append(refs, types.ChunkRef{
-				Platform:   "github",
+				Platform:   types.PlatformGitHub,
 				Repo:       repo,
 				RemotePath: path,
 				Size:       int64(entry.GetSize()),

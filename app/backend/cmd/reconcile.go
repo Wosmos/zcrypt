@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"sort"
+
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // orphanSampleCap bounds how many orphan paths a report lists per repo. The count
@@ -75,7 +77,7 @@ func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (Recon
 			Repo:     repo.URL,
 		}
 
-		if repo.Platform == "telegram" {
+		if repo.Platform == types.PlatformTelegram {
 			rr.Listable = false
 			rr.Note = "Telegram cannot be enumerated via the Bot API; its blobs are tracked only in the DB, so orphan detection is not possible here."
 			report.Repos = append(report.Repos, rr)

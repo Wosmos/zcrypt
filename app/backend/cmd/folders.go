@@ -224,7 +224,7 @@ func (s *Server) HandleDeleteFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "folder_delete", map[string]interface{}{"folder_id": folderID})
+	s.audit(r, &userID, types.AuditFolderDelete, map[string]interface{}{"folder_id": folderID})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -269,7 +269,7 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if salt != nil {
-		s.audit(r, &userID, "file_rekey", map[string]interface{}{"file_id": fileID})
+		s.audit(r, &userID, types.AuditFileRekey, map[string]interface{}{"file_id": fileID})
 	}
 
 	// Cross-device: the file's folder changed: notify the user's other devices.
@@ -365,7 +365,7 @@ func (s *Server) HandleSetFolderPassword(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	s.audit(r, &userID, "folder_password_set", map[string]interface{}{"folder_id": folderID})
+	s.audit(r, &userID, types.AuditFolderPasswordSet, map[string]interface{}{"folder_id": folderID})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -406,7 +406,7 @@ func (s *Server) HandleRemoveFolderPassword(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	s.audit(r, &userID, "folder_password_remove", map[string]interface{}{"folder_id": folderID})
+	s.audit(r, &userID, types.AuditFolderPasswordRemove, map[string]interface{}{"folder_id": folderID})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -445,7 +445,7 @@ func (s *Server) HandleRekeyFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "file_rekey", map[string]interface{}{"file_id": fileID})
+	s.audit(r, &userID, types.AuditFileRekey, map[string]interface{}{"file_id": fileID})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -485,7 +485,7 @@ func (s *Server) HandleRestoreFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit(r, &userID, "file_restore", map[string]interface{}{"file_id": fileID})
+	s.audit(r, &userID, types.AuditFileRestore, map[string]interface{}{"file_id": fileID})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})

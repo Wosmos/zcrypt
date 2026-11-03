@@ -77,7 +77,7 @@ func NewHuggingFaceAdapter(token string) (*HuggingFaceAdapter, error) {
 }
 
 func (h *HuggingFaceAdapter) PlatformName() string {
-	return "huggingface"
+	return types.PlatformHuggingFace
 }
 
 // GetUsername returns the authenticated HuggingFace username.
@@ -138,7 +138,7 @@ func (h *HuggingFaceAdapter) Upload(ctx context.Context, repo string, chunk type
 	h.mu.Unlock()
 
 	ref := chunk.Ref
-	ref.Platform = "huggingface"
+	ref.Platform = types.PlatformHuggingFace
 	ref.Repo = repo
 	ref.RemotePath = remotePath
 	return ref, nil
@@ -464,7 +464,7 @@ func (h *HuggingFaceAdapter) ListChunks(ctx context.Context, repo string) ([]typ
 		for _, item := range items {
 			if item.Type == "file" && strings.HasSuffix(item.Path, ".bin") {
 				refs = append(refs, types.ChunkRef{
-					Platform:   "huggingface",
+					Platform:   types.PlatformHuggingFace,
 					Repo:       repo,
 					RemotePath: item.Path,
 					Size:       item.Size,
