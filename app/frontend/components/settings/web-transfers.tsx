@@ -1,12 +1,21 @@
 "use client";
 
-import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { useQuotaQuery } from "@/store/quota";
 import { isTauri } from "@/lib/tauri";
 import { cn, formatBytes } from "@/lib/utils";
-import { DESKTOP_DOWNLOAD_PATH, formatResetDate } from "@/lib/web-transfer-limit";
+import {
+  desktopAppLead,
+  launchDesktopApp,
+  openDesktopDownload,
+  type DesktopAppLead,
+} from "@/lib/open-desktop-app";
+import { formatResetDate } from "@/lib/web-transfer-limit";
 import { webTransferUsage } from "@/lib/web-transfer-usage";
+
+const subscribeNever = () => () => {};
+const serverLead = (): DesktopAppLead => "open";
 
 /**
  * How much of this month's web transfer allowance the user has used: uploads
@@ -17,6 +26,7 @@ export function WebTransfers() {
   const t = useTranslations("settings.webTransfers");
   const { data } = useQuotaQuery();
   const usage = webTransferUsage(data);
+  const lead = useSyncExternalStore(subscribeNever, desktopAppLead, serverLead);
   if (!usage) return null;
 
   return (
@@ -55,12 +65,13 @@ export function WebTransfers() {
         {!isTauri && (
           <p className="text-xs text-[var(--color-text-muted)]">
             {t("desktopHint")}{" "}
-            <Link
-              href={DESKTOP_DOWNLOAD_PATH}
+            <button
+              type="button"
+              onClick={lead === "open" ? () => void launchDesktopApp() : openDesktopDownload}
               className="font-medium text-[var(--color-accent)] hover:underline"
             >
-              {t("getDesktop")}
-            </Link>
+              {t(lead === "open" ? "openDesktop" : "getDesktop")}
+            </button>
           </p>
         )}
       </div>

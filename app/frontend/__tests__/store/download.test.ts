@@ -26,6 +26,8 @@ vi.mock("@/lib/download-session", () => ({
     constructor() { super("Download paused"); this.name = "DownloadPausedError"; }
   },
 }));
+const desktopAction = vi.hoisted(() => ({ label: "Open the desktop app", onClick: vi.fn() }));
+vi.mock("@/lib/open-desktop-app", () => ({ desktopAppAction: () => desktopAction }));
 vi.mock("@/lib/bulk-download", () => ({
   downloadAsZip: vi.fn(),
   zipRefusal: vi.fn(() => null),
@@ -193,8 +195,6 @@ describe("useDownloadStore", () => {
     });
 
     it("refuses a large file when the browser cannot stream to disk, pointing to the app", async () => {
-      const open = vi.fn();
-      vi.stubGlobal("open", open);
       useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
       const id = firstId();
       await flush();
@@ -204,8 +204,7 @@ describe("useDownloadStore", () => {
       );
       const [msg, action] = (toast.error as Mock).mock.calls.at(-1)!;
       expect(msg).toContain("big.bin is too large");
-      action.onClick();
-      expect(open).toHaveBeenCalledWith("/download", "_blank", "noopener,noreferrer");
+      expect(action).toBe(desktopAction);
     });
 
     it("still downloads a file just under the cap in memory without a picker", async () => {

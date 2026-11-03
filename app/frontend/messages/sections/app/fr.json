@@ -915,7 +915,6 @@
       "wrongFolderPassword": "Mot de passe de dossier incorrect pour {name}. Réessayez pour le saisir à nouveau.",
       "downloadFailedMsg": "Échec du téléchargement : {msg}",
       "tooLargeDownload": "{name} est trop volumineux pour être téléchargé dans ce navigateur. Utilisez Chrome ou Edge, ou l'application de bureau zcrypt.",
-      "getApp": "Obtenir l'application",
       "unreachable": "Impossible de joindre les serveurs de zcrypt. Vérifiez votre connexion Internet et, si vous êtes sur un réseau restreint ou filtré, connectez un VPN puis réessayez.",
       "zipToDisk": "Ce ZIP doit être enregistré directement sur le disque. Réessayez pour choisir l'emplacement.",
       "zipTooLarge": "Ces fichiers sont trop volumineux pour être compressés en ZIP dans ce navigateur. Téléchargez-les individuellement, ou utilisez Chrome, Edge ou l'application de bureau.",
@@ -928,7 +927,11 @@
       "webFileTooLarge": "Les fichiers de plus de {limit} ne peuvent pas être envoyés depuis le navigateur. Les gros fichiers ont leur place dans l'application de bureau : elle est plus rapide, continue en arrière-plan et n'a aucune limite de taille.",
       "webAllowanceUsed": "Vous avez utilisé vos {limit} de transferts web ce mois-ci. Remise à zéro le {date}. L'application de bureau n'a aucune limite.",
       "webAllowanceUsedNoDate": "Vous avez utilisé vos {limit} de transferts web ce mois-ci. L'application de bureau n'a aucune limite.",
-      "getDesktopApp": "Obtenir l'application de bureau"
+      "getDesktopApp": "Obtenir l'application de bureau",
+      "openDesktopApp": "Ouvrir l'application de bureau",
+      "desktopAppMissing": "Impossible d'ouvrir l'application de bureau. Vous ne l'avez pas encore ?",
+      "downloadDesktopApp": "Télécharger l'application de bureau",
+      "desktopHandoff": "Le navigateur ne peut pas transmettre le fichier à l'application. Ouvrez l'application et déposez-y le fichier."
     },
     "l10n": {
       "justNow": "à l'instant",

@@ -915,7 +915,6 @@
       "wrongFolderPassword": "{name} 的文件夹密码错误。请重试并重新输入。",
       "downloadFailedMsg": "下载失败：{msg}",
       "tooLargeDownload": "{name} 太大，无法在此浏览器中下载。请使用 Chrome 或 Edge，或 zcrypt 桌面应用。",
-      "getApp": "获取应用",
       "unreachable": "无法连接到 zcrypt 的服务器。请检查网络；如果你处于受限或被过滤的网络，请连接 VPN 后重试。",
       "zipToDisk": "此 ZIP 必须直接保存到磁盘。请重试并选择保存位置。",
       "zipTooLarge": "这些文件太大，无法在此浏览器中打包为 ZIP。请逐个下载，或使用 Chrome、Edge 或桌面应用。",
@@ -928,7 +927,11 @@
       "webFileTooLarge": "超过 {limit} 的文件无法通过浏览器上传。大文件请使用桌面应用：速度更快，可在后台持续传输，且没有大小限制。",
       "webAllowanceUsed": "你本月 {limit} 的网页传输额度已用完。将于 {date} 重置。桌面应用没有限制。",
       "webAllowanceUsedNoDate": "你本月 {limit} 的网页传输额度已用完。桌面应用没有限制。",
-      "getDesktopApp": "获取桌面应用"
+      "getDesktopApp": "获取桌面应用",
+      "openDesktopApp": "打开桌面应用",
+      "desktopAppMissing": "无法打开桌面应用。还没有安装？",
+      "downloadDesktopApp": "下载桌面应用",
+      "desktopHandoff": "浏览器无法把文件交给应用。请打开应用，把文件拖到里面。"
     },
     "l10n": {
       "justNow": "刚刚",

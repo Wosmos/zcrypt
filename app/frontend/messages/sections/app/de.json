@@ -915,7 +915,6 @@
       "wrongFolderPassword": "Falsches Ordnerpasswort für {name}. Versuche es erneut, um es neu einzugeben.",
       "downloadFailedMsg": "Download fehlgeschlagen: {msg}",
       "tooLargeDownload": "{name} ist zu groß für den Download in diesem Browser. Nutze Chrome oder Edge oder die zcrypt-Desktop-App.",
-      "getApp": "App herunterladen",
       "unreachable": "zcrypt-Server nicht erreichbar. Prüfe deine Internetverbindung; falls dein Netzwerk eingeschränkt oder gefiltert ist, verbinde dich mit einem VPN und versuche es erneut.",
       "zipToDisk": "Dieses ZIP muss direkt auf die Festplatte gespeichert werden. Versuche es erneut, um den Speicherort zu wählen.",
       "zipTooLarge": "Diese Dateien sind zu groß zum Zippen in diesem Browser. Lade sie einzeln herunter oder nutze Chrome, Edge oder die Desktop-App.",
@@ -928,7 +927,11 @@
       "webFileTooLarge": "Dateien über {limit} können nicht im Browser hochgeladen werden. Große Dateien gehören in die Desktop-App: Sie ist schneller, arbeitet im Hintergrund weiter und hat keine Größenbeschränkung.",
       "webAllowanceUsed": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Es wird am {date} zurückgesetzt. Die Desktop-App hat kein Limit.",
       "webAllowanceUsedNoDate": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Die Desktop-App hat kein Limit.",
-      "getDesktopApp": "Desktop-App holen"
+      "getDesktopApp": "Desktop-App holen",
+      "openDesktopApp": "Desktop-App öffnen",
+      "desktopAppMissing": "Die Desktop-App ließ sich nicht öffnen. Noch nicht installiert?",
+      "downloadDesktopApp": "Desktop-App herunterladen",
+      "desktopHandoff": "Der Browser kann die Datei nicht an die App übergeben. Öffne die App und ziehe die Datei dort hinein."
     },
     "l10n": {
       "justNow": "gerade eben",

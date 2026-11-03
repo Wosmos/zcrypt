@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   quota: null as Partial<QuotaInfo> | null,
   resolveWebDirect: vi.fn(),
   toastError: vi.fn(),
+  action: { label: "Open the desktop app", onClick: vi.fn() },
 }));
 
 vi.mock("@/lib/tauri", () => ({
@@ -16,8 +17,9 @@ vi.mock("@/lib/tauri", () => ({
 vi.mock("@/store/quota", () => ({ getQuotaData: () => h.quota }));
 vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: h.resolveWebDirect }));
 vi.mock("@/store/toast", () => ({ toast: { error: h.toastError } }));
+vi.mock("@/lib/open-desktop-app", () => ({ desktopAppAction: () => h.action }));
 
-import { openDesktopDownload, showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
+import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
 import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 const LIMIT = 2000;
@@ -73,18 +75,12 @@ describe("webFileLimitFor", () => {
 });
 
 describe("showWebTransferLimit", () => {
-  it("shows the friendly message with a button to the desktop app download", () => {
-    const open = vi.spyOn(window, "open").mockReturnValue(null);
+  it("shows the friendly message with the way into the desktop app and the hand-off hint", () => {
     const err = new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes: LIMIT }, 413);
     showWebTransferLimit(err);
-    expect(h.toastError).toHaveBeenCalledWith(
-      err.message,
-      { label: "Get the desktop app", onClick: openDesktopDownload },
-      { key: "web-transfer-limit:relay_file_too_large" },
-    );
-    const action = h.toastError.mock.calls[0][1] as { onClick: () => void };
-    action.onClick();
-    expect(open).toHaveBeenCalledWith("/download", "_blank", "noopener");
-    open.mockRestore();
+    expect(h.toastError).toHaveBeenCalledWith(err.message, h.action, {
+      key: "web-transfer-limit:relay_file_too_large",
+      detail: "The browser can't hand the file to the app. Open the app and drop the file there.",
+    });
   });
 });

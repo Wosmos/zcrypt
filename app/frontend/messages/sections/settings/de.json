@@ -536,7 +536,8 @@
       "usage": "{used} von {limit}",
       "resets": "Wird am {date} zurückgesetzt",
       "desktopHint": "Die Desktop-App hat kein Limit.",
-      "getDesktop": "Desktop-App holen"
+      "getDesktop": "Desktop-App holen",
+      "openDesktop": "Desktop-App öffnen"
     }
   }
 }

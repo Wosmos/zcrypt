@@ -15,6 +15,7 @@ import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { genId } from "@/lib/id";
+import { desktopAppAction } from "@/lib/open-desktop-app";
 import { DownloadStatus } from "@/types";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { createFrameBatch } from "@/lib/frame-batch";
@@ -392,10 +393,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           error: "Too large to download in this browser",
           stage: "Failed",
         });
-        toast.error(tr("toasts.tooLargeDownload", { name: filename }), {
-          label: tr("toasts.getApp"),
-          onClick: () => window.open("/download", "_blank", "noopener,noreferrer"),
-        });
+        toast.error(tr("toasts.tooLargeDownload", { name: filename }), desktopAppAction());
         return;
       }
 

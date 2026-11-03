@@ -536,7 +536,8 @@
       "usage": "{used} sur {limit}",
       "resets": "Remise à zéro le {date}",
       "desktopHint": "L'application de bureau n'a aucune limite.",
-      "getDesktop": "Obtenir l'application de bureau"
+      "getDesktop": "Obtenir l'application de bureau",
+      "openDesktop": "Ouvrir l'application de bureau"
     }
   }
 }

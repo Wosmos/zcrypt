@@ -915,7 +915,6 @@
       "wrongFolderPassword": "Wrong folder password for {name}. Retry to re-enter it.",
       "downloadFailedMsg": "Download failed: {msg}",
       "tooLargeDownload": "{name} is too large to download in this browser. Use Chrome or Edge, or the zcrypt desktop app.",
-      "getApp": "Get the app",
       "unreachable": "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.",
       "zipToDisk": "This ZIP must be saved straight to disk. Retry to choose where to save.",
       "zipTooLarge": "These files are too large to ZIP in this browser. Download them individually, or use Chrome, Edge or the desktop app.",
@@ -928,7 +927,11 @@
       "webFileTooLarge": "Files over {limit} can't be uploaded from the browser. Big files belong in the desktop app: it's faster, keeps going in the background and has no size limit.",
       "webAllowanceUsed": "You've used your {limit} of web transfers this month. Resets on {date}. The desktop app has no limit.",
       "webAllowanceUsedNoDate": "You've used your {limit} of web transfers this month. The desktop app has no limit.",
-      "getDesktopApp": "Get the desktop app"
+      "getDesktopApp": "Get the desktop app",
+      "openDesktopApp": "Open the desktop app",
+      "desktopAppMissing": "Couldn't open the desktop app. Don't have it yet?",
+      "downloadDesktopApp": "Download the desktop app",
+      "desktopHandoff": "The browser can't hand the file to the app. Open the app and drop the file there."
     },
     "l10n": {
       "justNow": "just now",

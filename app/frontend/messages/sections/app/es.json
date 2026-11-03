@@ -915,7 +915,6 @@
       "wrongFolderPassword": "Contraseña de carpeta incorrecta para {name}. Reintenta para volver a introducirla.",
       "downloadFailedMsg": "Error al descargar: {msg}",
       "tooLargeDownload": "{name} es demasiado grande para descargarlo en este navegador. Usa Chrome o Edge, o la aplicación de escritorio de zcrypt.",
-      "getApp": "Obtener la app",
       "unreachable": "No se puede acceder a los servidores de zcrypt. Revisa tu conexión a internet y, si estás en una red restringida o filtrada, conéctate a una VPN y reintenta.",
       "zipToDisk": "Este ZIP debe guardarse directamente en el disco. Reintenta para elegir dónde guardarlo.",
       "zipTooLarge": "Estos archivos son demasiado grandes para crear un ZIP en este navegador. Descárgalos individualmente o usa Chrome, Edge o la aplicación de escritorio.",
@@ -928,7 +927,11 @@
       "webFileTooLarge": "Los archivos de más de {limit} no se pueden subir desde el navegador. Los archivos grandes van en la app de escritorio: es más rápida, sigue trabajando en segundo plano y no tiene límite de tamaño.",
       "webAllowanceUsed": "Has usado tus {limit} de transferencias web de este mes. Se restablece el {date}. La app de escritorio no tiene límite.",
       "webAllowanceUsedNoDate": "Has usado tus {limit} de transferencias web de este mes. La app de escritorio no tiene límite.",
-      "getDesktopApp": "Descargar la app de escritorio"
+      "getDesktopApp": "Descargar la app de escritorio",
+      "openDesktopApp": "Abrir la app de escritorio",
+      "desktopAppMissing": "No se pudo abrir la app de escritorio. ¿Aún no la tienes?",
+      "downloadDesktopApp": "Descargar la app de escritorio",
+      "desktopHandoff": "El navegador no puede pasar el archivo a la app. Abre la app y suelta el archivo allí."
     },
     "l10n": {
       "justNow": "ahora mismo",
