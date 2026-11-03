@@ -32,7 +32,7 @@ describe("SharedStorageBanner", () => {
     render(<SharedStorageBanner />);
     expect(document.querySelector('[data-banner="info"]')).not.toBeNull();
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "10");
-    expect(screen.getByRole("link")).toHaveAttribute("href", "/settings?tab=storage");
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/settings?tab=platforms");
   });
 
   it("turns into a warning past 80 percent and cannot be dismissed past half", () => {

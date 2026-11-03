@@ -30,7 +30,14 @@ describe("webTransferUsage", () => {
         relay_limit_bytes: 1000,
         relay_resets_at: "2026-12-01T00:00:00Z",
       }),
-    ).toEqual({ used: 250, limit: 1000, percent: 25, nearlyUsed: false, resetsAt: "2026-12-01T00:00:00Z" });
+    ).toEqual({
+      used: 250,
+      limit: 1000,
+      percent: 25,
+      nearlyUsed: false,
+      usedUp: false,
+      resetsAt: "2026-12-01T00:00:00Z",
+    });
   });
 
   it("treats a missing used figure as nothing used", () => {
@@ -42,6 +49,12 @@ describe("webTransferUsage", () => {
     expect(webTransferUsage({ ...base, relay_used_bytes: 5000, relay_limit_bytes: 1000 })).toMatchObject({
       percent: 100,
       nearlyUsed: true,
+      usedUp: true,
     });
+  });
+
+  it("calls the allowance used up once it is all gone, never more than all of it", () => {
+    expect(webTransferUsage({ ...base, relay_used_bytes: 999, relay_limit_bytes: 1000 })?.usedUp).toBe(false);
+    expect(webTransferUsage({ ...base, relay_used_bytes: 1000, relay_limit_bytes: 1000 })?.usedUp).toBe(true);
   });
 });

@@ -537,7 +537,8 @@
       "resets": "Se restablece el {date}",
       "desktopHint": "La app de escritorio no tiene límite.",
       "getDesktop": "Descargar la app de escritorio",
-      "openDesktop": "Abrir la app de escritorio"
+      "openDesktop": "Abrir la app de escritorio",
+      "usedUp": "Usados los {limit} de este mes"
     }
   }
 }

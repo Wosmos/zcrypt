@@ -537,7 +537,8 @@
       "resets": "Resets on {date}",
       "desktopHint": "The desktop app has no limit.",
       "getDesktop": "Get the desktop app",
-      "openDesktop": "Open the desktop app"
+      "openDesktop": "Open the desktop app",
+      "usedUp": "All {limit} used this month"
     }
   }
 }

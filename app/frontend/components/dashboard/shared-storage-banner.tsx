@@ -108,7 +108,7 @@ export function SharedStorageBanner() {
             actions={[
               {
                 label: t("connectOwn"),
-                href: "/settings?tab=storage",
+                href: "/settings?tab=platforms",
                 variant: "outline",
                 icon: <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />,
               },

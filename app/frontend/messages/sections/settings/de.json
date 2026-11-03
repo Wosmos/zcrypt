@@ -537,7 +537,8 @@
       "resets": "Wird am {date} zurückgesetzt",
       "desktopHint": "Die Desktop-App hat kein Limit.",
       "getDesktop": "Desktop-App holen",
-      "openDesktop": "Desktop-App öffnen"
+      "openDesktop": "Desktop-App öffnen",
+      "usedUp": "Alle {limit} in diesem Monat verbraucht"
     }
   }
 }

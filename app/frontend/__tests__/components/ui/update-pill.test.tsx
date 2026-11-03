@@ -30,7 +30,7 @@ describe("UpdatePill", () => {
     tauri.checkForUpdates.mockResolvedValue({ available: true, version: "0.1.7", updatable: true });
     render(<UpdatePill />);
     const link = await screen.findByRole("link", { name: /0\.1\.7.*available/i });
-    expect(link).toHaveAttribute("href", "/settings?section=updates");
+    expect(link).toHaveAttribute("href", "/settings?tab=updates");
     expect(link).toHaveTextContent("New version 0.1.7 is out");
   });
 

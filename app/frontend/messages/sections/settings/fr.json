@@ -537,7 +537,8 @@
       "resets": "Remise à zéro le {date}",
       "desktopHint": "L'application de bureau n'a aucune limite.",
       "getDesktop": "Obtenir l'application de bureau",
-      "openDesktop": "Ouvrir l'application de bureau"
+      "openDesktop": "Ouvrir l'application de bureau",
+      "usedUp": "Les {limit} du mois sont utilisés"
     }
   }
 }

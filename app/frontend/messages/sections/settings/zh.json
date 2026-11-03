@@ -537,7 +537,8 @@
       "resets": "{date} 重置",
       "desktopHint": "桌面应用没有限制。",
       "getDesktop": "获取桌面应用",
-      "openDesktop": "打开桌面应用"
+      "openDesktop": "打开桌面应用",
+      "usedUp": "本月 {limit} 已全部用完"
     }
   }
 }

@@ -20,6 +20,7 @@ import { useKeysStore } from "@/store/keys";
 import { localFingerprint } from "@/lib/keys";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
 import { isTauri } from "@/lib/tauri";
+import { requestedSettingsTab, settingsTabHref } from "@/lib/settings-tab";
 import { storeDesktopPlatformCreds, clearDesktopPlatformCreds } from "@/lib/desktop-creds";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
@@ -189,7 +190,7 @@ export function SettingsContent() {
 
   // active === null → mobile shows the grouped index. Desktop always shows a
   // section (defaults to the first) in the right pane.
-  const requested = useSearchParams().get("section");
+  const requested = requestedSettingsTab(useSearchParams());
   const requestedId = visibleSections.find((s) => s.id === requested)?.id ?? null;
   const [active, setActive] = useState<SectionId | null>(requestedId);
   const [syncedId, setSyncedId] = useState(requestedId);
@@ -197,6 +198,11 @@ export function SettingsContent() {
     setSyncedId(requestedId);
     if (requestedId) setActive(requestedId);
   }
+
+  const selectSection = (id: SectionId | null) => {
+    setActive(id);
+    window.history.replaceState(null, "", settingsTabHref(window.location.href, id));
+  };
 
   // Optimistic scope flips; they clear when fresh statuses arrive.
   const [scopeOverrides, setScopeOverrides] = useOverridesFor<boolean>(statuses);
@@ -409,7 +415,7 @@ export function SettingsContent() {
                   .map((s) => (
                     <ButtonRow
                       key={s.id}
-                      onClick={() => setActive(s.id)}
+                      onClick={() => selectSection(s.id)}
                       icon={<s.icon className="h-4 w-4" />}
                       title={t(s.id)}
                       subtitle={t(`${s.id}Desc`)}
@@ -422,7 +428,7 @@ export function SettingsContent() {
           <div className="space-y-5">
             <button
               type="button"
-              onClick={() => setActive(null)}
+              onClick={() => selectSection(null)}
               className="inline-flex items-center gap-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
             >
               <ArrowLeft className="h-4 w-4 rtl:-scale-x-100" /> {t("title")}
@@ -460,7 +466,7 @@ export function SettingsContent() {
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => setActive(s.id)}
+                        onClick={() => selectSection(s.id)}
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-start text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                           on

@@ -34,7 +34,7 @@ export function UpdatePill() {
 
   return (
     <Link
-      href="/settings?section=updates"
+      href="/settings?tab=updates"
       aria-label={version ? t("ariaWithVersion", { version }) : t("aria")}
       className="hidden items-center gap-2 rounded-full border border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 md:inline-flex"
     >

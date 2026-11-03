@@ -171,7 +171,7 @@ describe("describeNotification", () => {
       title: "New sign-in to your account",
       body: "Chrome · Windows. Not you? Sign it out in Settings.",
       area: "security",
-      url: "/settings?tab=security",
+      url: "/settings?tab=sessions",
     });
     expect(N.describeNotification({ type: "inviteReceived", space: "Trips" }, true)).toMatchObject({
       title: "You were invited to Trips",

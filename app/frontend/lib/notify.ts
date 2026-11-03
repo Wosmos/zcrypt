@@ -177,7 +177,7 @@ export function describeNotification(event: NotifyEvent, thumbnails: boolean): N
         body: tr("notify.newSignInBody", { device: event.device }),
         tag: "zcrypt-sign-in",
         area: "security",
-        url: "/settings?tab=security",
+        url: "/settings?tab=sessions",
       };
     case "inviteReceived":
       return {

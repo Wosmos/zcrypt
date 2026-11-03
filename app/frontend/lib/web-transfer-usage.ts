@@ -8,6 +8,8 @@ export interface WebTransferUsage {
   percent: number;
   /** 90% or more of the allowance is gone. */
   nearlyUsed: boolean;
+  /** All of it is gone, or more: binary units can make `used` read above `limit`. */
+  usedUp: boolean;
   resetsAt?: string;
 }
 
@@ -17,5 +19,12 @@ export function webTransferUsage(quota: QuotaInfo | null | undefined): WebTransf
   if (!quota || limit <= 0) return null;
   const used = Math.max(0, quota.relay_used_bytes ?? 0);
   const percent = Math.min(100, (used / limit) * 100);
-  return { used, limit, percent, nearlyUsed: percent >= 90, resetsAt: quota.relay_resets_at };
+  return {
+    used,
+    limit,
+    percent,
+    nearlyUsed: percent >= 90,
+    usedUp: used >= limit,
+    resetsAt: quota.relay_resets_at,
+  };
 }

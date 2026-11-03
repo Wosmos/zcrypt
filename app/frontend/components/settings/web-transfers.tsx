@@ -38,7 +38,9 @@ export function WebTransfers() {
       <div className="space-y-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 px-4 py-3.5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="text-sm tabular-nums text-[var(--color-text)]">
-            {t("usage", { used: formatBytes(usage.used), limit: formatBytes(usage.limit) })}
+            {usage.usedUp
+              ? t("usedUp", { limit: formatBytes(usage.limit) })
+              : t("usage", { used: formatBytes(usage.used), limit: formatBytes(usage.limit) })}
           </p>
           {usage.resetsAt && (
             <p className="text-xs text-[var(--color-text-muted)]">

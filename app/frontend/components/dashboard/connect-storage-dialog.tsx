@@ -69,7 +69,7 @@ export function ConnectStorageDialog() {
               {t("remindLater")}
             </Button>
           )}
-          <Link href="/settings?tab=storage" onClick={hide} className={buttonVariants()}>
+          <Link href="/settings?tab=platforms" onClick={hide} className={buttonVariants()}>
             {t("connectNow")}
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
