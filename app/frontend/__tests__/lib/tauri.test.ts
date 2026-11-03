@@ -33,6 +33,12 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(mod.isTauri).toBe(false);
   });
 
+  it("getInstallChannel is direct in a browser without asking the shell", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.getInstallChannel()).resolves.toBe("direct");
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("tauriInvoke rejects instead of touching the Tauri bridge", async () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.tauriInvoke("x")).rejects.toThrow(
@@ -353,6 +359,19 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.checkForUpdates()).resolves.toEqual({ available: false });
     expect(invokeMock).toHaveBeenCalledWith("check_for_updates", undefined);
+  });
+
+  it("getInstallChannel reports store only when the shell says so, and direct otherwise", async () => {
+    const mod = await import("@/lib/tauri");
+    invokeMock.mockResolvedValueOnce("store");
+    await expect(mod.getInstallChannel()).resolves.toBe("store");
+    expect(invokeMock).toHaveBeenCalledWith("install_channel", undefined);
+    invokeMock.mockResolvedValueOnce("direct");
+    await expect(mod.getInstallChannel()).resolves.toBe("direct");
+    invokeMock.mockResolvedValueOnce("surprise");
+    await expect(mod.getInstallChannel()).resolves.toBe("direct");
+    invokeMock.mockRejectedValueOnce(new Error("unknown command"));
+    await expect(mod.getInstallChannel()).resolves.toBe("direct");
   });
 
   it("openExternal hands the URL to the opener plugin instead of window.open", async () => {

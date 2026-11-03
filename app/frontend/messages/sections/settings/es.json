@@ -198,6 +198,7 @@
       "openFailed": "No se pudo abrir la descarga",
       "updateFailed": "Falló la actualización",
       "nativePackage": "Esta versión no busca actualizaciones automáticamente. Se instaló como paquete nativo de Linux, cuyas actualizaciones gestiona el gestor de paquetes de tu sistema. Consigue las nuevas versiones en <link>{url}/download</link>.",
+      "storeManaged": "Esta copia de zcrypt se instaló desde Microsoft Store, que descarga e instala las nuevas versiones por ti. Aquí no hay nada que comprobar ni instalar.",
       "checking": "Buscando actualizaciones…",
       "checkFailed": "No se pudo buscar actualizaciones",
       "fromAppStore": "Las actualizaciones llegan desde la App Store",

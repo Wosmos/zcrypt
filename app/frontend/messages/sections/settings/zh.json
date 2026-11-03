@@ -198,6 +198,7 @@
       "openFailed": "无法打开下载",
       "updateFailed": "更新失败",
       "nativePackage": "此版本不会自动检查更新。它是作为原生 Linux 软件包安装的，更新由系统的包管理器负责。请从 <link>{url}/download</link> 获取新版本。",
+      "storeManaged": "此 zcrypt 是从 Microsoft Store 安装的，新版本由商店为你下载并安装。这里无需检查或安装。",
       "checking": "正在检查更新…",
       "checkFailed": "无法检查更新",
       "fromAppStore": "更新通过 App Store 提供",

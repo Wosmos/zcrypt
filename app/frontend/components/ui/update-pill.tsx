@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { checkForUpdates, isTauri } from "@/lib/tauri";
+import { checkForUpdates, getInstallChannel, isTauri } from "@/lib/tauri";
 
 const RECHECK_MS = 6 * 60 * 60 * 1000;
 
@@ -14,6 +14,7 @@ export function UpdatePill() {
   useEffect(() => {
     if (!isTauri) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
     const check = () => {
       checkForUpdates()
         .then((info) => {
@@ -22,8 +23,11 @@ export function UpdatePill() {
         })
         .catch(() => {});
     };
-    check();
-    const timer = setInterval(check, RECHECK_MS);
+    void getInstallChannel().then((channel) => {
+      if (cancelled || channel === "store") return;
+      check();
+      timer = setInterval(check, RECHECK_MS);
+    });
     return () => {
       cancelled = true;
       clearInterval(timer);

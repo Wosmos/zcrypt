@@ -339,6 +339,20 @@ export async function clearShellPassphrase(): Promise<void> {
   return tauriInvoke("clear_passphrase");
 }
 
+export type InstallChannel = "store" | "direct";
+
+/** How this copy was installed. `"store"` is a Microsoft Store package, which
+ *  the Store updates, so every in-app update prompt stays hidden. Anything
+ *  else, including a shell without the command or a browser, is `"direct"`. */
+export async function getInstallChannel(): Promise<InstallChannel> {
+  if (!isTauri) return "direct";
+  try {
+    return (await tauriInvoke<string>("install_channel")) === "store" ? "store" : "direct";
+  } catch {
+    return "direct";
+  }
+}
+
 /** Check for desktop app updates. Rejects when the check itself fails
  *  (offline, bad manifest) so the UI never reports "up to date" by mistake. */
 export async function checkForUpdates(): Promise<UpdateInfo> {
@@ -492,7 +506,7 @@ export interface UpdateInfo {
    *  not this app. Always true on macOS/Windows. */
   updatable: boolean;
   /** Set on mobile shells, which have no in-app updater. */
-  channel?: "android" | "ios";
+  channel?: "android" | "ios" | "store";
 }
 
 export interface UpdateProgress {

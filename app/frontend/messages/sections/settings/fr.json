@@ -198,6 +198,7 @@
       "openFailed": "Impossible d'ouvrir le téléchargement",
       "updateFailed": "Échec de la mise à jour",
       "nativePackage": "Cette version ne recherche pas les mises à jour automatiquement. Elle a été installée comme paquet Linux natif, dont les mises à jour sont gérées par le gestionnaire de paquets de votre système. Récupérez les nouvelles versions sur <link>{url}/download</link>.",
+      "storeManaged": "Cette copie de zcrypt a été installée depuis le Microsoft Store, qui télécharge et installe les nouvelles versions pour vous. Il n'y a rien à vérifier ni à installer ici.",
       "checking": "Recherche de mises à jour…",
       "checkFailed": "Impossible de rechercher les mises à jour",
       "fromAppStore": "Les mises à jour viennent de l'App Store",

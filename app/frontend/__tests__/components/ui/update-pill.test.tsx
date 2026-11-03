@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 
-const tauri = vi.hoisted(() => ({ isTauri: true, checkForUpdates: vi.fn() }));
+const tauri = vi.hoisted(() => ({
+  isTauri: true,
+  checkForUpdates: vi.fn(),
+  getInstallChannel: vi.fn(),
+}));
 vi.mock("@/lib/tauri", () => ({
   get isTauri() {
     return tauri.isTauri;
   },
   checkForUpdates: tauri.checkForUpdates,
+  getInstallChannel: tauri.getInstallChannel,
 }));
 
 import { UpdatePill } from "@/components/ui/update-pill";
@@ -17,6 +22,8 @@ describe("UpdatePill", () => {
   beforeEach(() => {
     tauri.isTauri = true;
     tauri.checkForUpdates.mockReset();
+    tauri.getInstallChannel.mockReset();
+    tauri.getInstallChannel.mockResolvedValue("direct");
   });
 
   it("shows nothing in the browser and never checks", () => {
@@ -57,5 +64,27 @@ describe("UpdatePill", () => {
     const third = render(<UpdatePill />);
     await waitFor(() => expect(tauri.checkForUpdates).toHaveBeenCalledTimes(3));
     expect(third.container).toBeEmptyDOMElement();
+  });
+
+  it("never checks, and stays hidden, for a Microsoft Store install", async () => {
+    tauri.getInstallChannel.mockResolvedValue("store");
+    tauri.checkForUpdates.mockResolvedValue({ available: true, version: "9.9.9", updatable: true });
+    const { container, unmount } = render(<UpdatePill />);
+    await waitFor(() => expect(tauri.getInstallChannel).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(tauri.checkForUpdates).not.toHaveBeenCalled();
+    expect(container).toBeEmptyDOMElement();
+    unmount();
+  });
+
+  it("does not start checking if it unmounts before the channel is known", async () => {
+    let resolveChannel: (c: string) => void = () => {};
+    tauri.getInstallChannel.mockReturnValue(new Promise((r) => (resolveChannel = r)));
+    const { unmount } = render(<UpdatePill />);
+    unmount();
+    resolveChannel("direct");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(tauri.checkForUpdates).not.toHaveBeenCalled();
   });
 });

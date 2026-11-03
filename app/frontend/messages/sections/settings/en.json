@@ -198,6 +198,7 @@
       "openFailed": "Couldn't open the download",
       "updateFailed": "Update failed",
       "nativePackage": "This build doesn't check for updates automatically. It was installed as a native Linux package, which manages updates through your system's package manager instead. Get new releases from <link>{url}/download</link>.",
+      "storeManaged": "This copy of zcrypt was installed from the Microsoft Store, which downloads and installs new versions for you. There is nothing to check or install here.",
       "checking": "Checking for updates…",
       "checkFailed": "Couldn't check for updates",
       "fromAppStore": "Updates come from the App Store",

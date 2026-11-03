@@ -1021,6 +1021,61 @@ fn running_as_appimage() -> bool {
     std::env::var_os("APPIMAGE").is_some()
 }
 
+/// How this copy of the app was installed. A Microsoft Store (MSIX) install
+/// is updated by the Store alone: it must not run the in-app updater.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InstallChannel {
+    Store,
+    Direct,
+}
+
+impl InstallChannel {
+    fn as_str(self) -> &'static str {
+        match self {
+            InstallChannel::Store => "store",
+            InstallChannel::Direct => "direct",
+        }
+    }
+}
+
+/// Maps the status code of `GetCurrentPackageFullName` called with a null
+/// buffer. A packaged process gets `ERROR_INSUFFICIENT_BUFFER` (122) because
+/// the zero-length buffer cannot hold the name; an unpackaged one gets
+/// `APPMODEL_ERROR_NO_PACKAGE` (15700). Any other code is treated as not
+/// packaged, so a failed probe never disables updates.
+#[cfg(any(windows, test))]
+fn channel_from_package_status(status: i32) -> InstallChannel {
+    const ERROR_SUCCESS: i32 = 0;
+    const ERROR_INSUFFICIENT_BUFFER: i32 = 122;
+    match status {
+        ERROR_SUCCESS | ERROR_INSUFFICIENT_BUFFER => InstallChannel::Store,
+        _ => InstallChannel::Direct,
+    }
+}
+
+#[cfg(windows)]
+fn detect_install_channel() -> InstallChannel {
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetCurrentPackageFullName(length: *mut u32, name: *mut u16) -> i32;
+    }
+    let mut length: u32 = 0;
+    let status = unsafe { GetCurrentPackageFullName(&mut length, std::ptr::null_mut()) };
+    channel_from_package_status(status)
+}
+
+#[cfg(not(windows))]
+fn detect_install_channel() -> InstallChannel {
+    InstallChannel::Direct
+}
+
+/// `"store"` when running from a Microsoft Store (MSIX) package, otherwise
+/// `"direct"`. The UI hides every update prompt for `"store"`.
+#[tauri::command]
+fn install_channel() -> &'static str {
+    detect_install_channel().as_str()
+}
+
 #[derive(serde::Serialize)]
 struct UpdateCheck {
     available: bool,
@@ -1033,8 +1088,9 @@ struct UpdateCheck {
     /// `.deb`/`.rpm` package): those manage their own updates outside the
     /// app. Always true on macOS/Windows.
     updatable: bool,
-    /// Set on mobile, where no in-app updater exists: the UI compares the
-    /// version itself and sends the user to the download page instead.
+    /// Set on mobile, where no in-app updater exists (the UI compares the
+    /// version itself and sends the user to the download page instead), and
+    /// to `"store"` for a Microsoft Store install, which the Store updates.
     #[serde(skip_serializing_if = "Option::is_none")]
     channel: Option<&'static str>,
 }
@@ -1074,6 +1130,17 @@ async fn platform_update_check(
     app: &tauri::AppHandle,
     current_version: String,
 ) -> Result<UpdateCheck, String> {
+    if detect_install_channel() == InstallChannel::Store {
+        return Ok(UpdateCheck {
+            available: false,
+            current_version,
+            version: None,
+            notes: None,
+            updatable: false,
+            channel: Some("store"),
+        });
+    }
+
     #[cfg(target_os = "linux")]
     if !running_as_appimage() {
         return Ok(UpdateCheck {
@@ -1117,6 +1184,10 @@ async fn platform_update_check(
 /// `update-progress` events with `{downloaded, total}` so the UI can show it.
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    if detect_install_channel() == InstallChannel::Store {
+        return Err("this install is updated by the Microsoft Store".to_string());
+    }
+
     #[cfg(target_os = "linux")]
     if !running_as_appimage() {
         return Err(
@@ -1428,6 +1499,7 @@ pub fn run() {
     builder
         .manage(EngineState::default())
         .invoke_handler(tauri::generate_handler![
+            install_channel,
             local_upload,
             upload_file,
             sync_uploaded_file,
@@ -1491,8 +1563,10 @@ pub fn run() {
                 // plugin reads `plugins.updater` (pubkey + endpoints) from
                 // tauri.conf.json; only artifacts signed by that pubkey's
                 // private key are ever installed, so the key must never rotate.
-                app.handle()
-                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                if detect_install_channel() == InstallChannel::Direct {
+                    app.handle()
+                        .plugin(tauri_plugin_updater::Builder::new().build())?;
+                }
             }
 
             // Register zcrypt:// scheme at runtime (Linux/Windows only, macOS
@@ -1736,5 +1810,31 @@ mod origin_tests {
         assert!(!keychain_key_allowed("platform..token"));
         assert!(!keychain_key_allowed("platform.a.b.token"));
         assert!(!keychain_key_allowed("anything"));
+    }
+}
+
+#[cfg(test)]
+mod install_channel_tests {
+    use super::*;
+
+    #[test]
+    #[cfg(not(windows))]
+    fn defaults_to_direct_off_windows() {
+        assert_eq!(detect_install_channel(), InstallChannel::Direct);
+        assert_eq!(install_channel(), "direct");
+    }
+
+    #[test]
+    fn package_status_decides_the_channel() {
+        assert_eq!(channel_from_package_status(122), InstallChannel::Store);
+        assert_eq!(channel_from_package_status(0), InstallChannel::Store);
+        assert_eq!(channel_from_package_status(15700), InstallChannel::Direct);
+        assert_eq!(channel_from_package_status(5), InstallChannel::Direct);
+    }
+
+    #[test]
+    fn channel_names_match_the_frontend() {
+        assert_eq!(InstallChannel::Store.as_str(), "store");
+        assert_eq!(InstallChannel::Direct.as_str(), "direct");
     }
 }

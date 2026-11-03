@@ -7,6 +7,7 @@ import { SettingGroup } from "@/components/settings/settings-primitives";
 import {
   checkAndroidUpdate,
   checkForUpdates,
+  getInstallChannel,
   installUpdate,
   openExternal,
   onUpdateProgress,
@@ -41,6 +42,7 @@ export function AppUpdates() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [devBuild, setDevBuild] = useState<string | null>(null);
+  const [fromStore, setFromStore] = useState(false);
   const storedDismissed = useSyncExternalStore(noSubscription, readNoteDismissed, () => true);
   const [dismissedNow, setDismissedNow] = useState(false);
   const noteDismissed = storedDismissed || dismissedNow;
@@ -57,6 +59,10 @@ export function AppUpdates() {
     setCheckError(null);
     setDevBuild(null);
     try {
+      if ((await getInstallChannel()) === "store") {
+        setFromStore(true);
+        return;
+      }
       const next = await checkForUpdates();
       if (next.channel === "android") {
         const android = await checkAndroidUpdate(next.current_version);
@@ -106,6 +112,19 @@ export function AppUpdates() {
   // manager: the in-app updater only knows how to replace a running
   // AppImage, so there's nothing meaningful to check or install here.
   const isAndroid = info?.channel === "android";
+
+  if (fromStore) {
+    return (
+      <SettingGroup label={t("label")}>
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <p className="text-sm font-medium text-[var(--color-text)]">zcrypt</p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+            {t("storeManaged")}
+          </p>
+        </div>
+      </SettingGroup>
+    );
+  }
 
   if (info && !info.updatable && !info.channel) {
     return (
