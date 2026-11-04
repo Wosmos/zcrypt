@@ -11,7 +11,7 @@ import (
 
 // pwnedPasswordsRangeURL is the HaveIBeenPwned k-anonymity range endpoint; the
 // 5-character hash prefix is appended.
-const pwnedPasswordsRangeURL = "https://api.pwnedpasswords.com/range/"
+const pwnedPasswordsRangeURL = "https://api.pwnedpasswords.com/range/" //nolint:gosec // public API endpoint, not a credential
 
 // CheckPasswordBreach checks if a password has appeared in known data breaches
 // using the HaveIBeenPwned k-anonymity API. Returns the number of times the

@@ -92,7 +92,7 @@ func (s *Server) telegramAccountForChat(ctx context.Context, userID, chatID stri
 	}
 	tokens, err := s.db.PersonalTokens(ctx, userID, types.PlatformTelegram)
 	if err != nil {
-		log.Printf("upload: telegram chat lookup for user %s: %v", userID, err)
+		log.Printf("upload: telegram chat lookup for user %s: %v", userID, err) //nolint:gosec // database id from the verified session
 		return "", false
 	}
 	kek, err := crypto.DeriveUserKEK(s.masterKey, userID)

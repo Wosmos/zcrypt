@@ -25,13 +25,13 @@ type OAuthProviderInfo struct {
 }
 
 var oauthProviders = map[string]OAuthProviderInfo{
-	types.OAuthGoogle: {
+	types.OAuthGoogle: { //nolint:gosec // public OAuth endpoints, not credentials
 		AuthURL:     "https://accounts.google.com/o/oauth2/v2/auth",
 		TokenURL:    "https://oauth2.googleapis.com/token",
 		UserinfoURL: "https://www.googleapis.com/oauth2/v2/userinfo",
 		Scopes:      []string{"openid", "email", "profile"},
 	},
-	types.OAuthGitHub: {
+	types.OAuthGitHub: { //nolint:gosec // public OAuth endpoints, not credentials
 		AuthURL:     "https://github.com/login/oauth/authorize",
 		TokenURL:    "https://github.com/login/oauth/access_token",
 		UserinfoURL: githubAPIBase + "/user",

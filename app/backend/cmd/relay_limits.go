@@ -67,7 +67,7 @@ func (s *Server) relayUploadAllowed(w http.ResponseWriter, r *http.Request, user
 	}
 	used, err := s.db.RelayMonthBytes(r.Context(), userID)
 	if err != nil {
-		log.Printf("upload: relay usage lookup for user %s: %v", userID, err)
+		log.Printf("upload: relay usage lookup for user %s: %v", userID, err) //nolint:gosec // database id from the verified session
 		return true
 	}
 	if used >= limit {
@@ -86,7 +86,7 @@ func (s *Server) relayUploadAllowed(w http.ResponseWriter, r *http.Request, user
 func (s *Server) relayQuota(ctx context.Context, userID string, admin bool, info *types.QuotaInfo) {
 	used, err := s.db.RelayMonthBytes(ctx, userID)
 	if err != nil {
-		log.Printf("quota: relay usage for user %s: %v", userID, err)
+		log.Printf("quota: relay usage for user %s: %v", userID, err) //nolint:gosec // database id from the verified session
 	}
 	info.RelayUsedBytes = used
 	info.RelayResetsAt = relayResetsAt(time.Now())

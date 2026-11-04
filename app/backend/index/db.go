@@ -17,7 +17,8 @@ const defaultDBMaxConns = int64(25)
 // dbMaxConns is the pool ceiling, ZCRYPT_DB_MAX_CONNS when set to a positive
 // integer.
 func dbMaxConns() int32 {
-	return int32(min(appconfig.EnvPositiveInt64("ZCRYPT_DB_MAX_CONNS", defaultDBMaxConns), math.MaxInt32))
+	n := appconfig.EnvPositiveInt64("ZCRYPT_DB_MAX_CONNS", defaultDBMaxConns)
+	return int32(min(n, math.MaxInt32)) //nolint:gosec // clamped to MaxInt32 on the same line
 }
 
 // DB wraps the PostgreSQL connection pool.

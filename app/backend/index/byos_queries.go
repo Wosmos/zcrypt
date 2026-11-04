@@ -311,19 +311,5 @@ func (db *DB) PersonalTokens(ctx context.Context, userID, platform string) ([]ty
 	if err != nil {
 		return nil, fmt.Errorf("personal tokens: %w", err)
 	}
-	defer rows.Close()
-
-	var tokens []types.PlatformTokenRow
-	for rows.Next() {
-		var t types.PlatformTokenRow
-		if err := rows.Scan(&t.ID, &t.UserID, &t.Platform, &t.Username,
-			&t.TokenEncrypted, &t.TokenNonce, &t.IsGlobal, &t.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan personal token: %w", err)
-		}
-		tokens = append(tokens, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate personal tokens: %w", err)
-	}
-	return tokens, nil
+	return collectPlatformTokens(rows, "personal tokens")
 }

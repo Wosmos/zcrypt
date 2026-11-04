@@ -105,6 +105,7 @@ func NewTelegramAdapter(token string) (*TelegramAdapter, error) {
 	return adapter, nil
 }
 
+// PlatformName returns the Telegram platform id.
 func (t *TelegramAdapter) PlatformName() string { return types.PlatformTelegram }
 
 // GetUsername returns the bot username.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -59,19 +61,25 @@ func (db *DB) GetPlatformTokensByPlatform(ctx context.Context, userID, platform 
 	if err != nil {
 		return nil, fmt.Errorf("get platform tokens by platform: %w", err)
 	}
-	defer rows.Close()
+	return collectPlatformTokens(rows, "platform tokens by platform")
+}
 
+// collectPlatformTokens scans every row of a platform_tokens query selecting
+// id, user_id, platform, username, token_encrypted, token_nonce, is_global,
+// created_at, and closes rows.
+func collectPlatformTokens(rows pgx.Rows, what string) ([]types.PlatformTokenRow, error) {
+	defer rows.Close()
 	var tokens []types.PlatformTokenRow
 	for rows.Next() {
 		var t types.PlatformTokenRow
 		if err := rows.Scan(&t.ID, &t.UserID, &t.Platform, &t.Username,
 			&t.TokenEncrypted, &t.TokenNonce, &t.IsGlobal, &t.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan platform token: %w", err)
+			return nil, fmt.Errorf("scan %s: %w", what, err)
 		}
 		tokens = append(tokens, t)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate platform tokens by platform: %w", err)
+		return nil, fmt.Errorf("iterate %s: %w", what, err)
 	}
 	return tokens, nil
 }

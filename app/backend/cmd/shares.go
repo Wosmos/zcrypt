@@ -415,7 +415,7 @@ func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID 
 	if chunk.Compressed {
 		w.Header().Set("X-Chunk-Compressed", "true")
 	}
-	if n, _ := w.Write(data); n > 0 {
+	if n, _ := w.Write(data); n > 0 { //nolint:gosec // encrypted chunk bytes as octet-stream, nosniff set globally
 		s.recordRelay(r.Context(), ownerID, 0, int64(n))
 	}
 }
