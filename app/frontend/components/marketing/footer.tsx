@@ -7,6 +7,8 @@ import { GITHUB_REPO } from "@/lib/config";
 import { ArrowUpRight, BookOpen, Github } from "@/lib/icons";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
+const COPYRIGHT_YEAR = new Date().getFullYear();
+
 const GITHUB_REPO_URL = GITHUB_REPO;
 
 type FooterLink = { key: string; href: string; external?: boolean; labelKey?: string };
@@ -183,7 +185,7 @@ export function MarketingFooter() {
 
           <div className="pb-safe flex flex-col items-start gap-4 border-t border-[var(--color-border)] pt-8 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center">
             <p className="text-[0.82rem] text-[var(--color-text-muted)]">
-              {t("copyright", { year: new Date().getFullYear() })}
+              {t("copyright", { year: COPYRIGHT_YEAR })}
             </p>
 
             <a
