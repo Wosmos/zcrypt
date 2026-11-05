@@ -5,12 +5,7 @@ import { useTranslations } from "next-intl";
 import { useQuotaQuery } from "@/store/quota";
 import { isTauri } from "@/lib/tauri";
 import { cn, formatBytes } from "@/lib/utils";
-import {
-  desktopAppLead,
-  launchDesktopApp,
-  openDesktopDownload,
-  type DesktopAppLead,
-} from "@/lib/open-desktop-app";
+import { desktopAppLead, launchDesktopApp, type DesktopAppLead } from "@/lib/open-desktop-app";
 import { formatResetDate } from "@/lib/web-transfer-limit";
 import { webTransferUsage } from "@/lib/web-transfer-usage";
 
@@ -69,7 +64,7 @@ export function WebTransfers() {
             {t("desktopHint")}{" "}
             <button
               type="button"
-              onClick={lead === "open" ? () => void launchDesktopApp() : openDesktopDownload}
+              onClick={() => void launchDesktopApp()}
               className="font-medium text-[var(--color-accent)] hover:underline"
             >
               {t(lead === "open" ? "openDesktop" : "getDesktop")}

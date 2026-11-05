@@ -41,9 +41,12 @@ export function desktopAppLead(): DesktopAppLead {
   return readMemory() === "missing" ? "download" : "open";
 }
 
-/** Open the desktop app download page in a new tab, so uploads still running here keep going. */
-export function openDesktopDownload(): void {
-  window.open(DESKTOP_DOWNLOAD_PATH, "_blank", "noopener");
+/**
+ * Open the desktop app download page in a new tab, so uploads still running
+ * here keep going. False when the browser blocked the tab.
+ */
+export function openDesktopDownload(): boolean {
+  return window.open(DESKTOP_DOWNLOAD_PATH, "_blank", "noopener") != null;
 }
 
 function fireLink(isAndroid: boolean): HTMLElement | null {
@@ -115,9 +118,11 @@ export async function tryOpenDesktopApp(): Promise<boolean> {
 }
 
 /**
- * The whole "open the app" flow: try the link, remember how it went so the next
- * prompt leads with the right button, and when nothing opened offer the download
- * in a new tab. Resolves to whether the app seemed to open.
+ * The whole "get me into the app" flow, whatever the button says: try the link
+ * first, every time, so an app installed since the last miss still opens, and
+ * when nothing opened go to the download page in a new tab. Only when the
+ * browser blocks that tab does it fall back to a toast with the download
+ * button. Resolves to whether the app seemed to open.
  */
 export async function launchDesktopApp(): Promise<boolean> {
   if (!canOpenDesktopApp()) {
@@ -125,7 +130,7 @@ export async function launchDesktopApp(): Promise<boolean> {
     return false;
   }
   const opened = await tryOpenDesktopApp();
-  if (!opened) {
+  if (!opened && !openDesktopDownload()) {
     toast.info(
       tr("toasts.desktopAppMissing"),
       { label: tr("toasts.downloadDesktopApp"), onClick: openDesktopDownload },
@@ -135,15 +140,12 @@ export async function launchDesktopApp(): Promise<boolean> {
   return opened;
 }
 
-/** The toast or button action that gets the user into the desktop app, led by what worked before. */
+/** The toast or button action that gets the user into the desktop app, labelled by what worked before. */
 export function desktopAppAction(): ToastAction {
-  if (desktopAppLead() === "open") {
-    return {
-      label: tr("toasts.openDesktopApp"),
-      onClick: () => {
-        void launchDesktopApp();
-      },
-    };
-  }
-  return { label: tr("toasts.getDesktopApp"), onClick: openDesktopDownload };
+  return {
+    label: tr(desktopAppLead() === "open" ? "toasts.openDesktopApp" : "toasts.getDesktopApp"),
+    onClick: () => {
+      void launchDesktopApp();
+    },
+  };
 }

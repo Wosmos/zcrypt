@@ -171,7 +171,17 @@ describe("launchDesktopApp", () => {
     expect(h.toastInfo).not.toHaveBeenCalled();
   });
 
-  it("offers the download in a new tab when nothing opened, and leads with it next time", async () => {
+  it("goes to the download page in a new tab when nothing opened, with no toast", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
+    const result = launchDesktopApp();
+    await vi.advanceTimersByTimeAsync(OPEN_DETECT_MS);
+    await expect(result).resolves.toBe(false);
+    expect(open).toHaveBeenCalledWith("/download", "_blank", "noopener");
+    expect(h.toastInfo).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it("offers the download in a toast when the new tab was blocked, and labels with it next time", async () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     const result = launchDesktopApp();
     await vi.advanceTimersByTimeAsync(OPEN_DETECT_MS);
@@ -184,7 +194,7 @@ describe("launchDesktopApp", () => {
       { key: "desktop-app-missing" },
     );
     h.toastInfo.mock.calls[0][1].onClick();
-    expect(open).toHaveBeenCalledWith("/download", "_blank", "noopener");
+    expect(open).toHaveBeenLastCalledWith("/download", "_blank", "noopener");
     open.mockRestore();
   });
 
@@ -215,9 +225,13 @@ describe("desktopAppAction", () => {
     expect(localStorage.getItem(KEY)).toBe("opened");
   });
 
-  it("leads with Download after a failed attempt", () => {
+  it("says Get after a failed attempt but still tries the app first", async () => {
     localStorage.setItem(KEY, "missing");
     const action = desktopAppAction();
-    expect(action).toEqual({ label: "Get the desktop app", onClick: openDesktopDownload });
+    expect(action.label).toBe("Get the desktop app");
+    action.onClick();
+    window.dispatchEvent(new Event("blur"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(localStorage.getItem(KEY)).toBe("opened");
   });
 });

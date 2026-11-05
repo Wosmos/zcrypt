@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button } from "@/components/ui/button";
 import { File, Loader2, Monitor } from "@/lib/icons";
 import {
+  canOpenDesktopApp,
   desktopAppLead,
   openDesktopDownload,
   tryOpenDesktopApp,
@@ -26,7 +27,7 @@ function NoticeBody({ notice, onClose }: { notice: WebTransferNotice; onClose: (
 
   const openApp = async () => {
     setPhase("opening");
-    if (await tryOpenDesktopApp()) onClose();
+    if ((await tryOpenDesktopApp()) || openDesktopDownload()) onClose();
     else setPhase("missing");
   };
   const download = () => {
@@ -100,7 +101,12 @@ function NoticeBody({ notice, onClose }: { notice: WebTransferNotice; onClose: (
             {t(phase === "opening" ? "opening" : "open")}
           </Button>
         ) : (
-          <Button size="lg" className="w-full" onClick={download}>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={phase !== "missing" && canOpenDesktopApp() ? () => void openApp() : download}
+            disabled={phase === "opening"}
+          >
             {t(phase === "missing" ? "missing" : "get")}
           </Button>
         )}

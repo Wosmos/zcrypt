@@ -3,10 +3,12 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 
 const h = vi.hoisted(() => ({
   lead: "open" as "open" | "download",
+  canOpen: true,
   tryOpen: vi.fn(),
   download: vi.fn(),
 }));
 vi.mock("@/lib/open-desktop-app", () => ({
+  canOpenDesktopApp: () => h.canOpen,
   desktopAppLead: () => h.lead,
   tryOpenDesktopApp: h.tryOpen,
   openDesktopDownload: h.download,
@@ -25,6 +27,7 @@ function show(...args: Parameters<ReturnType<typeof useWebTransferNotice.getStat
 
 beforeEach(() => {
   h.lead = "open";
+  h.canOpen = true;
   h.tryOpen.mockReset();
   h.download.mockReset();
 });
@@ -59,7 +62,20 @@ describe("WebTransferLimitDialog", () => {
     expect(useWebTransferNotice.getState().notice).toBeNull();
   });
 
-  it("switches in place to the download when nothing opened", async () => {
+  it("goes to the download page in a new tab when nothing opened", async () => {
+    h.tryOpen.mockResolvedValue(false);
+    h.download.mockReturnValue(true);
+    render(<WebTransferLimitDialog />);
+    show(tooBig, { name: "a.bin", size: 2 * MB });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Open the desktop app" }));
+    });
+    expect(h.download).toHaveBeenCalledTimes(1);
+    expect(useWebTransferNotice.getState().notice).toBeNull();
+  });
+
+  it("switches in place to a download button when nothing opened and the new tab was blocked", async () => {
+    h.download.mockReturnValue(false);
     let settle!: (opened: boolean) => void;
     h.tryOpen.mockReturnValue(new Promise<boolean>((r) => (settle = r)));
     render(<WebTransferLimitDialog />);
@@ -70,7 +86,7 @@ describe("WebTransferLimitDialog", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Nothing opened");
     expect(screen.queryByRole("button", { name: "Get the desktop app" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Don't see it? Get the desktop app" }));
-    expect(h.download).toHaveBeenCalledTimes(1);
+    expect(h.download).toHaveBeenCalledTimes(2);
     expect(useWebTransferNotice.getState().notice).toBeNull();
   });
 
@@ -80,6 +96,29 @@ describe("WebTransferLimitDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Get the desktop app" }));
     expect(h.download).toHaveBeenCalledTimes(1);
     expect(h.tryOpen).not.toHaveBeenCalled();
+  });
+
+  it("still tries the app first when the last attempt missed", async () => {
+    h.lead = "download";
+    h.tryOpen.mockResolvedValue(true);
+    render(<WebTransferLimitDialog />);
+    show(tooBig, { name: "a.bin", size: 2 * MB });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Get the desktop app" }));
+    });
+    expect(h.tryOpen).toHaveBeenCalledTimes(1);
+    expect(h.download).not.toHaveBeenCalled();
+    expect(useWebTransferNotice.getState().notice).toBeNull();
+  });
+
+  it("downloads straight away where there is no app to open", () => {
+    h.lead = "download";
+    h.canOpen = false;
+    render(<WebTransferLimitDialog />);
+    show(tooBig, { name: "a.bin", size: 2 * MB });
+    fireEvent.click(screen.getByRole("button", { name: "Get the desktop app" }));
+    expect(h.tryOpen).not.toHaveBeenCalled();
+    expect(h.download).toHaveBeenCalledTimes(1);
   });
 
   it("leads with the download where there is no app to open, and Not now just closes", () => {
