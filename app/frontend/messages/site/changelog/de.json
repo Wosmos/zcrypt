@@ -33,6 +33,27 @@
       "filterAll": "Alles",
       "permalink": "Link zu dieser Version"
     },
+    "v0_2_1": {
+      "title": "Ordner-Uploads, dein Design überall und direkte Telegram-Uploads",
+      "summary": "Zieh einen ganzen Ordner in deinen Tresor, behalte ein Design auf allen Geräten und schick Web-Uploads direkt an dein eigenes Telegram, ohne Umweg über unseren Server.",
+      "items": {
+        "folderUpload": "Lade einen ganzen Ordner aus dem Browser hoch, mit der neuen Schaltfläche Ordner hochladen oder per Drag-and-drop in den Tresor. Seine Ordner werden mit verschlüsselten Namen neu angelegt, und ein erneuter Upload füllt ihn auf, statt eine Kopie anzulegen.",
+        "themeSync": "Dein Design gehört jetzt zu deinem Konto, folgt dir auf jedes Gerät und ändert sich überall gleichzeitig. Schalte Gleiches Design auf allen meinen Geräten aus, um einem Gerät ein eigenes Aussehen zu geben.",
+        "directTelegram": "Web-Uploads in dein eigenes Telegram gehen direkt aus deinem Browser zu Telegram und nur dann über unseren Server, wenn Telegram nicht erreichbar ist.",
+        "telegramBlocked": "Blockiert dein Netzwerk Telegram, sagt dir der Tresor Bescheid und schlägt ein VPN vor.",
+        "webLimits": "Uploads und Downloads über unseren Server haben ein Limit pro Datei und pro Monat, mit einer Anzeige unter Einstellungen, Speicher. Direkte Uploads und die Desktop-App haben kein Limit.",
+        "openDesktop": "Zu große Dateien für den Browser kommen mit der Schaltfläche Desktop-App öffnen. Sie versucht zuerst die App und öffnet die Download-Seite, wenn die App fehlt.",
+        "desktopStorage": "Die Desktop-App übernimmt den Speicher, den du im Web verbunden hast, und lädt so direkt in deinen Speicher hoch, ohne doppeltes Verbinden.",
+        "windowsInstall": "Windows-Besucher sehen auf der Download-Seite zuerst die Installation mit einem Befehl, dazu einen ruhigen Hinweis zur SmartScreen-Meldung.",
+        "codeSigning": "Eine Seite zur Code-Signierung erklärt, welche Windows-Installer signiert sind und wie.",
+        "adminPlatforms": "Admins sehen, welchen Speicher jede Person verbunden hat, können nach Plattform filtern und bekommen eine Markierung für viel Web-Transfer.",
+        "themeAccounts": "Ein Kontowechsel auf demselben Gerät, etwa in der Desktop-App, behält oder kopiert das Design des vorherigen Kontos nicht mehr.",
+        "apexDomain": "Die Seite funktioniert unter zcrypt.cloud und www.zcrypt.cloud.",
+        "doubleDrop": "Eine auf den Hochladen-Dialog gezogene Datei wird einmal hochgeladen, nicht zweimal.",
+        "dropdowns": "Lange Auswahllisten scrollen innerhalb des Bildschirms und haben mehr Platz pro Zeile.",
+        "settingsLinks": "Links zu einem Einstellungs-Tab öffnen den richtigen Tab."
+      }
+    },
     "v0_2_0": {
       "title": "Benachrichtigungen, Töne und acht Sprachen",
       "summary": "zcrypt spricht jetzt durchgehend acht Sprachen, sagt dir mit Benachrichtigungen, Tönen und Fortschritt in klaren Worten, was gerade passiert, und hat darunter viel leisere Arbeit an Datenschutz und Zuverlässigkeit bekommen.",

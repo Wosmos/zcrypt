@@ -33,6 +33,27 @@
       "filterAll": "Tout",
       "permalink": "Lien vers cette version"
     },
+    "v0_2_1": {
+      "title": "Import de dossiers, votre thème partout et imports directs vers Telegram",
+      "summary": "Déposez un dossier entier dans votre coffre, gardez un seul thème sur tous vos appareils et envoyez les imports web directement vers votre propre Telegram sans passer par notre serveur.",
+      "items": {
+        "folderUpload": "Importez un dossier entier depuis le navigateur avec le nouveau bouton Importer un dossier ou en le déposant dans votre coffre. Ses dossiers sont recréés avec des noms chiffrés, et l'importer à nouveau le complète au lieu d'en faire une copie.",
+        "themeSync": "Votre thème appartient désormais à votre compte, vous suit sur chaque appareil et change partout à la fois. Désactivez Même thème sur tous mes appareils pour donner à un appareil son propre style.",
+        "directTelegram": "Les imports web vers votre propre Telegram vont directement de votre navigateur à Telegram, et ne passent par notre serveur que si Telegram est injoignable.",
+        "telegramBlocked": "Si votre réseau bloque Telegram, le coffre vous le signale et suggère un VPN.",
+        "webLimits": "Les imports et téléchargements qui passent par notre serveur ont une limite par fichier et une limite mensuelle, avec un compteur dans Paramètres, Stockage. Les imports directs et l'application de bureau n'ont pas de limite.",
+        "openDesktop": "Les fichiers trop gros pour le navigateur s'accompagnent d'un bouton Ouvrir l'application de bureau. Il essaie d'abord l'application et ouvre la page de téléchargement si elle n'est pas là.",
+        "desktopStorage": "L'application de bureau reprend le stockage connecté sur le web, ses imports vont donc directement vers votre stockage sans le connecter deux fois.",
+        "windowsInstall": "Les visiteurs sous Windows voient d'abord l'installation en une commande sur la page de téléchargement, avec une note sereine sur l'alerte SmartScreen.",
+        "codeSigning": "Une page de politique de signature du code explique quels installateurs Windows sont signés et comment.",
+        "adminPlatforms": "Les admins voient quel stockage chaque utilisateur a connecté, peuvent filtrer par plateforme et voient un repère pour les gros transferts web.",
+        "themeAccounts": "Changer de compte sur le même appareil, par exemple dans l'application de bureau, ne garde plus et ne copie plus le thème du compte précédent.",
+        "apexDomain": "Le site fonctionne depuis zcrypt.cloud comme depuis www.zcrypt.cloud.",
+        "doubleDrop": "Un fichier déposé sur la fenêtre d'import est importé une fois, pas deux.",
+        "dropdowns": "Les longues listes déroulantes défilent dans l'écran et ont des lignes plus aérées.",
+        "settingsLinks": "Les liens vers un onglet des paramètres ouvrent le bon onglet."
+      }
+    },
     "v0_2_0": {
       "title": "Notifications, sons et huit langues",
       "summary": "zcrypt parle désormais huit langues de bout en bout, vous dit ce qui se passe avec des notifications, des sons et une progression en langage clair, et a reçu beaucoup de travail plus discret sur la confidentialité et la fiabilité.",

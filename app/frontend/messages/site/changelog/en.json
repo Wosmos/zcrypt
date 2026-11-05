@@ -33,6 +33,27 @@
       "filterAll": "Everything",
       "permalink": "Link to this version"
     },
+    "v0_2_1": {
+      "title": "Folder uploads, your theme everywhere and direct Telegram uploads",
+      "summary": "Drop a whole folder into your vault, keep one theme across all your devices, and send web uploads straight to your own Telegram without going through our server.",
+      "items": {
+        "folderUpload": "Upload a whole folder from the browser with the new Upload a folder button or by dropping it on your vault. Its folders are recreated with encrypted names, and uploading it again fills it in instead of making a copy.",
+        "themeSync": "Your theme now belongs to your account and follows you to every device, changing everywhere at once. Turn off Same theme on all my devices to give one device its own look.",
+        "directTelegram": "Web uploads to your own Telegram go straight from your browser to Telegram, and only go through our server when Telegram can't be reached.",
+        "telegramBlocked": "If your network blocks Telegram, the vault tells you and suggests a VPN.",
+        "webLimits": "Uploads and downloads that pass through our server have a per-file and a monthly limit, with a meter in Settings, Storage. Direct uploads and the desktop app have no limit.",
+        "openDesktop": "Files too big for the browser come with an Open the desktop app button. It tries the app first and opens the download page if the app isn't there.",
+        "desktopStorage": "The desktop app picks up storage you connected on the web, so its uploads go straight to your storage without connecting twice.",
+        "windowsInstall": "Windows visitors get a one-command install first on the download page, with a calm note about the SmartScreen prompt.",
+        "codeSigning": "A code signing policy page explains which Windows installers are signed and how.",
+        "adminPlatforms": "Admins see which storage each user connected, can filter by platform, and get a marker for heavy web transfers.",
+        "themeAccounts": "Switching accounts on the same device, for example in the desktop app, no longer keeps or copies the previous account's theme.",
+        "apexDomain": "The site works from both zcrypt.cloud and www.zcrypt.cloud.",
+        "doubleDrop": "A file dropped on the Upload dialog is uploaded once, not twice.",
+        "dropdowns": "Long dropdowns scroll inside the screen and have roomier rows.",
+        "settingsLinks": "Links to a settings tab open the right tab."
+      }
+    },
     "v0_2_0": {
       "title": "Notifications, sounds and eight languages",
       "summary": "zcrypt now speaks eight languages all the way through, tells you what is going on with notifications, sounds and plain-language progress, and got a lot of quieter privacy and reliability work underneath.",

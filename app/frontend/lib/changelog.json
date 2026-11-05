@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.2.1",
+    "date": null,
+    "key": "v0_2_1",
+    "groups": [
+      {
+        "kind": "new",
+        "items": [
+          "folderUpload",
+          "themeSync",
+          "directTelegram",
+          "telegramBlocked",
+          "webLimits",
+          "openDesktop",
+          "desktopStorage",
+          "windowsInstall",
+          "codeSigning",
+          "adminPlatforms"
+        ]
+      },
+      {
+        "kind": "fixed",
+        "items": ["themeAccounts", "apexDomain", "doubleDrop", "dropdowns", "settingsLinks"]
+      }
+    ]
+  },
+  {
     "version": "0.2.0",
     "date": "2026-11-01",
     "key": "v0_2_0",

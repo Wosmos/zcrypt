@@ -33,6 +33,27 @@
       "filterAll": "Todo",
       "permalink": "Enlace a esta versión"
     },
+    "v0_2_1": {
+      "title": "Subida de carpetas, tu tema en todas partes y subidas directas a Telegram",
+      "summary": "Suelta una carpeta entera en tu bóveda, mantén un mismo tema en todos tus dispositivos y envía las subidas web directamente a tu propio Telegram sin pasar por nuestro servidor.",
+      "items": {
+        "folderUpload": "Sube una carpeta entera desde el navegador con el nuevo botón Subir una carpeta o soltándola en tu bóveda. Sus carpetas se recrean con nombres cifrados, y subirla de nuevo la completa en lugar de crear una copia.",
+        "themeSync": "Tu tema ahora pertenece a tu cuenta, te sigue a cada dispositivo y cambia en todos a la vez. Desactiva El mismo tema en todos mis dispositivos para dar a un dispositivo su propio aspecto.",
+        "directTelegram": "Las subidas web a tu propio Telegram van directamente de tu navegador a Telegram, y solo pasan por nuestro servidor cuando no se puede llegar a Telegram.",
+        "telegramBlocked": "Si tu red bloquea Telegram, la bóveda te lo dice y te sugiere una VPN.",
+        "webLimits": "Las subidas y descargas que pasan por nuestro servidor tienen un límite por archivo y otro mensual, con un medidor en Ajustes, Almacenamiento. Las subidas directas y la app de escritorio no tienen límite.",
+        "openDesktop": "Los archivos demasiado grandes para el navegador vienen con un botón Abrir la app de escritorio. Primero intenta abrir la app y, si no está, abre la página de descarga.",
+        "desktopStorage": "La app de escritorio usa el almacenamiento que conectaste en la web, así que sube directamente a tu almacenamiento sin conectarlo dos veces.",
+        "windowsInstall": "Quien visita desde Windows ve primero la instalación con un solo comando en la página de descarga, con una nota tranquila sobre el aviso de SmartScreen.",
+        "codeSigning": "Una página de política de firma de código explica qué instaladores de Windows están firmados y cómo.",
+        "adminPlatforms": "Los administradores ven qué almacenamiento conectó cada usuario, pueden filtrar por plataforma y ven una marca para las transferencias web intensas.",
+        "themeAccounts": "Cambiar de cuenta en el mismo dispositivo, por ejemplo en la app de escritorio, ya no mantiene ni copia el tema de la cuenta anterior.",
+        "apexDomain": "El sitio funciona tanto en zcrypt.cloud como en www.zcrypt.cloud.",
+        "doubleDrop": "Un archivo soltado en el diálogo de subida se sube una vez, no dos.",
+        "dropdowns": "Las listas desplegables largas se desplazan dentro de la pantalla y tienen filas más amplias.",
+        "settingsLinks": "Los enlaces a una pestaña de ajustes abren la pestaña correcta."
+      }
+    },
     "v0_2_0": {
       "title": "Notificaciones, sonidos y ocho idiomas",
       "summary": "zcrypt ahora habla ocho idiomas de principio a fin, te cuenta lo que pasa con notificaciones, sonidos y un progreso en lenguaje claro, y tiene mucho trabajo más discreto de privacidad y fiabilidad por debajo.",
