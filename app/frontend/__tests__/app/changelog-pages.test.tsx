@@ -23,7 +23,8 @@ describe("/changelog", () => {
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(headings).toContain("A tour, a bug button, a tidier vault");
     expect(container.querySelector("#v0\\.1\\.7")).not.toBeNull();
-    expect(screen.queryByText("Upcoming")).toBeNull();
+    const upcoming = RELEASES.filter((r) => r.date === null).length;
+    expect(screen.queryAllByText("Upcoming")).toHaveLength(upcoming);
     expect(screen.getByText("Latest")).toBeInTheDocument();
     expect(container.querySelectorAll('[data-kind="security"]').length).toBeGreaterThan(3);
     expect(screen.getByRole("link", { name: /Download zcrypt/ })).toHaveAttribute("href", "/download");
