@@ -832,6 +832,13 @@ CREATE TABLE IF NOT EXISTS device_preferences (
 	PRIMARY KEY (user_id, device_id)
 );
 
+-- The account-wide theme lives in the same table under device_id '*'. A device
+-- row with use_account follows it; one without keeps its own look. The custom
+-- palette is a small client JSON blob so a synced custom theme looks the same
+-- everywhere.
+ALTER TABLE device_preferences ADD COLUMN IF NOT EXISTS use_account BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE device_preferences ADD COLUMN IF NOT EXISTS custom_theme TEXT NOT NULL DEFAULT '';
+
 -- Per-user X25519 keypair for zero-knowledge sharing. The server stores the
 -- PUBLIC key (public by design) plus the private key ONLY as ciphertext
 -- (wrapped_private_key), encrypted client-side under the user's

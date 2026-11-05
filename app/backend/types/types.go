@@ -1073,11 +1073,14 @@ type OfflinePinRequest struct {
 // Saved is false when no row exists yet (the other fields are then defaults),
 // letting the client tell "server has a choice" from "first sync on this device".
 type DevicePreference struct {
-	DeviceID   string    `json:"device_id"`
-	ColorTheme string    `json:"color_theme"`
-	Mode       string    `json:"mode"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Saved      bool      `json:"saved"`
+	DeviceID    string `json:"device_id"`
+	ColorTheme  string `json:"color_theme"`
+	Mode        string `json:"mode"`
+	CustomTheme string `json:"custom_theme"`
+	// Sync is true when this device follows the account-wide theme.
+	Sync      bool      `json:"sync"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Saved     bool      `json:"saved"`
 }
 
 // DevicePreferenceRequest is the JSON body for saving a device preference.
@@ -1085,6 +1088,13 @@ type DevicePreferenceRequest struct {
 	DeviceID   string `json:"device_id"`
 	ColorTheme string `json:"color_theme"`
 	Mode       string `json:"mode"`
+	// CustomTheme is left unchanged when absent, so older clients never wipe it.
+	CustomTheme *string `json:"custom_theme"`
+	// Sync defaults to true when absent: the device follows the account theme.
+	Sync *bool `json:"sync"`
+	// Join turns sync on by adopting the account theme when one exists,
+	// instead of overwriting it with this device's look.
+	Join bool `json:"join"`
 }
 
 // UserKey is a user's X25519 keypair record for zero-knowledge sharing. The
