@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           "/dashboard/",
           "/api/",
+          "/dl/",
           "/settings/",
           "/analytics/",
           "/admin/",
@@ -28,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           "/dashboard/",
           "/api/",
+          "/dl/",
           "/settings/",
           "/analytics/",
           "/admin/",

@@ -175,14 +175,25 @@ export function DownloadsContent() {
   }
 
   const { stats, github, release } = data;
-  // GitHub counts everyone, including people who went straight to the releases
-  // page and never touched our redirect, so it is the larger, and truer, total.
+  // GitHub counts everyone who fetched an installer straight from the releases
+  // page, people and bots alike; the server already leaves out update checks.
   const githubTotal = github.reduce((sum, a) => sum + a.count, 0);
 
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Download} label={t("statTracked")} value={String(stats.total)} />
+        <StatCard
+          icon={Download}
+          label={t("statTracked")}
+          value={String(stats.total)}
+          hint={
+            stats.filtered > 0 ? (
+              <span title={t("statFilteredWhy")}>
+                {t("statFiltered", { count: stats.filtered })}
+              </span>
+            ) : undefined
+          }
+        />
         <StatCard
           icon={Box}
           label={t("statLastDays", { days })}

@@ -992,7 +992,10 @@ interface DownloadDay {
 }
 
 interface DownloadStats {
+  /** Downloads by people: bots, scanners and repeat clicks are left out. */
   total: number;
+  /** Recorded hits left out of every count here as bots, scanners or repeats. */
+  filtered: number;
   last_30_days: number;
   platforms: DownloadCount[];
   targets: DownloadCount[];
