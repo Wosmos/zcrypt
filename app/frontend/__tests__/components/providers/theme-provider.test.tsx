@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { create } from "zustand";
+import type { StoreApi } from "zustand";
 
 const h = vi.hoisted(() => ({
   getPref: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock("@/store/auth", async () => {
 
 import { ThemeProvider, useTheme } from "@/components/providers/theme-provider";
 
-type AuthStore = ReturnType<typeof create<{ user: { id: string } | null }>>;
+type AuthStore = StoreApi<{ user: { id: string } | null }>;
 const signIn = (id: string | null) =>
   act(() => (authStore.store as AuthStore).setState({ user: id ? { id } : null }));
 
