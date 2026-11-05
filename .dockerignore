@@ -9,4 +9,4 @@ dist
 LICENSE
 Makefile
 .env*
-!app/backend/.env
+**/.env*
