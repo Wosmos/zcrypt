@@ -383,6 +383,22 @@ func (s *Server) buildReleaseInfo(ctx context.Context) *releaseInfo {
 	return info
 }
 
+// isInstaller reports whether a release asset is something a person downloads
+// to install. The rest (latest.json, .sig files, the .app.tar.gz bundles) is
+// fetched by installed apps checking for and applying updates, so counting it
+// would report every update check as a new download.
+func isInstaller(name string) bool {
+	if strings.HasSuffix(name, ".sig") || strings.HasSuffix(name, ".json") {
+		return false
+	}
+	for _, t := range downloadTargets {
+		if name == t.stable || (t.match != nil && t.match(name)) {
+			return true
+		}
+	}
+	return false
+}
+
 // HandleAdminDownloads is the full rollup behind the admin downloads view.
 // GET /api/admin/downloads?days=30
 func (s *Server) HandleAdminDownloads(w http.ResponseWriter, r *http.Request) {
@@ -409,7 +425,7 @@ func (s *Server) HandleAdminDownloads(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		for _, a := range rel.Assets {
-			if a.DownloadCount == 0 {
+			if a.DownloadCount == 0 || !isInstaller(a.Name) {
 				continue
 			}
 			github = append(github, map[string]any{

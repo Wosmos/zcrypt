@@ -44,9 +44,33 @@ type DownloadDay struct {
 	Count int    `json:"count"`
 }
 
-// DownloadStats is the whole rollup behind the admin downloads view.
+// botUserAgents matches crawlers, link unfurlers and scripted clients that
+// self-identify. Matched case-insensitively in SQL.
+const botUserAgents = `(bot|crawl|spider|slurp|preview|scan|fetch|python|curl|wget|go-http|headless|http-client|okhttp|axios|node-fetch|java/|facebookexternalhit|whatsapp|telegram|discord|slack|lighthouse)`
+
+// humanDownloads is app_downloads narrowed to what a person most likely did.
+// Crawlers follow every installer link on the download page, so every row is
+// kept and judged at read time, which lets the rules improve retroactively:
+//   - a self-identified bot user agent is dropped;
+//   - no referrer is dropped, since every link on the site sends one, except
+//     the PowerShell one-liner, which is a real install that never has one;
+//   - one network grabbing three or more different installers in a day is a
+//     scanner walking the page, not someone picking their platform;
+//   - the same network fetching the same installer twice in a day is one
+//     download, not two.
+const humanDownloads = `(SELECT DISTINCT ON (a.ip_prefix, a.target, a.created_at::date) a.*
+	   FROM app_downloads a
+	  WHERE a.user_agent !~* '` + botUserAgents + `'
+	    AND (a.referrer <> '' OR a.user_agent ~* 'powershell')
+	    AND (SELECT COUNT(DISTINCT o.target) FROM app_downloads o
+	          WHERE o.ip_prefix = a.ip_prefix AND o.created_at::date = a.created_at::date) < 3
+	  ORDER BY a.ip_prefix, a.target, a.created_at::date, a.created_at) h`
+
+// DownloadStats is the whole rollup behind the admin downloads view. Every
+// count is of humanDownloads; Filtered is how many recorded hits were left out.
 type DownloadStats struct {
 	Total     int             `json:"total"`
+	Filtered  int             `json:"filtered"`
 	Last30    int             `json:"last_30_days"`
 	Platforms []DownloadCount `json:"platforms"`
 	Targets   []DownloadCount `json:"targets"`
@@ -94,9 +118,10 @@ func (db *DB) GetDownloadStats(ctx context.Context, days int) (*DownloadStats, e
 	if err := db.pool.QueryRow(ctx,
 		`SELECT COUNT(*),
 		        COUNT(*) FILTER (WHERE created_at >= $1),
-		        COUNT(*) FILTER (WHERE user_id IS NOT NULL)
-		 FROM app_downloads`, since,
-	).Scan(&s.Total, &s.Last30, &s.SignedIn); err != nil {
+		        COUNT(*) FILTER (WHERE user_id IS NOT NULL),
+		        (SELECT COUNT(*) FROM app_downloads) - COUNT(*)
+		 FROM `+humanDownloads, since,
+	).Scan(&s.Total, &s.Last30, &s.SignedIn, &s.Filtered); err != nil {
 		return nil, fmt.Errorf("download totals: %w", err)
 	}
 
@@ -105,11 +130,11 @@ func (db *DB) GetDownloadStats(ctx context.Context, days int) (*DownloadStats, e
 		query string
 	}
 	for _, r := range []rollup{
-		{&s.Platforms, `SELECT platform, COUNT(*) FROM app_downloads GROUP BY platform ORDER BY 2 DESC`},
-		{&s.Targets, `SELECT target, COUNT(*) FROM app_downloads GROUP BY target ORDER BY 2 DESC`},
-		{&s.Versions, `SELECT version, COUNT(*) FROM app_downloads GROUP BY version ORDER BY 2 DESC LIMIT 20`},
-		{&s.Countries, `SELECT country, COUNT(*) FROM app_downloads GROUP BY country ORDER BY 2 DESC LIMIT 20`},
-		{&s.Referrers, `SELECT referrer, COUNT(*) FROM app_downloads GROUP BY referrer ORDER BY 2 DESC LIMIT 20`},
+		{&s.Platforms, `SELECT platform, COUNT(*) FROM ` + humanDownloads + ` GROUP BY platform ORDER BY 2 DESC`},
+		{&s.Targets, `SELECT target, COUNT(*) FROM ` + humanDownloads + ` GROUP BY target ORDER BY 2 DESC`},
+		{&s.Versions, `SELECT version, COUNT(*) FROM ` + humanDownloads + ` GROUP BY version ORDER BY 2 DESC LIMIT 20`},
+		{&s.Countries, `SELECT country, COUNT(*) FROM ` + humanDownloads + ` GROUP BY country ORDER BY 2 DESC LIMIT 20`},
+		{&s.Referrers, `SELECT referrer, COUNT(*) FROM ` + humanDownloads + ` GROUP BY referrer ORDER BY 2 DESC LIMIT 20`},
 	} {
 		v, err := db.groupCounts(ctx, r.query)
 		if err != nil {
@@ -121,9 +146,9 @@ func (db *DB) GetDownloadStats(ctx context.Context, days int) (*DownloadStats, e
 	// generate_series fills gaps so the chart has a continuous x-axis instead
 	// of skipping days with no downloads.
 	rows, err := db.pool.Query(ctx,
-		`SELECT to_char(d.day, 'YYYY-MM-DD'), COUNT(a.id)
+		`SELECT to_char(d.day, 'YYYY-MM-DD'), COUNT(h.id)
 		   FROM generate_series($1::date, CURRENT_DATE, '1 day') AS d(day)
-		   LEFT JOIN app_downloads a ON a.created_at::date = d.day
+		   LEFT JOIN `+humanDownloads+` ON h.created_at::date = d.day
 		  GROUP BY d.day ORDER BY d.day`, since,
 	)
 	if err != nil {
@@ -146,10 +171,10 @@ func (db *DB) GetDownloadStats(ctx context.Context, days int) (*DownloadStats, e
 	return s, nil
 }
 
-// GetDownloadTotal is the public counter: all-time installs, nothing else.
+// GetDownloadTotal is the public counter: all-time installs by people, nothing else.
 func (db *DB) GetDownloadTotal(ctx context.Context) (int, error) {
 	var n int
-	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM app_downloads`).Scan(&n); err != nil {
+	if err := db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM `+humanDownloads).Scan(&n); err != nil {
 		return 0, fmt.Errorf("download total: %w", err)
 	}
 	return n, nil
