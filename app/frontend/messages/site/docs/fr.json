@@ -651,7 +651,7 @@
       "description": "Une version de bureau native de zcrypt pour ceux qui préfèrent une vraie fenêtre d’application à un onglet de navigateur : avec la gestion de fichiers au niveau du système et exactement le même chiffrement côté client.",
       "directTitle": "Envois directs et ouverture de l'application",
       "directP1": "L'application de bureau envoie directement de votre ordinateur vers votre propre stockage. Rien ne passe par le serveur de zcrypt : il n'y a donc ni limite de taille de fichier ni quota mensuel de transferts web. Le stockage que vous avez connecté sur le web est repris automatiquement : l'application copie ces jetons dans le trousseau de votre ordinateur une fois par session, vous ne connectez donc jamais rien deux fois.",
-      "directP2": "Depuis le navigateur, <strong>Ouvrir l'application de bureau</strong> utilise le lien <code>zcrypt://open</code> pour lancer l'application ou la mettre au premier plan si elle tourne déjà. Une seule copie s'exécute à la fois : la rouvrir ne fait que donner le focus à la fenêtre. Le navigateur ne peut pas transmettre de fichiers à l'application : déposez-les dans sa fenêtre.",
+      "directP2": "Depuis le navigateur, <strong>Ouvrir l'application de bureau</strong> utilise le lien <code>zcrypt://open</code> pour lancer l'application ou la mettre au premier plan si elle tourne déjà. Une seule copie s'exécute à la fois : la rouvrir ne fait que donner le focus à la fenêtre. Le navigateur ne peut pas transmettre de fichiers à l'application : déposez-les dans sa fenêtre. Si rien ne s'ouvre, la page de téléchargement s'ouvre dans un nouvel onglet à la place.",
       "winWarnTitle": "Windows peut indiquer qu'il a protégé votre ordinateur",
       "winWarnBody": "Si Windows indique qu'il a protégé votre ordinateur, cliquez sur <b>Informations complémentaires</b>, puis sur <b>Exécuter quand même</b>. Ce message apparaît parce que l'appli n'est pas encore signée."
     },
@@ -2197,7 +2197,7 @@
       "wlL1": "<strong>Trop volumineux pour un envoi web.</strong> Un fichier de plus de 2 Go ne peut pas être envoyé depuis le navigateur. Envoyez-le depuis l'application de bureau.",
       "wlL2": "<strong>Vous avez utilisé vos transferts web ce mois-ci.</strong> Le quota mensuel de 20 Go est épuisé. Il repart de zéro le 1er du mois (UTC), et Paramètres, Stockage indique la date. D'ici là, utilisez l'application de bureau, qui ne compte pas. Les téléchargements ne sont jamais bloqués.",
       "wlL3": "<strong>Telegram semble bloqué.</strong> Votre réseau ou votre pays bloque Telegram. Activez un VPN et réessayez. Les envois fonctionnent aussi sans VPN, mais ils passent par le serveur et comptent dans vos transferts web.",
-      "wlP2": "Si <strong>Ouvrir l'application de bureau</strong> ne fait rien, installez l'application, ouvrez-la une fois, puis réessayez. Vous pouvez toujours ouvrir l'application vous-même et y déposer le fichier."
+      "wlP2": "Si <strong>Ouvrir l'application de bureau</strong> vous mène à la page de téléchargement alors que l'application est installée, ouvrez l'application vous-même une fois puis réessayez. Les anciennes versions de l'application ne peuvent pas être ouvertes depuis le navigateur : mettez-la à jour si cela ne fonctionne toujours pas. Vous pouvez toujours ouvrir l'application vous-même et y déposer le fichier."
     },
     "uploading": {
       "toc": {
@@ -2210,7 +2210,8 @@
         "parallel": "Parallèle, et adapté au mobile",
         "folders": "Envois adaptés aux dossiers",
         "next": "Pour aller plus loin",
-        "limits": "Limites web et application de bureau"
+        "limits": "Limites web et application de bureau",
+        "whole-folder": "Importer un dossier entier"
       },
       "p1": "Au début d'un envoi, le fichier est déjà découpé en fragments sur votre appareil, et chaque fragment a été compressé avec zstd et chiffré avec AES-256-GCM (voir <l1>Comment ça marche</l1>). Ce qui est envoyé est une suite de fragments chiffrés : le serveur ne reçoit que du chiffré.",
       "p2": "Les fragments sont dimensionnés selon votre appareil : 4, 8, 10 ou 16 MiB, d'un téléphone à mémoire limitée à un ordinateur puissant, avec 10 MiB comme milieu courant. La taille choisie est enregistrée côté serveur, si bien qu'une reprise depuis <em>n'importe quel</em> appareil redécoupe le fichier exactement aux mêmes limites : une taille différente décalerait tous les fragments après le premier.",
@@ -2262,7 +2263,11 @@
       "limitsTitle": "Limites web et application de bureau",
       "limitsP1": "Tout ce que l'application web envoie par le serveur de zcrypt est limité : un fichier peut atteindre <strong>2 Go</strong>, et chaque compte dispose de <strong>20 Go de transferts web par mois</strong>. Les envois comptent, les téléchargements aussi. Le compteur se trouve dans <strong>Paramètres, Stockage</strong> et repart de zéro le 1er de chaque mois (UTC).",
       "limitsP2": "Les envois qui vont directement de votre navigateur vers votre stockage évitent le serveur : ils ne sont ni limités ni comptés. C'est le cas de Hugging Face et de votre propre Telegram (voir <l1>Connecter un stockage</l1>). L'application de bureau envoie toujours ainsi, elle n'a donc aucune limite.",
-      "limitsP3": "Quand un envoi dépasse une limite, un message s'affiche avec un bouton <strong>Ouvrir l'application de bureau</strong>. Le navigateur ne peut pas transmettre le fichier à l'application : ouvrez l'application et déposez-y le fichier. Si l'application n'est pas installée, le bouton devient <strong>Télécharger l'application de bureau</strong> et ouvre la page de téléchargement dans un nouvel onglet, pour que les envois déjà en cours ici continuent."
+      "limitsP3": "Quand un import dépasse une limite, un message s'affiche avec un bouton <strong>Ouvrir l'application de bureau</strong>. Le navigateur ne peut pas transmettre le fichier à l'application : ouvrez l'application et déposez-y le fichier. Le bouton essaie toujours d'abord l'application, et si rien ne s'ouvre, la page de téléchargement s'ouvre dans un nouvel onglet, pour que les imports en cours ici continuent.",
+      "wholeFolderTitle": "Importer un dossier entier",
+      "wholeFolderP1": "Pour importer un dossier avec tout son contenu, choisissez <strong>Importer un dossier</strong> dans la fenêtre d'import, ou déposez le dossier sur la fenêtre ou dans le coffre. zcrypt recrée ses dossiers dans le dossier affiché, chaque nom chiffré dans votre navigateur comme un dossier que vous créez vous-même, et chaque fichier arrive dans son propre dossier.",
+      "wholeFolderP2": "Importer le même dossier une nouvelle fois complète les dossiers déjà présents au lieu de créer des copies, et les fichiers déjà en place sont ignorés. Les fichiers système comme <code>.DS_Store</code> et <code>Thumbs.db</code> sont laissés de côté.",
+      "wholeFolderNote": "L'import de dossiers fonctionne dans les navigateurs sur ordinateur. Les navigateurs de l'iPhone et de l'iPad ne peuvent pas choisir de dossier, et l'application de bureau n'importe pas encore de dossiers entiers : choisissez plutôt les fichiers."
     },
     "viewing-files": {
       "toc": {
@@ -2313,7 +2318,8 @@
         "remember": "Me garder déverrouillé sur cet appareil",
         "notifications": "Notifications en arrière-plan",
         "next": "Pour aller plus loin",
-        "limits": "Limites dans le navigateur"
+        "limits": "Limites dans le navigateur",
+        "theme": "Votre thème sur tous vos appareils"
       },
       "p1": "zcrypt fonctionne dans n’importe quel navigateur moderne, sur ordinateur ou mobile. Il n’y a rien à installer. Tout le chiffrement et le déchiffrement se font sur votre appareil grâce à l’API Web Crypto : vos fichiers sont donc scellés et ouverts localement et le serveur ne manipule jamais que du texte chiffré.",
       "a2": "Fonctionne dans votre navigateur",
@@ -2343,7 +2349,10 @@
       "title": "Application web",
       "description": "L’application web zcrypt est le produit complet dans un onglet de navigateur : un vrai disque chiffré avec chiffrement côté client, un verrou de session unique et un moyen facultatif de rester déverrouillé sur un appareil de confiance.",
       "limTitle": "Limites dans le navigateur",
-      "limP1": "Ce que l'application web envoie par le serveur de zcrypt est limité : 2 Go par fichier et 20 Go de transferts web par mois. Les envois directs vers votre propre Telegram ou vers Hugging Face ne comptent pas, et l'application de bureau n'a aucune limite. Les détails sont dans <l1>Envoi de fichiers</l1>."
+      "limP1": "Ce que l'application web envoie par le serveur de zcrypt est limité : 2 Go par fichier et 20 Go de transferts web par mois. Les envois directs vers votre propre Telegram ou vers Hugging Face ne comptent pas, et l'application de bureau n'a aucune limite. Les détails sont dans <l1>Envoi de fichiers</l1>.",
+      "themeTitle": "Votre thème sur tous vos appareils",
+      "themeP1": "Votre thème de couleurs et le mode clair ou sombre sont liés à votre compte. Choisissez-les une fois dans <strong>Paramètres</strong>, <strong>Apparence</strong>, et ils vous suivent dans chaque navigateur, l'application de bureau et l'application Android où vous êtes connecté. Un changement apparaît aussitôt sur vos autres appareils, couleurs personnalisées comprises.",
+      "themeP2": "Pour donner à un appareil son propre style, désactivez <strong>Même thème sur tous mes appareils</strong> sur cet appareil. Il garde son thème pendant que vos autres appareils suivent votre compte, et réactiver l'option reprend le thème de votre compte. Les personnes qui partagent un appareil obtiennent chacune leur propre thème en se connectant, jamais celui de la personne précédente."
     },
     "zero-knowledge": {
       "toc": {

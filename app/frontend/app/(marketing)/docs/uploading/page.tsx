@@ -21,6 +21,7 @@ const toc = [
   { id: "limits", k: "docs.uploading.toc.limits" },
   { id: "parallel", k: "docs.uploading.toc.parallel" },
   { id: "folders", k: "docs.uploading.toc.folders" },
+  { id: "whole-folder", k: "docs.uploading.toc.whole-folder" },
   { id: "next", k: "docs.uploading.toc.next" },
 ];
 
@@ -162,6 +163,18 @@ export default function UploadingDocPage() {
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
         </DocP>
+      </DocSection>
+
+      <DocSection id="whole-folder" title={<T k="docs.uploading.wholeFolderTitle" />}>
+        <DocP>
+          <T k="docs.uploading.wholeFolderP1" />
+        </DocP>
+        <DocP>
+          <T k="docs.uploading.wholeFolderP2" />
+        </DocP>
+        <DocNote>
+          <T k="docs.uploading.wholeFolderNote" />
+        </DocNote>
       </DocSection>
 
       <DocSection id="next" title={<T k="docs.uploading.a45" />}>

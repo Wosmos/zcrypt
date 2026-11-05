@@ -651,7 +651,7 @@
       "description": "Ein nativer Desktop-Build von zcrypt für alle, die lieber ein echtes App-Fenster als einen Browser-Tab haben: mit Dateiverwaltung auf Betriebssystemebene und exakt derselben clientseitigen Verschlüsselung.",
       "directTitle": "Direkte Uploads und die App öffnen",
       "directP1": "Die Desktop-App lädt direkt von deinem Computer in deinen eigenen Speicher hoch. Nichts läuft über den Server von zcrypt, deshalb gibt es weder ein Dateigrößenlimit noch ein monatliches Web-Transfer-Kontingent. Speicher, den du im Web verbunden hast, wird automatisch übernommen: Die App kopiert diese Tokens einmal pro Sitzung in den Schlüsselbund deines Computers, du verbindest also nie etwas doppelt.",
-      "directP2": "Im Browser startet <strong>Desktop-App öffnen</strong> die App über den Link <code>zcrypt://open</code> oder holt sie in den Vordergrund, falls sie schon läuft. Es läuft immer nur eine Kopie, ein erneutes Öffnen fokussiert also nur das Fenster. Der Browser kann keine Dateien an die App übergeben: Ziehe sie in das App-Fenster.",
+      "directP2": "Im Browser startet <strong>Desktop-App öffnen</strong> die App über den Link <code>zcrypt://open</code> oder holt sie in den Vordergrund, falls sie schon läuft. Es läuft immer nur eine Kopie, ein erneutes Öffnen fokussiert also nur das Fenster. Der Browser kann keine Dateien an die App übergeben: Ziehe sie in das App-Fenster. Öffnet sich nichts, öffnet sich stattdessen die Download-Seite in einem neuen Tab.",
       "winWarnTitle": "Windows meldet möglicherweise, dass es deinen PC geschützt hat",
       "winWarnBody": "Wenn Windows meldet, dass es deinen PC geschützt hat, klicke auf <b>Weitere Informationen</b> und dann auf <b>Trotzdem ausführen</b>. Das erscheint, weil die App noch nicht codesigniert ist."
     },
@@ -2197,7 +2197,7 @@
       "wlL1": "<strong>Zu groß für einen Web-Upload.</strong> Eine einzelne Datei über 2 GB lässt sich nicht aus dem Browser hochladen. Lade sie stattdessen mit der Desktop-App hoch.",
       "wlL2": "<strong>Du hast deine Web-Transfers diesen Monat aufgebraucht.</strong> Das monatliche Kontingent von 20 GB ist verbraucht. Es beginnt am 1. des Monats (UTC) von vorn; das Datum steht unter Einstellungen, Speicher. Bis dahin nutze die Desktop-App, die nicht zählt. Downloads werden nie blockiert.",
       "wlL3": "<strong>Telegram scheint blockiert.</strong> Dein Netzwerk oder Land blockiert Telegram. Schalte ein VPN ein und versuche es erneut. Uploads funktionieren auch ohne, laufen dann aber über den Server und zählen für deine Web-Transfers.",
-      "wlP2": "Passiert bei <strong>Desktop-App öffnen</strong> nichts, installiere die App, öffne sie einmal und versuche es dann erneut. Du kannst die App jederzeit selbst öffnen und die Datei dort hineinziehen."
+      "wlP2": "Führt <strong>Desktop-App öffnen</strong> zur Download-Seite, obwohl die App installiert ist, öffne die App einmal selbst und versuche es erneut. Ältere Versionen der App lassen sich nicht aus dem Browser öffnen, aktualisiere sie also, falls es dann noch nicht klappt. Du kannst die App jederzeit selbst öffnen und die Datei dort hineinziehen."
     },
     "uploading": {
       "toc": {
@@ -2210,7 +2210,8 @@
         "parallel": "Parallel und mobilfreundlich",
         "folders": "Ordnerbewusste Uploads",
         "next": "Wie es weitergeht",
-        "limits": "Web-Limits und die Desktop-App"
+        "limits": "Web-Limits und die Desktop-App",
+        "whole-folder": "Einen ganzen Ordner hochladen"
       },
       "p1": "Wenn ein Upload beginnt, ist die Datei auf deinem Gerät in Chunks zerlegt, und jeder Chunk wurde mit zstd komprimiert und mit AES-256-GCM verschlüsselt (siehe <l1>So funktioniert es</l1>). Gesendet wird eine Folge verschlüsselter Chunks: Der Server erhält nur Chiffretext.",
       "p2": "Die Chunk-Größe richtet sich nach deinem Gerät: 4, 8, 10 oder 16 MiB, vom speicherknappen Handy bis zum leistungsstarken Desktop, mit 10 MiB als üblicher Mitte. Die gewählte Größe wird serverseitig gespeichert, sodass eine Fortsetzung von <em>jedem</em> Gerät die Datei an exakt denselben Grenzen zerteilt: Eine abweichende Größe würde jeden Chunk nach dem ersten verschieben.",
@@ -2262,7 +2263,11 @@
       "limitsTitle": "Web-Limits und die Desktop-App",
       "limitsP1": "Alles, was die Web-App über den Server von zcrypt sendet, ist begrenzt: Eine Datei darf bis zu <strong>2 GB</strong> groß sein, und jedes Konto hat <strong>20 GB Web-Transfers pro Monat</strong>. Uploads zählen, Downloads ebenso. Die Anzeige findest du unter <strong>Einstellungen, Speicher</strong>; sie beginnt am 1. jedes Monats (UTC) von vorn.",
       "limitsP2": "Uploads, die direkt von deinem Browser zu deinem Speicher gehen, umgehen den Server und werden weder begrenzt noch gezählt. Das gilt für Hugging Face und für dein eigenes Telegram (siehe <l1>Speicher verbinden</l1>). Die Desktop-App lädt immer so hoch und hat deshalb gar keine Limits.",
-      "limitsP3": "Liegt ein Upload über einem Limit, erscheint eine Meldung mit der Schaltfläche <strong>Desktop-App öffnen</strong>. Der Browser kann die Datei nicht an die App übergeben: Öffne die App und ziehe die Datei dort hinein. Ist die App nicht installiert, wird daraus <strong>Desktop-App herunterladen</strong> und die Download-Seite öffnet sich in einem neuen Tab, sodass laufende Uploads hier weiterlaufen."
+      "limitsP3": "Liegt ein Upload über einem Limit, erscheint eine Meldung mit der Schaltfläche <strong>Desktop-App öffnen</strong>. Der Browser kann die Datei nicht an die App übergeben, also öffne die App und zieh die Datei dort hinein. Die Schaltfläche versucht immer zuerst die App, und wenn sich nichts öffnet, öffnet sich die Download-Seite in einem neuen Tab, damit laufende Uploads hier weiterlaufen.",
+      "wholeFolderTitle": "Einen ganzen Ordner hochladen",
+      "wholeFolderP1": "Um einen Ordner mit allem Inhalt hochzuladen, wähle im Hochladen-Dialog <strong>Ordner hochladen</strong> oder zieh den Ordner auf den Dialog oder in den Tresor. zcrypt legt seine Ordner im gerade geöffneten Ordner neu an, jeder Name wird wie bei selbst erstellten Ordnern in deinem Browser verschlüsselt, und jede Datei landet in ihrem eigenen Ordner.",
+      "wholeFolderP2": "Lädst du denselben Ordner noch einmal hoch, werden die vorhandenen Ordner aufgefüllt statt Kopien anzulegen, und Dateien, die schon da sind, werden übersprungen. Systemdateien wie <code>.DS_Store</code> und <code>Thumbs.db</code> bleiben außen vor.",
+      "wholeFolderNote": "Ordner-Uploads funktionieren in Browsern am Computer. Browser auf iPhone und iPad können keine Ordner auswählen, und die Desktop-App lädt noch keine ganzen Ordner hoch, wähle dort stattdessen die Dateien aus."
     },
     "viewing-files": {
       "toc": {
@@ -2313,7 +2318,8 @@
         "remember": "Auf diesem Gerät entsperrt lassen",
         "notifications": "Hintergrund-Benachrichtigungen",
         "next": "Wie es weitergeht",
-        "limits": "Limits im Browser"
+        "limits": "Limits im Browser",
+        "theme": "Dein Design auf jedem Gerät"
       },
       "p1": "zcrypt funktioniert in jedem modernen Browser auf Desktop oder Mobilgerät. Es muss nichts installiert werden. Ver- und Entschlüsselung geschehen auf deinem Gerät mit der Web Crypto API, sodass deine Dateien lokal versiegelt und geöffnet werden und der Server immer nur Geheimtext verarbeitet.",
       "a2": "Läuft in deinem Browser",
@@ -2343,7 +2349,10 @@
       "title": "Web-App",
       "description": "Die zcrypt-Web-App ist das volle Produkt in einem Browser-Tab: ein echtes verschlüsseltes Laufwerk mit clientseitiger Verschlüsselung, einer einzigen Sitzungssperre und einer optionalen Möglichkeit, auf einem vertrauenswürdigen Gerät entsperrt zu bleiben.",
       "limTitle": "Limits im Browser",
-      "limP1": "Was die Web-App über den Server von zcrypt sendet, ist begrenzt: 2 GB pro Datei und 20 GB Web-Transfers pro Monat. Uploads direkt in dein eigenes Telegram oder zu Hugging Face zählen nicht, und die Desktop-App hat keine Limits. Details stehen unter <l1>Hochladen</l1>."
+      "limP1": "Was die Web-App über den Server von zcrypt sendet, ist begrenzt: 2 GB pro Datei und 20 GB Web-Transfers pro Monat. Uploads direkt in dein eigenes Telegram oder zu Hugging Face zählen nicht, und die Desktop-App hat keine Limits. Details stehen unter <l1>Hochladen</l1>.",
+      "themeTitle": "Dein Design auf jedem Gerät",
+      "themeP1": "Farbthema und heller oder dunkler Modus gehören zu deinem Konto. Wähle sie einmal unter <strong>Einstellungen</strong>, <strong>Darstellung</strong>, dann folgen sie dir in jeden Browser, die Desktop-App und die Android-App, in denen du angemeldet bist. Eine Änderung erscheint sofort auf deinen anderen Geräten, eigene Farben eingeschlossen.",
+      "themeP2": "Soll ein Gerät ein eigenes Aussehen haben, schalte dort <strong>Gleiches Design auf allen meinen Geräten</strong> aus. Es behält dann sein Design, während deine anderen Geräte deinem Konto folgen, und mit dem Einschalten übernimmt es wieder das Design deines Kontos. Wer ein Gerät teilt, bekommt beim Anmelden sein eigenes Design, nie das der vorherigen Person."
     },
     "zero-knowledge": {
       "toc": {

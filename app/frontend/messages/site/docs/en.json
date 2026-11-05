@@ -651,7 +651,7 @@
       "description": "A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption.",
       "directTitle": "Direct uploads and opening the app",
       "directP1": "The desktop app uploads straight from your computer to your own storage. Nothing passes through zcrypt's server, so there is no file-size limit and no monthly web transfer allowance. Storage you connected on the web is picked up automatically: the app copies those tokens into your computer's keychain once per session, so you never connect anything twice.",
-      "directP2": "From the browser, <strong>Open the desktop app</strong> uses the <code>zcrypt://open</code> link to start the app, or to bring it to the front if it is already running. Only one copy runs at a time, so opening it again just focuses the window. The browser can't pass files to the app: drop them into the app window.",
+      "directP2": "From the browser, <strong>Open the desktop app</strong> uses the <code>zcrypt://open</code> link to start the app, or to bring it to the front if it is already running. Only one copy runs at a time, so opening it again just focuses the window. The browser can't pass files to the app: drop them into the app window. If nothing opens, the download page opens in a new tab instead.",
       "winWarnTitle": "Windows may say it protected your PC",
       "winWarnBody": "If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet."
     },
@@ -2197,7 +2197,7 @@
       "wlL1": "<strong>Too big for a web upload.</strong> A single file over 2 GB can't be uploaded from the browser. Upload it from the desktop app instead.",
       "wlL2": "<strong>You've used your web transfers this month.</strong> The 20 GB monthly allowance is used up. It starts over on the 1st of the month (UTC), and Settings, Storage shows the date. Until then, use the desktop app, which doesn't count. Downloads are never blocked.",
       "wlL3": "<strong>Telegram looks blocked.</strong> Your network or country blocks Telegram. Turn on a VPN and retry. Uploads still work without one, but they pass through the server and count toward your web transfers.",
-      "wlP2": "If <strong>Open the desktop app</strong> does nothing, install the app and open it once, then try again. You can always open the app yourself and drop the file there."
+      "wlP2": "If <strong>Open the desktop app</strong> takes you to the download page even though the app is installed, open the app once yourself and try again. Older versions of the app can't be opened from the browser, so update it if that still doesn't work. You can always open the app yourself and drop the file there."
     },
     "uploading": {
       "toc": {
@@ -2210,7 +2210,8 @@
         "parallel": "Parallel, and mobile-friendly",
         "folders": "Folder-aware uploads",
         "next": "Where to go next",
-        "limits": "Web limits and the desktop app"
+        "limits": "Web limits and the desktop app",
+        "whole-folder": "Uploading a whole folder"
       },
       "p1": "By the time an upload begins, the file is split into chunks on your device, and each chunk has been compressed with zstd and encrypted with AES-256-GCM (see <l1>How it works</l1>). What gets sent is a sequence of encrypted chunks: the server receives only ciphertext.",
       "p2": "Chunks are sized to your device: 4, 8, 10 or 16 MiB, from a memory-constrained phone up to a powerful desktop, with 10 MiB the common middle. The chosen size is recorded server-side, so a resume from <em>any</em> device re-slices the file at exactly the same boundaries: a mismatched size would misalign every chunk after the first.",
@@ -2262,7 +2263,11 @@
       "limitsTitle": "Web limits and the desktop app",
       "limitsP1": "Whatever the web app sends through zcrypt's server has limits: one file can be up to <strong>2 GB</strong>, and each account gets <strong>20 GB of web transfers per month</strong>. Uploads count, and so do downloads. The meter is in <strong>Settings, Storage</strong> and starts over on the 1st of each month (UTC).",
       "limitsP2": "Uploads that go straight from your browser to your storage skip the server, so they are never limited or counted. That covers Hugging Face and your own Telegram (see <l1>Connect storage</l1>). The desktop app always uploads this way, so it has no limits at all.",
-      "limitsP3": "When an upload is over a limit, you get a message with an <strong>Open the desktop app</strong> button. The browser can't hand the file to the app, so open the app and drop the file there. If the app isn't installed, the button becomes <strong>Download the desktop app</strong> and opens the download page in a new tab, so uploads already running here keep going."
+      "limitsP3": "When an upload is over a limit, you get a message with an <strong>Open the desktop app</strong> button. The browser can't hand the file to the app, so open the app and drop the file there. The button always tries the app first, and if nothing opens, the download page opens in a new tab, so uploads already running here keep going.",
+      "wholeFolderTitle": "Uploading a whole folder",
+      "wholeFolderP1": "To upload a folder with everything in it, choose <strong>Upload a folder</strong> in the Upload dialog, or drop the folder onto the dialog or the vault. zcrypt recreates its folders inside the folder you are viewing, every name encrypted in your browser like a folder you make yourself, and each file lands in its own folder.",
+      "wholeFolderP2": "Uploading the same folder again fills the folders that are already there instead of making copies, and files already in place are skipped. System files such as <code>.DS_Store</code> and <code>Thumbs.db</code> are left out.",
+      "wholeFolderNote": "Folder uploads work in browsers on a computer. iPhone and iPad browsers can't pick folders, and the desktop app doesn't upload whole folders yet, so pick the files there instead."
     },
     "viewing-files": {
       "toc": {
@@ -2313,7 +2318,8 @@
         "remember": "Keep me unlocked on this device",
         "notifications": "Background notifications",
         "next": "Where to go next",
-        "limits": "Limits in the browser"
+        "limits": "Limits in the browser",
+        "theme": "Your theme on every device"
       },
       "p1": "zcrypt works in any modern browser on desktop or mobile. There is nothing to install. All encryption and decryption happen on your device using the Web Crypto API, so your files are sealed and opened locally and the server only ever handles ciphertext.",
       "a2": "Runs in your browser",
@@ -2343,7 +2349,10 @@
       "title": "Web app",
       "description": "The zcrypt web app is the full product in a browser tab: a real encrypted drive with client-side encryption, a single session lock, and an optional way to stay unlocked on a device you trust.",
       "limTitle": "Limits in the browser",
-      "limP1": "What the web app sends through zcrypt's server is limited: 2 GB per file and 20 GB of web transfers per month. Uploads straight to your own Telegram or Hugging Face don't count, and the desktop app has no limits. Details are in <l1>Uploading</l1>."
+      "limP1": "What the web app sends through zcrypt's server is limited: 2 GB per file and 20 GB of web transfers per month. Uploads straight to your own Telegram or Hugging Face don't count, and the desktop app has no limits. Details are in <l1>Uploading</l1>.",
+      "themeTitle": "Your theme on every device",
+      "themeP1": "Your color theme and light or dark mode belong to your account. Pick them once in <strong>Settings</strong>, <strong>Appearance</strong>, and they follow you to every browser, the desktop app and the Android app where you sign in. A change shows up on your other devices straight away, custom colors included.",
+      "themeP2": "To give one device its own look, turn off <strong>Same theme on all my devices</strong> on that device. It keeps its theme while your other devices follow your account, and turning the switch back on picks up your account's theme again. People who share a device each get their own theme when they sign in, never the previous person's."
     },
     "zero-knowledge": {
       "toc": {

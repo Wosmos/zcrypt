@@ -148,7 +148,7 @@ iOS compiles but is not yet built in CI. It is in development.
 - Resumable, chunked uploads that survive restarts; concurrent chunk transfer with live progress over SSE
 
 **Files & collaboration**
-- Folders, optionally protected with a per-folder password
+- Folders, optionally protected with a per-folder password; upload a whole folder from the browser (button or drag and drop) and its folder tree is recreated with encrypted names
 - Sharing: password-protected file & folder links, and ephemeral **Send** links (expiry + burn-after-read, which deletes the stored data; anonymous sends are limited to 50 MB per file and 500 MB per day)
 - **Spaces**: multi-member shared vaults with per-member X25519 key wrapping and key rotation. Each Space has its own pages (`/spaces`, `/spaces/new`, `/spaces/[id]`, `/add`, `/settings`) with keyboard multi-select, files are added in the background with a progress strip, member key fingerprints are computed in your browser and pinned on first use (you are asked to confirm if one changes), and the Space name and description are sealed under the Space key. The free plan caps how many files one add can carry (`max_space_batch_files`, default 200, admin-editable)
 - **Timed Vaults**: self-destructing vaults that expire on a schedule
@@ -157,6 +157,7 @@ iOS compiles but is not yet built in CI. It is in development.
 - **Sync & Offline**: folder sync, offline pinning, and encrypted clipboard sync across your devices
 - Trash with restore and permanent purge; point-in-time snapshots and on-demand integrity checks
 - Per-file / per-folder custom styling, file re-key (re-wrap into a Space), and bulk operations
+- Themes belong to your account and sync live to every device you sign in on; any device can keep its own instead (Settings, Appearance, "Same theme on all my devices")
 
 **Accounts & admin**
 - Email + password auth, OAuth (Google / GitHub), and passwordless magic-link login

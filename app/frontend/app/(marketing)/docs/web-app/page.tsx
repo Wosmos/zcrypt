@@ -17,6 +17,7 @@ const toc = [
   { id: "remember", k: "docs.web-app.toc.remember" },
   { id: "notifications", k: "docs.web-app.toc.notifications" },
   { id: "limits", k: "docs.web-app.toc.limits" },
+  { id: "theme", k: "docs.web-app.toc.theme" },
   { id: "next", k: "docs.web-app.toc.next" },
 ];
 
@@ -88,6 +89,15 @@ export default function WebAppDocPage() {
             links={{ l1: "/docs/uploading" }}
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
+        </DocP>
+      </DocSection>
+
+      <DocSection id="theme" title={<T k="docs.web-app.themeTitle" />}>
+        <DocP>
+          <T k="docs.web-app.themeP1" />
+        </DocP>
+        <DocP>
+          <T k="docs.web-app.themeP2" />
         </DocP>
       </DocSection>
 

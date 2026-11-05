@@ -651,7 +651,7 @@
       "description": "Una versión nativa de zcrypt para escritorio para quienes prefieren una ventana de app real a una pestaña del navegador: con gestión de archivos a nivel del sistema operativo y exactamente el mismo cifrado en el cliente.",
       "directTitle": "Subidas directas y abrir la app",
       "directP1": "La app de escritorio sube directamente desde tu ordenador a tu propio almacenamiento. Nada pasa por el servidor de zcrypt, así que no hay límite de tamaño de archivo ni cupo mensual de transferencias web. El almacenamiento que conectaste en la web se detecta automáticamente: la app copia esos tokens al llavero de tu ordenador una vez por sesión, así que nunca conectas nada dos veces.",
-      "directP2": "Desde el navegador, <strong>Abrir la app de escritorio</strong> usa el enlace <code>zcrypt://open</code> para iniciar la app o traerla al frente si ya se está ejecutando. Solo se ejecuta una copia a la vez, así que abrirla de nuevo solo enfoca la ventana. El navegador no puede pasar archivos a la app: suéltalos en la ventana de la app.",
+      "directP2": "Desde el navegador, <strong>Abrir la app de escritorio</strong> usa el enlace <code>zcrypt://open</code> para iniciar la app o traerla al frente si ya se está ejecutando. Solo se ejecuta una copia a la vez, así que abrirla de nuevo solo enfoca la ventana. El navegador no puede pasar archivos a la app: suéltalos en la ventana de la app. Si no se abre nada, la página de descarga se abre en una pestaña nueva.",
       "winWarnTitle": "Windows puede decir que protegió tu PC",
       "winWarnBody": "Si Windows dice que protegió tu PC, haz clic en <b>Más información</b> y luego en <b>Ejecutar de todas formas</b>. Aparece porque la app todavía no tiene firma de código."
     },
@@ -2197,7 +2197,7 @@
       "wlL1": "<strong>Demasiado grande para subirlo desde la web.</strong> Un archivo de más de 2 GB no se puede subir desde el navegador. Súbelo desde la app de escritorio.",
       "wlL2": "<strong>Has usado tus transferencias web de este mes.</strong> Se agotó el cupo mensual de 20 GB. Se reinicia el día 1 del mes (UTC) y Ajustes, Almacenamiento muestra la fecha. Hasta entonces, usa la app de escritorio, que no cuenta. Las descargas nunca se bloquean.",
       "wlL3": "<strong>Telegram parece bloqueado.</strong> Tu red o tu país bloquea Telegram. Activa una VPN y vuelve a intentarlo. Las subidas siguen funcionando sin ella, pero pasan por el servidor y cuentan para tus transferencias web.",
-      "wlP2": "Si <strong>Abrir la app de escritorio</strong> no hace nada, instala la app, ábrela una vez y vuelve a intentarlo. Siempre puedes abrir la app tú mismo y soltar el archivo allí."
+      "wlP2": "Si <strong>Abrir la app de escritorio</strong> te lleva a la página de descarga aunque la app esté instalada, abre la app tú mismo una vez y vuelve a intentarlo. Las versiones antiguas de la app no se pueden abrir desde el navegador, así que actualízala si sigue sin funcionar. Siempre puedes abrir la app tú mismo y soltar el archivo allí."
     },
     "uploading": {
       "toc": {
@@ -2210,7 +2210,8 @@
         "parallel": "En paralelo y apta para móviles",
         "folders": "Subidas conscientes de las carpetas",
         "next": "Adónde ir después",
-        "limits": "Límites en la web y la app de escritorio"
+        "limits": "Límites en la web y la app de escritorio",
+        "whole-folder": "Subir una carpeta entera"
       },
       "p1": "Cuando empieza una subida, el archivo ya está dividido en fragmentos en tu dispositivo, y cada fragmento se ha comprimido con zstd y cifrado con AES-256-GCM (consulta <l1>Cómo funciona</l1>). Lo que se envía es una secuencia de fragmentos cifrados: el servidor solo recibe texto cifrado.",
       "p2": "Los fragmentos se dimensionan según tu dispositivo: 4, 8, 10 o 16 MiB, desde un teléfono con poca memoria hasta un escritorio potente, con 10 MiB como punto medio habitual. El tamaño elegido se guarda en el servidor, de modo que reanudar desde <em>cualquier</em> dispositivo vuelve a cortar el archivo exactamente por los mismos límites: un tamaño distinto desalinearía todos los fragmentos tras el primero.",
@@ -2262,7 +2263,11 @@
       "limitsTitle": "Límites en la web y la app de escritorio",
       "limitsP1": "Todo lo que la app web envía a través del servidor de zcrypt tiene límites: un archivo puede pesar hasta <strong>2 GB</strong>, y cada cuenta dispone de <strong>20 GB de transferencias web al mes</strong>. Cuentan las subidas y también las descargas. El contador está en <strong>Ajustes, Almacenamiento</strong> y se reinicia el día 1 de cada mes (UTC).",
       "limitsP2": "Las subidas que van directamente de tu navegador a tu almacenamiento no pasan por el servidor, así que nunca tienen límite ni se cuentan. Es el caso de Hugging Face y de tu propio Telegram (consulta <l1>Conectar almacenamiento</l1>). La app de escritorio siempre sube así, por lo que no tiene ningún límite.",
-      "limitsP3": "Cuando una subida supera un límite, ves un mensaje con el botón <strong>Abrir la app de escritorio</strong>. El navegador no puede pasar el archivo a la app: abre la app y suelta el archivo allí. Si la app no está instalada, el botón pasa a ser <strong>Descargar la app de escritorio</strong> y abre la página de descarga en otra pestaña, para que las subidas que ya están en marcha aquí sigan."
+      "limitsP3": "Cuando una subida supera un límite, aparece un mensaje con el botón <strong>Abrir la app de escritorio</strong>. El navegador no puede pasar el archivo a la app, así que abre la app y suelta el archivo allí. El botón siempre intenta abrir la app primero, y si no se abre nada, la página de descarga se abre en una pestaña nueva, para que las subidas en curso aquí sigan adelante.",
+      "wholeFolderTitle": "Subir una carpeta entera",
+      "wholeFolderP1": "Para subir una carpeta con todo su contenido, elige <strong>Subir una carpeta</strong> en el diálogo de subida, o suelta la carpeta sobre el diálogo o la bóveda. zcrypt recrea sus carpetas dentro de la carpeta que estás viendo, con cada nombre cifrado en tu navegador como cualquier carpeta que crees tú, y cada archivo va a su propia carpeta.",
+      "wholeFolderP2": "Subir la misma carpeta otra vez rellena las carpetas que ya existen en lugar de crear copias, y se omiten los archivos que ya están. Los archivos del sistema como <code>.DS_Store</code> y <code>Thumbs.db</code> se dejan fuera.",
+      "wholeFolderNote": "Subir carpetas funciona en navegadores de ordenador. Los navegadores de iPhone y iPad no pueden elegir carpetas, y la app de escritorio todavía no sube carpetas enteras, así que elige los archivos allí."
     },
     "viewing-files": {
       "toc": {
@@ -2313,7 +2318,8 @@
         "remember": "Mantenerme desbloqueado en este dispositivo",
         "notifications": "Notificaciones en segundo plano",
         "next": "Adónde ir después",
-        "limits": "Límites en el navegador"
+        "limits": "Límites en el navegador",
+        "theme": "Tu tema en todos tus dispositivos"
       },
       "p1": "zcrypt funciona en cualquier navegador moderno, de escritorio o móvil. No hay nada que instalar. Todo el cifrado y descifrado ocurre en tu dispositivo mediante la Web Crypto API, así que tus archivos se sellan y se abren en local y el servidor solo maneja texto cifrado.",
       "a2": "Se ejecuta en tu navegador",
@@ -2343,7 +2349,10 @@
       "title": "App web",
       "description": "La app web de zcrypt es el producto completo en una pestaña del navegador: una unidad cifrada real con cifrado en el cliente, un único bloqueo de sesión y una forma opcional de mantenerse desbloqueado en un dispositivo de confianza.",
       "limTitle": "Límites en el navegador",
-      "limP1": "Lo que la app web envía a través del servidor de zcrypt tiene límite: 2 GB por archivo y 20 GB de transferencias web al mes. Las subidas directas a tu propio Telegram o a Hugging Face no cuentan, y la app de escritorio no tiene límites. Los detalles están en <l1>Subir archivos</l1>."
+      "limP1": "Lo que la app web envía a través del servidor de zcrypt tiene límite: 2 GB por archivo y 20 GB de transferencias web al mes. Las subidas directas a tu propio Telegram o a Hugging Face no cuentan, y la app de escritorio no tiene límites. Los detalles están en <l1>Subir archivos</l1>.",
+      "themeTitle": "Tu tema en todos tus dispositivos",
+      "themeP1": "Tu tema de color y el modo claro u oscuro pertenecen a tu cuenta. Elígelos una vez en <strong>Ajustes</strong>, <strong>Apariencia</strong>, y te siguen a cada navegador, a la app de escritorio y a la app de Android donde inicies sesión. Un cambio aparece al momento en tus otros dispositivos, colores personalizados incluidos.",
+      "themeP2": "Para que un dispositivo tenga su propio aspecto, desactiva <strong>El mismo tema en todos mis dispositivos</strong> en ese dispositivo. Conserva su tema mientras tus otros dispositivos siguen a tu cuenta, y al volver a activarlo recupera el tema de tu cuenta. Quienes comparten un dispositivo reciben cada uno su propio tema al iniciar sesión, nunca el de la persona anterior."
     },
     "zero-knowledge": {
       "toc": {
