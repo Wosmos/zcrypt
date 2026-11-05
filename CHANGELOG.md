@@ -17,11 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `zcrypt://open` links bring the desktop app to the front, whether or not it is already running; a second launch focuses the running window instead of opening another
 - The desktop app picks up storage you connected on the web, so desktop uploads go straight to your storage without connecting twice
 - Admins see a heavy web transfer badge and a filter in the users list
+- Upload whole folders from the browser: choose Upload a folder or drop a folder on the vault, and its folders are recreated inside the current one, names encrypted like any other folder. Uploading the same folder again fills it instead of making a copy, and system files like `.DS_Store` are left out (not on iPhone or in the desktop app yet)
+- Settings, Appearance has a "Same theme on all my devices" switch. Your theme belongs to your account and follows you to every device you sign in on, a change shows up on your other devices straight away, and any device can keep its own theme instead. Custom colors sync too
 - New self-hosting settings: `ZCRYPT_RELAY_MAX_FILE_BYTES`, `ZCRYPT_RELAY_MONTHLY_BYTES`, `ZCRYPT_RELAY_ALERT_DAILY_BYTES`, `ZCRYPT_SHARED_QUOTA_BYTES`, `ZCRYPT_MAX_UPLOAD_BYTES`, `ZCRYPT_SEND_ANON_DAILY_BYTES`, `ZCRYPT_SEND_USER_DAILY_BYTES`, `ZCRYPT_DB_MAX_CONNS`, `ZCRYPT_RELEASES_REPO`, `NEXT_PUBLIC_GITHUB_REPO` and `NEXT_PUBLIC_CONTACT_EMAIL`
 
 ### Changed
 
-- The "get the app" prompts lead with Open the desktop app once it has worked on this device, and with the download otherwise
+- Open the desktop app and Get the desktop app always try to open the app first, and open the download page in a new tab only when nothing opened, so an app installed after a missed attempt still opens
 - Docs cover web limits, direct Telegram uploads, opening the desktop app, and every new server setting
 
 ### Fixed
@@ -29,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The site works on both the apex domain (zcrypt.cloud) and www: either is accepted for sign-in and API calls
 - Desktop uploads straight to Telegram were being rejected by the server
 - Full storage repositories could not be retired, so uploads kept pointing at them
+- Switching accounts on the same device, for example in the desktop app, kept the previous account's theme and could save it as the new account's; each account now gets its own theme, or the default if it has none
 
 ## [0.2.0] - 2026-11-01
 
