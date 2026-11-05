@@ -25,6 +25,7 @@ import { storeDesktopPlatformCreds, clearDesktopPlatformCreds } from "@/lib/desk
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
 import { ThemeModeControl } from "@/components/settings/theme-mode-control";
+import { useTheme } from "@/components/providers/theme-provider";
 import { ThemePicker } from "@/components/settings/theme-picker";
 import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
@@ -534,6 +535,7 @@ function AppearanceContent({
   setAdvancedMode: (v: boolean) => void;
 }) {
   const t = useTranslations("settings");
+  const { syncTheme, setSyncTheme } = useTheme();
   return (
     <div className="space-y-6">
       <SettingGroup label={t("themeGroup")}>
@@ -542,6 +544,19 @@ function AppearanceContent({
           title={t("mode")}
           subtitle={t("modeDesc")}
           trailing={<ThemeModeControl className="w-[min(100%,18rem)]" />}
+        />
+        <ValueRow
+          icon={<MonitorSmartphone className="h-4 w-4" />}
+          title={t("themeSync")}
+          subtitle={t(syncTheme ? "themeSyncOnDesc" : "themeSyncOffDesc")}
+          trailing={
+            <Switch
+              checked={syncTheme}
+              onCheckedChange={setSyncTheme}
+              aria-label={t("themeSync")}
+              className="data-[state=checked]:bg-[var(--color-accent)] data-[state=unchecked]:bg-[var(--color-surface-3)]"
+            />
+          }
         />
       </SettingGroup>
 

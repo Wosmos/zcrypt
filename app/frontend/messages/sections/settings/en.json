@@ -262,7 +262,7 @@
       "colorTheme": "Color theme",
       "custom": "Custom",
       "customDesc": "Your own accent, canvas color, and background design",
-      "footnote": "Applies to the app only, set per device. Light and dark follow the mode above.",
+      "footnote": "Applies to the app only. Light and dark follow the mode above.",
       "footnoteCustom": "Custom colors stay on this device only.",
       "accent": "Accent",
       "canvas": "Canvas",

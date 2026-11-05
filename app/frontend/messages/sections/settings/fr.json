@@ -262,7 +262,7 @@
       "colorTheme": "Thème de couleur",
       "custom": "Personnalisé",
       "customDesc": "Votre propre accent, couleur de fond et motif d'arrière-plan",
-      "footnote": "S'applique uniquement à l'app, réglé par appareil. Clair et sombre suivent le mode ci-dessus.",
+      "footnote": "S'applique uniquement à l'app. Clair et sombre suivent le mode ci-dessus.",
       "footnoteCustom": "Les couleurs personnalisées restent uniquement sur cet appareil.",
       "accent": "Accent",
       "canvas": "Fond",

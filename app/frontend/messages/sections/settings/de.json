@@ -262,7 +262,7 @@
       "colorTheme": "Farbthema",
       "custom": "Benutzerdefiniert",
       "customDesc": "Dein eigener Akzent, deine Canvas-Farbe und dein Hintergrunddesign",
-      "footnote": "Gilt nur für die App und wird pro Gerät festgelegt. Hell und Dunkel folgen dem Modus oben.",
+      "footnote": "Gilt nur für die App. Hell und Dunkel folgen dem Modus oben.",
       "footnoteCustom": "Eigene Farben bleiben nur auf diesem Gerät.",
       "accent": "Akzent",
       "canvas": "Canvas",

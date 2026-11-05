@@ -5,13 +5,15 @@ import { CUSTOM_COLOR_THEME, DEFAULT_COLOR_THEME, isValidColorTheme } from "@/li
 import {
   applyCustomThemeVars,
   clearCustomThemeVars,
+  clearCustomTheme,
   DEFAULT_CUSTOM_THEME,
   loadCustomTheme,
+  parseCustomTheme,
   saveCustomTheme,
   type CustomThemeValues,
 } from "@/lib/custom-theme";
 import { getDeviceId } from "@/lib/device";
-import { getDevicePreference, saveDevicePreference } from "@/lib/api";
+import { getDevicePreference, saveDevicePreference, type DevicePreference } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 
 type Theme = "light" | "dark" | "system";
@@ -34,6 +36,22 @@ interface ThemeContextValue {
    *  stay open and preview without losing the draft. */
   customTheme: CustomThemeValues;
   setCustomTheme: (values: CustomThemeValues) => void;
+  /** This device follows the account's theme, so a change here or on any
+   *  other following device shows everywhere. Off: this device keeps its own. */
+  syncTheme: boolean;
+  setSyncTheme: (on: boolean) => void;
+  /** Re-read this device's theme from the server, e.g. after the event stream reconnects. */
+  reloadPreference: () => void;
+  /** Apply an account theme change pushed from another device, if this one follows it. */
+  applyRemotePreference: (pref: RemotePreference) => void;
+}
+
+/** The account theme as the event stream pushes it. */
+export interface RemotePreference {
+  device_id?: string;
+  color_theme?: string;
+  mode?: string;
+  custom_theme?: string;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -45,6 +63,10 @@ const ThemeContext = createContext<ThemeContextValue>({
   setColorTheme: () => {},
   customTheme: DEFAULT_CUSTOM_THEME,
   setCustomTheme: () => {},
+  syncTheme: true,
+  setSyncTheme: () => {},
+  reloadPreference: () => {},
+  applyRemotePreference: () => {},
 });
 
 export function useTheme() {
@@ -53,6 +75,19 @@ export function useTheme() {
 
 const COLOR_THEME_KEY = "zcrypt-color-theme";
 const MODE_KEY = "zcrypt-theme";
+/** The account the theme in local storage belongs to, so it is never handed to another account. */
+const OWNER_KEY = "zcrypt-theme-owner";
+/** "0" when this device keeps its own theme instead of following the account's. */
+const SYNC_KEY = "zcrypt-theme-sync";
+const CUSTOM_SYNC_DELAY_MS = 800;
+
+function isMode(value: unknown): value is Theme {
+  return value === "light" || value === "dark" || value === "system";
+}
+
+function currentUserId(): string | null {
+  return useAuthStore.getState().user?.id ?? null;
+}
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window === "undefined") return "dark";
@@ -94,17 +129,25 @@ function paintMode(resolved: ResolvedTheme) {
   if (root.dataset.theme === CUSTOM_COLOR_THEME) applyCustomThemeVars(loadCustomTheme(), resolved);
 }
 
-/** Fire-and-forget persist of the per-device preference to the server. No-op
- *  when unauthenticated (e.g. marketing visitors): localStorage still holds
- *  the choice locally. */
-function syncPreferenceToServer(colorTheme: string, mode: string) {
-  if (typeof window === "undefined") return;
-  if (!useAuthStore.getState().user) return;
-  saveDevicePreference({
+/** Save this device's look to the server; null when signed out or the save failed.
+ *  localStorage keeps the choice either way. */
+function syncPreferenceToServer(
+  colorTheme: string,
+  mode: string,
+  sync: boolean,
+  join = false,
+): Promise<DevicePreference | null> {
+  const userId = currentUserId();
+  if (!userId) return Promise.resolve(null);
+  localStorage.setItem(OWNER_KEY, userId);
+  return saveDevicePreference({
     device_id: getDeviceId(),
     color_theme: colorTheme,
     mode,
-  }).catch(() => {});
+    custom_theme: JSON.stringify(loadCustomTheme()),
+    sync,
+    join,
+  }).catch(() => null);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -113,8 +156,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [colorTheme, setColorThemeState] = useState<string>(DEFAULT_COLOR_THEME);
   const [customTheme, setCustomThemeState] = useState<CustomThemeValues>(DEFAULT_CUSTOM_THEME);
   const [mounted, setMounted] = useState(false);
-  const user = useAuthStore((s) => s.user);
-  const pulledRef = useRef(false);
+  const [syncTheme, setSyncThemeState] = useState(true);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const pulledFor = useRef<string | null>(null);
+  const syncRef = useRef(true);
+  const customTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(MODE_KEY) as Theme | null;
@@ -130,6 +176,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       : DEFAULT_COLOR_THEME;
     setColorThemeState(initialColor);
     setCustomThemeState(loadCustomTheme());
+    syncRef.current = localStorage.getItem(SYNC_KEY) !== "0";
+    setSyncThemeState(syncRef.current);
     // The inline no-flash script already applied this pre-paint; re-assert in
     // case storage was written by another tab since.
     applyColorTheme(initialColor);
@@ -160,39 +208,115 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener("change", handler);
   }, [theme]);
 
-  // Once authenticated, reconcile with the server's per-device preference.
-  // If the server has a saved row, it wins (this device's durable choice);
-  // if not, seed it from the current local choice. Runs at most once.
+  /** Show a theme that came from the server. The custom palette goes first,
+   *  since applying a "custom" color theme reads it back from storage. */
+  const applyPref = useCallback(
+    (pref: { color_theme?: string; mode?: string; custom_theme?: string }) => {
+      const custom = parseCustomTheme(pref.custom_theme);
+      if (custom) {
+        saveCustomTheme(custom);
+        setCustomThemeState(custom);
+      }
+      const color = pref.color_theme;
+      if (color && isValidColorTheme(color)) {
+        setColorThemeState(color);
+        localStorage.setItem(COLOR_THEME_KEY, color);
+        applyColorTheme(color);
+      }
+      if (isMode(pref.mode)) {
+        const resolved = resolveTheme(pref.mode);
+        setThemeState(pref.mode);
+        setResolvedTheme(resolved);
+        localStorage.setItem(MODE_KEY, pref.mode);
+        paintMode(resolved);
+      }
+    },
+    [],
+  );
+
+  const setSyncFlag = useCallback((on: boolean) => {
+    syncRef.current = on;
+    setSyncThemeState(on);
+    localStorage.setItem(SYNC_KEY, on ? "1" : "0");
+  }, []);
+
+  /** Load the signed-in account's theme for this device. An account with
+   *  nothing saved keeps what is on screen only when that look is already its
+   *  own, or nobody's yet; a theme left by another account is never handed
+   *  over, the account starts from the defaults instead. */
+  const pull = useCallback(
+    (uid: string, isCurrent: () => boolean) => {
+      getDevicePreference(getDeviceId())
+        .then((pref) => {
+          if (!isCurrent()) return;
+          setSyncFlag(pref.sync !== false);
+          const owner = localStorage.getItem(OWNER_KEY);
+          if (pref.saved) {
+            localStorage.setItem(OWNER_KEY, uid);
+            applyPref(pref);
+            return;
+          }
+          if (!owner || owner === uid) {
+            void syncPreferenceToServer(
+              localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
+              localStorage.getItem(MODE_KEY) || "system",
+              syncRef.current,
+              true,
+            ).then((saved) => {
+              if (saved && isCurrent()) applyPref(saved);
+            });
+            return;
+          }
+          localStorage.setItem(OWNER_KEY, uid);
+          clearCustomTheme();
+          setCustomThemeState(DEFAULT_CUSTOM_THEME);
+          applyPref({ color_theme: DEFAULT_COLOR_THEME, mode: "system" });
+        })
+        .catch(() => {});
+    },
+    [applyPref, setSyncFlag],
+  );
+
+  // Every time a different account signs in, even without a reload (switching
+  // accounts in the desktop app), load that account's own theme.
   useEffect(() => {
-    if (!mounted || !user || pulledRef.current) return;
-    pulledRef.current = true;
-    let cancelled = false;
-    getDevicePreference(getDeviceId())
-      .then((pref) => {
-        if (cancelled) return;
-        if (pref.saved) {
-          if (isValidColorTheme(pref.color_theme)) {
-            setColorThemeState(pref.color_theme);
-            localStorage.setItem(COLOR_THEME_KEY, pref.color_theme);
-            applyColorTheme(pref.color_theme);
-          }
-          if (pref.mode === "light" || pref.mode === "dark" || pref.mode === "system") {
-            setThemeState(pref.mode);
-            setResolvedTheme(resolveTheme(pref.mode));
-            localStorage.setItem(MODE_KEY, pref.mode);
-          }
-        } else {
-          syncPreferenceToServer(
-            localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
-            localStorage.getItem(MODE_KEY) || "system",
-          );
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [mounted, user]);
+    if (!mounted) return;
+    if (!userId) {
+      pulledFor.current = null;
+      return;
+    }
+    if (pulledFor.current === userId) return;
+    pulledFor.current = userId;
+    pull(userId, () => pulledFor.current === userId);
+  }, [mounted, userId, pull]);
+
+  const reloadPreference = useCallback(() => {
+    const uid = pulledFor.current;
+    if (uid) pull(uid, () => pulledFor.current === uid);
+  }, [pull]);
+
+  const applyRemotePreference = useCallback(
+    (pref: RemotePreference) => {
+      if (!syncRef.current || pref.device_id === getDeviceId()) return;
+      applyPref(pref);
+    },
+    [applyPref],
+  );
+
+  const setSyncTheme = useCallback(
+    (on: boolean) => {
+      setSyncFlag(on);
+      void syncPreferenceToServer(
+        localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
+        localStorage.getItem(MODE_KEY) || "system",
+        on,
+        on,
+      ).then((saved) => {
+        if (saved && on && syncRef.current) applyPref(saved);
+      });
+    },
+    [applyPref, setSyncFlag],
+  );
 
   /** Apply the mode to React state and <html> in one pass. resolvedTheme is
    *  set in the same update as theme so consumers render once per change; the
@@ -208,7 +332,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
    *  before any I/O runs. */
   const persistMode = useCallback((t: Theme) => {
     localStorage.setItem(MODE_KEY, t);
-    syncPreferenceToServer(localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME, t);
+    void syncPreferenceToServer(
+      localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
+      t,
+      syncRef.current,
+    );
   }, []);
 
   const setTheme = useCallback(
@@ -228,18 +356,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setColorThemeState(next);
     localStorage.setItem(COLOR_THEME_KEY, next);
     applyColorTheme(next);
-    syncPreferenceToServer(next, localStorage.getItem(MODE_KEY) || "system");
+    void syncPreferenceToServer(next, localStorage.getItem(MODE_KEY) || "system", syncRef.current);
   }, []);
 
-  // Custom colors are per-device only (no backend field for arbitrary hex
-  // values yet): persisted to localStorage, re-applied live only when
-  // "custom" is actually the active colorTheme so editing the draft never
-  // leaks into a currently-selected preset.
+  // Custom colors are re-applied live only when "custom" is the active
+  // colorTheme, so editing the draft never leaks into a selected preset. The
+  // server save waits for the picker to settle instead of firing on every drag.
   const setCustomTheme = useCallback(
     (values: CustomThemeValues) => {
       setCustomThemeState(values);
       saveCustomTheme(values);
       if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values, resolvedTheme);
+      if (customTimer.current) clearTimeout(customTimer.current);
+      customTimer.current = setTimeout(() => {
+        customTimer.current = null;
+        void syncPreferenceToServer(
+          localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
+          localStorage.getItem(MODE_KEY) || "system",
+          syncRef.current,
+        );
+      }, CUSTOM_SYNC_DELAY_MS);
     },
     [colorTheme, resolvedTheme],
   );
@@ -255,6 +391,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setColorTheme,
         customTheme,
         setCustomTheme,
+        syncTheme,
+        setSyncTheme,
+        reloadPreference,
+        applyRemotePreference,
       }}
     >
       {children}

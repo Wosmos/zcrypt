@@ -137,6 +137,10 @@ export interface DevicePreference {
   device_id: string;
   color_theme: string;
   mode: string;
+  /** The custom palette as JSON, "" when none was saved. */
+  custom_theme: string;
+  /** True when this device follows the account-wide theme. */
+  sync: boolean;
   updated_at: string;
   /** False when no row exists yet on the server (fields are then defaults). */
   saved: boolean;
@@ -150,6 +154,11 @@ export function saveDevicePreference(pref: {
   device_id: string;
   color_theme: string;
   mode: string;
+  custom_theme?: string;
+  /** Follow the account-wide theme. Defaults to true on the server. */
+  sync?: boolean;
+  /** Turning sync on: adopt the account theme if there is one instead of overwriting it. */
+  join?: boolean;
 }): Promise<DevicePreference> {
   return request<DevicePreference>(`/api/preferences`, {
     method: "PUT",

@@ -262,7 +262,7 @@
       "colorTheme": "Tema de color",
       "custom": "Personalizado",
       "customDesc": "Tu propio acento, color de lienzo y diseño de fondo",
-      "footnote": "Se aplica solo a la app y se configura por dispositivo. Claro y oscuro siguen el modo de arriba.",
+      "footnote": "Se aplica solo a la app. Claro y oscuro siguen el modo de arriba.",
       "footnoteCustom": "Los colores personalizados se quedan solo en este dispositivo.",
       "accent": "Acento",
       "canvas": "Lienzo",

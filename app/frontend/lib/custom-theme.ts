@@ -32,11 +32,10 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 const STORAGE_KEY = "zcrypt-custom-theme";
 
-export function loadCustomTheme(): CustomThemeValues {
-  if (typeof window === "undefined") return DEFAULT_CUSTOM_THEME;
+/** Read a stored or synced custom palette, or null when it is missing or malformed. */
+export function parseCustomTheme(raw: string | null | undefined): CustomThemeValues | null {
+  if (!raw) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CUSTOM_THEME;
     const parsed = JSON.parse(raw);
     if (HEX_RE.test(parsed?.accent) && HEX_RE.test(parsed?.bg)) {
       return {
@@ -47,9 +46,20 @@ export function loadCustomTheme(): CustomThemeValues {
       };
     }
   } catch {
-    // Corrupt/foreign value: fall through to the default.
+    return null;
   }
-  return DEFAULT_CUSTOM_THEME;
+  return null;
+}
+
+export function loadCustomTheme(): CustomThemeValues {
+  if (typeof window === "undefined") return DEFAULT_CUSTOM_THEME;
+  return parseCustomTheme(localStorage.getItem(STORAGE_KEY)) ?? DEFAULT_CUSTOM_THEME;
+}
+
+/** Forget the saved custom palette, e.g. when it belonged to another account. */
+export function clearCustomTheme() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 export function saveCustomTheme(values: CustomThemeValues) {

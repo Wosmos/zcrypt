@@ -26,6 +26,8 @@ import {
   DEFAULT_CUSTOM_THEME,
   loadCustomTheme,
   saveCustomTheme,
+  parseCustomTheme,
+  clearCustomTheme,
   applyCustomThemeVars,
   clearCustomThemeVars,
   designedMode,
@@ -36,6 +38,30 @@ import { contrastRatio, hexToOklch, oklchToHex } from "@/lib/color";
 import { APP_BACKGROUNDS } from "@/lib/app-backgrounds";
 
 const STORAGE_KEY = "zcrypt-custom-theme";
+
+describe("parseCustomTheme / clearCustomTheme", () => {
+  it("reads a synced palette and rejects anything malformed", () => {
+    expect(parseCustomTheme('{"accent":"#00ffaa","bg":"#101010","adapt":false}')).toEqual({
+      accent: "#00ffaa",
+      bg: "#101010",
+      background: undefined,
+      adapt: false,
+    });
+    expect(parseCustomTheme("")).toBeNull();
+    expect(parseCustomTheme(null)).toBeNull();
+    expect(parseCustomTheme("{oops")).toBeNull();
+    expect(parseCustomTheme('{"accent":"red","bg":"#101010"}')).toBeNull();
+  });
+
+  it("forgets the saved palette, and is a no-op without a window", () => {
+    localStorage.setItem(STORAGE_KEY, '{"accent":"#00ffaa","bg":"#101010"}');
+    clearCustomTheme();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    vi.stubGlobal("window", undefined);
+    expect(() => clearCustomTheme()).not.toThrow();
+    vi.unstubAllGlobals();
+  });
+});
 
 describe("loadCustomTheme / saveCustomTheme", () => {
   beforeEach(() => {
