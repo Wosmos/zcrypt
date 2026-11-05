@@ -1968,6 +1968,21 @@ describe("useUploadStore", () => {
       expect(useUploadStore.getState().getItemFolderId("nope")).toBeNull();
     });
 
+    it("files each item of a folder upload under its own folder, falling back to the batch folder", () => {
+      const inSub = makeFile("a.txt", 10);
+      const atRoot = makeFile("b.txt", 10);
+      useUploadStore
+        .getState()
+        .startUpload([inSub, atRoot], "pw", "telegram", undefined, undefined, "root-folder", (f) =>
+          f === inSub ? "sub-folder" : undefined,
+        );
+      const ids = useUploadStore.getState().queue.map((q) => q.id);
+      expect(ids.map((id) => useUploadStore.getState().getItemFolderId(id))).toEqual([
+        "sub-folder",
+        "root-folder",
+      ]);
+    });
+
     it("finds a queue item by its backend fileId once assigned", async () => {
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);

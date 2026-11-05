@@ -66,8 +66,10 @@
       "preparing": "Preparando tus archivos…",
       "dropToUpload": "Suelta para subir",
       "dropOrBrowse": "Suelta archivos aquí o haz clic para explorar",
+      "dropOrBrowseFolders": "Suelta archivos o carpetas aquí, o haz clic para buscar",
       "preparingHint": "Los vídeos grandes pueden tardar un minuto. Mantén esta página abierta",
-      "defaultHint": "Los archivos se comprimen, cifran y dividen en fragmentos antes de subirse"
+      "defaultHint": "Los archivos se comprimen, cifran y dividen en fragmentos antes de subirse",
+      "chooseFolder": "Subir una carpeta"
     },
     "firstTime": {
       "title": "Esta frase de contraseña es tu única llave",
@@ -886,7 +888,8 @@
       "bulkPartial": "{deleted} eliminados, {failed} fallidos",
       "bulkDeleted": "{count, plural, one {Se eliminó # archivo} other {Se eliminaron # archivos}}",
       "bulkDeleteFailed": "Error en la eliminación masiva",
-      "emptyFilesSkipped": "No se pueden subir archivos vacíos: {names}"
+      "emptyFilesSkipped": "No se pueden subir archivos vacíos: {names}",
+      "folderUploadFailed": "No se pudieron crear las carpetas para esta subida, así que no se subió nada. Inténtalo de nuevo."
     },
     "notifications": {
       "uploadComplete": "Subida completada",

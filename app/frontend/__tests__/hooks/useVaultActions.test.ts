@@ -223,6 +223,23 @@ vi.mock("@/hooks/useFolderProtection", () => ({
   },
 }));
 
+const { mockEnsureFolderTree, mockUserNameKey, mockInvalidateQueries } = vi.hoisted(() => ({
+  mockEnsureFolderTree: vi.fn(),
+  mockUserNameKey: vi.fn(),
+  mockInvalidateQueries: vi.fn(),
+}));
+
+vi.mock("@/lib/folder-upload", () => ({
+  ensureFolderTree: mockEnsureFolderTree,
+  pathKey: (dir: string[]) => dir.join("\u0000"),
+}));
+
+vi.mock("@/lib/sealed", () => ({ userNameKey: mockUserNameKey }));
+
+vi.mock("@/lib/query-client", () => ({
+  queryClient: { invalidateQueries: mockInvalidateQueries },
+}));
+
 // Imports AFTER the mocks so the module graph picks them up.
 import { OwnKeyMismatchError } from "@/lib/keys";
 import { useVaultActions } from "@/hooks/useVaultActions";
@@ -601,7 +618,8 @@ describe("handleFilesSelected", () => {
       undefined, // no platformOverride and selectedPlatform is null -> falls through to undefined
       undefined,
       args.refresh,
-      "folder-1"
+      "folder-1",
+      undefined
     );
   });
 
@@ -635,7 +653,8 @@ describe("handleFilesSelected", () => {
       "github",
       undefined,
       args.refresh,
-      null
+      null,
+      undefined
     );
   });
 });
@@ -671,7 +690,8 @@ describe("handleResumeIncomplete", () => {
       "github",
       undefined,
       args.refresh,
-      null
+      null,
+      undefined
     );
   });
 });
@@ -1817,5 +1837,146 @@ describe("Tauri desktop upload routing", () => {
     );
     expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
     await restoreWeb();
+  });
+});
+
+describe("handleFolderSelected", () => {
+  const sized = (name: string, size: number) => {
+    const f = new File(["x"], name);
+    Object.defineProperty(f, "size", { value: size });
+    return f;
+  };
+  const tree = (entries: [string[], string | null][]) =>
+    new Map(entries.map(([dir, id]) => [dir.join("\u0000"), id]));
+
+  beforeEach(() => {
+    mockUserNameKey.mockResolvedValue({} as CryptoKey);
+  });
+
+  it("does nothing past the quota gate when uploads are blocked", () => {
+    const args = makeArgs({ quotaInfo: makeQuota({ can_upload: false }) });
+    const { result } = renderHook(() => useVaultActions(args));
+    act(() => {
+      result.current.handleFolderSelected({ files: [{ file: sized("a.png", 5), dir: ["A"] }], dirs: [["A"]] });
+    });
+    expect(mockEnsureFolderTree).not.toHaveBeenCalled();
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("returns early when the pick holds only empty files and no folders", () => {
+    const vault = makeVault();
+    const { result } = renderHook(() => useVaultActions(makeArgs({ vault })));
+    act(() => {
+      result.current.handleFolderSelected({ files: [{ file: sized("empty.txt", 0), dir: [] }], dirs: [] });
+    });
+    expect(vault.withPassphrase).not.toHaveBeenCalled();
+  });
+
+  it("recreates the folders, then uploads every file into its own folder in one batch", async () => {
+    const top = sized("top.png", 5);
+    const deep = sized("deep.png", 6);
+    const loose = sized("loose.png", 7);
+    mockEnsureFolderTree.mockResolvedValue(
+      tree([
+        [[], "here"],
+        [["A"], "folder-a"],
+        [["A", "B"], "folder-b"],
+      ]),
+    );
+    const args = makeArgs({ currentFolderId: "here" });
+    const { result } = renderHook(() => useVaultActions(args));
+    act(() => {
+      result.current.handleFolderSelected({
+        files: [
+          { file: top, dir: ["A"] },
+          { file: deep, dir: ["A", "B"] },
+          { file: loose, dir: ["Unknown"] },
+        ],
+        dirs: [["A"], ["A", "B"]],
+      });
+    });
+    await waitFor(() => expect(mockUploadStoreState.startUpload).toHaveBeenCalledTimes(1));
+    expect(mockEnsureFolderTree).toHaveBeenCalledWith("here", [["A"], ["A", "B"]], expect.anything());
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["folders"] });
+    const call = mockUploadStoreState.startUpload.mock.calls[0];
+    expect(call[0]).toEqual([top, deep, loose]);
+    expect(call[1]).toBe("vault-pass");
+    expect(call[5]).toBe("here");
+    const folderOf = call[6] as (f: File) => string | null | undefined;
+    expect([top, deep, loose].map(folderOf)).toEqual(["folder-a", "folder-b", "here"]);
+  });
+
+  it("skips files already in their destination folder", async () => {
+    const existing = makeFile({ id: "e1", original_name: "dup.png", original_size: 5, folder_id: "folder-a" });
+    mockEnsureFolderTree.mockResolvedValue(tree([[["A"], "folder-a"]]));
+    const args = makeArgs({ files: [existing], vault: makeVault({ unlocked: true }) });
+    const { result } = renderHook(() => useVaultActions(args));
+    act(() => {
+      result.current.handleFolderSelected({ files: [{ file: sized("dup.png", 5), dir: ["A"] }], dirs: [["A"]] });
+    });
+    await waitFor(() =>
+      expect(mockToast.warning).toHaveBeenCalledWith(expect.stringContaining("Skipped 1 duplicate: dup.png")),
+    );
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("uploads into a protected folder under that folder's password, once it is unlocked", async () => {
+    mockEnsureFolderTree.mockResolvedValue(tree([[["Locked"], "locked-1"]]));
+    mockFolderRegistryState.isProtected.mockImplementation((id: string) => id === "locked-1");
+    mockFolderPasswordState.get.mockReturnValue("folder-pass");
+    const one = sized("one.png", 5);
+    const two = sized("two.png", 6);
+    const { result } = renderHook(() => useVaultActions(makeArgs()));
+    act(() => {
+      result.current.handleFolderSelected({
+        files: [
+          { file: one, dir: ["Locked"] },
+          { file: two, dir: ["Locked"] },
+        ],
+        dirs: [["Locked"]],
+      });
+    });
+    await waitFor(() => expect(mockUploadStoreState.startUpload).toHaveBeenCalledTimes(1));
+    const call = mockUploadStoreState.startUpload.mock.calls[0];
+    expect(call[0]).toEqual([one, two]);
+    expect(call[1]).toBe("folder-pass");
+    expect(call[5]).toBe("locked-1");
+  });
+
+  it("uploads nothing into a protected folder whose unlock was abandoned", async () => {
+    mockEnsureFolderTree.mockResolvedValue(tree([[["Locked"], "locked-1"]]));
+    mockFolderRegistryState.isProtected.mockReturnValue(true);
+    const folderProtection = makeFolderProtection();
+    const { result } = renderHook(() => useVaultActions(makeArgs({ folderProtection })));
+    act(() => {
+      result.current.handleFolderSelected({ files: [{ file: sized("a.png", 5), dir: ["Locked"] }], dirs: [["Locked"]] });
+    });
+    await waitFor(() => expect(folderProtection.withFolderPassword).toHaveBeenCalled());
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+  });
+
+  it("asks to unlock when the name key is missing", async () => {
+    mockUserNameKey.mockResolvedValue(null);
+    const { result } = renderHook(() => useVaultActions(makeArgs()));
+    act(() => {
+      result.current.handleFolderSelected({ files: [], dirs: [["A"]] });
+    });
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith("Unlock your vault to create folders"));
+    expect(mockEnsureFolderTree).not.toHaveBeenCalled();
+  });
+
+  it("uploads nothing when the folders can't be created", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockEnsureFolderTree.mockRejectedValue(new Error("500"));
+    const { result } = renderHook(() => useVaultActions(makeArgs()));
+    act(() => {
+      result.current.handleFolderSelected({ files: [{ file: sized("a.png", 5), dir: ["A"] }], dirs: [["A"]] });
+    });
+    await waitFor(() =>
+      expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining("Couldn't create the folders")),
+    );
+    expect(mockInvalidateQueries).toHaveBeenCalled();
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+    err.mockRestore();
   });
 });

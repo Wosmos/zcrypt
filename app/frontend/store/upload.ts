@@ -224,6 +224,8 @@ interface UploadStore {
     maxConcurrent?: number,
     onRefresh?: () => void | Promise<void>,
     folderId?: string | null,
+    /** Per-file destination for a folder upload; files it returns undefined for go to `folderId`. */
+    folderOf?: (file: File) => string | null | undefined,
   ) => void;
   retryUpload: (id: string, passphrase: string) => void;
   pauseUpload: (id: string) => void; // aborts in-flight chunks; preserves resume context (does NOT cancel session)
@@ -1575,7 +1577,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
   getItemFolderId: (id) => itemMeta.get(id)?.folderId ?? null,
 
-  startUpload: (files, passphrase, platform, maxConcurrent, onRefresh, folderId = null) => {
+  startUpload: (
+    files,
+    passphrase,
+    platform,
+    maxConcurrent,
+    onRefresh,
+    folderId = null,
+    folderOf,
+  ) => {
     const { addBatchToQueue } = get();
     const profile = getDeviceProfile();
 
@@ -1622,7 +1632,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // switching platforms. `folderId` is the destination folder (the current
     // explorer folder); for a protected folder `passphrase` is the folder password.
     for (const it of items) {
-      itemMeta.set(it.id, { platform, onRefresh, folderId });
+      const dest = folderOf?.(it.file);
+      itemMeta.set(it.id, { platform, onRefresh, folderId: dest === undefined ? folderId : dest });
     }
 
     // Semaphore-based concurrency limiter

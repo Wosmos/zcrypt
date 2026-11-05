@@ -66,8 +66,10 @@
       "preparing": "Deine Dateien werden vorbereitet…",
       "dropToUpload": "Zum Hochladen loslassen",
       "dropOrBrowse": "Dateien hierher ziehen oder klicken, um zu durchsuchen",
+      "dropOrBrowseFolders": "Dateien oder Ordner hier ablegen oder klicken, um auszuwählen",
       "preparingHint": "Große Videos können eine Minute dauern. Lass diese Seite geöffnet",
-      "defaultHint": "Dateien werden vor dem Hochladen komprimiert, verschlüsselt und in Blöcke aufgeteilt"
+      "defaultHint": "Dateien werden vor dem Hochladen komprimiert, verschlüsselt und in Blöcke aufgeteilt",
+      "chooseFolder": "Ordner hochladen"
     },
     "firstTime": {
       "title": "Diese Passphrase ist dein einziger Schlüssel",
@@ -886,7 +888,8 @@
       "bulkPartial": "{deleted} gelöscht, {failed} fehlgeschlagen",
       "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
       "bulkDeleteFailed": "Massenlöschung fehlgeschlagen",
-      "emptyFilesSkipped": "Leere Dateien können nicht hochgeladen werden: {names}"
+      "emptyFilesSkipped": "Leere Dateien können nicht hochgeladen werden: {names}",
+      "folderUploadFailed": "Die Ordner für diesen Upload konnten nicht erstellt werden, daher wurde nichts hochgeladen. Versuche es erneut."
     },
     "notifications": {
       "uploadComplete": "Upload abgeschlossen",

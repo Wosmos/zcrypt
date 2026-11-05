@@ -2,12 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState, DragEvent } from "react";
 import { useTranslations } from "next-intl";
-import { FileUpload, Cloud, Loader2 } from "@/lib/icons";
+import { FileUpload, Cloud, Folder, Loader2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
+import { Button } from "@/components/ui/button";
+import { detectDevice } from "@/components/marketing/download/download-cta";
+import {
+  droppedEntries,
+  pickFromDirectoryInput,
+  walkEntries,
+  type FolderPick,
+} from "@/lib/folder-upload";
 
 interface UploadZoneProps {
   onFiles: (files: File[]) => void;
+  /** Accept whole folders, by drop or the folder button. Browser only. */
+  onFolder?: (pick: FolderPick) => void;
   hint?: string;
   compact?: boolean;
 }
@@ -19,7 +29,8 @@ function supportsCancelEvent(): boolean {
   return typeof HTMLInputElement !== "undefined" && "oncancel" in HTMLInputElement.prototype;
 }
 
-export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
+export function UploadZone({ onFiles, onFolder, hint, compact }: UploadZoneProps) {
+  const acceptsFolders = onFolder != null && !isTauri && detectDevice() !== "ios";
   const t = useTranslations("app.uploadZone");
   const [dragOver, setDragOver] = useState(false);
 
@@ -41,6 +52,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   // DOM. WebKit could garbage-collect it while the picker was open, so
   // onchange never fired and selecting 10-50 photos did nothing.
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const clearPreparing = useCallback(() => {
     preparingRef.current = false;
@@ -56,10 +68,20 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     (e: DragEvent) => {
       e.preventDefault();
       setDragOver(false);
+      const entries = acceptsFolders ? droppedEntries(e.dataTransfer) : null;
+      if (entries && onFolder) {
+        preparingRef.current = true;
+        setPreparing(true);
+        void walkEntries(entries)
+          .then(onFolder)
+          .catch((err) => console.error("Reading the dropped folder failed", err))
+          .finally(clearPreparing);
+        return;
+      }
       const files = Array.from(e.dataTransfer.files);
       if (files.length > 0) onFiles(files);
     },
-    [onFiles],
+    [onFiles, onFolder, acceptsFolders, clearPreparing],
   );
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -113,15 +135,37 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     [onFiles, clearPreparing],
   );
 
+  const handleFolderClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pickerOpenRef.current) return;
+    preparingRef.current = true;
+    pickerOpenRef.current = true;
+    setPreparing(true);
+    folderInputRef.current?.click();
+  }, []);
+
+  const handleFolderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      clearPreparing();
+      const files = e.target.files;
+      if (files && files.length > 0) onFolder?.(pickFromDirectoryInput(files));
+      e.target.value = "";
+    },
+    [onFolder, clearPreparing],
+  );
+
   // Picker dismissed without a selection: modern browsers (iOS 16.4+) fire a
   // "cancel" event on the input. React has no onCancel prop for inputs, so we
   // attach it natively.
   useEffect(() => {
-    const input = inputRef.current;
-    if (!input) return;
+    const inputs = [inputRef.current, folderInputRef.current].filter(
+      (el): el is HTMLInputElement => el != null,
+    );
     const onCancel = () => clearPreparing();
-    input.addEventListener("cancel", onCancel);
-    return () => input.removeEventListener("cancel", onCancel);
+    for (const input of inputs) input.addEventListener("cancel", onCancel);
+    return () => {
+      for (const input of inputs) input.removeEventListener("cancel", onCancel);
+    };
   }, [clearPreparing]);
 
   // When the picker closes, the phone may still spend a minute or more
@@ -174,6 +218,19 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
       )}
     >
       <input ref={inputRef} type="file" multiple onChange={handleChange} className="hidden" />
+      {acceptsFolders && (
+        <input
+          ref={(el) => {
+            folderInputRef.current = el;
+            el?.setAttribute("webkitdirectory", "");
+          }}
+          type="file"
+          multiple
+          onChange={handleFolderChange}
+          onClick={(e) => e.stopPropagation()}
+          className="hidden"
+        />
+      )}
 
       <div
         className={cn(
@@ -201,12 +258,31 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
             dragOver ? "text-[var(--color-accent)]" : "",
           )}
         >
-          {preparing ? t("preparing") : dragOver ? t("dropToUpload") : t("dropOrBrowse")}
+          {preparing
+            ? t("preparing")
+            : dragOver
+              ? t("dropToUpload")
+              : acceptsFolders
+                ? t("dropOrBrowseFolders")
+                : t("dropOrBrowse")}
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
           {preparing ? t("preparingHint") : hint || t("defaultHint")}
         </p>
       </div>
+
+      {acceptsFolders && !preparing && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={handleFolderClick}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Folder className="h-4 w-4" />
+          {t("chooseFolder")}
+        </Button>
+      )}
     </div>
   );
 }

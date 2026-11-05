@@ -66,8 +66,10 @@
       "preparing": "Preparing your files…",
       "dropToUpload": "Drop to upload",
       "dropOrBrowse": "Drop files here or click to browse",
+      "dropOrBrowseFolders": "Drop files or folders here, or click to browse",
       "preparingHint": "Large videos can take a minute. Keep this page open",
-      "defaultHint": "Files are compressed, encrypted, and chunked before upload"
+      "defaultHint": "Files are compressed, encrypted, and chunked before upload",
+      "chooseFolder": "Upload a folder"
     },
     "firstTime": {
       "title": "This passphrase is your only key",
@@ -886,7 +888,8 @@
       "bulkPartial": "{deleted} deleted, {failed} failed",
       "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
       "bulkDeleteFailed": "Bulk delete failed",
-      "emptyFilesSkipped": "Empty files can't be uploaded: {names}"
+      "emptyFilesSkipped": "Empty files can't be uploaded: {names}",
+      "folderUploadFailed": "Couldn't create the folders for this upload, so nothing was uploaded. Try again."
     },
     "notifications": {
       "uploadComplete": "Upload complete",

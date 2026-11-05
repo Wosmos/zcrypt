@@ -18,6 +18,7 @@ import { VaultLockOverlay } from "@/components/vault/vault-lock-overlay";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
 
 import { UploadZone } from "@/components/upload/upload-zone";
+import { droppedEntries, walkEntries, type FolderPick } from "@/lib/folder-upload";
 import { PlatformSelector } from "@/components/upload/platform-selector";
 import { IncompleteUploads } from "@/components/upload/incomplete-uploads";
 import { SharedStorageBanner } from "@/components/dashboard/shared-storage-banner";
@@ -44,7 +45,7 @@ import { useQuota } from "@/hooks/useQuota";
 import { useFeedbackTrigger } from "@/hooks/useFeedbackTrigger";
 import { useVaultActions } from "@/hooks/useVaultActions";
 import { useAndroidShare } from "@/hooks/useAndroidShare";
-import { toDesktopFile } from "@/lib/tauri";
+import { isTauri, toDesktopFile } from "@/lib/tauri";
 import { useFolderProtection } from "@/hooks/useFolderProtection";
 import { useFileDecryptor } from "@/hooks/useFileDecryptor";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
@@ -402,6 +403,14 @@ export default function VaultPage() {
     [actions],
   );
 
+  const handleDialogFolder = useCallback(
+    (pick: FolderPick) => {
+      setUploadOpen(false);
+      actions.handleFolderSelected(pick);
+    },
+    [actions],
+  );
+
   const handleSharedFiles = useCallback(
     (paths: string[]) => actions.handleFilesSelected(paths.map(toDesktopFile)),
     [actions],
@@ -415,6 +424,13 @@ export default function VaultPage() {
       setDragActive(false);
       if (e.defaultPrevented) return;
       e.preventDefault();
+      const entries = isTauri ? null : droppedEntries(e.dataTransfer);
+      if (entries) {
+        void walkEntries(entries)
+          .then(actions.handleFolderSelected)
+          .catch((err) => console.error("Reading the dropped folder failed", err));
+        return;
+      }
       const dropped = Array.from(e.dataTransfer.files);
       if (dropped.length > 0) actions.handleFilesSelected(dropped);
     },
@@ -690,7 +706,11 @@ export default function VaultPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <UploadZone onFiles={handleDialogFiles} hint={uploadHint} />
+            <UploadZone
+              onFiles={handleDialogFiles}
+              onFolder={handleDialogFolder}
+              hint={uploadHint}
+            />
             <PlatformSelector
               statuses={statuses}
               selected={selectedPlatform}

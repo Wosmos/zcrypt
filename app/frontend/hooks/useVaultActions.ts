@@ -28,6 +28,9 @@ import { toast } from "@/store/toast";
 import { useConnectStorage } from "@/store/connect-storage";
 import { formatBytes } from "@/lib/utils";
 import { useFolderRegistry } from "@/store/folder-registry";
+import { ensureFolderTree, pathKey, type FolderPick } from "@/lib/folder-upload";
+import { userNameKey } from "@/lib/sealed";
+import { queryClient } from "@/lib/query-client";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { IncorrectPassphraseError } from "@/lib/crypto";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
@@ -74,9 +77,37 @@ function desktopPath(file: File): string | undefined {
   return (file as { path?: string }).path;
 }
 
+function skipEmptyFiles(selected: File[]): File[] {
+  const nonEmpty = selected.filter((f) => f.size > 0 || desktopPath(f));
+  if (nonEmpty.length < selected.length) {
+    const empty = selected.filter((f) => !nonEmpty.includes(f));
+    const shown = empty
+      .slice(0, 3)
+      .map((f) => f.name)
+      .join(", ");
+    toast.warning(
+      tr("hooks.emptyFilesSkipped", {
+        names: empty.length > 3 ? `${shown} +${empty.length - 3}` : shown,
+      }),
+    );
+  }
+  return nonEmpty;
+}
+
+function warnDupes(dupes: string[]): void {
+  if (dupes.length === 0) return;
+  const names =
+    dupes.length <= 3
+      ? dupes.join(", ")
+      : tr("hooks.dupesMore", { names: dupes.slice(0, 3).join(", "), more: dupes.length - 3 });
+  toast.warning(tr("hooks.skippedDupes", { count: dupes.length, names }));
+}
+
 export interface VaultActions {
   /** Upload entry point: dupe detection + quota guard + vault unlock. */
   handleFilesSelected: (selectedFiles: File[]) => void;
+  /** Upload a picked or dropped folder, recreating its folders inside the current one. */
+  handleFolderSelected: (pick: FolderPick) => void;
   /** Resume an unfinished upload from the banner, pinned to the ORIGINAL
    *  session's platform (the already-uploaded chunks live there). */
   handleResumeIncomplete: (file: File, upload: IncompleteUpload) => void;
@@ -217,6 +248,7 @@ export function useVaultActions({
       wrapPassphrase: string,
       folderId: string | null,
       platformOverride?: string,
+      folderOf?: (file: File) => string | null | undefined,
     ) => {
       // Desktop: native picker + sidecar (no browser File data transfer).
       // `uploadFiles` here are the SAME `DesktopFile`s the dropzone already
@@ -257,9 +289,43 @@ export function useVaultActions({
         maxConcurrent,
         refresh,
         folderId,
+        folderOf,
       );
     },
     [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo],
+  );
+
+  const uploadBlocked = useCallback((): boolean => {
+    if (quotaInfo && !quotaInfo.can_upload) {
+      toast.warning(tr("hooks.noPlatform"));
+      useConnectStorage.getState().show();
+      return true;
+    }
+    const sharedFull =
+      quotaInfo &&
+      !quotaInfo.has_personal_key &&
+      !quotaInfo.is_unlimited &&
+      quotaInfo.quota_bytes > 0 &&
+      quotaInfo.used_bytes >= quotaInfo.quota_bytes;
+    if (sharedFull) {
+      useConnectStorage.getState().show();
+      return true;
+    }
+    return false;
+  }, [quotaInfo]);
+
+  const isDuplicate = useCallback(
+    (f: File, folderId: string | null): boolean => {
+      if (!vault.unlocked) return false;
+      const name = f.name.normalize("NFC");
+      return files.some(
+        (existing) =>
+          (existing.folder_id ?? null) === folderId &&
+          existing.original_name.normalize("NFC") === name &&
+          existing.original_size === f.size,
+      );
+    },
+    [files, vault.unlocked],
   );
 
   const handleFilesSelected = useCallback(
@@ -269,65 +335,19 @@ export function useVaultActions({
       // this toast is the first visible proof that the tap worked and the
       // batch is in hand, so users stop re-tapping the picker.
       toast.info(tr("hooks.preparingFiles", { count: selectedFiles.length }));
+      if (uploadBlocked()) return;
 
-      // Managed storage / personal tokens must be available.
-      if (quotaInfo && !quotaInfo.can_upload) {
-        toast.warning(tr("hooks.noPlatform"));
-        useConnectStorage.getState().show();
-        return;
-      }
-
-      const sharedFull =
-        quotaInfo &&
-        !quotaInfo.has_personal_key &&
-        !quotaInfo.is_unlimited &&
-        quotaInfo.quota_bytes > 0 &&
-        quotaInfo.used_bytes >= quotaInfo.quota_bytes;
-      if (sharedFull) {
-        useConnectStorage.getState().show();
-        return;
-      }
-
-      const nonEmpty = selectedFiles.filter((f) => f.size > 0 || desktopPath(f));
-      if (nonEmpty.length < selectedFiles.length) {
-        const empty = selectedFiles.filter((f) => !nonEmpty.includes(f));
-        const shown = empty
-          .slice(0, 3)
-          .map((f) => f.name)
-          .join(", ");
-        toast.warning(
-          tr("hooks.emptyFilesSkipped", {
-            names: empty.length > 3 ? `${shown} +${empty.length - 3}` : shown,
-          }),
-        );
-        if (nonEmpty.length === 0) return;
-      }
+      const nonEmpty = skipEmptyFiles(selectedFiles);
+      if (nonEmpty.length === 0) return;
 
       const destFolderId = currentFolderId;
       const dupes: string[] = [];
       const uniqueFiles = nonEmpty.filter((f) => {
-        if (!vault.unlocked) return true;
-        const name = f.name.normalize("NFC");
-        const exists = files.some(
-          (existing) =>
-            (existing.folder_id ?? null) === destFolderId &&
-            existing.original_name.normalize("NFC") === name &&
-            existing.original_size === f.size,
-        );
+        const exists = isDuplicate(f, destFolderId);
         if (exists) dupes.push(f.name);
         return !exists;
       });
-
-      if (dupes.length > 0) {
-        const names =
-          dupes.length <= 3
-            ? dupes.join(", ")
-            : tr("hooks.dupesMore", {
-                names: dupes.slice(0, 3).join(", "),
-                more: dupes.length - 3,
-              });
-        toast.warning(tr("hooks.skippedDupes", { count: dupes.length, names }));
-      }
+      warnDupes(dupes);
 
       if (uniqueFiles.length === 0) return;
 
@@ -357,8 +377,78 @@ export function useVaultActions({
       });
     },
     [
-      quotaInfo,
-      files,
+      uploadBlocked,
+      isDuplicate,
+      vault,
+      startUpload,
+      currentFolderId,
+      folderProtection,
+      thumbnailResolver,
+      fileById,
+    ],
+  );
+
+  const handleFolderSelected = useCallback(
+    (pick: FolderPick) => {
+      toast.info(tr("hooks.preparingFiles", { count: pick.files.length }));
+      if (uploadBlocked()) return;
+
+      const kept = new Set(skipEmptyFiles(pick.files.map((e) => e.file)));
+      const entries = pick.files.filter((e) => kept.has(e.file));
+      if (entries.length === 0 && pick.dirs.length === 0) return;
+      const rootId = currentFolderId;
+
+      vault.withPassphrase((passphrase) => {
+        void (async () => {
+          const key = await userNameKey();
+          if (!key) {
+            toast.error(tr("hooks.unlockCreateFolders"));
+            return;
+          }
+          let ids: Map<string, string | null>;
+          try {
+            ids = await ensureFolderTree(rootId, pick.dirs, key);
+          } catch (err) {
+            console.error("Folder upload: creating folders failed", err);
+            toast.error(tr("hooks.folderUploadFailed"));
+            return;
+          } finally {
+            void queryClient.invalidateQueries({ queryKey: ["folders"] });
+          }
+
+          const destOf = new Map<File, string | null>();
+          const plain: File[] = [];
+          const locked = new Map<string, File[]>();
+          const dupes: string[] = [];
+          for (const { file, dir } of entries) {
+            const dest = ids.get(pathKey(dir)) ?? rootId;
+            if (isDuplicate(file, dest)) {
+              dupes.push(file.name);
+            } else if (dest && useFolderRegistry.getState().isProtected(dest)) {
+              locked.set(dest, [...(locked.get(dest) ?? []), file]);
+            } else {
+              destOf.set(file, dest);
+              plain.push(file);
+            }
+          }
+          warnDupes(dupes);
+
+          if (plain.length > 0) {
+            primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
+            startUpload(plain, passphrase, rootId, undefined, (f) => destOf.get(f));
+          }
+          for (const [dest, group] of locked) {
+            folderProtection.withFolderPassword(dest, "this folder", () => {
+              const folderPw = useFolderPasswordStore.getState().get(dest);
+              if (folderPw) startUpload(group, folderPw, dest);
+            });
+          }
+        })();
+      });
+    },
+    [
+      uploadBlocked,
+      isDuplicate,
       vault,
       startUpload,
       currentFolderId,
@@ -724,6 +814,7 @@ export function useVaultActions({
 
   return {
     handleFilesSelected,
+    handleFolderSelected,
     handleResumeIncomplete,
     handleDownload,
     handlePreview,

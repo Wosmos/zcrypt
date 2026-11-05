@@ -66,8 +66,10 @@
       "preparing": "Préparation de vos fichiers…",
       "dropToUpload": "Déposez pour envoyer",
       "dropOrBrowse": "Déposez des fichiers ici ou cliquez pour parcourir",
+      "dropOrBrowseFolders": "Déposez des fichiers ou des dossiers ici, ou cliquez pour parcourir",
       "preparingHint": "Les grandes vidéos peuvent prendre une minute. Gardez cette page ouverte",
-      "defaultHint": "Les fichiers sont compressés, chiffrés et découpés avant l'envoi"
+      "defaultHint": "Les fichiers sont compressés, chiffrés et découpés avant l'envoi",
+      "chooseFolder": "Importer un dossier"
     },
     "firstTime": {
       "title": "Cette phrase secrète est votre seule clé",
@@ -886,7 +888,8 @@
       "bulkPartial": "{deleted} supprimés, {failed} échoués",
       "bulkDeleted": "{count, plural, one {# fichier supprimé} other {# fichiers supprimés}}",
       "bulkDeleteFailed": "Échec de la suppression groupée",
-      "emptyFilesSkipped": "Les fichiers vides ne peuvent pas être importés : {names}"
+      "emptyFilesSkipped": "Les fichiers vides ne peuvent pas être importés : {names}",
+      "folderUploadFailed": "Impossible de créer les dossiers de cet import, rien n'a donc été importé. Réessayez."
     },
     "notifications": {
       "uploadComplete": "Envoi terminé",

@@ -66,8 +66,10 @@
       "preparing": "جارٍ تجهيز ملفاتك…",
       "dropToUpload": "أفلت للرفع",
       "dropOrBrowse": "أفلت الملفات هنا أو انقر للاستعراض",
+      "dropOrBrowseFolders": "أفلت الملفات أو المجلدات هنا، أو انقر للتصفح",
       "preparingHint": "قد تستغرق الفيديوهات الكبيرة دقيقة. أبقِ هذه الصفحة مفتوحة",
-      "defaultHint": "تُضغط الملفات وتُشفَّر وتُقسَّم قبل الرفع"
+      "defaultHint": "تُضغط الملفات وتُشفَّر وتُقسَّم قبل الرفع",
+      "chooseFolder": "رفع مجلد"
     },
     "firstTime": {
       "title": "عبارة المرور هذه هي مفتاحك الوحيد",
@@ -886,7 +888,8 @@
       "bulkPartial": "حُذف {deleted} وفشل {failed}",
       "bulkDeleted": "{count, plural, one {تم حذف ملف واحد} two {تم حذف ملفين} few {تم حذف # ملفات} many {تم حذف # ملفًا} other {تم حذف # ملف}}",
       "bulkDeleteFailed": "فشل الحذف الجماعي",
-      "emptyFilesSkipped": "لا يمكن رفع الملفات الفارغة: {names}"
+      "emptyFilesSkipped": "لا يمكن رفع الملفات الفارغة: {names}",
+      "folderUploadFailed": "تعذّر إنشاء المجلدات لهذا الرفع، لذلك لم يُرفع أي شيء. حاول مرة أخرى."
     },
     "notifications": {
       "uploadComplete": "اكتمل الرفع",

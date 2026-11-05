@@ -66,8 +66,10 @@
       "preparing": "正在准备你的文件…",
       "dropToUpload": "松开即可上传",
       "dropOrBrowse": "将文件拖放到此处或点击浏览",
+      "dropOrBrowseFolders": "将文件或文件夹拖放到此处，或点击浏览",
       "preparingHint": "大视频可能需要一分钟。请保持此页面打开",
-      "defaultHint": "文件在上传前会被压缩、加密并分块"
+      "defaultHint": "文件在上传前会被压缩、加密并分块",
+      "chooseFolder": "上传文件夹"
     },
     "firstTime": {
       "title": "这个口令是你唯一的密钥",
@@ -886,7 +888,8 @@
       "bulkPartial": "已删除 {deleted} 个，{failed} 个失败",
       "bulkDeleted": "已删除 {count} 个文件",
       "bulkDeleteFailed": "批量删除失败",
-      "emptyFilesSkipped": "无法上传空文件：{names}"
+      "emptyFilesSkipped": "无法上传空文件：{names}",
+      "folderUploadFailed": "无法为此次上传创建文件夹，因此未上传任何内容。请重试。"
     },
     "notifications": {
       "uploadComplete": "上传完成",
