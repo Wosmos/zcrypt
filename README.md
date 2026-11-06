@@ -17,6 +17,8 @@ Your files are split into chunks, and each chunk is compressed and encrypted, _o
 ## Table of contents
 
 - [What zcrypt is](#what-zcrypt-is)
+
+[![zcrypt on StartupScores](https://startupscores.com/badge/zcrypt.svg?style=shield&v=combo&theme=dark)](https://startupscores.com/open-source/zcrypt)
 - [How it works](#how-it-works)
 - [Architecture](#architecture)
 - [Clients](#clients)
