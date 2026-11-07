@@ -1,38 +1,9 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-
-/**
- * Superellipse (squircle) clip path using SVG.
- * Works in all browsers/WebViews: no corner-shape required.
- * n=5 matches the iOS icon shape.
- */
-function SquircleClipPath({ id, size }: { id: string; size: number }) {
-  const n = 5;
-  const steps = 120;
-  const r = size / 2;
-  const points: string[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const angle = (2 * Math.PI * i) / steps;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const x = r + r * Math.sign(cos) * Math.pow(Math.abs(cos), 2 / n);
-    const y = r + r * Math.sign(sin) * Math.pow(Math.abs(sin), 2 / n);
-    points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-  }
-  return (
-    <svg width="0" height="0" style={{ position: "absolute" }}>
-      <defs>
-        <clipPath id={id} clipPathUnits="userSpaceOnUse">
-          <polygon points={points.join(" ")} />
-        </clipPath>
-      </defs>
-    </svg>
-  );
-}
 
 /**
  * 3D overlap-planes icon rendered with CSS perspective transforms.
@@ -48,7 +19,6 @@ function LogoIcon({
   hover?: boolean;
   className?: string;
 }) {
-  const uid = useId().replace(/:/g, "");
   const [isHovered, setIsHovered] = useState(false);
   const active = hover && isHovered;
 
@@ -56,8 +26,6 @@ function LogoIcon({
   const tz = Math.max(3, Math.round(size * 0.09));
   const hoverTz = Math.max(1, Math.round(tz * 0.25));
   const ease = "all 0.5s cubic-bezier(0.33, 1, 0.68, 1)";
-  const clipId = `sq-${uid}`;
-  const clipUrl = `url(#${clipId})`;
 
   return (
     <span
@@ -67,9 +35,6 @@ function LogoIcon({
       onMouseEnter={() => hover && setIsHovered(true)}
       onMouseLeave={() => hover && setIsHovered(false)}
     >
-      {/* Shared squircle clip definition */}
-      <SquircleClipPath id={clipId} size={plane} />
-
       {/* Soft shadow */}
       <span
         className="absolute"
@@ -87,13 +52,12 @@ function LogoIcon({
 
       {/* Back plane, darker teal */}
       <span
-        className="absolute"
+        className="absolute clip-squircle"
         style={{
           width: plane,
           height: plane,
           top: active ? Math.round(size * 0.11) : Math.round(size * 0.04),
           left: active ? Math.round(size * 0.11) : 0,
-          clipPath: clipUrl,
           background: "linear-gradient(145deg, #008a97, #006d77)",
           boxShadow: "-2px 3px 10px rgba(0,0,0,0.5)",
           transform: active
@@ -105,13 +69,12 @@ function LogoIcon({
 
       {/* Front plane, brand cyan */}
       <span
-        className="absolute flex items-center justify-center overflow-hidden"
+        className="absolute clip-squircle flex items-center justify-center overflow-hidden"
         style={{
           width: plane,
           height: plane,
           top: active ? Math.round(size * 0.16) : Math.round(size * 0.21),
           left: active ? Math.round(size * 0.25) : Math.round(size * 0.33),
-          clipPath: clipUrl,
           background: "linear-gradient(145deg, #00e8f8, #00c5d4)",
           boxShadow: active
             ? "-8px 8px 30px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.2) inset, 0 0 20px rgba(0,213,228,0.15)"
