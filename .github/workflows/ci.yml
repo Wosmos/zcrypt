@@ -204,6 +204,10 @@ jobs:
         working-directory: app/frontend
         run: bun run build
 
+      - name: Vercel cost guard (no per-URL ISR, page weight)
+        working-directory: app/frontend
+        run: node ../../scripts/check-vercel-cost.mjs
+
   # ── Hardening: new-code-only checks, diff-scoped ─────────────────────────────
   # Fails only on problems the change introduces: oxlint warnings and copy-paste
   # in the changed files, new golangci findings, and repo-wide duplication
