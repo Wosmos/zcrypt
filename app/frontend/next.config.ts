@@ -51,10 +51,14 @@ const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "" },
   reactCompiler: true,
   turbopack: {},
-  pageExtensions:
-    process.env.NODE_ENV === "production"
-      ? ["tsx", "ts", "jsx", "js"]
-      : ["dev.tsx", "tsx", "ts", "jsx", "js"],
+  pageExtensions: [
+    ...(process.env.NODE_ENV === "production" ? [] : ["dev.tsx"]),
+    isTauriExport ? "export.tsx" : "web.tsx",
+    "tsx",
+    "ts",
+    "jsx",
+    "js",
+  ],
   // Zero-knowledge: every image the app renders is a client-side blob: object
   // URL or a canvas-generated data: URI holding DECRYPTED plaintext. The Vercel
   // image optimizer can neither fetch those (they only exist in the browser) nor

@@ -7,8 +7,9 @@ import { tr } from "@/store/translate";
 // one concrete param per dynamic segment; an empty array is rejected with
 // "missing generateStaticParams()". These share pages are fully client-rendered
 // (token read from the URL at runtime) and are stripped from the desktop bundle
-// anyway, so a single throwaway shell satisfies the export. On the web build
-// (no export) the route stays fully dynamic, dynamicParams defaults to true.
+// anyway, so a single throwaway shell satisfies the export. Only the export
+// build's `layout.export.tsx` exports it: on Vercel any generateStaticParams
+// stores every distinct token URL as its own ISR page.
 const TOKEN_STATIC_PARAMS = [{ token: "placeholder" }];
 
 export function generateStaticParams() {
