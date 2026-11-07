@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
+      backend_deploy: ${{ steps.filter.outputs.backend_deploy }}
       frontend: ${{ steps.filter.outputs.frontend }}
       desktop: ${{ steps.filter.outputs.desktop }}
       core: ${{ steps.filter.outputs.core }}
@@ -40,6 +41,9 @@ jobs:
               # This file defines the deploy, so a change to it has to be able
               # to exercise the path it just changed.
               - '.github/workflows/ci.yml'
+            backend_deploy:
+              - 'app/backend/**'
+              - 'Dockerfile'
             frontend:
               - 'app/frontend/**'
               - 'tests/e2e/**'
@@ -446,7 +450,7 @@ jobs:
   verify-backend-deploy:
     name: Verify Backend Deploy (Railway)
     needs: [changes, backend, backend-integration]
-    if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: needs.changes.outputs.backend_deploy == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       # Railway injects RAILWAY_GIT_COMMIT_SHA into every deployment it builds
