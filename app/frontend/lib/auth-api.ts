@@ -9,12 +9,40 @@ import { API_BASE } from "@/lib/config";
 // importing it from "@/lib/auth-api".
 export type { AuditEvent };
 
+// The calls that read the session cookie. On the web they go through the
+// site's own origin (its /api proxy), so the cookie is first-party: browsers
+// block or drop a cookie the API host sets while the page is on another site.
+const SESSION_COOKIE_PATHS = new Set(["/api/auth/refresh", "/api/auth/logout"]);
+
+function authBase(path: string): string {
+  return !isTauri && SESSION_COOKIE_PATHS.has(path) ? "" : API_BASE;
+}
+
+/** Re-issues a refresh token through the site's own origin so the session
+ *  cookie lands there, returning the new pair, or null when that failed. */
+async function plantSessionCookie(
+  refresh_token: string,
+): Promise<{ access_token: string; refresh_token: string } | null> {
+  try {
+    const res = await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token }),
+    });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
+  const base = authBase(path);
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${base}${path}`, {
       ...options,
       // Required so the browser sends/accepts the httpOnly refresh-token
       // cookie (zcrypt_rt) on cross-origin calls to the API host. A no-op for
@@ -44,7 +72,13 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
       throw err;
     }
 
-    return res.json() as Promise<T>;
+    const data = (await res.json()) as T;
+    const issued = data as { access_token?: string; refresh_token?: string };
+    if (!isTauri && base && issued.access_token && issued.refresh_token) {
+      const planted = await plantSessionCookie(issued.refresh_token);
+      if (planted) return { ...data, ...planted };
+    }
+    return data;
   } catch (err) {
     if (!(err instanceof Error && "status" in err)) reportConnectivityFailure();
     if (err instanceof DOMException && err.name === "AbortError") {

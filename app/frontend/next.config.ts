@@ -23,6 +23,7 @@ const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 //    (device-to-device transfer) + Vercel analytics + the Telegram Bot API
 //    (reachability check and direct uploads to the user's own bot).
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+const DEV_API_URL = "http://localhost:8080";
 const apiWss = apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
 const cspValue = [
   "default-src 'self'",
@@ -134,8 +135,7 @@ const nextConfig: NextConfig = {
       // has to know a version or a filename. Deliberately /dl, not /download:
       // that path is the marketing page.
       if (apiUrl || process.env.NODE_ENV === "development") {
-        const dlUpstream =
-          process.env.NODE_ENV === "development" ? "http://localhost:8080" : apiUrl;
+        const dlUpstream = process.env.NODE_ENV === "development" ? apiUrl || DEV_API_URL : apiUrl;
         rules.push({
           source: "/dl/:target",
           destination: `${dlUpstream.replace(/\/$/, "")}/api/download/:target`,
@@ -149,7 +149,7 @@ const nextConfig: NextConfig = {
       // apps. (The web app itself keeps calling NEXT_PUBLIC_API_URL directly;
       // WebSocket upgrades are not proxied by rewrites, so the web transfer
       // tool also stays on the direct origin.)
-      const upstream = process.env.NODE_ENV === "development" ? "http://localhost:8080" : apiUrl;
+      const upstream = process.env.NODE_ENV === "development" ? apiUrl || DEV_API_URL : apiUrl;
       if (upstream) {
         rules.push({
           source: "/api/:path*",
