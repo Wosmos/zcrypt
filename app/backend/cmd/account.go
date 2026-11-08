@@ -62,7 +62,7 @@ func (s *Server) HandleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 		internalError(w, "account deletion: sign out sessions", err)
 		return
 	}
-	clearRefreshCookie(w)
+	clearRefreshCookie(w, s.cfg.RefreshCookieDomain())
 
 	cfg, baseURL, to := s.emailCfg(), s.baseURL(r), user.Email
 	s.goBackground(func() {
@@ -100,7 +100,7 @@ func (s *Server) fakeAccountDeletion(w http.ResponseWriter, r *http.Request, pas
 		log.Printf("decoy account deletion: drop session: %v", err)
 	}
 	s.revokeSessionIDs(claims.Sub, claims.SessionID)
-	clearRefreshCookie(w)
+	clearRefreshCookie(w, s.cfg.RefreshCookieDomain())
 	deleteAt := time.Now().Add(accountDeletionGrace).UTC().Truncate(time.Second)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"deletion_scheduled_at": deleteAt})
 }

@@ -440,7 +440,7 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 
 	// Web: also set the httpOnly refresh cookie (see setRefreshCookie's comment
 	// in auth.go) so the frontend never has to persist the fragment value.
-	setRefreshCookie(w, refreshToken)
+	setRefreshCookie(w, s.cfg.RefreshCookieDomain(), refreshToken)
 
 	// Web: Use URL fragment (#) so tokens are NOT sent in Referrer headers or server logs.
 	redirectURL := fmt.Sprintf("%s/oauth/callback#access_token=%s&refresh_token=%s",

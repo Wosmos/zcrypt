@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -83,6 +85,10 @@ type Config struct {
 	FrontendURL string `json:"frontend_url,omitempty"`
 	// Backend URL for OAuth callback URIs (must match what's registered with providers)
 	BackendURL string `json:"backend_url,omitempty"`
+	// CookieDomain scopes the web session cookie to a whole site, so the bare
+	// domain, www and any api subdomain share one sign-in. Empty means
+	// RefreshCookieDomain derives it from FrontendURL.
+	CookieDomain string `json:"cookie_domain,omitempty"`
 	// TrustedProxyCount is the number of reverse-proxy hops in front of the app
 	// that are trusted to set X-Forwarded-For. The real client IP is read that
 	// many hops in from the right of the chain. 0 (default) ignores forwarding
@@ -206,6 +212,9 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("BACKEND_URL"); v != "" {
 		c.BackendURL = v
+	}
+	if v := os.Getenv("ZCRYPT_COOKIE_DOMAIN"); v != "" {
+		c.CookieDomain = v
 	}
 	if v := os.Getenv("MAINTENANCE_SECRET"); v != "" {
 		c.MaintenanceSecret = v
@@ -379,4 +388,24 @@ func CleanTmp() error {
 		return fmt.Errorf("clean tmp: %w", err)
 	}
 	return os.MkdirAll(tmp, 0700)
+}
+
+// RefreshCookieDomain is the Domain the web session cookie is set for: the
+// explicit CookieDomain, or else FrontendURL's host without a leading "www.".
+// It is empty for a host that cannot carry a shared cookie (localhost, an IP
+// address or a single-label name), which keeps the cookie host-only.
+func (c *Config) RefreshCookieDomain() string {
+	host := strings.TrimPrefix(strings.TrimSpace(c.CookieDomain), ".")
+	if host == "" {
+		u, err := url.Parse(strings.TrimSpace(c.FrontendURL))
+		if err != nil {
+			return ""
+		}
+		host = strings.TrimPrefix(u.Hostname(), "www.")
+	}
+	host = strings.ToLower(host)
+	if host == "" || !strings.Contains(host, ".") || net.ParseIP(host) != nil {
+		return ""
+	}
+	return host
 }

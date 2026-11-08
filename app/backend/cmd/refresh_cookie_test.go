@@ -3,59 +3,56 @@ package cmd
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
 
-func TestExtractRefreshTokenPrefersCookieOverBody(t *testing.T) {
+func TestRefreshTokenCandidatesListsEveryCookieThenBody(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(`{"refresh_token":"from-body"}`))
-	req.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "from-cookie"}) //nolint:gosec // test fixture simulating an incoming request cookie, not a cookie this server sets
+	req.Header.Add("Cookie", refreshCookieName+"=stale-host-only; "+refreshCookieName+"=site-wide")
 
-	if got := extractRefreshToken(req); got != "from-cookie" {
-		t.Fatalf("expected cookie value to win, got %q", got)
+	got := refreshTokenCandidates(req)
+	want := []string{"stale-host-only", "site-wide", "from-body"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("candidates = %v, want %v", got, want)
 	}
 }
 
-func TestExtractRefreshTokenFallsBackToBody(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(`{"refresh_token":"from-body"}`))
+func TestRefreshTokenCandidatesDropsDuplicatesAndEmpties(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(`{"refresh_token":"same"}`))
+	req.Header.Add("Cookie", refreshCookieName+"=same; "+refreshCookieName+"=")
 
-	if got := extractRefreshToken(req); got != "from-body" {
-		t.Fatalf("expected body value when no cookie is present, got %q", got)
+	if got := refreshTokenCandidates(req); !slices.Equal(got, []string{"same"}) {
+		t.Fatalf("candidates = %v, want [same]", got)
 	}
 }
 
-func TestExtractRefreshTokenEmptyWhenNeitherPresent(t *testing.T) {
+func TestRefreshTokenCandidatesEmptyWhenNeitherPresent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(``))
 
-	if got := extractRefreshToken(req); got != "" {
-		t.Fatalf("expected empty string, got %q", got)
+	if got := refreshTokenCandidates(req); len(got) != 0 {
+		t.Fatalf("expected no candidates, got %v", got)
 	}
 }
 
-func TestSetRefreshCookieAttributes(t *testing.T) {
+func TestSetRefreshCookieHostOnlyWithoutDomain(t *testing.T) {
 	w := httptest.NewRecorder()
-	setRefreshCookie(w, "my-refresh-token")
+	setRefreshCookie(w, "", "my-refresh-token")
 
-	res := w.Result()
-	cookies := res.Cookies()
+	cookies := w.Result().Cookies()
 	if len(cookies) != 1 {
 		t.Fatalf("expected exactly 1 cookie, got %d", len(cookies))
 	}
 	c := cookies[0]
-	if c.Name != refreshCookieName {
-		t.Errorf("name = %q, want %q", c.Name, refreshCookieName)
+	if c.Name != refreshCookieName || c.Value != "my-refresh-token" {
+		t.Errorf("cookie = %s=%q", c.Name, c.Value)
 	}
-	if c.Value != "my-refresh-token" {
-		t.Errorf("value = %q, want %q", c.Value, "my-refresh-token")
+	if c.Domain != "" {
+		t.Errorf("Domain = %q, want host-only", c.Domain)
 	}
-	if !c.HttpOnly {
-		t.Error("expected HttpOnly=true")
-	}
-	if !c.Secure {
-		t.Error("expected Secure=true (required for SameSite=None)")
-	}
-	if c.SameSite != http.SameSiteNoneMode {
-		t.Errorf("SameSite = %v, want SameSiteNoneMode", c.SameSite)
+	if !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteNoneMode {
+		t.Errorf("want HttpOnly, Secure, SameSite=None; got %v %v %v", c.HttpOnly, c.Secure, c.SameSite)
 	}
 	if c.Path != "/api/auth" {
 		t.Errorf("Path = %q, want /api/auth (scoped, not sent on every request)", c.Path)
@@ -65,20 +62,49 @@ func TestSetRefreshCookieAttributes(t *testing.T) {
 	}
 }
 
-func TestClearRefreshCookieExpiresImmediately(t *testing.T) {
+func TestSetRefreshCookieSiteWideExpiresTheHostOnlyCopy(t *testing.T) {
 	w := httptest.NewRecorder()
-	clearRefreshCookie(w)
+	setRefreshCookie(w, "example.com", "my-refresh-token")
 
-	res := w.Result()
-	cookies := res.Cookies()
-	if len(cookies) != 1 {
-		t.Fatalf("expected exactly 1 cookie, got %d", len(cookies))
+	cookies := w.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Fatalf("expected an expiry plus the site cookie, got %d", len(cookies))
 	}
-	c := cookies[0]
-	if c.MaxAge >= 0 {
-		t.Errorf("MaxAge = %d, want negative (immediate expiry)", c.MaxAge)
+	if cookies[0].Domain != "" || cookies[0].MaxAge >= 0 {
+		t.Errorf("first cookie should expire the host-only copy, got Domain=%q MaxAge=%d", cookies[0].Domain, cookies[0].MaxAge)
 	}
-	if c.Value != "" {
-		t.Errorf("value = %q, want empty", c.Value)
+	if cookies[1].Domain != "example.com" || cookies[1].Value != "my-refresh-token" || cookies[1].MaxAge <= 0 {
+		t.Errorf("second cookie should be the live site-wide one, got Domain=%q Value=%q MaxAge=%d", cookies[1].Domain, cookies[1].Value, cookies[1].MaxAge)
+	}
+}
+
+func TestClearRefreshCookieExpiresBothForms(t *testing.T) {
+	w := httptest.NewRecorder()
+	clearRefreshCookie(w, "example.com")
+
+	cookies := w.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Fatalf("expected 2 expiring cookies, got %d", len(cookies))
+	}
+	domains := []string{cookies[0].Domain, cookies[1].Domain}
+	if !slices.Equal(domains, []string{"", "example.com"}) {
+		t.Errorf("domains = %v, want host-only and site-wide", domains)
+	}
+	for _, c := range cookies {
+		if c.MaxAge >= 0 || c.Value != "" {
+			t.Errorf("cookie Domain=%q not expired: MaxAge=%d Value=%q", c.Domain, c.MaxAge, c.Value)
+		}
+	}
+}
+
+func TestViaOwnSite(t *testing.T) {
+	for header, want := range map[string]bool{"same-origin": true, "same-site": true, "cross-site": false, "": false} {
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+		if header != "" {
+			req.Header.Set("Sec-Fetch-Site", header)
+		}
+		if got := viaOwnSite(req); got != want {
+			t.Errorf("Sec-Fetch-Site %q: viaOwnSite = %v, want %v", header, got, want)
+		}
 	}
 }

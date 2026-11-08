@@ -426,3 +426,26 @@ func TestApplyEnvOverridesClientLocation(t *testing.T) {
 	assert.Equal(t, "CF-Connecting-IP", cfg.ClientIPHeader)
 	assert.Equal(t, "/tmp/geo.mmdb", cfg.GeoIPDB)
 }
+
+func TestRefreshCookieDomain(t *testing.T) {
+	cases := []struct{ cookieDomain, frontend, want string }{
+		{"", "https://www.example.com", "example.com"},
+		{"", "https://example.com/", "example.com"},
+		{"", "https://app.example.com", "app.example.com"},
+		{".Example.com", "https://www.other.com", "example.com"},
+		{"", "http://localhost:3000", ""},
+		{"", "http://127.0.0.1:3001", ""},
+		{"", "", ""},
+	}
+	for _, c := range cases {
+		cfg := &Config{CookieDomain: c.cookieDomain, FrontendURL: c.frontend}
+		assert.Equal(t, c.want, cfg.RefreshCookieDomain(), "cookie=%q frontend=%q", c.cookieDomain, c.frontend)
+	}
+}
+
+func TestCookieDomainFromEnv(t *testing.T) {
+	t.Setenv("ZCRYPT_COOKIE_DOMAIN", "example.org")
+	cfg := &Config{}
+	cfg.applyEnvOverrides()
+	assert.Equal(t, "example.org", cfg.CookieDomain)
+}

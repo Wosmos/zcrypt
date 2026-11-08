@@ -364,32 +364,19 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken := extractRefreshToken(r)
-	if refreshToken == "" {
-		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
-		return
-	}
-
-	hash := auth.HashToken(refreshToken)
-	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	rt, err := s.validRefreshToken(ctx, refreshTokenCandidates(r))
+	if err != nil {
 		internalError(w, "refresh token lookup", err)
 		return
 	}
-	if err != nil || s.revokedSessions.has(rt.SessionID) {
+	if rt == nil {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
-		return
-	}
-
-	if time.Now().After(rt.ExpiresAt) {
-		s.db.DeleteRefreshToken(ctx, rt.ID)
-		http.Error(w, `{"error":"refresh token expired"}`, http.StatusUnauthorized)
 		return
 	}
 
 	// Log IP mismatch (potential stolen token usage) but don't block. IPs change legitimately
 	currentIP := anonIP(s.clientIP(r))
-	if rt.IP != "" && anonIP(rt.IP) != currentIP {
+	if rt.IP != "" && anonIP(rt.IP) != currentIP && !viaOwnSite(r) {
 		log.Printf("security: refresh token IP mismatch for user %s: issued=%q current=%q", rt.UserID, anonIP(rt.IP), currentIP) //nolint:gosec // database id and quoted, coarsened IPs
 	}
 
@@ -409,6 +396,40 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	s.writeTokenResponse(w, r, user, rt, rt.Decoy)
 }
 
+// viaOwnSite reports a browser request made from the web app's own origin,
+// which reaches the backend through the site's /api proxy: its address is the
+// proxy's, not the visitor's, so it says nothing about where the visitor is.
+func viaOwnSite(r *http.Request) bool {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "same-origin", "same-site":
+		return true
+	}
+	return false
+}
+
+// validRefreshToken returns the first candidate that is a live, unrevoked
+// refresh token, or nil when none is. Expired ones it meets are deleted.
+func (s *Server) validRefreshToken(ctx context.Context, candidates []string) (*types.RefreshToken, error) {
+	for _, token := range candidates {
+		rt, err := s.db.GetRefreshTokenByHash(ctx, auth.HashToken(token))
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if s.revokedSessions.has(rt.SessionID) {
+			continue
+		}
+		if time.Now().After(rt.ExpiresAt) {
+			_ = s.db.DeleteRefreshToken(ctx, rt.ID)
+			continue
+		}
+		return rt, nil
+	}
+	return nil, nil
+}
+
 // HandleLogout invalidates the refresh token.
 func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -417,15 +438,12 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken := extractRefreshToken(r)
-	if refreshToken != "" {
-		hash := auth.HashToken(refreshToken)
-		rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
-		if err == nil {
+	for _, refreshToken := range refreshTokenCandidates(r) {
+		if rt, err := s.db.GetRefreshTokenByHash(ctx, auth.HashToken(refreshToken)); err == nil {
 			_ = s.db.DeleteRefreshToken(ctx, rt.ID)
 		}
 	}
-	clearRefreshCookie(w)
+	clearRefreshCookie(w, s.cfg.RefreshCookieDomain())
 
 	userID := GetUserID(r)
 	if userID != "" {
@@ -1483,11 +1501,21 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 // removing it from this response.
 const refreshCookieName = "zcrypt_rt"
 
-func setRefreshCookie(w http.ResponseWriter, token string) {
+// setRefreshCookie stores the session's refresh token. With a domain it is
+// one cookie for the whole site (the bare domain, www and api subdomains share
+// it) and any host-only copy from before is expired, so the browser can't keep
+// presenting a stale token next to the current one. A browser drops the domain
+// cookie when the response came from a host outside that domain; the web app
+// then plants it through its own origin (see lib/auth-api.ts).
+func setRefreshCookie(w http.ResponseWriter, domain, token string) {
+	if domain != "" {
+		expireRefreshCookie(w, "")
+	}
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // SameSite=None is deliberate (see comment above) and already paired with Secure+HttpOnly
 		Name:     refreshCookieName,
 		Value:    token,
 		Path:     "/api/auth",
+		Domain:   domain,
 		MaxAge:   int(auth.RefreshTokenDuration.Seconds()),
 		HttpOnly: true,
 		Secure:   true,
@@ -1495,27 +1523,46 @@ func setRefreshCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-// extractRefreshToken reads the refresh token from the httpOnly cookie
-// (web clients) first, falling back to the JSON body's refresh_token field
-// (desktop/native clients, which never receive the cookie flow). An absent
-// or empty body is not an error here: a web client relying solely on the
-// cookie may send no body at all.
-func extractRefreshToken(r *http.Request) string {
-	if c, err := r.Cookie(refreshCookieName); err == nil && c.Value != "" {
-		return c.Value
+// refreshTokenCandidates lists every refresh token the request carries: each
+// zcrypt_rt cookie (a browser can hold a host-only and a site-wide one at
+// once), then the JSON body's refresh_token (desktop/native clients, and the
+// web app planting its cookie). An absent or empty body is not an error.
+func refreshTokenCandidates(r *http.Request) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(v string) {
+		if v != "" && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	for _, c := range r.Cookies() {
+		if c.Name == refreshCookieName {
+			add(c.Value)
+		}
 	}
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	return req.RefreshToken
+	add(req.RefreshToken)
+	return out
 }
 
-func clearRefreshCookie(w http.ResponseWriter) {
+// clearRefreshCookie expires the session cookie in both of its possible forms.
+func clearRefreshCookie(w http.ResponseWriter, domain string) {
+	expireRefreshCookie(w, "")
+	if domain != "" {
+		expireRefreshCookie(w, domain)
+	}
+}
+
+func expireRefreshCookie(w http.ResponseWriter, domain string) {
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // SameSite=None is deliberate (see setRefreshCookie comment) and already paired with Secure+HttpOnly
 		Name:     refreshCookieName,
 		Value:    "",
 		Path:     "/api/auth",
+		Domain:   domain,
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,
@@ -1570,6 +1617,9 @@ func (s *Server) mintTokens(r *http.Request, user *types.User, parent *types.Ref
 	accessToken, rt, refreshToken, err := s.newTokenPair(r, user, sessionID, startedAt, decoy)
 	if err != nil {
 		return "", "", err
+	}
+	if parent != nil && viaOwnSite(r) {
+		rt.IP, rt.Country, rt.Region, rt.City = parent.IP, parent.Country, parent.Region, parent.City
 	}
 	if parent != nil {
 		rotated, err := s.db.RotateRefreshToken(ctx, parent.ID, refreshReuseGrace, rt)
@@ -1629,7 +1679,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 	}
 	accessToken, refreshToken, err := s.mintTokens(r, user, parent, decoy)
 	if errors.Is(err, errSessionEnded) {
-		clearRefreshCookie(w)
+		clearRefreshCookie(w, s.cfg.RefreshCookieDomain())
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
 		return
 	}
@@ -1646,7 +1696,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user
 			log.Printf("deadman: checkin on sign-in failed for user %s: %v", logSafe(user.ID), err) // #nosec G706 -- control chars stripped via logSafe
 		}
 	}
-	setRefreshCookie(w, refreshToken)
+	setRefreshCookie(w, s.cfg.RefreshCookieDomain(), refreshToken)
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
@@ -1702,7 +1752,7 @@ func (s *Server) rotateCallerSession(w http.ResponseWriter, r *http.Request, cla
 	body["access_token"] = accessToken
 	body["refresh_token"] = refreshToken
 	body["user"] = user
-	setRefreshCookie(w, refreshToken)
+	setRefreshCookie(w, s.cfg.RefreshCookieDomain(), refreshToken)
 	writeJSON(w, http.StatusOK, body)
 }
 

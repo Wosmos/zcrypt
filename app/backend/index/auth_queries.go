@@ -402,12 +402,12 @@ func (db *DB) GetRefreshTokenByHash(ctx context.Context, hash string) (*types.Re
 	row := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, token_hash, expires_at, created_at,
 		        COALESCE(ip, ''), COALESCE(user_agent, ''),
-		        COALESCE(session_id, id)::text, session_started_at, decoy
+		        COALESCE(session_id, id)::text, session_started_at, decoy, country, region, city
 		 FROM refresh_tokens WHERE token_hash = $1`, hash,
 	)
 	rt := &types.RefreshToken{}
 	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent,
-		&rt.SessionID, &rt.SessionStartedAt, &rt.Decoy)
+		&rt.SessionID, &rt.SessionStartedAt, &rt.Decoy, &rt.Country, &rt.Region, &rt.City)
 	if err != nil {
 		return nil, fmt.Errorf("get refresh token: %w", err)
 	}
