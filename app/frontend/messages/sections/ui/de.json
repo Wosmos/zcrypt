@@ -251,7 +251,14 @@
       "playVideo": "Video abspielen",
       "fullscreen": "Vollbild",
       "pause": "Pause",
-      "play": "Abspielen"
+      "play": "Abspielen",
+      "miniPlayer": "Miniplayer",
+      "pictureInPicture": "Bild im Bild",
+      "exitPictureInPicture": "Bild im Bild beenden",
+      "closePlayer": "Player schließen",
+      "nowPlaying": "Wird gerade abgespielt",
+      "playingInWindow": "Läuft in einem schwebenden Fenster",
+      "trackFailed": "Dieser Titel konnte nicht geöffnet werden"
     },
     "whatsNew": {
       "title": "Was ist neu",

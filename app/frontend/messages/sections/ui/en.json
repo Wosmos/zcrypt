@@ -251,7 +251,14 @@
       "playVideo": "Play video",
       "fullscreen": "Fullscreen",
       "pause": "Pause",
-      "play": "Play"
+      "play": "Play",
+      "miniPlayer": "Mini player",
+      "pictureInPicture": "Picture in picture",
+      "exitPictureInPicture": "Exit picture in picture",
+      "closePlayer": "Close player",
+      "nowPlaying": "Now playing",
+      "playingInWindow": "Playing in a floating window",
+      "trackFailed": "Couldn't open this track"
     },
     "whatsNew": {
       "title": "What's new",

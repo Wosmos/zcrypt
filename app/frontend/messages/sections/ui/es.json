@@ -251,7 +251,14 @@
       "playVideo": "Reproducir vídeo",
       "fullscreen": "Pantalla completa",
       "pause": "Pausa",
-      "play": "Reproducir"
+      "play": "Reproducir",
+      "miniPlayer": "Minirreproductor",
+      "pictureInPicture": "Imagen en imagen",
+      "exitPictureInPicture": "Salir de imagen en imagen",
+      "closePlayer": "Cerrar reproductor",
+      "nowPlaying": "Reproduciendo ahora",
+      "playingInWindow": "Reproduciendo en una ventana flotante",
+      "trackFailed": "No se pudo abrir esta pista"
     },
     "whatsNew": {
       "title": "Qué hay de nuevo",

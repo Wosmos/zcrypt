@@ -16,6 +16,7 @@ import { TourProvider } from "@/components/onboarding/tour-provider";
 import { WhatsNewHost } from "@/components/ui/whats-new-host";
 import { AccountDeletionBanner } from "@/components/auth/account-deletion-banner";
 import { ConnectionBanner } from "@/components/ui/connection-banner";
+import { MiniPlayer } from "@/components/media/mini-player";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -63,6 +64,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {/* Unified transfer manager, docked bottom-right, persists across
               navigation (stores are singletons). Renders null when idle. */}
               <AppTransfers />
+              <MiniPlayer />
               <WebTransferLimitDialog />
               <FileEventsBridge />
               <BackgroundAlerts />

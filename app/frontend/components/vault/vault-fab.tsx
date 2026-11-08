@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Plus, FolderAdd, FileUpload } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useTransferDockStore } from "@/store/transfer-dock";
+import { useNowPlaying } from "@/store/now-playing";
 
 /**
  * VaultFab: the single floating "+" action for the vault on mobile.
@@ -29,9 +30,9 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
   // rather than sitting on top of it. Falls back to the resting spot otherwise.
   const dockVisible = useTransferDockStore((s) => s.visible);
   const dockHeight = useTransferDockStore((s) => s.height);
-  const bottom = dockVisible
-    ? `calc(var(--safe-bottom) + ${92 + dockHeight}px)`
-    : "calc(var(--safe-bottom) + 84px)";
+  const miniHeight = useNowPlaying((s) => s.height);
+  const stacked = (dockVisible ? dockHeight + 8 : 0) + (miniHeight ? miniHeight + 8 : 0);
+  const bottom = `calc(var(--safe-bottom) + ${84 + stacked}px)`;
 
   const actions = [
     { label: t("uploadFiles"), Icon: FileUpload, run: onUpload },

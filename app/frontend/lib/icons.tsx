@@ -96,6 +96,7 @@ import {
   PaperPlaneTilt as PhPaperPlaneTilt,
   Pause as PhPause,
   PencilSimple as PhPencilSimple,
+  PictureInPicture as PhPictureInPicture,
   Play as PhPlay,
   Plus as PhPlus,
   Quotes as PhQuotes,
@@ -267,6 +268,7 @@ export const MonitorSmartphone = makeIcon(PhDevices, "MonitorSmartphone");
 export const MoreHorizontal = makeIcon(PhDotsThree, "MoreHorizontal");
 export const Pause = makeIcon(PhPause, "Pause");
 export const Play = makeIcon(PhPlay, "Play");
+export const PictureInPicture = makeIcon(PhPictureInPicture, "PictureInPicture");
 export const RefreshCw = makeIcon(PhArrowsClockwise, "RefreshCw");
 export const Rocket = makeIcon(PhRocket, "Rocket");
 export const Search = makeIcon(PhMagnifyingGlass, "Search");

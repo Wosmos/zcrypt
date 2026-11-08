@@ -251,7 +251,14 @@
       "playVideo": "播放视频",
       "fullscreen": "全屏",
       "pause": "暂停",
-      "play": "播放"
+      "play": "播放",
+      "miniPlayer": "迷你播放器",
+      "pictureInPicture": "画中画",
+      "exitPictureInPicture": "退出画中画",
+      "closePlayer": "关闭播放器",
+      "nowPlaying": "正在播放",
+      "playingInWindow": "正在浮动窗口中播放",
+      "trackFailed": "无法打开此曲目"
     },
     "whatsNew": {
       "title": "新功能",

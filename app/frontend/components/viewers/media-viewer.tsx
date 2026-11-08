@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Music, Video, Play, X } from "@/lib/icons";
-import { MediaPlayer } from "@/components/ui/media-player";
+import { MediaPlayer, type MediaHandoff } from "@/components/ui/media-player";
 import { mediaKindFor } from "@/lib/media-formats";
 import { getFileTypeInfo } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ export function MediaViewer({
   tracks,
   currentIndex,
   onSelectTrack,
+  onMinimize,
 }: {
   src: string;
   filename: string;
@@ -41,6 +42,8 @@ export function MediaViewer({
   tracks: MediaTrack[];
   currentIndex: number;
   onSelectTrack: (index: number) => void;
+  /** Keep playing in the app-wide mini player and close this viewer. */
+  onMinimize?: (at: MediaHandoff) => void;
 }) {
   const hasPlaylist = tracks.length > 1;
   // The playlist is an overlay DRAWER: a bottom sheet on mobile, a right-side
@@ -84,6 +87,7 @@ export function MediaViewer({
           poster={poster}
           onPrev={onPrev}
           onNext={onNext}
+          onMinimize={onMinimize}
         />
       </div>
 

@@ -32,6 +32,8 @@ import { MarkdownViewer } from "@/components/viewers/markdown-viewer";
 import { CsvViewer } from "@/components/viewers/csv-viewer";
 import { TextViewer } from "@/components/viewers/text-viewer";
 import { MediaViewer, type MediaTrack } from "@/components/viewers/media-viewer";
+import type { MediaHandoff } from "@/components/ui/media-player";
+import { useNowPlaying } from "@/store/now-playing";
 import { useToggleFullscreen } from "@/hooks/useToggleFullscreen";
 import type { FileMetadata } from "@/types";
 
@@ -196,6 +198,10 @@ export function FileViewer({
       setState({ status: "too-large" });
       return;
     }
+
+    // One thing plays at a time: opening media here takes over from the mini
+    // player (which revokes its plaintext URL as it closes).
+    if (isMediaKind(viewerKindFor(file.original_name))) useNowPlaying.getState().close();
 
     // Seed the total from the file's chunk count so the progress bar shows
     // "0/N" immediately, instead of a blind spinner until the first chunk lands.
@@ -420,6 +426,31 @@ export function FileViewer({
       .filter((t) => isMediaKind(viewerKindFor(t.file.original_name)));
   }, [files, kind]);
 
+  // Minimize: the decrypted track moves to the app-wide mini player without
+  // decrypting again. Ownership of the blob URL moves with it, so this viewer's
+  // close/unmount revoke no longer touches it.
+  const handleMinimize = useCallback(
+    (at: MediaHandoff) => {
+      const src = blobUrlRef.current;
+      if (!src || !file) return;
+      blobUrlRef.current = null;
+      const queue = mediaTracks.map((t) => t.file);
+      useNowPlaying.getState().start({
+        queue,
+        position: Math.max(
+          0,
+          queue.findIndex((f) => f.id === file.id),
+        ),
+        src,
+        startAt: at.time,
+        autoplay: at.playing,
+        decrypt: (f) => decryptRef.current(f),
+      });
+      onClose();
+    },
+    [file, mediaTracks, onClose],
+  );
+
   if (!open || !file) return null;
 
   const info = getFileTypeInfo(file.original_name);
@@ -514,6 +545,7 @@ export function FileViewer({
             mediaTracks={mediaTracks}
             currentIndex={index}
             onSelectTrack={onIndexChange}
+            onMinimize={handleMinimize}
           />
         </div>
       </div>
@@ -537,6 +569,7 @@ function ViewerBody({
   mediaTracks,
   currentIndex,
   onSelectTrack,
+  onMinimize,
 }: {
   file: FileMetadata;
   kind: ViewerKind;
@@ -548,6 +581,7 @@ function ViewerBody({
   mediaTracks: MediaTrack[];
   currentIndex: number;
   onSelectTrack: (index: number) => void;
+  onMinimize: (at: MediaHandoff) => void;
 }) {
   const t = useTranslations("app.viewer");
   // Non-previewable types are never decrypted (the viewer effect short-circuits
@@ -660,6 +694,7 @@ function ViewerBody({
           tracks={mediaTracks}
           currentIndex={currentIndex}
           onSelectTrack={onSelectTrack}
+          onMinimize={onMinimize}
         />
       ) : null;
 

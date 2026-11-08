@@ -251,7 +251,14 @@
       "playVideo": "ویڈیو چلائیں",
       "fullscreen": "فل سکرین",
       "pause": "روکیں",
-      "play": "چلائیں"
+      "play": "چلائیں",
+      "miniPlayer": "چھوٹا پلیئر",
+      "pictureInPicture": "تصویر میں تصویر",
+      "exitPictureInPicture": "تصویر میں تصویر سے باہر نکلیں",
+      "closePlayer": "پلیئر بند کریں",
+      "nowPlaying": "ابھی چل رہا ہے",
+      "playingInWindow": "تیرتی ونڈو میں چل رہا ہے",
+      "trackFailed": "یہ ٹریک نہیں کھل سکا"
     },
     "whatsNew": {
       "title": "نیا کیا ہے",

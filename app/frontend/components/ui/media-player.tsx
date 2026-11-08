@@ -21,7 +21,14 @@ import {
   Download,
   SkipForward,
   RefreshCw,
+  Minimize,
+  PictureInPicture,
 } from "@/lib/icons";
+import {
+  canVideoPictureInPicture,
+  isInVideoPictureInPicture,
+  toggleVideoPictureInPicture,
+} from "@/lib/picture-in-picture";
 import { mediaKindFor } from "@/lib/media-formats";
 import { IconButton } from "@/components/ui/icon-button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -42,7 +49,7 @@ const COVER_GRADIENTS = [
   "from-indigo-500 to-violet-700",
 ];
 
-function coverGradient(seed: string): string {
+export function coverGradient(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return COVER_GRADIENTS[h % COVER_GRADIENTS.length];
@@ -62,11 +69,21 @@ let keepPlaying = false;
 
 const formatTime = formatDuration;
 
+/** Where playback was when the viewer handed it to the mini player. */
+export interface MediaHandoff {
+  time: number;
+  playing: boolean;
+}
+
+function handoffFrom(el: HTMLMediaElement | null): MediaHandoff {
+  return { time: el?.currentTime ?? 0, playing: !!el && !el.paused };
+}
+
 /**
  * Shared playback state + DOM wiring for an <audio> or <video> element.
  * Returns refs, derived state and the handlers a player skin needs.
  */
-function useMediaController() {
+export function useMediaController() {
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
@@ -253,13 +270,13 @@ function useMediaController() {
   };
 }
 
-type Controller = ReturnType<typeof useMediaController>;
+export type Controller = ReturnType<typeof useMediaController>;
 
 /* -------------------------------------------------------------------------- */
 /* Seek bar                                                                   */
 /* -------------------------------------------------------------------------- */
 
-function SeekBar({
+export function SeekBar({
   current,
   duration,
   buffered,
@@ -543,12 +560,14 @@ function AudioPlayer({
   controller,
   onPrev,
   onNext,
+  onMinimize,
 }: {
   src: string;
   filename: string;
   controller: Controller;
   onPrev?: () => void;
   onNext?: () => void;
+  onMinimize?: (at: MediaHandoff) => void;
 }) {
   const tm = useTranslations("ui.media");
   const reduce = useReducedMotion() ?? false;
@@ -671,6 +690,14 @@ function AudioPlayer({
 
               <div className="flex w-16 items-center justify-end gap-1 sm:w-20">
                 <SpeedControl speed={speed} onCycle={cycleSpeed} />
+                {onMinimize && (
+                  <IconButton
+                    icon={Minimize}
+                    label={tm("miniPlayer")}
+                    onClick={() => onMinimize(handoffFrom(controller.ref.current))}
+                    iconClassName="h-4 w-4"
+                  />
+                )}
               </div>
             </div>
 
@@ -698,6 +725,44 @@ function AudioPlayer({
   );
 }
 
+/**
+ * Picture-in-picture for one <video>: whether this browser offers it, whether
+ * the element is floating now, and a toggle. Support is read after mount so
+ * the server render and the first client render match.
+ */
+export function useVideoPictureInPicture(ref: React.RefObject<HTMLMediaElement | null>) {
+  const [supported, setSupported] = useState(false);
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    const el = ref.current as HTMLVideoElement | null;
+    if (!el) return;
+    setSupported(canVideoPictureInPicture(el));
+    const on = () => setActive(true);
+    const off = () => setActive(false);
+    const onWebkit = () =>
+      setActive(
+        (el as HTMLVideoElement & { webkitPresentationMode?: string }).webkitPresentationMode ===
+          "picture-in-picture",
+      );
+    el.addEventListener("enterpictureinpicture", on);
+    el.addEventListener("leavepictureinpicture", off);
+    el.addEventListener("webkitpresentationmodechanged", onWebkit);
+    return () => {
+      el.removeEventListener("enterpictureinpicture", on);
+      el.removeEventListener("leavepictureinpicture", off);
+      el.removeEventListener("webkitpresentationmodechanged", onWebkit);
+      // A floating window must not outlive its player (closed, track switched
+      // or signed out): it would keep showing decrypted frames.
+      if (isInVideoPictureInPicture(el)) void toggleVideoPictureInPicture(el);
+    };
+  }, [ref]);
+  const toggle = useCallback(() => {
+    const el = ref.current as HTMLVideoElement | null;
+    if (el) void toggleVideoPictureInPicture(el);
+  }, [ref]);
+  return { supported, active, toggle };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Video player                                                               */
 /* -------------------------------------------------------------------------- */
@@ -707,14 +772,18 @@ function VideoPlayer({
   filename,
   poster,
   controller,
+  onMinimize,
 }: {
   src: string;
   filename: string;
   poster?: string;
   controller: Controller;
+  onMinimize?: (at: MediaHandoff) => void;
 }) {
   const tm = useTranslations("ui.media");
   const containerRef = useRef<HTMLDivElement>(null);
+  // oxlint-disable-next-line react/refs
+  const pip = useVideoPictureInPicture(controller.ref);
   const [showControls, setShowControls] = useState(true);
   // Intrinsic aspect ratio (w/h) read from the decoded video, so the frame hugs
   // the real shape (portrait (9:16), square (1:1), landscape (16:9)) instead
@@ -884,6 +953,23 @@ function VideoPlayer({
             <div className="text-white [&_button]:text-white [&_button:hover]:bg-white/15 [&_button:hover]:text-white">
               <SpeedControl speed={speed} onCycle={cycleSpeed} />
             </div>
+            {pip.supported && (
+              <IconButton
+                icon={PictureInPicture}
+                label={pip.active ? tm("exitPictureInPicture") : tm("pictureInPicture")}
+                aria-pressed={pip.active}
+                onClick={pip.toggle}
+                className="text-white hover:bg-white/15 hover:text-white"
+              />
+            )}
+            {onMinimize && (
+              <IconButton
+                icon={Minimize}
+                label={tm("miniPlayer")}
+                onClick={() => onMinimize(handoffFrom(controller.ref.current))}
+                className="text-white hover:bg-white/15 hover:text-white"
+              />
+            )}
             <IconButton
               icon={Monitor}
               label={tm("fullscreen")}
@@ -897,7 +983,7 @@ function VideoPlayer({
   );
 }
 
-function TimeReadoutLight({ current, duration }: { current: number; duration: number }) {
+export function TimeReadoutLight({ current, duration }: { current: number; duration: number }) {
   return (
     <div className="flex select-none items-center gap-1 text-xs font-medium tabular-nums text-white/90">
       <span>{formatTime(current)}</span>
@@ -925,6 +1011,8 @@ export interface MediaPlayerProps {
   /** Playlist navigation: go to the previous / next track (undefined at ends). */
   onPrev?: () => void;
   onNext?: () => void;
+  /** Hand playback to the app-wide mini player. Omitted: no minimize button. */
+  onMinimize?: (at: MediaHandoff) => void;
 }
 
 function resolveKind(props: MediaPlayerProps): "audio" | "video" {
@@ -940,7 +1028,7 @@ function resolveKind(props: MediaPlayerProps): "audio" | "video" {
  * object URL + filename. Keyboard accessible and reduced-motion safe.
  */
 export function MediaPlayer(props: MediaPlayerProps) {
-  const { src, filename, poster, onPrev, onNext } = props;
+  const { src, filename, poster, onPrev, onNext, onMinimize } = props;
   const kind = useMemo(
     () => resolveKind(props),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -974,7 +1062,13 @@ export function MediaPlayer(props: MediaPlayerProps) {
   return (
     <div onKeyDown={onKeyDown} tabIndex={-1} className="w-full outline-none">
       {kind === "video" ? (
-        <VideoPlayer src={src} filename={filename} poster={poster} controller={controller} />
+        <VideoPlayer
+          src={src}
+          filename={filename}
+          poster={poster}
+          controller={controller}
+          onMinimize={onMinimize}
+        />
       ) : (
         <AudioPlayer
           src={src}
@@ -982,6 +1076,7 @@ export function MediaPlayer(props: MediaPlayerProps) {
           controller={controller}
           onPrev={onPrev}
           onNext={onNext}
+          onMinimize={onMinimize}
         />
       )}
     </div>

@@ -251,7 +251,14 @@
       "playVideo": "Воспроизвести видео",
       "fullscreen": "Полный экран",
       "pause": "Пауза",
-      "play": "Воспроизвести"
+      "play": "Воспроизвести",
+      "miniPlayer": "Мини-плеер",
+      "pictureInPicture": "Картинка в картинке",
+      "exitPictureInPicture": "Выйти из режима «картинка в картинке»",
+      "closePlayer": "Закрыть плеер",
+      "nowPlaying": "Сейчас играет",
+      "playingInWindow": "Воспроизводится в плавающем окне",
+      "trackFailed": "Не удалось открыть этот трек"
     },
     "whatsNew": {
       "title": "Что нового",

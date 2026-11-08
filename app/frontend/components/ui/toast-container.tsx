@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { toastRemainingMs, useToastStore, type Toast } from "@/store/toast";
 import { useTransferDockStore } from "@/store/transfer-dock";
+import { useNowPlaying } from "@/store/now-playing";
 import { installAudioUnlock } from "@/lib/sounds";
 import { Check, X } from "@/lib/icons";
 import { KIND, tint } from "@/components/ui/kind";
@@ -258,8 +259,10 @@ export function ToastContainer() {
 
   const dockVisible = useTransferDockStore((s) => s.visible);
   const dockHeight = useTransferDockStore((s) => s.height);
+  const miniHeight = useNowPlaying((s) => s.height);
+  const below = (dockVisible ? dockHeight + 12 : 0) + (miniHeight ? miniHeight + 12 : 0);
   const glassBottom = {
-    "--toast-glass-bottom": dockVisible ? `${dockHeight + 28}px` : "1.5rem",
+    "--toast-glass-bottom": below ? `${below + 16}px` : "1.5rem",
   } as CSSProperties;
 
   useEffect(() => installAudioUnlock(), []);

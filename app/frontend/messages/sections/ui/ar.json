@@ -251,7 +251,14 @@
       "playVideo": "تشغيل الفيديو",
       "fullscreen": "ملء الشاشة",
       "pause": "إيقاف مؤقت",
-      "play": "تشغيل"
+      "play": "تشغيل",
+      "miniPlayer": "المشغل المصغر",
+      "pictureInPicture": "صورة داخل صورة",
+      "exitPictureInPicture": "إنهاء صورة داخل صورة",
+      "closePlayer": "إغلاق المشغل",
+      "nowPlaying": "قيد التشغيل الآن",
+      "playingInWindow": "يعمل في نافذة عائمة",
+      "trackFailed": "تعذّر فتح هذا المقطع"
     },
     "whatsNew": {
       "title": "ما الجديد",

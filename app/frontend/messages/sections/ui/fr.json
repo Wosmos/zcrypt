@@ -251,7 +251,14 @@
       "playVideo": "Lire la vidéo",
       "fullscreen": "Plein écran",
       "pause": "Pause",
-      "play": "Lecture"
+      "play": "Lecture",
+      "miniPlayer": "Mini-lecteur",
+      "pictureInPicture": "Image dans l'image",
+      "exitPictureInPicture": "Quitter l'image dans l'image",
+      "closePlayer": "Fermer le lecteur",
+      "nowPlaying": "En cours de lecture",
+      "playingInWindow": "Lecture dans une fenêtre flottante",
+      "trackFailed": "Impossible d'ouvrir cette piste"
     },
     "whatsNew": {
       "title": "Nouveautés",
