@@ -1296,3 +1296,26 @@ html[dir="rtl"] body {
     animation: none !important;
   }
 }
+
+/* Android picture-in-picture: the app's whole window floats, so while it does
+   only the reported video shows, filling the window. Nothing else from the
+   vault is drawn into the floating window. See lib/picture-in-picture.ts. */
+html[data-android-pip] body {
+  background: #000;
+}
+html[data-android-pip] body * {
+  visibility: hidden !important;
+}
+html[data-android-pip] [data-pip-target] {
+  visibility: visible !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 2147483647 !important;
+  object-fit: contain !important;
+  background: #000 !important;
+  transform: none !important;
+}

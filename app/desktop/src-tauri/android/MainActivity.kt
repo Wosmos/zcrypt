@@ -34,14 +34,26 @@
 //    handled once: a relaunch from recents replays the task's SEND base intent,
 //    so those are skipped.
 //
+// 5. Picture-in-picture for video. The page reports through the bridge when a
+//    video is playing and its shape; leaving the app then shrinks it into a
+//    floating window (automatically on Android 12+, on Home before that), and
+//    the page is told so it shows only that video while it floats. Paused or
+//    closed media turns it off, so leaving the app never floats the vault.
+//    The manifest's supportsPictureInPicture is patched in by device.yml.
+//
 // The package must equal tauri.conf.json's `identifier`; device.yml asserts it.
 package app.zcrypt.desktop
 
+import android.app.PictureInPictureParams
 import android.content.ContentResolver
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.util.Rational
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -56,6 +68,8 @@ import org.json.JSONArray
 class MainActivity : TauriActivity() {
   private var webView: WebView? = null
   private val pendingShares = mutableListOf<String>()
+  private var pipReady = false
+  private var pipAspect = Rational(16, 9)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
@@ -88,6 +102,49 @@ class MainActivity : TauriActivity() {
     } else {
       window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
     }
+  }
+
+  private fun pipSupported(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+      packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+  private fun pipParams(): PictureInPictureParams {
+    val builder = PictureInPictureParams.Builder().setAspectRatio(pipAspect)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) builder.setAutoEnterEnabled(pipReady)
+    return builder.build()
+  }
+
+  private fun updatePip() {
+    if (pipSupported()) setPictureInPictureParams(pipParams())
+  }
+
+  private fun enterPip() {
+    if (pipSupported() && pipReady && !isInPictureInPictureMode) {
+      try {
+        enterPictureInPictureMode(pipParams())
+      } catch (e: IllegalStateException) {
+        // The activity is not in a state that can float (e.g. finishing).
+      }
+    }
+  }
+
+  // Android's allowed range is 1:2.39 to 2.39:1; anything outside it throws.
+  private fun clampAspect(width: Int, height: Int): Rational {
+    val ratio = (width.toFloat() / height).coerceIn(1f / 2.39f, 2.39f)
+    return Rational((ratio * 1000).toInt(), 1000)
+  }
+
+  override fun onUserLeaveHint() {
+    super.onUserLeaveHint()
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) enterPip()
+  }
+
+  override fun onPictureInPictureModeChanged(inPip: Boolean, newConfig: Configuration) {
+    super.onPictureInPictureModeChanged(inPip, newConfig)
+    webView?.evaluateJavascript(
+      "window.dispatchEvent(new CustomEvent('$PIP_EVENT',{detail:$inPip}))",
+      null,
+    )
   }
 
   private fun handleShare(intent: Intent?) {
@@ -191,6 +248,23 @@ class MainActivity : TauriActivity() {
 
     @JavascriptInterface
     fun releaseSharedFile(path: String) = releaseShare(path)
+
+    @JavascriptInterface
+    fun supportsPictureInPicture(): Boolean = pipSupported()
+
+    @JavascriptInterface
+    fun setPictureInPictureReady(ready: Boolean, width: Int, height: Int) {
+      runOnUiThread {
+        pipReady = ready
+        if (width > 0 && height > 0) pipAspect = clampAspect(width, height)
+        updatePip()
+      }
+    }
+
+    @JavascriptInterface
+    fun enterPictureInPicture() {
+      runOnUiThread { enterPip() }
+    }
   }
 
   companion object {
@@ -198,6 +272,7 @@ class MainActivity : TauriActivity() {
     private const val KEY_ALLOW_CAPTURE = "allow_screen_capture"
     private const val SHARE_DIR = "shared"
     private const val SHARED_EVENT = "zcrypt:shared-files"
+    private const val PIP_EVENT = "zcrypt:pip"
     private const val SHARE_TTL_MS = 24L * 60 * 60 * 1000
     private const val SPACE_MARGIN = 64L * 1024 * 1024
   }

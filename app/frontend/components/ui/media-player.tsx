@@ -25,8 +25,11 @@ import {
   PictureInPicture,
 } from "@/lib/icons";
 import {
+  ANDROID_PIP_EVENT,
+  ANDROID_PIP_TARGET,
   canVideoPictureInPicture,
   isInVideoPictureInPicture,
+  reportAndroidPictureInPicture,
   toggleVideoPictureInPicture,
 } from "@/lib/picture-in-picture";
 import { mediaKindFor } from "@/lib/media-formats";
@@ -744,13 +747,28 @@ export function useVideoPictureInPicture(ref: React.RefObject<HTMLMediaElement |
         (el as HTMLVideoElement & { webkitPresentationMode?: string }).webkitPresentationMode ===
           "picture-in-picture",
       );
+    const report = () => reportAndroidPictureInPicture(el, !el.paused && !el.ended);
+    const onAndroid = (e: Event) => {
+      setActive((e as CustomEvent<boolean>).detail === true && el.hasAttribute(ANDROID_PIP_TARGET));
+    };
     el.addEventListener("enterpictureinpicture", on);
     el.addEventListener("leavepictureinpicture", off);
     el.addEventListener("webkitpresentationmodechanged", onWebkit);
+    el.addEventListener("play", report);
+    el.addEventListener("pause", report);
+    el.addEventListener("ended", report);
+    el.addEventListener("loadedmetadata", report);
+    window.addEventListener(ANDROID_PIP_EVENT, onAndroid);
     return () => {
       el.removeEventListener("enterpictureinpicture", on);
       el.removeEventListener("leavepictureinpicture", off);
       el.removeEventListener("webkitpresentationmodechanged", onWebkit);
+      el.removeEventListener("play", report);
+      el.removeEventListener("pause", report);
+      el.removeEventListener("ended", report);
+      el.removeEventListener("loadedmetadata", report);
+      window.removeEventListener(ANDROID_PIP_EVENT, onAndroid);
+      reportAndroidPictureInPicture(el, false);
       // A floating window must not outlive its player (closed, track switched
       // or signed out): it would keep showing decrypted frames.
       if (isInVideoPictureInPicture(el)) void toggleVideoPictureInPicture(el);

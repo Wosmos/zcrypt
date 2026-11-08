@@ -1,5 +1,9 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import {
+  ANDROID_PIP_ACTIVE,
+  ANDROID_PIP_EVENT,
+  ANDROID_PIP_TARGET,
+  reportAndroidPictureInPicture,
   canDocumentPictureInPicture,
   canVideoPictureInPicture,
   isInVideoPictureInPicture,
@@ -15,6 +19,78 @@ function setDocument(props: Record<string, unknown>) {
 afterEach(() => {
   setDocument({ pictureInPictureEnabled: undefined, pictureInPictureElement: null });
   delete (window as unknown as Record<string, unknown>).documentPictureInPicture;
+  delete (window as unknown as Record<string, unknown>).ZcryptAndroid;
+  document.documentElement.removeAttribute(ANDROID_PIP_ACTIVE);
+  document.body.innerHTML = "";
+});
+
+function androidBridge() {
+  const bridge = {
+    supportsPictureInPicture: () => true,
+    setPictureInPictureReady: vi.fn(),
+    enterPictureInPicture: vi.fn(),
+  };
+  (window as unknown as Record<string, unknown>).ZcryptAndroid = bridge;
+  return bridge;
+}
+
+function playingVideo() {
+  const el = document.createElement("video");
+  document.body.appendChild(el);
+  Object.defineProperty(el, "paused", { value: false, configurable: true });
+  Object.defineProperty(el, "videoWidth", { value: 1280 });
+  Object.defineProperty(el, "videoHeight", { value: 720 });
+  return el;
+}
+
+describe("Android app picture-in-picture", () => {
+  it("is offered through the app's bridge where the WebView has no API", () => {
+    androidBridge();
+    expect(canVideoPictureInPicture(document.createElement("video"))).toBe(true);
+  });
+
+  it("reports the one playing video, with its shape, as the window to float", () => {
+    const bridge = androidBridge();
+    const a = playingVideo();
+    const b = playingVideo();
+    reportAndroidPictureInPicture(a, true);
+    reportAndroidPictureInPicture(b, true);
+    expect(a.hasAttribute(ANDROID_PIP_TARGET)).toBe(false);
+    expect(b.hasAttribute(ANDROID_PIP_TARGET)).toBe(true);
+    expect(bridge.setPictureInPictureReady).toHaveBeenLastCalledWith(true, 1280, 720);
+  });
+
+  it("turns floating off when the reported video stops, and ignores videos it never reported", () => {
+    const bridge = androidBridge();
+    const el = playingVideo();
+    reportAndroidPictureInPicture(document.createElement("video"), false);
+    expect(bridge.setPictureInPictureReady).not.toHaveBeenCalled();
+    reportAndroidPictureInPicture(el, true);
+    reportAndroidPictureInPicture(el, false);
+    expect(el.hasAttribute(ANDROID_PIP_TARGET)).toBe(false);
+    expect(bridge.setPictureInPictureReady).toHaveBeenLastCalledWith(false, 1280, 720);
+  });
+
+  it("the button floats the app now", async () => {
+    const bridge = androidBridge();
+    const el = playingVideo();
+    await expect(toggleVideoPictureInPicture(el)).resolves.toBe(true);
+    expect(bridge.enterPictureInPicture).toHaveBeenCalled();
+    expect(el.hasAttribute(ANDROID_PIP_TARGET)).toBe(true);
+  });
+
+  it("hides the page while floating and shows it again after, even if the video closed meanwhile", () => {
+    window.dispatchEvent(new CustomEvent(ANDROID_PIP_EVENT, { detail: true }));
+    expect(document.documentElement.hasAttribute(ANDROID_PIP_ACTIVE)).toBe(true);
+    window.dispatchEvent(new CustomEvent(ANDROID_PIP_EVENT, { detail: false }));
+    expect(document.documentElement.hasAttribute(ANDROID_PIP_ACTIVE)).toBe(false);
+  });
+
+  it("does nothing outside the Android app", () => {
+    const el = playingVideo();
+    reportAndroidPictureInPicture(el, true);
+    expect(el.hasAttribute(ANDROID_PIP_TARGET)).toBe(false);
+  });
 });
 
 describe("video picture-in-picture", () => {

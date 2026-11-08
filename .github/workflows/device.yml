@@ -961,6 +961,31 @@ jobs:
             || { echo "::error::zcrypt:// intent filter missing from $MANIFEST"; exit 1; }
           echo "zcrypt:// link registered"
 
+      # Picture-in-picture: MainActivity.kt floats a playing video when the user
+      # leaves the app. The generated activity already lists the size and
+      # layout configChanges, so the WebView isn't recreated when it shrinks.
+      - name: Allow Android picture-in-picture
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST=gen/android/app/src/main/AndroidManifest.xml
+          python3 - "$MANIFEST" <<'PY'
+          import re, sys
+          path = sys.argv[1]
+          xml = open(path).read()
+          if 'android:supportsPictureInPicture="true"' in xml:
+              sys.exit(0)
+          tag = re.search(r'<activity\b[^>]*android:name="\.MainActivity"', xml)
+          if not tag:
+              sys.exit(f"no MainActivity <activity> in {path}")
+          at = tag.start() + len("<activity")
+          open(path, "w").write(xml[:at] + ' android:supportsPictureInPicture="true"' + xml[at:])
+          PY
+          grep -q 'android:supportsPictureInPicture="true"' "$MANIFEST" \
+            || { echo "::error::supportsPictureInPicture missing from $MANIFEST"; exit 1; }
+          echo "picture-in-picture allowed"
+
       # MUST run AFTER `android init`, not before. `tauri icon` picks its
       # Android output dir by probing for gen/android/app/src/main/res: if that
       # exists it writes the mipmaps straight into the real project, and if it
