@@ -13,7 +13,13 @@ vi.mock("@/lib/service-worker", () => ({
 
 import { disablePush, enablePush, releasePushOnSignOut } from "@/lib/push";
 
-const KEY = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
+async function serverPublicKey(): Promise<string> {
+  const pair = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
+  return Buffer.from(raw).toString("base64url");
+}
+
+const KEY = await serverPublicKey();
 
 function fakeSubscription(endpoint = "https://fcm.googleapis.com/fcm/send/abc") {
   return {
