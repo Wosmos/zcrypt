@@ -38,6 +38,7 @@ import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
 import { RecoveryKitSetting } from "@/components/settings/recovery-kit";
 import { FolderBackup } from "@/components/settings/folder-backup";
+import { PhotoBackup } from "@/components/settings/photo-backup";
 import { ScreenPrivacy } from "@/components/settings/screen-privacy";
 import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { AccountData } from "@/components/settings/account-data";
@@ -398,6 +399,11 @@ export function SettingsContent() {
         return isDesktopShell() ? (
           <div className="space-y-8">
             <FolderBackup />
+            <ExportImport files={files} />
+          </div>
+        ) : isTauri ? (
+          <div className="space-y-8">
+            <PhotoBackup />
             <ExportImport files={files} />
           </div>
         ) : (

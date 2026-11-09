@@ -568,6 +568,16 @@ export interface BackupSchedule {
   time: string;
 }
 
+/** Android: back up the phone's photo and video folders, sealed to `publicKey`. */
+export async function photoBackupEnable(publicKey: string): Promise<BackupFolder[]> {
+  return tauriInvoke("photo_backup_enable", { publicKey });
+}
+
+/** Android: stop backing up photos. Files already in the vault stay. */
+export async function photoBackupDisable(): Promise<void> {
+  return tauriInvoke("photo_backup_disable");
+}
+
 /** Signing out on desktop: stops sync and backups and forgets the session the
  *  shell kept in the keychain. No-op outside Tauri. */
 export async function endSession(): Promise<void> {
