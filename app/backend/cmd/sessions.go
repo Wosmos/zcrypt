@@ -139,6 +139,17 @@ const newDeviceGrace = 10 * time.Minute
 // notifyNewDevice emails the owner when a new session starts from a user agent
 // the account has not used before. Best-effort: it never blocks the sign-in.
 func (s *Server) notifyNewDevice(ctx context.Context, r *http.Request, user *types.User) {
+	if time.Since(user.CreatedAt) < newDeviceGrace {
+		return
+	}
+	ua := r.UserAgent()
+	known, err := s.db.IsKnownDevice(ctx, user.ID, ua)
+	if err != nil || known {
+		return
+	}
+	device, location, baseURL, to := describeUserAgent(ua), anonIP(s.clientIP(r)), s.baseURL(r), user.Email
+	s.pushToUser(user.ID, pushMessage{Type: "newSignIn", Data: map[string]string{"device": device}, URL: "/settings?tab=security"})
+
 	send := s.newDeviceMailer
 	if send == nil {
 		cfg := s.emailCfg()
@@ -149,15 +160,9 @@ func (s *Server) notifyNewDevice(ctx context.Context, r *http.Request, user *typ
 			return auth.SendNewDeviceEmail(cfg, to, device, location, when, baseURL)
 		}
 	}
-	if user.Email == "" || time.Since(user.CreatedAt) < newDeviceGrace {
+	if to == "" {
 		return
 	}
-	ua := r.UserAgent()
-	known, err := s.db.IsKnownDevice(ctx, user.ID, ua)
-	if err != nil || known {
-		return
-	}
-	device, location, baseURL, to := describeUserAgent(ua), anonIP(s.clientIP(r)), s.baseURL(r), user.Email
 	s.goBackground(func() {
 		if err := send(to, device, location, time.Now(), baseURL); err != nil {
 			log.Printf("send new device email: %v", err)

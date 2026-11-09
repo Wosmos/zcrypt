@@ -1093,4 +1093,15 @@ CREATE TABLE IF NOT EXISTS relay_usage (
 	PRIMARY KEY (user_id, day)
 );
 CREATE INDEX IF NOT EXISTS idx_relay_usage_day ON relay_usage(day);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+	id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	endpoint     TEXT NOT NULL UNIQUE,
+	p256dh       TEXT NOT NULL,
+	auth         TEXT NOT NULL,
+	lang         TEXT NOT NULL DEFAULT 'en',
+	created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
 `

@@ -68,6 +68,13 @@ type Server struct {
 	// so a burst of installer downloads doesn't exhaust its 60/hr unauthenticated
 	// rate limit.
 	releases *releaseCache
+
+	// Web Push: cached signing keys, the endpoint allowlist check (a field so
+	// tests can point it at a local server) and a client that won't redirect.
+	push           pushState
+	pushHostOK     func(endpoint string) bool
+	pushHTTP       *http.Client
+	linkViewNotice *rateLimiter
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
 	// from authLimiter so a 2FA login doesn't consume login-attempt budget.
@@ -198,6 +205,9 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		userLimiter:           newRateLimiter(600, time.Minute),
 		shareLimiter:          newRateLimiter(30, time.Minute),
 		releases:              newReleaseCache(),
+		pushHostOK:            isPushServiceEndpoint,
+		pushHTTP:              newPushHTTPClient(),
+		linkViewNotice:        newRateLimiter(1, 10*time.Minute),
 		twoFAIPLimiter:        newRateLimiter(10, 5*time.Minute),
 		twoFAUserLimiter:      newRateLimiter(5, 5*time.Minute),
 		sendLimiter:           newRateLimiter(5, time.Hour),
@@ -761,6 +771,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/me/deletion/cancel", maxJSON(s.AuthMiddleware(s.HandleCancelAccountDeletion)))
 	mux.HandleFunc("GET /api/auth/me/export", s.AuthMiddleware(s.HandleExportAccount))
 	mux.HandleFunc("GET /api/auth/sessions", s.AuthMiddleware(s.HandleListSessions))
+	mux.HandleFunc("GET /api/push/key", s.AuthMiddleware(s.HandlePushKey))
+	mux.HandleFunc("POST /api/push/subscribe", maxJSON(s.AuthMiddleware(s.HandlePushSubscribe)))
+	mux.HandleFunc("POST /api/push/unsubscribe", maxJSON(s.AuthMiddleware(s.HandlePushUnsubscribe)))
 	mux.HandleFunc("POST /api/auth/sessions/revoke-others", maxJSON(s.AuthMiddleware(s.HandleRevokeOtherSessions)))
 	mux.HandleFunc("DELETE /api/auth/sessions/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRevokeSession, "id"))))
 	mux.HandleFunc("PATCH /api/auth/profile", maxJSON(s.AuthMiddleware(s.HandleUpdateProfile)))

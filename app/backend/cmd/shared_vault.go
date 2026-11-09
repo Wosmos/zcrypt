@@ -189,6 +189,10 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if member.UserID != userID {
+		s.pushToUser(member.UserID, pushMessage{Type: "inviteReceived", URL: "/spaces"})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(member)
