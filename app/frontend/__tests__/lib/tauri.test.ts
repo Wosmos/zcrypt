@@ -66,6 +66,14 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(() => unlisten()).not.toThrow();
   });
 
+  it("isDesktopShell and subscribeBackup are inert in a browser", async () => {
+    const mod = await import("@/lib/tauri");
+    expect(mod.isDesktopShell()).toBe(false);
+    const unlisten = await mod.subscribeBackup(() => {});
+    expect(unlisten()).toBeUndefined();
+    expect(listenMock).not.toHaveBeenCalled();
+  });
+
   it("subscribeTokens resolves a no-op unlisten outside Tauri", async () => {
     const mod = await import("@/lib/tauri");
     const unlisten = await mod.subscribeTokens(() => {});
@@ -525,6 +533,49 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(listenMock).toHaveBeenCalledWith("zcrypt://tokens", expect.any(Function));
     handler?.({ payload: { access_token: "a", refresh_token: "r" } });
     expect(cb).toHaveBeenCalledWith({ access_token: "a", refresh_token: "r" });
+  });
+
+  it("isDesktopShell is true on desktop and false in the Android build", async () => {
+    const mod = await import("@/lib/tauri");
+    expect(mod.isDesktopShell()).toBe(true);
+    const ua = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 14)");
+    expect(mod.isDesktopShell()).toBe(false);
+    ua.mockRestore();
+  });
+
+  it("folder backup commands call the shell with their arguments", async () => {
+    const folder = { id: "r1", path: "/u/Docs", name: "Docs", files: 2, last_scan_at: "", available: true };
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "pick_backup_folder") return "/u/Docs";
+      if (cmd === "backup_list_folders") return [folder];
+      if (cmd === "backup_add_folder") return folder;
+      return undefined;
+    });
+    const mod = await import("@/lib/tauri");
+    await expect(mod.pickBackupFolder("Pick")).resolves.toBe("/u/Docs");
+    expect(invokeMock).toHaveBeenCalledWith("pick_backup_folder", { title: "Pick" });
+    await expect(mod.listBackupFolders()).resolves.toEqual([folder]);
+    await expect(mod.addBackupFolder("/u/Docs", "a2V5")).resolves.toEqual(folder);
+    expect(invokeMock).toHaveBeenCalledWith("backup_add_folder", { path: "/u/Docs", publicKey: "a2V5" });
+    await mod.removeBackupFolder("r1");
+    expect(invokeMock).toHaveBeenCalledWith("backup_remove_folder", { id: "r1" });
+    await mod.runBackupNow();
+    expect(invokeMock).toHaveBeenCalledWith("backup_run_now", undefined);
+  });
+
+  it("subscribeBackup forwards zcrypt://backup payloads", async () => {
+    let handler: ((event: { payload: unknown }) => void) | undefined;
+    listenMock.mockImplementation((_event: string, cb: (event: { payload: unknown }) => void) => {
+      handler = cb;
+      return Promise.resolve(() => {});
+    });
+    const mod = await import("@/lib/tauri");
+    const cb = vi.fn();
+    await mod.subscribeBackup(cb);
+    expect(listenMock).toHaveBeenCalledWith("zcrypt://backup", expect.any(Function));
+    const pass = { id: "r1", uploaded: 1, unchanged: 0, busy: 0, failed: 0, unavailable: false, errors: [] };
+    handler?.({ payload: pass });
+    expect(cb).toHaveBeenCalledWith(pass);
   });
 
   it("subscribeOAuthCallback forwards only the session from zcrypt://oauth-callback", async () => {

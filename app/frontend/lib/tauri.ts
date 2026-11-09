@@ -513,3 +513,58 @@ export interface UpdateProgress {
   downloaded: number;
   total: number | null;
 }
+
+/** True inside the desktop shell (not the Android build of the same shell). */
+export function isDesktopShell(): boolean {
+  return isTauri && !/Android/i.test(navigator.userAgent);
+}
+
+/** A folder this computer backs up, as the shell reports it. */
+export interface BackupFolder {
+  id: string;
+  path: string;
+  name: string;
+  files: number;
+  last_scan_at: string;
+  available: boolean;
+}
+
+/** One backup pass's outcome for one folder (`zcrypt://backup`). */
+export interface BackupPass {
+  id: string;
+  uploaded: number;
+  unchanged: number;
+  busy: number;
+  failed: number;
+  unavailable: boolean;
+  errors: string[];
+}
+
+/** Native folder dialog. Only a folder picked here can be added for backup. */
+export async function pickBackupFolder(title: string): Promise<string | null> {
+  return tauriInvoke<string | null>("pick_backup_folder", { title });
+}
+
+export async function listBackupFolders(): Promise<BackupFolder[]> {
+  return tauriInvoke<BackupFolder[]>("backup_list_folders");
+}
+
+/** Starts backing up `path`, sealed to `publicKey` (base64 X25519). */
+export async function addBackupFolder(path: string, publicKey: string): Promise<BackupFolder> {
+  return tauriInvoke<BackupFolder>("backup_add_folder", { path, publicKey });
+}
+
+export async function removeBackupFolder(id: string): Promise<void> {
+  return tauriInvoke("backup_remove_folder", { id });
+}
+
+export async function runBackupNow(): Promise<void> {
+  return tauriInvoke("backup_run_now");
+}
+
+/** Subscribe to backup pass results. No-op outside Tauri. */
+export async function subscribeBackup(cb: (pass: BackupPass) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<BackupPass>("zcrypt://backup", (event) => cb(event.payload));
+}

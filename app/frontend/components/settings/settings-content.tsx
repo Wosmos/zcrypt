@@ -19,7 +19,7 @@ import { usePreferencesStore } from "@/store/preferences";
 import { useKeysStore } from "@/store/keys";
 import { localFingerprint } from "@/lib/keys";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
-import { isTauri } from "@/lib/tauri";
+import { isDesktopShell, isTauri } from "@/lib/tauri";
 import { requestedSettingsTab, settingsTabHref } from "@/lib/settings-tab";
 import { storeDesktopPlatformCreds, clearDesktopPlatformCreds } from "@/lib/desktop-creds";
 import { toast } from "@/store/toast";
@@ -37,6 +37,7 @@ import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
 import { RecoveryKitSetting } from "@/components/settings/recovery-kit";
+import { FolderBackup } from "@/components/settings/folder-backup";
 import { ScreenPrivacy } from "@/components/settings/screen-privacy";
 import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { AccountData } from "@/components/settings/account-data";
@@ -394,7 +395,14 @@ export function SettingsContent() {
       case "sessions":
         return <SignedInDevices />;
       case "backup":
-        return <ExportImport files={files} />;
+        return isDesktopShell() ? (
+          <div className="space-y-8">
+            <FolderBackup />
+            <ExportImport files={files} />
+          </div>
+        ) : (
+          <ExportImport files={files} />
+        );
       case "security":
         return (
           <div className="space-y-6">

@@ -588,6 +588,35 @@
         "title": "Guarda un kit de recuperación para que una frase de contraseña olvidada no te cueste tus archivos",
         "action": "Crear kit de recuperación"
       }
+    },
+    "folderBackup": {
+      "label": "Copia de carpetas",
+      "footnote": "Los archivos nuevos y modificados de estas carpetas se suben solos, incluso con tu bóveda bloqueada. Lo que borres aquí nunca se borra de tu bóveda.",
+      "addFirst": "Hacer copia de una carpeta",
+      "addFirstDesc": "Elige una carpeta y este ordenador la mantendrá respaldada.",
+      "addAnother": "Añadir otra carpeta",
+      "add": "Elegir carpeta",
+      "pickTitle": "Elige una carpeta para respaldar",
+      "runNow": "Copiar ahora",
+      "started": "Copiando ahora",
+      "runFailed": "No se pudo iniciar la copia. Inténtalo de nuevo.",
+      "added": "Respaldando {name}",
+      "addFailed": "No se pudo añadir esa carpeta. Inténtalo de nuevo.",
+      "keyUnavailable": "La clave de tu cuenta no está lista. Desbloquea tu bóveda e inténtalo de nuevo.",
+      "remove": "Detener",
+      "removeTitle": "¿Dejar de respaldar {name}?",
+      "removeDesc": "Los archivos ya respaldados se quedan en tu bóveda. Los cambios nuevos en esta carpeta ya no se subirán.",
+      "removeConfirm": "Dejar de respaldar",
+      "removed": "Se dejó de respaldar {name}",
+      "removeFailed": "No se pudo detener la copia. Inténtalo de nuevo.",
+      "missing": "Carpeta no encontrada en este ordenador",
+      "waiting": "Esperando la primera copia",
+      "status": "{count, plural, one {# archivo} other {# archivos}}, revisado {when}",
+      "someFailed": "{count, plural, one {# archivo no se pudo} other {# archivos no se pudieron}} respaldar",
+      "kitTitle": "Configura un kit de recuperación",
+      "kitDesc": "Sin uno, olvidar la frase de contraseña bloquea las copias.",
+      "autoTitle": "Se copia solo",
+      "autoDesc": "Tras cada cambio y cada 10 minutos"
     }
   }
 }

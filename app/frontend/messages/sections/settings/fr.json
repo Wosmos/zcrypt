@@ -588,6 +588,35 @@
         "title": "Enregistrez un kit de récupération pour qu'une phrase secrète oubliée ne vous fasse pas perdre vos fichiers",
         "action": "Créer un kit de récupération"
       }
+    },
+    "folderBackup": {
+      "label": "Sauvegarde de dossiers",
+      "footnote": "Les fichiers nouveaux et modifiés de ces dossiers sont envoyés automatiquement, même quand votre coffre est verrouillé. Ce que vous supprimez ici n'est jamais supprimé de votre coffre.",
+      "addFirst": "Sauvegarder un dossier",
+      "addFirstDesc": "Choisissez un dossier et cet ordinateur le garde sauvegardé.",
+      "addAnother": "Ajouter un autre dossier",
+      "add": "Choisir un dossier",
+      "pickTitle": "Choisissez un dossier à sauvegarder",
+      "runNow": "Sauvegarder maintenant",
+      "started": "Sauvegarde en cours",
+      "runFailed": "Impossible de lancer la sauvegarde. Réessayez.",
+      "added": "Sauvegarde de {name}",
+      "addFailed": "Impossible d'ajouter ce dossier. Réessayez.",
+      "keyUnavailable": "La clé de votre compte n'est pas prête. Déverrouillez votre coffre et réessayez.",
+      "remove": "Arrêter",
+      "removeTitle": "Arrêter de sauvegarder {name} ?",
+      "removeDesc": "Les fichiers déjà sauvegardés restent dans votre coffre. Les nouvelles modifications de ce dossier ne seront plus envoyées.",
+      "removeConfirm": "Arrêter la sauvegarde",
+      "removed": "Sauvegarde de {name} arrêtée",
+      "removeFailed": "Impossible d'arrêter la sauvegarde. Réessayez.",
+      "missing": "Dossier introuvable sur cet ordinateur",
+      "waiting": "En attente de la première sauvegarde",
+      "status": "{count, plural, one {# fichier} other {# fichiers}}, vérifié {when}",
+      "someFailed": "{count, plural, one {# fichier n'a pas pu} other {# fichiers n'ont pas pu}} être sauvegardés",
+      "kitTitle": "Créer un kit de récupération",
+      "kitDesc": "Sans kit, une phrase secrète oubliée bloque les sauvegardes.",
+      "autoTitle": "Sauvegarde automatique",
+      "autoDesc": "Après chaque modification, et toutes les 10 minutes"
     }
   }
 }

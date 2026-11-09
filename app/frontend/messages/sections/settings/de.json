@@ -588,6 +588,35 @@
         "title": "Speichere ein Wiederherstellungs-Kit, damit eine vergessene Passphrase nicht deine Dateien kostet",
         "action": "Wiederherstellungs-Kit erstellen"
       }
+    },
+    "folderBackup": {
+      "label": "Ordner-Backup",
+      "footnote": "Neue und geänderte Dateien in diesen Ordnern werden automatisch hochgeladen, auch wenn dein Tresor gesperrt ist. Was du hier löschst, bleibt in deinem Tresor.",
+      "addFirst": "Ordner sichern",
+      "addFirstDesc": "Wähle einen Ordner und dieser Computer hält ihn gesichert.",
+      "addAnother": "Weiteren Ordner hinzufügen",
+      "add": "Ordner wählen",
+      "pickTitle": "Ordner zum Sichern wählen",
+      "runNow": "Jetzt sichern",
+      "started": "Sicherung läuft",
+      "runFailed": "Sicherung konnte nicht starten. Versuch es noch mal.",
+      "added": "{name} wird gesichert",
+      "addFailed": "Ordner konnte nicht hinzugefügt werden. Versuch es noch mal.",
+      "keyUnavailable": "Dein Kontoschlüssel ist nicht bereit. Entsperre deinen Tresor und versuch es noch mal.",
+      "remove": "Beenden",
+      "removeTitle": "Sicherung von {name} beenden?",
+      "removeDesc": "Bereits gesicherte Dateien bleiben in deinem Tresor. Neue Änderungen in diesem Ordner werden nicht mehr hochgeladen.",
+      "removeConfirm": "Sicherung beenden",
+      "removed": "Sicherung von {name} beendet",
+      "removeFailed": "Sicherung konnte nicht beendet werden. Versuch es noch mal.",
+      "missing": "Ordner auf diesem Computer nicht gefunden",
+      "waiting": "Wartet auf die erste Sicherung",
+      "status": "{count, plural, one {# Datei} other {# Dateien}}, geprüft {when}",
+      "someFailed": "{count, plural, one {# Datei konnte} other {# Dateien konnten}} nicht gesichert werden",
+      "kitTitle": "Wiederherstellungskit einrichten",
+      "kitDesc": "Ohne Kit sperrt eine vergessene Passphrase die Sicherungen aus.",
+      "autoTitle": "Sichert von selbst",
+      "autoDesc": "Nach Änderungen und alle 10 Minuten"
     }
   }
 }

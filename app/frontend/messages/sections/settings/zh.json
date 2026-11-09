@@ -588,6 +588,35 @@
         "title": "保存一份恢复套件，避免忘记口令后丢失文件",
         "action": "创建恢复套件"
       }
+    },
+    "folderBackup": {
+      "label": "文件夹备份",
+      "footnote": "这些文件夹中新增和修改的文件会自动上传，即使保险库已锁定。在这里删除的内容不会从保险库中删除。",
+      "addFirst": "备份文件夹",
+      "addFirstDesc": "选择一个文件夹，这台电脑会持续备份它。",
+      "addAnother": "再添加一个文件夹",
+      "add": "选择文件夹",
+      "pickTitle": "选择要备份的文件夹",
+      "runNow": "立即备份",
+      "started": "正在备份",
+      "runFailed": "无法开始备份，请重试。",
+      "added": "正在备份 {name}",
+      "addFailed": "无法添加该文件夹，请重试。",
+      "keyUnavailable": "账户密钥尚未就绪。请解锁保险库后重试。",
+      "remove": "停止",
+      "removeTitle": "停止备份 {name}？",
+      "removeDesc": "已备份的文件会保留在保险库中。此文件夹中的新更改将不再上传。",
+      "removeConfirm": "停止备份",
+      "removed": "已停止备份 {name}",
+      "removeFailed": "无法停止备份，请重试。",
+      "missing": "在这台电脑上找不到该文件夹",
+      "waiting": "等待首次备份",
+      "status": "{count} 个文件，{when}检查",
+      "someFailed": "{count} 个文件无法备份",
+      "kitTitle": "设置恢复工具包",
+      "kitDesc": "没有恢复工具包，忘记密码后将无法访问备份。",
+      "autoTitle": "自动备份",
+      "autoDesc": "每次更改后以及每 10 分钟"
     }
   }
 }

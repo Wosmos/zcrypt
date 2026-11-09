@@ -588,6 +588,35 @@
         "title": "Save a recovery kit so a forgotten passphrase doesn't lose your files",
         "action": "Create recovery kit"
       }
+    },
+    "folderBackup": {
+      "label": "Folder backup",
+      "footnote": "New and changed files in these folders upload on their own, even while your vault is locked. Nothing is ever deleted from your vault when you delete it here.",
+      "addFirst": "Back up a folder",
+      "addFirstDesc": "Pick a folder and this computer keeps it backed up.",
+      "addAnother": "Add another folder",
+      "add": "Choose folder",
+      "pickTitle": "Choose a folder to back up",
+      "runNow": "Back up now",
+      "started": "Backing up now",
+      "runFailed": "Couldn't start the backup. Try again.",
+      "added": "Backing up {name}",
+      "addFailed": "Couldn't add that folder. Try again.",
+      "keyUnavailable": "Your account key isn't ready. Unlock your vault and try again.",
+      "remove": "Stop",
+      "removeTitle": "Stop backing up {name}?",
+      "removeDesc": "Files already backed up stay in your vault. New changes in this folder won't upload anymore.",
+      "removeConfirm": "Stop backing up",
+      "removed": "Stopped backing up {name}",
+      "removeFailed": "Couldn't stop the backup. Try again.",
+      "missing": "Folder not found on this computer",
+      "waiting": "Waiting for the first backup",
+      "status": "{count, plural, one {# file} other {# files}}, checked {when}",
+      "someFailed": "{count, plural, one {# file} other {# files}} couldn't be backed up",
+      "kitTitle": "Set up a recovery kit",
+      "kitDesc": "Without one, a forgotten passphrase locks backups away.",
+      "autoTitle": "Backs up on its own",
+      "autoDesc": "After changes, and every 10 minutes"
     }
   }
 }
