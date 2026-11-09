@@ -55,6 +55,8 @@ pub fn is_ignored(name: &str) -> bool {
         ".Trashes",
         ".Spotlight-V100",
         ".fseventsd",
+        ".thumbnails",
+        ".nomedia",
     ];
     const SUFFIXES: &[&str] = &[
         ".tmp",
@@ -69,6 +71,8 @@ pub fn is_ignored(name: &str) -> bool {
         || name.starts_with(".~lock.")
         || name.starts_with(".zcrypt-")
         || name.starts_with("._")
+        || name.starts_with(".trashed-")
+        || name.starts_with(".pending-")
         || SUFFIXES
             .iter()
             .any(|s| name.to_ascii_lowercase().ends_with(s))
@@ -293,6 +297,10 @@ mod tests {
         std::fs::write(root.join(".DS_Store"), b"x").unwrap();
         std::fs::create_dir_all(root.join(".git")).unwrap();
         std::fs::write(root.join(".git/config"), b"x").unwrap();
+        std::fs::create_dir_all(root.join(".thumbnails")).unwrap();
+        std::fs::write(root.join(".thumbnails/1.jpg"), b"x").unwrap();
+        std::fs::write(root.join(".trashed-1767225600-old.jpg"), b"x").unwrap();
+        std::fs::write(root.join(".pending-1767225600-new.mp4"), b"x").unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink("/etc/hosts", root.join("link")).unwrap();
 

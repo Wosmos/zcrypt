@@ -6,6 +6,7 @@ pub mod backup;
 pub mod client;
 pub mod download;
 pub mod keys;
+pub mod session;
 pub mod types;
 pub mod upload;
 
