@@ -18,6 +18,9 @@ vi.hoisted(() => {
 import {
   listFolderSubtree,
   listPk1Folders,
+  getRecoveryKit,
+  putRecoveryKit,
+  deleteRecoveryKit,
   updateFolderStyle,
   updateFileStyle,
   bulkPurgeFiles,
@@ -40,6 +43,7 @@ function jsonRes(body: unknown, init: { status?: number; ok?: boolean } = {}) {
     status,
     headers: { get: () => null },
     json: async () => body,
+    text: async () => JSON.stringify(body),
     arrayBuffer: async () => new ArrayBuffer(0),
   };
 }
@@ -66,6 +70,26 @@ afterEach(() => {
 });
 
 describe("api thin request wrappers", () => {
+  it("recovery kit calls: read (404 means none), store and remove", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ blob: "rk1:x", created_at: "t" }));
+    expect(await getRecoveryKit()).toEqual({ blob: "rk1:x", created_at: "t" });
+    fetchMock.mockResolvedValueOnce(jsonRes({ error: "not found" }, { status: 404 }));
+    expect(await getRecoveryKit()).toBeNull();
+    fetchMock.mockResolvedValueOnce(jsonRes({ error: "boom" }, { status: 500 }));
+    await expect(getRecoveryKit()).rejects.toThrow();
+
+    fetchMock.mockResolvedValueOnce(jsonRes({ created_at: "t" }));
+    await putRecoveryKit("rk1:y");
+    const [putUrl, putInit] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
+    expect(putUrl).toContain("/api/keys/recovery");
+    expect(putInit.method).toBe("PUT");
+    expect(JSON.parse(String(putInit.body))).toEqual({ blob: "rk1:y" });
+
+    fetchMock.mockResolvedValueOnce(jsonRes({ removed: true }));
+    await deleteRecoveryKit();
+    expect((fetchMock.mock.calls.at(-1) as [string, RequestInit])[1].method).toBe("DELETE");
+  });
+
   it("listPk1Folders asks for the folders backup sealed to the account key", async () => {
     fetchMock.mockResolvedValueOnce(jsonRes([]));
     await listPk1Folders();
