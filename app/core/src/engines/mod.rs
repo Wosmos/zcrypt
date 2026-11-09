@@ -5,6 +5,7 @@
 //! is local-first (encrypt→ledger, then drive one sync pass) so the two upload
 //! paths can never drift.
 
+pub mod backup;
 mod bulk_download;
 pub mod chunk_cache;
 mod decrypt_to_memory;

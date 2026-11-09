@@ -70,6 +70,15 @@ fn session_layout(
     (resp.chunk_count <= 0 || resp.chunk_count == count).then_some((size, count))
 }
 
+/// How an upload protects the file's key and name.
+pub enum Sealing<'a> {
+    /// The normal vault formats, from the vault (or folder) passphrase.
+    Vault(&'a str),
+    /// Automatic backup (docs/CRYPTO_FORMAT.md 2.2): sealed to the account's
+    /// X25519 public key, so no passphrase is needed and none is held.
+    PublicKey([u8; 32]),
+}
+
 pub async fn run(
     ctx: &EngineContext,
     file_path: &std::path::Path,
@@ -77,6 +86,25 @@ pub async fn run(
     platform: Option<String>,
     folder_id: Option<String>,
 ) -> Result<(), EngineError> {
+    run_sealed(
+        ctx,
+        file_path,
+        Sealing::Vault(passphrase),
+        platform,
+        folder_id,
+    )
+    .await
+    .map(|_| ())
+}
+
+/// Uploads one file with the given sealing and returns its backend file id.
+pub async fn run_sealed(
+    ctx: &EngineContext,
+    file_path: &std::path::Path,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+) -> Result<String, EngineError> {
     let t0 = Instant::now();
     let file_name = file_path
         .file_name()
@@ -103,7 +131,25 @@ pub async fn run(
 
     // Keys + file hash.
     emit(Stage::Hashing, 0, 0);
-    let keys = super::upload_keys(ctx, passphrase).await?;
+    // `cek` is what we ACTUALLY encrypt chunks with. For a fresh upload it's a
+    // new random key; on a RESUMED vault session it is REPLACED below with the
+    // file's ORIGINAL key (see the resume block after init), the backend keeps
+    // the original envelope and discards this fresh one, so re-streamed chunks
+    // MUST use the original CEK or the file becomes undecryptable.
+    let mut cek = crypto::generate_cek();
+    let keys = match &sealing {
+        Sealing::Vault(passphrase) => Some(super::upload_keys(ctx, passphrase).await?),
+        Sealing::PublicKey(_) => None,
+    };
+    let hasher = match &keys {
+        Some(k) => k.hasher(),
+        None => {
+            let mut mac_key = crate::pk1::cek_mac_key(&cek);
+            let h = crypto::ContentHasher::new(crypto::CONTENT_MAC_SCHEME, Some(&mac_key));
+            mac_key.zeroize();
+            h
+        }
+    };
     // Report hash progress (throttled to ~1% steps) so the bar moves during the
     // whole-file read instead of freezing: hashing a multi-GB file is a big
     // slice of the wall-clock and looked "stuck at 0%" before.
@@ -111,7 +157,7 @@ pub async fn run(
     let hfn = file_name.clone();
     let mut last_emit = 0i64;
     let step = (file_size / 100).max(1);
-    let content_mac = super::local_upload::hash_file_progress(file_path, keys.hasher(), |done| {
+    let content_mac = super::local_upload::hash_file_progress(file_path, hasher, |done| {
         if done - last_emit >= step {
             last_emit = done;
             (progress)(Progress {
@@ -129,29 +175,37 @@ pub async fn run(
     .await?;
     emit(Stage::DerivingKey, 0, 0);
     let salt = crypto::generate_salt();
-    let pass = passphrase.to_string();
-    let mut kek = tokio::task::spawn_blocking(move || crypto::derive_key(&pass, &salt))
-        .await
-        .map_err(join_err)?;
-    // `cek` is what we ACTUALLY encrypt chunks with. For a fresh upload it's a
-    // new random key; on a RESUMED session it is REPLACED below with the file's
-    // ORIGINAL key (see the resume block after init), the backend keeps the
-    // original envelope and discards this fresh one, so re-streamed chunks MUST
-    // use the original CEK or the file becomes undecryptable (mismatched CEK).
-    let mut cek = crypto::generate_cek();
-    let wrapped_cek = crypto::wrap_cek(&kek, &cek)?;
-    kek.zeroize();
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let (wrapped_cek, encrypted_name, scheme) = match &sealing {
+        Sealing::Vault(passphrase) => {
+            let pass = passphrase.to_string();
+            let mut kek = tokio::task::spawn_blocking(move || crypto::derive_key(&pass, &salt))
+                .await
+                .map_err(join_err)?;
+            let wrapped = crypto::wrap_cek(&kek, &cek)?;
+            kek.zeroize();
+            let name = keys
+                .as_ref()
+                .expect("vault sealing derives upload keys")
+                .seal_name(&file_name)?;
+            (b64.encode(&wrapped), name, crypto::CONTENT_MAC_SCHEME)
+        }
+        Sealing::PublicKey(public) => (
+            crate::pk1::seal_pk1(public, &cek)?,
+            crate::pk1::seal_pk1(public, file_name.as_bytes())?,
+            crate::pk1::CEK_MAC_SCHEME,
+        ),
+    };
 
     // Init (or resume) the backend session. Relay leaves mode empty; byos-direct
     // sends the chosen platform so the server makes a metadata-only session.
     let (mode, plat) = super::choose_plane(&ctx.creds);
     let plat = plat.map(|p| p.to_string()).unwrap_or_default();
     let byos = mode == UploadMode::ByosDirect;
-    let b64 = base64::engine::general_purpose::STANDARD;
     let req = UploadInitRequest {
         original_size: file_size,
         salt: b64.encode(salt),
-        wrapped_cek: b64.encode(&wrapped_cek),
+        wrapped_cek,
         chunk_count,
         chunk_size,
         platform: if byos {
@@ -163,8 +217,19 @@ pub async fn run(
         folder_id,
         ..Default::default()
     }
-    .with_identity(keys.seal_name(&file_name)?, content_mac);
+    .with_identity_scheme(encrypted_name, content_mac, scheme);
     let mut resp = ctx.client.init_upload(&req).await?;
+    if resp.resumed && matches!(sealing, Sealing::PublicKey(_)) {
+        // A sealed backup can't recover an earlier session's key (it holds no
+        // private key), so it never resumes: start the file over.
+        ctx.client.cancel_upload(&resp.session_id).await?;
+        resp = ctx.client.init_upload(&req).await?;
+        if resp.resumed {
+            return Err(EngineError::Other(
+                "backup: the server resumed a session this device cannot reopen".into(),
+            ));
+        }
+    }
     if resp.resumed {
         match session_layout(file_size, chunk_size, chunk_count, &resp) {
             Some((size, count)) => {
@@ -204,6 +269,11 @@ pub async fn run(
             .map_err(|e| EngineError::Other(format!("resume: bad stored salt: {e}")))?;
         let orig_wrapped = crypto::WrappedKey::parse(&meta.wrapped_cek)?
             .ok_or_else(|| EngineError::Other("resume: stored file has no envelope".into()))?;
+        let Sealing::Vault(passphrase) = sealing else {
+            return Err(EngineError::Other(
+                "backup: resumed session without a vault key".into(),
+            ));
+        };
         if orig_wrapped.is_mk1() {
             super::ensure_master_key(ctx, passphrase).await?;
         }
@@ -392,7 +462,7 @@ pub async fn run(
          | total {:.1}s, upload {secs:.1}s, {mbps:.1} MB/s",
         t0.elapsed().as_secs_f64()
     );
-    Ok(())
+    Ok(backend_id)
 }
 
 /// `upload_one` with bounded retry: a single transient blip (dropped

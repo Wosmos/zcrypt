@@ -16,6 +16,13 @@ pub struct MyKeyResponse {
     pub kdf_salt: String,
     #[serde(default)]
     pub master_key_writes: bool,
+    /// base64 X25519 public key; automatic backup seals to it.
+    #[serde(default)]
+    pub public_key: String,
+    /// The key's published fingerprint, checked against the one recorded when
+    /// backup was turned on so a swapped key can't redirect backups.
+    #[serde(default)]
+    pub fingerprint: String,
 }
 
 impl Client {

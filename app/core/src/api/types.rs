@@ -123,11 +123,26 @@ impl UploadInitRequest {
     /// never serialized) and `sha256` as the keyed `hmac_v1` content MAC. This
     /// is the only way an engine fills them, so no init path can send the
     /// plaintext name or a plain content hash.
-    pub fn with_identity(mut self, encrypted_name: String, content_mac: String) -> Self {
+    pub fn with_identity(self, encrypted_name: String, content_mac: String) -> Self {
+        self.with_identity_scheme(
+            encrypted_name,
+            content_mac,
+            crate::crypto::CONTENT_MAC_SCHEME,
+        )
+    }
+
+    /// [`with_identity`](Self::with_identity) for a content MAC under another
+    /// scheme: `cek_hmac_v1` for public-key backup (docs/CRYPTO_FORMAT.md 2.2).
+    pub fn with_identity_scheme(
+        mut self,
+        encrypted_name: String,
+        content_mac: String,
+        scheme: &str,
+    ) -> Self {
         self.filename = String::new();
         self.encrypted_name = encrypted_name;
         self.sha256 = content_mac;
-        self.sha256_scheme = crate::crypto::CONTENT_MAC_SCHEME.to_string();
+        self.sha256_scheme = scheme.to_string();
         self
     }
 }

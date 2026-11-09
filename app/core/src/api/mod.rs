@@ -2,6 +2,7 @@
 //! the two known sidecar gaps fixed: the refresh token is actually threaded
 //! through (auto-refresh on 401 works), and retries use real backoff.
 
+pub mod backup;
 pub mod client;
 pub mod download;
 pub mod keys;

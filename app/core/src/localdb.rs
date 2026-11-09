@@ -188,6 +188,34 @@ impl LocalDb {
                 [],
             );
         }
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS backup_roots (
+                id            TEXT PRIMARY KEY,
+                local_path    TEXT NOT NULL UNIQUE,
+                user_id       TEXT NOT NULL,
+                public_key    TEXT NOT NULL,
+                remote_folder_id TEXT NOT NULL DEFAULT '',
+                created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+                last_scan_at  TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS backup_dirs (
+                root_id          TEXT NOT NULL REFERENCES backup_roots(id) ON DELETE CASCADE,
+                rel_dir          TEXT NOT NULL,
+                remote_folder_id TEXT NOT NULL,
+                PRIMARY KEY (root_id, rel_dir)
+            );
+            CREATE TABLE IF NOT EXISTS backup_files (
+                root_id        TEXT NOT NULL REFERENCES backup_roots(id) ON DELETE CASCADE,
+                rel_path       TEXT NOT NULL,
+                size           INTEGER NOT NULL,
+                mtime_ns       INTEGER NOT NULL,
+                remote_file_id TEXT NOT NULL,
+                uploaded_at    TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (root_id, rel_path)
+            );
+            "#,
+        )?;
         Ok(LocalDb {
             conn: Mutex::new(conn),
         })
@@ -718,5 +746,253 @@ mod tests {
         assert!(db.find_active_sibling("u1", "h", 5).unwrap().is_some());
         assert!(db.find_active_sibling("u2", "h", 5).unwrap().is_none());
         let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+/// A folder this device backs up (docs/CRYPTO_FORMAT.md 2.2): `public_key` is
+/// the account key pinned when backup was turned on, never re-read from the
+/// server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackupRoot {
+    pub id: String,
+    pub local_path: String,
+    pub user_id: String,
+    pub public_key: String,
+    pub remote_folder_id: String,
+    pub last_scan_at: String,
+}
+
+/// What the last successful upload of one backed-up file looked like.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackupFileState {
+    pub size: i64,
+    pub mtime_ns: i64,
+    pub remote_file_id: String,
+}
+
+impl LocalDb {
+    pub fn add_backup_root(&self, root: &BackupRoot) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO backup_roots (id, local_path, user_id, public_key, remote_folder_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![
+                    root.id,
+                    root.local_path,
+                    root.user_id,
+                    root.public_key,
+                    root.remote_folder_id
+                ],
+            )
+            .map(|_| ())
+        })
+    }
+
+    pub fn list_backup_roots(&self, user_id: &str) -> Result<Vec<BackupRoot>, DbError> {
+        self.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT id, local_path, user_id, public_key, remote_folder_id, last_scan_at
+                 FROM backup_roots WHERE user_id = ?1 ORDER BY created_at",
+            )?;
+            let rows = stmt.query_map([user_id], |r| {
+                Ok(BackupRoot {
+                    id: r.get(0)?,
+                    local_path: r.get(1)?,
+                    user_id: r.get(2)?,
+                    public_key: r.get(3)?,
+                    remote_folder_id: r.get(4)?,
+                    last_scan_at: r.get(5)?,
+                })
+            })?;
+            rows.collect()
+        })
+    }
+
+    /// Forgets a backed-up folder on this device. Nothing in the vault is
+    /// touched: the files it uploaded stay where they are.
+    pub fn remove_backup_root(&self, id: &str, user_id: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            let removed = c.execute(
+                "DELETE FROM backup_roots WHERE id = ?1 AND user_id = ?2",
+                [id, user_id],
+            )?;
+            if removed > 0 {
+                c.execute("DELETE FROM backup_dirs WHERE root_id = ?1", [id])?;
+                c.execute("DELETE FROM backup_files WHERE root_id = ?1", [id])?;
+            }
+            Ok(())
+        })
+    }
+
+    pub fn set_backup_root_folder(&self, id: &str, folder_id: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "UPDATE backup_roots SET remote_folder_id = ?2 WHERE id = ?1",
+                [id, folder_id],
+            )
+            .map(|_| ())
+        })
+    }
+
+    pub fn touch_backup_root(&self, id: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "UPDATE backup_roots SET last_scan_at = datetime('now') WHERE id = ?1",
+                [id],
+            )
+            .map(|_| ())
+        })
+    }
+
+    pub fn backup_dir(&self, root_id: &str, rel_dir: &str) -> Result<Option<String>, DbError> {
+        self.with(|c| {
+            use rusqlite::OptionalExtension;
+            c.query_row(
+                "SELECT remote_folder_id FROM backup_dirs WHERE root_id = ?1 AND rel_dir = ?2",
+                [root_id, rel_dir],
+                |r| r.get(0),
+            )
+            .optional()
+        })
+    }
+
+    pub fn set_backup_dir(
+        &self,
+        root_id: &str,
+        rel_dir: &str,
+        folder_id: &str,
+    ) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO backup_dirs (root_id, rel_dir, remote_folder_id) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (root_id, rel_dir) DO UPDATE SET remote_folder_id = excluded.remote_folder_id",
+                [root_id, rel_dir, folder_id],
+            )
+            .map(|_| ())
+        })
+    }
+
+    pub fn backup_file(
+        &self,
+        root_id: &str,
+        rel_path: &str,
+    ) -> Result<Option<BackupFileState>, DbError> {
+        self.with(|c| {
+            use rusqlite::OptionalExtension;
+            c.query_row(
+                "SELECT size, mtime_ns, remote_file_id FROM backup_files WHERE root_id = ?1 AND rel_path = ?2",
+                [root_id, rel_path],
+                |r| {
+                    Ok(BackupFileState {
+                        size: r.get(0)?,
+                        mtime_ns: r.get(1)?,
+                        remote_file_id: r.get(2)?,
+                    })
+                },
+            )
+            .optional()
+        })
+    }
+
+    /// Recorded only after the server confirmed the upload.
+    pub fn set_backup_file(
+        &self,
+        root_id: &str,
+        rel_path: &str,
+        state: &BackupFileState,
+    ) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO backup_files (root_id, rel_path, size, mtime_ns, remote_file_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT (root_id, rel_path) DO UPDATE SET size = excluded.size,
+                   mtime_ns = excluded.mtime_ns, remote_file_id = excluded.remote_file_id,
+                   uploaded_at = datetime('now')",
+                rusqlite::params![
+                    root_id,
+                    rel_path,
+                    state.size,
+                    state.mtime_ns,
+                    state.remote_file_id
+                ],
+            )
+            .map(|_| ())
+        })
+    }
+
+    pub fn backup_file_count(&self, root_id: &str) -> Result<i64, DbError> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT COUNT(*) FROM backup_files WHERE root_id = ?1",
+                [root_id],
+                |r| r.get(0),
+            )
+        })
+    }
+}
+
+#[cfg(test)]
+mod backup_ledger_tests {
+    use super::*;
+
+    fn db() -> (tempfile::TempDir, LocalDb) {
+        let dir = tempfile::tempdir().unwrap();
+        let db = LocalDb::open_at(&dir.path().join("db.sqlite")).unwrap();
+        (dir, db)
+    }
+
+    fn root(id: &str, user: &str) -> BackupRoot {
+        BackupRoot {
+            id: id.into(),
+            local_path: format!("/Users/me/{id}"),
+            user_id: user.into(),
+            public_key: "cHVi".into(),
+            remote_folder_id: String::new(),
+            last_scan_at: String::new(),
+        }
+    }
+
+    #[test]
+    fn roots_are_per_user_and_paths_are_unique() {
+        let (_d, db) = db();
+        db.add_backup_root(&root("docs", "u1")).unwrap();
+        db.add_backup_root(&root("pics", "u2")).unwrap();
+        assert!(db.add_backup_root(&root("docs", "u1")).is_err());
+        let mine = db.list_backup_roots("u1").unwrap();
+        assert_eq!(mine.len(), 1);
+        assert_eq!(mine[0].local_path, "/Users/me/docs");
+    }
+
+    #[test]
+    fn records_uploads_and_forgets_them_with_the_root() {
+        let (_d, db) = db();
+        db.add_backup_root(&root("docs", "u1")).unwrap();
+        db.set_backup_dir("docs", "", "folder-root").unwrap();
+        db.set_backup_root_folder("docs", "folder-root").unwrap();
+        let state = BackupFileState {
+            size: 5,
+            mtime_ns: 42,
+            remote_file_id: "file-1".into(),
+        };
+        db.set_backup_file("docs", "a/b.txt", &state).unwrap();
+        assert_eq!(db.backup_file("docs", "a/b.txt").unwrap(), Some(state));
+        assert_eq!(
+            db.backup_dir("docs", "").unwrap().as_deref(),
+            Some("folder-root")
+        );
+        assert_eq!(
+            db.list_backup_roots("u1").unwrap()[0].remote_folder_id,
+            "folder-root"
+        );
+
+        db.remove_backup_root("docs", "someone-else").unwrap();
+        assert_eq!(
+            db.backup_file_count("docs").unwrap(),
+            1,
+            "another user can't remove it"
+        );
+        db.remove_backup_root("docs", "u1").unwrap();
+        assert_eq!(db.backup_file_count("docs").unwrap(), 0);
+        assert_eq!(db.backup_dir("docs", "").unwrap(), None);
     }
 }
