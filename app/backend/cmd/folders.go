@@ -26,7 +26,15 @@ func (s *Server) HandleListFolders(w http.ResponseWriter, r *http.Request) {
 		parentID = &v
 	}
 
-	folders, err := s.db.ListFolders(ctx, userID, parentID)
+	var (
+		folders []types.Folder
+		err     error
+	)
+	if r.URL.Query().Get("sealed") == "pk1" {
+		folders, err = s.db.ListPk1Folders(ctx, userID)
+	} else {
+		folders, err = s.db.ListFolders(ctx, userID, parentID)
+	}
 	if err != nil {
 		log.Printf("folders: list: %v", err)
 		http.Error(w, `{"error":"failed to list folders"}`, http.StatusInternalServerError)

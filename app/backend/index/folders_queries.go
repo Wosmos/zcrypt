@@ -102,6 +102,36 @@ func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) 
 	return folders, nil
 }
 
+// ListPk1Folders returns the user's live folders, at any depth, whose name is
+// still sealed to the account public key by automatic backup
+// (docs/CRYPTO_FORMAT.md 2.2), so an unlocked client can adopt them.
+func (db *DB) ListPk1Folders(ctx context.Context, userID string) ([]types.Folder, error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style
+		FROM folders
+		WHERE user_id = $1 AND deleted_at IS NULL AND encrypted_name LIKE 'pk1:%'
+		ORDER BY created_at`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list pk1 folders: %w", err)
+	}
+	defer rows.Close()
+	var folders []types.Folder
+	for rows.Next() {
+		var (
+			f         types.Folder
+			createdAt time.Time
+			deletedAt *time.Time
+		)
+		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier, &f.EncryptedStyle); err != nil {
+			return nil, fmt.Errorf("scan pk1 folder: %w", err)
+		}
+		f.CreatedAt = createdAt.Format(time.RFC3339)
+		f.DeletedAt = folderTimeStr(deletedAt)
+		folders = append(folders, f)
+	}
+	return folders, rows.Err()
+}
+
 // ListAllFolders returns every folder the user owns, trashed ones included.
 func (db *DB) ListAllFolders(ctx context.Context, userID string) ([]types.Folder, error) {
 	rows, err := db.pool.Query(ctx, `
