@@ -86,6 +86,9 @@ struct EngineState {
     backup_nudge: StdMutex<Option<mpsc::UnboundedSender<()>>>,
     /// Watches the backed-up folders; dropping it stops watching.
     backup_watcher: StdMutex<Option<notify::RecommendedWatcher>>,
+    /// Folders the user picked in the native dialog for backup. Only these can
+    /// be added, so script in the webview can't pick a folder for the user.
+    backup_picks: StdMutex<std::collections::HashSet<PathBuf>>,
 }
 
 impl Default for EngineState {
@@ -102,6 +105,7 @@ impl Default for EngineState {
             saves: paths::SaveApprovals::default(),
             backup_nudge: StdMutex::new(None),
             backup_watcher: StdMutex::new(None),
+            backup_picks: StdMutex::new(std::collections::HashSet::new()),
         }
     }
 }
@@ -878,6 +882,20 @@ async fn backup_add_folder(
 ) -> Result<backup_agent::BackupFolderView, String> {
     let (client, user_id) = backup_client(&state).await?;
     let (canonical, key) = backup_agent::validate_new_folder(&path, &public_key)?;
+    if !state.backup_picks.lock().unwrap().remove(&canonical) {
+        return Err("Choose the folder with the folder picker.".into());
+    }
+    let published = client
+        .get_my_key()
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|k| k.public_key)
+        .unwrap_or_default();
+    if published.trim() != key {
+        return Err(
+            "Your account key doesn't match this device. Unlock your vault and try again.".into(),
+        );
+    }
     let db = state.db()?;
     let existing = db.list_backup_roots(&user_id).map_err(|e| e.to_string())?;
     if backup_agent::overlaps(&existing, &canonical) {
@@ -1574,6 +1592,27 @@ async fn pick_files(
     Ok(paths)
 }
 
+/// Native folder dialog for choosing a folder to back up. The pick is recorded
+/// so `backup_add_folder` accepts it; a folder the user never picked is refused.
+#[tauri::command]
+async fn pick_backup_folder(
+    window: tauri::Window,
+    state: tauri::State<'_, EngineState>,
+    title: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog = window.dialog().file().set_title(title);
+    #[cfg(desktop)]
+    let dialog = dialog.set_parent(&window);
+    let Some(picked) = dialog.blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let path = PathBuf::from(picked.simplified().to_string());
+    let canonical = path.canonicalize().map_err(|e| e.to_string())?;
+    state.backup_picks.lock().unwrap().insert(canonical.clone());
+    Ok(Some(canonical.to_string_lossy().to_string()))
+}
+
 /// Native save dialog. The chosen destination is recorded so the download
 /// commands accept it; a path the user never picked is refused.
 #[tauri::command]
@@ -1630,6 +1669,7 @@ pub fn run() {
             backup_add_folder,
             backup_remove_folder,
             backup_run_now,
+            pick_backup_folder,
             install_channel,
             local_upload,
             upload_file,
