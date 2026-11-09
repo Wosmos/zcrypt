@@ -126,6 +126,29 @@ sealed         = eph.public[32] || AESGCM_ENCRYPT(seal_key, data)        (§3)
   a backup device MUST check it against the fingerprint recorded when backup
   was turned on, so a server that swaps keys cannot redirect backups.
 
+### 2.3 Recovery kit (`rk1`)
+
+The vault passphrase sealed under a random key that only the user holds
+(`app/frontend/lib/recovery-kit.ts`). The server stores the sealed blob in
+`recovery_kits` and never sees the key, so it can recover nothing on its own.
+
+```
+RK        = 32 random bytes
+seal_key  = HKDF-SHA256(ikm = RK, salt = empty, info = "zcrypt-recovery-v1", 32)
+blob      = "rk1:" + base64(AESGCM_ENCRYPT(seal_key, utf8(passphrase)))    (§3)
+```
+
+- **Key text**: `"ZCRYPT-"` + the 52 Crockford base32 characters of RK
+  (alphabet `0123456789ABCDEFGHJKMNPQRSTVWXYZ`, MSB first, last 2 bits
+  zero-padded) + a 4-character check group = the first 4 base32 characters of
+  `SHA-256(RK)`, split into groups of 4 joined by `-`.
+- **Parsing**: case, spaces and `-` are ignored, `I`/`L` read as `1` and `O`
+  as `0`. A check-group mismatch is a typo and is reported before any network
+  call; a GCM failure on the blob means the key is wrong.
+- Replacing the kit makes a new RK, so the old key stops working at once.
+  The blob holds the passphrase itself, so any flow that changes the
+  passphrase MUST re-seal or delete the kit.
+
 ## 3. AES-GCM wire format
 
 All AES-GCM outputs (chunks, wrapped CEKs, encrypted names/styles) use ONE
