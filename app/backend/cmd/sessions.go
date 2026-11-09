@@ -148,7 +148,7 @@ func (s *Server) notifyNewDevice(ctx context.Context, r *http.Request, user *typ
 		return
 	}
 	device, location, baseURL, to := describeUserAgent(ua), anonIP(s.clientIP(r)), s.baseURL(r), user.Email
-	s.pushToUser(user.ID, pushMessage{Type: "newSignIn", Data: map[string]string{"device": device}, URL: "/settings?tab=security"})
+	s.pushToUser(user.ID, pushMessage{Type: "newSignIn", Data: map[string]string{"device": device}, URL: "/settings?tab=sessions"})
 
 	send := s.newDeviceMailer
 	if send == nil {

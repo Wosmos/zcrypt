@@ -25,17 +25,23 @@ describe("useRecoveryKit", () => {
     await waitFor(() => expect(result.current.status).toEqual({ set: true, createdAt: "2026-11-09T10:00:00Z" }));
   });
 
-  it("treats a missing record or flag as no kit, and ignores errors", async () => {
+  it("treats a missing flag, or an account with no keys yet, as no kit", async () => {
     getMyKey.mockResolvedValueOnce({});
     const { result } = renderHook(() => useRecoveryKit());
     await waitFor(() => expect(result.current.status).toEqual({ set: false, createdAt: null }));
 
+    cleanup();
     useKeysStore.setState({ recoveryKit: null });
     getMyKey.mockResolvedValueOnce(null);
-    renderHook(() => useRecoveryKit());
+    const second = renderHook(() => useRecoveryKit());
+    await waitFor(() => expect(second.result.current.status).toEqual({ set: false, createdAt: null }));
+  });
+
+  it("stays unknown when the record can't be read", async () => {
     getMyKey.mockRejectedValueOnce(new Error("offline"));
     renderHook(() => useRecoveryKit());
-    await waitFor(() => expect(getMyKey).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(getMyKey).toHaveBeenCalled());
+    await Promise.resolve();
     expect(useKeysStore.getState().recoveryKit).toBeNull();
   });
 

@@ -371,6 +371,7 @@ export function SettingsContent() {
       case "privacy":
         return (
           <div className="space-y-8">
+            <RecoveryKitSetting />
             <ScreenPrivacy />
             <SettingGroup label={tc("safeguards")} footnote={tc("safeguardsFootnote")}>
               <LinkRow
@@ -397,7 +398,6 @@ export function SettingsContent() {
       case "security":
         return (
           <div className="space-y-6">
-            <RecoveryKitSetting />
             <SecurityActivity />
           </div>
         );

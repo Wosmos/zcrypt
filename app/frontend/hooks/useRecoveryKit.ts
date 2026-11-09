@@ -19,11 +19,11 @@ export function useRecoveryKit() {
     let cancelled = false;
     getMyKey()
       .then((record) => {
-        if (cancelled || !record || useKeysStore.getState().recoveryKit) return;
+        if (cancelled || useKeysStore.getState().recoveryKit) return;
         useKeysStore.setState({
           recoveryKit: {
-            set: record.recovery_kit_set === true,
-            createdAt: record.recovery_kit_created_at ?? null,
+            set: record?.recovery_kit_set === true,
+            createdAt: record?.recovery_kit_created_at ?? null,
           },
         });
       })

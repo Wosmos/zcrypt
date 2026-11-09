@@ -43,7 +43,7 @@ async function push(payload: unknown) {
 
 describe("service worker push", () => {
   it("shows a sign-in alert in the subscriber's language with the device filled in", async () => {
-    await push({ type: "newSignIn", lang: "de", data: { device: "Chrome on Mac" }, url: "/settings?tab=security" });
+    await push({ type: "newSignIn", lang: "de", data: { device: "Chrome on Mac" }, url: "/settings?tab=sessions" });
     const last = shown.at(-1);
     expect(last?.title).toBe("Neue Anmeldung bei deinem zcrypt-Konto");
     expect(last?.options.body).toContain("Chrome on Mac");

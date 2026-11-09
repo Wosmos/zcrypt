@@ -43,7 +43,7 @@ export function RecoveryKitBanner() {
       actions={[
         {
           label: t("action"),
-          href: "/settings?tab=security",
+          href: "/settings?tab=privacy",
           variant: "outline",
           icon: <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />,
         },
