@@ -41,9 +41,15 @@
 //    closed media turns it off, so leaving the app never floats the vault.
 //    The manifest's supportsPictureInPicture is patched in by device.yml.
 //
+// 6. Photo backup (PhotoBackupWorker.kt). The page asks for photo access and
+//    hands over the schedule and network through the bridge; the worker then
+//    runs on its own, with the app closed. On Android 14+ a person can allow
+//    only some photos; the page is told so it can offer access to all.
+//
 // The package must equal tauri.conf.json's `identifier`; device.yml asserts it.
 package app.zcrypt.desktop
 
+import android.Manifest
 import android.app.PictureInPictureParams
 import android.content.ContentResolver
 import android.content.Intent
@@ -53,17 +59,20 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.util.Rational
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.util.UUID
 import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : TauriActivity() {
   private var webView: WebView? = null
@@ -143,6 +152,43 @@ class MainActivity : TauriActivity() {
     super.onPictureInPictureModeChanged(inPip, newConfig)
     webView?.evaluateJavascript(
       "window.dispatchEvent(new CustomEvent('$PIP_EVENT',{detail:$inPip}))",
+      null,
+    )
+  }
+
+  private fun granted(permission: String): Boolean =
+    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+  /** "all", "partial" (only photos the person picked, Android 14+) or "none". */
+  private fun photoAccess(): String = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && granted(Manifest.permission.READ_MEDIA_IMAGES) -> "all"
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+      granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) -> "partial"
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && granted(Manifest.permission.READ_EXTERNAL_STORAGE) -> "all"
+    else -> "none"
+  }
+
+  private fun photoPermissions(): Array<String> = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> arrayOf(
+      Manifest.permission.READ_MEDIA_IMAGES,
+      Manifest.permission.READ_MEDIA_VIDEO,
+      Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+      Manifest.permission.POST_NOTIFICATIONS,
+    )
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
+      Manifest.permission.READ_MEDIA_IMAGES,
+      Manifest.permission.READ_MEDIA_VIDEO,
+      Manifest.permission.POST_NOTIFICATIONS,
+    )
+    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+  }
+
+  @Deprecated("Activity result API needs registration before onCreate; this request is page-driven.")
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    if (requestCode != PHOTO_REQUEST) return
+    webView?.evaluateJavascript(
+      "window.dispatchEvent(new CustomEvent('$PHOTO_EVENT',{detail:'${photoAccess()}'}))",
       null,
     )
   }
@@ -265,6 +311,45 @@ class MainActivity : TauriActivity() {
     fun enterPictureInPicture() {
       runOnUiThread { enterPip() }
     }
+
+    @JavascriptInterface
+    fun photoBackupState(): String =
+      PhotoBackup.settings(this@MainActivity).toJson().put("access", photoAccess()).toString()
+
+    @JavascriptInterface
+    fun requestPhotoAccess() {
+      runOnUiThread { requestPermissions(photoPermissions(), PHOTO_REQUEST) }
+    }
+
+    @JavascriptInterface
+    fun setPhotoBackup(json: String) {
+      val o = try {
+        JSONObject(json)
+      } catch (e: Exception) {
+        return
+      }
+      PhotoBackup.apply(
+        this@MainActivity,
+        PhotoBackup.Settings(
+          o.optBoolean("enabled", false),
+          o.optString("mode"),
+          o.optString("time"),
+          o.optString("network"),
+        ),
+      )
+    }
+
+    @JavascriptInterface
+    fun runPhotoBackupNow() = PhotoBackup.runNow(this@MainActivity)
+
+    @JavascriptInterface
+    fun openAppSettings() {
+      runOnUiThread {
+        startActivity(
+          Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)),
+        )
+      }
+    }
   }
 
   companion object {
@@ -273,6 +358,8 @@ class MainActivity : TauriActivity() {
     private const val SHARE_DIR = "shared"
     private const val SHARED_EVENT = "zcrypt:shared-files"
     private const val PIP_EVENT = "zcrypt:pip"
+    private const val PHOTO_EVENT = "zcrypt:photo-access"
+    private const val PHOTO_REQUEST = 7301
     private const val SHARE_TTL_MS = 24L * 60 * 60 * 1000
     private const val SPACE_MARGIN = 64L * 1024 * 1024
   }

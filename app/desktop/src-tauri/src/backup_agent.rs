@@ -28,6 +28,10 @@ pub const SETTLE_FOR: Duration = Duration::from_secs(5);
 /// time-zone changes.
 pub const SCHEDULE_TICK: Duration = Duration::from_secs(60);
 
+/// One backup pass at a time across the app and the Android background job,
+/// which share the ledger: two passes at once would upload a file twice.
+pub static PASS_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 const SCHEDULE_KEY: &str = "backup.schedule";
 const LAST_RUN_KEY: &str = "backup.last_run";
 
@@ -187,17 +191,20 @@ pub fn validate_new_folder(path: &str, public_key_b64: &str) -> Result<(PathBuf,
     if !path.is_absolute() || !path.is_dir() {
         return Err("Pick a folder that exists on this computer.".into());
     }
+    let key = validate_public_key(public_key_b64)?;
+    let canonical = path.canonicalize().map_err(|e| e.to_string())?;
+    Ok((canonical, key))
+}
+
+/// The account public key in canonical base64, or an error when it isn't 32 bytes.
+pub fn validate_public_key(public_key_b64: &str) -> Result<String, String> {
     let key = base64::engine::general_purpose::STANDARD
         .decode(public_key_b64.trim())
         .map_err(|_| "The account key is malformed.".to_string())?;
     if key.len() != 32 {
         return Err("The account key is malformed.".into());
     }
-    let canonical = path.canonicalize().map_err(|e| e.to_string())?;
-    Ok((
-        canonical,
-        base64::engine::general_purpose::STANDARD.encode(key),
-    ))
+    Ok(base64::engine::general_purpose::STANDARD.encode(key))
 }
 
 /// True when `candidate` is the same folder as, inside, or around one already
@@ -216,6 +223,7 @@ async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext) {
     let Ok(roots) = ctx.db.list_backup_roots(&user_id) else {
         return;
     };
+    let _pass = PASS_LOCK.lock().await;
     for root in roots {
         match backup::run_pass(ctx, &root).await {
             Ok(report) => {

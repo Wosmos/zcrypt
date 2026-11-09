@@ -44,6 +44,7 @@ tauri-plugin-autostart = "2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-biometric = "2"
+jni = "0.21"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
@@ -98,3 +99,5 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [dev-dependencies]
 tempfile = "3"
+# Compiles the Android background-job entry point in desktop tests too.
+jni = "0.21"

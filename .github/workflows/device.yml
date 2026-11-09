@@ -897,6 +897,10 @@ jobs:
             || { echo "::error::no generated MainActivity.kt to replace."; exit 1; }
           cp "$SRC" "$DEST"
           echo "MainActivity replaced from $SRC -> $DEST"
+          grep -qx "package $PKG" android/PhotoBackupWorker.kt \
+            || { echo "::error::android/PhotoBackupWorker.kt declares a different package than $PKG."; exit 1; }
+          cp android/PhotoBackupWorker.kt "$(dirname "$DEST")/PhotoBackupWorker.kt"
+          echo "PhotoBackupWorker added next to it"
 
       # "Share to zcrypt": the generated manifest only has the launcher filter,
       # so add SEND / SEND_MULTIPLE for any MIME type to the main activity.
@@ -985,6 +989,72 @@ jobs:
           grep -q 'android:supportsPictureInPicture="true"' "$MANIFEST" \
             || { echo "::error::supportsPictureInPicture missing from $MANIFEST"; exit 1; }
           echo "picture-in-picture allowed"
+
+      # Photo backup (android/PhotoBackupWorker.kt) runs in WorkManager with the
+      # app closed: it needs the WorkManager library, photo and video read
+      # access (all or only picked photos on 14+, READ_EXTERNAL_STORAGE up to
+      # 12, legacy storage on 10 so file paths work), the network state for
+      # the strict Wi-Fi / mobile data choice, and a data-sync foreground
+      # service so a long upload isn't cut off.
+      - name: Allow Android photo backup
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST=gen/android/app/src/main/AndroidManifest.xml
+          GRADLE=gen/android/app/build.gradle.kts
+          python3 - "$MANIFEST" "$GRADLE" <<'PY'
+          import re, sys
+          manifest, gradle = sys.argv[1], sys.argv[2]
+          xml = open(manifest).read()
+          if "READ_MEDIA_IMAGES" not in xml:
+              if "xmlns:tools=" not in xml:
+                  xml = xml.replace("<manifest ", '<manifest xmlns:tools="http://schemas.android.com/tools" ', 1)
+              perms = "".join(
+                  f'<uses-permission android:name="android.permission.{p}" />\n'
+                  for p in (
+                      "READ_MEDIA_IMAGES",
+                      "READ_MEDIA_VIDEO",
+                      "READ_MEDIA_VISUAL_USER_SELECTED",
+                      "ACCESS_NETWORK_STATE",
+                      "FOREGROUND_SERVICE",
+                      "FOREGROUND_SERVICE_DATA_SYNC",
+                      "POST_NOTIFICATIONS",
+                  )
+                  if f'android.permission.{p}"' not in xml
+              )
+              if 'android.permission.READ_EXTERNAL_STORAGE"' not in xml:
+                  perms += '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n'
+              app = re.search(r"<application\b", xml)
+              if not app:
+                  sys.exit(f"no <application> in {manifest}")
+              xml = xml[: app.start()] + perms + xml[app.start():]
+              at = re.search(r"<application\b", xml).end()
+              xml = xml[:at] + ' android:requestLegacyExternalStorage="true"' + xml[at:]
+              service = (
+                  '<service android:name="androidx.work.impl.foreground.SystemForegroundService" '
+                  'android:foregroundServiceType="dataSync" tools:node="merge" />\n'
+              )
+              end = xml.find("</application>")
+              if end < 0:
+                  sys.exit(f"no </application> in {manifest}")
+              xml = xml[:end] + service + xml[end:]
+              open(manifest, "w").write(xml)
+          kts = open(gradle).read()
+          if "androidx.work:work-runtime" not in kts:
+              m = re.search(r"^dependencies\s*\{", kts, re.M)
+              if not m:
+                  sys.exit(f"no dependencies block in {gradle}")
+              kts = kts[: m.end()] + '\n    implementation("androidx.work:work-runtime:2.10.0")' + kts[m.end():]
+              open(gradle, "w").write(kts)
+          PY
+          grep -q 'READ_MEDIA_IMAGES' "$MANIFEST" \
+            || { echo "::error::photo permissions missing from $MANIFEST"; exit 1; }
+          grep -q 'SystemForegroundService' "$MANIFEST" \
+            || { echo "::error::WorkManager foreground service missing from $MANIFEST"; exit 1; }
+          grep -q 'androidx.work:work-runtime' "$GRADLE" \
+            || { echo "::error::WorkManager dependency missing from $GRADLE"; exit 1; }
+          echo "photo backup allowed"
 
       # MUST run AFTER `android init`, not before. `tauri icon` picks its
       # Android output dir by probing for gen/android/app/src/main/res: if that

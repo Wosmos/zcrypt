@@ -1,5 +1,6 @@
 mod backup_agent;
 mod paths;
+mod photo_backup;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -700,6 +701,18 @@ async fn start_sync(
 /// session the keychain kept, so nothing keeps running for that account.
 #[tauri::command]
 async fn end_session(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    if cfg!(target_os = "android")
+        && let Ok((client, user_id)) = backup_client(&state).await
+        && let Ok(db) = state.db()
+    {
+        photo_backup::disable(
+            &db,
+            &user_id,
+            Path::new(photo_backup::SHARED_STORAGE),
+            &client.base_url,
+        )
+        .await;
+    }
     if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
         let _ = cancel.send(true);
     }
@@ -785,15 +798,20 @@ async fn start_engine(
     tauri::async_runtime::spawn(async move {
         engines::run_sync(ctx, cancel_rx).await;
     });
-    let (nudge_tx, nudge_rx) = mpsc::unbounded_channel();
-    *state.backup_nudge.lock().unwrap() = Some(nudge_tx);
-    refresh_backup_watcher(&state, &backup_ctx).await;
-    tauri::async_runtime::spawn(backup_agent::run_loop(
-        app.clone(),
-        backup_ctx,
-        nudge_rx,
-        backup_cancel,
-    ));
+    #[cfg(desktop)]
+    {
+        let (nudge_tx, nudge_rx) = mpsc::unbounded_channel();
+        *state.backup_nudge.lock().unwrap() = Some(nudge_tx);
+        refresh_backup_watcher(&state, &backup_ctx).await;
+        tauri::async_runtime::spawn(backup_agent::run_loop(
+            app.clone(),
+            backup_ctx,
+            nudge_rx,
+            backup_cancel,
+        ));
+    }
+    #[cfg(mobile)]
+    let _ = (backup_ctx, backup_cancel);
     Ok(())
 }
 
@@ -954,17 +972,7 @@ async fn backup_add_folder(
     if !state.backup_picks.lock().unwrap().remove(&canonical) {
         return Err("Choose the folder with the folder picker.".into());
     }
-    let published = client
-        .get_my_key()
-        .await
-        .map_err(|e| e.to_string())?
-        .map(|k| k.public_key)
-        .unwrap_or_default();
-    if published.trim() != key {
-        return Err(
-            "Your account key doesn't match this device. Unlock your vault and try again.".into(),
-        );
-    }
+    check_published_key(&client, &key).await?;
     let db = state.db()?;
     let existing = db.list_backup_roots(&user_id).map_err(|e| e.to_string())?;
     if backup_agent::overlaps(&existing, &canonical) {
@@ -991,6 +999,114 @@ async fn backup_add_folder(
     refresh_backup_watcher(&state, &ctx).await;
     nudge_backup(&state, backup_agent::Nudge::Now);
     Ok(backup_agent::view(&db, &root))
+}
+
+/// Backups seal only to the key the account published, so a key handed in by
+/// the webview can't redirect them.
+async fn check_published_key(client: &Client, key: &str) -> Result<(), String> {
+    let published = client
+        .get_my_key()
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|k| k.public_key)
+        .unwrap_or_default();
+    if published.trim() != key {
+        return Err(
+            "Your account key doesn't match this device. Unlock your vault and try again.".into(),
+        );
+    }
+    Ok(())
+}
+
+const PHOTO_BACKUP_ANDROID_ONLY: &str = "Photo backup is only in the Android app.";
+
+/// Android: backs up the phone's photo and video folders from now on, in the
+/// background job, sealed to the account's published key.
+#[tauri::command]
+async fn photo_backup_enable(
+    state: tauri::State<'_, EngineState>,
+    public_key: String,
+) -> Result<Vec<backup_agent::BackupFolderView>, String> {
+    if !cfg!(target_os = "android") {
+        return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
+    }
+    let (client, user_id) = backup_client(&state).await?;
+    let key = backup_agent::validate_public_key(&public_key)?;
+    check_published_key(&client, &key).await?;
+    let db = state.db()?;
+    photo_backup::enable(
+        &client,
+        &db,
+        &user_id,
+        &key,
+        Path::new(photo_backup::SHARED_STORAGE),
+    )
+    .await
+}
+
+/// Android: stops backing up photos. Files already in the vault stay.
+#[tauri::command]
+async fn photo_backup_disable(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    if !cfg!(target_os = "android") {
+        return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
+    }
+    let (client, user_id) = backup_client(&state).await?;
+    let db = state.db()?;
+    photo_backup::disable(
+        &db,
+        &user_id,
+        Path::new(photo_backup::SHARED_STORAGE),
+        &client.base_url,
+    )
+    .await;
+    Ok(())
+}
+
+/// Entry point for android/PhotoBackupWorker.kt: one backup run over the photo
+/// folders, with the app open or not. Returns a [`photo_backup::RunOutcome`].
+#[cfg(any(target_os = "android", test))]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    data_dir: jni::objects::JString,
+) -> jni::sys::jint {
+    use photo_backup::RunOutcome;
+    let Ok(dir) = env.get_string(&data_dir).map(String::from) else {
+        return RunOutcome::Retry as i32;
+    };
+    let Some(base_url) = option_env!("ZCRYPT_API_URL").filter(|u| !u.is_empty()) else {
+        return RunOutcome::Stop as i32;
+    };
+    let outcome = std::panic::catch_unwind(move || {
+        zcrypt_core::localdb::set_data_dir(PathBuf::from(dir));
+        let Ok(db) = LocalDb::open() else {
+            return RunOutcome::Retry;
+        };
+        let db = Arc::new(db);
+        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        else {
+            return RunOutcome::Retry;
+        };
+        let profile = profiles::detect();
+        rt.block_on(photo_backup::run(
+            &db,
+            base_url,
+            Path::new(photo_backup::SHARED_STORAGE),
+            |client| EngineContext {
+                client,
+                db: db.clone(),
+                profile,
+                progress: Arc::new(|_| {}),
+                creds: keychain_creds(),
+                cancel: CancelToken::new(),
+                vault_passphrase: None,
+            },
+        ))
+    });
+    outcome.unwrap_or(RunOutcome::Retry) as i32
 }
 
 /// Stops backing up a folder on this device. Files already in the vault stay.
@@ -1778,6 +1894,8 @@ pub fn run() {
             backup_run_now,
             backup_get_schedule,
             backup_set_schedule,
+            photo_backup_enable,
+            photo_backup_disable,
             pick_backup_folder,
             install_channel,
             local_upload,

@@ -6827,6 +6827,7 @@ dependencies = [
  "base64 0.23.1",
  "block2",
  "chrono",
+ "jni 0.21.1",
  "keyring",
  "notify",
  "objc2",
