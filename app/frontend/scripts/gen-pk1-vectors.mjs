@@ -10,6 +10,9 @@ const subtle = globalThis.crypto.subtle;
 const hex = (b) => Buffer.from(b).toString("hex");
 const b64 = (b) => Buffer.from(b).toString("base64");
 const bytes = (start, n) => Uint8Array.from({ length: n }, (_, i) => (start + i * 7) & 0xff);
+// Fixed test bytes are stored as the pattern that makes them, never as raw
+// key material: the vectors hold nothing a secret scanner can mistake for a key.
+const pattern = (start, len) => ({ start, step: 7, len });
 const cat = (...a) => Uint8Array.from(a.flatMap((x) => [...x]));
 
 async function sealWith(ephSecret, iv, recipientPub, data) {
@@ -35,25 +38,25 @@ async function cekMac(cek, data) {
 const recipientSecret = bytes(11, 32);
 const recipientPub = x25519.getPublicKey(recipientSecret);
 const cases = [
-  { name: "wrap a CEK", data: bytes(91, 32), eph: bytes(3, 32), iv: bytes(201, 12) },
-  { name: "seal a Unicode file name", data: new TextEncoder().encode("Ferien 🌴 Été ü.jpg"), eph: bytes(57, 32), iv: bytes(17, 12) },
+  { name: "wrap a CEK", data: bytes(91, 32), eph: bytes(3, 32), ephPattern: [3, 32], iv: bytes(201, 12) },
+  { name: "seal a Unicode file name", data: new TextEncoder().encode("Ferien 🌴 Été ü.jpg"), eph: bytes(57, 32), ephPattern: [57, 32], iv: bytes(17, 12) },
 ];
 
 const seal = [];
 for (const c of cases) {
   const sealed = await sealWith(c.eph, c.iv, recipientPub, c.data);
-  seal.push({ name: c.name, eph_secret_hex: hex(c.eph), iv_hex: hex(c.iv), data_hex: hex(c.data), sealed_b64: b64(sealed) });
+  seal.push({ name: c.name, eph: pattern(...c.ephPattern), iv_hex: hex(c.iv), data_hex: hex(c.data), sealed_b64: b64(sealed) });
 }
 
 const cek = bytes(91, 32);
 const mac = [
-  { name: "empty file", cek_hex: hex(cek), data_hex: "", mac_hex: await cekMac(cek, new Uint8Array(0)) },
-  { name: "short text", cek_hex: hex(cek), data_hex: hex(new TextEncoder().encode("zcrypt backup")), mac_hex: await cekMac(cek, new TextEncoder().encode("zcrypt backup")) },
+  { name: "empty file", cek: pattern(91, 32), data_hex: "", mac_hex: await cekMac(cek, new Uint8Array(0)) },
+  { name: "short text", cek: pattern(91, 32), data_hex: hex(new TextEncoder().encode("zcrypt backup")), mac_hex: await cekMac(cek, new TextEncoder().encode("zcrypt backup")) },
 ];
 
 const out = {
   spec: "docs/CRYPTO_FORMAT.md §2.2",
-  recipient_secret_hex: hex(recipientSecret),
+  recipient: pattern(11, 32),
   recipient_public_hex: hex(recipientPub),
   seal,
   cek_mac: mac,

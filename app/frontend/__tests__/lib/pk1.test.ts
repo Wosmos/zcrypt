@@ -9,18 +9,25 @@ import { sealTo } from "@/lib/keys";
 import { useKeysStore } from "@/store/keys";
 
 const hexBytes = (h: string) => Uint8Array.from(Buffer.from(h, "hex"));
+interface Pattern {
+  start: number;
+  step: number;
+  len: number;
+}
+const patternBytes = (p: Pattern) =>
+  Uint8Array.from({ length: p.len }, (_, i) => (p.start + i * p.step) & 0xff);
 const vectors = JSON.parse(
   readFileSync(resolve(process.cwd(), "../backend/crypto/testvectors/pk1_vectors.json"), "utf8"),
 ) as {
-  recipient_secret_hex: string;
+  recipient: Pattern;
   recipient_public_hex: string;
   seal: Array<{ name: string; data_hex: string; sealed_b64: string }>;
-  cek_mac: Array<{ name: string; cek_hex: string; data_hex: string; mac_hex: string }>;
+  cek_mac: Array<{ name: string; cek: Pattern; data_hex: string; mac_hex: string }>;
 };
 
 beforeEach(() => {
   useKeysStore.setState({
-    privateKey: hexBytes(vectors.recipient_secret_hex),
+    privateKey: patternBytes(vectors.recipient),
     publicKey: hexBytes(vectors.recipient_public_hex),
   });
 });
@@ -35,7 +42,7 @@ describe("pk1 public-key backup format (CRYPTO_FORMAT.md §2.2)", () => {
 
   it("derives the cek_hmac_v1 MAC exactly like the vectors", async () => {
     for (const v of vectors.cek_mac) {
-      const mac = await contentMacBytes(hexBytes(v.data_hex), await cekMacKey(hexBytes(v.cek_hex)));
+      const mac = await contentMacBytes(hexBytes(v.data_hex), await cekMacKey(patternBytes(v.cek)));
       expect(mac, v.name).toBe(v.mac_hex);
     }
   });

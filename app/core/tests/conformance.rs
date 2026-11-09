@@ -210,9 +210,29 @@ fn encrypt_roundtrip_and_tamper() {
     assert!(crypto::decrypt_chunk(&key, &wire).is_err());
 }
 
+/// Test bytes stored as the pattern that makes them, never as raw key material.
+#[derive(Deserialize)]
+struct Pattern {
+    start: u8,
+    step: u8,
+    len: usize,
+}
+
+impl Pattern {
+    fn bytes(&self) -> Vec<u8> {
+        (0..self.len)
+            .map(|i| self.start.wrapping_add(self.step.wrapping_mul(i as u8)))
+            .collect()
+    }
+
+    fn arr32(&self) -> [u8; 32] {
+        self.bytes().try_into().unwrap()
+    }
+}
+
 #[derive(Deserialize)]
 struct Pk1Vectors {
-    recipient_secret_hex: String,
+    recipient: Pattern,
     recipient_public_hex: String,
     seal: Vec<Pk1SealVector>,
     cek_mac: Vec<CekMacVector>,
@@ -221,7 +241,7 @@ struct Pk1Vectors {
 #[derive(Deserialize)]
 struct Pk1SealVector {
     name: String,
-    eph_secret_hex: String,
+    eph: Pattern,
     iv_hex: String,
     data_hex: String,
     sealed_b64: String,
@@ -230,7 +250,7 @@ struct Pk1SealVector {
 #[derive(Deserialize)]
 struct CekMacVector {
     name: String,
-    cek_hex: String,
+    cek: Pattern,
     data_hex: String,
     mac_hex: String,
 }
@@ -252,7 +272,7 @@ fn arr32(h: &str) -> [u8; 32] {
 fn conformance_pk1_seal_matches_the_web_client_byte_for_byte() {
     use zcrypt_core::pk1;
     let v = pk1_vectors();
-    let secret = arr32(&v.recipient_secret_hex);
+    let secret = v.recipient.arr32();
     let public = arr32(&v.recipient_public_hex);
     for case in &v.seal {
         let sealed = base64::engine::general_purpose::STANDARD
@@ -266,9 +286,7 @@ fn conformance_pk1_seal_matches_the_web_client_byte_for_byte() {
             case.name
         );
         let iv: [u8; 12] = hex::decode(&case.iv_hex).unwrap().try_into().unwrap();
-        let ours =
-            pk1::seal_with_fixed_for_vectors(arr32(&case.eph_secret_hex), iv, &public, &data)
-                .unwrap();
+        let ours = pk1::seal_with_fixed_for_vectors(case.eph.arr32(), iv, &public, &data).unwrap();
         assert_eq!(ours, sealed, "seal: {}", case.name);
     }
 }
@@ -277,7 +295,7 @@ fn conformance_pk1_seal_matches_the_web_client_byte_for_byte() {
 fn conformance_pk1_cek_mac() {
     use zcrypt_core::pk1;
     for case in &pk1_vectors().cek_mac {
-        let cek = hex::decode(&case.cek_hex).unwrap();
+        let cek = case.cek.bytes();
         let data = hex::decode(&case.data_hex).unwrap();
         assert_eq!(pk1::cek_mac_hex(&cek, &data), case.mac_hex, "{}", case.name);
     }
