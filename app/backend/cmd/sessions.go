@@ -53,6 +53,35 @@ func (rs *revokedSessions) has(id string) bool {
 	return ok && time.Now().Before(t)
 }
 
+// HandleBackgroundSession starts a second session for the caller's own device,
+// held by the desktop and Android apps' background backup. It rotates on its
+// own, so a backup that runs while the app is closed never spends a refresh
+// token the app's session still holds. No cookie is set, so a web session is
+// left as it is. Signing out of the app logs this session out too.
+// POST /api/auth/sessions/background
+func (s *Server) HandleBackgroundSession(w http.ResponseWriter, r *http.Request) {
+	if IsDecoy(r) {
+		writeError(w, http.StatusForbidden, "not available")
+		return
+	}
+	userID := GetUserID(r)
+	if !s.authLimiter.allow("background|" + userID) {
+		writeError(w, http.StatusTooManyRequests, "too many requests, try again later")
+		return
+	}
+	user, err := s.db.GetUserByID(r.Context(), userID)
+	if err != nil {
+		internalError(w, "background session user", err)
+		return
+	}
+	access, refresh, err := s.mintTokens(r, user, nil, false)
+	if err != nil {
+		internalError(w, "background session", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"access_token": access, "refresh_token": refresh})
+}
+
 // HandleListSessions lists the caller's signed-in devices.
 // GET /api/auth/sessions
 func (s *Server) HandleListSessions(w http.ResponseWriter, r *http.Request) {

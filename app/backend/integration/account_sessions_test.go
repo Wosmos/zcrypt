@@ -253,3 +253,33 @@ func TestAccountExport(t *testing.T) {
 
 	requireStatus(t, ts.GET("/api/auth/me/export", ""), http.StatusUnauthorized)
 }
+
+func TestBackgroundSession(t *testing.T) {
+	ts := setupTestServer(t)
+	email := uniqueEmail("background")
+	ts.registerAndLogin(email, accountTestPassword)
+	app := ts.login(email, accountTestPassword)
+	before := len(ts.sessions(app.AccessToken))
+	resp := ts.POST("/api/auth/sessions/background", map[string]string{}, app.AccessToken)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var bg tokenPair
+	decodeJSON(t, resp, &bg)
+	require.NotEmpty(t, bg.AccessToken)
+	require.NotEmpty(t, bg.RefreshToken)
+	assert.NotEqual(t, app.RefreshToken, bg.RefreshToken)
+
+	assert.Len(t, ts.sessions(app.AccessToken), before+1, "the background session is its own sign-in")
+
+	var rotated tokenPair
+	decodeJSON(t, ts.POST("/api/auth/refresh", map[string]string{"refresh_token": bg.RefreshToken}, ""), &rotated)
+	require.NotEmpty(t, rotated.RefreshToken)
+	var appRotated tokenPair
+	decodeJSON(t, ts.POST("/api/auth/refresh", map[string]string{"refresh_token": app.RefreshToken}, ""), &appRotated)
+	require.NotEmpty(t, appRotated.AccessToken, "rotating the background session leaves the app's refresh token alive")
+
+	require.Equal(t, http.StatusOK, ts.POST("/api/auth/logout", map[string]string{"refresh_token": rotated.RefreshToken}, rotated.AccessToken).StatusCode)
+	assert.Equal(t, http.StatusUnauthorized,
+		ts.POST("/api/auth/refresh", map[string]string{"refresh_token": rotated.RefreshToken}, "").StatusCode,
+		"signing out ends the background session")
+	assert.Equal(t, http.StatusUnauthorized, ts.POST("/api/auth/sessions/background", map[string]string{}, "").StatusCode)
+}

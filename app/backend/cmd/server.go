@@ -778,6 +778,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/push/subscribe", maxJSON(s.AuthMiddleware(s.HandlePushSubscribe)))
 	mux.HandleFunc("POST /api/push/unsubscribe", maxJSON(s.AuthMiddleware(s.HandlePushUnsubscribe)))
 	mux.HandleFunc("POST /api/auth/sessions/revoke-others", maxJSON(s.AuthMiddleware(s.HandleRevokeOtherSessions)))
+	mux.HandleFunc("POST /api/auth/sessions/background", maxJSON(s.AuthMiddleware(s.HandleBackgroundSession)))
 	mux.HandleFunc("DELETE /api/auth/sessions/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRevokeSession, "id"))))
 	mux.HandleFunc("PATCH /api/auth/profile", maxJSON(s.AuthMiddleware(s.HandleUpdateProfile)))
 	mux.HandleFunc("POST /api/auth/change-password", maxJSON(s.AuthMiddleware(s.HandleChangePassword)))
