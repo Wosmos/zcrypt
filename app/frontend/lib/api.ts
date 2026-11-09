@@ -186,12 +186,42 @@ export interface UserKeyRecord extends PublicKeyRecord {
   wrapped_master_key?: string;
   /** Admin rollout switch: clients may write mk1 envelopes only while true. */
   master_key_writes?: boolean;
+  recovery_kit_set?: boolean;
+  recovery_kit_created_at?: string | null;
 }
 
 /** The caller's own key record (incl. the wrapped private key), or null if
  *  they haven't published a keypair yet. */
 export function getMyKey(): Promise<UserKeyRecord | null> {
   return request<UserKeyRecord | null>("/api/keys/me");
+}
+
+export interface RecoveryKitRecord {
+  blob: string;
+  created_at: string;
+}
+
+/** The caller's stored recovery blob, or null when none exists. */
+export async function getRecoveryKit(): Promise<RecoveryKitRecord | null> {
+  try {
+    return await request<RecoveryKitRecord>("/api/keys/recovery");
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+/** Store (or replace) the recovery blob; it is opaque to the server. */
+export function putRecoveryKit(blob: string): Promise<{ created_at: string }> {
+  return request(`/api/keys/recovery`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ blob }),
+  });
+}
+
+export function deleteRecoveryKit(): Promise<{ removed: boolean }> {
+  return request(`/api/keys/recovery`, { method: "DELETE" });
 }
 
 /** Publish (or rotate) the caller's keypair. Every field is produced

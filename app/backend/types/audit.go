@@ -53,4 +53,6 @@ const (
 	AuditUploadInit                  = "upload_init"
 	AuditUploadComplete              = "upload_complete"
 	AuditUploadResume                = "upload_resume"
+	AuditRecoveryKitSet              = "recovery_kit_set"
+	AuditRecoveryKitRemoved          = "recovery_kit_removed"
 )

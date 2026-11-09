@@ -19,6 +19,8 @@ interface KeysStore {
   loading: boolean;
   /** True when the server's public key for us did not match our private key. */
   mismatch: boolean;
+  /** Recovery-kit status; null until the server has told us. */
+  recoveryKit: { set: boolean; createdAt: string | null } | null;
   reset: () => void;
 }
 
@@ -31,6 +33,7 @@ export const useKeysStore = create<KeysStore>((set) => ({
   ready: false,
   loading: false,
   mismatch: false,
+  recoveryKit: null,
   reset: () =>
     set({
       privateKey: null,
@@ -41,5 +44,6 @@ export const useKeysStore = create<KeysStore>((set) => ({
       ready: false,
       loading: false,
       mismatch: false,
+      recoveryKit: null,
     }),
 }));

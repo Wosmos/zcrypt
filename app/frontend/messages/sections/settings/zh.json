@@ -543,6 +543,51 @@
       "getDesktop": "获取桌面应用",
       "openDesktop": "打开桌面应用",
       "usedUp": "本月 {limit} 已全部用完"
+    },
+    "recoveryKit": {
+      "label": "恢复套件",
+      "footnote": "我们从不会看到你的口令，因此无法为你重置。如果你忘记了口令，恢复套件是唯一的补救办法。",
+      "title": "恢复套件",
+      "notSet": "未设置",
+      "savedOn": "保存于 {date}",
+      "saved": "已保存",
+      "create": "创建恢复套件",
+      "replace": "替换恢复套件",
+      "remove": "移除",
+      "removeTitle": "移除恢复套件？",
+      "removeDesc": "你的恢复密钥将失效。之后如果忘记口令，你的文件将无法恢复。",
+      "removeConfirm": "移除套件",
+      "removed": "恢复套件已移除",
+      "removeFailed": "无法移除恢复套件，请重试。",
+      "createTitle": "创建恢复套件",
+      "createDesc": "如果你忘记了口令，可以用这个密钥解锁保险库。请把它保存在安全的地方。",
+      "replaceTitle": "替换恢复套件",
+      "replaceDesc": "这会生成一个新密钥。保存后，旧的恢复密钥立即失效。",
+      "keyLabel": "你的恢复密钥",
+      "copy": "复制",
+      "copied": "已复制",
+      "copyFailed": "无法复制。请选中密钥后手动复制。",
+      "download": "下载为文本文件",
+      "print": "打印",
+      "warning": "请离线私密保存。任何持有此密钥并能登录你账户的人都可以解锁你的保险库。我们无法再次向你显示它。",
+      "confirmLabel": "输入密钥的最后 4 个字符，确认你已保存",
+      "confirmPlaceholder": "最后 4 个字符",
+      "confirmWrong": "与密钥末尾不一致。",
+      "save": "保存恢复套件",
+      "cancel": "取消",
+      "failed": "无法保存恢复套件，请重试。",
+      "fileName": "zcrypt-recovery-key.txt",
+      "sheet": {
+        "title": "恢复套件",
+        "created": "创建于 {date}",
+        "step1": "请把这一页离线保存在安全的地方，例如抽屉或保险箱。",
+        "step2": "如果忘记保险库口令，请在解锁界面选择“忘记口令？”，然后输入上方的密钥。",
+        "step3": "任何持有此密钥并能访问你账户的人都可以打开你的保险库。请勿分享。"
+      },
+      "banner": {
+        "title": "保存一份恢复套件，避免忘记口令后丢失文件",
+        "action": "创建恢复套件"
+      }
     }
   }
 }

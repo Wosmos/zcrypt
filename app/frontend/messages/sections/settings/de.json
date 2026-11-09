@@ -543,6 +543,51 @@
       "getDesktop": "Desktop-App holen",
       "openDesktop": "Desktop-App öffnen",
       "usedUp": "Alle {limit} in diesem Monat verbraucht"
+    },
+    "recoveryKit": {
+      "label": "Wiederherstellungs-Kit",
+      "footnote": "Wir sehen deine Passphrase nie und können sie deshalb nicht zurücksetzen. Ein Wiederherstellungs-Kit ist der einzige Weg zurück, wenn du sie vergisst.",
+      "title": "Wiederherstellungs-Kit",
+      "notSet": "Nicht eingerichtet",
+      "savedOn": "Gespeichert am {date}",
+      "saved": "Gespeichert",
+      "create": "Wiederherstellungs-Kit erstellen",
+      "replace": "Wiederherstellungs-Kit ersetzen",
+      "remove": "Entfernen",
+      "removeTitle": "Wiederherstellungs-Kit entfernen?",
+      "removeDesc": "Dein Wiederherstellungsschlüssel funktioniert dann nicht mehr. Wenn du danach deine Passphrase vergisst, können deine Dateien nicht wiederhergestellt werden.",
+      "removeConfirm": "Kit entfernen",
+      "removed": "Wiederherstellungs-Kit entfernt",
+      "removeFailed": "Das Wiederherstellungs-Kit konnte nicht entfernt werden. Versuche es erneut.",
+      "createTitle": "Wiederherstellungs-Kit erstellen",
+      "createDesc": "Mit diesem Schlüssel kannst du deinen Tresor entsperren, wenn du deine Passphrase vergisst. Bewahre ihn sicher auf.",
+      "replaceTitle": "Wiederherstellungs-Kit ersetzen",
+      "replaceDesc": "Dadurch entsteht ein neuer Schlüssel. Dein alter Wiederherstellungsschlüssel funktioniert nicht mehr, sobald du speicherst.",
+      "keyLabel": "Dein Wiederherstellungsschlüssel",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen. Markiere den Schlüssel und kopiere ihn von Hand.",
+      "download": "Als Textdatei herunterladen",
+      "print": "Drucken",
+      "warning": "Bewahre ihn offline und privat auf. Wer diesen Schlüssel hat und sich in dein Konto einloggen kann, kann deinen Tresor entsperren. Wir können ihn dir nicht erneut anzeigen.",
+      "confirmLabel": "Gib die letzten 4 Zeichen des Schlüssels ein, um zu bestätigen, dass du ihn gesichert hast",
+      "confirmPlaceholder": "Letzte 4 Zeichen",
+      "confirmWrong": "Das stimmt nicht mit dem Ende des Schlüssels überein.",
+      "save": "Wiederherstellungs-Kit speichern",
+      "cancel": "Abbrechen",
+      "failed": "Das Wiederherstellungs-Kit konnte nicht gespeichert werden. Versuche es erneut.",
+      "fileName": "zcrypt-recovery-key.txt",
+      "sheet": {
+        "title": "Wiederherstellungs-Kit",
+        "created": "Erstellt am {date}",
+        "step1": "Bewahre diese Seite sicher und offline auf, zum Beispiel in einer Schublade oder einem Safe.",
+        "step2": "Wenn du deine Tresor-Passphrase vergisst, wähle auf dem Entsperrbildschirm \"Passphrase vergessen?\" und gib den Schlüssel oben ein.",
+        "step3": "Wer diesen Schlüssel und Zugriff auf dein Konto hat, kann deinen Tresor öffnen. Gib ihn nicht weiter."
+      },
+      "banner": {
+        "title": "Speichere ein Wiederherstellungs-Kit, damit eine vergessene Passphrase nicht deine Dateien kostet",
+        "action": "Wiederherstellungs-Kit erstellen"
+      }
     }
   }
 }

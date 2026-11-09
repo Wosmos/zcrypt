@@ -543,6 +543,51 @@
       "getDesktop": "Descargar la app de escritorio",
       "openDesktop": "Abrir la app de escritorio",
       "usedUp": "Usados los {limit} de este mes"
+    },
+    "recoveryKit": {
+      "label": "Kit de recuperación",
+      "footnote": "Nunca vemos tu frase de contraseña, así que no podemos restablecerla. Un kit de recuperación es la única forma de volver a entrar si la olvidas.",
+      "title": "Kit de recuperación",
+      "notSet": "Sin configurar",
+      "savedOn": "Guardado el {date}",
+      "saved": "Guardado",
+      "create": "Crear kit de recuperación",
+      "replace": "Reemplazar kit de recuperación",
+      "remove": "Quitar",
+      "removeTitle": "¿Quitar tu kit de recuperación?",
+      "removeDesc": "Tu clave de recuperación dejará de funcionar. Si después olvidas tu frase de contraseña, no se podrán recuperar tus archivos.",
+      "removeConfirm": "Quitar kit",
+      "removed": "Kit de recuperación quitado",
+      "removeFailed": "No se pudo quitar el kit de recuperación. Inténtalo de nuevo.",
+      "createTitle": "Crear un kit de recuperación",
+      "createDesc": "Esta clave puede desbloquear tu bóveda si olvidas tu frase de contraseña. Guárdala en un lugar seguro.",
+      "replaceTitle": "Reemplazar tu kit de recuperación",
+      "replaceDesc": "Esto crea una clave nueva. Tu clave de recuperación anterior dejará de funcionar en cuanto guardes.",
+      "keyLabel": "Tu clave de recuperación",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "copyFailed": "No se pudo copiar. Selecciona la clave y cópiala a mano.",
+      "download": "Descargar como archivo de texto",
+      "print": "Imprimir",
+      "warning": "Guárdala sin conexión y en privado. Cualquiera que tenga esta clave y pueda iniciar sesión en tu cuenta puede desbloquear tu bóveda. No podemos mostrártela de nuevo.",
+      "confirmLabel": "Escribe los últimos 4 caracteres de la clave para confirmar que la guardaste",
+      "confirmPlaceholder": "Últimos 4 caracteres",
+      "confirmWrong": "No coincide con el final de la clave.",
+      "save": "Guardar kit de recuperación",
+      "cancel": "Cancelar",
+      "failed": "No se pudo guardar el kit de recuperación. Inténtalo de nuevo.",
+      "fileName": "zcrypt-recovery-key.txt",
+      "sheet": {
+        "title": "Kit de recuperación",
+        "created": "Creado el {date}",
+        "step1": "Guarda esta hoja en un lugar seguro y sin conexión, como un cajón o una caja fuerte.",
+        "step2": "Si olvidas la frase de contraseña de tu bóveda, elige \"¿Olvidaste tu frase de contraseña?\" en la pantalla de desbloqueo e introduce la clave de arriba.",
+        "step3": "Cualquiera con esta clave y acceso a tu cuenta puede abrir tu bóveda. No la compartas."
+      },
+      "banner": {
+        "title": "Guarda un kit de recuperación para que una frase de contraseña olvidada no te cueste tus archivos",
+        "action": "Crear kit de recuperación"
+      }
     }
   }
 }

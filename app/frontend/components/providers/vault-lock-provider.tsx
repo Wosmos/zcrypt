@@ -138,6 +138,7 @@ export function VaultLockProvider({ children }: { children: React.ReactNode }) {
       <PassphraseModal
         {...vault.modalProps}
         creating={creating}
+        allowRecovery
         onConfirm={handleConfirm}
         open={vault.modalProps.open && pendingFirstTime === null}
       />

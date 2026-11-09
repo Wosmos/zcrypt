@@ -1109,6 +1109,16 @@ type UserKey struct {
 	WrappedMasterKey  string    `json:"wrapped_master_key"`
 	MasterKeyWrites   bool      `json:"master_key_writes"`
 	UpdatedAt         time.Time `json:"updated_at"`
+	// RecoveryKitSet reports whether a recovery kit blob is stored; the blob
+	// itself is only served by GET /api/keys/recovery.
+	RecoveryKitSet       bool       `json:"recovery_kit_set"`
+	RecoveryKitCreatedAt *time.Time `json:"recovery_kit_created_at,omitempty"`
+}
+
+// RecoveryKit is the opaque recovery blob and when it was stored.
+type RecoveryKit struct {
+	Blob      string    `json:"blob"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // PublicKey is the shareable, non-secret subset of a UserKey (what other users

@@ -543,6 +543,51 @@
       "getDesktop": "Get the desktop app",
       "openDesktop": "Open the desktop app",
       "usedUp": "All {limit} used this month"
+    },
+    "recoveryKit": {
+      "label": "Recovery kit",
+      "footnote": "We never see your passphrase, so we can't reset it. A recovery kit is the only way back in if you forget it.",
+      "title": "Recovery kit",
+      "notSet": "Not set up",
+      "savedOn": "Saved on {date}",
+      "saved": "Saved",
+      "create": "Create recovery kit",
+      "replace": "Replace recovery kit",
+      "remove": "Remove",
+      "removeTitle": "Remove your recovery kit?",
+      "removeDesc": "Your recovery key will stop working. If you forget your passphrase afterwards, your files can't be recovered.",
+      "removeConfirm": "Remove kit",
+      "removed": "Recovery kit removed",
+      "removeFailed": "Couldn't remove the recovery kit. Try again.",
+      "createTitle": "Create a recovery kit",
+      "createDesc": "This key can unlock your vault if you forget your passphrase. Save it somewhere safe.",
+      "replaceTitle": "Replace your recovery kit",
+      "replaceDesc": "This makes a new key. Your old recovery key stops working as soon as you save.",
+      "keyLabel": "Your recovery key",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy. Select the key and copy it by hand.",
+      "download": "Download as text file",
+      "print": "Print",
+      "warning": "Keep it offline and private. Anyone who has this key and can sign in to your account can unlock your vault. We can't show it to you again.",
+      "confirmLabel": "Type the last 4 characters of the key to confirm you saved it",
+      "confirmPlaceholder": "Last 4 characters",
+      "confirmWrong": "That doesn't match the end of the key.",
+      "save": "Save recovery kit",
+      "cancel": "Cancel",
+      "failed": "Couldn't save the recovery kit. Try again.",
+      "fileName": "zcrypt-recovery-key.txt",
+      "sheet": {
+        "title": "Recovery kit",
+        "created": "Created {date}",
+        "step1": "Keep this page somewhere safe and offline, like a drawer or a safe.",
+        "step2": "If you forget your vault passphrase, choose \"Forgot your passphrase?\" on the unlock screen and enter the key above.",
+        "step3": "Anyone with this key and access to your account can open your vault. Do not share it."
+      },
+      "banner": {
+        "title": "Save a recovery kit so a forgotten passphrase doesn't lose your files",
+        "action": "Create recovery kit"
+      }
     }
   }
 }

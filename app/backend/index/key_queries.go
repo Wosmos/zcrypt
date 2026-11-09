@@ -13,10 +13,14 @@ import (
 func (db *DB) GetUserKey(ctx context.Context, userID string) (*types.UserKey, error) {
 	k := &types.UserKey{}
 	err := db.pool.QueryRow(ctx, `
-		SELECT user_id, public_key, wrapped_private_key, kdf_salt, fingerprint, wrapped_master_key, updated_at
-		FROM user_keys WHERE user_id = $1`,
+		SELECT k.user_id, k.public_key, k.wrapped_private_key, k.kdf_salt, k.fingerprint, k.wrapped_master_key, k.updated_at,
+			rk.user_id IS NOT NULL, rk.created_at
+		FROM user_keys k
+		LEFT JOIN recovery_kits rk ON rk.user_id = k.user_id
+		WHERE k.user_id = $1`,
 		userID,
-	).Scan(&k.UserID, &k.PublicKey, &k.WrappedPrivateKey, &k.KDFSalt, &k.Fingerprint, &k.WrappedMasterKey, &k.UpdatedAt)
+	).Scan(&k.UserID, &k.PublicKey, &k.WrappedPrivateKey, &k.KDFSalt, &k.Fingerprint, &k.WrappedMasterKey, &k.UpdatedAt,
+		&k.RecoveryKitSet, &k.RecoveryKitCreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -122,4 +126,44 @@ func (db *DB) GetPublicKey(ctx context.Context, userID string) (*types.PublicKey
 		return nil, err
 	}
 	return pk, nil
+}
+
+// GetRecoveryKit returns the caller's stored recovery blob, or (nil, nil).
+func (db *DB) GetRecoveryKit(ctx context.Context, userID string) (*types.RecoveryKit, error) {
+	kit := &types.RecoveryKit{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT blob, created_at FROM recovery_kits WHERE user_id = $1`, userID,
+	).Scan(&kit.Blob, &kit.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return kit, nil
+}
+
+// SetRecoveryKit stores the blob, replacing any previous kit, and returns the
+// stored row.
+func (db *DB) SetRecoveryKit(ctx context.Context, userID, blob string) (*types.RecoveryKit, error) {
+	kit := &types.RecoveryKit{}
+	err := db.pool.QueryRow(ctx, `
+		INSERT INTO recovery_kits (user_id, blob) VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE SET blob = EXCLUDED.blob, created_at = NOW()
+		RETURNING blob, created_at`, userID, blob,
+	).Scan(&kit.Blob, &kit.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return kit, nil
+}
+
+// DeleteRecoveryKit removes the caller's recovery blob and reports whether one
+// existed.
+func (db *DB) DeleteRecoveryKit(ctx context.Context, userID string) (bool, error) {
+	tag, err := db.pool.Exec(ctx, `DELETE FROM recovery_kits WHERE user_id = $1`, userID)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }

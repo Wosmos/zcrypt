@@ -100,6 +100,8 @@ type Server struct {
 	// while still being nowhere near what a scripted scrape/DoS attempt would want.
 	analyticsLimiter   *rateLimiter
 	credentialsLimiter *rateLimiter
+	// Recovery-kit blob reads: the brute-force surface for a stolen session
+	recoveryLimiter *rateLimiter
 	// Bug-report limiters: per-IP and per-user, 10 reports per hour each
 	bugIPLimiter   *rateLimiter
 	bugUserLimiter *rateLimiter
@@ -217,6 +219,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		desktopPollLimiter:    newRateLimiter(30, time.Minute),
 		analyticsLimiter:      newRateLimiter(100, 5*time.Minute),
 		credentialsLimiter:    newRateLimiter(20, 10*time.Minute),
+		recoveryLimiter:       newRateLimiter(10, 10*time.Minute),
 		bugIPLimiter:          newRateLimiter(10, time.Hour),
 		bugUserLimiter:        newRateLimiter(10, time.Hour),
 		bugAnonIPLimiter:      newRateLimiter(5, time.Hour),
@@ -969,6 +972,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/keys/me", s.AuthMiddleware(s.HandleGetMyKey))
 	mux.HandleFunc("POST /api/keys", maxJSON(s.AuthMiddleware(s.HandlePublishKey)))
 	mux.HandleFunc("PUT /api/keys/master", maxJSON(s.AuthMiddleware(s.HandleSetMasterKey)))
+	mux.HandleFunc("GET /api/keys/recovery", s.AuthMiddleware(s.HandleGetRecoveryKit))
+	mux.HandleFunc("PUT /api/keys/recovery", maxJSON(s.AuthMiddleware(s.HandleSetRecoveryKit)))
+	mux.HandleFunc("DELETE /api/keys/recovery", s.AuthMiddleware(s.HandleDeleteRecoveryKit))
 	mux.HandleFunc("GET /api/users/{id}/avatar", s.AuthMiddleware(s.HandleGetUserAvatar))
 	mux.HandleFunc("GET /api/keys/lookup", s.AuthMiddleware(s.HandleLookupUserKey))
 	mux.HandleFunc("GET /api/keys/user/{id}", s.AuthMiddleware(uuidPathParams(s.HandleGetUserPublicKey, "id")))

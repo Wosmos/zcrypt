@@ -36,6 +36,7 @@ import { SystemNotificationSettings } from "@/components/settings/system-notific
 import { AppUpdates } from "@/components/settings/app-updates";
 import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { SecurityActivity } from "@/components/settings/security-activity";
+import { RecoveryKitSetting } from "@/components/settings/recovery-kit";
 import { ScreenPrivacy } from "@/components/settings/screen-privacy";
 import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { AccountData } from "@/components/settings/account-data";
@@ -394,7 +395,12 @@ export function SettingsContent() {
       case "backup":
         return <ExportImport files={files} />;
       case "security":
-        return <SecurityActivity />;
+        return (
+          <div className="space-y-6">
+            <RecoveryKitSetting />
+            <SecurityActivity />
+          </div>
+        );
     }
   };
 

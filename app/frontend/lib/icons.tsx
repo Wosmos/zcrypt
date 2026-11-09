@@ -82,6 +82,7 @@ import {
   Lightning as PhLightning,
   Link as PhLink,
   List as PhList,
+  Lifebuoy as PhLifebuoy,
   Lock as PhLock,
   LockOpen as PhLockOpen,
   MagicWand as PhMagicWand,
@@ -99,6 +100,7 @@ import {
   PencilSimple as PhPencilSimple,
   PictureInPicture as PhPictureInPicture,
   Play as PhPlay,
+  Printer as PhPrinter,
   Plus as PhPlus,
   Quotes as PhQuotes,
   Rocket as PhRocket,
@@ -251,6 +253,8 @@ export const PanelLeft = makeIcon(PhSidebarSimple, "PanelLeft");
 export const PanelLeftClose = makeIcon(PhSidebarSimple, "PanelLeftClose");
 export const ExternalLink = makeIcon(PhArrowSquareOut, "ExternalLink");
 export const Copy = makeIcon(PhCopy, "Copy");
+export const Printer = makeIcon(PhPrinter, "Printer");
+export const LifeBuoy = makeIcon(PhLifebuoy, "LifeBuoy");
 export const Table = makeIcon(PhTable, "Table");
 export const Activity = makeIcon(PhChartLineUp, "Activity");
 export const UserPlus = makeIcon(PhUserPlus, "UserPlus");

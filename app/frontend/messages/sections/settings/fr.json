@@ -543,6 +543,51 @@
       "getDesktop": "Obtenir l'application de bureau",
       "openDesktop": "Ouvrir l'application de bureau",
       "usedUp": "Les {limit} du mois sont utilisés"
+    },
+    "recoveryKit": {
+      "label": "Kit de récupération",
+      "footnote": "Nous ne voyons jamais votre phrase secrète, nous ne pouvons donc pas la réinitialiser. Un kit de récupération est le seul moyen de revenir si vous l'oubliez.",
+      "title": "Kit de récupération",
+      "notSet": "Non configuré",
+      "savedOn": "Enregistré le {date}",
+      "saved": "Enregistré",
+      "create": "Créer un kit de récupération",
+      "replace": "Remplacer le kit de récupération",
+      "remove": "Supprimer",
+      "removeTitle": "Supprimer votre kit de récupération ?",
+      "removeDesc": "Votre clé de récupération cessera de fonctionner. Si vous oubliez ensuite votre phrase secrète, vos fichiers ne pourront pas être récupérés.",
+      "removeConfirm": "Supprimer le kit",
+      "removed": "Kit de récupération supprimé",
+      "removeFailed": "Impossible de supprimer le kit de récupération. Réessayez.",
+      "createTitle": "Créer un kit de récupération",
+      "createDesc": "Cette clé peut déverrouiller votre coffre si vous oubliez votre phrase secrète. Gardez-la en lieu sûr.",
+      "replaceTitle": "Remplacer votre kit de récupération",
+      "replaceDesc": "Cela crée une nouvelle clé. Votre ancienne clé de récupération cesse de fonctionner dès l'enregistrement.",
+      "keyLabel": "Votre clé de récupération",
+      "copy": "Copier",
+      "copied": "Copié",
+      "copyFailed": "Copie impossible. Sélectionnez la clé et copiez-la à la main.",
+      "download": "Télécharger en fichier texte",
+      "print": "Imprimer",
+      "warning": "Gardez-la hors ligne et privée. Toute personne qui possède cette clé et peut se connecter à votre compte peut déverrouiller votre coffre. Nous ne pouvons pas vous la remontrer.",
+      "confirmLabel": "Saisissez les 4 derniers caractères de la clé pour confirmer que vous l'avez enregistrée",
+      "confirmPlaceholder": "4 derniers caractères",
+      "confirmWrong": "Cela ne correspond pas à la fin de la clé.",
+      "save": "Enregistrer le kit de récupération",
+      "cancel": "Annuler",
+      "failed": "Impossible d'enregistrer le kit de récupération. Réessayez.",
+      "fileName": "zcrypt-recovery-key.txt",
+      "sheet": {
+        "title": "Kit de récupération",
+        "created": "Créé le {date}",
+        "step1": "Conservez cette page en lieu sûr et hors ligne, par exemple dans un tiroir ou un coffre.",
+        "step2": "Si vous oubliez la phrase secrète de votre coffre, choisissez \"Phrase secrète oubliée ?\" sur l'écran de déverrouillage et saisissez la clé ci-dessus.",
+        "step3": "Toute personne disposant de cette clé et d'un accès à votre compte peut ouvrir votre coffre. Ne la partagez pas."
+      },
+      "banner": {
+        "title": "Enregistrez un kit de récupération pour qu'une phrase secrète oubliée ne vous fasse pas perdre vos fichiers",
+        "action": "Créer un kit de récupération"
+      }
     }
   }
 }

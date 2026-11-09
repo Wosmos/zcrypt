@@ -151,6 +151,10 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
         fingerprint: await keyFingerprint(publicKey),
         ready: true,
         loading: false,
+        recoveryKit: {
+          set: existing.recovery_kit_set === true,
+          createdAt: existing.recovery_kit_created_at ?? null,
+        },
       });
       await loadMasterKeySafely(kek, existing);
       return;
@@ -174,6 +178,7 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
       fingerprint,
       ready: true,
       loading: false,
+      recoveryKit: { set: false, createdAt: null },
     });
     await loadMasterKeySafely(kek, {
       user_id: "",

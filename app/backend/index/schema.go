@@ -855,6 +855,15 @@ CREATE TABLE IF NOT EXISTS user_keys (
 );
 ALTER TABLE user_keys ADD COLUMN IF NOT EXISTS wrapped_master_key TEXT NOT NULL DEFAULT '';
 
+-- Recovery kit: the vault passphrase sealed client-side under a random
+-- 256-bit recovery key the server never sees. The blob is opaque ("rk1:" +
+-- base64); at most one per user, replaced on re-create.
+CREATE TABLE IF NOT EXISTS recovery_kits (
+	user_id    UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	blob       TEXT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Insights analytics aggregation at scale: a covering index lets Postgres
 -- answer the summary/timeseries SUM() queries via an index-only scan (no heap
 -- fetch per row). idx_files_user_created_complete above already serves the
