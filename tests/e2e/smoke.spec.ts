@@ -424,10 +424,11 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
     try {
       await admin!.goto("/admin/reviews");
-      const row = admin!.getByRole("listitem").filter({ hasText: quote });
+      const row = admin!.getByRole("row").filter({ hasText: quote });
       await expect(row).toBeVisible({ timeout: 15_000 });
-      await row.getByRole("button", { name: "Approve" }).click();
-      await expect(admin!.getByRole("listitem").filter({ hasText: quote })).toHaveCount(0, { timeout: 10_000 });
+      await row.getByRole("button", { name: "Row actions" }).click();
+      await admin!.getByRole("menuitem", { name: "Approve" }).click();
+      await expect(admin!.getByRole("row").filter({ hasText: quote })).toHaveCount(0, { timeout: 10_000 });
     } finally {
       await admin!.context().close();
     }
