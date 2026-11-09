@@ -92,9 +92,9 @@
     "recoveryRateLimited": "محاولات كثيرة جدًا. انتظر بضع دقائق وحاول مرة أخرى.",
     "recoveredTitle": "تم قبول مفتاح الاسترداد",
     "recoveredBody": "تم استرداد عبارة المرور. افتح خزنتك، ودوّن العبارة إن أردت نسخة منها.",
-    "showPassphrase": "إظهار عبارة المرور",
-    "hidePassphrase": "إخفاء",
-    "copyPassphrase": "نسخ",
+    "showRecovered": "إظهار عبارة المرور",
+    "hideRecovered": "إخفاء",
+    "copyRecovered": "نسخ",
     "copied": "تم النسخ",
     "unlockWithRecovered": "فتح الخزنة"
   },

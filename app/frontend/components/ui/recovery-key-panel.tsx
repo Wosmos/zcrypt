@@ -95,18 +95,18 @@ export function RecoveryKeyPanel({ onUnlock, onBack, busy }: RecoveryKeyPanelPro
             <div className="flex gap-2">
               <button type="button" className={SECONDARY} onClick={() => void copy()}>
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? t("copied") : t("copyPassphrase")}
+                {copied ? t("copied") : t("copyRecovered")}
               </button>
               <button type="button" className={SECONDARY} onClick={() => setRevealed(false)}>
                 <EyeOff className="h-3.5 w-3.5" />
-                {t("hidePassphrase")}
+                {t("hideRecovered")}
               </button>
             </div>
           </div>
         ) : (
           <button type="button" className={SECONDARY} onClick={() => setRevealed(true)}>
             <Eye className="h-3.5 w-3.5" />
-            {t("showPassphrase")}
+            {t("showRecovered")}
           </button>
         )}
 

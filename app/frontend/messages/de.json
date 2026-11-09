@@ -92,9 +92,9 @@
     "recoveryRateLimited": "Zu viele Versuche. Warte ein paar Minuten und versuche es erneut.",
     "recoveredTitle": "Wiederherstellungsschlüssel akzeptiert",
     "recoveredBody": "Deine Passphrase wurde wiederhergestellt. Entsperre deinen Tresor und schreibe die Passphrase auf, wenn du eine Kopie möchtest.",
-    "showPassphrase": "Meine Passphrase anzeigen",
-    "hidePassphrase": "Ausblenden",
-    "copyPassphrase": "Kopieren",
+    "showRecovered": "Meine Passphrase anzeigen",
+    "hideRecovered": "Ausblenden",
+    "copyRecovered": "Kopieren",
     "copied": "Kopiert",
     "unlockWithRecovered": "Tresor entsperren"
   },

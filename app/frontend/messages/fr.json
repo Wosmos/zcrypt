@@ -92,9 +92,9 @@
     "recoveryRateLimited": "Trop de tentatives. Patientez quelques minutes et réessayez.",
     "recoveredTitle": "Clé de récupération acceptée",
     "recoveredBody": "Votre phrase secrète est récupérée. Déverrouillez votre coffre et notez-la si vous souhaitez en garder une copie.",
-    "showPassphrase": "Afficher ma phrase secrète",
-    "hidePassphrase": "Masquer",
-    "copyPassphrase": "Copier",
+    "showRecovered": "Afficher ma phrase secrète",
+    "hideRecovered": "Masquer",
+    "copyRecovered": "Copier",
     "copied": "Copié",
     "unlockWithRecovered": "Déverrouiller le coffre"
   },

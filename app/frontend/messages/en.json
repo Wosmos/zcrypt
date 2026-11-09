@@ -92,9 +92,9 @@
     "recoveryRateLimited": "Too many attempts. Wait a few minutes and try again.",
     "recoveredTitle": "Recovery key accepted",
     "recoveredBody": "Your passphrase is recovered. Unlock your vault, and write the passphrase down if you want a copy.",
-    "showPassphrase": "Show my passphrase",
-    "hidePassphrase": "Hide",
-    "copyPassphrase": "Copy",
+    "showRecovered": "Show my passphrase",
+    "hideRecovered": "Hide",
+    "copyRecovered": "Copy",
     "copied": "Copied",
     "unlockWithRecovered": "Unlock vault"
   },

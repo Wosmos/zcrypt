@@ -92,9 +92,9 @@
     "recoveryRateLimited": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
     "recoveredTitle": "Clave de recuperación aceptada",
     "recoveredBody": "Tu frase de contraseña se ha recuperado. Desbloquea tu bóveda y anótala si quieres tener una copia.",
-    "showPassphrase": "Mostrar mi frase de contraseña",
-    "hidePassphrase": "Ocultar",
-    "copyPassphrase": "Copiar",
+    "showRecovered": "Mostrar mi frase de contraseña",
+    "hideRecovered": "Ocultar",
+    "copyRecovered": "Copiar",
     "copied": "Copiado",
     "unlockWithRecovered": "Desbloquear bóveda"
   },

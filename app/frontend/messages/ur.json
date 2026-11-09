@@ -92,9 +92,9 @@
     "recoveryRateLimited": "بہت زیادہ کوششیں۔ چند منٹ انتظار کر کے دوبارہ کوشش کریں۔",
     "recoveredTitle": "ریکوری کلید قبول ہو گئی",
     "recoveredBody": "آپ کا پاس فریز بحال ہو گیا۔ اپنا والٹ کھولیں، اور اگر کاپی چاہیں تو پاس فریز لکھ لیں۔",
-    "showPassphrase": "میرا پاس فریز دکھائیں",
-    "hidePassphrase": "چھپائیں",
-    "copyPassphrase": "کاپی کریں",
+    "showRecovered": "میرا پاس فریز دکھائیں",
+    "hideRecovered": "چھپائیں",
+    "copyRecovered": "کاپی کریں",
     "copied": "کاپی ہو گئی",
     "unlockWithRecovered": "والٹ کھولیں"
   },

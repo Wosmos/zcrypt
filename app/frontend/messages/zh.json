@@ -92,9 +92,9 @@
     "recoveryRateLimited": "尝试次数过多。请等几分钟后重试。",
     "recoveredTitle": "恢复密钥已接受",
     "recoveredBody": "已找回你的口令。请解锁保险库，如需留底可以把口令抄下来。",
-    "showPassphrase": "显示我的口令",
-    "hidePassphrase": "隐藏",
-    "copyPassphrase": "复制",
+    "showRecovered": "显示我的口令",
+    "hideRecovered": "隐藏",
+    "copyRecovered": "复制",
     "copied": "已复制",
     "unlockWithRecovered": "解锁保险库"
   },
