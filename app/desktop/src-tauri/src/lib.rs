@@ -1,3 +1,4 @@
+mod backup_agent;
 mod paths;
 
 use std::collections::HashMap;
@@ -14,7 +15,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
-use tokio::sync::{RwLock, watch};
+use tokio::sync::{RwLock, mpsc, watch};
 
 use zcrypt_core::api::Client;
 use zcrypt_core::engines::{self, CancelToken, CredProvider, EngineContext, PlatformCreds};
@@ -81,6 +82,10 @@ struct EngineState {
     /// auto-lock task compares this against `INACTIVITY_TIMEOUT`.
     last_activity: StdMutex<Instant>,
     saves: paths::SaveApprovals,
+    /// Wakes the folder-backup loop (see backup_agent) after a change.
+    backup_nudge: StdMutex<Option<mpsc::UnboundedSender<()>>>,
+    /// Watches the backed-up folders; dropping it stops watching.
+    backup_watcher: StdMutex<Option<notify::RecommendedWatcher>>,
 }
 
 impl Default for EngineState {
@@ -95,6 +100,8 @@ impl Default for EngineState {
             watcher: StdMutex::new(None),
             last_activity: StdMutex::new(Instant::now()),
             saves: paths::SaveApprovals::default(),
+            backup_nudge: StdMutex::new(None),
+            backup_watcher: StdMutex::new(None),
         }
     }
 }
@@ -694,9 +701,20 @@ async fn start_sync(
         // Sync only replays what local_upload already sealed; it derives no keys.
         vault_passphrase: None,
     };
+    let backup_ctx = ctx.clone();
+    let backup_cancel = cancel_rx.clone();
     tauri::async_runtime::spawn(async move {
         engines::run_sync(ctx, cancel_rx).await;
     });
+    let (nudge_tx, nudge_rx) = mpsc::unbounded_channel();
+    *state.backup_nudge.lock().unwrap() = Some(nudge_tx);
+    refresh_backup_watcher(&state, &backup_ctx).await;
+    tauri::async_runtime::spawn(backup_agent::run_loop(
+        app.clone(),
+        backup_ctx,
+        nudge_rx,
+        backup_cancel,
+    ));
     Ok(())
 }
 
@@ -810,6 +828,115 @@ async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), St
 /// events arriving before that are skipped. Replaces any previous watch. The
 /// folder is chosen in the native folder dialog here, never passed in by the
 /// webview; resolves to the watched path, or None when the user cancels.
+/// Re-watches every folder the signed-in account backs up from this device.
+async fn refresh_backup_watcher(state: &EngineState, ctx: &EngineContext) {
+    let Ok(user_id) = ctx.client.user_id().await else {
+        return;
+    };
+    let roots = ctx.db.list_backup_roots(&user_id).unwrap_or_default();
+    let nudge = state.backup_nudge.lock().unwrap().clone();
+    let watcher = nudge.and_then(|n| backup_agent::watch_roots(&roots, n));
+    *state.backup_watcher.lock().unwrap() = watcher;
+}
+
+fn nudge_backup(state: &EngineState) {
+    if let Some(n) = state.backup_nudge.lock().unwrap().as_ref() {
+        let _ = n.send(());
+    }
+}
+
+async fn backup_client(state: &EngineState) -> Result<(Arc<Client>, String), String> {
+    let client = state
+        .client
+        .read()
+        .await
+        .clone()
+        .ok_or("Sign in to back up folders.")?;
+    let user_id = client.user_id().await.map_err(|e| e.to_string())?;
+    Ok((client, user_id))
+}
+
+/// Folders this device backs up for the signed-in account.
+#[tauri::command]
+async fn backup_list_folders(
+    state: tauri::State<'_, EngineState>,
+) -> Result<Vec<backup_agent::BackupFolderView>, String> {
+    let (_, user_id) = backup_client(&state).await?;
+    let db = state.db()?;
+    let roots = db.list_backup_roots(&user_id).map_err(|e| e.to_string())?;
+    Ok(roots.iter().map(|r| backup_agent::view(&db, r)).collect())
+}
+
+/// Starts backing up `path`. `public_key` is the account key the unlocked
+/// webview derived from its private key; it is pinned so a server can never
+/// swap the key backups are sealed to.
+#[tauri::command]
+async fn backup_add_folder(
+    state: tauri::State<'_, EngineState>,
+    path: String,
+    public_key: String,
+) -> Result<backup_agent::BackupFolderView, String> {
+    let (client, user_id) = backup_client(&state).await?;
+    let (canonical, key) = backup_agent::validate_new_folder(&path, &public_key)?;
+    let db = state.db()?;
+    let existing = db.list_backup_roots(&user_id).map_err(|e| e.to_string())?;
+    if backup_agent::overlaps(&existing, &canonical) {
+        return Err("This folder, or one inside or around it, is already backed up.".into());
+    }
+    let root = zcrypt_core::localdb::BackupRoot {
+        id: uuid::Uuid::new_v4().to_string(),
+        local_path: canonical.to_string_lossy().to_string(),
+        user_id,
+        public_key: key,
+        remote_folder_id: String::new(),
+        last_scan_at: String::new(),
+    };
+    db.add_backup_root(&root).map_err(|e| e.to_string())?;
+    let ctx = EngineContext {
+        client,
+        db: db.clone(),
+        profile: state.profile,
+        progress: Arc::new(|_| {}),
+        creds: keychain_creds(),
+        cancel: CancelToken::new(),
+        vault_passphrase: None,
+    };
+    refresh_backup_watcher(&state, &ctx).await;
+    nudge_backup(&state);
+    Ok(backup_agent::view(&db, &root))
+}
+
+/// Stops backing up a folder on this device. Files already in the vault stay.
+#[tauri::command]
+async fn backup_remove_folder(
+    state: tauri::State<'_, EngineState>,
+    id: String,
+) -> Result<(), String> {
+    let (client, user_id) = backup_client(&state).await?;
+    let db = state.db()?;
+    db.remove_backup_root(&id, &user_id)
+        .map_err(|e| e.to_string())?;
+    let ctx = EngineContext {
+        client,
+        db,
+        profile: state.profile,
+        progress: Arc::new(|_| {}),
+        creds: keychain_creds(),
+        cancel: CancelToken::new(),
+        vault_passphrase: None,
+    };
+    refresh_backup_watcher(&state, &ctx).await;
+    Ok(())
+}
+
+/// Runs a backup pass now instead of waiting for the next one.
+#[tauri::command]
+async fn backup_run_now(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    backup_client(&state).await?;
+    nudge_backup(&state);
+    Ok(())
+}
+
 #[tauri::command]
 async fn start_folder_watch(
     window: tauri::Window,
@@ -1499,6 +1626,10 @@ pub fn run() {
     builder
         .manage(EngineState::default())
         .invoke_handler(tauri::generate_handler![
+            backup_list_folders,
+            backup_add_folder,
+            backup_remove_folder,
+            backup_run_now,
             install_channel,
             local_upload,
             upload_file,
