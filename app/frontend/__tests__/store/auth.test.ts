@@ -171,6 +171,22 @@ describe("useAuthStore", () => {
   });
 
   describe("clearAuth", () => {
+    it("desktop (Tauri): stops the shell's engine and forgets its saved session", async () => {
+      const endSession = vi.fn().mockResolvedValue(undefined);
+      vi.doMock("@/lib/tauri", async (orig) => ({
+        ...(await orig<typeof import("@/lib/tauri")>()),
+        isTauri: true,
+        endSession,
+        clearShellPassphrase: vi.fn().mockResolvedValue(undefined),
+      }));
+      vi.resetModules();
+      const fresh = await import("@/store/auth");
+      fresh.useAuthStore.getState().clearAuth();
+      expect(endSession).toHaveBeenCalledTimes(1);
+      endSession.mockRejectedValueOnce(new Error("engine gone"));
+      expect(() => fresh.useAuthStore.getState().clearAuth()).not.toThrow();
+    });
+
     it("wipes tokens, user, and every other zero-knowledge session store", () => {
       useAuthStore.getState().setTokens("access-1", "refresh-1");
       useAuthStore.getState().setUser(USER);

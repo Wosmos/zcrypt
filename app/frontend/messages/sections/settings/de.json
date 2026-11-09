@@ -625,7 +625,16 @@
       "scheduleTime": "Uhrzeit der Sicherung",
       "scheduleInstantSaved": "Sicherungen laufen jetzt bei Änderungen",
       "scheduleNightlySaved": "Sicherungen laufen jetzt jede Nacht um {time}",
-      "scheduleFailed": "Zeitplan konnte nicht geändert werden. Versuch es noch einmal."
+      "scheduleFailed": "Zeitplan konnte nicht geändert werden. Versuch es noch einmal.",
+      "backgroundTitle": "Weiterlaufen, wenn zcrypt geschlossen ist",
+      "backgroundDesc": "Startet still bei der Anmeldung, damit Sicherungen nie auf dich warten",
+      "backgroundOn": "zcrypt startet jetzt still bei der Anmeldung",
+      "backgroundOff": "zcrypt startet nicht mehr bei der Anmeldung",
+      "backgroundFailed": "Das ließ sich nicht ändern. Versuch es noch einmal.",
+      "askTitle": "Weiter sichern, wenn zcrypt geschlossen ist?",
+      "askDesc": "zcrypt startet bei der Anmeldung still im Hintergrund, damit deine Ordner gesichert werden, ohne die App zu öffnen. Dein Computer meldet eventuell, dass es zu den Anmeldeobjekten hinzugefügt wurde. Du kannst das jederzeit in den Einstellungen ausschalten.",
+      "askAllow": "Erlauben",
+      "askLater": "Nicht jetzt"
     }
   }
 }

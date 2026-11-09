@@ -568,6 +568,22 @@ export interface BackupSchedule {
   time: string;
 }
 
+/** Signing out on desktop: stops sync and backups and forgets the session the
+ *  shell kept in the keychain. No-op outside Tauri. */
+export async function endSession(): Promise<void> {
+  if (!isTauri) return;
+  return tauriInvoke("end_session");
+}
+
+/** Whether zcrypt starts quietly in the background when the person logs in. */
+export async function isAutostartEnabled(): Promise<boolean> {
+  return tauriInvoke("is_autostart_enabled");
+}
+
+export async function setAutostart(enabled: boolean): Promise<void> {
+  return tauriInvoke("set_autostart", { enabled });
+}
+
 export async function getBackupSchedule(): Promise<BackupSchedule> {
   return tauriInvoke("backup_get_schedule");
 }

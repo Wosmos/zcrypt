@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Switch } from "@/components/ui/switch";
 import { LinkRow, SettingGroup, ValueRow } from "@/components/settings/settings-primitives";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { ensureUserKeypair } from "@/lib/keys";
@@ -13,17 +14,19 @@ import { formatRelativeTime } from "@/lib/utils";
 import {
   addBackupFolder,
   getBackupSchedule,
+  isAutostartEnabled,
   listBackupFolders,
   pickBackupFolder,
   removeBackupFolder,
   runBackupNow,
+  setAutostart,
   setBackupSchedule,
   subscribeBackup,
   type BackupFolder,
   type BackupPass,
   type BackupSchedule,
 } from "@/lib/tauri";
-import { Clock, Folder, LifeBuoy, RefreshCw, UploadCloud } from "@/lib/icons";
+import { Clock, Folder, LifeBuoy, Moon, RefreshCw, UploadCloud } from "@/lib/icons";
 import { useKeysStore } from "@/store/keys";
 import { toast } from "@/store/toast";
 
@@ -64,6 +67,8 @@ export function FolderBackup() {
   const [removeTarget, setRemoveTarget] = useState<BackupFolder | null>(null);
   const [removing, setRemoving] = useState(false);
   const [schedule, setSchedule] = useState<BackupSchedule | null>(null);
+  const [background, setBackground] = useState<boolean | null>(null);
+  const [askBackground, setAskBackground] = useState(false);
 
   useEffect(() => {
     let gone = false;
@@ -81,6 +86,12 @@ export function FolderBackup() {
     getBackupSchedule().then(
       (s) => {
         if (!gone) setSchedule(s);
+      },
+      () => {},
+    );
+    isAutostartEnabled().then(
+      (on) => {
+        if (!gone) setBackground(on);
       },
       () => {},
     );
@@ -106,6 +117,7 @@ export function FolderBackup() {
       const added = await addBackupFolder(path, toBase64(key));
       setFolders((prev) => [...(prev ?? []).filter((f) => f.id !== added.id), added]);
       toast.success(t("added", { name: added.name }));
+      if (background === false) setAskBackground(true);
     } catch (err) {
       toast.error(errorText(err, t("addFailed")));
     } finally {
@@ -166,6 +178,17 @@ export function FolderBackup() {
     } catch (err) {
       setSchedule(previous);
       toast.error(errorText(err, t("scheduleFailed")));
+    }
+  };
+
+  const changeBackground = async (on: boolean) => {
+    setAskBackground(false);
+    try {
+      await setAutostart(on);
+      setBackground(on);
+      toast.success(on ? t("backgroundOn") : t("backgroundOff"));
+    } catch (err) {
+      toast.error(errorText(err, t("backgroundFailed")));
     }
   };
 
@@ -239,6 +262,20 @@ export function FolderBackup() {
             </div>
           </div>
         )}
+        {hasFolders && background !== null && (
+          <ValueRow
+            icon={<Moon className="h-4 w-4" />}
+            title={t("backgroundTitle")}
+            subtitle={t("backgroundDesc")}
+            trailing={
+              <Switch
+                aria-label={t("backgroundTitle")}
+                checked={background}
+                onCheckedChange={(on) => void changeBackground(on)}
+              />
+            }
+          />
+        )}
         {hasFolders && (
           <ValueRow
             icon={<RefreshCw className="h-4 w-4" />}
@@ -278,6 +315,16 @@ export function FolderBackup() {
           />
         </SettingGroup>
       )}
+
+      <ConfirmDialog
+        open={askBackground}
+        onOpenChange={setAskBackground}
+        title={t("askTitle")}
+        description={t("askDesc")}
+        confirmLabel={t("askAllow")}
+        cancelLabel={t("askLater")}
+        onConfirm={() => void changeBackground(true)}
+      />
 
       <ConfirmDialog
         open={removeTarget !== null}

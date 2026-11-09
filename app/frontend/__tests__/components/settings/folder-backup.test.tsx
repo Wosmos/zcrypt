@@ -10,6 +10,8 @@ const tauri = vi.hoisted(() => ({
   subscribeBackup: vi.fn(),
   getBackupSchedule: vi.fn(),
   setBackupSchedule: vi.fn(),
+  isAutostartEnabled: vi.fn(),
+  setAutostart: vi.fn(),
 }));
 const ensureUserKeypair = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -70,6 +72,8 @@ describe("FolderBackup", () => {
     });
     tauri.getBackupSchedule.mockResolvedValue({ mode: "instant", time: "02:00" });
     tauri.setBackupSchedule.mockResolvedValue(undefined);
+    tauri.isAutostartEnabled.mockResolvedValue(true);
+    tauri.setAutostart.mockResolvedValue(undefined);
     useKeysStore.setState({ publicKey: new Uint8Array(32).fill(7), recoveryKit: null });
   });
 
@@ -256,5 +260,50 @@ describe("FolderBackup", () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("button", { name: "removeConfirm" })).toBeNull());
     expect(screen.getByText("Documents")).toBeInTheDocument();
+  });
+
+  it("asks once to keep backing up while closed, and allows it", async () => {
+    tauri.isAutostartEnabled.mockResolvedValue(false);
+    tauri.listBackupFolders.mockResolvedValue([]);
+    tauri.pickBackupFolder.mockResolvedValue("/Users/me/Documents");
+    tauri.addBackupFolder.mockResolvedValue(docs);
+    render(<FolderBackup />);
+    const add = await screen.findByRole("button", { name: "add" });
+    await waitFor(() => expect(add).toBeEnabled());
+    fireEvent.click(add);
+    expect(await screen.findByText("askTitle")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "askAllow" }));
+    await waitFor(() => expect(tauri.setAutostart).toHaveBeenCalledWith(true));
+    expect(toast.success).toHaveBeenCalledWith("backgroundOn");
+    expect(await screen.findByRole("switch", { name: "backgroundTitle" })).toBeChecked();
+  });
+
+  it("doesn't ask when zcrypt already starts at login, and the switch turns it off", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    render(<FolderBackup />);
+    const toggle = await screen.findByRole("switch", { name: "backgroundTitle" });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    await waitFor(() => expect(tauri.setAutostart).toHaveBeenCalledWith(false));
+    expect(toast.success).toHaveBeenCalledWith("backgroundOff");
+    expect(screen.queryByText("askTitle")).toBeNull();
+  });
+
+  it("keeps the switch as it was when the shell refuses", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    tauri.setAutostart.mockRejectedValue(new Error(""));
+    render(<FolderBackup />);
+    const toggle = await screen.findByRole("switch", { name: "backgroundTitle" });
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("backgroundFailed"));
+    expect(toggle).toBeChecked();
+  });
+
+  it("hides the switch when the shell can't report it", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    tauri.isAutostartEnabled.mockRejectedValue(new Error("old shell"));
+    render(<FolderBackup />);
+    await screen.findByText("Documents");
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 });

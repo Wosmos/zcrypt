@@ -104,6 +104,12 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(() => unlisten()).not.toThrow();
   });
 
+  it("endSession is a no-op without invoking the bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.endSession()).resolves.toBeUndefined();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("setShellPassphrase is a no-op without invoking the bridge", async () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.setShellPassphrase("pw")).resolves.toBeUndefined();
@@ -561,6 +567,12 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("backup_remove_folder", { id: "r1" });
     await mod.runBackupNow();
     expect(invokeMock).toHaveBeenCalledWith("backup_run_now", undefined);
+    await mod.endSession();
+    expect(invokeMock).toHaveBeenCalledWith("end_session", undefined);
+    await mod.isAutostartEnabled();
+    expect(invokeMock).toHaveBeenCalledWith("is_autostart_enabled", undefined);
+    await mod.setAutostart(true);
+    expect(invokeMock).toHaveBeenCalledWith("set_autostart", { enabled: true });
     await mod.getBackupSchedule();
     expect(invokeMock).toHaveBeenCalledWith("backup_get_schedule", undefined);
     await mod.setBackupSchedule({ mode: "nightly", time: "02:00" });

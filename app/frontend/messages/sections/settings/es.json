@@ -625,7 +625,16 @@
       "scheduleTime": "Hora de la copia",
       "scheduleInstantSaved": "Las copias se hacen ahora al cambiar archivos",
       "scheduleNightlySaved": "Las copias se hacen ahora cada noche a las {time}",
-      "scheduleFailed": "No se pudo cambiar cuándo se copia. Inténtalo de nuevo."
+      "scheduleFailed": "No se pudo cambiar cuándo se copia. Inténtalo de nuevo.",
+      "backgroundTitle": "Funcionar con zcrypt cerrado",
+      "backgroundDesc": "Se inicia en silencio al iniciar sesión, así las copias nunca te esperan",
+      "backgroundOn": "zcrypt se iniciará en silencio al iniciar sesión",
+      "backgroundOff": "zcrypt no se iniciará al iniciar sesión",
+      "backgroundFailed": "No se pudo cambiar. Inténtalo de nuevo.",
+      "askTitle": "¿Seguir copiando con zcrypt cerrado?",
+      "askDesc": "zcrypt se iniciará en segundo plano al iniciar sesión, para copiar tus carpetas sin abrir la app. Tu equipo puede avisar de que se añadió a los elementos de inicio. Puedes desactivarlo en Ajustes cuando quieras.",
+      "askAllow": "Permitir",
+      "askLater": "Ahora no"
     }
   }
 }

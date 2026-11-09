@@ -625,7 +625,16 @@
       "scheduleTime": "Heure de sauvegarde",
       "scheduleInstantSaved": "Les sauvegardes suivent maintenant chaque modification",
       "scheduleNightlySaved": "Les sauvegardes ont lieu chaque nuit à {time}",
-      "scheduleFailed": "Impossible de changer l'heure des sauvegardes. Réessayez."
+      "scheduleFailed": "Impossible de changer l'heure des sauvegardes. Réessayez.",
+      "backgroundTitle": "Fonctionner quand zcrypt est fermé",
+      "backgroundDesc": "Démarre discrètement à l'ouverture de session, pour que les sauvegardes ne vous attendent jamais",
+      "backgroundOn": "zcrypt démarrera discrètement à l'ouverture de session",
+      "backgroundOff": "zcrypt ne démarrera plus à l'ouverture de session",
+      "backgroundFailed": "Impossible de modifier cela. Réessayez.",
+      "askTitle": "Continuer à sauvegarder quand zcrypt est fermé ?",
+      "askDesc": "zcrypt démarrera discrètement en arrière-plan à l'ouverture de session, pour sauvegarder vos dossiers sans ouvrir l'app. Votre ordinateur peut indiquer qu'il a été ajouté aux éléments d'ouverture. Vous pouvez désactiver cela dans les Réglages à tout moment.",
+      "askAllow": "Autoriser",
+      "askLater": "Plus tard"
     }
   }
 }

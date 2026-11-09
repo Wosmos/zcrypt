@@ -625,7 +625,16 @@
       "scheduleTime": "备份时间",
       "scheduleInstantSaved": "现在会在文件变化时备份",
       "scheduleNightlySaved": "现在每晚 {time} 备份",
-      "scheduleFailed": "无法更改备份时间，请重试。"
+      "scheduleFailed": "无法更改备份时间，请重试。",
+      "backgroundTitle": "关闭 zcrypt 后继续运行",
+      "backgroundDesc": "登录时在后台静默启动，备份无需等你打开应用",
+      "backgroundOn": "zcrypt 将在登录时静默启动",
+      "backgroundOff": "zcrypt 不会在登录时启动",
+      "backgroundFailed": "无法更改，请重试。",
+      "askTitle": "关闭 zcrypt 后继续备份？",
+      "askDesc": "zcrypt 将在你登录时于后台静默启动，无需打开应用即可备份文件夹。电脑可能会提示它已加入登录项。你可以随时在设置中关闭。",
+      "askAllow": "允许",
+      "askLater": "以后再说"
     }
   }
 }

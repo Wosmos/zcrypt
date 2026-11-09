@@ -5,7 +5,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { clearAvatarCache } from "@/lib/avatar-cache";
-import { isTauri } from "@/lib/tauri";
+import { endSession, isTauri } from "@/lib/tauri";
 import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
 import { broadcastTokens, onTokensFromOtherTabs } from "@/lib/auth-sync";
 import { forgetPlatformCredentials } from "@/lib/platform-credentials";
@@ -131,6 +131,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setInitialized: (initialized) => set({ initialized }),
 
   clearAuth: () => {
+    if (isTauri) void endSession().catch(() => {});
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     // Logout is stronger than a vault lock: also drop all decrypted plaintext

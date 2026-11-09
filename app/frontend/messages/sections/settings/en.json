@@ -625,7 +625,16 @@
       "scheduleTime": "Backup time",
       "scheduleInstantSaved": "Backups now run as files change",
       "scheduleNightlySaved": "Backups now run every night at {time}",
-      "scheduleFailed": "Couldn't change when backups run. Try again."
+      "scheduleFailed": "Couldn't change when backups run. Try again.",
+      "backgroundTitle": "Run when zcrypt is closed",
+      "backgroundDesc": "Starts quietly when you log in, so backups never wait for you",
+      "backgroundOn": "zcrypt will start quietly when you log in",
+      "backgroundOff": "zcrypt won't start when you log in",
+      "backgroundFailed": "Couldn't change that. Try again.",
+      "askTitle": "Keep backing up when zcrypt is closed?",
+      "askDesc": "zcrypt will start quietly in the background when you log in, so your folders back up without opening the app. Your computer may say it was added to login items. You can turn this off in Settings anytime.",
+      "askAllow": "Allow",
+      "askLater": "Not now"
     }
   }
 }
