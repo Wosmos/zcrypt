@@ -26,14 +26,28 @@ const ContextMenuContent = React.forwardRef<
 ));
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName;
 
+/**
+ * Radix selects an item on any pointer release over it. The menu opens under
+ * the cursor on the right button's press (macOS, newer Chromium) and slides in
+ * as it does, so releasing that same right button can land on the first item
+ * and open the file instead of showing the menu. Only the main button selects.
+ */
+function primaryReleaseOnly(onPointerUp?: React.PointerEventHandler<HTMLDivElement>) {
+  return (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) event.preventDefault();
+    onPointerUp?.(event);
+  };
+}
+
 const ContextMenuItem = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item> & {
     inset?: boolean;
   }
->(({ className, inset, ...props }, ref) => (
+>(({ className, inset, onPointerUp, ...props }, ref) => (
   <ContextMenuPrimitive.Item
     ref={ref}
+    onPointerUp={primaryReleaseOnly(onPointerUp)}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       inset && "pl-8",
