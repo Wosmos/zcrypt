@@ -626,12 +626,93 @@ fn api_origin_matches(base_url: &str, pinned: Option<&str>) -> bool {
     }
 }
 
+const SESSION_ACCESS: &str = "auth.access";
+const SESSION_REFRESH: &str = "auth.refresh";
+
+/// Keeps the session in the OS keychain so the app can back up after a
+/// restart without the window ever opening.
+fn save_session(access: &str, refresh: &str) {
+    for (key, value) in [(SESSION_ACCESS, access), (SESSION_REFRESH, refresh)] {
+        if let Err(e) =
+            keyring::Entry::new(KEYCHAIN_SERVICE, key).and_then(|entry| entry.set_password(value))
+        {
+            eprintln!("keychain: save {key}: {e}");
+        }
+    }
+}
+
+fn stored_session() -> Option<(String, String)> {
+    let read = |key| {
+        keyring::Entry::new(KEYCHAIN_SERVICE, key)
+            .and_then(|e| e.get_password())
+            .ok()
+            .filter(|v| !v.is_empty())
+    };
+    Some((read(SESSION_ACCESS)?, read(SESSION_REFRESH)?))
+}
+
+fn forget_session() {
+    for key in [SESSION_ACCESS, SESSION_REFRESH] {
+        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, key) {
+            let _ = entry.delete_credential();
+        }
+    }
+}
+
+/// Starts the engine from the session the keychain kept, so backups and sync
+/// run at login even though the window stays hidden and nobody signs in.
+#[cfg(desktop)]
+fn resume_in_background(app: &tauri::AppHandle) {
+    let Some(base_url) = option_env!("ZCRYPT_API_URL").filter(|u| !u.is_empty()) else {
+        return;
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let Some((access, refresh)) = tauri::async_runtime::spawn_blocking(stored_session)
+            .await
+            .ok()
+            .flatten()
+        else {
+            return;
+        };
+        if app.state::<EngineState>().client.read().await.is_some() {
+            return;
+        }
+        if let Err(e) = start_engine(app, base_url.to_string(), access, refresh).await {
+            eprintln!("zcrypt: background start: {e}");
+        }
+    });
+}
+
 /// Build the API client (persisting rotated tokens back to the OS keychain)
 /// and (re)start the background sync worker.
 #[tauri::command]
 async fn start_sync(
     app: tauri::AppHandle,
-    state: tauri::State<'_, EngineState>,
+    base_url: String,
+    access_token: String,
+    refresh_token: String,
+) -> Result<(), String> {
+    start_engine(app, base_url, access_token, refresh_token).await
+}
+
+/// Signing out: stops sync and backups, drops the client and forgets the
+/// session the keychain kept, so nothing keeps running for that account.
+#[tauri::command]
+async fn end_session(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
+        let _ = cancel.send(true);
+    }
+    *state.backup_watcher.lock().unwrap() = None;
+    *state.backup_nudge.lock().unwrap() = None;
+    *state.client.write().await = None;
+    tauri::async_runtime::spawn_blocking(forget_session)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn start_engine(
+    app: tauri::AppHandle,
     base_url: String,
     access_token: String,
     refresh_token: String,
@@ -639,6 +720,7 @@ async fn start_sync(
     if !api_origin_allowed(&base_url) {
         return Err("base_url is not the zcrypt API origin".to_string());
     }
+    let state = app.state::<EngineState>();
     // One client for the life of the app: every transfer shares its token
     // state, so a new pair from the webview (a fresh login) reaches uploads
     // already in flight instead of stranding them on a dead refresh token.
@@ -647,6 +729,7 @@ async fn start_sync(
         Some(c) if c.base_url == base_url.trim_end_matches('/') => {
             if c.tokens().await != (access_token.clone(), refresh_token.clone()) {
                 c.set_tokens(&access_token, &refresh_token).await;
+                save_session(&access_token, &refresh_token);
             }
             if state.sync_cancel.lock().unwrap().is_some() {
                 return Ok(());
@@ -656,16 +739,7 @@ async fn start_sync(
         _ => {
             let app_for_hook = app.clone();
             let rotate_hook: RotateHook = Arc::new(move |access, refresh| {
-                if let Err(e) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.access")
-                    .and_then(|entry| entry.set_password(access))
-                {
-                    eprintln!("keychain: save access token: {e}");
-                }
-                if let Err(e) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.refresh")
-                    .and_then(|entry| entry.set_password(refresh))
-                {
-                    eprintln!("keychain: save refresh token: {e}");
-                }
+                save_session(access, refresh);
                 // The engine owns rotation on desktop: hand the new pair to the
                 // webview so it never refreshes with a token we just retired.
                 let _ = app_for_hook.emit(
@@ -673,6 +747,7 @@ async fn start_sync(
                     serde_json::json!({ "access_token": access, "refresh_token": refresh }),
                 );
             });
+            save_session(&access_token, &refresh_token);
             let c = Arc::new(
                 Client::new(&base_url, &access_token, &refresh_token).with_rotate_hook(rotate_hook),
             );
@@ -1717,6 +1792,7 @@ pub fn run() {
             decrypt_space_to_memory,
             delete_file,
             start_sync,
+            end_session,
             stop_sync,
             sync_status,
             get_engine_status,
@@ -1813,6 +1889,8 @@ pub fn run() {
 
             #[cfg(desktop)]
             setup_tray(app)?;
+            #[cfg(desktop)]
+            resume_in_background(app.handle());
 
             // Inactivity auto-lock, not gated to desktop; the cached
             // passphrase and warm key cache exist on every target.
