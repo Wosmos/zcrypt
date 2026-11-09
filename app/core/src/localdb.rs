@@ -214,6 +214,10 @@ impl LocalDb {
                 uploaded_at    TEXT NOT NULL DEFAULT (datetime('now')),
                 PRIMARY KEY (root_id, rel_path)
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             "#,
         )?;
         Ok(LocalDb {
@@ -929,6 +933,29 @@ impl LocalDb {
             )
         })
     }
+
+    // ── device settings ─────────────────────────────────────────────────────
+
+    /// A setting this device keeps for itself, or None when it was never set.
+    pub fn setting(&self, key: &str) -> Result<Option<String>, DbError> {
+        self.with(|c| {
+            c.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+                r.get(0)
+            })
+            .optional()
+        })
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO settings (key, value) VALUES (?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                [key, value],
+            )
+            .map(|_| ())
+        })
+    }
 }
 
 #[cfg(test)]
@@ -950,6 +977,15 @@ mod backup_ledger_tests {
             remote_folder_id: String::new(),
             last_scan_at: String::new(),
         }
+    }
+
+    #[test]
+    fn settings_start_empty_and_overwrite() {
+        let (_d, db) = db();
+        assert_eq!(db.setting("backup.schedule").unwrap(), None);
+        db.set_setting("backup.schedule", "a").unwrap();
+        db.set_setting("backup.schedule", "b").unwrap();
+        assert_eq!(db.setting("backup.schedule").unwrap().as_deref(), Some("b"));
     }
 
     #[test]
