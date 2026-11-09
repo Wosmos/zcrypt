@@ -591,13 +591,13 @@
     },
     "folderBackup": {
       "label": "Copia de carpetas",
-      "footnote": "Los archivos nuevos y modificados de estas carpetas se suben solos, incluso con tu bóveda bloqueada. Lo que borres aquí nunca se borra de tu bóveda.",
+      "footnote": "Los archivos nuevos y modificados de estas carpetas se suben solos, incluso con tu bóveda bloqueada. Lo que borres aquí nunca se borra de tu bóveda. Al cerrar la ventana, las copias siguen en marcha desde la bandeja del sistema.",
       "addFirst": "Hacer copia de una carpeta",
       "addFirstDesc": "Elige una carpeta y este ordenador la mantendrá respaldada.",
       "addAnother": "Añadir otra carpeta",
       "add": "Elegir carpeta",
       "pickTitle": "Elige una carpeta para respaldar",
-      "runNow": "Copiar ahora",
+      "runNow": "Iniciar",
       "started": "Copiando ahora",
       "runFailed": "No se pudo iniciar la copia. Inténtalo de nuevo.",
       "added": "Respaldando {name}",
@@ -615,8 +615,17 @@
       "someFailed": "{count, plural, one {# archivo no se pudo} other {# archivos no se pudieron}} respaldar",
       "kitTitle": "Configura un kit de recuperación",
       "kitDesc": "Sin uno, olvidar la frase de contraseña bloquea las copias.",
-      "autoTitle": "Se copia solo",
-      "autoDesc": "Tras cada cambio y cada 10 minutos"
+      "runNowTitle": "Copiar todo ahora",
+      "runNowDesc": "No espera a la hora programada",
+      "scheduleTitle": "Cuándo copiar",
+      "scheduleInstant": "Al cambiar archivos",
+      "scheduleNightly": "Cada noche",
+      "scheduleInstantDesc": "Segundos después de un cambio, y cada 10 minutos",
+      "scheduleNightlyDesc": "A las {time}. Si el equipo está en reposo, en cuanto despierte.",
+      "scheduleTime": "Hora de la copia",
+      "scheduleInstantSaved": "Las copias se hacen ahora al cambiar archivos",
+      "scheduleNightlySaved": "Las copias se hacen ahora cada noche a las {time}",
+      "scheduleFailed": "No se pudo cambiar cuándo se copia. Inténtalo de nuevo."
     }
   }
 }

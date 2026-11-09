@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LinkRow, SettingGroup, ValueRow } from "@/components/settings/settings-primitives";
@@ -12,15 +12,18 @@ import { SETTINGS_TAB_PARAM } from "@/lib/settings-tab";
 import { formatRelativeTime } from "@/lib/utils";
 import {
   addBackupFolder,
+  getBackupSchedule,
   listBackupFolders,
   pickBackupFolder,
   removeBackupFolder,
   runBackupNow,
+  setBackupSchedule,
   subscribeBackup,
   type BackupFolder,
   type BackupPass,
+  type BackupSchedule,
 } from "@/lib/tauri";
-import { Folder, LifeBuoy, RefreshCw, UploadCloud } from "@/lib/icons";
+import { Clock, Folder, LifeBuoy, RefreshCw, UploadCloud } from "@/lib/icons";
 import { useKeysStore } from "@/store/keys";
 import { toast } from "@/store/toast";
 
@@ -31,6 +34,19 @@ export function scanTime(value: string): number | null {
   return Number.isNaN(ts) ? null : ts;
 }
 
+const FIELD =
+  "h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10";
+
+/** "02:00" as this locale writes a time of day. */
+export function clockTime(value: string, locale: string): string {
+  const [h, m] = value.split(":").map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return value;
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function errorText(err: unknown, fallback: string): string {
   if (typeof err === "string" && err) return err;
   if (err instanceof Error && err.message) return err.message;
@@ -39,6 +55,7 @@ function errorText(err: unknown, fallback: string): string {
 
 export function FolderBackup() {
   const t = useTranslations("settings.folderBackup");
+  const locale = useLocale();
   const vault = useVaultLockContext();
   const recoveryKit = useKeysStore((s) => s.recoveryKit);
   const [folders, setFolders] = useState<BackupFolder[] | null>(null);
@@ -46,6 +63,7 @@ export function FolderBackup() {
   const [adding, setAdding] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<BackupFolder | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [schedule, setSchedule] = useState<BackupSchedule | null>(null);
 
   useEffect(() => {
     let gone = false;
@@ -60,6 +78,12 @@ export function FolderBackup() {
         },
       );
     void refresh();
+    getBackupSchedule().then(
+      (s) => {
+        if (!gone) setSchedule(s);
+      },
+      () => {},
+    );
     void subscribeBackup((pass) => {
       setPasses((prev) => ({ ...prev, [pass.id]: pass }));
       void refresh();
@@ -127,6 +151,24 @@ export function FolderBackup() {
     }
   };
 
+  const changeSchedule = async (next: BackupSchedule, announce: boolean) => {
+    const previous = schedule;
+    setSchedule(next);
+    try {
+      await setBackupSchedule(next);
+      if (announce) {
+        toast.success(
+          next.mode === "nightly"
+            ? t("scheduleNightlySaved", { time: clockTime(next.time, locale) })
+            : t("scheduleInstantSaved"),
+        );
+      }
+    } catch (err) {
+      setSchedule(previous);
+      toast.error(errorText(err, t("scheduleFailed")));
+    }
+  };
+
   const subtitle = (f: BackupFolder) => {
     if (!f.available) return t("missing");
     const pass = passes[f.id];
@@ -154,11 +196,54 @@ export function FolderBackup() {
             }
           />
         ))}
+        {hasFolders && schedule && (
+          <div className="flex gap-3 px-4 py-3">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
+              <Clock className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-[var(--color-text)]">{t("scheduleTitle")}</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                {schedule.mode === "nightly"
+                  ? t("scheduleNightlyDesc", { time: clockTime(schedule.time, locale) })
+                  : t("scheduleInstantDesc")}
+              </p>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <select
+                  aria-label={t("scheduleTitle")}
+                  value={schedule.mode}
+                  onChange={(e) =>
+                    void changeSchedule(
+                      { ...schedule, mode: e.target.value === "nightly" ? "nightly" : "instant" },
+                      true,
+                    )
+                  }
+                  className={FIELD}
+                >
+                  <option value="instant">{t("scheduleInstant")}</option>
+                  <option value="nightly">{t("scheduleNightly")}</option>
+                </select>
+                {schedule.mode === "nightly" && (
+                  <input
+                    type="time"
+                    aria-label={t("scheduleTime")}
+                    value={schedule.time}
+                    onChange={(e) => {
+                      if (e.target.value)
+                        void changeSchedule({ ...schedule, time: e.target.value }, false);
+                    }}
+                    className={FIELD}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {hasFolders && (
           <ValueRow
             icon={<RefreshCw className="h-4 w-4" />}
-            title={t("autoTitle")}
-            subtitle={t("autoDesc")}
+            title={t("runNowTitle")}
+            subtitle={t("runNowDesc")}
             trailing={
               <Button variant="ghost" size="sm" onClick={() => void backUpNow()}>
                 {t("runNow")}

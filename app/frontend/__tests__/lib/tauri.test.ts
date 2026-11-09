@@ -561,6 +561,12 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("backup_remove_folder", { id: "r1" });
     await mod.runBackupNow();
     expect(invokeMock).toHaveBeenCalledWith("backup_run_now", undefined);
+    await mod.getBackupSchedule();
+    expect(invokeMock).toHaveBeenCalledWith("backup_get_schedule", undefined);
+    await mod.setBackupSchedule({ mode: "nightly", time: "02:00" });
+    expect(invokeMock).toHaveBeenCalledWith("backup_set_schedule", {
+      schedule: { mode: "nightly", time: "02:00" },
+    });
   });
 
   it("subscribeBackup forwards zcrypt://backup payloads", async () => {

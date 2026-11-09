@@ -591,13 +591,13 @@
     },
     "folderBackup": {
       "label": "Folder backup",
-      "footnote": "New and changed files in these folders upload on their own, even while your vault is locked. Nothing is ever deleted from your vault when you delete it here.",
+      "footnote": "New and changed files in these folders upload on their own, even while your vault is locked. Nothing is ever deleted from your vault when you delete it here. Closing the window keeps backups running from the tray.",
       "addFirst": "Back up a folder",
       "addFirstDesc": "Pick a folder and this computer keeps it backed up.",
       "addAnother": "Add another folder",
       "add": "Choose folder",
       "pickTitle": "Choose a folder to back up",
-      "runNow": "Back up now",
+      "runNow": "Start",
       "started": "Backing up now",
       "runFailed": "Couldn't start the backup. Try again.",
       "added": "Backing up {name}",
@@ -615,8 +615,17 @@
       "someFailed": "{count, plural, one {# file} other {# files}} couldn't be backed up",
       "kitTitle": "Set up a recovery kit",
       "kitDesc": "Without one, a forgotten passphrase locks backups away.",
-      "autoTitle": "Backs up on its own",
-      "autoDesc": "After changes, and every 10 minutes"
+      "runNowTitle": "Back up everything now",
+      "runNowDesc": "Doesn't wait for the schedule",
+      "scheduleTitle": "When to back up",
+      "scheduleInstant": "As files change",
+      "scheduleNightly": "Every night",
+      "scheduleInstantDesc": "Seconds after a change, and every 10 minutes",
+      "scheduleNightlyDesc": "At {time}. If the computer is asleep then, as soon as it wakes.",
+      "scheduleTime": "Backup time",
+      "scheduleInstantSaved": "Backups now run as files change",
+      "scheduleNightlySaved": "Backups now run every night at {time}",
+      "scheduleFailed": "Couldn't change when backups run. Try again."
     }
   }
 }

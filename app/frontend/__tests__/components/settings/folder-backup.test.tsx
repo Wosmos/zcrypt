@@ -8,6 +8,8 @@ const tauri = vi.hoisted(() => ({
   removeBackupFolder: vi.fn(),
   runBackupNow: vi.fn(),
   subscribeBackup: vi.fn(),
+  getBackupSchedule: vi.fn(),
+  setBackupSchedule: vi.fn(),
 }));
 const ensureUserKeypair = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -20,11 +22,12 @@ vi.mock("@/components/providers/vault-lock-provider", () => ({
   useVaultLockContext: () => ({ withPassphrase }),
 }));
 vi.mock("next-intl", () => ({
+  useLocale: () => "en-GB",
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-import { FolderBackup, scanTime } from "@/components/settings/folder-backup";
+import { clockTime, FolderBackup, scanTime } from "@/components/settings/folder-backup";
 import { useKeysStore } from "@/store/keys";
 
 const docs = {
@@ -44,6 +47,14 @@ describe("scanTime", () => {
   });
 });
 
+describe("clockTime", () => {
+  it("writes a time of day the locale's way and leaves junk alone", () => {
+    expect(clockTime("02:00", "en-GB")).toMatch(/^0?2:00$/);
+    expect(clockTime("23:30", "en-US")).toMatch(/11:30\sPM/);
+    expect(clockTime("later", "en-GB")).toBe("later");
+  });
+});
+
 describe("FolderBackup", () => {
   let emit: ((pass: unknown) => void) | null = null;
 
@@ -57,6 +68,8 @@ describe("FolderBackup", () => {
       emit = cb;
       return () => {};
     });
+    tauri.getBackupSchedule.mockResolvedValue({ mode: "instant", time: "02:00" });
+    tauri.setBackupSchedule.mockResolvedValue(undefined);
     useKeysStore.setState({ publicKey: new Uint8Array(32).fill(7), recoveryKit: null });
   });
 
@@ -176,5 +189,72 @@ describe("FolderBackup", () => {
     tauri.listBackupFolders.mockRejectedValue(new Error("not signed in"));
     render(<FolderBackup />);
     expect(await screen.findByText("addFirst")).toBeInTheDocument();
+  });
+
+  it("switches to a nightly backup, changes its time and says when it runs", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    render(<FolderBackup />);
+    const mode = await screen.findByRole("combobox", { name: "scheduleTitle" });
+    expect(screen.getByText("scheduleInstantDesc")).toBeInTheDocument();
+    expect(screen.queryByLabelText("scheduleTime")).toBeNull();
+
+    fireEvent.change(mode, { target: { value: "nightly" } });
+    await waitFor(() =>
+      expect(tauri.setBackupSchedule).toHaveBeenCalledWith({ mode: "nightly", time: "02:00" }),
+    );
+    expect(toast.success).toHaveBeenCalledWith(
+      `scheduleNightlySaved:${JSON.stringify({ time: clockTime("02:00", "en-GB") })}`,
+    );
+
+    const time = screen.getByLabelText("scheduleTime");
+    fireEvent.change(time, { target: { value: "23:15" } });
+    await waitFor(() =>
+      expect(tauri.setBackupSchedule).toHaveBeenLastCalledWith({ mode: "nightly", time: "23:15" }),
+    );
+    expect(screen.getByText(
+        `scheduleNightlyDesc:${JSON.stringify({ time: clockTime("23:15", "en-GB") })}`,
+      ),).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(time, { target: { value: "" } });
+    expect(tauri.setBackupSchedule).toHaveBeenCalledTimes(2);
+
+    fireEvent.change(mode, { target: { value: "instant" } });
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("scheduleInstantSaved"));
+  });
+
+  it("puts the schedule back when the shell refuses it", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    tauri.setBackupSchedule.mockRejectedValue("Choose a time like 02:00.");
+    render(<FolderBackup />);
+    const mode = await screen.findByRole("combobox", { name: "scheduleTitle" });
+    fireEvent.change(mode, { target: { value: "nightly" } });
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Choose a time like 02:00."));
+    expect(mode).toHaveValue("instant");
+  });
+
+  it("hides the schedule when the shell can't report it", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    tauri.getBackupSchedule.mockRejectedValue(new Error("old shell"));
+    render(<FolderBackup />);
+    await screen.findByText("Documents");
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("reports a picker that fails and a removal the shell refuses, then cancels", async () => {
+    tauri.listBackupFolders.mockResolvedValue([docs]);
+    tauri.pickBackupFolder.mockRejectedValue({});
+    tauri.removeBackupFolder.mockRejectedValue(new Error(""));
+    render(<FolderBackup />);
+    const add = await screen.findByRole("button", { name: "add" });
+    fireEvent.click(add);
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("addFailed"));
+
+    fireEvent.click(screen.getByRole("button", { name: "remove" }));
+    fireEvent.click(await screen.findByRole("button", { name: "removeConfirm" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("removeFailed"));
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "removeConfirm" })).toBeNull());
+    expect(screen.getByText("Documents")).toBeInTheDocument();
   });
 });

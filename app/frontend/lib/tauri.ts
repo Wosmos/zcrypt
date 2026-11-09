@@ -562,6 +562,20 @@ export async function runBackupNow(): Promise<void> {
   return tauriInvoke("backup_run_now");
 }
 
+/** When this device backs up: as files change, or once a night at `time` ("HH:MM", local). */
+export interface BackupSchedule {
+  mode: "instant" | "nightly";
+  time: string;
+}
+
+export async function getBackupSchedule(): Promise<BackupSchedule> {
+  return tauriInvoke("backup_get_schedule");
+}
+
+export async function setBackupSchedule(schedule: BackupSchedule): Promise<void> {
+  return tauriInvoke("backup_set_schedule", { schedule });
+}
+
 /** Subscribe to backup pass results. No-op outside Tauri. */
 export async function subscribeBackup(cb: (pass: BackupPass) => void): Promise<() => void> {
   if (!isTauri) return () => {};

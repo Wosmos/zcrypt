@@ -591,13 +591,13 @@
     },
     "folderBackup": {
       "label": "Ordner-Backup",
-      "footnote": "Neue und geänderte Dateien in diesen Ordnern werden automatisch hochgeladen, auch wenn dein Tresor gesperrt ist. Was du hier löschst, bleibt in deinem Tresor.",
+      "footnote": "Neue und geänderte Dateien in diesen Ordnern werden automatisch hochgeladen, auch wenn dein Tresor gesperrt ist. Was du hier löschst, bleibt in deinem Tresor. Wenn du das Fenster schließt, laufen Sicherungen im Infobereich weiter.",
       "addFirst": "Ordner sichern",
       "addFirstDesc": "Wähle einen Ordner und dieser Computer hält ihn gesichert.",
       "addAnother": "Weiteren Ordner hinzufügen",
       "add": "Ordner wählen",
       "pickTitle": "Ordner zum Sichern wählen",
-      "runNow": "Jetzt sichern",
+      "runNow": "Starten",
       "started": "Sicherung läuft",
       "runFailed": "Sicherung konnte nicht starten. Versuch es noch mal.",
       "added": "{name} wird gesichert",
@@ -615,8 +615,17 @@
       "someFailed": "{count, plural, one {# Datei konnte} other {# Dateien konnten}} nicht gesichert werden",
       "kitTitle": "Wiederherstellungskit einrichten",
       "kitDesc": "Ohne Kit sperrt eine vergessene Passphrase die Sicherungen aus.",
-      "autoTitle": "Sichert von selbst",
-      "autoDesc": "Nach Änderungen und alle 10 Minuten"
+      "runNowTitle": "Jetzt alles sichern",
+      "runNowDesc": "Wartet nicht auf den Zeitplan",
+      "scheduleTitle": "Wann sichern",
+      "scheduleInstant": "Bei Änderungen",
+      "scheduleNightly": "Jede Nacht",
+      "scheduleInstantDesc": "Sekunden nach einer Änderung und alle 10 Minuten",
+      "scheduleNightlyDesc": "Um {time}. Schläft der Computer dann, sobald er aufwacht.",
+      "scheduleTime": "Uhrzeit der Sicherung",
+      "scheduleInstantSaved": "Sicherungen laufen jetzt bei Änderungen",
+      "scheduleNightlySaved": "Sicherungen laufen jetzt jede Nacht um {time}",
+      "scheduleFailed": "Zeitplan konnte nicht geändert werden. Versuch es noch einmal."
     }
   }
 }

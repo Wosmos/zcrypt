@@ -591,13 +591,13 @@
     },
     "folderBackup": {
       "label": "文件夹备份",
-      "footnote": "这些文件夹中新增和修改的文件会自动上传，即使保险库已锁定。在这里删除的内容不会从保险库中删除。",
+      "footnote": "这些文件夹中新增和修改的文件会自动上传，即使保险库已锁定。在这里删除的内容不会从保险库中删除。关闭窗口后，备份会在系统托盘中继续运行。",
       "addFirst": "备份文件夹",
       "addFirstDesc": "选择一个文件夹，这台电脑会持续备份它。",
       "addAnother": "再添加一个文件夹",
       "add": "选择文件夹",
       "pickTitle": "选择要备份的文件夹",
-      "runNow": "立即备份",
+      "runNow": "开始",
       "started": "正在备份",
       "runFailed": "无法开始备份，请重试。",
       "added": "正在备份 {name}",
@@ -615,8 +615,17 @@
       "someFailed": "{count} 个文件无法备份",
       "kitTitle": "设置恢复工具包",
       "kitDesc": "没有恢复工具包，忘记密码后将无法访问备份。",
-      "autoTitle": "自动备份",
-      "autoDesc": "每次更改后以及每 10 分钟"
+      "runNowTitle": "立即备份全部",
+      "runNowDesc": "不等待计划时间",
+      "scheduleTitle": "何时备份",
+      "scheduleInstant": "文件变化时",
+      "scheduleNightly": "每晚",
+      "scheduleInstantDesc": "变化后几秒内，以及每 10 分钟一次",
+      "scheduleNightlyDesc": "在 {time}。如果电脑当时处于睡眠状态，则在唤醒后立即备份。",
+      "scheduleTime": "备份时间",
+      "scheduleInstantSaved": "现在会在文件变化时备份",
+      "scheduleNightlySaved": "现在每晚 {time} 备份",
+      "scheduleFailed": "无法更改备份时间，请重试。"
     }
   }
 }

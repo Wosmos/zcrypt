@@ -591,13 +591,13 @@
     },
     "folderBackup": {
       "label": "Sauvegarde de dossiers",
-      "footnote": "Les fichiers nouveaux et modifiés de ces dossiers sont envoyés automatiquement, même quand votre coffre est verrouillé. Ce que vous supprimez ici n'est jamais supprimé de votre coffre.",
+      "footnote": "Les fichiers nouveaux et modifiés de ces dossiers sont envoyés automatiquement, même quand votre coffre est verrouillé. Ce que vous supprimez ici n'est jamais supprimé de votre coffre. Fermer la fenêtre laisse les sauvegardes tourner depuis la zone de notification.",
       "addFirst": "Sauvegarder un dossier",
       "addFirstDesc": "Choisissez un dossier et cet ordinateur le garde sauvegardé.",
       "addAnother": "Ajouter un autre dossier",
       "add": "Choisir un dossier",
       "pickTitle": "Choisissez un dossier à sauvegarder",
-      "runNow": "Sauvegarder maintenant",
+      "runNow": "Lancer",
       "started": "Sauvegarde en cours",
       "runFailed": "Impossible de lancer la sauvegarde. Réessayez.",
       "added": "Sauvegarde de {name}",
@@ -615,8 +615,17 @@
       "someFailed": "{count, plural, one {# fichier n'a pas pu} other {# fichiers n'ont pas pu}} être sauvegardés",
       "kitTitle": "Créer un kit de récupération",
       "kitDesc": "Sans kit, une phrase secrète oubliée bloque les sauvegardes.",
-      "autoTitle": "Sauvegarde automatique",
-      "autoDesc": "Après chaque modification, et toutes les 10 minutes"
+      "runNowTitle": "Tout sauvegarder maintenant",
+      "runNowDesc": "N'attend pas l'heure prévue",
+      "scheduleTitle": "Quand sauvegarder",
+      "scheduleInstant": "À chaque modification",
+      "scheduleNightly": "Chaque nuit",
+      "scheduleInstantDesc": "Quelques secondes après un changement, et toutes les 10 minutes",
+      "scheduleNightlyDesc": "À {time}. Si l'ordinateur est en veille, dès son réveil.",
+      "scheduleTime": "Heure de sauvegarde",
+      "scheduleInstantSaved": "Les sauvegardes suivent maintenant chaque modification",
+      "scheduleNightlySaved": "Les sauvegardes ont lieu chaque nuit à {time}",
+      "scheduleFailed": "Impossible de changer l'heure des sauvegardes. Réessayez."
     }
   }
 }
