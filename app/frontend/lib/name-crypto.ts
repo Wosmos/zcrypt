@@ -35,6 +35,12 @@ export async function encryptName(name: string, key: CryptoKey): Promise<string>
 
 /** Decrypt a base64 [iv || ciphertext+tag] name. Throws on wrong key / corruption. */
 export async function decryptName(b64: string, key: CryptoKey): Promise<string> {
+  if (b64.startsWith("pk1:")) {
+    // Named by automatic backup (docs/CRYPTO_FORMAT.md 2.2): sealed to the
+    // account public key, opened with the private key.
+    const { openPk1Name } = await import("@/lib/pk1");
+    return openPk1Name(b64);
+  }
   const data = fromBase64(b64);
   const iv = data.slice(0, 12);
   const cipher = data.slice(12);

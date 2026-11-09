@@ -22,6 +22,7 @@ import {
 } from "@/hooks/useFolderProtection";
 import type { DecryptOutput } from "@/workers/crypto-worker";
 import type { FileMetadata } from "@/types";
+import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
 
 /**
  * ── useFileDecryptor: PUBLIC INTERFACE ──────────────────────────────────────
@@ -380,7 +381,11 @@ export async function runDecryptPipeline(
   // signed-in user id is unavailable we can't recompute the MAC, skip the
   // file-level compare and rely on the per-chunk AES-GCM auth tags (which already
   // threw above on any tampered chunk), exactly as the download/share paths do.
-  if (meta.sha256_scheme === "hmac_v1") {
+  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
+    const hasher = await createContentHasher("hmac_v1", await cekMacKey(keyBytes));
+    hasher.update(full);
+    if (bytesToHex(hasher.digest()) !== meta.sha256) throw new IntegrityError();
+  } else if (meta.sha256_scheme === "hmac_v1") {
     const { useAuthStore } = await import("@/store/auth");
     const uid = useAuthStore.getState().user?.id;
     if (uid) {

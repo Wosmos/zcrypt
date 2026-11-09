@@ -8,6 +8,7 @@
  * fails is skipped and reported instead of sinking the whole archive.
  */
 
+import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
 import { runWithConcurrency } from "@/lib/concurrent";
@@ -181,7 +182,9 @@ async function fetchVerifiedFile(
   // Integrity: 'hmac_v1' files verify against the per-user keyed MAC (recomputed
   // with the same passphrase that decrypted them); legacy files against SHA-256.
   let contentHash: string;
-  if (meta.sha256_scheme === "hmac_v1") {
+  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
+    contentHash = await contentMacBytes(fullFile, await cekMacKey(keyBytes));
+  } else if (meta.sha256_scheme === "hmac_v1") {
     // Lazy import so this module (and its tests) don't eagerly load the auth
     // store: only an actual hmac_v1 download needs the current user id.
     const { useAuthStore } = await import("@/store/auth");

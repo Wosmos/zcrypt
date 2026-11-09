@@ -181,6 +181,16 @@ export async function resolveFileKey(
   salt: Uint8Array,
   wrappedCek?: string | null,
 ): Promise<ArrayBuffer> {
+  if (wrappedCek && wrappedCek.startsWith("pk1:")) {
+    // Public-key backup (docs/CRYPTO_FORMAT.md 2.2): opened with the account
+    // private key, loaded while the vault is unlocked.
+    const { openPk1 } = await import("@/lib/pk1");
+    try {
+      return toArrayBuffer(await openPk1(wrappedCek));
+    } catch {
+      throw new Error("Could not unlock this backed-up file: unlock your vault and try again.");
+    }
+  }
   if (wrappedCek && wrappedCek.startsWith("mk1:")) {
     // Account master key envelope (docs/CRYPTO_FORMAT.md 2.1): the per-file
     // salt is unused. The in-memory MK is used when loaded; otherwise it is

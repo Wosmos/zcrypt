@@ -494,6 +494,12 @@ export function listFolders(parentId?: string | null): Promise<Folder[]> {
   return request<Folder[]>(`/api/folders${params}`);
 }
 
+/** Every live folder whose name automatic backup sealed to the account public
+ *  key and that no unlocked device has adopted yet (any depth). */
+export function listPk1Folders(): Promise<Folder[]> {
+  return request<Folder[]>("/api/folders?sealed=pk1");
+}
+
 /** A folder plus all of its live descendants (any depth) in one request. */
 export function listFolderSubtree(rootId: string): Promise<Folder[]> {
   return request<Folder[]>(`/api/folders/tree?root=${encodeURIComponent(rootId)}`);

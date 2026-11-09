@@ -13,6 +13,7 @@
  * state is held server-side.
  */
 
+import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
 import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
 import {
   resolveFileKey,
@@ -212,7 +213,10 @@ export async function downloadAndDecryptFile(
   // file-level compare and rely on per-chunk AES-GCM auth tags + the chunk-count
   // assertion (writer.close) for integrity, exactly like the public share path.
   let macKey: Uint8Array | undefined;
-  if (meta.sha256_scheme === "hmac_v1" && dedupPassphrase) {
+  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
+    // Backup files: keyed from the file's own CEK, so every reader verifies.
+    macKey = await cekMacKey(keyBytes);
+  } else if (meta.sha256_scheme === "hmac_v1" && dedupPassphrase) {
     const { useAuthStore } = await import("@/store/auth"); // lazy. Keep module load test-safe
     const uid = useAuthStore.getState().user?.id;
     if (uid) macKey = await deriveDedupKeyBytes(dedupPassphrase, uid);

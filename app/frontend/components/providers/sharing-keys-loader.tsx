@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ensureUserKeypair, OwnKeyMismatchError } from "@/lib/keys";
 import { scheduleMk1Migration } from "@/lib/mk1-migrate";
+import { adoptBackupNames } from "@/lib/pk1-adopt";
 import { useKeysStore } from "@/store/keys";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
@@ -13,13 +14,21 @@ export function SharingKeysLoader() {
   const passphrase = usePassphraseStore((s) => s.cachedPassphrase);
   useEffect(() => {
     if (!passphrase) return;
-    ensureUserKeypair(passphrase).catch((err: unknown) => {
-      if (err instanceof OwnKeyMismatchError) {
-        toast.error(
-          "Your sharing key on the server doesn't match this device. Sharing is paused for your safety; contact support.",
-        );
-      }
-    });
+    let cancelled = false;
+    ensureUserKeypair(passphrase)
+      .then(() => {
+        if (!cancelled) void adoptBackupNames(() => cancelled);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof OwnKeyMismatchError) {
+          toast.error(
+            "Your sharing key on the server doesn't match this device. Sharing is paused for your safety; contact support.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [passphrase]);
   const migrationReady = useKeysStore((s) => s.masterKeyWrites && s.masterKey != null);
   useEffect(() => {
