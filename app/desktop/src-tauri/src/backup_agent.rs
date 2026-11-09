@@ -1,15 +1,18 @@
 //! Desktop folder backup: runs zcrypt-core's one-way backup engine for every
-//! folder the signed-in account backs up from this device, at start, every
-//! ten minutes, and a few seconds after a change settles. It works with the
-//! vault locked: the engine seals to the account public key pinned when the
-//! folder was added (docs/CRYPTO_FORMAT.md 2.2).
+//! folder the signed-in account backs up from this device. By default it runs
+//! at start, every ten minutes, and a few seconds after a change settles; on
+//! the nightly schedule it runs once a day at the chosen time instead, or as
+//! soon as the computer wakes if it was asleep then. It works with the vault
+//! locked: the engine seals to the account public key pinned when the folder
+//! was added (docs/CRYPTO_FORMAT.md 2.2).
 
 use std::path::PathBuf;
 use std::time::Duration;
 
 use base64::Engine;
+use chrono::{Local, NaiveDateTime, NaiveTime, TimeZone};
 use notify::{RecursiveMode, Watcher};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tokio::sync::{mpsc, watch};
 use zcrypt_core::engines::EngineContext;
@@ -20,6 +23,110 @@ use zcrypt_core::localdb::{BackupRoot, LocalDb};
 pub const RESCAN_EVERY: Duration = Duration::from_secs(10 * 60);
 /// How long changes must stay quiet before a watcher-triggered pass.
 pub const SETTLE_FOR: Duration = Duration::from_secs(5);
+/// How often the nightly schedule checks the wall clock. Checking the clock
+/// rather than sleeping until the slot keeps it right across sleep and
+/// time-zone changes.
+pub const SCHEDULE_TICK: Duration = Duration::from_secs(60);
+
+const SCHEDULE_KEY: &str = "backup.schedule";
+const LAST_RUN_KEY: &str = "backup.last_run";
+
+/// What wakes the backup loop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Nudge {
+    /// Something changed in a backed-up folder.
+    Changed,
+    /// Back up now: a folder was added or the person asked.
+    Now,
+    /// The schedule changed; look at it again without backing up.
+    Reschedule,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ScheduleMode {
+    /// As soon as files change, plus a rescan every ten minutes.
+    #[default]
+    Instant,
+    /// Once a day at `time`.
+    Nightly,
+}
+
+/// When this device backs up. `time` is kept while instant so switching back
+/// to nightly remembers it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupSchedule {
+    pub mode: ScheduleMode,
+    pub time: String,
+}
+
+impl Default for BackupSchedule {
+    fn default() -> Self {
+        BackupSchedule {
+            mode: ScheduleMode::Instant,
+            time: "02:00".into(),
+        }
+    }
+}
+
+impl BackupSchedule {
+    pub fn load(db: &LocalDb) -> Self {
+        db.setting(SCHEDULE_KEY)
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_str::<BackupSchedule>(&v).ok())
+            .filter(|s| s.at().is_some())
+            .unwrap_or_default()
+    }
+
+    pub fn save(&self, db: &LocalDb) -> Result<(), String> {
+        if self.at().is_none() {
+            return Err("Choose a time like 02:00.".into());
+        }
+        let json = serde_json::to_string(self).map_err(|e| e.to_string())?;
+        db.set_setting(SCHEDULE_KEY, &json)
+            .map_err(|e| e.to_string())
+    }
+
+    fn at(&self) -> Option<NaiveTime> {
+        NaiveTime::parse_from_str(&self.time, "%H:%M").ok()
+    }
+
+    fn nightly_at(&self) -> Option<NaiveTime> {
+        (self.mode == ScheduleMode::Nightly)
+            .then(|| self.at())
+            .flatten()
+    }
+}
+
+/// True when the latest daily slot at `at` that is not after `now` came after
+/// the last pass, so a slot missed while the computer slept still runs.
+pub fn nightly_due(now: NaiveDateTime, last_run: Option<NaiveDateTime>, at: NaiveTime) -> bool {
+    let today = now.date().and_time(at);
+    let slot = if now >= today {
+        today
+    } else {
+        today - chrono::Duration::days(1)
+    };
+    last_run.is_none_or(|last| last < slot)
+}
+
+fn last_run(db: &LocalDb) -> Option<NaiveDateTime> {
+    let secs = db
+        .setting(LAST_RUN_KEY)
+        .ok()
+        .flatten()?
+        .parse::<i64>()
+        .ok()?;
+    Local
+        .timestamp_opt(secs, 0)
+        .single()
+        .map(|t| t.naive_local())
+}
+
+fn mark_run(db: &LocalDb) {
+    let _ = db.set_setting(LAST_RUN_KEY, &Local::now().timestamp().to_string());
+}
 
 /// A backed-up folder as the settings screen shows it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -123,11 +230,11 @@ async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext) {
 /// returned watcher must be kept alive; dropping it stops watching.
 pub fn watch_roots(
     roots: &[BackupRoot],
-    nudge: mpsc::UnboundedSender<()>,
+    nudge: mpsc::UnboundedSender<Nudge>,
 ) -> Option<notify::RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if res.is_ok() {
-            let _ = nudge.send(());
+            let _ = nudge.send(Nudge::Changed);
         }
     })
     .ok()?;
@@ -142,37 +249,67 @@ pub fn watch_roots(
     Some(watcher)
 }
 
-/// Runs until `cancel` flips: a pass now, then on a nudge (after changes have
-/// been quiet for [`SETTLE_FOR`]) or every [`RESCAN_EVERY`].
+/// Runs until `cancel` flips, backing up on the schedule this device keeps.
 pub async fn run_loop(
     app: tauri::AppHandle,
     ctx: EngineContext,
-    mut nudges: mpsc::UnboundedReceiver<()>,
+    mut nudges: mpsc::UnboundedReceiver<Nudge>,
     mut cancel: watch::Receiver<bool>,
 ) {
+    let mut forced = BackupSchedule::load(&ctx.db).nightly_at().is_none();
     loop {
-        run_all(&app, &ctx).await;
-        tokio::select! {
-            _ = cancel.changed() => return,
-            _ = tokio::time::sleep(RESCAN_EVERY) => {}
-            got = nudges.recv() => {
-                if got.is_none() {
-                    return;
-                }
-                loop {
-                    tokio::select! {
-                        _ = cancel.changed() => return,
-                        more = tokio::time::timeout(SETTLE_FOR, nudges.recv()) => match more {
-                            Ok(Some(())) => continue,
-                            Ok(None) => return,
-                            Err(_) => break,
-                        },
-                    }
-                }
-            }
+        let schedule = BackupSchedule::load(&ctx.db);
+        let due = schedule
+            .nightly_at()
+            .is_some_and(|at| nightly_due(Local::now().naive_local(), last_run(&ctx.db), at));
+        if forced || due {
+            run_all(&app, &ctx).await;
+            mark_run(&ctx.db);
+        }
+        match next_wake(&schedule, &mut nudges, &mut cancel).await {
+            Some(run) => forced = run,
+            None => return,
         }
         if *cancel.borrow() {
             return;
+        }
+    }
+}
+
+/// Waits for the next reason to look again. Some(true) means back up now,
+/// Some(false) means only re-check the schedule, None means stop.
+async fn next_wake(
+    schedule: &BackupSchedule,
+    nudges: &mut mpsc::UnboundedReceiver<Nudge>,
+    cancel: &mut watch::Receiver<bool>,
+) -> Option<bool> {
+    let nightly = schedule.nightly_at().is_some();
+    let idle = if nightly { SCHEDULE_TICK } else { RESCAN_EVERY };
+    tokio::select! {
+        _ = cancel.changed() => None,
+        _ = tokio::time::sleep(idle) => Some(!nightly),
+        got = nudges.recv() => match got? {
+            Nudge::Now => Some(true),
+            Nudge::Reschedule => Some(false),
+            Nudge::Changed if nightly => Some(false),
+            Nudge::Changed => settle(nudges, cancel).await,
+        },
+    }
+}
+
+/// Lets a burst of changes go quiet for [`SETTLE_FOR`] before a pass.
+async fn settle(
+    nudges: &mut mpsc::UnboundedReceiver<Nudge>,
+    cancel: &mut watch::Receiver<bool>,
+) -> Option<bool> {
+    loop {
+        tokio::select! {
+            _ = cancel.changed() => return None,
+            more = tokio::time::timeout(SETTLE_FOR, nudges.recv()) => match more {
+                Ok(Some(Nudge::Now)) | Err(_) => return Some(true),
+                Ok(Some(_)) => continue,
+                Ok(None) => return None,
+            },
         }
     }
 }
@@ -190,6 +327,62 @@ mod tests {
             remote_folder_id: String::new(),
             last_scan_at: String::new(),
         }
+    }
+
+    fn at(s: &str) -> NaiveDateTime {
+        NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").unwrap()
+    }
+
+    #[test]
+    fn nightly_runs_once_per_slot_and_catches_up_after_sleep() {
+        let two = NaiveTime::from_hms_opt(2, 0, 0).unwrap();
+        assert!(nightly_due(at("2026-11-10 02:00"), None, two));
+        assert!(nightly_due(
+            at("2026-11-10 02:01"),
+            Some(at("2026-11-09 02:00")),
+            two
+        ));
+        assert!(!nightly_due(
+            at("2026-11-10 02:05"),
+            Some(at("2026-11-10 02:01")),
+            two
+        ));
+        assert!(!nightly_due(
+            at("2026-11-10 01:59"),
+            Some(at("2026-11-09 02:01")),
+            two
+        ));
+        assert!(nightly_due(
+            at("2026-11-10 09:30"),
+            Some(at("2026-11-08 23:00")),
+            two
+        ));
+        assert!(!nightly_due(
+            at("2026-11-10 14:00"),
+            Some(at("2026-11-10 13:00")),
+            two
+        ));
+    }
+
+    #[test]
+    fn schedule_rejects_bad_times_and_falls_back_to_instant() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = LocalDb::open_at(&dir.path().join("db.sqlite")).unwrap();
+        assert_eq!(BackupSchedule::load(&db), BackupSchedule::default());
+        let nightly = BackupSchedule {
+            mode: ScheduleMode::Nightly,
+            time: "23:30".into(),
+        };
+        nightly.save(&db).unwrap();
+        assert_eq!(BackupSchedule::load(&db), nightly);
+        assert_eq!(nightly.nightly_at(), NaiveTime::from_hms_opt(23, 30, 0));
+        let bad = BackupSchedule {
+            mode: ScheduleMode::Nightly,
+            time: "25:00".into(),
+        };
+        assert!(bad.save(&db).is_err());
+        db.set_setting(SCHEDULE_KEY, "not json").unwrap();
+        assert_eq!(BackupSchedule::load(&db), BackupSchedule::default());
     }
 
     #[test]

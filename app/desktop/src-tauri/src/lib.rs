@@ -83,7 +83,7 @@ struct EngineState {
     last_activity: StdMutex<Instant>,
     saves: paths::SaveApprovals,
     /// Wakes the folder-backup loop (see backup_agent) after a change.
-    backup_nudge: StdMutex<Option<mpsc::UnboundedSender<()>>>,
+    backup_nudge: StdMutex<Option<mpsc::UnboundedSender<backup_agent::Nudge>>>,
     /// Watches the backed-up folders; dropping it stops watching.
     backup_watcher: StdMutex<Option<notify::RecommendedWatcher>>,
     /// Folders the user picked in the native dialog for backup. Only these can
@@ -826,12 +826,6 @@ async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), St
     Ok(())
 }
 
-/// Watch a folder: every newly-created file is encrypted into the local ledger
-/// (the sync worker then pushes it) and a "Backed up" notification is posted.
-/// Requires the vault unlocked (passphrase cached) and the engine connected;
-/// events arriving before that are skipped. Replaces any previous watch. The
-/// folder is chosen in the native folder dialog here, never passed in by the
-/// webview; resolves to the watched path, or None when the user cancels.
 /// Re-watches every folder the signed-in account backs up from this device.
 async fn refresh_backup_watcher(state: &EngineState, ctx: &EngineContext) {
     let Ok(user_id) = ctx.client.user_id().await else {
@@ -843,9 +837,9 @@ async fn refresh_backup_watcher(state: &EngineState, ctx: &EngineContext) {
     *state.backup_watcher.lock().unwrap() = watcher;
 }
 
-fn nudge_backup(state: &EngineState) {
+fn nudge_backup(state: &EngineState, nudge: backup_agent::Nudge) {
     if let Some(n) = state.backup_nudge.lock().unwrap().as_ref() {
-        let _ = n.send(());
+        let _ = n.send(nudge);
     }
 }
 
@@ -920,7 +914,7 @@ async fn backup_add_folder(
         vault_passphrase: None,
     };
     refresh_backup_watcher(&state, &ctx).await;
-    nudge_backup(&state);
+    nudge_backup(&state, backup_agent::Nudge::Now);
     Ok(backup_agent::view(&db, &root))
 }
 
@@ -951,10 +945,37 @@ async fn backup_remove_folder(
 #[tauri::command]
 async fn backup_run_now(state: tauri::State<'_, EngineState>) -> Result<(), String> {
     backup_client(&state).await?;
-    nudge_backup(&state);
+    nudge_backup(&state, backup_agent::Nudge::Now);
     Ok(())
 }
 
+/// When this device backs up its folders.
+#[tauri::command]
+async fn backup_get_schedule(
+    state: tauri::State<'_, EngineState>,
+) -> Result<backup_agent::BackupSchedule, String> {
+    let db = state.db()?;
+    Ok(backup_agent::BackupSchedule::load(&db))
+}
+
+/// Saves when this device backs up and wakes the loop to follow it.
+#[tauri::command]
+async fn backup_set_schedule(
+    state: tauri::State<'_, EngineState>,
+    schedule: backup_agent::BackupSchedule,
+) -> Result<(), String> {
+    let db = state.db()?;
+    schedule.save(&db)?;
+    nudge_backup(&state, backup_agent::Nudge::Reschedule);
+    Ok(())
+}
+
+/// Watch a folder: every newly-created file is encrypted into the local ledger
+/// (the sync worker then pushes it) and a "Backed up" notification is posted.
+/// Requires the vault unlocked (passphrase cached) and the engine connected;
+/// events arriving before that are skipped. Replaces any previous watch. The
+/// folder is chosen in the native folder dialog here, never passed in by the
+/// webview; resolves to the watched path, or None when the user cancels.
 #[tauri::command]
 async fn start_folder_watch(
     window: tauri::Window,
@@ -1673,13 +1694,15 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init());
     #[cfg(target_os = "android")]
     let builder = builder.plugin(tauri_plugin_biometric::init());
-    builder
+    let builder = builder
         .manage(EngineState::default())
         .invoke_handler(tauri::generate_handler![
             backup_list_folders,
             backup_add_folder,
             backup_remove_folder,
             backup_run_now,
+            backup_get_schedule,
+            backup_set_schedule,
             pick_backup_folder,
             install_channel,
             local_upload,
@@ -1739,8 +1762,16 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 // Launch-at-login support (no auto-enable, the UI toggles it).
-                app.handle()
-                    .plugin(tauri_plugin_autostart::Builder::new().build())?;
+                app.handle().plugin(
+                    tauri_plugin_autostart::Builder::new()
+                        .args([LAUNCHED_AT_LOGIN])
+                        .build(),
+                )?;
+                if std::env::args().any(|a| a == LAUNCHED_AT_LOGIN)
+                    && let Some(window) = app.get_webview_window("main")
+                {
+                    let _ = window.hide();
+                }
                 // Desktop-only: the updater has no Android/iOS backend. The
                 // plugin reads `plugins.updater` (pubkey + endpoints) from
                 // tauri.conf.json; only artifacts signed by that pubkey's
@@ -1788,9 +1819,61 @@ pub fn run() {
             spawn_inactivity_autolock(app.handle().clone());
 
             Ok(())
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        });
+    #[cfg(desktop)]
+    let builder = builder.on_window_event(keep_running_on_close);
+    builder
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                focus_main_window(_app);
+            }
+        });
+}
+
+/// Passed by launch-at-login so the app starts in the tray, not on screen.
+#[cfg(desktop)]
+const LAUNCHED_AT_LOGIN: &str = "--background";
+
+/// Closing the window hides it: backups, sync and alerts keep running from
+/// the tray (menu bar on macOS). Quit from the tray menu ends the app. The
+/// first time, a notification says where it went.
+#[cfg(desktop)]
+fn keep_running_on_close(window: &tauri::Window, event: &tauri::WindowEvent) {
+    let tauri::WindowEvent::CloseRequested { api, .. } = event else {
+        return;
+    };
+    if window.label() != "main" {
+        return;
+    }
+    api.prevent_close();
+    let _ = window.hide();
+    let app = window.app_handle();
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
+    let marker = dir.join("tray-hint-shown");
+    if marker.exists() {
+        return;
+    }
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(&marker, b"");
+    use tauri_plugin_notification::NotificationExt;
+    let place = if cfg!(target_os = "macos") {
+        "menu bar"
+    } else {
+        "system tray"
+    };
+    let _ = app
+        .notification()
+        .builder()
+        .title("zcrypt is still running")
+        .body(format!(
+            "Backups and alerts keep going. Open or quit zcrypt from its icon in the {place}."
+        ))
+        .show();
 }
 
 /// System tray: Open zcrypt / Sync now / Quit.
@@ -1803,7 +1886,7 @@ pub fn run() {
 fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let open = MenuItemBuilder::with_id("open", "Open zcrypt").build(app)?;
     let sync_now = MenuItemBuilder::with_id("sync-now", "Sync now").build(app)?;
-    let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", "Quit zcrypt").build(app)?;
     let menu = MenuBuilder::new(app)
         .item(&open)
         .item(&sync_now)
