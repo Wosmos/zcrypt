@@ -58,4 +58,16 @@ describe("adoptBackupNames", () => {
     expect(await adoptBackupNames(() => true)).toEqual({ adopted: 0, skipped: 0 });
     expect(setFileName).not.toHaveBeenCalled();
   });
+
+  it("never throws when the listing fails", async () => {
+    ensureFiles.mockRejectedValueOnce(new Error("offline"));
+    expect(await adoptBackupNames()).toEqual({ adopted: 0, skipped: 0 });
+  });
+
+  it("refreshes nothing when there was nothing to adopt", async () => {
+    listPk1Folders.mockResolvedValueOnce([]);
+    ensureFiles.mockResolvedValueOnce([{ id: "f2", encrypted_name: "normalCiphertext" }]);
+    await adoptBackupNames();
+    expect(prefetchFileList).not.toHaveBeenCalled();
+  });
 });

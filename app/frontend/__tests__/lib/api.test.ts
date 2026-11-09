@@ -17,6 +17,7 @@ vi.hoisted(() => {
 
 import {
   listFolderSubtree,
+  listPk1Folders,
   updateFolderStyle,
   updateFileStyle,
   bulkPurgeFiles,
@@ -65,6 +66,12 @@ afterEach(() => {
 });
 
 describe("api thin request wrappers", () => {
+  it("listPk1Folders asks for the folders backup sealed to the account key", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await listPk1Folders();
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/folders?sealed=pk1");
+  });
+
   it("listFolderSubtree GETs the tree endpoint with the encoded root", async () => {
     fetchMock.mockResolvedValueOnce(jsonRes([]));
     await listFolderSubtree("root-1");

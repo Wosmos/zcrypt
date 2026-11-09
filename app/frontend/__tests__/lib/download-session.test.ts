@@ -173,6 +173,18 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     expect(deriveDedupKeyBytes).toHaveBeenCalledWith("pw", "u1");
   });
 
+  it("keys a backed-up file's MAC from its own CEK, with no user or passphrase needed", async () => {
+    const chunks = [chunkBytes(0)];
+    getFileMeta.mockResolvedValueOnce(
+      baseMeta(1, expectedHash(chunks), { sha256_scheme: "cek_hmac_v1", original_name: "b.bin" })
+    );
+    getFileChunk.mockResolvedValueOnce({ data: chunks[0].buffer, sha256: "", compressed: false });
+    getUser.mockReturnValue(undefined);
+
+    await expect(downloadAndDecryptFile("f1", "pw")).resolves.toBeUndefined();
+    expect(deriveDedupKeyBytes).not.toHaveBeenCalled();
+  });
+
   it("skips the file-level MAC compare for an hmac_v1 file when not signed in (relies on per-chunk tags)", async () => {
     const chunks = [chunkBytes(0)];
     // A wrong file hash would normally throw, but with no user the MAC key can't

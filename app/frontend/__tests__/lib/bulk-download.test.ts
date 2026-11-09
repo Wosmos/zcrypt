@@ -262,6 +262,21 @@ describe("downloadAsZip: success paths", () => {
     expect(contents["keyed.txt"]).toBe("keyed integrity content");
   });
 
+  it("verifies a backed-up file against its cek_hmac_v1 MAC", async () => {
+    const { cekMacKey } = await import("@/lib/pk1");
+    const { resolveFileKey, fromBase64 } = await import("@/lib/crypto");
+    const plain = enc.encode("backed up from a laptop");
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [plain] });
+    const cek = await resolveFileKey("pw", fromBase64(f.meta.salt), f.meta.wrapped_cek);
+    const mac = await contentMacBytes(plain, await cekMacKey(cek));
+    getFileMeta.mockResolvedValueOnce({ ...f.meta, sha256: mac, sha256_scheme: "cek_hmac_v1" });
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    await downloadAsZip([{ fileId: "id1", filename: "backup.txt", fileSize: plain.length }], "pw");
+
+    expect((await capturedZipContents())["backup.txt"]).toBe("backed up from a laptop");
+  });
+
   it("uses resolvePassword per file instead of the shared (wrong) passphrase", async () => {
     const f = await makeFileFixture({ passphrase: "folder-pw", finalChunks: [enc.encode("secret")] });
     getFileMeta.mockResolvedValueOnce(f.meta);

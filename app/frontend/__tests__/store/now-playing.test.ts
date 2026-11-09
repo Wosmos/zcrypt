@@ -112,3 +112,64 @@ describe("now-playing store", () => {
     expect(useNowPlaying.getState().src).toBeNull();
   });
 });
+
+describe("now-playing edge cases", () => {
+  it("reports its height once per change", () => {
+    useNowPlaying.getState().reportHeight(64);
+    const before = useNowPlaying.getState();
+    useNowPlaying.getState().reportHeight(64);
+    expect(useNowPlaying.getState()).toBe(before);
+    expect(useNowPlaying.getState().height).toBe(64);
+  });
+
+  it("keeps the same URL when the same track is handed over again", () => {
+    startWith("blob:same");
+    startWith("blob:same");
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
+  it("ignores a position outside the queue or a missing decryptor", async () => {
+    await useNowPlaying.getState().playAt(1);
+    expect(useNowPlaying.getState().loading).toBe(false);
+    startWith();
+    await useNowPlaying.getState().playAt(9);
+    expect(useNowPlaying.getState().position).toBe(0);
+  });
+
+  it("drops a late failure after the player moved on", async () => {
+    let fail: (e: Error) => void = () => {};
+    startWith(
+      "blob:handed",
+      vi.fn(
+        () =>
+          new Promise<Blob>((_, reject) => {
+            fail = reject;
+          }),
+      ),
+    );
+    const pending = useNowPlaying.getState().playAt(1);
+    useNowPlaying.getState().close();
+    fail(new Error("late"));
+    await pending;
+    expect(useNowPlaying.getState().error).toBe(false);
+  });
+
+  it("closing an empty player revokes nothing, and nothing plays without a URL", () => {
+    useNowPlaying.getState().close();
+    expect(revoke).not.toHaveBeenCalled();
+    expect(currentTrack({ queue: [file("a")], position: 0, src: null })).toBeNull();
+    expect(currentTrack({ queue: [], position: 3, src: "blob:x" })).toBeNull();
+  });
+
+  it("a track switch from an empty player revokes nothing", async () => {
+    useNowPlaying.setState({ src: null, queue: [file("a")], position: 0, decrypt: vi.fn(async () => new Blob(["x"])) });
+    await useNowPlaying.getState().playAt(0);
+    expect(revoke).not.toHaveBeenCalled();
+    expect(useNowPlaying.getState().src).toBe("blob:new-1");
+  });
+
+  it("a folder re-lock with nothing playing changes nothing", () => {
+    clearDecryptCacheForFolder("f1");
+    expect(useNowPlaying.getState().src).toBeNull();
+  });
+});

@@ -392,6 +392,24 @@ describe("runDecryptPipeline", () => {
     expect(sha256HexMock).not.toHaveBeenCalled(); // hmac_v1 must NOT use the plain hasher
   });
 
+  it("verifies a backed-up file's cek_hmac_v1 MAC, keyed from its own CEK", async () => {
+    const { cekMacKey } = await import("@/lib/pk1");
+    const full = new Uint8Array(chunkPlaintext(0));
+    const mac = Array.from(hmac(nobleSha256, await cekMacKey(new ArrayBuffer(32)), full))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const file = makeFile({ chunk_count: 1 });
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256_scheme: "cek_hmac_v1", sha256: mac }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
+
+    await expect(runDecryptPipeline(file, "vault-pass")).resolves.toBeInstanceOf(Blob);
+    expect(deriveDedupKeyBytesMock).not.toHaveBeenCalled();
+
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256_scheme: "cek_hmac_v1", sha256: "tampered" }));
+    await expect(runDecryptPipeline(file, "vault-pass")).rejects.toBeInstanceOf(IntegrityError);
+  });
+
   it("throws IntegrityError when an hmac_v1 file's keyed MAC does not match", async () => {
     deriveDedupKeyBytesMock.mockResolvedValue(new Uint8Array(32).fill(7));
     const file = makeFile({ chunk_count: 1 });

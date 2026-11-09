@@ -25,7 +25,9 @@ interface AndroidPipBridge {
 }
 
 function androidBridge(): AndroidPipBridge | null {
+  /* v8 ignore start -- server render */
   if (typeof window === "undefined") return null;
+  /* v8 ignore stop */
   const bridge = (window as Window & { ZcryptAndroid?: AndroidPipBridge }).ZcryptAndroid;
   return bridge?.supportsPictureInPicture?.() ? bridge : null;
 }
@@ -59,7 +61,9 @@ export function reportAndroidPictureInPicture(el: HTMLVideoElement, playing: boo
 
 // One page-wide listener (not per video): if the playing video closes while the
 // app floats, the "left" event must still un-hide the page.
+/* v8 ignore start -- the server render has no window to listen on */
 if (typeof window !== "undefined") {
+  /* v8 ignore stop */
   window.addEventListener(ANDROID_PIP_EVENT, (e) => {
     document.documentElement.toggleAttribute(
       ANDROID_PIP_ACTIVE,
@@ -119,7 +123,9 @@ interface DocumentPictureInPicture {
 }
 
 function documentPip(): DocumentPictureInPicture | null {
+  /* v8 ignore start -- server render */
   if (typeof window === "undefined") return null;
+  /* v8 ignore stop */
   return (
     (window as Window & { documentPictureInPicture?: DocumentPictureInPicture })
       .documentPictureInPicture ?? null

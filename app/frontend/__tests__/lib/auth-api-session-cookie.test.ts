@@ -61,4 +61,12 @@ describe("web session cookie", () => {
     await authApi.login("e@x.com", "pw");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the original tokens when the site is unreachable", async () => {
+    fetchMock
+      .mockResolvedValueOnce(resp(200, { access_token: "a1", refresh_token: "r1" }))
+      .mockRejectedValueOnce(new TypeError("offline"));
+
+    expect(await authApi.login("e@x.com", "pw")).toEqual({ access_token: "a1", refresh_token: "r1" });
+  });
 });

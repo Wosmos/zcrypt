@@ -6,6 +6,7 @@ import {
   reportAndroidPictureInPicture,
   canDocumentPictureInPicture,
   canVideoPictureInPicture,
+  openDocumentPictureInPicture,
   isInVideoPictureInPicture,
   toggleVideoPictureInPicture,
 } from "@/lib/picture-in-picture";
@@ -146,5 +147,122 @@ describe("document picture-in-picture", () => {
     expect(canDocumentPictureInPicture()).toBe(false);
     (window as unknown as Record<string, unknown>).documentPictureInPicture = { requestWindow: vi.fn() };
     expect(canDocumentPictureInPicture()).toBe(true);
+  });
+});
+
+describe("picture-in-picture fallbacks", () => {
+  it("WebKit toggles back to inline when already floating, and reports nothing to do elsewhere", async () => {
+    const el = document.createElement("video") as HTMLVideoElement & Record<string, unknown>;
+    el.webkitPresentationMode = "picture-in-picture";
+    const set = vi.fn();
+    el.webkitSetPresentationMode = set;
+    expect(isInVideoPictureInPicture(el)).toBe(true);
+    await toggleVideoPictureInPicture(el);
+    expect(set).toHaveBeenCalledWith("inline");
+    await expect(toggleVideoPictureInPicture(document.createElement("video"))).resolves.toBe(false);
+    expect(isInVideoPictureInPicture(null)).toBe(false);
+  });
+
+  it("the Android button starts a paused video before floating", async () => {
+    const bridge = androidBridge();
+    const el = document.createElement("video");
+    document.body.appendChild(el);
+    Object.defineProperty(el, "paused", { value: true, configurable: true });
+    const play = vi.spyOn(el, "play").mockResolvedValue(undefined);
+    await toggleVideoPictureInPicture(el);
+    expect(play).toHaveBeenCalled();
+    expect(bridge.enterPictureInPicture).toHaveBeenCalled();
+  });
+});
+
+describe("document picture-in-picture window", () => {
+  function fakePipWindow() {
+    const doc = document.implementation.createHTMLDocument("pip");
+    return { document: doc } as unknown as Window;
+  }
+
+  it("copies the page's styles, theme class and data attributes into the window", async () => {
+    const pip = fakePipWindow();
+    const requestWindow = vi.fn(async () => pip);
+    (window as unknown as Record<string, unknown>).documentPictureInPicture = { requestWindow };
+    const style = document.createElement("style");
+    style.textContent = ".x { color: red; }";
+    document.head.appendChild(style);
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdn.example/a.css";
+    document.head.appendChild(link);
+    Object.defineProperty(document, "styleSheets", {
+      configurable: true,
+      value: [
+        style.sheet,
+        { href: "https://cdn.example/a.css", get cssRules(): CSSRuleList { throw new DOMException("cross-origin", "SecurityError"); } },
+        { href: null, get cssRules(): CSSRuleList { throw new DOMException("x", "SecurityError"); } },
+      ],
+    });
+    document.documentElement.className = "dark";
+    document.documentElement.setAttribute("data-theme", "ocean");
+
+    const opened = await openDocumentPictureInPicture({ width: 360, height: 120 });
+
+    expect(opened).toBe(pip);
+    expect(requestWindow).toHaveBeenCalledWith({ width: 360, height: 120 });
+    expect(pip.document.head.querySelector("style")?.textContent).toContain("color: red");
+    expect(pip.document.head.querySelector("link")?.getAttribute("href")).toBe("https://cdn.example/a.css");
+    expect(pip.document.documentElement.className).toBe("dark");
+    expect(pip.document.documentElement.getAttribute("data-theme")).toBe("ocean");
+    delete (document as unknown as Record<string, unknown>).styleSheets;
+    style.remove();
+    link.remove();
+    document.documentElement.className = "";
+    document.documentElement.removeAttribute("data-theme");
+  });
+
+  it("returns null where unsupported or when the browser refuses", async () => {
+    await expect(openDocumentPictureInPicture({ width: 1, height: 1 })).resolves.toBeNull();
+    (window as unknown as Record<string, unknown>).documentPictureInPicture = {
+      requestWindow: vi.fn(async () => {
+        throw new DOMException("no gesture", "NotAllowedError");
+      }),
+    };
+    await expect(openDocumentPictureInPicture({ width: 1, height: 1 })).resolves.toBeNull();
+  });
+});
+
+describe("Android bridge alongside the standard API", () => {
+  it("reporting the same video twice keeps it as the target", () => {
+    const bridge = androidBridge();
+    const el = playingVideo();
+    reportAndroidPictureInPicture(el, true);
+    reportAndroidPictureInPicture(el, true);
+    expect(el.hasAttribute(ANDROID_PIP_TARGET)).toBe(true);
+    expect(bridge.setPictureInPictureReady).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers the standard API when the WebView has one", async () => {
+    const bridge = androidBridge();
+    setDocument({ pictureInPictureEnabled: true, pictureInPictureElement: null });
+    const el = playingVideo();
+    el.requestPictureInPicture = vi.fn(async () => ({}) as PictureInPictureWindow);
+    await toggleVideoPictureInPicture(el);
+    expect(el.requestPictureInPicture).toHaveBeenCalled();
+    expect(bridge.enterPictureInPicture).not.toHaveBeenCalled();
+  });
+
+  it("ignores a bridge that says the device can't float", () => {
+    (window as unknown as Record<string, unknown>).ZcryptAndroid = { supportsPictureInPicture: () => false };
+    expect(canVideoPictureInPicture(document.createElement("video"))).toBe(false);
+  });
+});
+
+describe("Android floating when playback is refused", () => {
+  it("still floats if the browser blocks play()", async () => {
+    const bridge = androidBridge();
+    const el = document.createElement("video");
+    document.body.appendChild(el);
+    Object.defineProperty(el, "paused", { value: true, configurable: true });
+    vi.spyOn(el, "play").mockRejectedValue(new DOMException("blocked", "NotAllowedError"));
+    await expect(toggleVideoPictureInPicture(el)).resolves.toBe(true);
+    expect(bridge.enterPictureInPicture).toHaveBeenCalled();
   });
 });
