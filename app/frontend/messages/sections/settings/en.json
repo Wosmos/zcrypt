@@ -529,7 +529,10 @@
       "testFailed": "zcrypt couldn't hand the notification to the browser. Reload the page and try again.",
       "thumbnails": "Show photo previews",
       "thumbnailsDesc": "A small preview of the photo in upload notifications. Turn off to keep photos off your lock screen.",
-      "iosHint": "To get notifications on iPhone, add zcrypt to your Home Screen: tap Share, then Add to Home Screen."
+      "iosHint": "To get notifications on iPhone, add zcrypt to your Home Screen: tap Share, then Add to Home Screen.",
+      "push": "Alerts when zcrypt is closed",
+      "pushDesc": "New sign-ins, Space invites and opened share links reach this browser even when zcrypt isn't open.",
+      "pushFailed": "Couldn't turn on alerts for this browser. Try again."
     },
     "webTransfers": {
       "title": "Web transfers this month",

@@ -529,7 +529,10 @@
       "testFailed": "zcrypt n'a pas pu transmettre la notification au navigateur. Rechargez la page et réessayez.",
       "thumbnails": "Afficher les aperçus de photos",
       "thumbnailsDesc": "Un petit aperçu de la photo dans les notifications d'envoi. Désactivez pour garder les photos hors de l'écran verrouillé.",
-      "iosHint": "Pour recevoir des notifications sur iPhone, ajoutez zcrypt à l'écran d'accueil : touchez Partager, puis Sur l'écran d'accueil."
+      "iosHint": "Pour recevoir des notifications sur iPhone, ajoutez zcrypt à l'écran d'accueil : touchez Partager, puis Sur l'écran d'accueil.",
+      "push": "Alertes quand zcrypt est fermé",
+      "pushDesc": "Les nouvelles connexions, les invitations aux Spaces et les liens de partage ouverts arrivent dans ce navigateur même quand zcrypt n'est pas ouvert.",
+      "pushFailed": "Impossible d'activer les alertes pour ce navigateur. Réessayez."
     },
     "webTransfers": {
       "title": "Transferts web ce mois-ci",

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Switch } from "@/components/ui/switch";
 import { SettingGroup, ValueRow } from "@/components/settings/settings-primitives";
-import { Bell, BellOff, Image, Info, Loader2, Send } from "@/lib/icons";
+import { Bell, BellOff, BellRing, Image, Info, Loader2, Send } from "@/lib/icons";
+import { canPush, currentPushSubscription, disablePush, enablePush } from "@/lib/push";
 import {
   hostAppName,
   needsHomeScreenInstall,
@@ -30,6 +31,8 @@ export function SystemNotificationSettings() {
   const [permission, setPermission] = useState<NotifyPermission | null>(null);
   const [homeScreen, setHomeScreen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [push, setPush] = useState<boolean | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -40,6 +43,7 @@ export function SystemNotificationSettings() {
         setPermission(p);
       });
     void read();
+    if (canPush()) void currentPushSubscription().then((sub) => live && setPush(!!sub));
     const onVisible = () => {
       if (document.visibilityState === "visible") void read();
     };
@@ -77,6 +81,20 @@ export function SystemNotificationSettings() {
     }
   };
   const granted = permission === "granted";
+  const togglePush = async (on: boolean) => {
+    setPushBusy(true);
+    if (on) {
+      const result = await enablePush();
+      if (result === "on") setPush(true);
+      else if (result === "denied") toast.warning(t("state.denied"));
+      else toast.error(t("pushFailed"));
+      setPermission(await notifyPermission());
+    } else {
+      await disablePush();
+      setPush(false);
+    }
+    setPushBusy(false);
+  };
 
   return (
     <SettingGroup label={t("group")}>
@@ -111,6 +129,22 @@ export function SystemNotificationSettings() {
           </div>
         )}
       </div>
+      {push !== null && permission !== "denied" && (
+        <ValueRow
+          icon={<BellRing className="h-4 w-4" />}
+          title={t("push")}
+          subtitle={<span className={WRAP}>{t("pushDesc")}</span>}
+          trailing={
+            <Switch
+              checked={push}
+              disabled={pushBusy}
+              onCheckedChange={(on) => void togglePush(on)}
+              aria-label={t("push")}
+              className={SWITCH_CLASS}
+            />
+          }
+        />
+      )}
       {permission !== "unsupported" && (
         <ValueRow
           icon={<Image className="h-4 w-4" />}

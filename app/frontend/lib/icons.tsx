@@ -20,6 +20,7 @@ import {
   ArrowsIn as PhArrowsIn,
   ArrowsOut as PhArrowsOut,
   Bell as PhBell,
+  BellRinging as PhBellRinging,
   BellSlash as PhBellSlash,
   BookOpen as PhBookOpen,
   CalendarBlank as PhCalendarBlank,
@@ -174,6 +175,7 @@ export const Download = makeIcon(PhDownloadSimple, "Download");
 export const Calendar = makeIcon(PhCalendarBlank, "Calendar");
 export const Bell = makeIcon(PhBell, "Bell");
 export const BellOff = makeIcon(PhBellSlash, "BellOff");
+export const BellRing = makeIcon(PhBellRinging, "BellRing");
 export const Check = makeIcon(PhCheck, "Check");
 export const CheckCircle2 = makeIcon(PhCheckCircle, "CheckCircle2");
 export const X = makeIcon(PhX, "X");

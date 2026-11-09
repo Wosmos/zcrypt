@@ -10,6 +10,7 @@ import { haptic } from "@/lib/haptics";
 import { usePreferencesStore } from "@/store/preferences";
 import { useAuthStore } from "@/store/auth";
 import { logout as logoutApi } from "@/lib/auth-api";
+import { releasePushOnSignOut } from "@/lib/push";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import {
   Cog,
@@ -82,6 +83,7 @@ export function MobileNav() {
   ];
 
   const handleLogout = async () => {
+    await releasePushOnSignOut();
     try {
       // Always call, even with refreshTokenValue null (web, no refresh has
       // happened yet this session): authRequest sends credentials, so the

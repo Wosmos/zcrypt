@@ -529,7 +529,10 @@
       "testFailed": "zcrypt konnte die Benachrichtigung nicht an den Browser übergeben. Lade die Seite neu und versuche es erneut.",
       "thumbnails": "Fotovorschauen zeigen",
       "thumbnailsDesc": "Eine kleine Vorschau des Fotos in Upload-Benachrichtigungen. Ausschalten, damit keine Fotos auf dem Sperrbildschirm erscheinen.",
-      "iosHint": "Für Benachrichtigungen auf dem iPhone füge zcrypt zum Home-Bildschirm hinzu: Tippe auf Teilen, dann auf Zum Home-Bildschirm."
+      "iosHint": "Für Benachrichtigungen auf dem iPhone füge zcrypt zum Home-Bildschirm hinzu: Tippe auf Teilen, dann auf Zum Home-Bildschirm.",
+      "push": "Hinweise, wenn zcrypt geschlossen ist",
+      "pushDesc": "Neue Anmeldungen, Space-Einladungen und geöffnete Freigabelinks erreichen diesen Browser, auch wenn zcrypt nicht offen ist.",
+      "pushFailed": "Hinweise für diesen Browser konnten nicht eingeschaltet werden. Versuch es noch einmal."
     },
     "webTransfers": {
       "title": "Web-Übertragungen diesen Monat",

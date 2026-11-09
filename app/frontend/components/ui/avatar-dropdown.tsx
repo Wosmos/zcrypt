@@ -11,6 +11,7 @@ import { useAuthStore } from "@/store/auth";
 import { usePreferencesStore } from "@/store/preferences";
 import { selectWhatsNewUnread, useWhatsNewStore } from "@/store/whats-new";
 import { logout as logoutApi } from "@/lib/auth-api";
+import { releasePushOnSignOut } from "@/lib/push";
 import {
   Sun,
   Moon,
@@ -53,6 +54,7 @@ export function AvatarDropdown() {
   useClickOutside(dropdownRef, () => setOpen(false), open);
 
   const handleLogout = async () => {
+    await releasePushOnSignOut();
     try {
       // Always call, even with refreshTokenValue null (web, no refresh has
       // happened yet this session): authRequest sends credentials, so the
