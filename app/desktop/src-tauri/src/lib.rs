@@ -1600,17 +1600,28 @@ async fn pick_backup_folder(
     state: tauri::State<'_, EngineState>,
     title: String,
 ) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
-    let dialog = window.dialog().file().set_title(title);
     #[cfg(desktop)]
-    let dialog = dialog.set_parent(&window);
-    let Some(picked) = dialog.blocking_pick_folder() else {
-        return Ok(None);
-    };
-    let path = PathBuf::from(picked.simplified().to_string());
-    let canonical = path.canonicalize().map_err(|e| e.to_string())?;
-    state.backup_picks.lock().unwrap().insert(canonical.clone());
-    Ok(Some(canonical.to_string_lossy().to_string()))
+    {
+        use tauri_plugin_dialog::DialogExt;
+        let Some(picked) = window
+            .dialog()
+            .file()
+            .set_title(title)
+            .set_parent(&window)
+            .blocking_pick_folder()
+        else {
+            return Ok(None);
+        };
+        let path = PathBuf::from(picked.simplified().to_string());
+        let canonical = path.canonicalize().map_err(|e| e.to_string())?;
+        state.backup_picks.lock().unwrap().insert(canonical.clone());
+        Ok(Some(canonical.to_string_lossy().to_string()))
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, state, title);
+        Err("Folder backup is only available in the desktop app.".into())
+    }
 }
 
 /// Native save dialog. The chosen destination is recorded so the download
