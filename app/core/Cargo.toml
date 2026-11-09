@@ -56,5 +56,7 @@ uuid = { version = "1", features = ["v4"] }
 dirs = "5"
 urlencoding = "2"
 tempfile = "3"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+hkdf = "0.12"
 
 [dev-dependencies]

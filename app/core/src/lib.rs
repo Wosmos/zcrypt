@@ -16,6 +16,7 @@ pub mod crypto;
 pub mod disguise;
 pub mod engines;
 pub mod localdb;
+pub mod pk1;
 pub mod placement;
 pub mod profiles;
 pub mod reppool;

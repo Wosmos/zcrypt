@@ -209,3 +209,76 @@ fn encrypt_roundtrip_and_tamper() {
     wire[last] ^= 0xff;
     assert!(crypto::decrypt_chunk(&key, &wire).is_err());
 }
+
+#[derive(Deserialize)]
+struct Pk1Vectors {
+    recipient_secret_hex: String,
+    recipient_public_hex: String,
+    seal: Vec<Pk1SealVector>,
+    cek_mac: Vec<CekMacVector>,
+}
+
+#[derive(Deserialize)]
+struct Pk1SealVector {
+    name: String,
+    eph_secret_hex: String,
+    iv_hex: String,
+    data_hex: String,
+    sealed_b64: String,
+}
+
+#[derive(Deserialize)]
+struct CekMacVector {
+    name: String,
+    cek_hex: String,
+    data_hex: String,
+    mac_hex: String,
+}
+
+fn pk1_vectors() -> Pk1Vectors {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../backend/crypto/testvectors/pk1_vectors.json"
+    );
+    serde_json::from_str(&std::fs::read_to_string(path).expect("read pk1_vectors.json"))
+        .expect("parse pk1_vectors.json")
+}
+
+fn arr32(h: &str) -> [u8; 32] {
+    hex::decode(h).unwrap().try_into().unwrap()
+}
+
+#[test]
+fn conformance_pk1_seal_matches_the_web_client_byte_for_byte() {
+    use zcrypt_core::pk1;
+    let v = pk1_vectors();
+    let secret = arr32(&v.recipient_secret_hex);
+    let public = arr32(&v.recipient_public_hex);
+    for case in &v.seal {
+        let sealed = base64::engine::general_purpose::STANDARD
+            .decode(&case.sealed_b64)
+            .unwrap();
+        let data = hex::decode(&case.data_hex).unwrap();
+        assert_eq!(
+            pk1::open_sealed(&secret, &sealed).unwrap(),
+            data,
+            "open: {}",
+            case.name
+        );
+        let iv: [u8; 12] = hex::decode(&case.iv_hex).unwrap().try_into().unwrap();
+        let ours =
+            pk1::seal_with_fixed_for_vectors(arr32(&case.eph_secret_hex), iv, &public, &data)
+                .unwrap();
+        assert_eq!(ours, sealed, "seal: {}", case.name);
+    }
+}
+
+#[test]
+fn conformance_pk1_cek_mac() {
+    use zcrypt_core::pk1;
+    for case in &pk1_vectors().cek_mac {
+        let cek = hex::decode(&case.cek_hex).unwrap();
+        let data = hex::decode(&case.data_hex).unwrap();
+        assert_eq!(pk1::cek_mac_hex(&cek, &data), case.mac_hex, "{}", case.name);
+    }
+}

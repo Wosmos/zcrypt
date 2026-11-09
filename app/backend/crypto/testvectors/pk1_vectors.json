@@ -1,0 +1,35 @@
+{
+  "spec": "docs/CRYPTO_FORMAT.md §2.2",
+  "recipient_secret_hex": "0b121920272e353c434a51585f666d747b828990979ea5acb3bac1c8cfd6dde4",
+  "recipient_public_hex": "1b7903a3a13d581b3157352d7b9c936c95b91e9bade2fa0774d96ef5ac17a135",
+  "seal": [
+    {
+      "name": "wrap a CEK",
+      "eph_secret_hex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dc",
+      "iv_hex": "c9d0d7dee5ecf3fa01080f16",
+      "data_hex": "5b626970777e858c939aa1a8afb6bdc4cbd2d9e0e7eef5fc030a11181f262d34",
+      "sealed_b64": "u1D/noKldM+/gg6X9g+5wUPsdBXPUU+M/Zjv9Z4FlhTJ0Nfe5ezz+gEIDxZS9EcazEIfYiGsJ1VOanotcBKNduyuDMQZjMpNZtA07TWTbXwDyF60dxY3y/J1wBo="
+    },
+    {
+      "name": "seal a Unicode file name",
+      "eph_secret_hex": "3940474e555c636a71787f868d949ba2a9b0b7bec5ccd3dae1e8eff6fd040b12",
+      "iv_hex": "11181f262d343b424950575e",
+      "data_hex": "46657269656e20f09f8cb420c38974c3a920c3bc2e6a7067",
+      "sealed_b64": "RcfB45coH5En+mAASJWqIwiVhvrgMBoQGqN6YSDsDw8RGB8mLTQ7QklQV15r421pmpF+UpC6x8DYw0LJJWQr7KVvz6z41rjypQQGsl14gravh7LJ"
+    }
+  ],
+  "cek_mac": [
+    {
+      "name": "empty file",
+      "cek_hex": "5b626970777e858c939aa1a8afb6bdc4cbd2d9e0e7eef5fc030a11181f262d34",
+      "data_hex": "",
+      "mac_hex": "6699952c4393d5c72dd9851d2771418728321dd765e2e34dd36cb914d4dce87a"
+    },
+    {
+      "name": "short text",
+      "cek_hex": "5b626970777e858c939aa1a8afb6bdc4cbd2d9e0e7eef5fc030a11181f262d34",
+      "data_hex": "7a6372797074206261636b7570",
+      "mac_hex": "dd7999381bd5d53f36bee215296fefb42e827b1777eec3ebd9f354a130688f49"
+    }
+  ]
+}

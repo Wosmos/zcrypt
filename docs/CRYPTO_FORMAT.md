@@ -91,6 +91,41 @@ passphrase ──PBKDF2(user_keys.kdf_salt, 600k)──► account KEK (32B)
   `PUT /api/files/{id}/rekey` (same salt, new `wrapped_cek`).
 - A passphrase change re-wraps only MK and the private key, not the files.
 
+### 2.2 Public-key backup (`pk1`)
+
+Automatic backup (desktop folders, phone photos) runs while the vault is
+locked, so it holds no passphrase, account KEK, MK or name key. It locks each
+file to the account's X25519 **public** key instead: a backup device can add
+files but can never read the vault.
+
+**Seal** (`seal_to`, same construction as `app/frontend/lib/keys.ts` `sealTo`):
+
+```
+eph            = fresh X25519 keypair
+shared         = X25519(eph.secret, recipient_public)
+seal_key       = SHA-256(shared || eph.public || recipient_public)      (32B)
+sealed         = eph.public[32] || AESGCM_ENCRYPT(seal_key, data)        (§3)
+```
+
+- **pk1 file wrap**: `files.wrapped_cek` = `"pk1:" + base64(seal_to(public_key, CEK))`.
+  `files.salt` is 32 random bytes and unused, as for `mk1`.
+- **pk1 name**: `files.encrypted_name` (and a backup-created folder's name) =
+  `"pk1:" + base64(seal_to(public_key, utf8(name)))`.
+- **Integrity**: `sha256_scheme = "cek_hmac_v1"`, `sha256` = lowercase-hex
+  `HMAC-SHA256(mac_key, plaintext)` with
+  `mac_key = HKDF-SHA256(ikm = CEK, salt = empty, info = "zcrypt-cek-mac-v1", 32)`.
+  Only a holder of the CEK can compute it, so the server learns nothing about
+  the content; any reader that unwrapped the CEK verifies it.
+- **Adoption**: a client with the vault unlocked opens `pk1` values with the
+  account private key and moves the file to the normal formats in place:
+  `PUT /api/files/{id}/rekey` with an `mk1` wrap of the same CEK (same salt),
+  and the name re-sealed with the name key (§2). Content, chunks and
+  `sha256`/`sha256_scheme` are unchanged. Until adopted, clients show the file
+  as a backup that finishes on unlock and never treat a `pk1:` name as a name.
+- The public key MUST come from the account's own `user_keys.public_key`, and
+  a backup device MUST check it against the fingerprint recorded when backup
+  was turned on, so a server that swaps keys cannot redirect backups.
+
 ## 3. AES-GCM wire format
 
 All AES-GCM outputs (chunks, wrapped CEKs, encrypted names/styles) use ONE
@@ -140,6 +175,9 @@ z2 → default, z3 → better.
 - `"hmac_v1"` (current): lowercase-hex **HMAC-SHA256(dedup_key, plaintext)**
   where dedup_key is from §2. Deterministic per (user, passphrase, content) so
   dedupe/resume still work, but unlinkable without the passphrase.
+- `"cek_hmac_v1"` (public-key backup, §2.2): lowercase-hex
+  **HMAC-SHA256(HKDF-SHA256(CEK, "", "zcrypt-cek-mac-v1"), plaintext)**. Every
+  reader holding the CEK can verify it, including share and space recipients.
 - Recipients who lack the passphrase (public shares, space members) cannot
   recompute an `hmac_v1` MAC; they rely on per-chunk GCM tags + chunk-count
   completeness instead and MUST skip the file-level compare.

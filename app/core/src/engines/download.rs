@@ -554,6 +554,9 @@ pub(super) async fn open_file(
     // space/share downloads rely on instead: same trust level as the
     // public-share path.
     let mac_key = match mac_task {
+        _ if meta.sha256_scheme == crate::pk1::CEK_MAC_SCHEME => {
+            Some(crate::pk1::cek_mac_key(&key).to_vec())
+        }
         Some(task) if meta.sha256_scheme == "hmac_v1" => Some(task.await.map_err(join_err)?),
         _ => None,
     };
