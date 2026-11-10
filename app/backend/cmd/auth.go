@@ -296,7 +296,10 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
+		// Timing equalization (see dummyPasswordHash): every failed sign-in pays
+		// two password checks, as a wrong password on a real account does below.
+		_ = auth.CheckPassword(req.Password, dummyPasswordHash)
+		_ = auth.CheckPassword(req.Password, dummyPasswordHash)
 		s.loginFailLimiter.record(failKey)
 		log.Printf("auth: login failed who=%s ip=%q reason=not_found", emailTag(req.Email), anonIP(clientIP)) //nolint:gosec // hashed tag and a quoted, coarsened IP
 		s.audit(r, nil, types.AuditLoginFailed, map[string]interface{}{"who": emailTag(req.Email), "reason": "not_found"})
@@ -306,8 +309,14 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
 		// Check if this is a decoy password
+		// Always a second check, against the decoy password or a dummy, so a
+		// wrong password takes as long whether or not the account has a decoy.
 		decoy, decoyErr := s.db.GetDecoyVault(ctx, user.ID)
-		if decoyErr == nil && decoy.Enabled {
+		hasDecoy := decoyErr == nil && decoy.Enabled
+		if !hasDecoy {
+			_ = auth.CheckPassword(req.Password, dummyPasswordHash)
+		}
+		if hasDecoy {
 			if auth.CheckPassword(req.Password, decoy.DecoyPasswordHash) == nil {
 				// Decoy password match, issue decoy tokens
 				if user.TOTPEnabled {
@@ -620,8 +629,13 @@ func (s *Server) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.db.SetEmailVerified(ctx, et.UserID)
-	s.db.DeleteEmailToken(ctx, et.ID)
+	if err := s.db.SetEmailVerified(ctx, et.UserID); err != nil {
+		internalError(w, "verify email", err)
+		return
+	}
+	if err := s.db.DeleteEmailToken(ctx, et.ID); err != nil {
+		log.Printf("auth: delete used verification token: %v", err)
+	}
 
 	s.audit(r, &et.UserID, types.AuditEmailVerify, nil)
 
@@ -1458,14 +1472,21 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-verify email if not yet verified
-	if !user.EmailVerified {
-		s.db.SetEmailVerified(ctx, user.ID)
-		user.EmailVerified = true
+	// Spend the link before signing in: one that can't be deleted could be used
+	// again, so it signs no one in.
+	if err := s.db.DeleteEmailToken(ctx, et.ID); err != nil {
+		internalError(w, "spend magic link", err)
+		return
 	}
 
-	// Delete used token
-	s.db.DeleteEmailToken(ctx, et.ID)
+	// Auto-verify email if not yet verified
+	if !user.EmailVerified {
+		if err := s.db.SetEmailVerified(ctx, user.ID); err != nil {
+			log.Printf("auth: magic link verify email: %v", err)
+		} else {
+			user.EmailVerified = true
+		}
+	}
 
 	s.audit(r, &user.ID, types.AuditMagicLinkUsed, nil)
 
