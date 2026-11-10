@@ -1,3 +1,4 @@
+import { retryTransient } from "@/lib/retry";
 import type { Progress } from "./use-token-viewer";
 
 type Options = {
@@ -24,7 +25,9 @@ export async function downloadChunks({
       (async () => {
         while (queue.length > 0) {
           const index = queue.shift()!;
-          chunks[index] = await fetchChunk(index);
+          // A busy server (429), a 5xx or a network blip on one chunk waits and
+          // tries again instead of failing a large shared download.
+          chunks[index] = await retryTransient(() => fetchChunk(index));
           done++;
           setProgress({
             stage: stageLabel(done, count),

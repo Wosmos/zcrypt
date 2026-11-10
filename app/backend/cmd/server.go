@@ -68,6 +68,9 @@ type Server struct {
 	userLimiter *rateLimiter
 	// Share endpoint rate limiter: 30 req per 1 min per IP (prevents brute-force)
 	shareLimiter *rateLimiter
+	// shareChunkLimiter bounds chunk downloads from public links per IP. A large
+	// file is hundreds of chunks, far past shareLimiter's 30 a minute.
+	shareChunkLimiter *rateLimiter
 	// releases memoises the GitHub releases API behind /api/download/{target},
 	// so a burst of installer downloads doesn't exhaust its 60/hr unauthenticated
 	// rate limit.
@@ -211,6 +214,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		emailSendLimiter:      newRateLimiter(3, 15*time.Minute),
 		userLimiter:           newRateLimiter(600, time.Minute),
 		shareLimiter:          newRateLimiter(30, time.Minute),
+		shareChunkLimiter:     newRateLimiter(600, time.Minute),
 		releases:              newReleaseCache(),
 		pushHostOK:            isPushServiceEndpoint,
 		pushHTTP:              newPushHTTPClient(),
@@ -897,7 +901,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Public share access (no auth, rate-limited)
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
-	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
+	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(s.HandleGetShareChunk))
 	mux.HandleFunc("POST /api/share/{token}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload)))
 
 	// Folder shares: public link for a whole folder (management is authed;
@@ -907,7 +911,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/folder-shares/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRevokeFolderShare, "id"))))
 	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
-	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareChunk))
+	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(s.HandleGetFolderShareChunk))
 	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload)))
 
 	// Anonymous send (no auth, rate-limited by IP)

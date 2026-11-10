@@ -98,9 +98,19 @@ func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 // ShareRateLimitMiddleware applies IP-based rate limiting to public share endpoints.
 func (s *Server) ShareRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return s.limitByIP(s.shareLimiter, next)
+}
+
+// ShareChunkRateLimitMiddleware is the public-link limit for chunk downloads,
+// sized for files of hundreds of chunks.
+func (s *Server) ShareChunkRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return s.limitByIP(s.shareChunkLimiter, next)
+}
+
+func (s *Server) limitByIP(limiter *rateLimiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := s.clientIP(r)
-		if !s.devMode && !s.shareLimiter.allow(ip) {
+		if !s.devMode && !limiter.allow(ip) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "5")
 			w.WriteHeader(http.StatusTooManyRequests)
