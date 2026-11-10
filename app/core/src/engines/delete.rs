@@ -24,6 +24,13 @@ pub async fn run(ctx: &EngineContext, file_id: &str) -> Result<(), EngineError> 
             all_client_deleted = false; // no creds, backend handles this chunk
             continue;
         };
+        if !same_account(&c.account, &creds.account) {
+            // Another account's storage (the shared pool, or a second account
+            // on this platform): our token can't reach it, and its "not found"
+            // would wrongly read as deleted. The backend removes it.
+            all_client_deleted = false;
+            continue;
+        }
         let Some(adapter) = adapters::shared_adapter(&c.platform, &creds.token, &creds.account)
         else {
             all_client_deleted = false;
@@ -39,8 +46,8 @@ pub async fn run(ctx: &EngineContext, file_id: &str) -> Result<(), EngineError> 
             compressed: c.compressed,
             ..ChunkRef::default()
         };
-        // Best-effort: 404 (already gone) is success; any other failure means we
-        // could not remove it, so the backend must. Keep going for the rest.
+        // Best-effort: 404 (already gone from OUR account) is success; any other
+        // failure means we could not remove it, so the backend must.
         match adapter.delete(&r).await {
             Ok(()) | Err(AdapterError::NotFound(_)) => {}
             Err(_) => all_client_deleted = false,
@@ -56,4 +63,25 @@ pub async fn run(ctx: &EngineContext, file_id: &str) -> Result<(), EngineError> 
     //    this device's ledger, e.g. it was uploaded from another device).
     let _ = ctx.db.delete_file(file_id);
     Ok(())
+}
+
+/// True when a chunk lives in the account this device's token belongs to. An
+/// unknown account on either side is never assumed to match.
+fn same_account(chunk_account: &str, creds_account: &str) -> bool {
+    let (a, b) = (chunk_account.trim(), creds_account.trim());
+    !a.is_empty() && !b.is_empty() && a.eq_ignore_ascii_case(b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_account;
+
+    #[test]
+    fn only_a_chunk_in_this_devices_account_is_deleted_here() {
+        assert!(same_account("wosmo", "wosmo"));
+        assert!(same_account("Wosmo", "wosmo "));
+        assert!(!same_account("shared_pool_bot", "wosmo"));
+        assert!(!same_account("", "wosmo"));
+        assert!(!same_account("wosmo", ""));
+    }
 }
