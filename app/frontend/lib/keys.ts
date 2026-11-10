@@ -25,6 +25,15 @@ import {
 import { getMyKey, publishKey, type UserKeyRecord } from "@/lib/api";
 import { useKeysStore } from "@/store/keys";
 import { loadMasterKey } from "@/lib/master-key";
+import { onDecryptCacheClear } from "@/lib/decrypt-cache";
+
+// Bumped whenever the vault locks: the private key leaves memory with it, and a
+// keypair load still in flight when it locked can't put it back.
+let keyEpoch = 0;
+onDecryptCacheClear(() => {
+  keyEpoch++;
+  useKeysStore.setState({ privateKey: null, ready: false, loading: false });
+});
 
 /** Short, human-verifiable fingerprint of a public key (first 16 hex chars of
  *  its SHA-256, grouped): for out-of-band verification against a MITM. */
@@ -130,6 +139,7 @@ async function loadMasterKeySafely(kek: ArrayBuffer, record: UserKeyRecord): Pro
 export async function ensureUserKeypair(passphrase: string): Promise<void> {
   const s = useKeysStore.getState();
   if (s.ready || s.loading || !passphrase) return;
+  const epoch = keyEpoch;
   useKeysStore.setState({ loading: true });
   try {
     const existing = await getMyKey();
@@ -145,6 +155,7 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
         useKeysStore.setState({ loading: false, mismatch: true });
         throw new OwnKeyMismatchError();
       }
+      if (epoch !== keyEpoch) return;
       useKeysStore.setState({
         privateKey,
         publicKey,
@@ -172,6 +183,7 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
       kdf_salt: toBase64(salt),
       fingerprint,
     });
+    if (epoch !== keyEpoch) return;
     useKeysStore.setState({
       privateKey: secretKey,
       publicKey,

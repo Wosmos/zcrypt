@@ -246,8 +246,10 @@ describe("shareFileIntoSpace", () => {
   });
 
   it("throws when the vault is locked (no passphrase)", async () => {
-    useSpacesStore.getState().setSpaceKey("v", generateSpaceKey());
+    // Locking drops space keys too; a key can still be loaded when the
+    // passphrase has just expired, which is the case this guards.
     usePassphraseStore.getState().clear?.();
+    useSpacesStore.getState().setSpaceKey("v", generateSpaceKey());
     await expect(shareFileIntoSpace(vault("v"), "f")).rejects.toThrow();
     expect(addFileToSpace).not.toHaveBeenCalled();
   });

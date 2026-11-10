@@ -39,8 +39,12 @@ import { ApiError } from "@/lib/http-error";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
+import { onDecryptCacheClear } from "@/lib/decrypt-cache";
 import { SpaceRole, type SharedVault, type SharedVaultMember, type SharedVaultFile } from "@/types";
 import { tr } from "@/store/translate";
+
+// Space keys open shared files, so they leave memory whenever the vault locks.
+onDecryptCacheClear(() => useSpacesStore.getState().reset());
 
 /** Create a shared space: generate its key, seal it to yourself, and create the
  *  vault carrying that grant. Caches the space key for the session. */
