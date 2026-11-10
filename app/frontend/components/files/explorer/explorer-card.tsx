@@ -13,7 +13,7 @@ import {
 } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
 import { FileActionsMenu } from "./file-actions-menu";
-import { formatBytes, isVideoFile, cn, midTrunc, extOf } from "@/lib/utils";
+import { formatBytes, isImageFile, isVideoFile, cn, midTrunc, extOf } from "@/lib/utils";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
 import { retryThumbnail } from "@/hooks/useThumbnail";
 import {
@@ -191,6 +191,7 @@ function FileCardInner({
   } = useFileEntryView(file);
   const iconColorClass = file.style?.color ? undefined : typeInfo.color;
   const isVideo = isVideoFile(displayName);
+  const customize = isVideo || isImageFile(displayName) ? undefined : onCustomizeFile;
   const ext = extOf(displayName).toUpperCase().slice(0, 4);
 
   return (
@@ -283,7 +284,7 @@ function FileCardInner({
             actions={actions}
             onRequestSelect={onRequestSelect}
             onOpenDetails={onOpenDetails}
-            onCustomizeFile={onCustomizeFile}
+            onCustomizeFile={customize}
             onRenameFile={onRenameFile}
             triggerClassName="absolute right-1.5 top-1.5 z-10 bg-[var(--color-surface)]"
           />
@@ -310,8 +311,8 @@ function FileCardInner({
             <Edit className="h-4 w-4" /> {t("rename")}
           </ContextMenuItem>
         )}
-        {onCustomizeFile && (
-          <ContextMenuItem className="gap-2" onSelect={() => onCustomizeFile(file)}>
+        {customize && (
+          <ContextMenuItem className="gap-2" onSelect={() => customize(file)}>
             <PaintBrush className="h-4 w-4" /> {t("customize")}
           </ContextMenuItem>
         )}

@@ -13,7 +13,15 @@ import {
 } from "./entry-dispatch";
 import { FileHealthBadge } from "./health-badge";
 import { FileActionsMenu, MenuTrigger } from "./file-actions-menu";
-import { formatBytes, formatDate, cn, midTrunc, savingsPercent } from "@/lib/utils";
+import {
+  formatBytes,
+  formatDate,
+  cn,
+  isImageFile,
+  isVideoFile,
+  midTrunc,
+  savingsPercent,
+} from "@/lib/utils";
 import { folderLook } from "./folder-look";
 import {
   Folder,
@@ -208,6 +216,8 @@ function FileRow({
   const t = useTranslations("app.explorerItem");
   const { displayName, unavailable, thumbnailUrl, cardRef, typeInfo, Icon, iconColorStyle } =
     useFileEntryView(file);
+  const customize =
+    isImageFile(displayName) || isVideoFile(displayName) ? undefined : onCustomizeFile;
   const savings = savingsPercent(file.original_size, file.encrypted_size);
 
   return (
@@ -303,7 +313,7 @@ function FileRow({
         actions={actions}
         onRequestSelect={onRequestSelect}
         onOpenDetails={onOpenDetails}
-        onCustomizeFile={onCustomizeFile}
+        onCustomizeFile={customize}
         onRenameFile={onRenameFile}
       />
       {/* Chevron spacer to align with the folder rows' navigation chevron
