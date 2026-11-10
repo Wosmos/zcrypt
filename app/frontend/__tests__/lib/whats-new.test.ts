@@ -43,7 +43,7 @@ describe("whats-new decisions", () => {
   });
   it("uses the app's own released version, else the latest", () => {
     expect(resolveWhatsNewVersion("0.1.6")).toBe("0.1.6");
-    expect(resolveWhatsNewVersion("0.2.0")).toBe(LATEST_RELEASED_VERSION);
+    expect(resolveWhatsNewVersion(LATEST_RELEASED_VERSION)).toBe(LATEST_RELEASED_VERSION);
     expect(resolveWhatsNewVersion("9.9.9")).toBe(LATEST_RELEASED_VERSION);
     expect(resolveWhatsNewVersion(null)).toBe(LATEST_RELEASED_VERSION);
   });

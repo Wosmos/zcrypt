@@ -34,9 +34,16 @@
       "permalink": "Link to this version"
     },
     "v0_2_1": {
-      "title": "Folder uploads, your theme everywhere and direct Telegram uploads",
-      "summary": "Drop a whole folder into your vault, keep one theme across all your devices, and send web uploads straight to your own Telegram without going through our server.",
+      "title": "Automatic backups, a recovery kit and a mini player",
+      "summary": "Desktop folders and phone photos now back up on their own, even with the vault locked. A recovery kit saves you from a forgotten passphrase, music and videos keep playing while you browse, and alerts reach you with zcrypt closed.",
       "items": {
+        "recoveryKit": "Make a recovery kit in Settings, Privacy: a key you keep that unlocks your vault if you forget your passphrase. zcrypt can't read it or use it.",
+        "folderBackup": "The desktop app backs up folders you choose, on its own and with your vault locked, as files change or every night at a time you pick. Nothing is ever deleted from your vault.",
+        "photoBackup": "The Android app backs up your photos and videos in the background, with the app closed, as new ones arrive or every night. Choose Wi-Fi only, mobile data only, or either.",
+        "desktopTray": "Closing the desktop window keeps zcrypt running in the tray or menu bar, and it can start quietly when you log in so backups never wait for you.",
+        "mediaPlayer": "Music and videos keep playing while you browse, in a mini player with picture-in-picture and your keyboard's media keys.",
+        "androidPip": "Videos float in picture-in-picture when you leave the Android app.",
+        "closedAlerts": "Alerts for new sign-ins, Space invites and opened share links reach you even with zcrypt closed. Turn them on in Settings.",
         "folderUpload": "Upload a whole folder from the browser with the new Upload a folder button or by dropping it on your vault. Its folders are recreated with encrypted names, and uploading it again fills it in instead of making a copy.",
         "themeSync": "Your theme now belongs to your account and follows you to every device, changing everywhere at once. Turn off Same theme on all my devices to give one device its own look.",
         "directTelegram": "Web uploads to your own Telegram go straight from your browser to Telegram, and only go through our server when Telegram can't be reached.",
@@ -51,7 +58,10 @@
         "apexDomain": "The site works from both zcrypt.cloud and www.zcrypt.cloud.",
         "doubleDrop": "A file dropped on the Upload dialog is uploaded once, not twice.",
         "dropdowns": "Long dropdowns scroll inside the screen and have roomier rows.",
-        "settingsLinks": "Links to a settings tab open the right tab."
+        "settingsLinks": "Links to a settings tab open the right tab.",
+        "staySignedIn": "You stay signed in across reloads instead of being signed out at random.",
+        "rightClick": "Right-clicking a file shows its menu instead of opening it.",
+        "downloadCount": "Download counts on the site count people, not crawlers."
       }
     },
     "v0_2_0": {

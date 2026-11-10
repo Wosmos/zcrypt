@@ -19,7 +19,8 @@ vi.mock("@/store/auth", () => ({
 }));
 
 import { WhatsNewHost } from "@/components/ui/whats-new-host";
-import { LATEST_RELEASED_VERSION } from "@/lib/changelog";
+import { LATEST_RELEASED_VERSION, RELEASES } from "@/lib/changelog";
+import changelogEn from "@/messages/site/changelog/en.json";
 import { useWhatsNewStore } from "@/store/whats-new";
 
 const KEY = "zcrypt-whats-new:u1";
@@ -94,7 +95,9 @@ describe("WhatsNewHost", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 3200));
     });
-    expect(await screen.findByText("Notifications, sounds and eight languages")).toBeInTheDocument();
+    const latest = RELEASES.find((r) => r.version === LATEST_RELEASED_VERSION)!;
+    const titles = changelogEn.changelog as Record<string, { title: string }>;
+    expect(await screen.findByText(titles[latest.key].title)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See full changelog" })).toHaveAttribute(
       "href",
       "/changelog",

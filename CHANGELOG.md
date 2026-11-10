@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-10
+
 ### Added
 
+- Recovery kit (Settings, Privacy): a key you keep that unlocks your vault if you forget your passphrase. The server stores only the passphrase sealed under that key and can't open it (format `rk1`, docs/CRYPTO_FORMAT.md 2.3)
+- Desktop folder backup (Settings, Backup): folders you pick in the system folder dialog back up on their own, even with the vault locked, as files change or every night at a chosen time. Backups are sealed to the account public key (format `pk1`, docs/CRYPTO_FORMAT.md 2.2) and become normal vault files the next time a device unlocks. Nothing is deleted from the vault
+- Android photo backup (Settings, Backup): photos and videos in DCIM, Pictures and Movies back up in the background with the app closed, as new ones arrive or every night, on Wi-Fi only, mobile data only, or either. The background job holds its own server session (`POST /api/auth/sessions/background`), which signing out ends
+- Closing the desktop window keeps zcrypt running in the tray or menu bar (Quit zcrypt in the tray menu quits), and launch at login starts it hidden; the first folder backup asks once to allow this
+- Music and video keep playing while you browse, in a mini player with picture-in-picture and system media controls; videos float in picture-in-picture when you leave the Android app
+- Web Push alerts for new sign-ins, Space invites and opened share links, even with zcrypt closed, with a switch in Settings
 - Web uploads to your own Telegram go straight from your browser to Telegram, so they skip our server, and fall back to going through it only when Telegram can't be reached
 - A banner tells you when your network seems to block Telegram and suggests a VPN, in all eight languages
 - Web transfers are limited to protect the server: one file up to 2 GB, and 20 GB of uploads and downloads through the server per month, starting over on the 1st (UTC). Direct uploads and the desktop app have no limit
@@ -28,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reloading the web app no longer signs you out: the session cookie is first-party and site-wide, and a stale copy no longer ends the session
+- Right-clicking a file shows its menu instead of opening the file
+- Signing out of the desktop app stops its sync and backups and forgets the session it kept
+- Share links and per-file pages are rendered per request instead of each URL being cached on its own
+- Download counts on the site and in admin count people, not crawlers
+- Docker builds never send a `.env` file into the image build
+- Patched SQLite and zip in the Rust apps
 - The site works on both the apex domain (zcrypt.cloud) and www: either is accepted for sign-in and API calls
 - Desktop uploads straight to Telegram were being rejected by the server
 - Full storage repositories could not be retired, so uploads kept pointing at them

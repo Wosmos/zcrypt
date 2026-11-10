@@ -34,9 +34,16 @@
       "permalink": "Lien vers cette version"
     },
     "v0_2_1": {
-      "title": "Import de dossiers, votre thème partout et imports directs vers Telegram",
-      "summary": "Déposez un dossier entier dans votre coffre, gardez un seul thème sur tous vos appareils et envoyez les imports web directement vers votre propre Telegram sans passer par notre serveur.",
+      "title": "Sauvegardes automatiques, kit de récupération et mini-lecteur",
+      "summary": "Les dossiers de l'ordinateur et les photos du téléphone se sauvegardent désormais tout seuls, même coffre verrouillé. Un kit de récupération vous sauve d'une phrase secrète oubliée, la musique et les vidéos continuent pendant que vous naviguez, et les alertes vous parviennent zcrypt fermé.",
       "items": {
+        "recoveryKit": "Créez un kit de récupération dans Réglages, Confidentialité : une clé que vous gardez et qui ouvre votre coffre si vous oubliez votre phrase secrète. zcrypt ne peut ni la lire ni l'utiliser.",
+        "folderBackup": "L'app de bureau sauvegarde les dossiers que vous choisissez, toute seule et coffre verrouillé, à chaque modification ou chaque nuit à l'heure choisie. Rien n'est jamais supprimé de votre coffre.",
+        "photoBackup": "L'app Android sauvegarde vos photos et vidéos en arrière-plan, app fermée, à l'arrivée de nouvelles ou chaque nuit. Choisissez Wi-Fi uniquement, données mobiles uniquement ou l'un ou l'autre.",
+        "desktopTray": "Fermer la fenêtre de bureau laisse zcrypt tourner dans la zone de notification ou la barre des menus, et il peut démarrer discrètement à l'ouverture de session pour que les sauvegardes ne vous attendent jamais.",
+        "mediaPlayer": "La musique et les vidéos continuent pendant que vous naviguez, dans un mini-lecteur avec image dans l'image et les touches multimédia du clavier.",
+        "androidPip": "Les vidéos flottent en image dans l'image quand vous quittez l'app Android.",
+        "closedAlerts": "Les alertes de nouvelles connexions, d'invitations aux Spaces et de liens de partage ouverts vous parviennent même zcrypt fermé. Activez-les dans Réglages.",
         "folderUpload": "Importez un dossier entier depuis le navigateur avec le nouveau bouton Importer un dossier ou en le déposant dans votre coffre. Ses dossiers sont recréés avec des noms chiffrés, et l'importer à nouveau le complète au lieu d'en faire une copie.",
         "themeSync": "Votre thème appartient désormais à votre compte, vous suit sur chaque appareil et change partout à la fois. Désactivez Même thème sur tous mes appareils pour donner à un appareil son propre style.",
         "directTelegram": "Les imports web vers votre propre Telegram vont directement de votre navigateur à Telegram, et ne passent par notre serveur que si Telegram est injoignable.",
@@ -51,7 +58,10 @@
         "apexDomain": "Le site fonctionne depuis zcrypt.cloud comme depuis www.zcrypt.cloud.",
         "doubleDrop": "Un fichier déposé sur la fenêtre d'import est importé une fois, pas deux.",
         "dropdowns": "Les longues listes déroulantes défilent dans l'écran et ont des lignes plus aérées.",
-        "settingsLinks": "Les liens vers un onglet des paramètres ouvrent le bon onglet."
+        "settingsLinks": "Les liens vers un onglet des paramètres ouvrent le bon onglet.",
+        "staySignedIn": "Vous restez connecté après un rechargement au lieu d'être déconnecté au hasard.",
+        "rightClick": "Un clic droit sur un fichier affiche son menu au lieu de l'ouvrir.",
+        "downloadCount": "Les compteurs de téléchargements du site comptent les personnes, pas les robots."
       }
     },
     "v0_2_0": {

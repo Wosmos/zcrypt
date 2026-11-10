@@ -34,9 +34,16 @@
       "permalink": "Enlace a esta versión"
     },
     "v0_2_1": {
-      "title": "Subida de carpetas, tu tema en todas partes y subidas directas a Telegram",
-      "summary": "Suelta una carpeta entera en tu bóveda, mantén un mismo tema en todos tus dispositivos y envía las subidas web directamente a tu propio Telegram sin pasar por nuestro servidor.",
+      "title": "Copias automáticas, un kit de recuperación y un minirreproductor",
+      "summary": "Las carpetas del ordenador y las fotos del teléfono ahora se copian solas, incluso con la bóveda bloqueada. Un kit de recuperación te salva si olvidas la frase de contraseña, la música y los vídeos siguen sonando mientras navegas, y los avisos te llegan con zcrypt cerrado.",
       "items": {
+        "recoveryKit": "Crea un kit de recuperación en Ajustes, Privacidad: una clave que guardas tú y que abre tu bóveda si olvidas la frase de contraseña. zcrypt no puede leerla ni usarla.",
+        "folderBackup": "La app de escritorio copia las carpetas que elijas, sola y con la bóveda bloqueada, al cambiar los archivos o cada noche a la hora que elijas. Nunca se borra nada de tu bóveda.",
+        "photoBackup": "La app de Android copia tus fotos y vídeos en segundo plano, con la app cerrada, al llegar nuevos o cada noche. Elige solo Wi-Fi, solo datos móviles o cualquiera.",
+        "desktopTray": "Al cerrar la ventana de escritorio, zcrypt sigue en la bandeja o la barra de menús, y puede iniciarse en silencio al iniciar sesión para que las copias nunca te esperen.",
+        "mediaPlayer": "La música y los vídeos siguen mientras navegas, en un minirreproductor con imagen en imagen y las teclas multimedia del teclado.",
+        "androidPip": "Los vídeos flotan en imagen en imagen al salir de la app de Android.",
+        "closedAlerts": "Los avisos de nuevos inicios de sesión, invitaciones a Spaces y enlaces compartidos abiertos te llegan aunque zcrypt esté cerrado. Actívalos en Ajustes.",
         "folderUpload": "Sube una carpeta entera desde el navegador con el nuevo botón Subir una carpeta o soltándola en tu bóveda. Sus carpetas se recrean con nombres cifrados, y subirla de nuevo la completa en lugar de crear una copia.",
         "themeSync": "Tu tema ahora pertenece a tu cuenta, te sigue a cada dispositivo y cambia en todos a la vez. Desactiva El mismo tema en todos mis dispositivos para dar a un dispositivo su propio aspecto.",
         "directTelegram": "Las subidas web a tu propio Telegram van directamente de tu navegador a Telegram, y solo pasan por nuestro servidor cuando no se puede llegar a Telegram.",
@@ -51,7 +58,10 @@
         "apexDomain": "El sitio funciona tanto en zcrypt.cloud como en www.zcrypt.cloud.",
         "doubleDrop": "Un archivo soltado en el diálogo de subida se sube una vez, no dos.",
         "dropdowns": "Las listas desplegables largas se desplazan dentro de la pantalla y tienen filas más amplias.",
-        "settingsLinks": "Los enlaces a una pestaña de ajustes abren la pestaña correcta."
+        "settingsLinks": "Los enlaces a una pestaña de ajustes abren la pestaña correcta.",
+        "staySignedIn": "Sigues con la sesión iniciada al recargar en lugar de cerrarse al azar.",
+        "rightClick": "Hacer clic derecho en un archivo muestra su menú en lugar de abrirlo.",
+        "downloadCount": "Los contadores de descargas del sitio cuentan personas, no rastreadores."
       }
     },
     "v0_2_0": {

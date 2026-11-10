@@ -1,12 +1,19 @@
 [
   {
     "version": "0.2.1",
-    "date": null,
+    "date": "2026-11-10",
     "key": "v0_2_1",
     "groups": [
       {
         "kind": "new",
         "items": [
+          "recoveryKit",
+          "folderBackup",
+          "photoBackup",
+          "desktopTray",
+          "mediaPlayer",
+          "androidPip",
+          "closedAlerts",
           "folderUpload",
           "themeSync",
           "directTelegram",
@@ -21,7 +28,16 @@
       },
       {
         "kind": "fixed",
-        "items": ["themeAccounts", "apexDomain", "doubleDrop", "dropdowns", "settingsLinks"]
+        "items": [
+          "themeAccounts",
+          "apexDomain",
+          "doubleDrop",
+          "dropdowns",
+          "settingsLinks",
+          "staySignedIn",
+          "rightClick",
+          "downloadCount"
+        ]
       }
     ]
   },
