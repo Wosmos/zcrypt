@@ -38,7 +38,11 @@ type Server struct {
 	// Per-user adapter cache: userID → (platform:username → adapter)
 	adapterMu    sync.RWMutex
 	adapterCache map[string]map[string]adapters.PlatformAdapter
-	poolCache    map[string]map[string]*reppool.Manager
+	// adapterOwn marks which cached adapter keys are the user's OWN connected
+	// accounts (userID → key → true); the rest are the shared pool. Rewritten
+	// with adapterCache on every rebuild, so it never outlives a stale entry.
+	adapterOwn map[string]map[string]bool
+	poolCache  map[string]map[string]*reppool.Manager
 	// adapterCacheExpiry marks cache entries built with ≥1 failed adapter so the
 	// failed tokens get retried after a short TTL instead of being negative-cached
 	// until restart. Entries with zero failures never appear here (no expiry).
@@ -197,6 +201,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		masterKey:             masterKey,
 		allowedOrigins:        AllowedOrigins(),
 		adapterCache:          make(map[string]map[string]adapters.PlatformAdapter),
+		adapterOwn:            make(map[string]map[string]bool),
 		poolCache:             make(map[string]map[string]*reppool.Manager),
 		adapterCacheExpiry:    make(map[string]time.Time),
 		adapterErrors:         make(map[string]map[string]string),
@@ -305,6 +310,7 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 	}
 
 	userAdapters := make(map[string]adapters.PlatformAdapter)
+	own := make(map[string]bool)
 	failures := make(map[string]string) // platform → short reason
 
 	for _, tok := range tokens {
@@ -331,10 +337,14 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 		username := getAdapterUsername(adapter)
 		key := tok.Platform + ":" + username
 		userAdapters[key] = adapter
+		if tok.UserID == userID && !tok.IsGlobal {
+			own[key] = true
+		}
 	}
 
 	s.adapterMu.Lock()
 	s.adapterCache[userID] = userAdapters
+	s.adapterOwn[userID] = own
 	if len(failures) > 0 {
 		s.adapterCacheExpiry[userID] = time.Now().Add(adapterRetryTTL)
 		s.adapterErrors[userID] = failures
@@ -469,20 +479,35 @@ func (s *Server) selectAdapter(ctx context.Context, userID, targetPlatform strin
 	}
 	sort.Strings(keys)
 
-	if targetPlatform != "" {
-		for _, key := range keys {
-			if strings.HasPrefix(key, targetPlatform+":") {
-				return key, userAdapters[key], pools[key], nil
-			}
+	// The user's own accounts come first, so an upload only lands on the
+	// shared pool (and its cap) when they haven't connected that storage.
+	var own, shared []string
+	for _, key := range keys {
+		if s.isOwnAdapterKey(userID, key) {
+			own = append(own, key)
+		} else {
+			shared = append(shared, key)
 		}
-		return "", nil, nil, fmt.Errorf("no %s account connected", targetPlatform)
 	}
 
-	// No explicit platform: pick by fixed preference order instead of random
-	// map iteration. Telegram first. It is the primary storage backend
-	// (effectively unlimited capacity); the git platforms are fallbacks.
-	if key := preferredAdapterKey(keys); key != "" {
-		return key, userAdapters[key], pools[key], nil
+	for _, group := range [][]string{own, shared} {
+		if targetPlatform != "" {
+			for _, key := range group {
+				if strings.HasPrefix(key, targetPlatform+":") {
+					return key, userAdapters[key], pools[key], nil
+				}
+			}
+			continue
+		}
+		// No explicit platform: pick by fixed preference order instead of
+		// random map iteration. Telegram first. It is the primary storage
+		// backend (effectively unlimited capacity); git platforms are fallbacks.
+		if key := preferredAdapterKey(group); key != "" {
+			return key, userAdapters[key], pools[key], nil
+		}
+	}
+	if targetPlatform != "" {
+		return "", nil, nil, fmt.Errorf("no %s account connected", targetPlatform)
 	}
 	return "", nil, nil, fmt.Errorf("no platform connected")
 }
@@ -509,6 +534,32 @@ func preferredAdapterKey(keys []string) string {
 		return keys[0]
 	}
 	return ""
+}
+
+// isOwnAdapterKey reports whether a cached adapter key is one of the user's own
+// connected accounts rather than the shared pool.
+func (s *Server) isOwnAdapterKey(userID, key string) bool {
+	s.adapterMu.RLock()
+	defer s.adapterMu.RUnlock()
+	return s.adapterOwn[userID][key]
+}
+
+// uploadQuota is the storage cap for an upload that lands on the user's own
+// account (own) or on the shared pool. An admin-set quota always applies; own
+// storage is otherwise unlimited; the shared pool carries the shared cap even
+// for users who also have storage of their own connected.
+func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) int64 {
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		return sharedStorageQuotaBytes()
+	}
+	if user.StorageQuota != nil {
+		return *user.StorageQuota
+	}
+	if own {
+		return 0
+	}
+	return sharedStorageQuotaBytes()
 }
 
 // resolveAdapterForUser finds the right adapter for a platform:account key.

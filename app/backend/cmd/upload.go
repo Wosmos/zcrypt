@@ -278,27 +278,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		directUpload = true
 		// repoID/repoURL stay empty: the client owns placement in this mode.
 	} else {
-		// Storage on your own connected account is unlimited and always was.
-		// The shared pool is not: it runs on an admin's personal token, so it
-		// carries a cap (see getEffectiveQuota). Check it before reserving a
-		// session, not after, so a user who is over the line never starts an
-		// upload that cannot finish.
-		// The file insert below re-checks under a lock, so concurrent inits
-		// cannot share the same headroom.
-		if quota = s.getEffectiveQuota(ctx, userID); quota > 0 {
-			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
-			if uErr != nil {
-				log.Printf("upload: storage usage lookup failed: %v", uErr)
-				http.Error(w, `{"error":"could not verify your storage usage"}`, http.StatusInternalServerError)
-				return
-			}
-			if used+req.OriginalSize > quota {
-				writeSharedStorageFull(w, used, quota, req.OriginalSize)
-				return
-			}
-		}
-
-		// Select the adapter + repo pool to use. Beyond the shared cap above,
+		// Select the adapter + repo pool to use. Beyond the shared cap below,
 		// users are bounded only by the real git-platform thresholds enforced
 		// in reppool.
 		key, selected, pool, err := s.selectAdapter(ctx, userID, req.Platform)
@@ -312,6 +292,28 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		// Storage on your own connected account is unlimited and always was.
+		// The shared pool is not: it runs on an admin's personal token, so it
+		// carries a cap, decided by where this upload actually lands (see
+		// uploadQuota), so having some storage of your own doesn't lift the cap
+		// on the shared pool. Check it before reserving a session, not after,
+		// so a user who is over the line never starts an upload that cannot
+		// finish.
+		// The file insert below re-checks under a lock, so concurrent inits
+		// cannot share the same headroom.
+		if quota = s.uploadQuota(ctx, userID, s.isOwnAdapterKey(userID, key)); quota > 0 {
+			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
+			if uErr != nil {
+				log.Printf("upload: storage usage lookup failed: %v", uErr)
+				http.Error(w, `{"error":"could not verify your storage usage"}`, http.StatusInternalServerError)
+				return
+			}
+			if used+req.OriginalSize > quota {
+				writeSharedStorageFull(w, used, quota, req.OriginalSize)
+				return
+			}
+		}
+
 		if _, presigned := selected.(adapters.DirectUploader); !presigned && !s.relayUploadAllowed(w, r, userID, req.OriginalSize) {
 			return
 		}
