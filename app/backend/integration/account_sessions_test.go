@@ -260,7 +260,15 @@ func TestBackgroundSession(t *testing.T) {
 	ts.registerAndLogin(email, accountTestPassword)
 	app := ts.login(email, accountTestPassword)
 	before := len(ts.sessions(app.AccessToken))
-	resp := ts.POST("/api/auth/sessions/background", map[string]string{}, app.AccessToken)
+	require.Equal(t, http.StatusBadRequest,
+		ts.POST("/api/auth/sessions/background", map[string]string{}, app.AccessToken).StatusCode,
+		"an access token alone can't start a lasting session")
+	stranger := ts.login(email, accountTestPassword)
+	require.Equal(t, http.StatusUnauthorized,
+		ts.POST("/api/auth/sessions/background", map[string]string{"refresh_token": stranger.RefreshToken}, app.AccessToken).StatusCode,
+		"the refresh token must belong to the same session")
+	before = len(ts.sessions(app.AccessToken))
+	resp := ts.POST("/api/auth/sessions/background", map[string]string{"refresh_token": app.RefreshToken}, app.AccessToken)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	var bg tokenPair
 	decodeJSON(t, resp, &bg)
@@ -281,5 +289,5 @@ func TestBackgroundSession(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized,
 		ts.POST("/api/auth/refresh", map[string]string{"refresh_token": rotated.RefreshToken}, "").StatusCode,
 		"signing out ends the background session")
-	assert.Equal(t, http.StatusUnauthorized, ts.POST("/api/auth/sessions/background", map[string]string{}, "").StatusCode)
+	assert.Equal(t, http.StatusUnauthorized, ts.POST("/api/auth/sessions/background", map[string]string{"refresh_token": app.RefreshToken}, "").StatusCode)
 }

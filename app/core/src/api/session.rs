@@ -14,11 +14,13 @@ pub struct SessionPair {
 
 impl Client {
     /// POST /api/auth/sessions/background: starts a second session for this
-    /// device, for backups that run while the app is closed.
+    /// device, for backups that run while the app is closed. The server wants
+    /// this session's own refresh token alongside the access token.
     pub async fn start_background_session(&self) -> Result<SessionPair, ApiError> {
+        let (_, refresh) = self.tokens().await;
         self.send_json(|http, base| {
             http.post(format!("{base}/api/auth/sessions/background"))
-                .json(&serde_json::json!({}))
+                .json(&serde_json::json!({ "refresh_token": refresh }))
         })
         .await
     }
@@ -110,6 +112,7 @@ mod tests {
         assert!(req
             .to_ascii_lowercase()
             .contains("authorization: bearer app-a"));
+        assert!(req.ends_with(r#"{"refresh_token":"app-r"}"#));
         assert_eq!(client.tokens().await, ("app-a".into(), "app-r".into()));
     }
 

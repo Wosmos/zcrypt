@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
@@ -58,7 +59,11 @@ func (rs *revokedSessions) has(id string) bool {
 // own, so a backup that runs while the app is closed never spends a refresh
 // token the app's session still holds. No cookie is set, so a web session is
 // left as it is. Signing out of the app logs this session out too.
-// POST /api/auth/sessions/background
+//
+// The body must carry the caller's own refresh token, from the same session as
+// the access token: a leaked short-lived access token alone can't be turned
+// into a lasting session.
+// POST /api/auth/sessions/background  body {"refresh_token": "..."}
 func (s *Server) HandleBackgroundSession(w http.ResponseWriter, r *http.Request) {
 	if IsDecoy(r) {
 		writeError(w, http.StatusForbidden, "not available")
@@ -67,6 +72,23 @@ func (s *Server) HandleBackgroundSession(w http.ResponseWriter, r *http.Request)
 	userID := GetUserID(r)
 	if !s.authLimiter.allow("background|" + userID) {
 		writeError(w, http.StatusTooManyRequests, "too many requests, try again later")
+		return
+	}
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
+		writeError(w, http.StatusBadRequest, "refresh_token is required")
+		return
+	}
+	rt, err := s.validRefreshToken(r.Context(), []string{req.RefreshToken})
+	if err != nil {
+		internalError(w, "background session token", err)
+		return
+	}
+	claims := GetUserClaims(r)
+	if rt == nil || rt.UserID != userID || claims == nil || rt.SessionID != claims.SessionID {
+		writeError(w, http.StatusUnauthorized, "refresh token does not match this session")
 		return
 	}
 	user, err := s.db.GetUserByID(r.Context(), userID)
