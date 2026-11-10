@@ -47,6 +47,7 @@ jobs:
             frontend:
               - 'app/frontend/**'
               - 'tests/e2e/**'
+              - '.github/workflows/ci.yml'
             desktop:
               - 'app/desktop/**'
               # The desktop shell embeds zcrypt-core in-process.
