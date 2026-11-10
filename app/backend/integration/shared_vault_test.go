@@ -3,6 +3,7 @@
 package integration_test
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -520,6 +521,26 @@ func TestSharedVaultRotation(t *testing.T) {
 			"files":   []interface{}{},
 		}, owner)
 		requireStatus(t, resp, http.StatusOK)
+	})
+
+	t.Run("a file purged after it was shared never blocks a rotation", func(t *testing.T) {
+		id := ts.createSpace(owner, "RotateOrphan", 0)
+		_, err := ts.db.Pool().Exec(context.Background(),
+			`INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek) VALUES ($1, gen_random_uuid(), 'x')`, id)
+		require.NoError(t, err)
+
+		grants := []map[string]string{}
+		for _, uid := range memberIDs(owner, id) {
+			grants = append(grants, map[string]string{"user_id": uid, "wrapped_space_key": b64("new-" + uid)})
+		}
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", map[string]interface{}{
+			"members": grants, "files": []interface{}{},
+		}, owner), http.StatusOK)
+
+		var left int
+		require.NoError(t, ts.db.Pool().QueryRow(context.Background(),
+			`SELECT count(*) FROM shared_vault_files WHERE vault_id = $1`, id).Scan(&left))
+		assert.Equal(t, 0, left, "the purged file's row is cleared")
 	})
 
 	t.Run("rotation stores the name and description re-sealed under the new key", func(t *testing.T) {

@@ -266,6 +266,18 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 		return err
 	}
 
+	// A file purged after it was shared leaves its row behind (file_id has no
+	// foreign key). Drop those first: nothing can wrap a key for a file that is
+	// gone, and they must never block a rotation, which is how a removed member
+	// loses access.
+	if _, err := tx.Exec(ctx,
+		`DELETE FROM shared_vault_files svf
+		 WHERE svf.vault_id = $1 AND NOT EXISTS (SELECT 1 FROM files f WHERE f.id = svf.file_id)`,
+		vaultID,
+	); err != nil {
+		return err
+	}
+
 	frows, err := tx.Query(ctx, `SELECT file_id::text FROM shared_vault_files WHERE vault_id = $1`, vaultID)
 	if err != nil {
 		return err
