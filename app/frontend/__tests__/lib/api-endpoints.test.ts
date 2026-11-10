@@ -267,3 +267,32 @@ describe("api endpoint surface (method + path)", () => {
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe(c.method);
   });
 });
+
+describe("sealed previews", () => {
+  it("asks for many previews in one POST and returns the map", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ thumbs: { a: "c2VhbGVk" } }),
+    } as Response);
+    expect(await api.getFileThumbs(["a", "b"])).toEqual({ a: "c2VhbGVk" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/files/thumbs");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ ids: ["a", "b"] });
+  });
+
+  it("reads a reply with no previews as an empty map", async () => {
+    expect(await api.getFileThumbs(["a"])).toEqual({});
+  });
+
+  it("stores a preview as raw bytes with PUT", async () => {
+    const sealed = new Uint8Array([1, 2, 3]);
+    await api.putFileThumb("f1", sealed);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/files/f1/thumb");
+    expect(init.method).toBe("PUT");
+    expect(init.headers["Content-Type"]).toBe("application/octet-stream");
+    expect(init.body).toBe(sealed);
+  });
+});
