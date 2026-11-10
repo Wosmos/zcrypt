@@ -1464,6 +1464,25 @@ func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string, re
 	return nil
 }
 
+// DeferChunkStagedElsewhere postpones a pending chunk whose staged bytes are not
+// on this host (another instance took the upload), without spending a retry,
+// while its file is younger than lostAfter. Returns false once the file is
+// older: by then no host still holds the bytes, and the caller counts the
+// attempt as failed.
+func (db *DB) DeferChunkStagedElsewhere(ctx context.Context, chunkID string, retryIn, lostAfter time.Duration) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE chunks c SET next_attempt_at = NOW() + make_interval(secs => $2)
+		 FROM files f
+		 WHERE c.chunk_id = $1 AND f.id = c.file_id
+		   AND f.created_at > NOW() - make_interval(secs => $3)`,
+		chunkID, retryIn.Seconds(), lostAfter.Seconds(),
+	)
+	if err != nil {
+		return false, fmt.Errorf("defer chunk staged elsewhere: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 // CountStuckChunks returns the number of chunks that have hit the retry cap
 // without syncing: used for surfacing data-loss risk in logs/metrics.
 func (db *DB) CountStuckChunks(ctx context.Context, maxAttempts int) (int, error) {

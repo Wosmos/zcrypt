@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"math/rand"
 	"os"
@@ -260,6 +262,15 @@ func (s *Server) syncPendingChunks(ctx context.Context) bool {
 	return true
 }
 
+const (
+	// stagedElsewhereRetry is how long a chunk staged on another instance waits
+	// before this one looks again.
+	stagedElsewhereRetry = 2 * time.Minute
+	// stagedElsewhereFor is how long a chunk may sit staged on another instance
+	// before its missing bytes count as a failed attempt here.
+	stagedElsewhereFor = 6 * time.Hour
+)
+
 // syncOneChunk pushes one staged chunk to its platform. It returns the upload
 // error (nil otherwise) so the caller can pause a platform that is failing as a
 // whole; every other failure is already recorded against the chunk.
@@ -285,6 +296,17 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 
 	// Read chunk data from staging
 	data, err := os.ReadFile(stagingPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		// Staged on another instance (a rolling deploy, or a second server on
+		// the same database): that instance pushes it. Wait without spending a
+		// retry, so this one can't exhaust the chunk's budget and mark a healthy
+		// file damaged; only a chunk no instance has pushed for stagedElsewhereFor
+		// counts as a failed attempt.
+		deferred, derr := s.db.DeferChunkStagedElsewhere(ctx, chunk.ChunkID, stagedElsewhereRetry, stagedElsewhereFor)
+		if derr == nil && deferred {
+			return nil
+		}
+	}
 	if err != nil {
 		failAttempt("read staging file %s: %v", chunk.ChunkID, err)
 		return nil
