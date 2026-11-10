@@ -100,8 +100,11 @@ func TestSendPushIsSignedEncryptedAndCollapsible(t *testing.T) {
 	if got.Header.Get("Content-Encoding") != "aes128gcm" {
 		t.Errorf("payload not encrypted to the browser: %q", got.Header.Get("Content-Encoding"))
 	}
-	if got.Header.Get("Topic") != "newSignIn" || got.Header.Get("TTL") == "" {
-		t.Errorf("topic/ttl = %q/%q", got.Header.Get("Topic"), got.Header.Get("TTL"))
+	if got.Header.Get("TTL") == "" {
+		t.Error("missing TTL")
+	}
+	if got.Header.Get("Topic") != "" {
+		t.Errorf("the push service can read what kind of event this is: Topic %q", got.Header.Get("Topic"))
 	}
 	if strings.Contains(string(body), "Chrome on Mac") || strings.Contains(string(body), "newSignIn") {
 		t.Error("the push service can read the payload")

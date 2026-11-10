@@ -63,6 +63,10 @@ describe("service worker push", () => {
     await push({ type: "inviteReceived", lang: "en", url: "https://evil.example/" });
     const data = shown.at(-1)?.options.data as { url: string };
     expect(data.url).toBe("/dashboard");
+    for (const url of ["//evil.example/x", "/\\evil.example"]) {
+      await push({ type: "inviteReceived", lang: "en", url });
+      expect((shown.at(-1)?.options.data as { url: string }).url).toBe("/dashboard");
+    }
 
     const close = vi.fn();
     let pending: Promise<unknown> = Promise.resolve();

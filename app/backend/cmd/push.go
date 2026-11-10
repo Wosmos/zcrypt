@@ -254,7 +254,6 @@ func (s *Server) sendPush(ctx context.Context, sub index.PushSubscription, msg p
 		VAPIDPrivateKey: private,
 		TTL:             pushTTL,
 		Urgency:         webpush.UrgencyNormal,
-		Topic:           msg.Type,
 	})
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {

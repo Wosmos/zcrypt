@@ -68,7 +68,7 @@ self.addEventListener("push", (event) => {
   }
   const text = msg && pushText(msg);
   if (!text) return;
-  const url = typeof msg.url === "string" && msg.url.startsWith("/") ? msg.url : "/dashboard";
+  const url = typeof msg.url === "string" && /^\/(?![\/\\])/.test(msg.url) ? msg.url : "/dashboard";
   event.waitUntil(
     self.registration.showNotification(text.title, {
       body: text.body,
