@@ -1,5 +1,23 @@
 {
   "changelog": {
+    "v0_2_2": {
+      "title": "Fast photo grids and a round of fixes",
+      "summary": "Folders of photos now show their previews in seconds, thumbnails fill in where you are, and large downloads, shared links and device transfers finish instead of stopping partway.",
+      "items": {
+        "fastPreviews": "Photo grids load in seconds: each photo's small preview is stored sealed with that photo's own key, so a device shows it without downloading the original. zcrypt still can't see it.",
+        "thumbsInPlace": "Thumbnails fill in where you are, instead of shimmering until you leave the folder and come back.",
+        "noCustomizeMedia": "Photos and videos no longer offer Customize, since the picture is their icon.",
+        "bigDownloads": "Large files download in the desktop and Android apps instead of stopping partway.",
+        "sharedDownloads": "Large shared files download completely instead of failing when the server is busy.",
+        "transfers": "Device-to-device transfers keep going as long as data is moving, instead of stopping after 10 minutes.",
+        "slowLinks": "GitHub and GitLab storage no longer time out on large pieces over a slow connection.",
+        "ownStorageFirst": "Uploads use the storage you connected before the shared storage, and the shared storage limit always applies to it.",
+        "lockKeys": "Locking the vault also clears your private key and Space keys from memory.",
+        "decoyReauth": "Setting a decoy password asks for your real password, and your 2FA code when 2FA is on.",
+        "pushPrivacy": "Alerts no longer tell push services what kind of alert they carry.",
+        "androidBackup": "The Android app's private data stays out of Android backups and phone-to-phone transfers."
+      }
+    },
     "page": {
       "eyebrow": "Changelog",
       "title": "What's",

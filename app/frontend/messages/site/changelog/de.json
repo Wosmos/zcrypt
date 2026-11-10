@@ -1,5 +1,23 @@
 {
   "changelog": {
+    "v0_2_2": {
+      "title": "Schnelle Fotoraster und eine Runde Korrekturen",
+      "summary": "Fotoordner zeigen ihre Vorschauen in Sekunden, Miniaturen erscheinen dort, wo du bist, und große Downloads, geteilte Links und Übertragungen zwischen Geräten laufen bis zum Ende.",
+      "items": {
+        "fastPreviews": "Fotoraster laden in Sekunden: Die kleine Vorschau jedes Fotos wird mit dessen eigenem Schlüssel versiegelt gespeichert, sodass ein Gerät sie ohne das Original zeigt. zcrypt kann sie weiterhin nicht sehen.",
+        "thumbsInPlace": "Miniaturen erscheinen dort, wo du bist, statt zu flimmern, bis du den Ordner verlässt und zurückkommst.",
+        "noCustomizeMedia": "Fotos und Videos bieten kein Anpassen mehr an, denn das Bild ist ihr Symbol.",
+        "bigDownloads": "Große Dateien laden in der Desktop- und Android-App vollständig herunter, statt mittendrin abzubrechen.",
+        "sharedDownloads": "Große geteilte Dateien laden vollständig herunter, statt bei einem ausgelasteten Server abzubrechen.",
+        "transfers": "Übertragungen zwischen Geräten laufen weiter, solange Daten fließen, statt nach 10 Minuten zu enden.",
+        "slowLinks": "GitHub- und GitLab-Speicher läuft bei großen Teilen über langsame Verbindungen nicht mehr in eine Zeitüberschreitung.",
+        "ownStorageFirst": "Uploads nutzen zuerst deinen verbundenen Speicher, und für den gemeinsamen Speicher gilt immer sein Limit.",
+        "lockKeys": "Das Sperren des Tresors löscht auch deinen privaten Schlüssel und die Space-Schlüssel aus dem Speicher.",
+        "decoyReauth": "Ein Täuschungspasswort festzulegen verlangt dein echtes Passwort und bei aktiver 2FA deinen Code.",
+        "pushPrivacy": "Hinweise verraten Push-Diensten nicht mehr, welche Art von Hinweis sie enthalten.",
+        "androidBackup": "Die privaten Daten der Android-App bleiben aus Android-Sicherungen und Handy-zu-Handy-Übertragungen heraus."
+      }
+    },
     "page": {
       "eyebrow": "Changelog",
       "title": "Was ist",

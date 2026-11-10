@@ -1,5 +1,23 @@
 {
   "changelog": {
+    "v0_2_2": {
+      "title": "Cuadrículas de fotos rápidas y una ronda de arreglos",
+      "summary": "Las carpetas de fotos muestran sus vistas previas en segundos, las miniaturas aparecen donde estás, y las descargas grandes, los enlaces compartidos y las transferencias entre dispositivos terminan en lugar de cortarse a medias.",
+      "items": {
+        "fastPreviews": "Las cuadrículas de fotos cargan en segundos: la vista previa de cada foto se guarda sellada con su propia clave, así un dispositivo la muestra sin descargar el original. zcrypt sigue sin poder verla.",
+        "thumbsInPlace": "Las miniaturas aparecen donde estás, en lugar de parpadear hasta que sales de la carpeta y vuelves.",
+        "noCustomizeMedia": "Las fotos y los vídeos ya no ofrecen Personalizar, porque la imagen es su icono.",
+        "bigDownloads": "Los archivos grandes se descargan en las apps de escritorio y Android en lugar de detenerse a medias.",
+        "sharedDownloads": "Los archivos compartidos grandes se descargan completos en lugar de fallar cuando el servidor está ocupado.",
+        "transfers": "Las transferencias entre dispositivos siguen mientras se muevan datos, en lugar de parar a los 10 minutos.",
+        "slowLinks": "El almacenamiento en GitHub y GitLab ya no agota el tiempo con partes grandes en conexiones lentas.",
+        "ownStorageFirst": "Las subidas usan el almacenamiento que conectaste antes que el compartido, y el límite del compartido siempre se aplica a este.",
+        "lockKeys": "Bloquear la bóveda también borra de la memoria tu clave privada y las claves de los Spaces.",
+        "decoyReauth": "Establecer una contraseña señuelo pide tu contraseña real y tu código 2FA si lo tienes activado.",
+        "pushPrivacy": "Los avisos ya no les dicen a los servicios de notificaciones qué tipo de aviso llevan.",
+        "androidBackup": "Los datos privados de la app de Android quedan fuera de las copias de Android y de las transferencias entre teléfonos."
+      }
+    },
     "page": {
       "eyebrow": "Novedades",
       "title": "Qué hay",

@@ -1,5 +1,23 @@
 {
   "changelog": {
+    "v0_2_2": {
+      "title": "Grilles de photos rapides et une série de corrections",
+      "summary": "Les dossiers de photos affichent leurs aperçus en quelques secondes, les miniatures apparaissent là où vous êtes, et les gros téléchargements, liens partagés et transferts entre appareils vont jusqu'au bout.",
+      "items": {
+        "fastPreviews": "Les grilles de photos se chargent en quelques secondes : le petit aperçu de chaque photo est stocké scellé avec sa propre clé, et un appareil l'affiche sans télécharger l'original. zcrypt ne peut toujours pas le voir.",
+        "thumbsInPlace": "Les miniatures apparaissent là où vous êtes, au lieu de scintiller jusqu'à ce que vous quittiez le dossier et y reveniez.",
+        "noCustomizeMedia": "Les photos et vidéos ne proposent plus Personnaliser, puisque l'image est leur icône.",
+        "bigDownloads": "Les gros fichiers se téléchargent dans les apps de bureau et Android au lieu de s'arrêter en route.",
+        "sharedDownloads": "Les gros fichiers partagés se téléchargent entièrement au lieu d'échouer quand le serveur est occupé.",
+        "transfers": "Les transferts entre appareils continuent tant que des données passent, au lieu de s'arrêter après 10 minutes.",
+        "slowLinks": "Le stockage GitHub et GitLab n'expire plus sur les gros morceaux via une connexion lente.",
+        "ownStorageFirst": "Les envois utilisent d'abord le stockage que vous avez connecté, et la limite du stockage partagé s'y applique toujours.",
+        "lockKeys": "Verrouiller le coffre efface aussi de la mémoire votre clé privée et les clés des Spaces.",
+        "decoyReauth": "Définir un mot de passe leurre demande votre vrai mot de passe, et votre code 2FA si la 2FA est activée.",
+        "pushPrivacy": "Les alertes n'indiquent plus aux services de notification le type d'alerte qu'elles transportent.",
+        "androidBackup": "Les données privées de l'app Android restent hors des sauvegardes Android et des transferts entre téléphones."
+      }
+    },
     "page": {
       "eyebrow": "Journal des modifications",
       "title": "Quoi de",

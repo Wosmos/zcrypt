@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.2.2",
+    "date": null,
+    "key": "v0_2_2",
+    "groups": [
+      {
+        "kind": "new",
+        "items": ["fastPreviews"]
+      },
+      {
+        "kind": "fixed",
+        "items": [
+          "thumbsInPlace",
+          "noCustomizeMedia",
+          "bigDownloads",
+          "sharedDownloads",
+          "transfers",
+          "slowLinks",
+          "ownStorageFirst"
+        ]
+      },
+      {
+        "kind": "security",
+        "items": ["lockKeys", "decoyReauth", "pushPrivacy", "androidBackup"]
+      }
+    ]
+  },
+  {
     "version": "0.2.1",
     "date": "2026-11-10",
     "key": "v0_2_1",
