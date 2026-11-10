@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use base64::Engine as _;
-use tokio::sync::mpsc;
 use zeroize::Zeroize;
 
 use crate::adapters::{self, AdapterError, PlatformAdapter};
@@ -237,6 +236,34 @@ async fn fetch_chunk(
 /// Decrypt (+ decompress) one chunk, then zeroize the caller's key clone, it's
 /// only needed for the AES-GCM cipher setup inside `unprocess_chunk`, which
 /// copies it into its own key schedule, so wiping it here afterward is safe.
+/// One chunk fetched (byos-direct when this device holds the platform's
+/// token, else through the relay) and decrypted off the async runtime. Shared
+/// by `download` and `decrypt_to_memory`.
+pub(super) fn fetch_plain_chunk(
+    ctx: &EngineContext,
+    sources: &DirectSources,
+    key: &[u8],
+    file_id: &str,
+    idx: u32,
+    cache_fetched: bool,
+) -> impl std::future::Future<Output = Result<Vec<u8>, EngineError>> + Send + 'static {
+    let (loc, adapter) = chunk_source(sources, idx as i64);
+    let client = ctx.client.clone();
+    let cancel = ctx.cancel.clone();
+    let key = key.to_vec();
+    let fid = file_id.to_string();
+    async move {
+        if cancel.is_cancelled() {
+            return Err(EngineError::Cancelled);
+        }
+        let (data, compressed) =
+            acquire_chunk(&client, loc, adapter, &fid, idx as i64, cache_fetched).await?;
+        tokio::task::spawn_blocking(move || decrypt_chunk_zeroizing(&data, key, compressed))
+            .await
+            .map_err(|e| EngineError::Other(format!("join: {e}")))?
+    }
+}
+
 /// CPU-bound; call inside `spawn_blocking`. Shared by `download` and
 /// `decrypt_to_memory` (each clones the resolved file key once per chunk) so
 /// this "zeroize after use" placement is reasoned about, and can go wrong, in
@@ -301,102 +328,50 @@ pub async fn run(
             .create_new(true)
             .open(&part_path)?,
     );
-    let (tx, rx) = mpsc::channel::<(u32, Vec<u8>)>((ctx.profile.concurrent_downloads * 2).max(4));
-
-    let sem = Arc::new(tokio::sync::Semaphore::new(
-        ctx.profile.concurrent_downloads,
-    ));
     // byos-direct telemetry: how many chunks go straight to the user's storage
-    // (zero server egress) vs. fall back to the relay. Logged at the end so we
-    // can verify the whole point of the migration, bytes not touching the
-    // server: is actually happening on this device.
-    let mut direct_chunks = 0u32;
-    let mut relay_chunks = 0u32;
-    let mut fetchers: tokio::task::JoinSet<Result<(), EngineError>> = tokio::task::JoinSet::new();
-    for idx in 0..meta.chunk_count {
-        // Stop scheduling new fetches the moment the user cancels; in-flight
-        // tasks below also short-circuit at entry, and the tail cleans up the
-        // partial .part file.
-        if ctx.cancel.is_cancelled() {
-            break;
-        }
-        let permit = sem.clone().acquire_owned().await.expect("semaphore");
-        let client = ctx.client.clone();
-        let cancel = ctx.cancel.clone();
-        let tx = tx.clone();
-        let key = key.clone();
-        let fid = file_id.to_string();
-        let (loc, adapter) = chunk_source(&sources, idx);
-        if adapter.is_some() {
-            direct_chunks += 1;
-        } else {
-            relay_chunks += 1;
-        }
-        fetchers.spawn(async move {
-            let _permit = permit;
-            if cancel.is_cancelled() {
-                return Err(EngineError::Cancelled);
-            }
-            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx, false).await?;
-            let plain = tokio::task::spawn_blocking(move || {
-                decrypt_chunk_zeroizing(&data, key, compressed)
-            })
-            .await
-            .map_err(|e| EngineError::Other(format!("join: {e}")))??;
-            tx.send((idx as u32, plain))
-                .await
-                .map_err(|_| EngineError::Other("writer gone".into()))
-        });
-    }
-    // Every fetcher above cloned its own copy of `key`, this original is no
-    // longer needed now that all of them have been spawned.
-    key.zeroize();
-    drop(tx);
+    // (zero server egress) vs. fall back to the relay.
+    let direct_chunks = (0..meta.chunk_count)
+        .filter(|&idx| chunk_source(&sources, idx).1.is_some())
+        .count();
     eprintln!(
-        "zcrypt download {file_id}: {direct_chunks} chunk(s) byos-direct, {relay_chunks} via relay"
+        "zcrypt download {file_id}: {direct_chunks} chunk(s) byos-direct, {} via relay",
+        meta.chunk_count as usize - direct_chunks
     );
 
     // Writer: strict order → hasher + disk. Progress per chunk.
+    let concurrency = ctx.profile.concurrent_downloads;
     let mut written_chunks = 0u32;
     let mut written_bytes = 0i64;
-    let write_result = ordered_writer::drain(rx, 0, total, |data: Vec<u8>| {
-        hasher.update(&data);
-        written_chunks += 1;
-        written_bytes += data.len() as i64;
-        emit(
-            Stage::Downloading,
-            written_chunks,
-            total,
-            written_bytes,
-            meta.original_size,
-        );
-        std::io::Write::write_all(&mut out, &data).map_err(EngineError::Io)
-    })
+    let result = ordered_writer::fetch_in_order(
+        total,
+        concurrency,
+        (concurrency * 3).max(4) as u32,
+        || ctx.cancel.is_cancelled(),
+        |idx| fetch_plain_chunk(ctx, &sources, &key, file_id, idx, false),
+        |data: Vec<u8>| {
+            hasher.update(&data);
+            written_chunks += 1;
+            written_bytes += data.len() as i64;
+            emit(
+                Stage::Downloading,
+                written_chunks,
+                total,
+                written_bytes,
+                meta.original_size,
+            );
+            std::io::Write::write_all(&mut out, &data).map_err(EngineError::Io)
+        },
+    )
     .await;
-
-    // Drain fetchers, preferring a real fetcher error (including a Cancelled
-    // from an in-flight task) over the sink's generic "writer gone". On ANY
-    // error (failure OR cancel) remove the partial .part file so a stopped
-    // download never leaves a half-written artifact behind.
-    let mut first_err: Option<EngineError> = None;
-    while let Some(res) = fetchers.join_next().await {
-        let r = res.unwrap_or_else(|e| Err(EngineError::Other(format!("join: {e}"))));
-        if let Err(e) = r {
-            if first_err.is_none() {
-                first_err = Some(e);
-            }
-        }
-    }
-    if first_err.is_none() {
-        if let Err(e) = write_result {
-            first_err = Some(e);
-        }
-    }
-    // The spawn loop can break early on cancel before any task errors; catch
-    // that case explicitly so a prompt cancel is still reported as Cancelled.
-    if first_err.is_none() && ctx.cancel.is_cancelled() {
-        first_err = Some(EngineError::Cancelled);
-    }
+    key.zeroize();
+    // On ANY error (failure OR cancel) remove the partial .part file so a
+    // stopped download never leaves a half-written artifact behind; a cancel is
+    // reported as such even when it surfaced as a short file.
+    let first_err = if ctx.cancel.is_cancelled() {
+        Some(EngineError::Cancelled)
+    } else {
+        result.err()
+    };
     if let Some(e) = first_err {
         drop(out);
         let _ = tokio::fs::remove_file(&part_path).await;

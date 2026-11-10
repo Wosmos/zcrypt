@@ -6,17 +6,11 @@
 //! instead of writing a file. Bounded by `MAX_BYTES` so a huge file can't OOM
 //! the app: the shell falls back to a streamed download above the cap.
 
-use std::sync::Arc;
-
-use tokio::sync::mpsc;
-
 use zeroize::Zeroize;
 
 use crate::types::{Progress, Stage};
 
-use super::download::{
-    acquire_chunk, chunk_source, decrypt_chunk_zeroizing, open_file, OpenedFile,
-};
+use super::download::{chunk_source, fetch_plain_chunk, open_file, OpenedFile};
 use super::{ordered_writer, EngineContext, EngineError};
 
 /// Hard cap on in-memory decrypts. Thumbnail/preview/viewer targets sit well
@@ -63,70 +57,42 @@ pub async fn run(
     let total = meta.chunk_count as u32;
 
     // 3. Concurrent fetch/decrypt feeding the ordered assembler.
-    let (tx, rx) = mpsc::channel::<(u32, Vec<u8>)>((ctx.profile.concurrent_downloads * 2).max(4));
-    let sem = Arc::new(tokio::sync::Semaphore::new(
-        ctx.profile.concurrent_downloads,
-    ));
-    let mut direct_chunks = 0u32;
-    let mut relay_chunks = 0u32;
-    let mut fetchers: tokio::task::JoinSet<Result<(), EngineError>> = tokio::task::JoinSet::new();
-    for idx in 0..meta.chunk_count {
-        let permit = sem.clone().acquire_owned().await.expect("semaphore");
-        let client = ctx.client.clone();
-        let tx = tx.clone();
-        let key = key.clone();
-        let fid = file_id.to_string();
-        let (loc, adapter) = chunk_source(&sources, idx);
-        if adapter.is_some() {
-            direct_chunks += 1;
-        } else {
-            relay_chunks += 1;
-        }
-        fetchers.spawn(async move {
-            let _permit = permit;
-            let (data, compressed) = acquire_chunk(&client, loc, adapter, &fid, idx, true).await?;
-            let plain = tokio::task::spawn_blocking(move || {
-                decrypt_chunk_zeroizing(&data, key, compressed)
-            })
-            .await
-            .map_err(|e| EngineError::Other(format!("join: {e}")))??;
-            tx.send((idx as u32, plain))
-                .await
-                .map_err(|_| EngineError::Other("assembler gone".into()))
-        });
-    }
-    // Every fetcher above cloned its own copy of `key`, this original is no
-    // longer needed now that all of them have been spawned.
-    key.zeroize();
-    drop(tx);
+    let direct_chunks = (0..meta.chunk_count)
+        .filter(|&idx| chunk_source(&sources, idx).1.is_some())
+        .count();
     eprintln!(
-        "zcrypt decrypt {file_id}: {direct_chunks} chunk(s) byos-direct, {relay_chunks} via relay"
+        "zcrypt decrypt {file_id}: {direct_chunks} chunk(s) byos-direct, {} via relay",
+        meta.chunk_count as usize - direct_chunks
     );
 
     // Assemble strictly in index order into one buffer (bounded by MAX_BYTES).
+    let concurrency = ctx.profile.concurrent_downloads;
     let mut bytes: Vec<u8> = Vec::with_capacity(meta.original_size.max(0) as usize);
     let mut done_chunks = 0u32;
     let mut done_bytes = 0i64;
-    let assemble = ordered_writer::drain(rx, 0, total, |data: Vec<u8>| {
-        hasher.update(&data);
-        done_chunks += 1;
-        done_bytes += data.len() as i64;
-        emit(
-            Stage::Downloading,
-            done_chunks,
-            total,
-            done_bytes,
-            meta.original_size,
-        );
-        bytes.extend_from_slice(&data);
-        Ok(())
-    })
+    let assemble = ordered_writer::fetch_in_order(
+        total,
+        concurrency,
+        (concurrency * 3).max(4) as u32,
+        || ctx.cancel.is_cancelled(),
+        |idx| fetch_plain_chunk(ctx, &sources, &key, file_id, idx, true),
+        |data: Vec<u8>| {
+            hasher.update(&data);
+            done_chunks += 1;
+            done_bytes += data.len() as i64;
+            emit(
+                Stage::Downloading,
+                done_chunks,
+                total,
+                done_bytes,
+                meta.original_size,
+            );
+            bytes.extend_from_slice(&data);
+            Ok(())
+        },
+    )
     .await;
-
-    // Surface the first fetcher error over a generic assembler error.
-    while let Some(res) = fetchers.join_next().await {
-        res.map_err(|e| EngineError::Other(format!("join: {e}")))??;
-    }
+    key.zeroize();
     assemble?;
 
     // 4. Whole-file integrity (also the wrong-passphrase catch for legacy
