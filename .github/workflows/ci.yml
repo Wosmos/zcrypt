@@ -321,7 +321,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       needs.frontend.result == 'success' &&
       needs.backend.result != 'failure'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
