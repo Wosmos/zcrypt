@@ -1031,6 +1031,16 @@ jobs:
               xml = xml[: app.start()] + perms + xml[app.start():]
               at = re.search(r"<application\b", xml).end()
               xml = xml[:at] + ' android:requestLegacyExternalStorage="true"' + xml[at:]
+          # The app's private data (the backup job's own sign-in, the local
+          # ledger) must never leave the phone in an Android backup or a
+          # device-to-device transfer.
+          if 'android:allowBackup="false"' not in xml:
+              xml = re.sub(r'\s+android:allowBackup="[^"]*"', "", xml)
+              at = re.search(r"<application\b", xml).end()
+              xml = xml[:at] + ' android:allowBackup="false" android:fullBackupContent="false"' + xml[at:]
+              if "tools:replace=" not in xml[: xml.find(">", at)]:
+                  xml = xml[:at] + ' tools:replace="android:allowBackup"' + xml[at:]
+              open(manifest, "w").write(xml)
               service = (
                   '<service android:name="androidx.work.impl.foreground.SystemForegroundService" '
                   'android:foregroundServiceType="dataSync" tools:node="merge" />\n'
@@ -1050,6 +1060,8 @@ jobs:
           PY
           grep -q 'READ_MEDIA_IMAGES' "$MANIFEST" \
             || { echo "::error::photo permissions missing from $MANIFEST"; exit 1; }
+          grep -q 'android:allowBackup="false"' "$MANIFEST" \
+            || { echo "::error::app data is still allowed into Android backups"; exit 1; }
           grep -q 'SystemForegroundService' "$MANIFEST" \
             || { echo "::error::WorkManager foreground service missing from $MANIFEST"; exit 1; }
           grep -q 'androidx.work:work-runtime' "$GRADLE" \
