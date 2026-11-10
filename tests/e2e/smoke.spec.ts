@@ -439,6 +439,41 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await api.dispose();
   });
 
+  test("a photo's thumbnail appears in place, without leaving the vault", async () => {
+    await page.goto("/dashboard");
+    const jpeg = await page.evaluate(async () => {
+      const c = document.createElement("canvas");
+      c.width = 640;
+      c.height = 480;
+      const g = c.getContext("2d")!;
+      const grad = g.createLinearGradient(0, 0, 640, 480);
+      grad.addColorStop(0, "#0ea5e9");
+      grad.addColorStop(1, "#f97316");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 640, 480);
+      const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), "image/jpeg", 0.9));
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let s = "";
+      for (const b of bytes) s += String.fromCharCode(b);
+      return btoa(s);
+    });
+    await uploadViaUI(page, [{ name: "smoke-photo.jpg", bytes: Buffer.from(jpeg, "base64") }]);
+
+    // Drop the cached preview so the grid has to make it again, then stay put:
+    // the tile must swap from its placeholder to the photo on its own.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          const req = indexedDB.deleteDatabase("zcrypt_thumbs");
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        }),
+    );
+    await page.reload();
+    const tile = page.locator('[data-tour="file-card"]').filter({ hasText: "smoke-photo.jpg" });
+    await expect(tile).toBeVisible({ timeout: 15_000 });
+    await expect(tile.locator("img")).toBeVisible({ timeout: 20_000 });
+  });
+
   test("language switch to Arabic flips direction and translates the nav", async ({ browser }) => {
     const ctx = await freshContext(browser);
     try {

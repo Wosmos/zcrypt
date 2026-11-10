@@ -66,7 +66,6 @@ const idListeners = new Map<string, Set<() => void>>();
 // disk, and shimmers through it. Gating on this makes cached thumbnails appear
 // instantly across reloads/logouts (the cache itself already survives both).
 let hydrated = false;
-let listeners: (() => void)[] = [];
 function notify(id?: string) {
   if (id === undefined) {
     version++;
@@ -75,7 +74,6 @@ function notify(id?: string) {
     idVersion.set(id, (idVersion.get(id) ?? 0) + 1);
     for (const l of idListeners.get(id) ?? []) l();
   }
-  for (const l of listeners) l();
 }
 function subscribeId(id: string, cb: () => void) {
   let set = idListeners.get(id);
@@ -91,15 +89,6 @@ function subscribeId(id: string, cb: () => void) {
 }
 function getIdVersion(id: string): string {
   return `${version}:${idVersion.get(id) ?? 0}`;
-}
-function subscribe(cb: () => void) {
-  listeners.push(cb);
-  return () => {
-    listeners = listeners.filter((l) => l !== cb);
-  };
-}
-function getSnapshot() {
-  return memCache;
 }
 
 /** Given up after MAX_THUMB_ATTEMPTS: show the type icon, stop retrying. */
@@ -723,6 +712,57 @@ export function getCachedThumbnailCount(): number {
 }
 
 // ── React hook ───────────────────────────────────────────────────────
+interface ThumbState {
+  thumbnailUrl: string | null;
+  loading: boolean;
+  pending: boolean;
+  unavailable: boolean;
+  shouldGenerate: boolean;
+}
+
+/**
+ * Everything a card shows about one file's thumbnail, read from this module's
+ * state. `version` is the store version the hook subscribed to: it is the only
+ * input that changes when a thumbnail lands, so the React Compiler (which
+ * memoizes a render's computations by their inputs) recomputes this on every
+ * thumbnail event instead of keeping its first answer until the card remounts.
+ */
+function readThumbState(
+  fileId: string,
+  filename: string,
+  size: number | undefined,
+  version: string,
+): ThumbState {
+  void version;
+  const thumbnailUrl = memCache.get(fileId) ?? null;
+  const thumbable = isImageFile(filename) || isVideoFile(filename);
+  const withinSize = size === undefined || size < MAX_FILE_SIZE;
+  const ctxReady = ctxPassphrase !== null;
+  return {
+    thumbnailUrl,
+    loading: inflight.has(fileId),
+    // Whether a (re)generation should run now: flips false→true when a failed
+    // attempt's backoff elapses and its retry timer notifies.
+    shouldGenerate:
+      hydrated && ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId),
+    // Shimmer ONLY while a not-yet-cached preview is imminent, and never
+    // open-ended: within its SHIMMER_MAX_MS grace window (startedAt undefined →
+    // about to dispatch). Past the window a still-generating tile shows its type
+    // icon and the real thumbnail swaps in the moment it lands. Gated on
+    // `hydrated` so a reload never flashes a shimmer over previews cached on disk.
+    pending:
+      hydrated &&
+      thumbable &&
+      withinSize &&
+      ctxReady &&
+      !thumbnailUrl &&
+      !isPermanentlyFailed(fileId) &&
+      withinShimmerGrace(fileId),
+    // Only a thumbable, in-size file can ever have been attempted at all.
+    unavailable: thumbable && withinSize && !thumbnailUrl && isHardFailed(fileId),
+  };
+}
+
 export function useThumbnail(
   fileId: string,
   filename: string,
@@ -778,66 +818,35 @@ export function useThumbnail(
     };
   }, [fileId]);
 
-  const thumbnailUrl = memCache.get(fileId) ?? null;
-  const loading = inflight.has(fileId);
-  const thumbable = isImageFile(filename) || isVideoFile(filename);
-  const withinSize = size === undefined || size < MAX_FILE_SIZE;
-  const ctxReady = ctxPassphrase !== null;
-
-  // Whether a (re)generation should run right now. Recomputed every render:
-  // including the notify() the retry timer fires, so `canGenerateNow` flips
-  // false→true when a failed attempt's backoff elapses and the effect re-runs.
-  const shouldGenerate =
-    hydrated && ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId);
+  const { thumbnailUrl, loading, pending, unavailable, shouldGenerate } = readThumbState(
+    fileId,
+    filename,
+    size,
+    storeVersion,
+  );
 
   // Lazy: generate this file's thumbnail the first time it renders after unlock,
   // and again after a transient failure's backoff. fetchAndCacheThumbnail queues
   // itself behind the shared concurrency limit and guards against double-starts.
-  //
-  // Level-triggered, NOT edge-triggered: `storeVersion` bumps on every notify(),
-  // so this effect re-evaluates whenever thumbnail state moves (re-prime on
-  // unlock, retry-backoff wake-up, a run dropped by a lock). Keying it only on a
-  // `shouldGenerate` false->true transition used to strand a tile at pending=true
-  // with nothing in flight (no cache, no failed entry, no future trigger) until
-  // a full reload reset the module. The guard below still blocks duplicate
-  // dispatch, and `shouldGenerate` folds in `canGenerateNow` (backoff), so
-  // re-running on every notify cannot spam.
+  // Level-triggered on `storeVersion` (bumped by every notify), so a re-prime on
+  // unlock, a retry wake-up or a run dropped by a lock all re-evaluate here.
   useEffect(() => {
-    void storeVersion; // dependency: re-run this level-check on every state change
+    void storeVersion;
     if (!shouldGenerate) return;
     if (memCache.has(fileId) || inflight.has(fileId)) return;
-    // fetchAndCacheThumbnail resolves to null on every internal failure, so this
-    // rejection handler never actually runs. It only guards against a future
-    // edit introducing a throw outside its try, which would otherwise surface as
-    // an unhandled rejection in an effect.
     /* v8 ignore start */
     fetchAndCacheThumbnail(fileId, filename, ctxPassphrase as string, ctxResolver).catch(() => {});
     /* v8 ignore stop */
   }, [storeVersion, shouldGenerate, fileId, filename]);
 
-  // Shimmer ONLY while a not-yet-cached preview is genuinely imminent, and never
-  // open-ended. A cached tile (thumbnailUrl set) never shimmers. An uncached one
-  // shimmers within its SHIMMER_MAX_MS grace window (startedAt undefined → about
-  // to dispatch → optimistically shimmer; once it starts, the window is
-  // time-boxed). Past the window a still-generating tile shows its type icon and
-  // the real thumbnail swaps in via memCache the moment generation succeeds.
-  // Gated on `hydrated` so a reload never flashes a shimmer over previews that
-  // are cached on disk and about to appear instantly.
-  const withinGrace = withinShimmerGrace(fileId);
-  const pending =
-    hydrated &&
-    thumbable &&
-    withinSize &&
-    ctxReady &&
-    !thumbnailUrl &&
-    !isPermanentlyFailed(fileId) &&
-    withinGrace;
-
-  // Only a thumbable, in-size file can ever have been attempted at all, a
-  // plain document never touches `failed`, so this is naturally false for it.
-  const unavailable = thumbable && withinSize && !thumbnailUrl && isHardFailed(fileId);
-
   return { thumbnailUrl, loading, pending, unavailable, cardRef };
+}
+
+/** The cached thumbnail, keyed on the store version for the same reason as
+ *  `readThumbState`: so a memoizing compiler re-reads it when it lands. */
+function readCached(fileId: string | undefined, version: string): string | null {
+  void version;
+  return fileId ? (memCache.get(fileId) ?? null) : null;
 }
 
 /** Read-only: a file's cached thumbnail, updating when it lands. Never fetches or decrypts. */
@@ -845,11 +854,6 @@ export function useCachedThumbnail(fileId: string | undefined): string | null {
   const id = fileId ?? "";
   const sub = useCallback((cb: () => void) => subscribeId(id, cb), [id]);
   const ver = useCallback(() => getIdVersion(id), [id]);
-  useSyncExternalStore(sub, ver, ver);
-  return fileId ? (memCache.get(fileId) ?? null) : null;
-}
-
-/** Hook to get all cached thumbnails (for listing). */
-export function useThumbnailCache(): Map<string, string> {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const version = useSyncExternalStore(sub, ver, ver);
+  return readCached(fileId, version);
 }

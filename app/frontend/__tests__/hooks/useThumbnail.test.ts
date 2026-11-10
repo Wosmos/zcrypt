@@ -853,26 +853,6 @@ describe("useThumbnail", () => {
     await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
   });
 
-  it("useThumbnailCache reflects newly generated thumbnails", async () => {
-    const { primeThumbnails, useThumbnail, useThumbnailCache } = await loadModule();
-    getFileMetaMock.mockResolvedValue(makeMeta());
-    getFileChunkMock.mockResolvedValue({
-      data: new ArrayBuffer(4),
-      sha256: "x",
-      compressed: false,
-    });
-
-    const cacheHook = renderHook(() => useThumbnailCache());
-    expect(cacheHook.result.current.get("f1")).toBeUndefined();
-
-    act(() => primeThumbnails("vault-pass"));
-    renderHook(() => useThumbnail("f1", "photo.jpg"));
-
-    await waitFor(() =>
-      expect(cacheHook.result.current.get("f1")).toBe("data:image/webp;base64,FAKE")
-    );
-  });
-
   it("marks a video failed on a decode error event", async () => {
     videoBehavior = { mode: "error", width: 0, height: 0 };
     const { primeThumbnails, useThumbnail } = await loadModule();
