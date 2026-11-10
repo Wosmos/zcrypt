@@ -87,6 +87,18 @@ fn safe_segment(seg: &str) -> bool {
 /// credential's account and `remote_path` must be a plain relative zcrypt chunk
 /// path (`ab/cdef....bin`, or a flat `<hex>.bin`) with no traversal, query or
 /// fragment characters.
+/// Deadline for a request that is not a chunk transfer (metadata, listings).
+pub(crate) const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+/// How long to wait for a connection to open, separate from the transfer.
+pub(crate) const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Deadline for moving one chunk of `bytes`: a fixed allowance plus the size at
+/// a slow-but-alive 256 KiB/s, so a multi-MB chunk on a slow link isn't cut off
+/// by a flat timeout while a stalled one still fails in bounded time.
+pub(crate) fn transfer_deadline(bytes: u64) -> std::time::Duration {
+    std::time::Duration::from_secs(60 + bytes / (256 * 1024))
+}
+
 pub(crate) fn validate_locator(
     account: &str,
     owner: &str,
@@ -155,6 +167,14 @@ pub fn shared_adapter(
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_chunk_gets_time_in_proportion_to_its_size() {
+        assert_eq!(super::transfer_deadline(0).as_secs(), 60);
+        assert_eq!(super::transfer_deadline(25 * 1024 * 1024).as_secs(), 160);
+        assert!(super::transfer_deadline(25 * 1024 * 1024) > super::REQUEST_TIMEOUT);
+    }
+
     use super::*;
 
     #[test]

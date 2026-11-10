@@ -4,8 +4,6 @@
 //! matching Go's `url.PathEscape`), base64 content, and offset-paginated
 //! recursive tree listing.
 
-use std::time::Duration;
-
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine as _;
@@ -29,7 +27,7 @@ pub struct GitLab {
 impl GitLab {
     pub fn new(token: &str, account: &str) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .connect_timeout(super::CONNECT_TIMEOUT)
             .build()
             .expect("build reqwest client");
         Self {
@@ -47,6 +45,7 @@ impl GitLab {
     fn req(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
         self.client
             .request(method, url)
+            .timeout(super::REQUEST_TIMEOUT)
             .header("PRIVATE-TOKEN", self.token.as_str())
     }
 
@@ -182,6 +181,7 @@ impl PlatformAdapter for GitLab {
         self.check(repo, &remote_path)?;
         let resp = self
             .req(Method::POST, &file_url(repo, &remote_path))
+            .timeout(super::transfer_deadline(data.len() as u64 * 4 / 3))
             .json(&serde_json::json!({
                 "branch": "main",
                 "content": BASE64.encode(&data),
@@ -206,7 +206,11 @@ impl PlatformAdapter for GitLab {
     async fn download(&self, r#ref: &ChunkRef) -> Result<Vec<u8>, AdapterError> {
         self.check(&r#ref.repo, &r#ref.remote_path)?;
         let url = raw_file_url(&r#ref.repo, &r#ref.remote_path);
-        let resp = self.req(Method::GET, &url).send().await?;
+        let resp = self
+            .req(Method::GET, &url)
+            .timeout(super::transfer_deadline(r#ref.size.max(0) as u64))
+            .send()
+            .await?;
         if !resp.status().is_success() {
             return Err(error_from("download chunk", resp).await);
         }

@@ -32,7 +32,7 @@ pub struct GitHub {
 impl GitHub {
     pub fn new(token: &str, account: &str) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .connect_timeout(super::CONNECT_TIMEOUT)
             // GitHub rejects requests without a User-Agent (go-github set its own).
             .user_agent("zcrypt-core")
             .build()
@@ -52,6 +52,7 @@ impl GitHub {
     fn req(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
         self.client
             .request(method, url)
+            .timeout(super::REQUEST_TIMEOUT)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github+json")
     }
@@ -226,6 +227,7 @@ impl PlatformAdapter for GitHub {
 
             let resp = self
                 .req(Method::PUT, &url)
+                .timeout(super::transfer_deadline(content_b64.len() as u64))
                 .json(&serde_json::json!({
                     "message": disguise::commit_message(),
                     "content": &content_b64,
@@ -261,7 +263,11 @@ impl PlatformAdapter for GitHub {
         // raw.githubusercontent.com directly: single request, no size limit,
         // avoids the 2-request Contents API dance (same as the Go adapter).
         let url = raw_url(owner, repo_name, &r#ref.remote_path);
-        let resp = self.req(Method::GET, &url).send().await?;
+        let resp = self
+            .req(Method::GET, &url)
+            .timeout(super::transfer_deadline(r#ref.size.max(0) as u64))
+            .send()
+            .await?;
         if !resp.status().is_success() {
             return Err(error_from("download chunk", resp).await);
         }
