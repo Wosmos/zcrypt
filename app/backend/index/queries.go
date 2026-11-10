@@ -217,6 +217,43 @@ func (db *DB) UpdateFileKey(ctx context.Context, userID, fileID string, salt []b
 	return nil
 }
 
+// SetFileThumb stores a file's sealed preview, scoped to its owner. Returns
+// false when the file isn't the user's or is in the trash.
+func (db *DB) SetFileThumb(ctx context.Context, userID, fileID string, thumb []byte) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE files SET encrypted_thumb = $3 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+		fileID, userID, thumb,
+	)
+	if err != nil {
+		return false, fmt.Errorf("set file thumb: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// FileThumbs returns the sealed previews the user's files have, keyed by file
+// id. Ids that aren't the user's, or have no preview yet, are left out.
+func (db *DB) FileThumbs(ctx context.Context, userID string, fileIDs []string) (map[string][]byte, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id::text, encrypted_thumb FROM files
+		 WHERE user_id = $1 AND id = ANY($2::uuid[]) AND encrypted_thumb IS NOT NULL AND deleted_at IS NULL`,
+		userID, fileIDs,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("file thumbs: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string][]byte, len(fileIDs))
+	for rows.Next() {
+		var id string
+		var thumb []byte
+		if err := rows.Scan(&id, &thumb); err != nil {
+			return nil, fmt.Errorf("file thumbs: scan: %w", err)
+		}
+		out[id] = thumb
+	}
+	return out, rows.Err()
+}
+
 // UpdateFileStyle sets or clears a file's opaque encrypted style blob (icon + color),
 // scoped to the owning user. A nil encryptedStyle clears the column back to NULL (auto/default
 // styling); the server never validates or interprets the value beyond storing it verbatim.

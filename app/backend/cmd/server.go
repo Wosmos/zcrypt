@@ -929,6 +929,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/files/{id}/style", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleUpdateFileStyle, "id"))))
 	mux.HandleFunc("PATCH /api/files/{id}/name", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleSetFileName, "id"))))
 	mux.HandleFunc("PUT /api/files/{id}/rekey", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRekeyFile, "id"))))
+	mux.HandleFunc("PUT /api/files/{id}/thumb", s.AuthMiddleware(uuidPathParams(s.HandleSetFileThumb, "id")))
+	mux.HandleFunc("POST /api/files/thumbs", maxJSON(s.AuthMiddleware(s.HandleFileThumbs)))
 	mux.HandleFunc("POST /api/files/{id}/retry-sync", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRetryFileSync, "id"))))
 	mux.HandleFunc("POST /api/files/verify", maxJSON(s.AuthMiddleware(s.HandleVerifyFiles)))
 	mux.HandleFunc("POST /api/files/{id}/restore", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRestoreFile, "id"))))

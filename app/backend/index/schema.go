@@ -999,6 +999,11 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ;
 -- platform (download 404 or a verify sweep), so the file must be re-uploaded.
 ALTER TABLE files ADD COLUMN IF NOT EXISTS health TEXT NOT NULL DEFAULT 'ok';
 
+-- A small preview the client made and sealed with the file's own key
+-- (docs/CRYPTO_FORMAT.md 2.4), so a grid can show photos without downloading
+-- each original. Opaque to the server; NULL until a client uploads one.
+ALTER TABLE files ADD COLUMN IF NOT EXISTS encrypted_thumb BYTEA;
+
 -- The remote path minted at presign for a direct (HuggingFace LFS) chunk, so the
 -- confirm can be held to it instead of trusting a client-supplied path. One row
 -- per (session, idx); a re-presign of the same index replaces it.
