@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"slices"
 	// Registered for image.DecodeConfig so validateAvatar can verify that an
 	// uploaded avatar's bytes really decode as its declared type.
 	_ "image/jpeg"
@@ -438,7 +439,7 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, refreshToken := range refreshTokenCandidates(r) {
+	for _, refreshToken := range logoutTokenCandidates(r) {
 		if rt, err := s.db.GetRefreshTokenByHash(ctx, auth.HashToken(refreshToken)); err == nil {
 			_ = s.db.DeleteRefreshToken(ctx, rt.ID)
 		}
@@ -1523,30 +1524,47 @@ func setRefreshCookie(w http.ResponseWriter, domain, token string) {
 	})
 }
 
-// refreshTokenCandidates lists every refresh token the request carries: each
-// zcrypt_rt cookie (a browser can hold a host-only and a site-wide one at
-// once), then the JSON body's refresh_token (desktop/native clients, and the
-// web app planting its cookie). An absent or empty body is not an error.
-func refreshTokenCandidates(r *http.Request) []string {
-	var out []string
+// presentedRefreshTokens returns the refresh token in the JSON body (if any)
+// and every refresh cookie, without duplicates or empties.
+func presentedRefreshTokens(r *http.Request) (body string, cookies []string) {
 	seen := map[string]bool{}
-	add := func(v string) {
-		if v != "" && !seen[v] {
-			seen[v] = true
-			out = append(out, v)
-		}
-	}
 	for _, c := range r.Cookies() {
-		if c.Name == refreshCookieName {
-			add(c.Value)
+		if c.Name == refreshCookieName && c.Value != "" && !seen[c.Value] {
+			seen[c.Value] = true
+			cookies = append(cookies, c.Value)
 		}
 	}
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	add(req.RefreshToken)
-	return out
+	return req.RefreshToken, cookies
+}
+
+// refreshTokenCandidates lists the refresh tokens a refresh may use. A token in
+// the body is the caller naming its session, so it is the only candidate: a
+// leftover cookie from another session or account must never win over it.
+// Without one, the cookies are tried, at most two (a host-only copy from
+// before the site-wide cookie, and the site-wide one).
+func refreshTokenCandidates(r *http.Request) []string {
+	body, cookies := presentedRefreshTokens(r)
+	if body != "" {
+		return []string{body}
+	}
+	if len(cookies) > 2 {
+		cookies = cookies[:2]
+	}
+	return cookies
+}
+
+// logoutTokenCandidates lists every refresh token the request carries: signing
+// out ends all of them.
+func logoutTokenCandidates(r *http.Request) []string {
+	body, cookies := presentedRefreshTokens(r)
+	if body != "" && !slices.Contains(cookies, body) {
+		cookies = append(cookies, body)
+	}
+	return cookies
 }
 
 // clearRefreshCookie expires the session cookie in both of its possible forms.

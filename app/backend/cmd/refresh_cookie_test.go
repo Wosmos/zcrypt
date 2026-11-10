@@ -8,14 +8,30 @@ import (
 	"testing"
 )
 
-func TestRefreshTokenCandidatesListsEveryCookieThenBody(t *testing.T) {
+func TestRefreshTokenCandidatesPreferTheBodyOverEveryCookie(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(`{"refresh_token":"from-body"}`))
 	req.Header.Add("Cookie", refreshCookieName+"=stale-host-only; "+refreshCookieName+"=site-wide")
 
-	got := refreshTokenCandidates(req)
-	want := []string{"stale-host-only", "site-wide", "from-body"}
-	if !slices.Equal(got, want) {
-		t.Fatalf("candidates = %v, want %v", got, want)
+	if got := refreshTokenCandidates(req); !slices.Equal(got, []string{"from-body"}) {
+		t.Fatalf("candidates = %v, want only the body token", got)
+	}
+}
+
+func TestRefreshTokenCandidatesTryAtMostTwoCookies(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(``))
+	req.Header.Add("Cookie", refreshCookieName+"=a; "+refreshCookieName+"=b; "+refreshCookieName+"=c")
+
+	if got := refreshTokenCandidates(req); !slices.Equal(got, []string{"a", "b"}) {
+		t.Fatalf("candidates = %v, want [a b]", got)
+	}
+}
+
+func TestLogoutTokenCandidatesEndEveryTokenPresented(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", strings.NewReader(`{"refresh_token":"from-body"}`))
+	req.Header.Add("Cookie", refreshCookieName+"=a; "+refreshCookieName+"=from-body")
+
+	if got := logoutTokenCandidates(req); !slices.Equal(got, []string{"a", "from-body"}) {
+		t.Fatalf("logout candidates = %v", got)
 	}
 }
 
