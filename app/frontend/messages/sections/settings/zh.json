@@ -461,7 +461,10 @@
       "removeFileTitle": "移除诱饵文件？",
       "removeFileDesc": "从诱饵保险库中移除“{name}”？",
       "loadFailed": "无法加载你的诱饵保险库设置。未做任何更改。",
-      "retry": "重试"
+      "retry": "重试",
+      "accountPassword": "你的 zcrypt 密码",
+      "accountPasswordPlaceholder": "你登录时用的密码",
+      "code": "两步验证码"
     },
     "emailPrefs": {
       "label": "邮件",

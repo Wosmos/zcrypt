@@ -461,7 +461,10 @@
       "removeFileTitle": "Удалить ложный файл?",
       "removeFileDesc": "Удалить «{name}» из ложного хранилища?",
       "loadFailed": "Не удалось загрузить настройки ложного хранилища. Ничего не изменено.",
-      "retry": "Повторить"
+      "retry": "Повторить",
+      "accountPassword": "Ваш пароль zcrypt",
+      "accountPasswordPlaceholder": "Тот, которым вы входите",
+      "code": "Код 2FA"
     },
     "emailPrefs": {
       "label": "Почта",

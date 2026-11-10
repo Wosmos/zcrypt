@@ -715,6 +715,10 @@ type DecoyFile struct {
 type DecoySetupRequest struct {
 	DecoyPassword string `json:"decoy_password"`
 	Enabled       *bool  `json:"enabled,omitempty"`
+	// Password and Code re-confirm the account owner: the current password
+	// (when the account has one) and a fresh 2FA code (when 2FA is on).
+	Password string `json:"password"`
+	Code     string `json:"code"`
 }
 
 // DecoyFileRequest is the JSON body for adding a decoy file.

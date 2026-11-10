@@ -2044,6 +2044,10 @@ export function getDecoyStatus(): Promise<DecoyStatus> {
 export function setupDecoy(data: {
   decoy_password: string;
   enabled?: boolean;
+  /** The account's current password, re-confirming the owner. */
+  password: string;
+  /** A fresh 2FA code when 2FA is on. */
+  code?: string;
 }): Promise<{ success: boolean }> {
   return request<{ success: boolean }>("/api/decoy/setup", {
     method: "POST",

@@ -148,7 +148,7 @@ func TestAccountRoutesInDecoySessions(t *testing.T) {
 	email := uniqueEmail("decoy-account")
 	decoyPassword := newTestPassword()
 	real := ts.registerAndLogin(email, accountTestPassword)
-	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword}, real), http.StatusOK)
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword, "password": accountTestPassword}, real), http.StatusOK)
 	requireStatus(t, ts.POST("/api/decoy/files", map[string]interface{}{"name": "tax-return-2025.pdf", "size": 1234}, real), http.StatusCreated)
 	user, err := ts.db.GetUserByEmail(ctx, strings.ToLower(email))
 	require.NoError(t, err)

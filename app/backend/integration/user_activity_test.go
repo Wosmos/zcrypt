@@ -75,7 +75,7 @@ func TestUserActivityHiddenFromDecoySessions(t *testing.T) {
 	_, err := ts.db.Pool().Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email)
 	require.NoError(t, err)
 	real := ts.registerAndLogin(email, password)
-	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword}, real), 200)
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword, "password": password}, real), 200)
 
 	resp := ts.POST("/api/auth/login", map[string]string{"email": email, "password": decoyPassword}, "")
 	body := requireStatus(t, resp, 200)

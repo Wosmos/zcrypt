@@ -598,8 +598,22 @@ func TestTwoFADecoyLoginRequiresSecondFactor(t *testing.T) {
 	password := newTestPassword()
 	const decoyPassword = "duress-pass-99"
 
-	real, secret := setup2FA(ts, t, email, password)
-	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword}, real), http.StatusOK)
+	_, err := ts.db.Pool().Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email)
+	require.NoError(t, err)
+	real := ts.registerAndLogin(email, password)
+	// The decoy is set up before 2FA is on, so the code that turns 2FA on and
+	// the one that finishes the decoy sign-in below are the only two spent.
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword, "password": password}, real), http.StatusOK)
+	var setup struct {
+		Secret string `json:"secret"`
+	}
+	require.NoError(t, jsonUnmarshal(requireStatus(t, ts.POST("/api/auth/2fa/setup", map[string]string{"password": password}, real), http.StatusOK), &setup))
+	secret := setup.Secret
+	requireStatus(t, ts.POST("/api/auth/2fa/enable", map[string]string{
+		"code": auth.TOTPCodeAt(secret, time.Now()), "password": password,
+	}, real), http.StatusOK)
+	// With 2FA on, changing the decoy needs a code as well as the password.
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword, "password": password}, real), http.StatusUnauthorized)
 
 	resp := ts.POST("/api/auth/login", map[string]string{"email": email, "password": decoyPassword}, "")
 	body := requireStatus(t, resp, http.StatusOK)

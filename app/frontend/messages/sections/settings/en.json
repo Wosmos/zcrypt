@@ -461,7 +461,10 @@
       "removeFileTitle": "Remove decoy file?",
       "removeFileDesc": "Remove \"{name}\" from the decoy vault?",
       "loadFailed": "Could not load your decoy vault settings. Nothing has been changed.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "accountPassword": "Your zcrypt password",
+      "accountPasswordPlaceholder": "The one you sign in with",
+      "code": "2FA code"
     },
     "emailPrefs": {
       "label": "Email",

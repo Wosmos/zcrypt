@@ -461,7 +461,10 @@
       "removeFileTitle": "Retirer le fichier leurre ?",
       "removeFileDesc": "Retirer « {name} » du coffre leurre ?",
       "loadFailed": "Impossible de charger les paramètres de votre coffre leurre. Rien n'a été modifié.",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "accountPassword": "Votre mot de passe zcrypt",
+      "accountPasswordPlaceholder": "Celui de votre connexion",
+      "code": "Code 2FA"
     },
     "emailPrefs": {
       "label": "E-mail",

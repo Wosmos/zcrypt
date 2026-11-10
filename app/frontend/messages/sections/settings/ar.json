@@ -461,7 +461,10 @@
       "removeFileTitle": "إزالة الملف الوهمي؟",
       "removeFileDesc": "إزالة \"{name}\" من الخزنة الوهمية؟",
       "loadFailed": "تعذر تحميل إعدادات القبو الوهمي. لم يتم تغيير أي شيء.",
-      "retry": "حاول مرة أخرى"
+      "retry": "حاول مرة أخرى",
+      "accountPassword": "كلمة مرور zcrypt الخاصة بك",
+      "accountPasswordPlaceholder": "التي تسجّل الدخول بها",
+      "code": "رمز التحقق بخطوتين"
     },
     "emailPrefs": {
       "label": "البريد الإلكتروني",

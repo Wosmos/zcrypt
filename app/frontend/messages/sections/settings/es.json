@@ -461,7 +461,10 @@
       "removeFileTitle": "¿Quitar el archivo señuelo?",
       "removeFileDesc": "¿Quitar «{name}» de la bóveda señuelo?",
       "loadFailed": "No se pudo cargar la configuración de tu bóveda señuelo. No se ha cambiado nada.",
-      "retry": "Intentar de nuevo"
+      "retry": "Intentar de nuevo",
+      "accountPassword": "Tu contraseña de zcrypt",
+      "accountPasswordPlaceholder": "La que usas para entrar",
+      "code": "Código 2FA"
     },
     "emailPrefs": {
       "label": "Correo",

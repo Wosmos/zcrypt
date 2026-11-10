@@ -102,6 +102,18 @@ func (s *Server) HandleSetupDecoy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A decoy is a second password that opens the account, so setting one needs
+	// the owner, not just a session: the current password when the account has
+	// one, and a fresh 2FA code when 2FA is on.
+	if user.PasswordHash != "" && auth.CheckPassword(req.Password, user.PasswordHash) != nil {
+		writeError(w, http.StatusUnauthorized, "your current password is incorrect")
+		return
+	}
+	if err := s.checkSecondFactor(r.Context(), user, req.Code); err != nil {
+		writeError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
 	if auth.CheckPassword(req.DecoyPassword, user.PasswordHash) == nil {
 		http.Error(w, `{"error":"decoy password must differ from your real password"}`, http.StatusBadRequest)
 		return

@@ -132,7 +132,7 @@ const cases: Case[] = [
   { name: "setFileName", run: () => api.setFileName("fid", "enc1:x"), path: "/api/files/fid/name", method: "PATCH" },
   // decoy
   { name: "getDecoyStatus", run: () => api.getDecoyStatus(), path: "/api/decoy" },
-  { name: "setupDecoy", run: () => api.setupDecoy({ decoy_password: "p" }), path: "/api/decoy/setup", method: "POST" },
+  { name: "setupDecoy", run: () => api.setupDecoy({ decoy_password: "p", password: "real" }), path: "/api/decoy/setup", method: "POST" },
   { name: "deleteDecoy", run: () => api.deleteDecoy(), path: "/api/decoy", method: "DELETE" },
   { name: "renameDecoyFile", run: () => api.renameDecoyFile("did", "enc1:x"), path: "/api/decoy/files/did", method: "PATCH" },
   { name: "listDecoyFiles", run: () => api.listDecoyFiles(null), path: "/api/decoy/files" },

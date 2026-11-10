@@ -461,7 +461,10 @@
       "removeFileTitle": "Köder-Datei entfernen?",
       "removeFileDesc": "„{name}“ aus dem Köder-Tresor entfernen?",
       "loadFailed": "Die Einstellungen deines Köder-Tresors konnten nicht geladen werden. Es wurde nichts geändert.",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "accountPassword": "Dein zcrypt-Passwort",
+      "accountPasswordPlaceholder": "Das, mit dem du dich anmeldest",
+      "code": "2FA-Code"
     },
     "emailPrefs": {
       "label": "E-Mail",

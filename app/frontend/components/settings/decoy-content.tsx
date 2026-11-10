@@ -52,6 +52,9 @@ export function DecoyContent() {
   const [decoyKey, setDecoyKey] = useState<CryptoKey | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const userId = useAuthStore((st) => st.user?.id);
+  const needsCode = useAuthStore((st) => !!st.user?.totp_enabled);
+  const [accountPassword, setAccountPassword] = useState("");
+  const [code, setCode] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -97,10 +100,16 @@ export function DecoyContent() {
     }
     setSetting(true);
     try {
-      await setupDecoy({ decoy_password: password });
+      await setupDecoy({
+        decoy_password: password,
+        password: accountPassword,
+        code: needsCode ? code.trim() : undefined,
+      });
       setStatus({ configured: true, enabled: true, file_count: files.length });
       setPassword("");
       setConfirmPassword("");
+      setAccountPassword("");
+      setCode("");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("setupFailed"));
     } finally {
@@ -261,6 +270,25 @@ export function DecoyContent() {
                 placeholder={t("confirmPlaceholder")}
                 icon={<Lock className="h-4 w-4" />}
               />
+              <Input
+                type="password"
+                label={t("accountPassword")}
+                autoComplete="current-password"
+                value={accountPassword}
+                onChange={(e) => setAccountPassword(e.target.value)}
+                placeholder={t("accountPasswordPlaceholder")}
+                icon={<Lock className="h-4 w-4" />}
+              />
+              {needsCode && (
+                <Input
+                  label={t("code")}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="123456"
+                />
+              )}
               {error && (
                 <div
                   role="alert"

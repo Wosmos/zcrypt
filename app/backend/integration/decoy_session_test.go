@@ -18,13 +18,16 @@ func TestDecoySessionStaysIsolated(t *testing.T) {
 	ts := setupTestServer(t)
 	const email = "decoy-isolation@example.com"
 	decoyPassword := newTestPassword()
-	realToken := ts.registerAndLogin(email, newTestPassword())
+	realPassword := newTestPassword()
+	realToken := ts.registerAndLogin(email, realPassword)
 
 	user, err := ts.db.GetUserByEmail(context.Background(), email)
 	require.NoError(t, err)
 	require.NoError(t, ts.db.SetUserRole(context.Background(), user.ID, types.RoleAdmin))
 
-	requireStatus(t, ts.POST("/api/decoy/setup", map[string]string{"decoy_password": decoyPassword}, realToken), 200)
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]string{"decoy_password": decoyPassword}, realToken), http.StatusUnauthorized)
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]string{"decoy_password": decoyPassword, "password": "not-it"}, realToken), http.StatusUnauthorized)
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]string{"decoy_password": decoyPassword, "password": realPassword}, realToken), 200)
 	requireStatus(t, ts.POST("/api/notes", map[string]interface{}{"encrypted_title": "c2VjcmV0", "encrypted_body": "c2VjcmV0", "tags": []string{}}, realToken), 201)
 
 	var login struct {
