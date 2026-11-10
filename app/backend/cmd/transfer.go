@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -20,14 +21,23 @@ type transferRoom struct {
 	receiver  *websocket.Conn
 	mu        sync.Mutex
 	createdAt time.Time
-	done      chan struct{}
-	ip        string
+	// lastActive is when data last moved through the room (unix nanos).
+	lastActive atomic.Int64
+	done       chan struct{}
+	ip         string
 }
 
 const (
-	maxTransferRooms       = 500
-	maxTransferRoomsPerIP  = 5
-	maxTransferRoomBytes   = int64(10) << 30
+	maxTransferRooms      = 500
+	maxTransferRoomsPerIP = 5
+	maxTransferRoomBytes  = int64(10) << 30
+	// transferUnpairedFor is how long a code waits for someone to join it.
+	transferUnpairedFor = 10 * time.Minute
+	// transferIdleFor ends a transfer once nothing has moved for this long; a
+	// transfer that keeps moving runs as long as it needs (up to the byte cap
+	// and transferMaxFor).
+	transferIdleFor        = 10 * time.Minute
+	transferMaxFor         = 6 * time.Hour
 	errTooManyTransferRoom = "too many active rooms"
 )
 
@@ -108,7 +118,7 @@ func (h *transferHub) cleanup() {
 		h.mu.Lock()
 		now := time.Now()
 		for code, room := range h.rooms {
-			if now.Sub(room.createdAt) > 10*time.Minute {
+			if room.expired(now) {
 				select {
 				case <-room.done:
 				default:
@@ -119,6 +129,22 @@ func (h *transferHub) cleanup() {
 		}
 		h.mu.Unlock()
 	}
+}
+
+// expired reports a room that should be torn down: never joined within
+// transferUnpairedFor, or joined but idle for transferIdleFor.
+func (room *transferRoom) expired(now time.Time) bool {
+	room.mu.Lock()
+	paired := room.receiver != nil
+	room.mu.Unlock()
+	if !paired {
+		return now.Sub(room.createdAt) > transferUnpairedFor
+	}
+	last := time.Unix(0, room.lastActive.Load())
+	if last.Before(room.createdAt) {
+		last = room.createdAt
+	}
+	return now.Sub(last) > transferIdleFor
 }
 
 func generateCode() string {
@@ -159,7 +185,7 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 	// per-message size to bound memory use.
 	conn.SetReadLimit(1 << 20) // 1 MB
 
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(r.Context(), transferMaxFor)
 	defer cancel()
 
 	// First message determines role: {"type":"create"} or {"type":"join","data":"123456"}
@@ -226,11 +252,14 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn,
 	relayed := 0
 	var relayedBytes int64
 	for {
-		_, msg, err := conn.Read(ctx)
+		readCtx, stop := context.WithTimeout(ctx, transferIdleFor)
+		_, msg, err := conn.Read(readCtx)
+		stop()
 		if err != nil {
 			log.Printf("transfer: sender read ended code=%s relayed=%d: %v", room.code, relayed, err)
 			return
 		}
+		room.lastActive.Store(time.Now().UnixNano())
 
 		room.mu.Lock()
 		receiver := room.receiver
