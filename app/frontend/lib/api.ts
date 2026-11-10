@@ -312,6 +312,26 @@ export async function getFileMetas(ids: string[]): Promise<FileMetaResponse[]> {
   return out.flat();
 }
 
+/** Sealed previews (base64, docs/CRYPTO_FORMAT.md 2.4) for up to 200 of the
+ *  user's files. Files without one are left out. */
+export async function getFileThumbs(ids: string[]): Promise<Record<string, string>> {
+  const res = await request<{ thumbs?: Record<string, string> }>("/api/files/thumbs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  return res.thumbs ?? {};
+}
+
+/** Store a file's sealed preview. */
+export async function putFileThumb(fileId: string, sealed: Uint8Array): Promise<void> {
+  await requestResponse(`/api/files/${fileId}/thumb`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: sealed as BufferSource,
+  });
+}
+
 /** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
 // A chunk download is a bare fetch (not the `request()` wrapper), so it must
 // carry its own timeout. Without one, a stalled fetch, e.g. a chunk still

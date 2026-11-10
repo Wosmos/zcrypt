@@ -31,6 +31,12 @@ vi.mock("@/hooks/useFileDecryptor", () => ({
   runDecryptPipeline: runDecryptPipelineMock,
 }));
 
+const serverThumbs = vi.hoisted(() => ({
+  loadServerThumb: vi.fn(async (): Promise<string | null> => null),
+  publishThumb: vi.fn(async (): Promise<boolean> => false),
+}));
+vi.mock("@/lib/server-thumbs", () => serverThumbs);
+
 vi.mock("@/store/files", () => ({
   getFilesData: getFilesDataMock,
 }));
@@ -1475,5 +1481,104 @@ describe("useThumbnail", () => {
     expect(result.current.thumbnailUrl).toBeNull();
     expect(cachedDecryptMock).not.toHaveBeenCalled();
     expect(runDecryptPipelineMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("useThumbnail with previews stored on the server", () => {
+  it("shows a stored preview without downloading the original", async () => {
+    serverThumbs.loadServerThumb.mockResolvedValueOnce("data:image/webp;base64,STORED");
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,STORED"));
+    expect(serverThumbs.loadServerThumb).toHaveBeenCalledWith("f1", null, "vault-pass");
+    expect(runDecryptPipelineMock).not.toHaveBeenCalled();
+    expect(serverThumbs.publishThumb).not.toHaveBeenCalled();
+  });
+
+  it("drops a stored preview that arrives after the vault locked", async () => {
+    let land: (v: string) => void = () => {};
+    serverThumbs.loadServerThumb.mockImplementationOnce(() => new Promise((r) => (land = r)));
+    const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
+    act(() => primeThumbnails("vault-pass"));
+    renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(serverThumbs.loadServerThumb).toHaveBeenCalled());
+    act(() => hooks.clear?.());
+    await act(async () => land("data:image/webp;base64,LATE"));
+    expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("stores a preview it had to make from the original", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+    expect(serverThumbs.publishThumb).toHaveBeenCalledWith("f1", null, "data:image/webp;base64,FAKE", "vault-pass");
+  });
+
+  it("keeps previews of protected or locked folders on this device", async () => {
+    getFilesDataMock.mockReturnValue([{ id: "f1", original_name: "photo.jpg", folder_id: "fold" }]);
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    act(() => primeThumbnails("vault-pass", () => null));
+    renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(cachedDecryptMock).toHaveBeenCalledTimes(0));
+    expect(serverThumbs.loadServerThumb).not.toHaveBeenCalled();
+
+    getFilesDataMock.mockReturnValue([]);
+    const fresh = await loadModule();
+    act(() => fresh.primeThumbnails("vault-pass"));
+    renderHook(() => fresh.useThumbnail("f9", "photo.jpg"));
+    expect(serverThumbs.loadServerThumb).not.toHaveBeenCalled();
+  });
+
+  it("stores a preview made at upload once the file is listed, retrying a few times", async () => {
+    vi.useFakeTimers();
+    getFilesDataMock.mockReturnValue([]);
+    serverThumbs.publishThumb.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const { primeThumbnails, seedThumbnailFromFile } = await loadModule();
+    act(() => primeThumbnails("vault-pass"));
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["local-bytes"], "photo.jpg"), "photo.jpg");
+    });
+    expect(serverThumbs.publishThumb).not.toHaveBeenCalled();
+
+    getFilesDataMock.mockReturnValue([{ id: "f1", original_name: "photo.jpg", folder_id: "fold-1" }]);
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(serverThumbs.publishThumb).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(serverThumbs.publishThumb).toHaveBeenCalledTimes(2);
+    expect(serverThumbs.publishThumb).toHaveBeenLastCalledWith(
+      "f1",
+      "fold-1",
+      "data:image/webp;base64,FAKE",
+      "vault-pass",
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    expect(serverThumbs.publishThumb).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up storing an upload's preview when the vault locks or after a few tries", async () => {
+    vi.useFakeTimers();
+    getFilesDataMock.mockReturnValue([{ id: "f1", original_name: "photo.jpg", folder_id: null }]);
+    const { primeThumbnails, seedThumbnailFromFile } = await loadModule();
+    act(() => primeThumbnails("vault-pass"));
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["local-bytes"], "photo.jpg"), "photo.jpg");
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(serverThumbs.publishThumb).toHaveBeenCalledTimes(4);
+
+    serverThumbs.publishThumb.mockClear();
+    getFilesDataMock.mockReturnValue([{ id: "f2", original_name: "photo.jpg", folder_id: null }]);
+    const fresh = await loadModule();
+    act(() => fresh.primeThumbnails("vault-pass"));
+    await act(async () => {
+      await fresh.seedThumbnailFromFile("f2", new File(["local-bytes"], "photo.jpg"), "photo.jpg");
+    });
+    act(() => hooks.clear?.());
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(serverThumbs.publishThumb).toHaveBeenCalledTimes(1);
   });
 });

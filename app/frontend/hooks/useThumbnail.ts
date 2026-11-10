@@ -12,6 +12,7 @@ import { isImageFile, isVideoFile } from "@/lib/utils";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { runDecryptPipeline } from "@/hooks/useFileDecryptor";
+import { loadServerThumb, publishThumb } from "@/lib/server-thumbs";
 
 // A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
 // background grid preview is allowed to pull. Files above this just show their
@@ -505,6 +506,34 @@ async function decryptFileToBlob(
   );
 }
 
+/** Where a file's preview may be shared with the server: the file's folder and
+ *  the password that opens it, or null for a locked or protected folder (whose
+ *  previews never leave this device). */
+function previewTarget(
+  fileId: string,
+  passphrase: string,
+  resolvePassword?: ThumbnailPasswordResolver,
+): { folderId: string | null; password: string } | null {
+  const file = getFilesData().find((f) => f.id === fileId);
+  if (!file || isInProtectedFolder(fileId)) return null;
+  const password = resolvePassword ? resolvePassword(fileId) : passphrase;
+  return password == null ? null : { folderId: file.folder_id ?? null, password };
+}
+
+/** Store the cached preview in memory and on disk, and end its shimmer window. */
+function keepThumbnail(fileId: string, dataUrl: string): void {
+  memCache.set(fileId, dataUrl);
+  genStartedAt.delete(fileId);
+  const gt = graceTimers.get(fileId);
+  if (gt) {
+    clearTimeout(gt);
+    graceTimers.delete(fileId);
+  }
+  // Persist to IndexedDB in background so the preview survives a reload /
+  // logout and renders instantly next time (no shimmer).
+  dbPut(fileId, dataUrl).catch(() => {});
+}
+
 async function fetchAndCacheThumbnail(
   fileId: string,
   filename: string,
@@ -534,7 +563,18 @@ async function fetchAndCacheThumbnail(
   // `loading` flag stuck true forever (the perpetual-shimmer bug). releaseSlot
   // is paired only when a slot was actually taken.
   let slotHeld = false;
+  const target = previewTarget(fileId, passphrase, resolvePassword);
   try {
+    // A preview another device already sealed and stored: a few KB instead of
+    // the whole original, and it skips the download queue.
+    if (target) {
+      const stored = await loadServerThumb(fileId, target.folderId, target.password);
+      if (stored) {
+        if (ctxPassphrase === null) return null;
+        keepThumbnail(fileId, stored);
+        return stored;
+      }
+    }
     await acquireSlot(fileId);
     slotHeld = true;
     const video = isVideoFile(filename);
@@ -571,16 +611,8 @@ async function fetchAndCacheThumbnail(
       return null;
     }
     if (ctxPassphrase === null) return null;
-    memCache.set(fileId, dataUrl);
-    genStartedAt.delete(fileId);
-    const gt = graceTimers.get(fileId);
-    if (gt) {
-      clearTimeout(gt);
-      graceTimers.delete(fileId);
-    }
-    // Persist to IndexedDB in background so the preview survives a reload /
-    // logout and renders instantly next time (no shimmer).
-    dbPut(fileId, dataUrl).catch(() => {});
+    keepThumbnail(fileId, dataUrl);
+    if (target) void publishThumb(fileId, target.folderId, dataUrl, target.password);
     return dataUrl;
   } catch {
     // acquireSlot (or something unexpected) threw. Treat as transient so a
@@ -622,6 +654,22 @@ export async function seedThumbnailFromFile(
     notify(fileId);
   } catch {
     // Unsupported/undecodable source: the grid will fetch-decrypt it instead.
+    return;
+  }
+  void publishWhenListed(fileId, memCache.get(fileId) as string);
+}
+
+const PUBLISH_TRIES = 4;
+const PUBLISH_RETRY_MS = 5_000;
+
+/** Store a preview made at upload once the new file is in the vault list (the
+ *  upload may still be finishing), giving up after a few tries. */
+async function publishWhenListed(fileId: string, dataUrl: string): Promise<void> {
+  for (let attempt = 0; attempt < PUBLISH_TRIES; attempt++) {
+    if (ctxPassphrase === null) return;
+    const target = previewTarget(fileId, ctxPassphrase, ctxResolver);
+    if (target && (await publishThumb(fileId, target.folderId, dataUrl, target.password))) return;
+    await new Promise((r) => setTimeout(r, PUBLISH_RETRY_MS));
   }
 }
 

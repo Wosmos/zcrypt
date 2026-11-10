@@ -114,8 +114,11 @@ sealed         = eph.public[32] || AESGCM_ENCRYPT(seal_key, data)        (§3)
 - **Integrity**: `sha256_scheme = "cek_hmac_v1"`, `sha256` = lowercase-hex
   `HMAC-SHA256(mac_key, plaintext)` with
   `mac_key = HKDF-SHA256(ikm = CEK, salt = empty, info = "zcrypt-cek-mac-v1", 32)`.
-  Only a holder of the CEK can compute it, so the server learns nothing about
-  the content; any reader that unwrapped the CEK verifies it.
+  The server learns nothing about the content, and any reader that unwrapped
+  the CEK verifies it. It is not proof of origin: anyone holding the public
+  key, the server included, can seal a CEK of its own choosing, so a `pk1`
+  item shows that its bytes match its key, not that this account's device
+  made it.
 - **Adoption**: a client with the vault unlocked opens `pk1` values with the
   account private key and moves the file to the normal formats in place:
   `PUT /api/files/{id}/rekey` with an `mk1` wrap of the same CEK (same salt),
@@ -148,6 +151,27 @@ blob      = "rk1:" + base64(AESGCM_ENCRYPT(seal_key, utf8(passphrase)))    (§3)
 - Replacing the kit makes a new RK, so the old key stops working at once.
   The blob holds the passphrase itself, so any flow that changes the
   passphrase MUST re-seal or delete the kit.
+
+### 2.4 Sealed previews (`th1`)
+
+A grid preview (a ~300px WebP the client renders from the original) is sealed
+with the file's own content key, so the server stores it without being able
+to see it, and any reader that can open the file opens its preview without
+downloading the original (`app/frontend/lib/thumb-seal.ts`).
+
+```
+plain   = u32_be(len(webp)) || webp || zero padding to the next 8 KiB
+sealed  = AESGCM_ENCRYPT(CEK, plain, aad = utf8("zcrypt-thumb-v1"))      (section 3)
+```
+
+- Stored as `files.encrypted_thumb` (owner-only, at most 64 KiB sealed, so
+  `plain` is at most 60 KiB). Legacy files use their passphrase-derived key as
+  the CEK, exactly as for chunks.
+- The AAD keeps a sealed preview and a file chunk, which share the key, from
+  being swapped for one another; the padding hides the preview's exact size.
+- The server learns that a file has a preview (so it is a picture or a video)
+  and its size to the nearest 8 KiB, nothing else. Files in a password
+  protected folder never get a stored preview.
 
 ## 3. AES-GCM wire format
 
