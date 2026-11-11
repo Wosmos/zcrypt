@@ -285,7 +285,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 			if hasPersonal {
-				log.Printf("upload: platform not available for user %s: %v", userID, err)
+				log.Printf("upload: platform not available for user %s: %s", logSafe(userID), logSafe(err.Error())) // #nosec G706 -- control chars stripped via logSafe
 				http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
 			} else {
 				http.Error(w, `{"error":"storage not available yet: managed storage is being configured"}`, http.StatusServiceUnavailable)

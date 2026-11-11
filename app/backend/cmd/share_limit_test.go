@@ -15,7 +15,7 @@ func TestShareChunkDownloadsGetTheirOwnLargerLimit(t *testing.T) {
 		shareLimiter:      newRateLimiter(30, time.Minute),
 		shareChunkLimiter: newRateLimiter(600, time.Minute),
 	}
-	ok := func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }
+	ok := func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
 	serve := func(h http.HandlerFunc) int {
 		r := httptest.NewRequest(http.MethodGet, "/api/share/t/chunks/0", nil)
 		r.RemoteAddr = "203.0.113.7:1234"
