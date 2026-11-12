@@ -332,7 +332,9 @@
         "maintenance": "En maintenance",
         "down": "Serveurs injoignables",
         "offline": "Hors ligne"
-      }
+      },
+      "networkBlocked": "zcrypt ne peut pas être utilisé depuis des serveurs cloud, des centres de données ou des VPN qui y fonctionnent. Désactivez le VPN ou le proxy et réessayez.",
+      "botCheckFailed": "La vérification que vous êtes une personne n'a pas abouti. Patientez un instant et réessayez."
     },
     "banner": {
       "dismiss": "Fermer"

@@ -408,7 +408,9 @@
         "admin_review_status": "Review Moderated",
         "admin_send_platform_change": "Send Platform Changed",
         "admin_role_change_denied": "Role Change Denied",
-        "admin_user_delete_denied": "User Delete Denied"
+        "admin_user_delete_denied": "User Delete Denied",
+        "session_client_changed": "App Changed, Session Ended",
+        "network_blocked": "Blocked: Cloud Network"
       },
       "colEvent": "Event",
       "deletedAccount": "a deleted account",

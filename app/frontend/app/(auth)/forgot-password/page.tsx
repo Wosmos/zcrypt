@@ -10,6 +10,9 @@ import { AuthLink, AUTH_LINK_CLASS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
 import { ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
+import { useTurnstile } from "@/components/auth/turnstile";
+import { useFriendlyError } from "@/hooks/useConnectivity";
+import { toast } from "@/store/toast";
 
 export default function ForgotPasswordPage() {
   const t = useTranslations("auth");
@@ -17,6 +20,8 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const turnstile = useTurnstile();
+  const friendlyError = useFriendlyError();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +29,19 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      await forgotPassword(email);
+      await forgotPassword(email, await turnstile.getToken());
       setSent(true);
-    } catch {
-      setSent(true);
+    } catch (err) {
+      // Any other failure still reads as "sent", so the form never says
+      // whether an account exists.
+      const code = (err as { code?: string }).code;
+      if (code === "network_blocked" || code === "bot_check_failed") {
+        toast.error(friendlyError(err, tf("send")));
+      } else {
+        setSent(true);
+      }
     } finally {
+      turnstile.reset();
       setLoading(false);
     }
   };
@@ -76,6 +89,7 @@ export default function ForgotPasswordPage() {
         >
           {tf("send")}
         </SubmitButton>
+        {turnstile.widget}
       </form>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">

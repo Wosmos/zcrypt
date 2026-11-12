@@ -177,6 +177,8 @@ const EVENT_TYPES = [
   "2fa_disable",
   "password_changed",
   "session_revoke",
+  "session_client_changed",
+  "network_blocked",
   "admin_role_change",
   "admin_user_delete",
   "admin_plan_change",

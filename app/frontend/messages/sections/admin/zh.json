@@ -408,7 +408,9 @@
         "admin_review_status": "评价已审核",
         "admin_send_platform_change": "发送平台已更改",
         "admin_role_change_denied": "角色更改被拒绝",
-        "admin_user_delete_denied": "用户删除被拒绝"
+        "admin_user_delete_denied": "用户删除被拒绝",
+        "session_client_changed": "应用变更，会话已结束",
+        "network_blocked": "已拦截：云网络"
       },
       "colEvent": "事件",
       "deletedAccount": "已删除的账户",

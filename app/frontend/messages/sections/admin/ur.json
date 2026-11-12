@@ -408,7 +408,9 @@
         "admin_review_status": "جائزے کی ماڈریشن ہوئی",
         "admin_send_platform_change": "ارسال کا پلیٹ فارم تبدیل ہوا",
         "admin_role_change_denied": "کردار کی تبدیلی مسترد",
-        "admin_user_delete_denied": "صارف حذف کرنا مسترد"
+        "admin_user_delete_denied": "صارف حذف کرنا مسترد",
+        "session_client_changed": "ایپ بدل گئی، سیشن ختم",
+        "network_blocked": "بلاک: کلاؤڈ نیٹ ورک"
       },
       "colEvent": "واقعہ",
       "deletedAccount": "حذف شدہ اکاؤنٹ",

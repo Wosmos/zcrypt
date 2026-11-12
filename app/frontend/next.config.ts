@@ -27,7 +27,7 @@ const DEV_API_URL = "http://localhost:8080";
 const apiWss = apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
 const cspValue = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
@@ -36,7 +36,7 @@ const cspValue = [
     .trim(),
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
-  "frame-src 'self' blob:",
+  "frame-src 'self' blob: https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

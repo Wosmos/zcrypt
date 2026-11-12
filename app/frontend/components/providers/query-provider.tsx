@@ -11,6 +11,9 @@ import {
   revalidateRestored,
 } from "@/lib/query-client";
 import { cachedUserId } from "@/store/auth";
+import { installClientMarker } from "@/lib/client-marker";
+
+installClientMarker();
 
 // A reload paints the last-known lists straight from IndexedDB, then refetches
 // whatever is stale. The buster is the cached user id, so a snapshot never

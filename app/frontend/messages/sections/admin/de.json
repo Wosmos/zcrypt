@@ -408,7 +408,9 @@
         "admin_review_status": "Bewertung moderiert",
         "admin_send_platform_change": "Sende-Plattform geändert",
         "admin_role_change_denied": "Rollenänderung abgelehnt",
-        "admin_user_delete_denied": "Nutzerlöschung abgelehnt"
+        "admin_user_delete_denied": "Nutzerlöschung abgelehnt",
+        "session_client_changed": "App gewechselt, Sitzung beendet",
+        "network_blocked": "Blockiert: Cloud-Netzwerk"
       },
       "colEvent": "Ereignis",
       "deletedAccount": "ein gelöschtes Konto",

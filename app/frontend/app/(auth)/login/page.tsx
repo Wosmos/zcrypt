@@ -17,6 +17,7 @@ import { isTauri, subscribeOAuthCallback } from "@/lib/tauri";
 import { useFriendlyError } from "@/hooks/useConnectivity";
 import { authScene } from "@/components/auth/auth-scene";
 import { API_BASE } from "@/lib/config";
+import { useTurnstile } from "@/components/auth/turnstile";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [approvalCode, setApprovalCode] = useState("");
   const friendlyError = useFriendlyError();
+  const turnstile = useTurnstile();
 
   // Desktop OAuth: poll backend for tokens after user completes login in browser
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function LoginPage() {
     setLoading(true);
     authScene.sealing();
     try {
-      const res = await login(email, password);
+      const res = await login(email, password, await turnstile.getToken());
 
       if (res.requires_2fa && res.temp_token) {
         authScene.idle();
@@ -155,6 +157,7 @@ export default function LoginPage() {
       authScene.failed();
       toast.error(friendlyError(err, tl("failed")));
     } finally {
+      turnstile.reset();
       setLoading(false);
     }
   };
@@ -167,12 +170,13 @@ export default function LoginPage() {
     }
     setMagicLinkLoading(true);
     try {
-      await requestMagicLink(email.trim());
+      await requestMagicLink(email.trim(), await turnstile.getToken());
       setMagicLinkSent(true);
       toast.success(tl("linkSent"));
     } catch (err) {
       toast.error(friendlyError(err, tl("linkFailed")));
     } finally {
+      turnstile.reset();
       setMagicLinkLoading(false);
     }
   };
@@ -291,6 +295,8 @@ export default function LoginPage() {
           )}
           {mode === "password" ? tl("useMagic") : tl("usePassword")}
         </button>
+
+        {turnstile.widget}
 
         <OAuthButtons />
       </div>
