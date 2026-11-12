@@ -9,7 +9,7 @@ echo "== [1/5] remove web-only dynamic routes for static export =="
 rm -rf app/frontend/app/s
 rm -rf "app/frontend/app/pad/[token]"
 rm -rf "app/frontend/app/send/[token]"
-rm -rf "app/frontend/app/(app)/admin/users/[id]"
+rm -rf "app/frontend/app/(app)/admin"
 
 echo "== [2/5] build frontend static export =="
 # Backend origin: DESKTOP_API_URL env, else the LOCAL gitignored
@@ -25,7 +25,7 @@ bun run build
 
 echo "== [3/5] restore web-only routes from git (keep tree clean) =="
 cd "$REPO"
-git checkout -- app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin/users/[id]"
+git checkout -- app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin"
 
 echo "== [4/5] prepare frontend-dist =="
 rm -rf app/desktop/frontend-dist
@@ -40,6 +40,7 @@ cat > index.html << 'HTMLEOF'
 <body></body>
 </html>
 HTMLEOF
+bash "$REPO/scripts/check-native-bundle.sh" "$REPO/app/desktop/frontend-dist"
 
 echo "== [5/5] cargo tauri build (release bundle) =="
 cd "$REPO/app/desktop/src-tauri"

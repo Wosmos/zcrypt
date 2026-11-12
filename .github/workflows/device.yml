@@ -98,7 +98,7 @@ jobs:
           rm -rf app/frontend/app/s
           rm -rf "app/frontend/app/pad/[token]"
           rm -rf "app/frontend/app/send/[token]"
-          rm -rf "app/frontend/app/(app)/admin/users/[id]"
+          rm -rf "app/frontend/app/(app)/admin"
 
       - name: Build frontend
         working-directory: app/frontend
@@ -141,6 +141,9 @@ jobs:
           <body></body>
           </html>
           HTMLEOF
+
+      - name: Check the app bundle has no admin
+        run: bash scripts/check-native-bundle.sh app/desktop/frontend-dist
 
       - name: Upload frontend-dist artifact
         uses: actions/upload-artifact@v7
