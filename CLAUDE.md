@@ -78,6 +78,13 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 - Then bump the version in `app/frontend/package.json`, `app/desktop/src-tauri/tauri.conf.json` and `app/desktop/src-tauri/Cargo.toml` (`scripts/check-versions.sh` checks they match), push, and tag `vX.Y.Z`.
 - The entry feeds `/changelog`, `/changelog/<version>`, the RSS feed, the in-app What's new dialog, the GitHub release notes and the desktop update dialog (`scripts/release-notes.sh`).
 
+## Owner's working rules
+Set by the owner; they apply to every task in this repo. More will be added here.
+- **Uploads and downloads go together.** Any bug, error or optimization work on uploads also checks downloads, and the other way round. Report what was found on both sides.
+- **Web first, then every app.** An optimization asked for without naming a platform is done on the web first. If the same path exists in the desktop (macOS, Windows, Linux) or Android app, apply it there too without being asked.
+- **One logic, many languages.** The same flow is written in TypeScript (with WASM workers), Go and Rust. Keep the underlying algorithm and wire format identical across them (the abstract logic is the source of truth, `docs/CRYPTO_FORMAT.md` for formats), so a change in one is mirrored in the others.
+- **Best practices always.** Use the idiomatic best practice for each language, library, framework, database and DevOps tool involved, not just code that works.
+
 ## Coding Conventions
 - **Backend:** Standard Go conventions. No frameworks: stdlib `net/http` with `HandleFunc`. Error wrapping with `fmt.Errorf("context: %w", err)`. UUID primary keys everywhere.
 - **Frontend:** `"use client"` for interactive components. Zustand for global state. Tailwind for styling. Hugeicons for icons (barrel at `lib/icons.tsx`). No emojis in code.
