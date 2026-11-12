@@ -14,6 +14,7 @@
         "ownStorageFirst": "Uploads use the storage you connected before the shared storage, and the shared storage limit always applies to it.",
         "lockKeys": "Locking the vault also clears your private key and Space keys from memory.",
         "decoyReauth": "Setting a decoy password asks for your real password, and your 2FA code when 2FA is on.",
+        "signInLinks": "A sign-in link from email works only once.",
         "pushPrivacy": "Alerts no longer tell push services what kind of alert they carry.",
         "androidBackup": "The Android app's private data stays out of Android backups and phone-to-phone transfers."
       }

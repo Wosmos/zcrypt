@@ -14,6 +14,7 @@
         "ownStorageFirst": "上传会先使用你连接的存储，再使用共享存储，共享存储的上限始终有效。",
         "lockKeys": "锁定保险库时，也会从内存中清除你的私钥和 Spaces 密钥。",
         "decoyReauth": "设置诱饵密码需要输入你的真实密码，开启两步验证时还需要验证码。",
+        "signInLinks": "邮件中的登录链接只能使用一次。",
         "pushPrivacy": "提醒不再让推送服务知道它属于哪一类。",
         "androidBackup": "Android 应用的私有数据不会进入 Android 备份或手机间传输。"
       }

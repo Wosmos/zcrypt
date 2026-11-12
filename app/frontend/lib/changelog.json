@@ -1,7 +1,7 @@
 [
   {
     "version": "0.2.2",
-    "date": null,
+    "date": "2026-11-12",
     "key": "v0_2_2",
     "groups": [
       {
@@ -22,7 +22,7 @@
       },
       {
         "kind": "security",
-        "items": ["lockKeys", "decoyReauth", "pushPrivacy", "androidBackup"]
+        "items": ["lockKeys", "decoyReauth", "signInLinks", "pushPrivacy", "androidBackup"]
       }
     ]
   },

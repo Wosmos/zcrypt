@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-12
+
+### Added
+
+- Photo grids load from small sealed previews: each file's ~300px WebP preview is padded to 8 KiB steps, sealed with that file's own key (format `th1`, docs/CRYPTO_FORMAT.md 2.4) and stored in `files.encrypted_thumb`, so a device shows it without downloading the original. New endpoints `POST /api/files/thumbs` (batch read, up to 200) and `PUT /api/files/{id}/thumb` (up to 64 KiB)
+
+### Fixed
+
+- Thumbnails fill in where you are, instead of shimmering until you leave the folder and come back
+- Photos and videos no longer offer Customize, since the picture is their icon
+- Large downloads in the desktop and Android apps no longer hang partway when a chunk fails
+- Large shared files download whole: a busy server (429), a 5xx or a network blip on one chunk is retried
+- Device-to-device transfers run as long as data keeps moving, instead of stopping after 10 minutes
+- GitHub and GitLab chunk transfers get time in proportion to their size, so slow links no longer time out
+- Uploads use your own connected storage before the shared pool, and the shared pool's cap always applies to it
+- A second server on the same database no longer marks healthy uploads damaged
+- Rotating a Space key works after a shared file was purged
+- Deleting from the app never leaves another account's chunks behind
+
+### Security
+
+- Locking the vault also drops the private key and Space keys from memory
+- Setting a decoy password needs your real password, and a 2FA code when 2FA is on
+- Sign-in links from email work once, and a wrong password takes as long with or without a decoy
+- A refresh uses the token the caller sends, never a leftover cookie first
+- A background session needs the session's own refresh token
+- Push alerts no longer tell push services what kind of alert they carry, and an alert only opens pages on zcrypt
+- The Android app's data is excluded from Android backups and device-to-device transfers
+
 ## [0.2.1] - 2026-11-10
 
 ### Added

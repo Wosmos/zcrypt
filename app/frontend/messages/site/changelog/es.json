@@ -14,6 +14,7 @@
         "ownStorageFirst": "Las subidas usan el almacenamiento que conectaste antes que el compartido, y el límite del compartido siempre se aplica a este.",
         "lockKeys": "Bloquear la bóveda también borra de la memoria tu clave privada y las claves de los Spaces.",
         "decoyReauth": "Establecer una contraseña señuelo pide tu contraseña real y tu código 2FA si lo tienes activado.",
+        "signInLinks": "Un enlace de inicio de sesión por correo funciona solo una vez.",
         "pushPrivacy": "Los avisos ya no les dicen a los servicios de notificaciones qué tipo de aviso llevan.",
         "androidBackup": "Los datos privados de la app de Android quedan fuera de las copias de Android y de las transferencias entre teléfonos."
       }

@@ -14,6 +14,7 @@
         "ownStorageFirst": "Uploads nutzen zuerst deinen verbundenen Speicher, und für den gemeinsamen Speicher gilt immer sein Limit.",
         "lockKeys": "Das Sperren des Tresors löscht auch deinen privaten Schlüssel und die Space-Schlüssel aus dem Speicher.",
         "decoyReauth": "Ein Täuschungspasswort festzulegen verlangt dein echtes Passwort und bei aktiver 2FA deinen Code.",
+        "signInLinks": "Ein Anmeldelink per E-Mail funktioniert nur einmal.",
         "pushPrivacy": "Hinweise verraten Push-Diensten nicht mehr, welche Art von Hinweis sie enthalten.",
         "androidBackup": "Die privaten Daten der Android-App bleiben aus Android-Sicherungen und Handy-zu-Handy-Übertragungen heraus."
       }

@@ -14,6 +14,7 @@
         "ownStorageFirst": "Les envois utilisent d'abord le stockage que vous avez connecté, et la limite du stockage partagé s'y applique toujours.",
         "lockKeys": "Verrouiller le coffre efface aussi de la mémoire votre clé privée et les clés des Spaces.",
         "decoyReauth": "Définir un mot de passe leurre demande votre vrai mot de passe, et votre code 2FA si la 2FA est activée.",
+        "signInLinks": "Un lien de connexion reçu par e-mail ne fonctionne qu'une seule fois.",
         "pushPrivacy": "Les alertes n'indiquent plus aux services de notification le type d'alerte qu'elles transportent.",
         "androidBackup": "Les données privées de l'app Android restent hors des sauvegardes Android et des transferts entre téléphones."
       }
