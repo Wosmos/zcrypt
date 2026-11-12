@@ -343,7 +343,7 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `ZCRYPT_MAX_UPLOAD_BYTES` | Largest single file in bytes (default 10737418240, 10 GiB); non-positive or invalid values use the default |
 | `ZCRYPT_SEND_ANON_DAILY_BYTES` | Rolling 24h Send allowance in bytes for anonymous senders, per coarsened IP (default 524288000, 500 MiB) |
 | `ZCRYPT_SEND_USER_DAILY_BYTES` | Rolling 24h Send allowance in bytes for signed-in senders (default 5368709120, 5 GiB) |
-| `ZCRYPT_BLOCK_CLOUD_NETWORKS` | `0` turns off the block on sign-in, sign-up and session refresh from cloud and data-center networks (on by default; lists from AWS, Google Cloud, Oracle, DigitalOcean and the X4BNet data-center list, refreshed daily) |
+| `ZCRYPT_CLOUD_NETWORKS` | What happens to sign-in, sign-up and session refresh from cloud and data-center networks: `block` (default) refuses them, `flag` lets them in and records each in the audit log, `off` ignores them. Lists from AWS, Google Cloud, Oracle, DigitalOcean and the X4BNet data-center list, refreshed daily. `ZCRYPT_BLOCK_CLOUD_NETWORKS=0` also means `off` |
 | `ZCRYPT_NETWORK_ALLOW` | Comma-separated addresses or CIDRs that always pass the cloud network block |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret; turns on the bot check for web sign-up, sign-in, sign-in links and password reset. The frontend needs `NEXT_PUBLIC_TURNSTILE_SITE_KEY`. The desktop and Android apps skip it |
 | `ZCRYPT_RELAY_MAX_FILE_BYTES` | Largest file in bytes a web upload may send through the server (default 2147483648, 2 GiB); larger relay uploads are refused with `relay_file_too_large`. Direct uploads to a user's own storage and admins are never limited; `0` means unlimited |

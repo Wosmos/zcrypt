@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -92,7 +93,7 @@ func TestCloudNetworksCantSignIn(t *testing.T) {
 	ts := setupTestServer(t)
 	email := uniqueEmail("cloud")
 	ts.registerAndLogin(email, accountTestPassword)
-	ts.srv.SetCloudNetworksForTest("203.0.113.0/24")
+	ts.srv.SetCloudNetworksForTest("203.0.113.0/24", config.CloudNetworksBlock)
 	creds := map[string]string{"email": email, "password": accountTestPassword}
 	from := func(ip string) map[string]string { return map[string]string{"X-Forwarded-For": ip} }
 
@@ -174,4 +175,20 @@ func TestTurnstileOnWebForms(t *testing.T) {
 	verify.Close()
 	code, _ = ts.postWith("/api/auth/login", map[string]string{"email": email, "password": accountTestPassword, "turnstile_token": "x"}, asClient("web/0.2.3"))
 	assert.Equal(t, http.StatusOK, code, "if Cloudflare can't be reached, people still get in")
+}
+
+func TestCloudNetworksFlagMode(t *testing.T) {
+	ts := setupTestServer(t)
+	email := uniqueEmail("cloud-flag")
+	ts.registerAndLogin(email, accountTestPassword)
+	ts.srv.SetCloudNetworksForTest("203.0.113.0/24", config.CloudNetworksFlag)
+
+	code, _ := ts.postWith("/api/auth/login", map[string]string{"email": email, "password": accountTestPassword},
+		map[string]string{"X-Forwarded-For": "203.0.113.5"})
+	assert.Equal(t, http.StatusOK, code, "flag mode lets the person in")
+
+	var n int
+	require.NoError(t, ts.db.Pool().QueryRow(context.Background(),
+		`SELECT COUNT(*) FROM audit_events WHERE event_type = 'network_blocked' AND metadata->>'refused' = 'false'`).Scan(&n))
+	assert.GreaterOrEqual(t, n, 1, "and records it")
 }

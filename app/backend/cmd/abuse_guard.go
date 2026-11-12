@@ -33,7 +33,8 @@ func newNetGuard(cfg *config.Config) *netguard.Guard {
 		}
 		allow = append(allow, p.Masked())
 	}
-	return netguard.New(cfg.BlockCloudNetworks, allow, netguard.DefaultSources)
+	on := cfg.CloudNetworkMode == config.CloudNetworksBlock || cfg.CloudNetworkMode == config.CloudNetworksFlag
+	return netguard.New(on, allow, netguard.DefaultSources)
 }
 
 // StartNetGuard loads the cloud network lists and keeps them fresh.
@@ -58,9 +59,11 @@ func (s *Server) personIP(r *http.Request) string {
 }
 
 // refuseCloudNetwork answers 403 when the person is on a cloud or data-center
-// network: sign-in is for people, not servers. Reports whether it answered.
+// network and the mode is "block": sign-in is for people, not servers. In
+// "flag" mode the request goes on and only the audit entry remains. Reports
+// whether it answered.
 func (s *Server) refuseCloudNetwork(w http.ResponseWriter, r *http.Request) bool {
-	if !s.cloudNetwork(r) {
+	if !s.cloudNetworkRefused(r) {
 		return false
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{
@@ -70,18 +73,21 @@ func (s *Server) refuseCloudNetwork(w http.ResponseWriter, r *http.Request) bool
 	return true
 }
 
-// cloudNetwork reports, and records, a request from a cloud network.
-func (s *Server) cloudNetwork(r *http.Request) bool {
+// cloudNetworkRefused records a request from a cloud network and reports
+// whether it must be refused (mode "block") rather than only flagged.
+func (s *Server) cloudNetworkRefused(r *http.Request) bool {
 	ip := s.personIP(r)
 	if !s.netGuard.Blocked(ip) {
 		return false
 	}
+	refused := s.cfg.CloudNetworkMode != config.CloudNetworksFlag
 	s.audit(r, nil, types.AuditNetworkBlocked, map[string]interface{}{
-		"path":   r.URL.Path,
-		"client": clientPlatform(clientMarker(r)),
-		"ip":     anonIP(ip),
+		"path":    r.URL.Path,
+		"client":  clientPlatform(clientMarker(r)),
+		"ip":      anonIP(ip),
+		"refused": refused,
 	})
-	return true
+	return refused
 }
 
 // refuseBot checks the Turnstile token a web form sent. It applies only when a

@@ -16,6 +16,13 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
+// Cloud network modes (Config.CloudNetworkMode).
+const (
+	CloudNetworksBlock = "block"
+	CloudNetworksFlag  = "flag"
+	CloudNetworksOff   = "off"
+)
+
 // DefaultGeoIPDB is where the container image puts the location database.
 const DefaultGeoIPDB = "/geo/dbip-city-lite.mmdb"
 
@@ -104,10 +111,12 @@ type Config struct {
 	// GeoIPDB is the path of the DB-IP Lite city database used to place
 	// sessions on the map. A missing file only leaves locations empty.
 	GeoIPDB string `json:"geoip_db,omitempty"`
-	// BlockCloudNetworks refuses sign-in, sign-up and session refresh from
-	// cloud and data-center networks (netguard). On unless
-	// ZCRYPT_BLOCK_CLOUD_NETWORKS=0.
-	BlockCloudNetworks bool `json:"block_cloud_networks,omitempty"`
+	// CloudNetworkMode decides what happens to sign-in, sign-up and session
+	// refresh from cloud and data-center networks (netguard): "block" (the
+	// default) refuses them, "flag" lets them in and records each one in the
+	// audit log, "off" ignores them. ZCRYPT_CLOUD_NETWORKS sets it;
+	// ZCRYPT_BLOCK_CLOUD_NETWORKS=0 is kept as another way to say "off".
+	CloudNetworkMode string `json:"cloud_network_mode,omitempty"`
 	// NetworkAllow lists CIDRs that always pass the cloud network block
 	// (ZCRYPT_NETWORK_ALLOW, comma separated).
 	NetworkAllow []string `json:"network_allow,omitempty"`
@@ -245,9 +254,13 @@ func (c *Config) applyEnvOverrides() {
 	} else if c.GeoIPDB == "" {
 		c.GeoIPDB = DefaultGeoIPDB
 	}
-	c.BlockCloudNetworks = true
+	c.CloudNetworkMode = CloudNetworksBlock
+	switch v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_CLOUD_NETWORKS"))); v {
+	case CloudNetworksBlock, CloudNetworksFlag, CloudNetworksOff:
+		c.CloudNetworkMode = v
+	}
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_BLOCK_CLOUD_NETWORKS"))); v == "0" || v == "false" || v == "off" || v == "no" {
-		c.BlockCloudNetworks = false
+		c.CloudNetworkMode = CloudNetworksOff
 	}
 	if v := os.Getenv("ZCRYPT_NETWORK_ALLOW"); v != "" {
 		c.NetworkAllow = nil

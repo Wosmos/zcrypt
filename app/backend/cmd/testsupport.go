@@ -195,7 +195,8 @@ func (s *Server) CaptureNewDeviceEmails() func() []string {
 
 // SetCloudNetworksForTest makes the given CIDRs the cloud network list, in
 // place of the providers' published lists.
-func (s *Server) SetCloudNetworksForTest(cidrs string) {
+func (s *Server) SetCloudNetworksForTest(cidrs string, mode string) {
+	s.cfg.CloudNetworkMode = mode
 	s.netGuard = netguard.New(true, nil, nil)
 	s.netGuard.SetForTest(netguard.ParseSet(cidrs))
 }
