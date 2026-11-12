@@ -10,4 +10,4 @@ pub mod session;
 pub mod types;
 pub mod upload;
 
-pub use client::{ApiError, Client, TokenState};
+pub use client::{client_marker, set_app_version, ApiError, Client, TokenState, CLIENT_HEADER};

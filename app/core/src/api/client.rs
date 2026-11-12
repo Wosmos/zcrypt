@@ -101,6 +101,59 @@ pub struct TokenState {
 
 type RotateHook = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
+/// Header naming the app on every API call ("desktop-windows/0.2.3"). The
+/// server holds a session to the kind of app that started it, and the desktop
+/// webview sends the same platform, so the engine and the window share one
+/// session while a token copied into another program does not.
+pub const CLIENT_HEADER: &str = "X-Zcrypt-Client";
+
+static CLIENT_MARKER: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// The platform part of this build's marker.
+pub fn client_platform() -> &'static str {
+    if cfg!(target_os = "android") {
+        "android"
+    } else if cfg!(target_os = "windows") {
+        "desktop-windows"
+    } else if cfg!(target_os = "macos") {
+        "desktop-macos"
+    } else {
+        "desktop-linux"
+    }
+}
+
+/// Sets the app version the marker reports; the shell calls it once at
+/// start-up. Without it the engine reports its own crate version.
+pub fn set_app_version(version: &str) {
+    let _ = CLIENT_MARKER.set(format!("{}/{}", client_platform(), clean_version(version)));
+}
+
+/// This build's marker.
+pub fn client_marker() -> &'static str {
+    CLIENT_MARKER.get_or_init(|| format!("{}/{}", client_platform(), env!("CARGO_PKG_VERSION")))
+}
+
+fn clean_version(v: &str) -> String {
+    let v: String = v
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'))
+        .take(24)
+        .collect();
+    if v.is_empty() {
+        "0".into()
+    } else {
+        v
+    }
+}
+
+fn marker_headers() -> reqwest::header::HeaderMap {
+    let mut h = reqwest::header::HeaderMap::new();
+    if let Ok(v) = reqwest::header::HeaderValue::from_str(client_marker()) {
+        h.insert(CLIENT_HEADER, v);
+    }
+    h
+}
+
 pub struct Client {
     pub base_url: String,
     http: reqwest::Client,
@@ -137,6 +190,8 @@ struct RefreshResponse {
 impl Client {
     pub fn new(base_url: &str, access: &str, refresh: &str) -> Self {
         let mut http = reqwest::Client::builder()
+            .default_headers(marker_headers())
+            .user_agent(format!("zcrypt/{}", client_marker()))
             .timeout(Duration::from_secs(30))
             // Fail a stalled connect fast (flaky/filtered networks hang the
             // TCP/TLS handshake) so with_retry gets a chance instead of
@@ -340,6 +395,20 @@ mod user_id_tests {
 
 #[cfg(test)]
 mod retry_tests {
+
+    #[test]
+    fn marker_names_this_platform_and_a_clean_version() {
+        let m = super::client_marker();
+        let (platform, version) = m.split_once('/').expect("platform/version");
+        assert_eq!(platform, super::client_platform());
+        assert!(!version.is_empty());
+        assert_eq!(super::clean_version("0.2.3"), "0.2.3");
+        assert_eq!(super::clean_version("1.0 beta!"), "1.0beta");
+        assert_eq!(super::clean_version(""), "0");
+        assert_eq!(super::clean_version(&"9".repeat(40)).len(), 24);
+        assert!(super::marker_headers().contains_key(super::CLIENT_HEADER));
+    }
+
     use super::*;
 
     fn status(s: u16) -> ApiError {

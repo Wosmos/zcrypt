@@ -1933,6 +1933,7 @@ pub fn run() {
             biometric_authenticate,
         ])
         .setup(|app| {
+            zcrypt_core::api::set_app_version(&app.package_info().version.to_string());
             if cfg!(target_os = "android") {
                 if let Ok(dir) = app.path().app_data_dir() {
                     zcrypt_core::localdb::set_data_dir(dir);
