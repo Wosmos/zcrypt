@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { registerWithBreachCheck, login as loginApi } from "@/lib/auth-api";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
-import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthStatusCard, emphasizeEmail } from "@/components/auth/auth-status-card";
 import { AuthLink } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
@@ -137,7 +137,7 @@ export default function RegisterPage() {
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           {tr.rich("verifySent", {
             email,
-            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+            b: emphasizeEmail,
           })}
         </p>
       </AuthStatusCard>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { forgotPassword } from "@/lib/auth-api";
-import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthStatusCard, emphasizeEmail } from "@/components/auth/auth-status-card";
 import { AuthLink, AUTH_LINK_CLASS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           {tf.rich("sentTo", {
             email,
-            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+            b: emphasizeEmail,
           })}
         </p>
       </AuthStatusCard>
