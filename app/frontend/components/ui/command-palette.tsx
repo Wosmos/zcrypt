@@ -22,7 +22,7 @@ import { useGetAppsDialog } from "@/components/ui/get-apps-dialog";
 import { paletteActions, type PaletteActionId } from "@/components/ui/palette-actions";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { isTauri } from "@/lib/tauri";
-import { Role } from "@/types";
+import { showsAdmin } from "@/lib/build-target";
 import {
   Shield,
   Settings,
@@ -84,7 +84,7 @@ export function CommandPalette() {
   const setOpen = useCommandPalette((s) => s.setOpen);
   const toggle = useCommandPalette((s) => s.toggle);
   const files = useFilesQuery().data;
-  const isAdmin = useAuthStore((s) => s.user?.role === Role.Admin);
+  const isAdmin = useAuthStore((s) => showsAdmin(s.user?.role));
   const vault = useVaultLockContext();
   const { resolvedTheme, toggleTheme } = useTheme();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);

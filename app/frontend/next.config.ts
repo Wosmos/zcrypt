@@ -49,7 +49,10 @@ const cspHeaderKey =
     : "Content-Security-Policy";
 
 const nextConfig: NextConfig = {
-  env: { NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "" },
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "",
+    NEXT_PUBLIC_NATIVE_BUILD: isTauriExport ? "1" : "",
+  },
   reactCompiler: true,
   turbopack: {},
   pageExtensions: [
