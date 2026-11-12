@@ -7,11 +7,12 @@ license = "MIT"
 
 [dependencies]
 # Crypto: must stay byte-compatible with docs/CRYPTO_FORMAT.md.
-aes-gcm = "0.10"
-pbkdf2 = { version = "0.12", features = ["simple"] }
-sha2 = "0.10"
-hmac = "0.12"
+aes-gcm = "0.11"
+pbkdf2 = "0.13"
+sha2 = "0.11"
+hmac = "0.13"
 subtle = "2"
+getrandom = "0.4"
 zeroize = "1"
 
 # Compression (standard zstd frames, interoperable with klauspost/Go + wasm/web).
@@ -19,7 +20,7 @@ zstd = "0.14"
 
 # Encoding
 hex = "0.4"
-base64 = "0.22"
+base64 = "0.23"
 
 # Errors
 thiserror = "2"
@@ -53,10 +54,10 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
-dirs = "5"
+dirs = "7"
 urlencoding = "2"
 tempfile = "3"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
-hkdf = "0.12"
+hkdf = "0.13"
 
 [dev-dependencies]

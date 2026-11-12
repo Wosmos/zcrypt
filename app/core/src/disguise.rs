@@ -2,8 +2,7 @@
 //! client-created repos and chunk paths are indistinguishable from the
 //! server-created ones.
 
-use aes_gcm::aead::rand_core::RngCore;
-use aes_gcm::aead::OsRng;
+use crate::crypto::fill_random;
 
 const ADJECTIVES: &[&str] = &[
     "utils", "config", "build", "core", "base", "common", "shared", "internal", "simple", "fast",
@@ -35,12 +34,14 @@ const COMMIT_MESSAGES: &[&str] = &[
 ];
 
 fn pick<'a>(list: &'a [&'a str]) -> &'a str {
-    list[(OsRng.next_u32() as usize) % list.len()]
+    let mut b = [0u8; 4];
+    fill_random(&mut b);
+    list[(u32::from_le_bytes(b) as usize) % list.len()]
 }
 
 fn random_hex8() -> String {
     let mut b = [0u8; 8];
-    OsRng.fill_bytes(&mut b);
+    fill_random(&mut b);
     hex::encode(b)
 }
 
