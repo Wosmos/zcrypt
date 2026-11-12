@@ -118,7 +118,7 @@ const adminUserSelect = `WITH f AS (
 SELECT u.id, u.email, u.username, u.email_verified, u.totp_enabled, u.role, u.plan,
        u.storage_quota_bytes, u.deletion_scheduled_at, u.created_at, u.updated_at,
        u.signup_country, u.signup_region, u.signup_city,
-       u.last_country, u.last_region, u.last_city, u.last_ip_prefix, u.last_seen_at, u.last_user_agent,
+       u.last_country, u.last_region, u.last_city, u.last_ip_prefix, u.last_seen_at, u.last_user_agent, u.last_client,
        COALESCE(f.cnt, 0) AS file_count, COALESCE(f.total, 0) AS total_size, COALESCE(s.cnt, 0),
        ` + userCountryExpr + ` AS country, COALESCE(p.list, '[]'::json),
        COALESCE(ru.recent, 0), COALESCE(ru.month, 0)
@@ -131,7 +131,7 @@ func scanAdminUser(row interface{ Scan(...any) error }) (types.AdminUser, error)
 	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.EmailVerified, &u.TOTPEnabled, &u.Role, &u.Plan,
 		&u.StorageQuota, &u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
 		&u.SignupCountry, &u.SignupRegion, &u.SignupCity,
-		&u.LastCountry, &u.LastRegion, &u.LastCity, &u.LastIPPrefix, &u.LastSeenAt, &u.LastUserAgent,
+		&u.LastCountry, &u.LastRegion, &u.LastCity, &u.LastIPPrefix, &u.LastSeenAt, &u.LastUserAgent, &u.LastClient,
 		&u.FileCount, &u.TotalStorage, &u.SessionCount, &country, &u.Platforms,
 		&u.Relay24hBytes, &u.RelayMonthBytes)
 	return u, err

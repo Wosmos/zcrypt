@@ -104,6 +104,16 @@ type Config struct {
 	// GeoIPDB is the path of the DB-IP Lite city database used to place
 	// sessions on the map. A missing file only leaves locations empty.
 	GeoIPDB string `json:"geoip_db,omitempty"`
+	// BlockCloudNetworks refuses sign-in, sign-up and session refresh from
+	// cloud and data-center networks (netguard). On unless
+	// ZCRYPT_BLOCK_CLOUD_NETWORKS=0.
+	BlockCloudNetworks bool `json:"block_cloud_networks,omitempty"`
+	// NetworkAllow lists CIDRs that always pass the cloud network block
+	// (ZCRYPT_NETWORK_ALLOW, comma separated).
+	NetworkAllow []string `json:"network_allow,omitempty"`
+	// TurnstileSecret enables the Cloudflare Turnstile bot check on the web
+	// sign-up, sign-in, sign-in link and password reset forms.
+	TurnstileSecret string `json:"-"`
 	// Port is the HTTP listen port: ZCRYPT_PORT, then legacy zcrypt_PORT, then
 	// PORT (set by cloud hosts), then DefaultPort. Environment only.
 	Port string `json:"-"`
@@ -235,6 +245,19 @@ func (c *Config) applyEnvOverrides() {
 	} else if c.GeoIPDB == "" {
 		c.GeoIPDB = DefaultGeoIPDB
 	}
+	c.BlockCloudNetworks = true
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_BLOCK_CLOUD_NETWORKS"))); v == "0" || v == "false" || v == "off" || v == "no" {
+		c.BlockCloudNetworks = false
+	}
+	if v := os.Getenv("ZCRYPT_NETWORK_ALLOW"); v != "" {
+		c.NetworkAllow = nil
+		for _, p := range strings.Split(v, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				c.NetworkAllow = append(c.NetworkAllow, p)
+			}
+		}
+	}
+	c.TurnstileSecret = strings.TrimSpace(os.Getenv("TURNSTILE_SECRET_KEY"))
 	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			c.TrustedProxyCount = n

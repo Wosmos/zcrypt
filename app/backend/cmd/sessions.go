@@ -69,6 +69,9 @@ func (s *Server) HandleBackgroundSession(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusForbidden, "not available")
 		return
 	}
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 	userID := GetUserID(r)
 	if !s.authLimiter.allow("background|" + userID) {
 		writeError(w, http.StatusTooManyRequests, "too many requests, try again later")

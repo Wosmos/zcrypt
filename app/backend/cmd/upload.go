@@ -392,6 +392,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		RepoID:        repoID,
 		RepoURL:       repoURL,
 		Mode:          mode,
+		Client:        clientMarker(r),
 	}
 
 	sessionID, err := s.db.CreateUploadSession(ctx, session)

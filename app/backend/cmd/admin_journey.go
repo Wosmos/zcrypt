@@ -40,7 +40,7 @@ func (s *Server) adminTargetUser(w http.ResponseWriter, r *http.Request) (*types
 		internalError(w, "admin target user", err)
 		return nil, false
 	}
-	u.LastDevice = deviceLabel(u.LastUserAgent)
+	u.LastDevice = lastDevice(u.LastClient, u.LastUserAgent)
 	markHeavyRelay(u)
 	return u, true
 }

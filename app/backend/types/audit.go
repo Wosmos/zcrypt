@@ -15,6 +15,8 @@ const (
 	AuditEmailVerify                 = "email_verify"
 	AuditSessionRevoke               = "session_revoke"
 	AuditSessionsRevokeOthers        = "sessions_revoke_others"
+	AuditSessionClientChanged        = "session_client_changed"
+	AuditNetworkBlocked              = "network_blocked"
 	AuditLoginFailed                 = "login_failed"
 	AuditTwoFAEnable                 = "2fa_enable"
 	AuditTwoFADisable                = "2fa_disable"

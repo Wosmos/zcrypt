@@ -1091,6 +1091,13 @@ UPDATE users u SET last_seen_at = rt.created_at, last_ip_prefix = rt.ip, last_us
           FROM refresh_tokens ORDER BY user_id, created_at DESC) rt
  WHERE rt.user_id = u.id AND u.last_seen_at IS NULL;
 
+-- The app that started a session and the one each upload came from, as the
+-- client sent it in X-Zcrypt-Client ("web/0.2.3", "desktop-windows/0.2.3").
+-- '' for sessions and uploads from before the marker existed.
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_client TEXT NOT NULL DEFAULT '';
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT '';
+
 -- Admin list sorts and filters.
 CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen_at DESC NULLS LAST);

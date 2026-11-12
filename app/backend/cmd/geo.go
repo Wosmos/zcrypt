@@ -122,6 +122,15 @@ func isCountryCode(c string) bool {
 
 // deviceLabel is describeUserAgent for a stored agent, empty when none was
 // recorded.
+// lastDevice names the app a user last signed in with, from the client marker
+// when that session sent one, else from the browser's user agent.
+func lastDevice(client, ua string) string {
+	if l := clientLabel(client); l != "" {
+		return l
+	}
+	return deviceLabel(ua)
+}
+
 func deviceLabel(ua string) string {
 	if ua == "" {
 		return ""

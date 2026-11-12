@@ -1005,11 +1005,11 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
 	var id string
 	err := db.pool.QueryRow(ctx,
-		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode, client)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		 RETURNING id`,
 		s.UserID, s.FileID, s.Filename, s.EncryptedName, s.OriginalSize, s.Salt, s.SHA256, sha256SchemeOrDefault(s.SHA256Scheme), s.ChunkCount, s.ChunkSize,
-		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode),
+		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode), s.Client,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("create upload session: %w", err)

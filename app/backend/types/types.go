@@ -174,7 +174,8 @@ type UploadSession struct {
 	Account        string    `json:"account"`
 	RepoID         string    `json:"repo_id"`
 	RepoURL        string    `json:"repo_url"`
-	Mode           string    `json:"mode"` // "relay" (default) or "byos-direct"
+	Mode           string    `json:"mode"`             // "relay" (default) or "byos-direct"
+	Client         string    `json:"client,omitempty"` // X-Zcrypt-Client of the app that started the upload
 	UploadedChunks int       `json:"uploaded_chunks"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -252,6 +253,8 @@ type RefreshToken struct {
 	Country          string
 	Region           string
 	City             string
+	// Client is the X-Zcrypt-Client marker of the app that minted this token.
+	Client string
 }
 
 // GeoLocation is where the edge in front of the backend placed a request.
@@ -354,6 +357,7 @@ type AdminUser struct {
 	LastSeenAt    *time.Time          `json:"last_seen_at"`
 	LastUserAgent string              `json:"last_user_agent"`
 	LastDevice    string              `json:"last_device"`
+	LastClient    string              `json:"last_client"`
 	SessionCount  int                 `json:"session_count"`
 	Platforms     []ConnectedPlatform `json:"platforms"`
 	// Relay24hBytes is what the user moved through the server today and

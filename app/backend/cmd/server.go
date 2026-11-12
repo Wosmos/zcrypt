@@ -21,6 +21,7 @@ import (
 	"github.com/zcrypt/zcrypt/crypto"
 	"github.com/zcrypt/zcrypt/geoip"
 	"github.com/zcrypt/zcrypt/index"
+	"github.com/zcrypt/zcrypt/netguard"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/types"
@@ -61,6 +62,8 @@ type Server struct {
 	// stranger's bad guesses cannot lock the owner out from their own IP.
 	loginFailLimiter *rateLimiter
 	geo              *geoip.DB
+	netGuard         *netguard.Guard
+	turnstileURL     string
 	// Per-email send limiter for reset, verification and magic-link emails,
 	// keyed on (flow, email) so one flow never starves another or login.
 	emailSendLimiter *rateLimiter
@@ -260,6 +263,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		return s.db.SessionExists(ctx, userID, sessionID)
 	})
 	s.geo = openGeoIP(cfg.GeoIPDB)
+	s.netGuard = newNetGuard(cfg)
 	return s
 }
 

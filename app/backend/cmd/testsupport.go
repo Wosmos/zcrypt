@@ -11,6 +11,7 @@ import (
 	"github.com/zcrypt/zcrypt/config"
 
 	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/netguard"
 	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -190,4 +191,16 @@ func (s *Server) CaptureNewDeviceEmails() func() []string {
 		defer mu.Unlock()
 		return append([]string(nil), devices...)
 	}
+}
+
+// SetCloudNetworksForTest makes the given CIDRs the cloud network list, in
+// place of the providers' published lists.
+func (s *Server) SetCloudNetworksForTest(cidrs string) {
+	s.netGuard = netguard.New(true, nil, nil)
+	s.netGuard.SetForTest(netguard.ParseSet(cidrs))
+}
+
+// SetTurnstileURLForTest points the Turnstile check at a test server.
+func (s *Server) SetTurnstileURLForTest(url string) {
+	s.turnstileURL = url
 }

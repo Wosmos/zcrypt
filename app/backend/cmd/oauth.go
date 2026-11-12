@@ -135,6 +135,10 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 			isDesktop = false
 		}
 	}
+	if s.cloudNetwork(r) {
+		s.oauthError(w, r, "zcrypt can't be used from cloud servers, data centers or VPNs that run on them. Turn off the VPN or proxy and try again.", isDesktop, desktopSession)
+		return
+	}
 
 	// Clear state cookie
 	http.SetCookie(w, &http.Cookie{
