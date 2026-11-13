@@ -686,15 +686,19 @@ fn resume_in_background(app: &tauri::AppHandle) {
 }
 
 /// Build the API client (persisting rotated tokens back to the OS keychain)
-/// and (re)start the background sync worker.
+/// and (re)start the background sync worker. Returns the pair the engine
+/// holds, which is newer than the webview's when the engine rotated while the
+/// window was closed; the webview adopts it.
 #[tauri::command]
 async fn start_sync(
     app: tauri::AppHandle,
     base_url: String,
     access_token: String,
     refresh_token: String,
-) -> Result<(), String> {
-    start_engine(app, base_url, access_token, refresh_token).await
+) -> Result<serde_json::Value, String> {
+    let client = start_engine(app, base_url, access_token, refresh_token).await?;
+    let (access, refresh) = client.tokens().await;
+    Ok(serde_json::json!({ "access_token": access, "refresh_token": refresh }))
 }
 
 /// Signing out: stops sync and backups, drops the client and forgets the
@@ -729,7 +733,7 @@ async fn start_engine(
     base_url: String,
     access_token: String,
     refresh_token: String,
-) -> Result<(), String> {
+) -> Result<Arc<Client>, String> {
     if !api_origin_allowed(&base_url) {
         return Err("base_url is not the zcrypt API origin".to_string());
     }
@@ -740,12 +744,11 @@ async fn start_engine(
     let existing = state.client.read().await.clone();
     let client = match existing {
         Some(c) if c.base_url == base_url.trim_end_matches('/') => {
-            if c.tokens().await != (access_token.clone(), refresh_token.clone()) {
-                c.set_tokens(&access_token, &refresh_token).await;
+            if c.offer_tokens(&access_token, &refresh_token).await {
                 save_session(&access_token, &refresh_token);
             }
             if state.sync_cancel.lock().unwrap().is_some() {
-                return Ok(());
+                return Ok(c);
             }
             c
         }
@@ -760,10 +763,18 @@ async fn start_engine(
                     serde_json::json!({ "access_token": access, "refresh_token": refresh }),
                 );
             });
-            save_session(&access_token, &refresh_token);
-            let c = Arc::new(
-                Client::new(&base_url, &access_token, &refresh_token).with_rotate_hook(rotate_hook),
-            );
+            // The keychain holds the engine's last rotation, which can be newer
+            // than the pair the window saved before it closed.
+            let (access, refresh) = tauri::async_runtime::spawn_blocking(stored_session)
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| (access_token.clone(), refresh_token.clone()));
+            let c =
+                Arc::new(Client::new(&base_url, &access, &refresh).with_rotate_hook(rotate_hook));
+            c.offer_tokens(&access_token, &refresh_token).await;
+            let (access, refresh) = c.tokens().await;
+            save_session(&access, &refresh);
             *state.client.write().await = Some(c.clone());
             c
         }
@@ -793,6 +804,7 @@ async fn start_engine(
         // Sync only replays what local_upload already sealed; it derives no keys.
         vault_passphrase: None,
     };
+    let client = ctx.client.clone();
     let backup_ctx = ctx.clone();
     let backup_cancel = cancel_rx.clone();
     tauri::async_runtime::spawn(async move {
@@ -812,7 +824,7 @@ async fn start_engine(
     }
     #[cfg(mobile)]
     let _ = (backup_ctx, backup_cancel);
-    Ok(())
+    Ok(client)
 }
 
 /// Rotate the session through the engine and return the new pair. The webview
