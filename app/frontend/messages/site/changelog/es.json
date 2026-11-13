@@ -1,5 +1,17 @@
 {
   "changelog": {
+    "v0_2_3": {
+      "title": "Inicio de sesión y copias de seguridad más estables en el escritorio",
+      "summary": "Las copias de seguridad de carpetas en el Mac ya no se detienen por un error de sesión, macOS te pide la contraseña mucho menos y la app de Mac se ve como debe.",
+      "items": {
+        "backupSignIn": "Las copias de seguridad de carpetas en la app de escritorio ya no se detienen con «unauthorized, token refresh failed» después de cerrar y volver a abrir la ventana.",
+        "keychainOnce": "En el Mac, la app pide tu contraseña de inicio de sesión como mucho una vez tras una actualización, en lugar de una vez por cada secreto que guarda.",
+        "macIcon": "El icono de la app de Mac ocupa todo su cuadrado redondeado en lugar de quedar pequeño dentro de un recuadro gris.",
+        "corners": "Los botones, campos y tarjetas mantienen sus esquinas suaves en la app de Mac, en Firefox y en los teléfonos, en lugar de parecer píldoras.",
+        "appSessions": "Una sesión se queda con el tipo de app que la inició: si se copia a otro programa, se cierra.",
+        "libraries": "Las apps de escritorio y Android usan bibliotecas de cifrado y compresión actualizadas."
+      }
+    },
     "v0_2_2": {
       "title": "Cuadrículas de fotos rápidas y una ronda de arreglos",
       "summary": "Las carpetas de fotos muestran sus vistas previas en segundos, las miniaturas aparecen donde estás, y las descargas grandes, los enlaces compartidos y las transferencias entre dispositivos terminan en lugar de cortarse a medias.",

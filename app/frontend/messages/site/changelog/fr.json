@@ -1,5 +1,17 @@
 {
   "changelog": {
+    "v0_2_3": {
+      "title": "Connexion et sauvegardes plus fiables sur ordinateur",
+      "summary": "Les sauvegardes de dossiers sur Mac ne s'arrêtent plus sur une erreur de connexion, macOS vous demande votre mot de passe bien moins souvent et l'app Mac a l'apparence prévue.",
+      "items": {
+        "backupSignIn": "Les sauvegardes de dossiers dans l'app de bureau ne s'arrêtent plus sur « unauthorized, token refresh failed » après avoir fermé puis rouvert la fenêtre.",
+        "keychainOnce": "Sur Mac, l'app demande votre mot de passe de session au plus une fois après une mise à jour, au lieu d'une fois par secret enregistré.",
+        "macIcon": "L'icône de l'app Mac remplit son carré arrondi au lieu d'apparaître en petit dans une tuile grise.",
+        "corners": "Les boutons, champs et cartes gardent leurs coins adoucis dans l'app Mac, dans Firefox et sur téléphone, au lieu de ressembler à des pilules.",
+        "appSessions": "Une connexion reste liée au type d'app qui l'a ouverte : une session copiée dans un autre programme est déconnectée.",
+        "libraries": "Les apps de bureau et Android utilisent des bibliothèques de chiffrement et de compression mises à jour."
+      }
+    },
     "v0_2_2": {
       "title": "Grilles de photos rapides et une série de corrections",
       "summary": "Les dossiers de photos affichent leurs aperçus en quelques secondes, les miniatures apparaissent là où vous êtes, et les gros téléchargements, liens partagés et transferts entre appareils vont jusqu'au bout.",

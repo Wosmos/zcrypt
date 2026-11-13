@@ -1,5 +1,17 @@
 {
   "changelog": {
+    "v0_2_3": {
+      "title": "Steadier desktop sign-in and backups",
+      "summary": "Folder backups on the Mac no longer stop with a sign-in error, macOS asks for your password far less often, and the Mac app looks the way it should.",
+      "items": {
+        "backupSignIn": "Folder backups in the desktop app no longer stop with \"unauthorized, token refresh failed\" after the window is closed and opened again.",
+        "keychainOnce": "On the Mac, the app asks for your login password at most once after an update, instead of once for every secret it keeps.",
+        "macIcon": "The Mac app icon fills its rounded square instead of sitting small inside a grey tile.",
+        "corners": "Buttons, fields and cards keep their soft corners in the Mac app, in Firefox and on phones, instead of looking like pills.",
+        "appSessions": "A sign-in stays with the kind of app that started it: a session copied into another program is signed out.",
+        "libraries": "The desktop and Android apps use updated encryption and compression libraries."
+      }
+    },
     "v0_2_2": {
       "title": "Fast photo grids and a round of fixes",
       "summary": "Folders of photos now show their previews in seconds, thumbnails fill in where you are, and large downloads, shared links and device transfers finish instead of stopping partway.",

@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.2.3",
+    "date": null,
+    "key": "v0_2_3",
+    "groups": [
+      {
+        "kind": "fixed",
+        "items": ["backupSignIn", "keychainOnce", "macIcon", "corners"]
+      },
+      {
+        "kind": "security",
+        "items": ["appSessions", "libraries"]
+      }
+    ]
+  },
+  {
     "version": "0.2.2",
     "date": "2026-11-12",
     "key": "v0_2_2",

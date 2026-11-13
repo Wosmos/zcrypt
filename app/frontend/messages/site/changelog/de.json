@@ -1,5 +1,17 @@
 {
   "changelog": {
+    "v0_2_3": {
+      "title": "Stabilere Anmeldung und Backups am Desktop",
+      "summary": "Ordner-Backups auf dem Mac brechen nicht mehr mit einem Anmeldefehler ab, macOS fragt viel seltener nach deinem Passwort, und die Mac-App sieht aus, wie sie soll.",
+      "items": {
+        "backupSignIn": "Ordner-Backups in der Desktop-App brechen nicht mehr mit „unauthorized, token refresh failed“ ab, nachdem das Fenster geschlossen und wieder geöffnet wurde.",
+        "keychainOnce": "Auf dem Mac fragt die App nach einem Update höchstens einmal nach deinem Anmeldepasswort statt einmal für jedes gespeicherte Geheimnis.",
+        "macIcon": "Das Symbol der Mac-App füllt sein abgerundetes Quadrat aus, statt klein in einer grauen Kachel zu sitzen.",
+        "corners": "Schaltflächen, Felder und Karten behalten in der Mac-App, in Firefox und auf Smartphones ihre weichen Ecken, statt wie Pillen auszusehen.",
+        "appSessions": "Eine Anmeldung bleibt bei der Art von App, die sie begonnen hat: Eine in ein anderes Programm kopierte Sitzung wird abgemeldet.",
+        "libraries": "Die Desktop- und Android-Apps nutzen aktualisierte Bibliotheken für Verschlüsselung und Komprimierung."
+      }
+    },
     "v0_2_2": {
       "title": "Schnelle Fotoraster und eine Runde Korrekturen",
       "summary": "Fotoordner zeigen ihre Vorschauen in Sekunden, Miniaturen erscheinen dort, wo du bist, und große Downloads, geteilte Links und Übertragungen zwischen Geräten laufen bis zum Ende.",
