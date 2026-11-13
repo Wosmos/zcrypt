@@ -162,18 +162,27 @@ pub struct Client {
     on_rotate: Option<RotateHook>,
 }
 
-fn user_id_from_token(access: &str) -> Option<String> {
+fn token_claims(access: &str) -> Option<serde_json::Value> {
     use base64::Engine as _;
     let payload = access.split('.').nth(1)?;
     let raw = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(payload.trim_end_matches('='))
         .ok()?;
-    let claims: serde_json::Value = serde_json::from_slice(&raw).ok()?;
-    claims
+    serde_json::from_slice(&raw).ok()
+}
+
+fn user_id_from_token(access: &str) -> Option<String> {
+    token_claims(access)?
         .get("sub")?
         .as_str()
         .filter(|s| !s.is_empty())
         .map(str::to_string)
+}
+
+/// When the access token was issued. Every refresh mints a later one, so of two
+/// pairs from the same session the later-issued one is the live one.
+fn issued_at(access: &str) -> Option<i64> {
+    token_claims(access)?.get("iat")?.as_i64()
 }
 
 #[derive(Serialize)]
@@ -236,11 +245,22 @@ impl Client {
     }
 
     /// Replace the tokens in place, so every in-flight transfer holding this
-    /// client picks them up (a fresh login in the webview, say).
-    pub async fn set_tokens(&self, access: &str, refresh: &str) {
+    /// client picks them up (a fresh login in the webview, say), unless the
+    /// pair held is newer: a window that reopens with the pair it saved before
+    /// the engine rotated must not put a spent refresh token back in the engine.
+    /// A held pair whose refresh was rejected is always replaced. Returns
+    /// whether the pair was taken.
+    pub async fn offer_tokens(&self, access: &str, refresh: &str) -> bool {
         let mut t = self.tokens.lock().await;
+        if t.access == access && t.refresh == refresh {
+            return false;
+        }
+        if !t.refresh.is_empty() && issued_at(access) < issued_at(&t.access) {
+            return false;
+        }
         t.access = access.into();
         t.refresh = refresh.into();
+        true
     }
 
     /// Rotate now and return the new (access, refresh) pair. The webview calls
@@ -272,8 +292,18 @@ impl Client {
             })
             .send()
             .await?;
-        if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        if matches!(status, 401 | 403) {
+            // Spent or revoked: forget it, so every caller fails at once instead
+            // of each sending it again, until a new pair arrives.
+            tokens.refresh.clear();
             return Err(ApiError::Unauthorized);
+        }
+        if !resp.status().is_success() {
+            return Err(ApiError::Status {
+                status,
+                body: resp.text().await.unwrap_or_default(),
+            });
         }
         let body: RefreshResponse = resp.json().await?;
         tokens.access = body.access_token;
@@ -366,7 +396,7 @@ fn is_retryable(e: &ApiError) -> bool {
 }
 
 #[cfg(test)]
-mod user_id_tests {
+mod token_tests {
     use super::*;
     use base64::Engine as _;
 
@@ -382,6 +412,55 @@ mod user_id_tests {
             user_id_from_token(&token(&format!(r#"{{"sub":"{uid}","role":"user"}}"#))),
             Some(uid)
         );
+    }
+
+    #[tokio::test]
+    async fn keeps_the_newer_pair_it_holds() {
+        let held = token(r#"{"sub":"u","iat":200}"#);
+        let older = token(r#"{"sub":"u","iat":100}"#);
+        let newer = token(r#"{"sub":"u","iat":300}"#);
+        let client = Client::new("http://127.0.0.1:0", &held, "r2");
+
+        assert!(!client.offer_tokens(&older, "r1").await);
+        assert!(!client.offer_tokens(&held, "r2").await);
+        assert_eq!(client.tokens().await, (held.clone(), "r2".into()));
+
+        assert!(client.offer_tokens(&newer, "r3").await);
+        assert_eq!(client.tokens().await, (newer, "r3".into()));
+    }
+
+    #[tokio::test]
+    async fn a_rejected_refresh_fails_fast_until_a_new_pair_arrives() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = hits.clone();
+        tokio::spawn(async move {
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+            while let Ok((mut sock, _)) = listener.accept().await {
+                seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let mut buf = [0u8; 4096];
+                let _ = sock.read(&mut buf).await;
+                let _ = sock
+                    .write_all(b"HTTP/1.1 401 Unauthorized\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+                    .await;
+            }
+        });
+        let held = token(r#"{"sub":"u","iat":200}"#);
+        let client = Client::new(&base, &held, "spent");
+
+        assert!(matches!(
+            client.force_refresh().await,
+            Err(ApiError::Unauthorized)
+        ));
+        assert!(matches!(
+            client.force_refresh().await,
+            Err(ApiError::Unauthorized)
+        ));
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let older = token(r#"{"sub":"u","iat":100}"#);
+        assert!(client.offer_tokens(&older, "fresh").await);
     }
 
     #[test]
