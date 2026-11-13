@@ -147,12 +147,14 @@ export async function localUpload(
 /**
  * Start the background sync worker in the core. The refresh token is
  * required: without it, sync dies silently once the access token expires.
+ * Resolves to the pair the engine holds, newer than the one passed in when the
+ * engine rotated while the window was closed.
  */
 export async function startSync(
   baseUrl: string,
   accessToken: string,
   refreshToken: string,
-): Promise<void> {
+): Promise<{ access_token: string; refresh_token: string }> {
   return tauriInvoke("start_sync", { baseUrl, accessToken, refreshToken });
 }
 
