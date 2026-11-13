@@ -14,7 +14,9 @@ rm -rf "app/frontend/app/(app)/admin"
 echo "== [2/5] build frontend static export =="
 # Backend origin: DESKTOP_API_URL env, else the LOCAL gitignored
 # scripts/desktop.env (see scripts/desktop.env.example). Never baked in-repo.
-[ -f "$REPO/scripts/desktop.env" ] && source "$REPO/scripts/desktop.env"
+if [ -z "${DESKTOP_API_URL:-}" ] && [ -f "$REPO/scripts/desktop.env" ]; then
+  source "$REPO/scripts/desktop.env"
+fi
 : "${DESKTOP_API_URL:?Set DESKTOP_API_URL or create scripts/desktop.env from scripts/desktop.env.example}"
 echo "baking backend origin: $DESKTOP_API_URL"
 cd app/frontend
@@ -44,7 +46,7 @@ bash "$REPO/scripts/check-native-bundle.sh" "$REPO/app/desktop/frontend-dist"
 
 echo "== [5/5] cargo tauri build (release bundle) =="
 cd "$REPO/app/desktop/src-tauri"
-cargo tauri build
+ZCRYPT_API_URL="$DESKTOP_API_URL" cargo tauri build
 
 echo "== DONE. Bundle output: =="
 find "$REPO/app/desktop/src-tauri/target/release/bundle" -name "*.dmg" -o -name "*.app" 2>/dev/null
