@@ -1,6 +1,7 @@
 mod backup_agent;
 mod paths;
 mod photo_backup;
+mod secrets;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -25,8 +26,6 @@ use zcrypt_core::profiles;
 use zcrypt_core::types::{Progress, ProgressFn};
 use zeroize::Zeroize;
 
-/// OS keychain service name for all zcrypt desktop secrets.
-const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
 /// Keychain key under which the vault passphrase is cached.
 const KEYCHAIN_VAULT_PASSPHRASE: &str = "vault.passphrase";
 /// Prefix of the per-platform credential keys (`platform.<id>.token`).
@@ -245,19 +244,17 @@ fn keychain_key_allowed(key: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-fn keychain_entry(key: &str) -> Result<keyring::Entry, String> {
-    if !keychain_key_allowed(key) {
-        return Err("keychain: key not permitted".to_string());
+fn permitted_key(key: &str) -> Result<&str, String> {
+    if keychain_key_allowed(key) {
+        Ok(key)
+    } else {
+        Err("keychain: key not permitted".to_string())
     }
-    keyring::Entry::new(KEYCHAIN_SERVICE, key).map_err(|e| format!("keychain: {}", e))
 }
 
 /// Read a keychain secret, returning None for a missing/unreadable entry.
 fn keychain_read(key: &str) -> Option<String> {
-    keyring::Entry::new(KEYCHAIN_SERVICE, key)
-        .ok()?
-        .get_password()
-        .ok()
+    secrets::get(key).ok().flatten()
 }
 
 /// CredProvider backed by the OS keychain: the user's own platform tokens are
@@ -634,29 +631,20 @@ const SESSION_REFRESH: &str = "auth.refresh";
 /// restart without the window ever opening.
 fn save_session(access: &str, refresh: &str) {
     for (key, value) in [(SESSION_ACCESS, access), (SESSION_REFRESH, refresh)] {
-        if let Err(e) =
-            keyring::Entry::new(KEYCHAIN_SERVICE, key).and_then(|entry| entry.set_password(value))
-        {
+        if let Err(e) = secrets::set(key, value) {
             eprintln!("keychain: save {key}: {e}");
         }
     }
 }
 
 fn stored_session() -> Option<(String, String)> {
-    let read = |key| {
-        keyring::Entry::new(KEYCHAIN_SERVICE, key)
-            .and_then(|e| e.get_password())
-            .ok()
-            .filter(|v| !v.is_empty())
-    };
+    let read = |key| keychain_read(key).filter(|v| !v.is_empty());
     Some((read(SESSION_ACCESS)?, read(SESSION_REFRESH)?))
 }
 
 fn forget_session() {
     for key in [SESSION_ACCESS, SESSION_REFRESH] {
-        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, key) {
-            let _ = entry.delete_credential();
-        }
+        let _ = secrets::delete(key);
     }
 }
 
@@ -1346,28 +1334,20 @@ fn notify_backup(app: &tauri::AppHandle, path: &Path) {
 
 #[tauri::command]
 async fn keychain_set(key: String, value: String) -> Result<(), String> {
-    let res = keychain_entry(&key)?
-        .set_password(&value)
-        .map_err(|e| format!("keychain set: {}", e));
+    let res =
+        secrets::set(permitted_key(&key)?, &value).map_err(|e| format!("keychain set: {}", e));
     invalidate_creds();
     res
 }
 
 #[tauri::command]
 async fn keychain_get(key: String) -> Result<Option<String>, String> {
-    match keychain_entry(&key)?.get_password() {
-        Ok(value) => Ok(Some(value)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("keychain get: {}", e)),
-    }
+    secrets::get(permitted_key(&key)?).map_err(|e| format!("keychain get: {}", e))
 }
 
 #[tauri::command]
 async fn keychain_delete(key: String) -> Result<(), String> {
-    let res = match keychain_entry(&key)?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(format!("keychain delete: {}", e)),
-    };
+    let res = secrets::delete(permitted_key(&key)?).map_err(|e| format!("keychain delete: {}", e));
     invalidate_creds();
     res
 }
