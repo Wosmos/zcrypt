@@ -107,6 +107,7 @@ export function TokenProgressStates({
   onSave,
   previewExtras,
   doneExtras,
+  onCancel,
 }: {
   pageState: ViewerState;
   loadingMessage: string;
@@ -118,6 +119,7 @@ export function TokenProgressStates({
   onSave: () => void;
   previewExtras?: ReactNode;
   doneExtras?: ReactNode;
+  onCancel?: () => void;
 }) {
   return (
     <>
@@ -129,6 +131,7 @@ export function TokenProgressStates({
           fileSize={info.file_size}
           stage={progress.stage}
           percent={progress.percent}
+          onCancel={onCancel}
         />
       )}
 

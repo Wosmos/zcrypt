@@ -208,8 +208,8 @@ describe("anonymous send", () => {
     await expect(api.getSendInfo("T")).rejects.toThrow("Transfer not found");
 
     // Error body that isn't valid JSON exercises the .catch(() => ({})) fallback.
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
-    await expect(api.getSendMeta("T")).rejects.toThrow("Failed to get transfer metadata");
+    fetchMock.mockResolvedValueOnce(mk(404, { jsonThrows: true }));
+    await expect(api.getSendMeta("T")).rejects.toMatchObject({ status: 404 });
 
     fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([7]).buffer, hdr: { "X-Chunk-SHA256": "z" } }));
     const chunk = await api.getSendChunk("T", 0);

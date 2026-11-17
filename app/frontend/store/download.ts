@@ -18,7 +18,12 @@ import { genId } from "@/lib/id";
 import { desktopAppAction } from "@/lib/open-desktop-app";
 import { DownloadStatus } from "@/types";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
-import { STREAM_TO_DISK_MIN_BYTES, getSaveFilePicker, canStreamToDisk } from "@/lib/disk-save";
+import {
+  STREAM_TO_DISK_MIN_BYTES,
+  ZIP_IN_MEMORY_MAX_BYTES,
+  getSaveFilePicker,
+  canStreamToDisk,
+} from "@/lib/disk-save";
 
 import { createFrameBatch } from "@/lib/frame-batch";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
@@ -31,9 +36,7 @@ function notifyZipDone(count: number, failed: number) {
   void notify({ type: "transferDone", kind: "download", count, failed, folder: "" });
 }
 
-// A ZIP that cannot stream to disk is assembled in tab memory; above this it
-// is refused rather than crashing the tab.
-export const ZIP_IN_MEMORY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+export { ZIP_IN_MEMORY_MAX_BYTES };
 
 export interface DownloadItem {
   id: string;

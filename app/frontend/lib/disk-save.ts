@@ -4,6 +4,9 @@ import type { DiskWritable } from "@/lib/download-session";
  *  assembled in memory; a browser that cannot stream is refused files this big. */
 export const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024;
 
+/** A ZIP that cannot stream to disk is assembled in tab memory; above this it is refused. */
+export const ZIP_IN_MEMORY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+
 interface SaveFilePickerOptions {
   suggestedName?: string;
 }

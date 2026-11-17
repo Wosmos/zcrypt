@@ -7,7 +7,9 @@ import { getShareInfo, getShareFileMeta, getShareChunk, completeShareDownload } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Lock } from "@/lib/icons";
-import { concatChunks } from "@/lib/utils";
+import { tr } from "@/store/translate";
+import { chooseDiskWriter } from "@/lib/disk-save";
+import { confirmLinkDownload, createLinkVerifier, needsDisk } from "@/lib/link-download";
 import { keyFromFragment } from "@/lib/share-link";
 import { keyFromBytes } from "@/lib/sealed";
 import { openLinkName } from "@/components/tokens/link-name";
@@ -24,7 +26,7 @@ import {
 import { getPreviewType, getMimeType } from "@/components/tokens/preview-types";
 import { downloadChunks } from "@/components/tokens/chunk-download";
 import { useTokenViewer } from "@/components/tokens/use-token-viewer";
-import type { Progress, ViewerSetters } from "@/components/tokens/use-token-viewer";
+import type { DecryptContext, Progress, ViewerSetters } from "@/components/tokens/use-token-viewer";
 import type { ShareInfo } from "@/types";
 
 function openShareName(raw: string | undefined, key: string | null): Promise<string> {
@@ -43,85 +45,116 @@ export default function SharePage() {
   const [nameGuessed, setNameGuessed] = useState(false);
 
   const decryptFile = useCallback(
-    async (setProgress: (p: Progress) => void) => {
+    async (setProgress: (p: Progress) => void, { signal, purpose }: DecryptContext) => {
       if (!token || !shareKey) return null;
 
-      const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-      const { getZstdCodec } = await import("@/lib/zstd");
-      const { getDeviceProfile } = await import("@/lib/device-profile");
-      const zstd = await getZstdCodec();
-
-      setProgress({ stage: t("pub.fetching"), percent: 0 });
-      const meta = await getShareFileMeta(token, sharePassword || undefined);
-
-      // Unwrap the file's CEK using the share key from the URL fragment.
-      setProgress({ stage: t("pub.share.unwrapping"), percent: 1 });
-      if (!meta.wrapped_cek) {
-        throw new Error(t("pub.share.missingCek"));
+      // The Save-As picker needs the click's activation, so it opens before any
+      // other await. A preview is held in memory, so it is refused at the same size.
+      const size = info?.file_size ?? 0;
+      const choice =
+        purpose === "download"
+          ? await chooseDiskWriter(info?.file_name || "download", size)
+          : ({ kind: needsDisk(size) ? "unsupported" : "memory" } as const);
+      if (choice.kind === "cancelled") return null;
+      if (choice.kind === "unsupported") {
+        throw new Error(
+          purpose === "preview"
+            ? tr("viewer.tooLarge")
+            : tr("toasts.tooLargeDownload", { name: info?.file_name || "" }),
+        );
       }
-      let keyBytes: ArrayBuffer;
+      const disk = choice.kind === "disk" ? choice.writer : undefined;
+
       try {
-        const sk = fromBase64(shareKey);
-        const cek = await unwrapKey(
-          sk.buffer.slice(0) as ArrayBuffer,
-          fromBase64(meta.wrapped_cek),
-        );
-        keyBytes = cek.buffer.slice(0) as ArrayBuffer;
-      } catch {
-        throw new Error(t("pub.share.invalidKey"));
-      }
+        const { unwrapKey, decryptChunk, fromBase64 } = await import("@/lib/crypto");
+        const { getZstdCodec } = await import("@/lib/zstd");
+        const { getDeviceProfile } = await import("@/lib/device-profile");
+        const zstd = await getZstdCodec();
 
-      const decryptedChunks = await downloadChunks({
-        count: meta.chunk_count,
-        concurrency: getDeviceProfile().maxConcurrentDownloads,
-        setProgress,
-        stageLabel: (done, total) => t("pub.decryptingN", { done, total }),
-        fetchChunk: async (index) => {
-          const { data, compressed } = await getShareChunk(
-            token,
-            index,
-            sharePassword || undefined,
-            meta.download_ticket,
-          );
-          let plaintext: Uint8Array;
-          try {
-            plaintext = await decryptChunk(keyBytes, new Uint8Array(data));
-          } catch {
-            throw new Error(t("pub.share.decryptFailed"));
-          }
-          return compressed && zstd ? zstd.ZstdStream.decompress(plaintext) : plaintext;
-        },
-      });
+        setProgress({ stage: t("pub.fetching"), percent: 0 });
+        const meta = await getShareFileMeta(token, sharePassword || undefined, signal);
 
-      setProgress({ stage: t("pub.verifying"), percent: 93 });
-      const fullFile = concatChunks(decryptedChunks);
-
-      // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
-      // the vault passphrase) can recompute. A public share recipient has no
-      // passphrase, so the file-level compare is impossible: skip it and rely on
-      // the per-chunk AES-GCM auth tags. Legacy 'plain'/undefined files still verify.
-      if (meta.sha256_scheme !== "hmac_v1") {
-        const actualHash = await sha256Hex(fullFile);
-        if (actualHash !== meta.sha256) {
-          throw new Error(t("pub.integrityMismatch"));
+        // Unwrap the file's CEK using the share key from the URL fragment.
+        setProgress({ stage: t("pub.share.unwrapping"), percent: 1 });
+        if (!meta.wrapped_cek) {
+          throw new Error(t("pub.share.missingCek"));
         }
-      }
+        let keyBytes: ArrayBuffer;
+        try {
+          const sk = fromBase64(shareKey);
+          const cek = await unwrapKey(
+            sk.buffer.slice(0) as ArrayBuffer,
+            fromBase64(meta.wrapped_cek),
+          );
+          keyBytes = cek.buffer.slice(0) as ArrayBuffer;
+        } catch {
+          throw new Error(t("pub.share.invalidKey"));
+        }
 
-      if (meta.download_ticket) {
-        await completeShareDownload(token, meta.download_ticket, sharePassword || undefined).catch(
-          () => {},
-        );
-      }
+        const verifier = await createLinkVerifier(meta, keyBytes);
+        let head: Uint8Array | undefined;
+        const decryptedChunks = await downloadChunks({
+          count: meta.chunk_count,
+          concurrency: getDeviceProfile().maxConcurrentDownloads,
+          setProgress,
+          stageLabel: (done, total) => t("pub.decryptingN", { done, total }),
+          signal,
+          sink: disk
+            ? async (d) => {
+                head ??= d;
+                verifier.update(d);
+                await disk.write(d);
+              }
+            : undefined,
+          fetchChunk: async (index, chunkSignal) => {
+            const { data, compressed } = await getShareChunk(
+              token,
+              index,
+              sharePassword || undefined,
+              meta.download_ticket,
+              chunkSignal,
+            );
+            let plaintext: Uint8Array;
+            try {
+              plaintext = await decryptChunk(keyBytes, new Uint8Array(data));
+            } catch {
+              throw new Error(t("pub.share.decryptFailed"));
+            }
+            return compressed && zstd ? zstd.ZstdStream.decompress(plaintext) : plaintext;
+          },
+        });
 
-      const openedName = await openShareName(meta.original_name, shareKey);
-      setNameGuessed(!openedName);
-      const originalName = resolveDownloadName(openedName, fullFile);
-      const mime =
-        getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
-      const blob = new Blob([fullFile as BlobPart], { type: mime });
-      return { blob, originalName };
+        setProgress({ stage: t("pub.verifying"), percent: 93 });
+        if (!disk) for (const c of decryptedChunks) verifier.update(c);
+        if (!verifier.ok()) throw new Error(t("pub.integrityMismatch"));
+        const sniffBytes = head ?? decryptedChunks[0] ?? new Uint8Array();
+
+        if (meta.download_ticket) {
+          const ticket = meta.download_ticket;
+          await confirmLinkDownload(
+            (s) => completeShareDownload(token, ticket, sharePassword || undefined, s),
+            signal,
+          );
+        }
+
+        const openedName = await openShareName(meta.original_name, shareKey);
+        setNameGuessed(!openedName);
+        const originalName = resolveDownloadName(openedName, sniffBytes);
+        if (disk) {
+          await disk.close();
+          return { originalName };
+        }
+        const mime =
+          getMimeType(originalName) ||
+          sniffFileType(sniffBytes)?.mime ||
+          "application/octet-stream";
+        return { blob: new Blob(decryptedChunks as BlobPart[], { type: mime }), originalName };
+      } catch (err) {
+        await disk?.abort?.().catch(() => {});
+        throw err;
+      }
     },
-    [token, shareKey, sharePassword, t],
+    [token, shareKey, sharePassword, info, t],
   );
 
   // A 401/403 bounces back to the credential form for a retry; anything else is
@@ -153,6 +186,7 @@ export default function SharePage() {
     handleDownload,
     handleSave,
     closePreview,
+    cancel,
   } = useTokenViewer({
     enabled: !!token && !!shareKey,
     decrypt: decryptFile,
@@ -284,6 +318,7 @@ export default function SharePage() {
           previewType={previewType}
           previewUrl={previewUrl}
           onSave={handleSave}
+          onCancel={cancel}
           previewExtras={
             <button
               onClick={closePreview}

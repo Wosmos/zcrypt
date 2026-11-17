@@ -1917,9 +1917,8 @@ export async function getSendInfo(token: string): Promise<SendInfo> {
   return res.json();
 }
 
-export async function getSendMeta(token: string): Promise<SendMeta> {
-  const res = await fetch(`${API_BASE}/api/send/${token}/meta`);
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get transfer metadata"));
+export async function getSendMeta(token: string, signal?: AbortSignal): Promise<SendMeta> {
+  const res = await linkFetch(`${API_BASE}/api/send/${token}/meta`, {}, {}, signal);
   return res.json();
 }
 

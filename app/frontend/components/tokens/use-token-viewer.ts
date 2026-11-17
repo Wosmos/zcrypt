@@ -12,7 +12,10 @@ export type ViewerState =
   | "error";
 
 export type Progress = { stage: string; percent: number };
-export type Decrypted = { blob: Blob; originalName: string };
+/** `blob` is absent when the bytes were already streamed to a file on disk. */
+export type Decrypted = { blob?: Blob; originalName: string };
+
+export type DecryptContext = { signal: AbortSignal; purpose: "preview" | "download" };
 
 export type ViewerSetters = {
   setPageState: (s: ViewerState) => void;
@@ -21,7 +24,7 @@ export type ViewerSetters = {
 
 type Options = {
   enabled: boolean;
-  decrypt: (setProgress: (p: Progress) => void) => Promise<Decrypted | null>;
+  decrypt: (setProgress: (p: Progress) => void, ctx: DecryptContext) => Promise<Decrypted | null>;
   previewFallback: string;
   downloadFallback: string;
   fallbackSaveName: string;
@@ -43,60 +46,91 @@ export function useTokenViewer({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
   const prevUrlRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     return () => {
+      abortRef.current?.abort();
       if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
     };
   }, []);
 
   const runDecrypt = useCallback(
-    async (onSuccess: (blob: Blob, originalName: string) => void, fallbackMsg: string) => {
+    async (
+      purpose: DecryptContext["purpose"],
+      onSuccess: (result: Decrypted) => void,
+      fallbackMsg: string,
+    ) => {
       if (!enabled) return;
+      abortRef.current?.abort();
+      const ctl = new AbortController();
+      abortRef.current = ctl;
       setPageState("decrypting");
       setErrorMsg("");
 
       try {
-        const result = await decrypt(setProgress);
-        if (!result) return;
-        onSuccess(result.blob, result.originalName);
+        const result = await decrypt(setProgress, { signal: ctl.signal, purpose });
+        if (ctl.signal.aborted) return;
+        if (!result) {
+          setPageState("ready");
+          return;
+        }
+        onSuccess(result);
       } catch (err) {
+        if (ctl.signal.aborted) return;
         if (onError) {
           onError(err, fallbackMsg, { setPageState, setErrorMsg });
         } else {
           setPageState("error");
           setErrorMsg(err instanceof Error ? err.message : fallbackMsg);
         }
+      } finally {
+        if (abortRef.current === ctl) abortRef.current = null;
       }
     },
     [enabled, decrypt, onError],
   );
 
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setPageState("ready");
+  }, []);
+
   const handlePreview = useCallback(
     () =>
-      runDecrypt((blob, originalName) => {
-        setDecryptedBlob(blob);
-        setFileName(originalName);
+      runDecrypt(
+        "preview",
+        ({ blob, originalName }) => {
+          if (!blob) return;
+          setDecryptedBlob(blob);
+          setFileName(originalName);
 
-        if (getPreviewType(originalName) !== "none") {
-          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-          const url = URL.createObjectURL(blob);
-          prevUrlRef.current = url;
-          setPreviewUrl(url);
-        }
+          if (getPreviewType(originalName) !== "none") {
+            if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+            const url = URL.createObjectURL(blob);
+            prevUrlRef.current = url;
+            setPreviewUrl(url);
+          }
 
-        setPageState("preview");
-      }, previewFallback),
+          setPageState("preview");
+        },
+        previewFallback,
+      ),
     [runDecrypt, previewFallback],
   );
 
   const handleDownload = useCallback(
     () =>
-      runDecrypt((blob, originalName) => {
-        saveBlob(originalName, blob);
-        setPageState("done");
-        setFileName(originalName);
-      }, downloadFallback),
+      runDecrypt(
+        "download",
+        ({ blob, originalName }) => {
+          if (blob) saveBlob(originalName, blob);
+          setPageState("done");
+          setFileName(originalName);
+        },
+        downloadFallback,
+      ),
     [runDecrypt, downloadFallback],
   );
 
@@ -127,5 +161,6 @@ export function useTokenViewer({
     handleDownload,
     handleSave,
     closePreview,
+    cancel,
   };
 }

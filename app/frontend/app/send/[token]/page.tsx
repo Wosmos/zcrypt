@@ -26,7 +26,7 @@ import {
 import { getPreviewType, getMimeType } from "@/components/tokens/preview-types";
 import { downloadChunks } from "@/components/tokens/chunk-download";
 import { useTokenViewer } from "@/components/tokens/use-token-viewer";
-import type { Progress } from "@/components/tokens/use-token-viewer";
+import type { DecryptContext, Progress } from "@/components/tokens/use-token-viewer";
 import type { SendInfo } from "@/types";
 
 const noopSubscribe = () => () => {};
@@ -39,54 +39,53 @@ export default function SendDownloadPage() {
   const encryptionKey = useSyncExternalStore(noopSubscribe, keyFromFragment, () => null);
 
   const decryptFile = useCallback(
-    async (setProgress: (p: Progress) => void) => {
+    async (setProgress: (p: Progress) => void, { signal }: DecryptContext) => {
       if (!token || !encryptionKey) return null;
 
-      const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+      const { deriveKeyBytes, decryptChunk, bytesToHex, createContentHasher, fromBase64 } =
+        await import("@/lib/crypto");
       const { getDeviceProfile } = await import("@/lib/device-profile");
+      const { getZstdCodec } = await import("@/lib/zstd");
 
       setProgress({ stage: t("pub.fetching"), percent: 0 });
-      const meta = await getSendMeta(token);
+      const meta = await getSendMeta(token, signal);
 
       setProgress({ stage: t("pub.deriving"), percent: 1 });
       const salt = fromBase64(meta.salt);
       const keyBytes = await deriveKeyBytes(encryptionKey, salt);
+      const zstd = await getZstdCodec();
 
       const decryptedChunks = await downloadChunks({
         count: meta.chunk_count,
         concurrency: getDeviceProfile().maxConcurrentDownloads,
         setProgress,
         stageLabel: (done, total) => t("pub.decryptingN", { done, total }),
-        fetchChunk: async (index) => {
-          const res = await getSendChunk(token, index);
+        signal,
+        fetchChunk: async (index, chunkSignal) => {
+          const res = await getSendChunk(token, index, chunkSignal);
+          let plaintext: Uint8Array;
           try {
-            return await decryptChunk(keyBytes, new Uint8Array(res.data));
+            plaintext = await decryptChunk(keyBytes, new Uint8Array(res.data));
           } catch {
             throw new Error(t("pub.decryptCorrupt"));
           }
+          return res.compressed && zstd ? zstd.ZstdStream.decompress(plaintext) : plaintext;
         },
       });
 
       setProgress({ stage: t("pub.verifying"), percent: 93 });
-      const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
-      const fullFile = new Uint8Array(totalSize);
-      let offset = 0;
-      for (const chunk of decryptedChunks) {
-        fullFile.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-
-      const actualHash = await sha256Hex(fullFile);
+      const hasher = await createContentHasher("plain");
+      for (const c of decryptedChunks) hasher.update(c);
       const expectedHash = await openSendHash(meta.sha256, await keyFromBytes(keyBytes));
-      if (actualHash !== expectedHash) {
+      if (bytesToHex(hasher.digest()) !== expectedHash) {
         throw new Error(t("pub.integrityMismatch"));
       }
 
-      const originalName = resolveDownloadName(info?.file_name ?? "", fullFile);
+      const head = decryptedChunks[0] ?? new Uint8Array();
+      const originalName = resolveDownloadName(info?.file_name ?? "", head);
       const mime =
-        getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
-      const blob = new Blob([fullFile], { type: mime });
-      return { blob, originalName };
+        getMimeType(originalName) || sniffFileType(head)?.mime || "application/octet-stream";
+      return { blob: new Blob(decryptedChunks as BlobPart[], { type: mime }), originalName };
     },
     [token, encryptionKey, info, t],
   );
@@ -102,6 +101,7 @@ export default function SendDownloadPage() {
     handlePreview,
     handleDownload,
     handleSave,
+    cancel,
   } = useTokenViewer({
     enabled: !!token && !!encryptionKey,
     decrypt: decryptFile,
@@ -213,6 +213,7 @@ export default function SendDownloadPage() {
           previewType={previewType}
           previewUrl={previewUrl}
           onSave={handleSave}
+          onCancel={cancel}
         />
       </ViewerCard>
     </TokenPageShell>

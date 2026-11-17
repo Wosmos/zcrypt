@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -23,7 +23,15 @@ import {
   Loader2,
   Shield,
 } from "@/lib/icons";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, saveBlob } from "@/lib/utils";
+import { tr } from "@/store/translate";
+import { chooseDiskWriter, ZIP_IN_MEMORY_MAX_BYTES, type DiskChoice } from "@/lib/disk-save";
+import { confirmLinkDownload, createLinkVerifier } from "@/lib/link-download";
+import { downloadChunks } from "@/components/tokens/chunk-download";
+import { runWithConcurrency } from "@/lib/concurrent";
+import { isAbortError } from "@/lib/transport";
+import { ZIP_ENTRY_MAX_BYTES, zipEntryName, zipRefusal } from "@/lib/bulk-download";
+import type { DiskWritable } from "@/lib/download-session";
 import { keyFromFragment, pathManifestFromFragment } from "@/lib/share-link";
 import { isSealed, openText, keyFromBytes, LOCKED } from "@/lib/sealed";
 import { fromBase64 } from "@/lib/crypto";
@@ -71,22 +79,8 @@ function mimeForFile(filename: string, bytes: Uint8Array): string {
   return map[ext] || sniffFileType(bytes)?.mime || "application/octet-stream";
 }
 
-/** Trigger a browser "save as" for a set of bytes. */
-function saveBlob(name: string, bytes: Uint8Array, mime: string) {
-  // Copy into a fresh ArrayBuffer so Blob gets contiguous, offset-free bytes.
-  const buf = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buf).set(bytes);
-  const url = URL.createObjectURL(new Blob([buf], { type: mime }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 const CHUNK_CONCURRENCY = 4;
+const ZIP_FILE_CONCURRENCY = 3;
 
 export default function FolderSharePage() {
   const t = useTranslations("tools");
@@ -146,166 +140,207 @@ export default function FolderSharePage() {
     }
   }, [token, password, folderKey, t]);
 
-  /** Download + decrypt one file's bytes (no save). Returns the plaintext + its name. */
+  const abortRef = useRef<AbortController | null>(null);
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  /**
+   * Download + decrypt one file (no save). The plaintext comes back as the parts
+   * in order, with no joined copy, or is streamed to `disk` and comes back empty.
+   */
   const fetchDecryptFile = useCallback(
-    async (file: FolderShareFileEntry): Promise<{ name: string; bytes: Uint8Array }> => {
+    async (
+      file: FolderShareFileEntry,
+      signal: AbortSignal,
+      disk?: DiskWritable,
+    ): Promise<{ name: string; parts: Uint8Array[] }> => {
       if (!token || !folderKey) throw new Error(t("pub.folder.keyMissingShort"));
-      const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+      const { unwrapKey, decryptChunk, fromBase64 } = await import("@/lib/crypto");
       const { getZstdCodec } = await import("@/lib/zstd");
       const zstd = await getZstdCodec();
 
-      const meta = await getFolderShareFileMeta(token, file.file_id, password || undefined);
+      const meta = await getFolderShareFileMeta(token, file.file_id, password || undefined, signal);
       if (!meta.wrapped_cek) throw new Error(t("pub.folder.fileMissingKey"));
 
       // Unwrap this file's CEK with the folder-share key from the URL fragment.
       const fk = fromBase64(folderKey);
       const cek = await unwrapKey(fk.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
       const keyBytes = cek.buffer.slice(0) as ArrayBuffer;
+      const verifier = await createLinkVerifier(meta, keyBytes);
 
-      const parts: Uint8Array[] = new Array(meta.chunk_count);
-      let nextChunk = 0;
-      const chunkWorker = async () => {
-        for (let i = nextChunk++; i < meta.chunk_count; i = nextChunk++) {
+      let head: Uint8Array | undefined;
+      const parts = await downloadChunks({
+        count: meta.chunk_count,
+        concurrency: CHUNK_CONCURRENCY,
+        setProgress: () => {},
+        stageLabel: () => "",
+        signal,
+        sink: disk
+          ? async (d) => {
+              head ??= d;
+              verifier.update(d);
+              await disk.write(d);
+            }
+          : undefined,
+        fetchChunk: async (index, chunkSignal) => {
           const { data, compressed } = await getFolderShareChunk(
             token,
             file.file_id,
-            i,
+            index,
             password || undefined,
             meta.download_ticket,
+            chunkSignal,
           );
-          let plain = await decryptChunk(keyBytes, new Uint8Array(data));
-          if (compressed && zstd) plain = zstd.ZstdStream.decompress(plain);
-          parts[i] = plain;
-        }
-      };
-      await Promise.all(
-        Array.from({ length: Math.min(CHUNK_CONCURRENCY, meta.chunk_count) }, chunkWorker),
-      );
+          const plain = await decryptChunk(keyBytes, new Uint8Array(data));
+          return compressed && zstd ? zstd.ZstdStream.decompress(plain) : plain;
+        },
+      });
+      if (!disk) for (const p of parts) verifier.update(p);
+      const sniff = head ?? parts[0] ?? new Uint8Array();
 
-      const total = parts.reduce((s, c) => s + c.byteLength, 0);
-      const full = new Uint8Array(total);
-      let off = 0;
-      for (const p of parts) {
-        full.set(p, off);
-        off += p.byteLength;
-      }
-      // 'hmac_v1' files store a per-user KEYED MAC only the owner can recompute;
-      // a public folder-share recipient has no passphrase, so skip the file-level
-      // compare and rely on per-chunk AES-GCM. Legacy 'plain' files still verify.
       const opened = await openName(meta.original_name, await keyFromBytes(fk));
-      const name = resolveDownloadName(opened || file.name || "", full, "file");
-      if (meta.sha256_scheme !== "hmac_v1" && (await sha256Hex(full)) !== meta.sha256) {
-        throw new Error(t("pub.folder.integrityFailed", { name }));
-      }
+      const name = resolveDownloadName(opened || file.name || "", sniff, "file");
+      if (!verifier.ok()) throw new Error(t("pub.folder.integrityFailed", { name }));
       if (meta.download_ticket) {
-        await completeFolderShareDownload(
-          token,
-          file.file_id,
-          meta.download_ticket,
-          password || undefined,
-        ).catch(() => {});
+        const ticket = meta.download_ticket;
+        await confirmLinkDownload(
+          (s) => completeFolderShareDownload(token, file.file_id, ticket, password || undefined, s),
+          signal,
+        );
       }
-      return { name, bytes: full };
+      return { name, parts };
     },
     [token, folderKey, password, t],
-  );
-
-  /** Decrypt one file and save it straight to disk. */
-  const downloadFile = useCallback(
-    async (file: FolderShareFileEntry) => {
-      const { name, bytes } = await fetchDecryptFile(file);
-      saveBlob(name, bytes, mimeForFile(name, bytes));
-    },
-    [fetchDecryptFile],
   );
 
   const handleDownloadOne = useCallback(
     async (file: FolderShareFileEntry) => {
       setErrorMsg("");
+      const choice = await chooseDiskWriter(file.name || "download", file.size ?? 0);
+      if (choice.kind === "cancelled") return;
+      if (choice.kind === "unsupported") {
+        setErrorMsg(tr("toasts.tooLargeDownload", { name: file.name || "" }));
+        return;
+      }
+      const disk = choice.kind === "disk" ? choice.writer : undefined;
+      const ctl = new AbortController();
+      abortRef.current = ctl;
       setBusy(file.file_id);
       try {
-        await downloadFile(file);
+        const { name, parts } = await fetchDecryptFile(file, ctl.signal, disk);
+        if (disk) await disk.close();
+        else saveBlob(name, new Blob(parts as BlobPart[], { type: mimeForFile(name, parts[0]) }));
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
+        await disk?.abort?.().catch(() => {});
+        if (!isAbortError(err)) {
+          setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
+        }
       } finally {
+        abortRef.current = null;
         setBusy(null);
       }
     },
-    [downloadFile, t],
+    [fetchDecryptFile, t],
   );
 
   const handleDownloadAll = useCallback(async () => {
     if (!info?.files) return;
     setErrorMsg("");
     setNoticeMsg("");
+    const manifest = await pathManifestFromFragment();
+    const entriesIn = info.files.map((f) => ({
+      fileId: f.file_id,
+      filename: f.name || f.file_id,
+      fileSize: f.size ?? 0,
+      path: manifest[f.file_id] || "",
+    }));
+    const refusal = zipRefusal(entriesIn);
+    if (refusal) {
+      setErrorMsg(refusal);
+      return;
+    }
+    const totalSize = entriesIn.reduce((sum, f) => sum + f.fileSize, 0);
+    const zipName = `${(info.name || "shared-folder").replace(/[/\\]/g, "_")}.zip`;
+    const choice: DiskChoice = await chooseDiskWriter(zipName, totalSize);
+    if (choice.kind === "cancelled") return;
+    if (
+      choice.kind === "unsupported" ||
+      (choice.kind === "memory" && totalSize > ZIP_IN_MEMORY_MAX_BYTES)
+    ) {
+      setErrorMsg(tr("toasts.zipTooLarge"));
+      return;
+    }
+    const disk = choice.kind === "disk" ? choice.writer : undefined;
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     setBusy("all");
     setZipProgress({ done: 0, total: info.files.length });
+
+    const { Zip, ZipPassThrough } = await import("fflate");
+    const outParts: Uint8Array[] = [];
+    let pending: Promise<void> = Promise.resolve();
+    let zipError: Error | null = null;
+    const zip = new Zip((err, chunk) => {
+      if (err) zipError ??= err;
+      else if (disk) pending = pending.then(() => disk.write(chunk));
+      else outParts.push(chunk);
+    });
+    const used = new Set<string>();
+    const failed: string[] = [];
+    let added = 0;
+
+    const uniqueEntry = (entry: string) => {
+      if (!used.has(entry)) return entry;
+      const slash = entry.lastIndexOf("/") + 1;
+      const dot = entry.lastIndexOf(".");
+      const hasExt = dot > slash;
+      const stem = hasExt ? entry.slice(0, dot) : entry;
+      const ext = hasExt ? entry.slice(dot) : "";
+      let n = 1;
+      while (used.has(`${stem} (${n})${ext}`)) n++;
+      return `${stem} (${n})${ext}`;
+    };
+
     try {
-      const { zipSync } = await import("fflate");
-      const manifest = await pathManifestFromFragment();
-      const entries: Record<string, Uint8Array> = {};
-      const used = new Set<string>();
-      const failed: string[] = [];
-
-      // Assemble one zip entry (relative path + de-duped name). Runs synchronously
-      // right after a file resolves, so `used`/`entries` stay consistent even
-      // though files are fetched concurrently.
-      const addEntry = (fileId: string, name: string, bytes: Uint8Array) => {
-        // Nest under the file's relative directory when the share carries one;
-        // otherwise the file lands at the zip root. fflate treats "/" as a
-        // directory boundary, so "sub/nested/report.pdf" recreates the tree.
-        const dir = (manifest[fileId] || "").replace(/^\/+|\/+$/g, "");
-        const safeName = name.replace(/[/\\]/g, "_") || fileId;
-        let entry = dir ? `${dir}/${safeName}` : safeName;
-        if (used.has(entry)) {
-          // De-dup collisions, preserving any directory prefix and extension.
-          const slash = entry.lastIndexOf("/");
-          const prefix = slash >= 0 ? entry.slice(0, slash + 1) : "";
-          const base = slash >= 0 ? entry.slice(slash + 1) : entry;
-          const dot = base.lastIndexOf(".");
-          const stem = dot > 0 ? base.slice(0, dot) : base;
-          const ext = dot > 0 ? base.slice(dot) : "";
-          let n = 1;
-          while (used.has(`${prefix}${stem} (${n})${ext}`)) n++;
-          entry = `${prefix}${stem} (${n})${ext}`;
-        }
-        used.add(entry);
-        entries[entry] = bytes;
-      };
-
-      // Fetch/decrypt several files at once: the slow part is per-file network +
-      // the backend fetching from the storage platform, so overlapping them cuts
-      // wall-clock roughly Nx. A broken file (missing from storage) is skipped,
-      // not fatal. fflate needs every file's bytes in memory to build the zip, so
-      // concurrency is capped to keep peak memory bounded on large folders.
-      const queue = [...info.files];
-      const runWorker = async () => {
-        for (;;) {
-          const f = queue.shift();
-          if (!f) return;
+      await runWithConcurrency(
+        info.files.length,
+        ZIP_FILE_CONCURRENCY,
+        async (i) => {
+          const f = info.files![i];
           try {
-            const { name, bytes } = await fetchDecryptFile(f);
-            addEntry(f.file_id, name, bytes);
-          } catch {
+            if ((f.size ?? 0) > ZIP_ENTRY_MAX_BYTES) throw new Error(tr("l10n.zip.overLimit"));
+            const { name, parts } = await fetchDecryptFile(f, ctl.signal);
+            const entry = uniqueEntry(
+              zipEntryName({ filename: name || f.file_id, path: manifest[f.file_id] }),
+            );
+            used.add(entry);
+            const zf = new ZipPassThrough(entry);
+            zip.add(zf);
+            if (parts.length === 0) zf.push(new Uint8Array(), true);
+            parts.forEach((p, k) => zf.push(p, k === parts.length - 1));
+            await pending;
+            added++;
+          } catch (err) {
+            if (isAbortError(err)) throw err;
             failed.push(f.name || f.file_id);
           } finally {
             setZipProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
           }
-        }
-      };
-      const CONCURRENCY = 4;
-      await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, info.files.length) }, runWorker),
+        },
+        ctl.signal,
       );
 
-      const okCount = Object.keys(entries).length;
-      if (okCount === 0) {
+      if (ctl.signal.aborted) throw new DOMException("Cancelled", "AbortError");
+      if (added === 0) {
         throw new Error(t("pub.folder.noneDownloaded", { count: info.files.length }));
       }
-
-      const zipped = zipSync(entries, { level: 0 });
-      const zipName = `${(info.name || "shared-folder").replace(/[/\\]/g, "_")}.zip`;
-      saveBlob(zipName, zipped, "application/zip");
+      zip.end();
+      await pending;
+      if (zipError) throw zipError;
+      if (disk) await disk.close();
+      else saveBlob(zipName, new Blob(outParts as BlobPart[], { type: "application/zip" }));
 
       if (failed.length > 0) {
         const shown = failed.slice(0, 4).join(", ");
@@ -313,15 +348,20 @@ export default function FolderSharePage() {
           failed.length > 4 ? ` ${t("pub.folder.andMore", { count: failed.length - 4 })}` : "";
         setNoticeMsg(
           t("pub.folder.partial", {
-            ok: okCount,
+            ok: added,
             total: info.files.length,
             names: `${shown}${more}`,
           }),
         );
       }
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
+      zip.terminate();
+      await disk?.abort?.().catch(() => {});
+      if (!isAbortError(err)) {
+        setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
+      }
     } finally {
+      abortRef.current = null;
       setBusy(null);
       setZipProgress(null);
     }
@@ -432,6 +472,12 @@ export default function FolderSharePage() {
                 </li>
               ))}
             </ul>
+
+            {busy !== null && (
+              <Button variant="secondary" size="sm" onClick={cancel} className="w-full">
+                {t("common.cancel")}
+              </Button>
+            )}
 
             {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
             {noticeMsg && (

@@ -120,12 +120,15 @@ export function ViewerDecryptProgress({
   fileSize,
   stage,
   percent,
+  onCancel,
 }: {
   fileName: string;
   fileSize: number;
   stage: string;
   percent: number;
+  onCancel?: () => void;
 }) {
+  const t = useTranslations("tools");
   return (
     <>
       <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
@@ -151,6 +154,13 @@ export function ViewerDecryptProgress({
               style={{ width: `${easeProgress(percent)}%` }}
             />
           </div>
+          {onCancel && (
+            <div className="flex justify-end pt-2">
+              <Button variant="ghost" size="sm" onClick={onCancel}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </>
