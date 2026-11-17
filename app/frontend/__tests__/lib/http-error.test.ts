@@ -69,3 +69,12 @@ describe("isNetworkFailure", () => {
     expect(isNetworkFailure(null)).toBe(false);
   });
 });
+
+describe("ApiError code", () => {
+  it("carries the server's machine-readable code, empty when absent", async () => {
+    const coded = { status: 404, text: async () => '{"code":"no_key","user_id":"u1"}' } as unknown as Response;
+    await expect(throwResponseError(coded)).rejects.toMatchObject({ status: 404, code: "no_key" });
+    const plain = { status: 500, text: async () => "boom" } as unknown as Response;
+    await expect(throwResponseError(plain)).rejects.toMatchObject({ code: "" });
+  });
+});

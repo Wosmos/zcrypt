@@ -272,12 +272,14 @@ export function SpaceHome() {
   const limitBytes = detail.size_limit_bytes ?? 0;
   const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
   const addBlocked = needsRotation || overLimit;
-  const members = (detail.members ?? []).map((m) => ({
-    user_id: m.user_id,
-    username: m.username || m.email || t("shared.member"),
-    has_avatar: m.has_avatar,
-    avatar_version: m.avatar_version,
-  }));
+  const members = (detail.members ?? [])
+    .filter((m) => m.status !== "pending")
+    .map((m) => ({
+      user_id: m.user_id,
+      username: m.username || m.email || t("shared.member"),
+      has_avatar: m.has_avatar,
+      avatar_version: m.avatar_version,
+    }));
   const allSelected = ids.length > 0 && ids.every((x) => selected.has(x));
   const selectMode = selected.size > 0;
   const inFlight = job && job.status !== SpaceAddStatus.Done ? job : null;

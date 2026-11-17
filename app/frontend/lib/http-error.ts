@@ -25,12 +25,15 @@ export class ApiError extends Error {
   retryAfter: number;
   /** The server's machine-readable `reason` (chunk_pending, chunk_missing), "" when none. */
   reason: string;
-  constructor(message: string, status: number, retryAfter = 0, reason = "") {
+  /** The server's machine-readable `code` (no_key, already_member, ...), "" when none. */
+  code: string;
+  constructor(message: string, status: number, retryAfter = 0, reason = "", code = "") {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.retryAfter = retryAfter;
     this.reason = reason;
+    this.code = code;
   }
 }
 
@@ -55,7 +58,18 @@ export async function throwResponseError(res: Response): Promise<never> {
     res.status,
     retryAfterSeconds(res.headers?.get?.("Retry-After")),
     parseErrorReason(body),
+    parseErrorCode(body),
   );
+}
+
+/** The server's `code` field from a JSON error body, "" when absent. */
+export function parseErrorCode(body: string): string {
+  try {
+    const code = JSON.parse(body).code;
+    return typeof code === "string" ? code : "";
+  } catch {
+    return "";
+  }
 }
 
 /** The server's `reason` field from a JSON error body, "" when absent. */

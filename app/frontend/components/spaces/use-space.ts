@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { getSharedVault } from "@/lib/api";
+import { handOffPendingKeys } from "@/lib/space-handoff";
 import { decryptSpaceFileName, spacePerms } from "@/lib/spaces";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
@@ -25,6 +26,13 @@ export function useSpaceDetail(id: string) {
   const query = useQuery({ queryKey: qk.space(id), queryFn: () => getSharedVault(id) });
   const detail: SharedVaultDetail | null = query.data ?? null;
   const perms = detail ? spacePerms(detail, user?.id) : null;
+  const keysReady = useKeysStore((s) => s.ready);
+  const canHandOff = !!perms?.manage;
+
+  useEffect(() => {
+    if (detail && canHandOff && keysReady) void handOffPendingKeys(detail);
+  }, [detail, canHandOff, keysReady]);
+
   return { query, detail, perms, userId: user?.id };
 }
 

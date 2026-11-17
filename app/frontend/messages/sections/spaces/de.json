@@ -57,12 +57,20 @@
       "dismiss": "Schließen"
     },
     "invites": {
-      "errorNoSharing": "Diese Adresse kann noch nicht eingeladen werden. Prüfe die Schreibweise. Stimmt sie, braucht die Person ein zcrypt-Konto und muss ihren Tresor einmal entsperren, bevor du sie einladen kannst.",
       "errorGeneric": "Mitglied konnte nicht hinzugefügt werden",
       "errorNoKey": "Dieser Space hat keinen Schlüssel, den du teilen kannst (er stammt aus der Zeit vor verschlüsselter Freigabe).",
       "adminOwnerOnly": "Nur der Besitzer kann Admin-Rechte vergeben.",
       "adding": "Wird hinzugefügt...",
-      "placeholder": "E-Mail oder Benutzername"
+      "placeholder": "E-Mail oder Benutzername",
+      "errorNotFound": "Kein zcrypt-Konto nutzt diese E-Mail.",
+      "errorRateLimited": "Zu viele Suchen. Versuche es in ein paar Minuten erneut.",
+      "errorInvalidEmail": "Gib eine gültige E-Mail ein.",
+      "errorSelf": "Das bist du.",
+      "errorAlreadyMember": "Bereits Mitglied.",
+      "errorAlreadyInvited": "Bereits eingeladen.",
+      "errorForbidden": "Nur der Inhaber oder ein Admin kann einladen.",
+      "pendingNote": "Eingeladen. Sie treten bei, sobald sie ihren Tresor entsperren.",
+      "invitedAs": "{email} als {role} eingeladen"
     },
     "keyChange": {
       "declined": "Abgebrochen: Der geänderte Verschlüsselungsschlüssel der Person wurde nicht bestätigt.",
@@ -254,7 +262,8 @@
       "typeAria": "Gib zur Bestätigung den Space-Namen ein",
       "rotateConfirmTitle": "Schlüssel dieses Space rotieren?",
       "rotateConfirmDesc": "Jede Datei wird mit einem neuen Schlüssel neu verschlüsselt und erneut mit den aktuellen Mitgliedern geteilt. In einem großen Space kann das dauern.",
-      "rotateConfirm": "Schlüssel rotieren"
+      "rotateConfirm": "Schlüssel rotieren",
+      "pending": "Ausstehend"
     },
     "share": {
       "title": "Datei teilen",

@@ -47,11 +47,13 @@ type Translate = (key: string, values?: Record<string, string | number>) => stri
 
 async function runInvites(vault: SharedVault, invites: PendingInvite[], t: Translate) {
   let ok = 0;
+  let pending = 0;
   const failed: string[] = [];
   for (const inv of invites) {
     try {
-      await inviteMember(vault, inv.email, inv.role);
-      ok++;
+      const result = await inviteMember(vault, inv.email, inv.role);
+      if (result.status === "pending") pending++;
+      else ok++;
     } catch (err) {
       failed.push(`${inv.email}: ${inviteErrorMessage(err, t)}`);
     }
@@ -59,6 +61,7 @@ async function runInvites(vault: SharedVault, invites: PendingInvite[], t: Trans
   void queryClient.invalidateQueries({ queryKey: qk.space(vault.id) });
   void queryClient.invalidateQueries({ queryKey: qk.spaces });
   if (ok > 0) toast.success(t("new.invited", { count: ok }));
+  if (pending > 0) toast.success(t("invites.pendingNote"));
   for (const msg of failed) toast.warning(msg);
 }
 

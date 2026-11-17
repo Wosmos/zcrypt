@@ -29,6 +29,15 @@ export function RoleBadge({ role }: { role: "Owner" | "Admin" | "Editor" | "View
   );
 }
 
+export function PendingBadge() {
+  const t = useTranslations("spaces");
+  return (
+    <Badge variant="amber" className="flex-shrink-0 px-2 py-0 text-[11px]">
+      {t("settings.pending")}
+    </Badge>
+  );
+}
+
 export function StorageMeter({ used, limit }: { used: number; limit: number }) {
   const t = useTranslations("spaces");
   if (limit <= 0) {

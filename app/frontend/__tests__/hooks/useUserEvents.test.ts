@@ -7,7 +7,9 @@ const h = vi.hoisted(() => ({
   deliver: vi.fn(async () => "toast"),
   push: vi.fn(),
   sync: vi.fn(),
+  handOff: vi.fn(async () => {}),
 }));
+vi.mock("@/lib/space-handoff", () => ({ handOffForSpace: h.handOff }));
 vi.mock("@/lib/space-sync", async () => {
   const real = await vi.importActual<typeof import("@/lib/space-sync")>("@/lib/space-sync");
   return { ...real, syncSpaceEvent: h.sync };
@@ -35,7 +37,7 @@ describe("useUserEvents", () => {
       [
         "filesAdded", "inviteReceived", "invitePending", "linkViewed", "memberJoined",
         "memberLeft", "memberRemoved", "newSignIn", "roleChanged", "spaceDeleted",
-        "spaceMembersChanged",
+        "spaceKeyNeeded", "spaceMembersChanged",
       ].sort(),
     );
     h.handlers.memberLeft({ data: '{"type":"memberLeft","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);
@@ -55,6 +57,13 @@ describe("useUserEvents", () => {
       window.location,
       expect.any(Function),
     );
+    expect(h.deliver).not.toHaveBeenCalled();
+  });
+
+  it("hands the Space key over on a key-needed signal, silently", () => {
+    renderHook(() => useUserEvents());
+    h.handlers.spaceKeyNeeded({ data: '{"type":"spaceKeyNeeded","data":{"space_id":"s1","user_id":"u2"},"url":"/spaces"}' } as MessageEvent);
+    expect(h.handOff).toHaveBeenCalledWith("s1");
     expect(h.deliver).not.toHaveBeenCalled();
   });
 

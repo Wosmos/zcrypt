@@ -19,6 +19,8 @@ import {
   getFileMetas,
   addFilesToSpaceBatch,
   type SpaceBatchFile,
+  type InviteResult,
+  type PublicKeyRecord,
 } from "@/lib/api";
 import { runPool } from "@/lib/pool";
 import { checkPeerKey, pinPeerKey, KeyChangedError, type PeerKeyStatus } from "@/lib/key-pins";
@@ -439,17 +441,27 @@ export async function rotateSpaceKey(
   for (const p of toPin) await pinPeerKey(p.userId, p.publicKey);
 }
 
-/** Share a space with another user by email: look up their public key, seal the
- *  space key to it, and add/re-grant them as a member. Throws if the target has
- *  no published key (they haven't set up sharing yet). */
+/** Invite someone by email. When they have published a key the space key is
+ *  sealed to it and they are active at once; an account that has not unlocked
+ *  its vault yet (lookup code no_key) is invited without a key and stays
+ *  pending until an owner or admin device hands the key over. Other lookup and
+ *  invite failures reach the caller as the server's ApiError with its code. */
 export async function shareSpace(
   vaultId: string,
   spaceKey: Uint8Array,
   email: string,
   role: SpaceRole,
   opts?: SealOptions,
-): Promise<SharedVaultMember> {
-  const recipient = await lookupUserKey(email);
+): Promise<InviteResult> {
+  let recipient: PublicKeyRecord;
+  try {
+    recipient = await lookupUserKey(email);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "no_key") {
+      return addSharedVaultMember(vaultId, email, role);
+    }
+    throw err;
+  }
   await guardPeerKey(recipient.user_id, recipient.public_key, opts);
   const wrapped = await sealTo(fromBase64(recipient.public_key), spaceKey);
   const member = await addSharedVaultMember(vaultId, email, role, wrapped);

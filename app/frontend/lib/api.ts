@@ -1828,12 +1828,10 @@ export async function getFolderShareChunk(
 // ─── Anonymous Send API (no auth) ───
 
 export class SendInitError extends ApiError {
-  code?: string;
   loginRequired?: boolean;
   constructor(message: string, status: number, code?: string, loginRequired?: boolean) {
-    super(message, status);
+    super(message, status, 0, "", code ?? "");
     this.name = "SendInitError";
-    this.code = code;
     this.loginRequired = loginRequired;
   }
 }
@@ -2225,21 +2223,42 @@ export function getSharedVault(id: string): Promise<SharedVaultDetail> {
   return request<SharedVaultDetail>(`/api/shared-vaults/${id}`);
 }
 
+/** The invite answer: the active member when a key came with it, else a pending marker. */
+export type InviteResult = SharedVaultMember | { status: "pending" };
+
+/** Invite by email. With a sealed space key the member is active at once; without
+ *  one the invite is pending until an owner or admin hands the key over. */
 export function addSharedVaultMember(
   vaultId: string,
   email: string,
   role: string,
   wrappedSpaceKey?: string,
-): Promise<SharedVaultMember> {
-  return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members`, {
+): Promise<InviteResult> {
+  return request<InviteResult>(`/api/shared-vaults/${vaultId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role, wrapped_space_key: wrappedSpaceKey ?? "" }),
+    body: JSON.stringify(
+      wrappedSpaceKey ? { email, role, wrapped_space_key: wrappedSpaceKey } : { email, role },
+    ),
+  });
+}
+
+/** Finish a pending member: the owner or an admin sends the space key sealed to their public key. */
+export function completeSharedVaultMember(
+  vaultId: string,
+  userId: string,
+  wrappedSpaceKey: string,
+): Promise<SharedVaultMember> {
+  return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members/${userId}/key`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wrapped_space_key: wrappedSpaceKey }),
   });
 }
 
 /** Resolve a user's PUBLIC key by email/username (to seal a space key before
- *  inviting). Rejects (404) if no such user or they have no published key. */
+ *  inviting). Rejects with an ApiError whose code says why: no_key (an account
+ *  that has not unlocked its vault yet), not_found, or rate_limited. */
 export function lookupUserKey(identifier: string): Promise<PublicKeyRecord> {
   return request<PublicKeyRecord>(`/api/keys/lookup?identifier=${encodeURIComponent(identifier)}`);
 }

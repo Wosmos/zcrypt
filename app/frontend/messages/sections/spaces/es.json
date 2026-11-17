@@ -57,12 +57,20 @@
       "dismiss": "Descartar"
     },
     "invites": {
-      "errorNoSharing": "Aún no se puede invitar a esta dirección. Revisa cómo está escrita. Si es correcta, la persona necesita una cuenta de zcrypt y desbloquear su bóveda una vez antes de que puedas invitarla.",
       "errorGeneric": "No se pudo añadir al miembro",
       "errorNoKey": "Este espacio no tiene una clave que puedas compartir (es anterior al uso compartido cifrado).",
       "adminOwnerOnly": "Solo el propietario puede conceder el rol de administrador.",
       "adding": "Añadiendo...",
-      "placeholder": "Correo o nombre de usuario"
+      "placeholder": "Correo o nombre de usuario",
+      "errorNotFound": "Ninguna cuenta de zcrypt usa este correo.",
+      "errorRateLimited": "Demasiadas búsquedas. Inténtalo de nuevo en unos minutos.",
+      "errorInvalidEmail": "Introduce un correo válido.",
+      "errorSelf": "Eres tú.",
+      "errorAlreadyMember": "Ya es miembro.",
+      "errorAlreadyInvited": "Ya está invitado.",
+      "errorForbidden": "Solo el propietario o un admin puede invitar.",
+      "pendingNote": "Invitado. Se unirá cuando desbloquee su bóveda.",
+      "invitedAs": "Invitaste a {email} como {role}"
     },
     "keyChange": {
       "declined": "Cancelado: no se aprobó la clave de cifrado modificada de la persona.",
@@ -254,7 +262,8 @@
       "typeAria": "Escribe el nombre del espacio para confirmar",
       "rotateConfirmTitle": "¿Rotar la clave de este Space?",
       "rotateConfirmDesc": "Cada archivo se vuelve a cifrar con una clave nueva y se comparte de nuevo con los miembros actuales. En un Space grande puede tardar.",
-      "rotateConfirm": "Rotar clave"
+      "rotateConfirm": "Rotar clave",
+      "pending": "Pendiente"
     },
     "share": {
       "title": "Compartir archivo",

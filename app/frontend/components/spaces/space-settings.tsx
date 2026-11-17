@@ -27,11 +27,12 @@ import { KeyChangeDeclinedError, withKeyConfirm } from "@/components/spaces/key-
 import {
   inviteErrorMessage,
   inviteMember,
+  inviteSuccessMessage,
   inviteRoles,
   InviteForm,
   RoleSelect,
 } from "@/components/spaces/invites";
-import { RoleBadge } from "@/components/spaces/space-ui";
+import { PendingBadge, RoleBadge } from "@/components/spaces/space-ui";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Notice, PageShell, SpaceBreadcrumb } from "@/components/spaces/shared";
 import {
@@ -520,6 +521,7 @@ export function SpaceSettings() {
                             {t("settings.you")}
                           </span>
                         )}
+                        {m.status === "pending" && <PendingBadge />}
                       </p>
                       <KeyStatus
                         key={`${m.user_id}|${m.public_key ?? ""}`}
@@ -572,11 +574,14 @@ export function SpaceSettings() {
                     return t("settings.unlockInvite");
                   }
                   try {
-                    const member = await inviteMember(d, email, role);
-                    patchSpace(d.id, (x) => ({
-                      ...x,
-                      members: [...x.members.filter((m) => m.user_id !== member.user_id), member],
-                    }));
+                    const result = await inviteMember(d, email, role);
+                    if ("user_id" in result) {
+                      patchSpace(d.id, (x) => ({
+                        ...x,
+                        members: [...x.members.filter((m) => m.user_id !== result.user_id), result],
+                      }));
+                    }
+                    toast.success(inviteSuccessMessage(result, email, role, t));
                     void refreshSpace(d.id);
                     void refreshSpaces();
                     return null;

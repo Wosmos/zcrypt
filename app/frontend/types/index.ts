@@ -588,6 +588,9 @@ export interface SharedVaultMember {
   has_avatar?: boolean;
   avatar_version?: string;
   role: SpaceRole;
+  /** "pending" until the invitee has a key and an owner or admin has handed it over. */
+  status?: "active" | "pending";
+  invited_by?: string;
   joined_at: string;
   /** Space key sealed to THIS member's public key (opaque to the server). */
   wrapped_space_key?: string;
