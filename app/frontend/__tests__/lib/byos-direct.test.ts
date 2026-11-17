@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformStatus, RepoInfo } from "@/types";
+import { PausedError } from "@/lib/transport";
+import { TelegramApiError } from "@/lib/telegram-direct";
 
 const m = vi.hoisted(() => ({
   getPlatformCredentials: vi.fn(),
@@ -217,18 +219,51 @@ describe("pushDirectChunk", () => {
     });
   });
 
-  it("tries the whole push twice, half a second apart", async () => {
+  it("tries the whole push twice when a failure is transient", async () => {
     vi.useFakeTimers();
     const d = await load();
-    m.uploadTelegramChunk.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce("6:G");
+    m.uploadTelegramChunk
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce("6:G");
     const pending = d.pushDirectChunk(TARGET as never, data);
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(await pending).toBe("6:G");
 
-    m.uploadTelegramChunk.mockRejectedValue(new Error("still down"));
+    m.uploadTelegramChunk.mockRejectedValue(new TypeError("still down"));
     const failing = d.pushDirectChunk(TARGET as never, data).catch((e: unknown) => e);
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(((await failing) as Error).message).toBe("still down");
+  });
+
+  it("does not push again after a refusal that retrying cannot fix", async () => {
+    const d = await load();
+    m.uploadTelegramChunk.mockRejectedValue(new TelegramApiError("chat not found", 400, 0));
+    await expect(d.pushDirectChunk(TARGET as never, data)).rejects.toThrow("chat not found");
+    expect(m.uploadTelegramChunk).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks shouldStop before pushing again", async () => {
+    vi.useFakeTimers();
+    const d = await load();
+    let stop = false;
+    m.uploadTelegramChunk.mockImplementation(async () => {
+      stop = true;
+      throw new TypeError("offline");
+    });
+    const pending = d.pushDirectChunk(TARGET as never, data, { shouldStop: () => stop });
+    const settled = pending.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await settled).toMatchObject({ name: "PausedError" });
+    expect(m.uploadTelegramChunk).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes a pushed chunk's messages on request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const d = await load();
+    await d.discardDirectChunk(TARGET as never, "8:F1,9:F2");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
   });
 
   it("fails a first chunk fast when Telegram never answers", async () => {
@@ -242,9 +277,9 @@ describe("pushDirectChunk", () => {
 
   it("never retries a pause", async () => {
     const d = await load();
-    m.uploadTelegramChunk.mockRejectedValue(new Error("Upload paused"));
+    m.uploadTelegramChunk.mockRejectedValue(new PausedError());
     await expect(d.pushDirectChunk(TARGET as never, data)).rejects.toThrow("Upload paused");
     expect(m.uploadTelegramChunk).toHaveBeenCalledTimes(1);
-    expect(d.isDirectUnreachable(new Error("Upload paused"))).toBe(false);
+    expect(d.isDirectUnreachable(new PausedError())).toBe(false);
   });
 });

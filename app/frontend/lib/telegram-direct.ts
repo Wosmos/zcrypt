@@ -1,12 +1,11 @@
 import { TELEGRAM_API_ORIGIN } from "@/lib/config";
+import { isTransientError, retryTransient } from "@/lib/retry";
+import { IDLE_TIMEOUT_MS, PausedError, StalledError, withControlTimeout } from "@/lib/transport";
 
 /** Largest part sent as one document: the Bot API only lets a bot download files up to 20 MB back. */
 export const TELEGRAM_MAX_PART_SIZE = 19 * 1024 * 1024;
 
 const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 2000;
-const STALL_MS = 60_000;
-const PAUSED = "Upload paused";
 
 /** One bot posting into one chat, the pair a Telegram token is made of. */
 export interface TelegramTarget {
@@ -49,16 +48,13 @@ export function telegramPartRanges(length: number): Array<[number, number]> {
 
 /** True when Telegram never answered: offline, blocked, a CORS refusal, or a stalled transfer. */
 export function isTelegramTransportError(err: unknown): boolean {
-  if (err instanceof TypeError) return true;
-  return err instanceof Error && /stalled|timed out/i.test(err.message);
+  return err instanceof TypeError || err instanceof StalledError;
 }
 
-/** Whether a failed sendDocument is worth another try: transport failures, rate limits, and HTTP 429 or 500. */
+/** Whether a failed Telegram call is worth another try, by the shared rule:
+ *  transport failures, rate limits, 408 and any 5xx. */
 export function isRetryableTelegramError(err: unknown): boolean {
-  if (err instanceof TelegramApiError) {
-    return err.status === 429 || err.status === 500 || err.retryAfter > 0;
-  }
-  return isTelegramTransportError(err);
+  return isTransientError(err);
 }
 
 interface Envelope {
@@ -92,7 +88,7 @@ function postDocument(
 ): Promise<{ messageId: number; fileId: string }> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      reject(new Error(PAUSED));
+      reject(new PausedError());
       return;
     }
     const form = new FormData();
@@ -119,7 +115,7 @@ function postDocument(
       stallTimer = setTimeout(() => {
         stalled = true;
         xhr.abort();
-      }, STALL_MS);
+      }, IDLE_TIMEOUT_MS);
     };
     xhr.upload.onprogress = (e: ProgressEvent) => {
       arm();
@@ -141,9 +137,11 @@ function postDocument(
     xhr.onabort = () => {
       settle();
       reject(
-        new Error(
-          paused ? PAUSED : stalled ? "Upload stalled (no progress for 60s)" : "Upload aborted",
-        ),
+        paused
+          ? new PausedError()
+          : stalled
+            ? new StalledError("Upload stalled (no progress for 60s)")
+            : new TypeError("Upload aborted"),
       );
     };
     arm();
@@ -151,62 +149,76 @@ function postDocument(
   });
 }
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(new Error(PAUSED));
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
 /** Options for one chunk push. */
 export interface TelegramUploadOptions {
   /** Bytes of this chunk sent so far, across all of its parts. */
   onProgress?: (sent: number) => void;
-  /** Pause or cancel: rejects with "Upload paused" and is never retried. */
+  /** Pause or cancel: rejects with a PausedError and is never retried. */
   signal?: AbortSignal;
   /** Give up on the first transport failure instead of retrying it. */
   failFastOnTransport?: boolean;
 }
 
-async function sendWithRetry(
+function sendWithRetry(
   target: TelegramTarget,
   data: Uint8Array,
   filename: string,
   opts: TelegramUploadOptions,
   onProgress: (sent: number) => void,
 ): Promise<{ messageId: number; fileId: string }> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    if (attempt > 0) {
-      const wait = lastErr instanceof TelegramApiError ? lastErr.retryAfter * 1000 : 0;
-      await sleep(Math.max(RETRY_BASE_MS * 2 ** (attempt - 1), wait), opts.signal);
-    }
-    try {
-      return await postDocument(target, data, filename, onProgress, opts.signal);
-    } catch (err) {
-      const fatal =
-        !isRetryableTelegramError(err) ||
-        (opts.failFastOnTransport === true && isTelegramTransportError(err));
-      if (fatal) throw err;
-      lastErr = err;
-    }
+  return retryTransient(() => postDocument(target, data, filename, onProgress, opts.signal), {
+    signal: opts.signal,
+    maxRetries: MAX_RETRIES,
+    stopError: () => new PausedError(),
+    retryIf: (err) =>
+      isRetryableTelegramError(err) &&
+      !(opts.failFastOnTransport === true && isTelegramTransportError(err)),
+  });
+}
+
+/** Parse the message ids out of a stored locator, "msgId:fileId" parts joined by commas. */
+export function telegramMessageIds(remotePath: string): number[] {
+  return remotePath
+    .split(",")
+    .map((part) => Number(part.split(":")[0]))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/** Delete one message from the chat, best effort: a failure is swallowed, since
+ *  the only cost of a message left behind is a stray file in the user's chat. */
+export async function deleteTelegramMessage(
+  target: TelegramTarget,
+  messageId: number,
+): Promise<void> {
+  try {
+    await withControlTimeout(async (signal) => {
+      await fetch(`${TELEGRAM_API_ORIGIN}/bot${target.botToken}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: target.chatId, message_id: messageId }),
+        signal,
+      });
+    });
+  } catch {
+    /* best effort */
   }
-  throw lastErr;
+}
+
+/** Delete every part of a stored chunk, best effort. */
+export async function deleteTelegramChunk(
+  target: TelegramTarget,
+  remotePath: string,
+): Promise<void> {
+  await Promise.all(telegramMessageIds(remotePath).map((id) => deleteTelegramMessage(target, id)));
 }
 
 /**
  * Send one encrypted chunk to the user's own chat with their own bot, the way
  * the server and desktop do: a disguised file name, split into 19 MB parts
- * named "<name>.p<n>" when larger, each retried with 2s/4s/8s backoff on
- * transport failures, rate limits and 500s. Resolves to the stored locator,
- * "msgId:fileId" per part joined by commas.
+ * named "<name>.p<n>" when larger, each retried on transient failures. When a
+ * later part fails, the parts already sent are deleted so a re-send leaves no
+ * orphan in the chat. Resolves to the stored locator, "msgId:fileId" per part
+ * joined by commas.
  */
 export async function uploadTelegramChunk(
   target: TelegramTarget,
@@ -216,13 +228,20 @@ export async function uploadTelegramChunk(
   const name = telegramChunkFilename();
   const ranges = telegramPartRanges(data.byteLength);
   const refs: string[] = [];
-  for (const [i, [start, end]] of ranges.entries()) {
-    const part = data.subarray(start, end);
-    const filename = ranges.length === 1 ? name : `${name}.p${i}`;
-    const sent = await sendWithRetry(target, part, filename, opts, (n) =>
-      opts.onProgress?.(start + n),
-    );
-    refs.push(`${sent.messageId}:${sent.fileId}`);
+  const sentIds: number[] = [];
+  try {
+    for (const [i, [start, end]] of ranges.entries()) {
+      const part = data.subarray(start, end);
+      const filename = ranges.length === 1 ? name : `${name}.p${i}`;
+      const sent = await sendWithRetry(target, part, filename, opts, (n) =>
+        opts.onProgress?.(start + n),
+      );
+      sentIds.push(sent.messageId);
+      refs.push(`${sent.messageId}:${sent.fileId}`);
+    }
+  } catch (err) {
+    await Promise.all(sentIds.map((id) => deleteTelegramMessage(target, id)));
+    throw err;
   }
   return refs.join(",");
 }

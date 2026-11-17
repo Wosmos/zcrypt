@@ -7,7 +7,10 @@ import {
   telegramChunkFilename,
   telegramPartRanges,
   uploadTelegramChunk,
+  deleteTelegramChunk,
+  telegramMessageIds,
 } from "@/lib/telegram-direct";
+import { PausedError, StalledError } from "@/lib/transport";
 
 type Reply =
   | { kind: "json"; status: number; body: unknown }
@@ -95,14 +98,17 @@ describe("telegram chunk naming and splitting", () => {
 });
 
 describe("error classification", () => {
-  it("retries transport failures, rate limits and 500s only", () => {
+  it("retries transport failures, rate limits and every 5xx only", () => {
     expect(isRetryableTelegramError(new TypeError("Network request failed"))).toBe(true);
-    expect(isRetryableTelegramError(new Error("Upload stalled (no progress for 60s)"))).toBe(true);
+    expect(isRetryableTelegramError(new StalledError("Upload stalled (no progress for 60s)"))).toBe(true);
+    expect(isRetryableTelegramError(new TelegramApiError("x", 502, 0))).toBe(true);
+    expect(isRetryableTelegramError(new TelegramApiError("x", 503, 0))).toBe(true);
+    expect(isRetryableTelegramError(new TelegramApiError("x", 504, 0))).toBe(true);
     expect(isRetryableTelegramError(new TelegramApiError("x", 429, 0))).toBe(true);
     expect(isRetryableTelegramError(new TelegramApiError("x", 500, 0))).toBe(true);
     expect(isRetryableTelegramError(new TelegramApiError("x", 400, 3))).toBe(true);
     expect(isRetryableTelegramError(new TelegramApiError("chat not found", 400, 0))).toBe(false);
-    expect(isRetryableTelegramError(new Error("Upload paused"))).toBe(false);
+    expect(isRetryableTelegramError(new PausedError())).toBe(false);
     expect(isTelegramTransportError("nope")).toBe(false);
   });
 });
@@ -162,7 +168,7 @@ describe("uploadTelegramChunk", () => {
     expect(FakeXHR.instances).toHaveLength(2);
   });
 
-  it("backs off 2s, 4s, 8s on transport failures and then gives up", async () => {
+  it("backs off with growing delays on transport failures and then gives up", async () => {
     FakeXHR.replies = Array.from({ length: 4 }, () => ({ kind: "network" }) as Reply);
     const pending = uploadTelegramChunk(target, new Uint8Array([1]));
     const settled = pending.catch((e: unknown) => e);
@@ -185,7 +191,7 @@ describe("uploadTelegramChunk", () => {
       { kind: "json", status: 200, body: ok(3, "C") },
     ];
     const pending = uploadTelegramChunk(target, new Uint8Array([1]), { failFastOnTransport: true });
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(1000);
     await expect(pending).resolves.toBe("3:C");
   });
 
@@ -198,17 +204,81 @@ describe("uploadTelegramChunk", () => {
     expect(FakeXHR.instances).toHaveLength(1);
   });
 
-  it("reports an unreadable answer without retrying", async () => {
-    FakeXHR.replies = [{ kind: "raw", status: 502, text: "<html>Bad Gateway</html>" }];
-    const err = await uploadTelegramChunk(target, new Uint8Array([1])).catch((e: unknown) => e);
+  it("retries an unreadable 502 answer from a gateway and gives its status when it keeps failing", async () => {
+    FakeXHR.replies = Array.from({ length: 4 }, () => ({
+      kind: "raw",
+      status: 502,
+      text: "<html>Bad Gateway</html>",
+    })) as Reply[];
+    const settled = uploadTelegramChunk(target, new Uint8Array([1])).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(20_000);
+    const err = await settled;
     expect((err as TelegramApiError).status).toBe(502);
     expect((err as Error).message).toMatch(/unreadable/);
+    expect(FakeXHR.instances).toHaveLength(4);
+  });
+
+  it("retries a 503 and then succeeds", async () => {
+    FakeXHR.replies = [
+      { kind: "json", status: 503, body: { ok: false, description: "unavailable" } },
+      { kind: "json", status: 200, body: ok(5, "E") },
+    ];
+    const pending = uploadTelegramChunk(target, new Uint8Array([1]));
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(pending).resolves.toBe("5:E");
+  });
+
+  it("deletes the parts already sent when a later part fails, so a re-send leaves no orphan", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    FakeXHR.replies = [
+      { kind: "json", status: 200, body: ok(11, "A") },
+      { kind: "json", status: 400, body: { ok: false, description: "chat not found" } },
+    ];
+    const err = await uploadTelegramChunk(target, new Uint8Array(TELEGRAM_MAX_PART_SIZE + 3)).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(TelegramApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.telegram.org/bot123:SECRET/deleteMessage");
+    expect(JSON.parse(init.body)).toEqual({ chat_id: "-100777", message_id: 11 });
+  });
+
+  it("leaves nothing to delete when the first part fails", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    FakeXHR.replies = [{ kind: "json", status: 400, body: { ok: false } }];
+    await uploadTelegramChunk(target, new Uint8Array([1])).catch(() => {});
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("swallows a failing delete: the upload error is what the caller sees", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    FakeXHR.replies = [
+      { kind: "json", status: 200, body: ok(11, "A") },
+      { kind: "json", status: 400, body: { ok: false, description: "nope" } },
+    ];
+    await expect(
+      uploadTelegramChunk(target, new Uint8Array(TELEGRAM_MAX_PART_SIZE + 3)),
+    ).rejects.toBeInstanceOf(TelegramApiError);
+  });
+
+  it("reads the message ids out of a stored locator", () => {
+    expect(telegramMessageIds("4:FA,5:FB")).toEqual([4, 5]);
+  });
+
+  it("deletes every part of a stored chunk", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    await deleteTelegramChunk(target, "4:FA,5:FB");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("aborts a stalled transfer and retries it", async () => {
     FakeXHR.replies = [{ kind: "hang" }, { kind: "json", status: 200, body: ok(9, "D") }];
     const pending = uploadTelegramChunk(target, new Uint8Array([1]));
-    await vi.advanceTimersByTimeAsync(60_000 + 2000);
+    await vi.advanceTimersByTimeAsync(60_000 + 1000);
     await expect(pending).resolves.toBe("9:D");
   });
 
@@ -227,7 +297,7 @@ describe("uploadTelegramChunk", () => {
     const later = new AbortController();
     const backoff = uploadTelegramChunk(target, new Uint8Array([1]), { signal: later.signal });
     const settled = backoff.catch((e: unknown) => e);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(100);
     later.abort();
     expect(((await settled) as Error).message).toBe("Upload paused");
   });

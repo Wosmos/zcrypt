@@ -40,6 +40,7 @@ import {
   directTargetForResume,
   disableWebDirect,
   isDirectUnreachable,
+  discardDirectChunk,
   pushDirectChunk,
   resolveDirectRepo,
   resolveWebDirect,
@@ -58,7 +59,9 @@ import { releaseSharedFile } from "@/lib/android";
 import { rememberUploadPath, forgetUploadPath } from "@/lib/desktop-paths";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
-import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
+import { retryTransient, isTransientError } from "@/lib/retry";
+import { createAutoResumeBudget } from "@/lib/auto-resume";
+import { PausedError, isAbortError, isPauseError } from "@/lib/transport";
 import { extOf } from "@/lib/media-formats";
 import { WebTransferLimitError, type WebTransferLimit } from "@/lib/web-transfer-limit";
 import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
@@ -229,11 +232,14 @@ interface UploadStore {
   ) => void;
   retryUpload: (id: string, passphrase: string) => void;
   pauseUpload: (id: string) => void; // aborts in-flight chunks; preserves resume context (does NOT cancel session)
-  resumeUpload: (id: string, passphrase: string) => void; // continue from getUploadStatus uploaded_chunks
-  /** Ids of uploads that FAILED mid-transfer but still have a live server
-   *  session to continue from: used to auto-resume after the phone wakes /
-   *  reconnects. Excludes deliberately paused items and permanent pre-session
-   *  failures (oversized, no storage connected), which never got a session. */
+  /** Continue from getUploadStatus uploaded_chunks. `auto` marks an automatic
+   *  resume, which spends the item's auto-resume budget; a manual one resets it. */
+  resumeUpload: (id: string, passphrase: string, auto?: boolean) => void;
+  /** Ids of uploads that FAILED mid-transfer for a transient reason, still have
+   *  a live server session to continue from, and have auto-resume budget left
+   *  whose backoff has passed: used to auto-resume after the phone wakes /
+   *  reconnects. Excludes deliberately paused items, permanent failures (403,
+   *  oversized, no storage connected) and pre-session failures. */
   getResumableUploadIds: () => string[];
   startDesktopUpload: (
     passphrase: string,
@@ -378,8 +384,11 @@ interface ItemMeta {
    *  (bytes never enter the webview), so the web path would init with size 0
    *  and die on the backend's "a name …, original_size, … required" 400. */
   desktopPath?: string;
+  /** Whether the last failure was transient (worth an automatic resume). */
+  transient?: boolean;
 }
 const itemMeta = new Map<string, ItemMeta>();
+const autoBudget = createAutoResumeBudget();
 function patchMeta(id: string, patch: Partial<ItemMeta>): ItemMeta {
   const m = itemMeta.get(id) ?? {};
   Object.assign(m, patch);
@@ -427,17 +436,6 @@ function blendDesktopUploadProgress(
   }
 }
 
-/** Thrown (never retried) when a transfer stops because the user paused. */
-class PausedError extends Error {
-  constructor() {
-    super("Upload paused");
-    this.name = "PausedError";
-  }
-}
-function isPauseError(err: unknown): boolean {
-  return err instanceof PausedError || (err instanceof Error && err.message === "Upload paused");
-}
-
 // File extensions that are already compressed: skip zstd to save CPU.
 const COMPRESSED_EXTENSIONS = new Set([
   "jpg",
@@ -480,47 +478,12 @@ const COMPRESSED_EXTENSIONS = new Set([
   "woff2",
 ]);
 
-// Retry wrapper for transient chunk-upload failures. Over a multi-GB upload
-// (hundreds/thousands of chunks) a transient blip on any one chunk is likely,
-// so we retry not just rate-limits but network errors, stalls, timeouts and 5xx
-//: with exponential backoff + jitter. Non-transient failures (4xx: invalid,
-// unauthorized, not found) throw immediately so they surface instead of looping.
-// `shouldStop` (the pause check) is consulted before every attempt AND before
-// every backoff sleep, so pausing can't leave a chunk retrying for minutes.
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  shouldStop?: () => boolean,
-  maxRetries = 5,
-): Promise<T> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (shouldStop?.()) throw new PausedError();
-    try {
-      return await fn();
-    } catch (err) {
-      if (isPauseError(err) || shouldStop?.()) throw new PausedError();
-      const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-      const transient =
-        err instanceof ApiError
-          ? isRetryableStatus(err.status)
-          : isNetworkFailure(err) ||
-            msg.includes("too many requests") ||
-            msg.includes("slow down") ||
-            msg.includes("network request failed") ||
-            msg.includes("timed out") ||
-            msg.includes("stalled") ||
-            msg.includes("aborted") ||
-            msg.includes("temporarily") ||
-            msg.includes("unavailable") ||
-            /\b5\d\d\b/.test(msg); // 5xx server errors
-      if (transient && attempt < maxRetries) {
-        const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
-        await new Promise((r) => setTimeout(r, backoff));
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("Max retries exceeded");
+// Every upload network call retries through the shared transient rule
+// (lib/retry.ts). `shouldStop` (the pause/failure check) is consulted before
+// every attempt and after every backoff, so pausing can't leave a call retrying
+// for minutes; a stop surfaces as a PausedError.
+function withRetry<T>(fn: () => Promise<T>, shouldStop?: () => boolean): Promise<T> {
+  return retryTransient(fn, { shouldStop, stopError: () => new PausedError() });
 }
 
 interface UploadFileOpts {
@@ -771,31 +734,32 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         for (let attempt = 0; attempt < 60; attempt++) {
           if (isPaused()) return null;
           try {
-            return await initUpload({
-              // Zero-knowledge: the plaintext name is never sent.
-              filename: "",
-              encrypted_name: encryptedName,
-              original_size: file.size,
-              sha256: fileSha256,
-              sha256_scheme: fileScheme,
-              salt: toBase64(salt),
-              wrapped_cek: wrappedCek,
-              chunk_count: chunkCount,
-              chunk_size: chunkSize,
-              platform: target?.platform ?? explicitPlatform ?? platform,
-              ...(target ? { mode: UploadMode.ByosDirect } : {}),
-              // FIX-1b: create the row directly in its destination folder. For a
-              // protected folder the CEK was already wrapped under the folder
-              // password above, so the file is born correctly folder-keyed AND
-              // folder-filed in one step, no stranding window, no post-move.
-              folder_id: destFolderId,
-            });
+            return await initUpload(
+              {
+                // Zero-knowledge: the plaintext name is never sent.
+                filename: "",
+                encrypted_name: encryptedName,
+                original_size: file.size,
+                sha256: fileSha256,
+                sha256_scheme: fileScheme,
+                salt: toBase64(salt),
+                wrapped_cek: wrappedCek,
+                chunk_count: chunkCount,
+                chunk_size: chunkSize,
+                platform: target?.platform ?? explicitPlatform ?? platform,
+                ...(target ? { mode: UploadMode.ByosDirect } : {}),
+                // FIX-1b: create the row directly in its destination folder. For a
+                // protected folder the CEK was already wrapped under the folder
+                // password above, so the file is born correctly folder-keyed AND
+                // folder-filed in one step, no stranding window, no post-move.
+                folder_id: destFolderId,
+              },
+              abort.signal,
+            );
           } catch (err) {
+            if (isAbortError(err)) throw new PausedError();
             const msg = err instanceof Error ? err.message : String(err);
-            const isRetryable =
-              msg.includes("too many concurrent") ||
-              msg.includes("too many requests") ||
-              msg.includes("slow down");
+            const isRetryable = isTransientError(err) || msg.includes("too many concurrent");
             if (isRetryable && attempt < 59) {
               updateStatus(id, UploadStatus.Queued, 0, `Waiting for slot (${attempt + 1})...`);
               await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
@@ -896,7 +860,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       setFileId(id, fileId);
       void seedThumbnailFromFile(fileId, file, file.name);
       try {
-        const status = await getUploadStatus(sessionId);
+        const status = await getUploadStatus(sessionId, abort.signal);
         done = new Set(status.uploaded_chunks);
       } catch {
         done = new Set(); // status unavailable: re-send all (chunks are idempotent by SHA)
@@ -920,6 +884,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let uploadedChunks = done.size;
     let totalEncryptedSize = 0;
     let totalCompressedSize = 0;
+    let sentPlainBytes = 0;
 
     // Byte-level progress: completed chunks count their full plaintext size;
     // in-flight chunks (fed by xhr.upload.onprogress) contribute their sent
@@ -1012,31 +977,46 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     const chunkPromises: Promise<void>[] = [];
     let firstError: Error | null = null;
     const shouldStop = () => isPaused() || abort.signal.aborted;
+    // A chunk's fatal error stops every other chunk too: no new sends, and the
+    // ones in flight are cut instead of finishing a doomed upload.
+    const stopAll = () => shouldStop() || firstError !== null;
 
-    const confirmDirect = (
+    // Only the confirm step retries: the chunk is already in the user's chat
+    // and is reused. A definitive rejection (a non-transient failure that is
+    // not a stop) deletes the pushed message so it cannot be orphaned.
+    const confirmDirect = async (
       target: DirectTarget,
       repo: RepoInfo,
       result: WorkerOutput,
       size: number,
       remotePath: string,
-    ) =>
-      withRetry(
-        () =>
-          confirmChunk(
-            sessionId,
-            result.chunkIndex,
-            result.sha256,
-            size,
-            remotePath,
-            result.compressed,
-            {
-              platform: target.platform,
-              account: target.account,
-              repo_id: repo.id,
-            },
-          ),
-        shouldStop,
-      );
+    ) => {
+      try {
+        await withRetry(
+          () =>
+            confirmChunk(
+              sessionId,
+              result.chunkIndex,
+              result.sha256,
+              size,
+              remotePath,
+              result.compressed,
+              {
+                platform: target.platform,
+                account: target.account,
+                repo_id: repo.id,
+              },
+              abort.signal,
+            ),
+          stopAll,
+        );
+      } catch (err) {
+        if (!isPauseError(err) && !isTransientError(err)) {
+          await discardDirectChunk(target, remotePath);
+        }
+        throw err;
+      }
+    };
 
     const sendChunk = async (
       result: WorkerOutput,
@@ -1048,14 +1028,24 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         const remotePath = await pushDirectChunk(target, encrypted, {
           onProgress: onChunkProgress,
           signal: abort.signal,
+          shouldStop: stopAll,
         });
         await confirmDirect(target, repo, result, encrypted.byteLength, remotePath);
       } else if (useDirectUpload) {
         // DIRECT MODE: presign -> upload to platform -> confirm
-        const presign = await withRetry(
-          () => presignChunk(sessionId, result.chunkIndex, result.sha256, encrypted.byteLength),
-          shouldStop,
-        );
+        const presignOnce = () =>
+          withRetry(
+            () =>
+              presignChunk(
+                sessionId,
+                result.chunkIndex,
+                result.sha256,
+                encrypted.byteLength,
+                abort.signal,
+              ),
+            stopAll,
+          );
+        let presign = await presignOnce();
         if (!presign.already_exists) {
           await directUploadToURL(
             presign.upload_url,
@@ -1063,6 +1053,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             encrypted,
             onChunkProgress,
             abort.signal,
+            async () => {
+              presign = await presignOnce();
+              return { url: presign.upload_url, headers: presign.upload_headers };
+            },
           );
         }
         await withRetry(
@@ -1074,8 +1068,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               encrypted.byteLength,
               presign.remote_path,
               result.compressed,
+              undefined,
+              abort.signal,
             ),
-          shouldStop,
+          stopAll,
         );
       } else {
         // RELAY MODE: upload to server (server relays to platform)
@@ -1090,7 +1086,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               onChunkProgress,
               abort.signal,
             ),
-          shouldStop,
+          stopAll,
         );
       }
     };
@@ -1121,6 +1117,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           probe: true,
           onProgress: onChunkProgress,
           signal: abort.signal,
+          shouldStop: stopAll,
         });
       } catch (err) {
         if (!isDirectUnreachable(err)) throw err;
@@ -1140,6 +1137,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
       // Backpressure: don't read ahead more than pipelineDepth chunks
       await pipelineSem.acquire();
+      if (stopAll()) {
+        pipelineSem.release();
+        break;
+      }
 
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize, file.size);
@@ -1158,12 +1159,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           // Pause boundary 2: a chunk that finished encrypting while paused must
           // not touch the network. It stays out of `done`, so resume re-encrypts
           // and sends it then.
-          if (shouldStop()) return;
+          if (stopAll()) return;
           // Wait for upload slot (limits concurrent network requests)
           await uploadSem.acquire();
 
           try {
-            if (shouldStop()) return; // paused while waiting for a slot
+            if (stopAll()) return; // paused or failed while waiting for a slot
             const encrypted = new Uint8Array(result.encrypted);
 
             // Intra-chunk progress: scale WIRE bytes sent to PLAINTEXT bytes (the
@@ -1191,6 +1192,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             uploadedChunks++;
             totalEncryptedSize += result.encryptedSize;
             totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
+            sentPlainBytes += plainSizeOfChunk(result.chunkIndex);
 
             // Move this chunk from in-flight to completed, then emit. The byte
             // accounting runs even while paused (so resume math stays correct);
@@ -1211,7 +1213,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             inFlightPlainBytes.clear();
             return;
           }
-          if (!firstError) firstError = err instanceof Error ? err : new Error(String(err));
+          if (!firstError) {
+            firstError = err instanceof Error ? err : new Error(String(err));
+            abort.abort();
+          }
         });
 
       chunkPromises.push(chunkPromise);
@@ -1246,7 +1251,22 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     // Finalize
     updateStatus(id, UploadStatus.Uploading, 97, "Finalizing...");
-    await withRetry(() => completeUpload(sessionId, totalEncryptedSize, totalCompressedSize));
+    // On a resume, the totals count only the chunks this run sent. The server
+    // recomputes encrypted_size from the chunks it holds but trusts the
+    // reported compressed_size, so scale this run's ratio to the whole file
+    // instead of sending a partial sum.
+    const sentPlain = sentPlainBytes;
+    const scale = wasResumed && sentPlain > 0 ? file.size / sentPlain : 1;
+    await withRetry(
+      () =>
+        completeUpload(
+          sessionId,
+          Math.round(totalEncryptedSize * scale),
+          Math.round(totalCompressedSize * scale),
+          abort.signal,
+        ),
+      shouldStop,
+    );
 
     // FIX-1b: no post-complete moveFile. The file was created in its destination
     // folder atomically at init (initUpload's folder_id), so it is already filed
@@ -1254,6 +1274,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     updateStatus(id, UploadStatus.Done, 100, "Done");
     patchMeta(id, { resume: undefined }); // complete, nothing to resume
+    autoBudget.reset(id);
     clearPersistedResume(file, destFolderId); // drop the cross-session resume record
 
     // Optimistic completion: materialize the row in the explorer immediately
@@ -1302,6 +1323,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     }
     const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
     const friendlyMsg = msg.includes("storage not available") ? tr("hooks.noPlatform") : msg;
+    patchMeta(id, { transient: isTransientError(err) });
     if (isCurrentRun()) setError(id, friendlyMsg);
     // Deliberately do NOT cancel the session here: keeping it lets the user
     // resume via Retry (skipping chunks already uploaded). The session is
@@ -1745,6 +1767,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   retryUpload: (id, passphrase) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
+    autoBudget.reset(id);
     if (item.limit) {
       showWebTransferLimit(item.limit, { name: item.file.name, size: item.file.size });
       return;
@@ -1856,7 +1879,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   // uploadOneFile: which reads itemMeta[id].resume and continues from
   // getUploadStatus's uploaded_chunks on the ORIGINAL platform, re-encrypting
   // only the remaining chunks with the SAME CEK.
-  resumeUpload: (id, passphrase) => {
+  resumeUpload: (id, passphrase, auto = false) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
     // Desktop-core item: same routing rule as retryUpload, never the web
@@ -1867,6 +1890,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       return;
     }
     pausedIds.delete(id);
+    if (auto) autoBudget.spend(id);
+    else autoBudget.reset(id);
     const meta = itemMeta.get(id);
     set((state) => ({
       queue: state.queue.map((i) =>
@@ -1881,7 +1906,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   getResumableUploadIds: () =>
     get()
       .queue.filter(
-        (i) => i.status === UploadStatus.Failed && !!itemMeta.get(i.id)?.resume?.sessionId,
+        (i) =>
+          i.status === UploadStatus.Failed &&
+          !!itemMeta.get(i.id)?.resume?.sessionId &&
+          itemMeta.get(i.id)?.transient !== false &&
+          autoBudget.due(i.id),
       )
       .map((i) => i.id),
 
