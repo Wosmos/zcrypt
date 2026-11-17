@@ -884,7 +884,6 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let uploadedChunks = done.size;
     let totalEncryptedSize = 0;
     let totalCompressedSize = 0;
-    let sentPlainBytes = 0;
 
     // Byte-level progress: completed chunks count their full plaintext size;
     // in-flight chunks (fed by xhr.upload.onprogress) contribute their sent
@@ -1192,7 +1191,6 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             uploadedChunks++;
             totalEncryptedSize += result.encryptedSize;
             totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
-            sentPlainBytes += plainSizeOfChunk(result.chunkIndex);
 
             // Move this chunk from in-flight to completed, then emit. The byte
             // accounting runs even while paused (so resume math stays correct);
@@ -1251,20 +1249,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     // Finalize
     updateStatus(id, UploadStatus.Uploading, 97, "Finalizing...");
-    // On a resume, the totals count only the chunks this run sent. The server
-    // recomputes encrypted_size from the chunks it holds but trusts the
-    // reported compressed_size, so scale this run's ratio to the whole file
-    // instead of sending a partial sum.
-    const sentPlain = sentPlainBytes;
-    const scale = wasResumed && sentPlain > 0 ? file.size / sentPlain : 1;
+    // The server computes both sizes from the chunks it stored and ignores
+    // these; on a resume they cover only the chunks this run sent.
     await withRetry(
-      () =>
-        completeUpload(
-          sessionId,
-          Math.round(totalEncryptedSize * scale),
-          Math.round(totalCompressedSize * scale),
-          abort.signal,
-        ),
+      () => completeUpload(sessionId, totalEncryptedSize, totalCompressedSize, abort.signal),
       shouldStop,
     );
 

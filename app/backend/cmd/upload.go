@@ -760,8 +760,6 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	// it must not touch r.
 	bgUserID := userID
 	bgSession := session
-	compressedSize := req.CompressedSize
-	encryptedSize := req.EncryptedSize
 	s.goBackground(func() {
 		bgCtx := context.Background()
 
@@ -788,24 +786,14 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Verify and update sizes. The client-reported sizes are written first;
-		// the server-computed chunk total then overwrites encrypted_size so the
-		// verified value wins (writing them in the other order let the client
-		// value clobber the verified one).
-		s.db.UpdateFileSizes(bgCtx, bgSession.FileID, compressedSize, encryptedSize)
-		actualEncrypted, err := s.db.GetTotalReceivedChunkSize(bgCtx, bgSession.FileID)
-		if err == nil {
-			s.db.UpdateFileOriginalSizeVerified(bgCtx, bgSession.FileID, actualEncrypted)
-		}
-
-		// Update repo usage with the SERVER-computed total, not the client-reported
-		// req.EncryptedSize: a client reporting 0 (or lying) must not keep the
-		// repo pool from rotating at the real platform thresholds.
-		usageBytes := encryptedSize
-		if err == nil {
-			usageBytes = actualEncrypted
-		} else {
-			log.Printf("upload: WARNING falling back to client-reported encrypted size for repo usage (file %s): %v", bgSession.FileID, err)
+		// Sizes come from the server's own chunk records. The client's
+		// compressed_size and encrypted_size estimates are ignored: a resumed
+		// upload only knows the chunks it sent this time, and a wrong value would
+		// skew quota and repo rotation.
+		usageBytes, err := s.db.UpdateFileSizesFromChunks(bgCtx, bgSession.FileID)
+		if err != nil {
+			log.Printf("upload: WARNING file sizes for %s not recomputed: %v", logSafe(bgSession.FileID), err) // #nosec G706 -- control chars stripped via logSafe
+			return
 		}
 		pools, _ := s.getUserPools(bgCtx, bgUserID)
 		key := bgSession.Platform + ":" + bgSession.Account

@@ -1551,26 +1551,27 @@ func (db *DB) CleanExpiredSessions(ctx context.Context) (int, error) {
 	return int(tag.RowsAffected()), nil
 }
 
-// UpdateFileSizes updates the compressed and encrypted sizes for a file.
-func (db *DB) UpdateFileSizes(ctx context.Context, fileID string, compressedSize, encryptedSize int64) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE files SET compressed_size = $1, encrypted_size = $2 WHERE id = $3`,
-		compressedSize, encryptedSize, fileID,
-	)
-	if err != nil {
-		return fmt.Errorf("update file sizes: %w", err)
-	}
-	return nil
-}
+// aesGCMEnvelope is the fixed overhead each stored chunk adds to its payload:
+// the 12-byte IV plus the 16-byte tag (docs/CRYPTO_FORMAT.md).
+const aesGCMEnvelope = 28
 
-// UpdateFileOriginalSizeVerified updates the encrypted_size field with server-verified total
-// to ensure quota calculations use actual uploaded data, not client-claimed values.
-func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string, verifiedEncryptedSize int64) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE files SET encrypted_size = $1 WHERE id = $2`,
-		verifiedEncryptedSize, fileID,
-	)
-	return err
+// UpdateFileSizesFromChunks sets a file's encrypted and compressed sizes from the
+// chunk rows the server stored, ignoring whatever the client reported. A stored
+// chunk is its payload (zstd output when compressed, else the plaintext) plus the
+// envelope, so compressed_size is the stored total minus the envelope per chunk.
+func (db *DB) UpdateFileSizesFromChunks(ctx context.Context, fileID string) (int64, error) {
+	var encrypted int64
+	err := db.pool.QueryRow(ctx,
+		`WITH s AS (SELECT COALESCE(SUM(size), 0) AS total, COUNT(*) AS n FROM chunks WHERE file_id = $1)
+		 UPDATE files SET encrypted_size = s.total, compressed_size = GREATEST(s.total - $2 * s.n, 0)
+		 FROM s WHERE files.id = $1
+		 RETURNING files.encrypted_size`,
+		fileID, int64(aesGCMEnvelope),
+	).Scan(&encrypted)
+	if err != nil {
+		return 0, fmt.Errorf("update file sizes from chunks: %w", err)
+	}
+	return encrypted, nil
 }
 
 // ── Share queries ──

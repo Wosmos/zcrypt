@@ -3738,7 +3738,7 @@ describe("useUploadStore", () => {
       expect(signal).toBeInstanceOf(AbortSignal);
     });
 
-    it("scales the totals of a resumed run to the whole file instead of sending a partial sum", async () => {
+    it("completes a resumed run with only its own totals, leaving the whole-file sizes to the server", async () => {
       const file = makeFile("a.bin", SMALL_PROFILE.chunkSize * 2);
       const key = `zc_upl:${file.name}:${file.size}:${file.lastModified}:`;
       localStorage.setItem(
@@ -3767,8 +3767,8 @@ describe("useUploadStore", () => {
       expect((uploadChunk as Mock).mock.calls.map((c) => c[1])).toEqual([1]);
       expect(completeUpload).toHaveBeenCalledWith(
         "sess-persisted",
-        SMALL_PROFILE.chunkSize * 2,
-        SMALL_PROFILE.chunkSize * 2,
+        SMALL_PROFILE.chunkSize,
+        SMALL_PROFILE.chunkSize,
         expect.anything(),
       );
     });

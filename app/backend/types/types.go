@@ -202,7 +202,9 @@ type UploadInitRequest struct {
 	Mode string `json:"mode,omitempty"`
 }
 
-// UploadCompleteRequest is the JSON body for finalizing a chunked upload.
+// UploadCompleteRequest is the JSON body for finalizing a chunked upload. Both
+// sizes are accepted for older clients and ignored: the server computes them
+// from its own chunk records.
 type UploadCompleteRequest struct {
 	EncryptedSize  int64 `json:"encrypted_size"`
 	CompressedSize int64 `json:"compressed_size"`
