@@ -111,7 +111,12 @@
       "receiving": "Empfange {n}/{total}",
       "receivedOk": "{name} empfangen und gespeichert",
       "receiveAnother": "Weitere empfangen",
-      "connFailedTitle": "Verbindung fehlgeschlagen"
+      "connFailedTitle": "Verbindung fehlgeschlagen",
+      "tooLarge": "Diese Datei ist zu groß für den Empfang im Browser (Limit {max}). Nutze die zcrypt-Desktop-App.",
+      "confirming": "Warte auf die Bestätigung des anderen Geräts...",
+      "noConfirm": "Das andere Gerät hat den Empfang der ganzen Datei nicht bestätigt.",
+      "peerCancelled": "Das andere Gerät hat die Übertragung abgebrochen.",
+      "stalled": "Übertragung hängt: 60 Sekunden lang hat sich nichts bewegt."
     },
     "snapshots": {
       "take": "Snapshot erstellen",

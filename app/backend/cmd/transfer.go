@@ -25,6 +25,9 @@ type transferRoom struct {
 	lastActive atomic.Int64
 	done       chan struct{}
 	ip         string
+	// acked closes when the receiver confirms it has the whole file.
+	acked   chan struct{}
+	ackOnce sync.Once
 }
 
 const (
@@ -36,8 +39,11 @@ const (
 	// transferIdleFor ends a transfer once nothing has moved for this long; a
 	// transfer that keeps moving runs as long as it needs (up to the byte cap
 	// and transferMaxFor).
-	transferIdleFor        = 10 * time.Minute
-	transferMaxFor         = 6 * time.Hour
+	transferIdleFor = 10 * time.Minute
+	transferMaxFor  = 6 * time.Hour
+	// transferAckWait is how long the room stays open after "done" for the
+	// receiver's "ack"; an older receiver never sends one.
+	transferAckWait        = 20 * time.Second
 	errTooManyTransferRoom = "too many active rooms"
 )
 
@@ -86,6 +92,7 @@ func (h *transferHub) createRoom(ip string) (*transferRoom, error) {
 		code:      code,
 		createdAt: time.Now(),
 		done:      make(chan struct{}),
+		acked:     make(chan struct{}),
 		ip:        ip,
 	}
 	h.rooms[code] = room
@@ -285,8 +292,13 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn,
 		var m transferMessage
 		if json.Unmarshal(msg, &m) == nil && m.Type == "done" {
 			log.Printf("transfer: done code=%s relayed=%d", room.code, relayed)
-			// Grace period so receiver processes the done message before we tear down the room
-			time.Sleep(3 * time.Second)
+			// Keep the room open until the receiver confirms it has the file.
+			select {
+			case <-room.acked:
+			case <-room.done:
+			case <-ctx.Done():
+			case <-time.After(transferAckWait):
+			}
 			return
 		}
 	}
@@ -325,13 +337,28 @@ func (s *Server) handleTransferReceiver(ctx context.Context, conn *websocket.Con
 	// (ping/pong/close) while a read is in flight, so without this the closing
 	// handshake never completes: surfacing in the browser as "Close received
 	// after close" and a dropped connection. Draining also lets us notice when
-	// the receiver disconnects.
+	// the receiver disconnects. Its "ack" (whole file received) and "cancel"
+	// messages are passed on to the sender; nothing else is.
 	recvGone := make(chan struct{})
 	go func() {
 		defer close(recvGone)
 		for {
-			if _, _, err := conn.Read(ctx); err != nil {
+			_, msg, err := conn.Read(ctx)
+			if err != nil {
 				return
+			}
+			var m transferMessage
+			if json.Unmarshal(msg, &m) != nil || (m.Type != "ack" && m.Type != "cancel") {
+				continue
+			}
+			room.mu.Lock()
+			sender := room.sender
+			room.mu.Unlock()
+			if sender != nil {
+				_ = sender.Write(ctx, websocket.MessageText, msg)
+			}
+			if m.Type == "ack" {
+				room.ackOnce.Do(func() { close(room.acked) })
 			}
 		}
 	}()

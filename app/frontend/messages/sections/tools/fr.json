@@ -111,7 +111,12 @@
       "receiving": "Réception {n}/{total}",
       "receivedOk": "{name} reçu et enregistré",
       "receiveAnother": "Recevoir un autre",
-      "connFailedTitle": "Échec de la connexion"
+      "connFailedTitle": "Échec de la connexion",
+      "tooLarge": "Ce fichier est trop volumineux pour être reçu dans le navigateur (limite {max}). Utilisez l'application de bureau zcrypt.",
+      "confirming": "En attente de la confirmation de l'autre appareil...",
+      "noConfirm": "L'autre appareil n'a pas confirmé avoir reçu le fichier en entier.",
+      "peerCancelled": "L'autre appareil a annulé le transfert.",
+      "stalled": "Transfert bloqué : rien n'a bougé pendant 60 secondes."
     },
     "snapshots": {
       "take": "Prendre un instantané",

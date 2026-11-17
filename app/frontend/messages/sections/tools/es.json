@@ -111,7 +111,12 @@
       "receiving": "Recibiendo {n}/{total}",
       "receivedOk": "{name} recibido y guardado",
       "receiveAnother": "Recibir otro",
-      "connFailedTitle": "Falló la conexión"
+      "connFailedTitle": "Falló la conexión",
+      "tooLarge": "Este archivo es demasiado grande para recibirlo en el navegador (límite {max}). Usa la app de escritorio de zcrypt.",
+      "confirming": "Esperando la confirmación del otro dispositivo...",
+      "noConfirm": "El otro dispositivo no confirmó que recibió el archivo completo.",
+      "peerCancelled": "El otro dispositivo canceló la transferencia.",
+      "stalled": "La transferencia se detuvo: nada se movió durante 60 segundos."
     },
     "snapshots": {
       "take": "Crear instantánea",

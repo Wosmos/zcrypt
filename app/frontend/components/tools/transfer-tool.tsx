@@ -9,7 +9,12 @@ import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { QRShare } from "@/components/ui/qr-code";
 import { Send, Download, Lock, Copy, Check } from "@/lib/icons";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, saveBlob } from "@/lib/utils";
+import {
+  TRANSFER_ACK_WAIT_MS,
+  TRANSFER_MAX_RECEIVE_BYTES,
+  waitForBuffer,
+} from "@/lib/transfer-socket";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   deriveTransferKeys,
@@ -29,18 +34,11 @@ import { SelectedFileCard } from "./shared/selected-file-card";
 import { ProgressBar } from "./shared/progress-bar";
 import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
 import { API_WS_BASE } from "@/lib/config";
+import { StalledError } from "@/lib/transport";
 
 const WS_URL = `${API_WS_BASE}/api/transfer/ws`;
 
 const MAX_BUFFERED_BYTES = 4 * 1024 * 1024;
-
-async function waitForBuffer(ws: WebSocket, limit: number, connLost: string) {
-  while (ws.bufferedAmount > limit) {
-    if (ws.readyState !== WebSocket.OPEN) throw new Error(connLost);
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  if (ws.readyState !== WebSocket.OPEN) throw new Error(connLost);
-}
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -130,6 +128,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
   const wsRef = useRef<WebSocket | null>(null);
   const secretRef = useRef("");
   const codeRef = useRef("");
+  const ackRef = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null);
   const stateRef = useRef<SendState>(state);
   useEffect(() => {
     stateRef.current = state;
@@ -163,7 +162,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
         );
 
         for (let i = 0; i < totalChunks; i++) {
-          if (stateRef.current === "error") return;
+          if (stateRef.current === "error" || stateRef.current === "selecting") return;
           await waitForBuffer(ws, MAX_BUFFERED_BYTES, t("transfer.connLost"));
           const start = i * CHUNK;
           const end = Math.min(start + CHUNK, file.size);
@@ -187,15 +186,28 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
         }
 
         await waitForBuffer(ws, 0, t("transfer.connLost"));
+        const acked = new Promise<void>((resolve, reject) => {
+          ackRef.current = { resolve, reject };
+          setTimeout(() => reject(new Error(t("transfer.noConfirm"))), TRANSFER_ACK_WAIT_MS);
+        });
+        acked.catch(() => {});
         ws.send(JSON.stringify({ type: "done" }));
-        while (ws.bufferedAmount > 0) {
-          if (ws.readyState !== WebSocket.OPEN) throw new Error(t("transfer.connLost"));
-          await new Promise((r) => setTimeout(r, 25));
-        }
+        await waitForBuffer(ws, 0, t("transfer.connLost"));
+        setProgress({ stage: t("transfer.confirming"), percent: 100 });
+        await acked;
         setState("done");
       } catch (err) {
+        if (stateRef.current === "selecting" || stateRef.current === "done") return;
         setState("error");
-        setErrorMsg(err instanceof Error ? err.message : t("transfer.sendFailed"));
+        setErrorMsg(
+          err instanceof StalledError
+            ? t("transfer.stalled")
+            : err instanceof Error
+              ? err.message
+              : t("transfer.sendFailed"),
+        );
+      } finally {
+        ackRef.current = null;
       }
     },
     [t],
@@ -231,6 +243,15 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             void startTransfer(ws, selectedFile);
           }, 200);
           break;
+        case "ack":
+          ackRef.current?.resolve();
+          break;
+        case "cancel":
+          ackRef.current?.reject(new Error(t("transfer.peerCancelled")));
+          setState("error");
+          setErrorMsg(t("transfer.peerCancelled"));
+          ws.close();
+          break;
         case "error":
           setState("error");
           setErrorMsg(msg.data || t("transfer.error"));
@@ -240,6 +261,22 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
 
     attachWsLifecycle(ws, stateRef, setState, setErrorMsg, t);
   }, [selectedFile, startTransfer, t]);
+
+  const handleCancel = useCallback(() => {
+    const ws = wsRef.current;
+    stateRef.current = "selecting";
+    setState("selecting");
+    setProgress({ percent: 0, stage: "" });
+    setCode("");
+    setConfirm("");
+    if (ws) {
+      ws.onclose = null;
+      ws.onerror = null;
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cancel" }));
+      ws.close();
+    }
+    wsRef.current = null;
+  }, []);
 
   const pairLink =
     code && secret
@@ -318,6 +355,9 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
               {confirm && <ConfirmCode value={confirm} />}
             </>
           )}
+          <Button variant="ghost" size="sm" onClick={handleCancel} className="w-full">
+            {t("common.cancel")}
+          </Button>
         </div>
       )}
 
@@ -337,6 +377,9 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             stage={progress.stage || t("transfer.preparing")}
             percent={progress.percent}
           />
+          <Button variant="ghost" size="sm" onClick={handleCancel} className="w-full">
+            {t("common.cancel")}
+          </Button>
         </div>
       )}
 
@@ -412,6 +455,13 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           try {
             const { key } = await keysPromise;
             const fi = await openMeta(key, msg.data.meta);
+            if (fi.size > TRANSFER_MAX_RECEIVE_BYTES) {
+              ws.send(JSON.stringify({ type: "cancel" }));
+              setState("error");
+              setErrorMsg(t("transfer.tooLarge", { max: formatBytes(TRANSFER_MAX_RECEIVE_BYTES) }));
+              ws.close();
+              break;
+            }
             keyRef.current = key;
             fileInfoRef.current = fi;
             setFileInfo(fi);
@@ -456,17 +506,19 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
             break;
           }
           setState("done"); // Mark done immediately so onclose doesn't show error
-          const blob = new Blob([fullFile], { type: fi?.type || "application/octet-stream" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = fi?.name || "download";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          chunksRef.current = [];
+          saveBlob(
+            fi?.name || "download",
+            new Blob([fullFile], { type: fi?.type || "application/octet-stream" }),
+          );
+          ws.send(JSON.stringify({ type: "ack" }));
           break;
         }
+        case "cancel":
+          setState("error");
+          setErrorMsg(t("transfer.peerCancelled"));
+          ws.close();
+          break;
         case "error":
           setState("error");
           setErrorMsg(msg.data || t("transfer.error"));
@@ -486,6 +538,22 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
 
     attachWsLifecycle(ws, stateRef, setState, setErrorMsg, t);
   }, [code, secret, t]);
+
+  const handleCancel = useCallback(() => {
+    const ws = wsRef.current;
+    stateRef.current = "entering";
+    setState("entering");
+    setProgress({ percent: 0, stage: "" });
+    setConfirm("");
+    chunksRef.current = [];
+    if (ws) {
+      ws.onclose = null;
+      ws.onerror = null;
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cancel" }));
+      ws.close();
+    }
+    wsRef.current = null;
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -546,6 +614,9 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
         <div className="flex flex-col items-center gap-3 py-4">
           <LogoSpinner size={32} />
           <p className="text-sm text-[var(--color-text-muted)]">{t("transfer.connecting")}</p>
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
+            {t("common.cancel")}
+          </Button>
         </div>
       )}
 
@@ -554,6 +625,9 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           <LogoSpinner size={32} />
           <p className="text-sm text-[var(--color-text-muted)]">{t("transfer.paired")}</p>
           {confirm && <ConfirmCode value={confirm} />}
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
+            {t("common.cancel")}
+          </Button>
         </div>
       )}
 
@@ -568,6 +642,9 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           </div>
           {confirm && <ConfirmCode value={confirm} />}
           <ProgressBar stage={progress.stage} percent={progress.percent} />
+          <Button variant="ghost" size="sm" onClick={handleCancel} className="w-full">
+            {t("common.cancel")}
+          </Button>
         </div>
       )}
 

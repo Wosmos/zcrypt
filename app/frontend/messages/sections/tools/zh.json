@@ -111,7 +111,12 @@
       "receiving": "正在接收 {n}/{total}",
       "receivedOk": "{name} 已接收并保存",
       "receiveAnother": "再接收一个",
-      "connFailedTitle": "连接失败"
+      "connFailedTitle": "连接失败",
+      "tooLarge": "此文件太大，无法在浏览器中接收（上限 {max}）。请使用 zcrypt 桌面应用。",
+      "confirming": "正在等待另一台设备确认...",
+      "noConfirm": "另一台设备没有确认收到完整文件。",
+      "peerCancelled": "另一台设备取消了传输。",
+      "stalled": "传输停滞：60 秒内没有任何数据移动。"
     },
     "snapshots": {
       "take": "创建快照",
