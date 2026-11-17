@@ -19,7 +19,12 @@ import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { motion, useReducedMotion } from "motion/react";
 import { getFileTypeInfo, cn } from "@/lib/utils";
-import { mimeForFilename, WrongPasswordError, IntegrityError } from "@/hooks/useFileDecryptor";
+import {
+  mimeForFilename,
+  VIEWER_MAX_BYTES,
+  WrongPasswordError,
+  IntegrityError,
+} from "@/hooks/useFileDecryptor";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { tr } from "@/store/translate";
@@ -111,8 +116,6 @@ export interface FileViewerProps {
   /** Reserved for trash/read-only contexts (no in-viewer mutation either way). */
   readOnly?: boolean;
 }
-
-const VIEWER_MAX_BYTES = 300 * 1024 * 1024;
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';

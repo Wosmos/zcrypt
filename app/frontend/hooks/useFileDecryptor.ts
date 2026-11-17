@@ -12,7 +12,7 @@ import {
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { mediaMimeFor, extOf } from "@/lib/media-formats";
-import { concatChunks } from "@/lib/utils";
+import { retryTransient } from "@/lib/retry";
 import { isTauri, sidecarDecryptToMemory, subscribeProgress } from "@/lib/tauri";
 import { viewerKindFor } from "@/components/viewers/viewer-kind";
 import {
@@ -277,11 +277,11 @@ export async function runDecryptPipeline(
     }
   }
 
-  const { getFileMeta, getFileChunk } = await import("@/lib/api");
+  const { getFileMeta } = await import("@/lib/api");
+  const { createChunkSource } = await import("@/lib/chunk-source");
   const {
     resolveFileKey,
     decryptChunk,
-    sha256Hex,
     fromBase64,
     createContentHasher,
     deriveDedupKeyBytes,
@@ -289,6 +289,11 @@ export async function runDecryptPipeline(
   } = await import("@/lib/crypto");
 
   const meta = await getFileMeta(file.id);
+  // The size in the file list can be stale or unknown; the server's decides.
+  if (meta.original_size > VIEWER_MAX_BYTES) throw new Error(tr("viewer.tooLarge"));
+  const fetchChunk = createChunkSource(file.id);
+  const fetchRetried = (index: number, signal?: AbortSignal) =>
+    retryTransient(() => fetchChunk(index, signal), { signal });
   const salt = fromBase64(meta.salt);
   // Warm CEK cache: the unwrap itself is cheap, but this file's key may already
   // be resolved (a thumbnail peek, a neighbour prefetch, a previous viewer open)
@@ -307,7 +312,7 @@ export async function runDecryptPipeline(
   // re-prompting. Envelope files already fail fast inside resolveFileKey.
   let chunk0: { data: ArrayBuffer; compressed: boolean } | null = null;
   if (!meta.wrapped_cek && meta.chunk_count > 0) {
-    chunk0 = await getFileChunk(file.id, 0);
+    chunk0 = await fetchRetried(0);
     try {
       await decryptChunk(keyBytes, new Uint8Array(chunk0.data));
     } catch {
@@ -322,11 +327,13 @@ export async function runDecryptPipeline(
   // The pool outlives this call, so stop pulling chunks once one has failed
   // instead of downloading the rest of a file nobody will see.
   let failed = false;
+  const failCtl = new AbortController();
+  let failure: { reason: unknown } | undefined;
 
   const processChunk = async (index: number) => {
     // Chunk 0 may already be fetched by the legacy key check above.
     const { data, compressed } =
-      index === 0 && chunk0 ? chunk0 : await getFileChunk(file.id, index);
+      index === 0 && chunk0 ? chunk0 : await fetchRetried(index, failCtl.signal);
 
     // Decrypt (+ decompress) off the main thread. `data` is transferred to the
     // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
@@ -360,7 +367,9 @@ export async function runDecryptPipeline(
           try {
             await processChunk(idx);
           } catch (err) {
+            failure ??= { reason: err };
             failed = true;
+            failCtl.abort();
             throw err;
           }
         }
@@ -368,9 +377,8 @@ export async function runDecryptPipeline(
     );
   }
 
-  await Promise.all(fetchers);
-
-  const full = concatChunks(decrypted);
+  await Promise.allSettled(fetchers);
+  if (failure) throw failure.reason;
 
   // Integrity check, scheme-aware, mirroring lib/download-session.ts. 'hmac_v1'
   // files store a per-user KEYED MAC, NOT a plain SHA-256, so hashing with
@@ -381,28 +389,28 @@ export async function runDecryptPipeline(
   // signed-in user id is unavailable we can't recompute the MAC, skip the
   // file-level compare and rely on the per-chunk AES-GCM auth tags (which already
   // threw above on any tampered chunk), exactly as the download/share paths do.
-  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
-    const hasher = await createContentHasher("hmac_v1", await cekMacKey(keyBytes));
-    hasher.update(full);
+  // Hashed chunk by chunk, so no second joined copy of the file is built.
+  const verify = async (scheme: "hmac_v1" | "plain", key?: Uint8Array) => {
+    const hasher = await createContentHasher(scheme, key);
+    for (const c of decrypted) hasher.update(c);
     if (bytesToHex(hasher.digest()) !== meta.sha256) throw new IntegrityError();
+  };
+  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
+    await verify("hmac_v1", await cekMacKey(keyBytes));
   } else if (meta.sha256_scheme === "hmac_v1") {
     const { useAuthStore } = await import("@/store/auth");
     const uid = useAuthStore.getState().user?.id;
-    if (uid) {
-      const macKey = await deriveDedupKeyBytes(password, uid);
-      const hasher = await createContentHasher("hmac_v1", macKey);
-      hasher.update(full);
-      const mac = bytesToHex(hasher.digest());
-      if (mac !== meta.sha256) throw new IntegrityError();
-    }
+    if (uid) await verify("hmac_v1", await deriveDedupKeyBytes(password, uid));
   } else {
-    const hash = await sha256Hex(full);
-    if (hash !== meta.sha256) throw new IntegrityError();
+    await verify("plain");
   }
 
   // Stamp the real MIME so viewers can render/play directly.
-  return new Blob([full as BlobPart], { type: mimeForFilename(file.original_name) });
+  return new Blob(decrypted as BlobPart[], { type: mimeForFilename(file.original_name) });
 }
+
+/** The most the viewer holds in memory to preview one file; larger ones are only downloaded. */
+export const VIEWER_MAX_BYTES = 300 * 1024 * 1024;
 
 /** Hover sweeps and viewer neighbours both prefetch speculatively, so cap what
  *  they can start pulling: a huge video prefetch would starve a deliberate open. */

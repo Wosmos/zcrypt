@@ -15,16 +15,16 @@ import { retryTransient } from "@/lib/retry";
 import { runWithConcurrency } from "@/lib/concurrent";
 import {
   resolveFileKey,
-  decryptChunk,
-  sha256Hex,
-  contentMacBytes,
+  createContentHasher,
+  bytesToHex,
   deriveDedupKeyBytes,
   fromBase64,
 } from "@/lib/crypto";
-import { zstdDecompress } from "@/lib/zstd";
 import { Zip, ZipPassThrough } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
-import { concatChunks, saveBlob } from "@/lib/utils";
+import { WorkerPool } from "@/lib/worker-pool";
+import { decryptChunkInPool } from "@/lib/decrypt-chunk";
+import { saveBlob } from "@/lib/utils";
 import { tr } from "@/store/translate";
 import type { DiskWritable } from "@/lib/download-session";
 import type { DownloadPasswordResolver } from "@/store/download";
@@ -140,17 +140,36 @@ function assertNotAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 }
 
+/** A file's plaintext as the chunks it arrived in: no joined copy is made. */
 async function fetchVerifiedFile(
   file: BulkDownloadFile,
   passphrase: string,
   signal: AbortSignal | undefined,
   resolvePassword: DownloadPasswordResolver | undefined,
-): Promise<Uint8Array> {
+  pool: WorkerPool,
+  fits: (size: number) => void,
+): Promise<Uint8Array[]> {
   // A per-file resolver (folder-protected files) overrides the shared passphrase.
   const meta = await getFileMeta(file.fileId);
+  // The caller's size is a hint; the server's is what decides the caps.
+  fits(meta.original_size);
   const filePassphrase = resolvePassword ? await resolvePassword(file.fileId) : passphrase;
   const salt = fromBase64(meta.salt);
   const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
+
+  // Integrity: 'hmac_v1' files verify against the per-user keyed MAC (recomputed
+  // with the same passphrase that decrypted them); legacy files against SHA-256.
+  let macKey: Uint8Array | undefined;
+  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
+    macKey = await cekMacKey(keyBytes);
+  } else if (meta.sha256_scheme === "hmac_v1") {
+    // Lazy import so this module (and its tests) don't eagerly load the auth
+    // store: only an actual hmac_v1 download needs the current user id.
+    const { useAuthStore } = await import("@/store/auth");
+    const uid = useAuthStore.getState().user?.id;
+    if (!uid) throw new Error(tr("l10n.zip.integritySignedOut", { name: file.filename }));
+    macKey = await deriveDedupKeyBytes(filePassphrase, uid);
+  }
 
   const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);
   const chunkResults: Uint8Array[] = new Array(meta.chunk_count);
@@ -160,43 +179,21 @@ async function fetchVerifiedFile(
   // every worker call, so a duplicate here can never be the one that fires.
   const processChunk = async (index: number) => {
     const { data, compressed } = await retryTransient(() => fetchChunk(index, signal), { signal });
-
-    let plain: Uint8Array;
     try {
-      plain = await decryptChunk(keyBytes, new Uint8Array(data));
-    } catch {
-      throw new Error(tr("l10n.zip.decryptFailed", { name: file.filename }));
+      chunkResults[index] = await decryptChunkInPool(pool, index, data, keyBytes, compressed);
+    } catch (cause) {
+      throw new Error(tr("l10n.zip.decryptFailed", { name: file.filename }), { cause });
     }
-
-    if (compressed) {
-      plain = await zstdDecompress(plain);
-    }
-    chunkResults[index] = plain;
   };
 
   await runWithConcurrency(meta.chunk_count, MAX_CONCURRENT, processChunk, signal);
 
-  const fullFile = concatChunks(chunkResults);
-
-  // Integrity: 'hmac_v1' files verify against the per-user keyed MAC (recomputed
-  // with the same passphrase that decrypted them); legacy files against SHA-256.
-  let contentHash: string;
-  if (meta.sha256_scheme === CEK_MAC_SCHEME) {
-    contentHash = await contentMacBytes(fullFile, await cekMacKey(keyBytes));
-  } else if (meta.sha256_scheme === "hmac_v1") {
-    // Lazy import so this module (and its tests) don't eagerly load the auth
-    // store: only an actual hmac_v1 download needs the current user id.
-    const { useAuthStore } = await import("@/store/auth");
-    const uid = useAuthStore.getState().user?.id;
-    if (!uid) throw new Error(tr("l10n.zip.integritySignedOut", { name: file.filename }));
-    contentHash = await contentMacBytes(fullFile, await deriveDedupKeyBytes(filePassphrase, uid));
-  } else {
-    contentHash = await sha256Hex(fullFile);
-  }
-  if (contentHash !== meta.sha256) {
+  const hasher = await createContentHasher(macKey ? "hmac_v1" : "plain", macKey);
+  for (const c of chunkResults) hasher.update(c);
+  if (bytesToHex(hasher.digest()) !== meta.sha256) {
     throw new Error(tr("l10n.zip.integrityFailed", { name: file.filename }));
   }
-  return fullFile;
+  return chunkResults;
 }
 
 /**
@@ -217,6 +214,8 @@ export async function downloadAsZip(
   const totalFiles = files.length;
   const report: BulkDownloadReport = { added: 0, failed: [] };
   const parts: Uint8Array[] = [];
+  const pool = new WorkerPool();
+  let packed = ZIP_END_RECORD;
   let firstError: unknown = null;
   let pending: Promise<void> = Promise.resolve();
   let zipError: Error | null = null;
@@ -254,9 +253,15 @@ export async function downloadAsZip(
         continue;
       }
 
-      let data: Uint8Array;
+      let data: Uint8Array[];
       try {
-        data = await fetchVerifiedFile(file, passphrase, signal, resolvePassword);
+        data = await fetchVerifiedFile(file, passphrase, signal, resolvePassword, pool, (size) => {
+          if (size > ZIP_ENTRY_MAX_BYTES) throw new Error(tr("l10n.zip.overLimit"));
+          const cost =
+            size + ZIP_ENTRY_OVERHEAD + 2 * new TextEncoder().encode(zipEntryName(file)).length;
+          if (packed + cost > ZIP32_MAX_BYTES) throw new Error(tr("l10n.zip.tooBig"));
+          packed += cost;
+        });
       } catch (err) {
         if (isAbort(err)) throw err;
         firstError ??= err;
@@ -272,7 +277,8 @@ export async function downloadAsZip(
       taken.add(name);
       const entry = new ZipPassThrough(name);
       zip.add(entry);
-      entry.push(data, true);
+      if (data.length === 0) entry.push(new Uint8Array(), true);
+      data.forEach((part, i) => entry.push(part, i === data.length - 1));
       await pending;
       report.added++;
     }
@@ -302,6 +308,8 @@ export async function downloadAsZip(
     zip.terminate();
     if (saveToDisk?.abort) await saveToDisk.abort().catch(() => {});
     throw err;
+  } finally {
+    pool.terminate();
   }
 
   onProgress?.({
