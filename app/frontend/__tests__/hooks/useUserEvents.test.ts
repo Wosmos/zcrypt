@@ -6,7 +6,12 @@ const h = vi.hoisted(() => ({
   unsubscribe: vi.fn(),
   deliver: vi.fn(async () => "toast"),
   push: vi.fn(),
+  sync: vi.fn(),
 }));
+vi.mock("@/lib/space-sync", async () => {
+  const real = await vi.importActual<typeof import("@/lib/space-sync")>("@/lib/space-sync");
+  return { ...real, syncSpaceEvent: h.sync };
+});
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }));
 vi.mock("@/lib/event-stream", () => ({
   subscribeEvents: (handlers: Record<string, (e: MessageEvent) => void>) => {
@@ -30,6 +35,7 @@ describe("useUserEvents", () => {
       [
         "filesAdded", "inviteReceived", "invitePending", "linkViewed", "memberJoined",
         "memberLeft", "memberRemoved", "newSignIn", "roleChanged", "spaceDeleted",
+        "spaceMembersChanged",
       ].sort(),
     );
     h.handlers.memberLeft({ data: '{"type":"memberLeft","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);
@@ -39,6 +45,24 @@ describe("useUserEvents", () => {
     );
     h.handlers.memberLeft({ data: "{nope" } as MessageEvent);
     expect(h.deliver).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes Space data on a members-changed signal without telling the person", () => {
+    renderHook(() => useUserEvents());
+    h.handlers.spaceMembersChanged({ data: '{"type":"spaceMembersChanged","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);
+    expect(h.sync).toHaveBeenCalledWith(
+      { type: "spaceMembersChanged", data: { space_id: "s1" }, url: "/spaces" },
+      window.location,
+      expect.any(Function),
+    );
+    expect(h.deliver).not.toHaveBeenCalled();
+  });
+
+  it("both tells the person and refreshes on a member leaving", () => {
+    renderHook(() => useUserEvents());
+    h.handlers.memberLeft({ data: '{"type":"memberLeft","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);
+    expect(h.deliver).toHaveBeenCalledTimes(1);
+    expect(h.sync).toHaveBeenCalledTimes(1);
   });
 
   it("navigates through the router and unsubscribes on unmount", () => {
