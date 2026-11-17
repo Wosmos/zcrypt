@@ -277,6 +277,7 @@ export function SpaceHome() {
     .map((m) => ({
       user_id: m.user_id,
       username: m.username || m.email || t("shared.member"),
+      email: m.email,
       has_avatar: m.has_avatar,
       avatar_version: m.avatar_version,
     }));
