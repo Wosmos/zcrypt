@@ -441,9 +441,12 @@ export async function downloadAndDecryptFile(
           }
         }
       }
-      const blob = new Blob(assertSet(decryptedChunks, "decryptedChunks") as BlobPart[], {
-        type: "application/octet-stream",
-      });
+      const parts = assertSet(decryptedChunks, "decryptedChunks");
+      const blob = new Blob(parts as BlobPart[], { type: "application/octet-stream" });
+      parts.length = 0;
+      decryptedChunks = undefined;
+      resume.decryptedChunks = undefined;
+      resume.done = undefined;
       saveBlob(saveName || "download", blob);
     }
 

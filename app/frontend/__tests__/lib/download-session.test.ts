@@ -156,6 +156,29 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("builds the Blob from the decrypted parts and releases the chunk array straight after, so the file is not held twice", async () => {
+    const chunks = [chunkBytes(0), chunkBytes(1)];
+    getFileMeta.mockResolvedValueOnce(baseMeta(2, expectedHash(chunks), { original_name: "r.bin" }));
+    getFileChunk.mockImplementation(async (_id: string, index: number) => ({
+      data: chunks[index].buffer,
+      sha256: "",
+      compressed: false,
+    }));
+    const parts: Uint8Array[] = [];
+    const resume: { decryptedChunks?: Uint8Array[]; done?: Set<number> } = { decryptedChunks: parts };
+    const createObjectURL = vi.fn(() => "blob:mock-url");
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL: vi.fn() });
+
+    await downloadAndDecryptFile("f1", "pw", { resume });
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
+    expect(blob.size).toBe(chunks[0].length + chunks[1].length);
+    expect(parts).toHaveLength(0);
+    expect(resume.decryptedChunks).toBeUndefined();
+    expect(resume.done).toBeUndefined();
+  });
+
   it("derives a per-user keyed MAC for an hmac_v1 file on the owner (passphrase) path", async () => {
     const chunks = [chunkBytes(0), chunkBytes(1)];
     getFileMeta.mockResolvedValueOnce(

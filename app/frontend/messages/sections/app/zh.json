@@ -913,6 +913,7 @@
       "directResumeElsewhere": "“{name}”原本直接上传到你自己的 {platform}，无法在此浏览器中完成。请移除后重新上传。",
       "reconnectTelegram": "重新连接 Telegram 以完成上传“{name}”。",
       "reconnectTelegramAction": "打开存储设置",
+      "downloadInterrupted": "已因页面重新加载而中断：{names}。页面重新加载后无法继续下载，请重新开始。",
       "andMore": "等另外 {count} 个",
       "tooBig": "{names} 超过了单个文件 {limit} 的上限（{count} 个）。",
       "uploaded": "{name} 已上传",

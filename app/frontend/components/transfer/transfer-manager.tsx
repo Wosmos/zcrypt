@@ -22,6 +22,7 @@ import { useFolderStore } from "@/store/folders";
 import { useConnectivityStore } from "@/store/connectivity";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useInterruptedDownloads } from "@/hooks/useInterruptedDownloads";
 import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
 import { useTransferDockStore } from "@/store/transfer-dock";
@@ -121,6 +122,7 @@ function droppedIds(dt: DataTransfer): string[] {
 export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const t = useTranslations("app.transfer");
   const ta = useTranslations("app");
+  useInterruptedDownloads();
   const isPhone = useIsMobile();
   const canHover = useIsMobile("(hover: hover)");
   const online = useConnectivityStore((s) => s.online);

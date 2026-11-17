@@ -913,6 +913,7 @@
       "directResumeElsewhere": "\"{name}\" was going straight to your own {platform} and can't be finished in this browser. Remove it and upload it again.",
       "reconnectTelegram": "Reconnect Telegram to finish uploading \"{name}\".",
       "reconnectTelegramAction": "Open storage settings",
+      "downloadInterrupted": "Stopped by the reload: {names}. A download can't continue after the page reloads, so start it again.",
       "andMore": "and {count} more",
       "tooBig": "{names} {count, plural, one {exceeds the} other {exceed the}} {limit} per-file limit.",
       "uploaded": "{name} uploaded",
