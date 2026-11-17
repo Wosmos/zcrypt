@@ -7,6 +7,9 @@ const api = vi.hoisted(() => ({
   getShareFileMeta: vi.fn(),
   getShareChunk: vi.fn(),
   completeShareDownload: vi.fn(),
+  getSendInfo: vi.fn(),
+  getSendMeta: vi.fn(),
+  getSendChunk: vi.fn(),
   getFolderShareInfo: vi.fn(),
   getFolderShareFileMeta: vi.fn(),
   getFolderShareChunk: vi.fn(),
@@ -47,11 +50,17 @@ vi.mock("@/lib/sealed", async (orig) => ({
   ...(await orig<typeof import("@/lib/sealed")>()),
   keyFromBytes: async () => ({}) as CryptoKey,
 }));
-vi.mock("@/lib/zstd", () => ({ getZstdCodec: async () => null }));
+const zstd = vi.hoisted(() => ({ decompress: vi.fn() }));
+vi.mock("@/lib/zstd", () => ({
+  getZstdCodec: async () => ({ ZstdStream: { decompress: zstd.decompress } }),
+}));
+vi.mock("@/lib/send-hash", () => ({ openSendHash: async (h: string) => h }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile: () => ({ maxConcurrentDownloads: 4 }) }));
 
 import SharePage from "@/app/s/[token]/page";
 import FolderSharePage from "@/app/f/[token]/page";
+import SendDownloadPage from "@/app/send/[token]/page";
+import { sha256Hex } from "@/lib/crypto";
 
 const meta = (chunks: number) => ({
   wrapped_cek: "w",
@@ -196,5 +205,32 @@ describe("folder page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(signals.every((s) => s.aborted)).toBe(true));
     expect(await screen.findByRole("button", { name: /Download all/i })).toBeEnabled();
+  });
+});
+
+describe("send download page", () => {
+  it("retries a 503 chunk and decompresses a chunk the server marks compressed", async () => {
+    const plain = new Uint8Array([9, 9]);
+    zstd.decompress.mockReturnValue(plain);
+    api.getSendInfo.mockResolvedValue({
+      valid: true,
+      file_name: "a.bin",
+      file_size: 2,
+      expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+      burn_after_read: false,
+    });
+    api.getSendMeta.mockResolvedValue({ salt: "s", chunk_count: 1, sha256: await sha256Hex(plain) });
+    api.getSendChunk
+      .mockRejectedValueOnce(new ApiError("busy", 503))
+      .mockResolvedValue({ data: new Uint8Array([1]).buffer, sha256: "", compressed: true });
+    const created: Blob[] = [];
+    URL.createObjectURL = vi.fn((b: Blob) => (created.push(b), "blob:x"));
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<SendDownloadPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Download/ }));
+    await waitFor(() => expect(created.length).toBe(1), { timeout: 5000 });
+    expect(api.getSendChunk).toHaveBeenCalledTimes(2);
+    expect(zstd.decompress).toHaveBeenCalled();
+    expect(new Uint8Array(await created[0].arrayBuffer())).toEqual(plain);
   });
 });

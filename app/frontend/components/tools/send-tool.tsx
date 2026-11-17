@@ -10,6 +10,7 @@ import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
 import { sendInit, SendInitError, sendChunkUpload, sendComplete } from "@/lib/api";
 import { sealText, keyFromBytes } from "@/lib/sealed";
+import { runWithConcurrency } from "@/lib/concurrent";
 import { useCopyFeedback } from "@/hooks/useCopyFeedback";
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ExpirySelector } from "./shared/expiry-selector";
@@ -33,7 +34,7 @@ export function SendTool() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loginRequired, setLoginRequired] = useState(false);
   const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
-  const abortRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -54,7 +55,9 @@ export function SendTool() {
 
   const handleUpload = useCallback(async () => {
     if (!selectedFile) return;
-    abortRef.current = false;
+    abortRef.current?.abort();
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     setState("uploading");
     setErrorMsg("");
 
@@ -94,39 +97,69 @@ export function SendTool() {
         expires_hours: expiryHours,
       });
 
-      if (abortRef.current) return;
+      if (ctl.signal.aborted) return;
 
+      const { getDeviceProfile } = await import("@/lib/device-profile");
+      const depth = Math.min(getDeviceProfile().workers * 3, 12);
+      const failCtl = new AbortController();
+      const runSignal = AbortSignal.any([ctl.signal, failCtl.signal]);
+      const sent = new Array<number>(chunkCount).fill(0);
+      const sizes = new Array<number>(chunkCount).fill(0);
+      let finished = 0;
+      const report = () => {
+        const total = sizes.reduce((a, b) => a + b, 0) || 1;
+        const moved = sent.reduce((a, b) => a + b, 0);
+        setProgress({
+          stage: t("send.uploadingChunk", {
+            n: Math.min(finished + 1, chunkCount),
+            total: chunkCount,
+          }),
+          percent: 3 + Math.round((moved / total) * 89),
+        });
+      };
       for (let i = 0; i < chunkCount; i++) {
-        if (abortRef.current) return;
-        const start = i * CS;
-        const end = Math.min(start + CS, selectedFile.size);
-        const slice = selectedFile.slice(start, end);
-        const plaintext = new Uint8Array(await slice.arrayBuffer());
+        sizes[i] = Math.min(CS, selectedFile.size - i * CS);
+      }
+      report();
 
-        setProgress({
-          stage: t("send.encryptingChunk", { n: i + 1, total: chunkCount }),
-          percent: 3 + Math.round((i / chunkCount) * 42),
-        });
-        const encrypted = await encryptChunk(keyBytes, plaintext);
-        const chunkHash = await sha256Hex(encrypted);
-
-        setProgress({
-          stage: t("send.uploadingChunk", { n: i + 1, total: chunkCount }),
-          percent: 45 + Math.round((i / chunkCount) * 47),
-        });
-        await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false);
+      try {
+        await runWithConcurrency(
+          chunkCount,
+          depth,
+          async (i) => {
+            const slice = selectedFile.slice(i * CS, Math.min(i * CS + CS, selectedFile.size));
+            const plaintext = new Uint8Array(await slice.arrayBuffer());
+            const encrypted = await encryptChunk(keyBytes, plaintext);
+            const chunkHash = await sha256Hex(encrypted);
+            await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false, {
+              signal: runSignal,
+              onProgress: (n) => {
+                sent[i] = Math.min(n, sizes[i]);
+                report();
+              },
+            });
+            sent[i] = sizes[i];
+            finished++;
+            report();
+          },
+          runSignal,
+        );
+      } catch (err) {
+        failCtl.abort();
+        throw err;
       }
 
-      if (abortRef.current) return;
+      if (ctl.signal.aborted) return;
 
       setProgress({ stage: t("send.finalizing"), percent: 95 });
-      await sendComplete(session.session_id);
+      await sendComplete(session.session_id, ctl.signal);
 
       const url = `${window.location.origin}/send/${session.token}#key=${keyPassphrase}`;
       setShareUrl(url);
       setProgress({ stage: t("send.done"), percent: 100 });
       setState("done");
     } catch (err) {
+      if (ctl.signal.aborted) return;
       let msg = t("send.failed");
       if (err instanceof SendInitError && (err as any).status === 429) {
         if ((err as any).loginRequired) {
@@ -148,8 +181,16 @@ export function SendTool() {
     }
   }, [selectedFile, burnAfterRead, expiryHours, t]);
 
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setState("idle");
+    setProgress({ stage: "", percent: 0 });
+    setErrorMsg("");
+  }, []);
+
   const handleReset = useCallback(() => {
-    abortRef.current = true;
+    abortRef.current?.abort();
     setState("idle");
     setSelectedFile(null);
     setShareUrl("");
@@ -222,6 +263,11 @@ export function SendTool() {
               percent={easeProgress(progress.percent)}
               transitionClassName="transition-all duration-500 ease-in-out"
             />
+            <div className="flex justify-end pt-3">
+              <Button variant="ghost" size="sm" onClick={handleCancel}>
+                {t("common.cancel")}
+              </Button>
+            </div>
           </div>
         </>
       )}
