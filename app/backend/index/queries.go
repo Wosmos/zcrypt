@@ -1095,11 +1095,15 @@ func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]ty
 
 // IncrementSessionChunks atomically increments the uploaded_chunks counter and
 // returns the new count, so concurrent uploaders can compute progress from the
-// post-increment value instead of a stale read..
+// post-increment value instead of a stale read. Each chunk also pushes the
+// session's expiry out to 7 days from now, so an upload that keeps progressing
+// never expires under it.
 func (db *DB) IncrementSessionChunks(ctx context.Context, sessionID string) (int, error) {
 	var uploaded int
 	err := db.pool.QueryRow(ctx,
-		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1 WHERE id = $1 RETURNING uploaded_chunks`,
+		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1,
+		        expires_at = GREATEST(expires_at, NOW() + INTERVAL '7 days')
+		 WHERE id = $1 RETURNING uploaded_chunks`,
 		sessionID,
 	).Scan(&uploaded)
 	if err != nil {

@@ -487,7 +487,10 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	// Also check by file_id + index (the original idempotency check)
 	existingByIdx, _ := s.db.GetChunkByIndex(ctx, session.FileID, chunkIndex)
-	if existingByIdx != nil {
+	var restore *types.ChunkRef
+	if existingByIdx != nil && !s.chunkBytesPresent(ctx, existingByIdx) {
+		restore = existingByIdx
+	} else if existingByIdx != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"chunk_index": chunkIndex,
@@ -529,8 +532,15 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write chunk data to staging dir (survives server restarts)
 	chunkID := uuid.New().String()
+	if restore != nil {
+		if actualHash != restore.SHA256 {
+			http.Error(w, `{"error":"chunk hash mismatch"}`, http.StatusBadRequest)
+			return
+		}
+		chunkID = restore.ChunkID
+	}
+	// Write chunk data to staging dir (survives server restarts)
 	stagingDir, err := config.StagingDir()
 	if err != nil {
 		log.Printf("upload: staging dir failed: %v", err)
@@ -541,6 +551,15 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	if err := os.WriteFile(stagingPath, data, 0600); err != nil {
 		log.Printf("upload: write staging file failed: %v", err)
 		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if restore != nil {
+		select {
+		case s.syncCh <- struct{}{}:
+		default:
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"chunk_index": chunkIndex, "stored": true})
 		return
 	}
 
@@ -601,6 +620,24 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		"chunk_index": chunkIndex,
 		"stored":      true,
 	})
+}
+
+// chunkBytesPresent reports whether a recorded chunk's bytes exist somewhere:
+// on its platform (remote_path set) or in staging. A chunk with neither was
+// lost, so a duplicate PUT must re-send it instead of being told it is stored.
+// The row is re-read once to absorb the sync worker pushing the chunk and
+// removing staging between the caller's read and now.
+func (s *Server) chunkBytesPresent(ctx context.Context, c *types.ChunkRef) bool {
+	if c.RemotePath != "" {
+		return true
+	}
+	if stagingDir, err := config.StagingDir(); err == nil {
+		if _, err := os.Stat(filepath.Join(stagingDir, filepath.Base(c.ChunkID)+".enc")); err == nil {
+			return true
+		}
+	}
+	fresh, err := s.db.GetChunkByID(ctx, c.ChunkID)
+	return err == nil && fresh.RemotePath != ""
 }
 
 // storeStagedChunk records a relay chunk whose bytes were just staged at
