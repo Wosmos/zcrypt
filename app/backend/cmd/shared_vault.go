@@ -190,8 +190,9 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	}
 
 	if member.UserID != userID {
-		s.pushToUser(member.UserID, pushMessage{Type: "inviteReceived", URL: "/spaces"})
+		s.notifyUser(member.UserID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role}))
 	}
+	s.spaceMemberAdded(ctx, vaultID, member.UserID, member.Role, userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -266,6 +267,7 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 		http.Error(w, `{"error":"failed to add file"}`, http.StatusInternalServerError)
 		return
 	}
+	s.spaceFilesAdded(vaultID, userID, 1)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -411,6 +413,7 @@ func (s *Server) HandleAddSharedVaultFiles(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	result.Added = added
+	s.spaceFilesAdded(vaultID, userID, added)
 
 	writeJSON(w, http.StatusCreated, result)
 }
@@ -473,6 +476,7 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 		http.Error(w, `{"error":"member not found or cannot be removed"}`, http.StatusNotFound)
 		return
 	}
+	s.spaceMemberGone(ctx, vaultID, memberUID, memberUID == userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -544,11 +548,13 @@ func (s *Server) HandleDeleteSharedVault(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	former, _, _ := s.db.SharedVaultAudience(ctx, vaultID)
 	if err := s.db.DeleteSharedVault(ctx, userID, vaultID); err != nil {
 		log.Printf("shared-vaults: delete: %v", err)
 		http.Error(w, `{"error":"failed to delete vault"}`, http.StatusInternalServerError)
 		return
 	}
+	s.spaceDeleted(vaultID, userID, former)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -644,6 +650,7 @@ func (s *Server) HandleUpdateSharedVaultMemberRole(w http.ResponseWriter, r *htt
 		http.Error(w, `{"error":"member not found or cannot be changed"}`, http.StatusNotFound)
 		return
 	}
+	s.spaceRoleChanged(ctx, vaultID, memberUID, req.Role)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})

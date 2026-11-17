@@ -655,3 +655,25 @@ func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, 
 	}
 	return int(tag.RowsAffected()), nil
 }
+
+// SharedVaultAudience returns the user ids of a space's members and, of those,
+// its owner and admins (the owner is an admin member).
+func (db *DB) SharedVaultAudience(ctx context.Context, vaultID string) (members, admins []string, err error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT user_id::text, role FROM shared_vault_members WHERE vault_id = $1`, vaultID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, role string
+		if err := rows.Scan(&id, &role); err != nil {
+			return nil, nil, err
+		}
+		members = append(members, id)
+		if role == types.SpaceRoleAdmin {
+			admins = append(admins, id)
+		}
+	}
+	return members, admins, rows.Err()
+}

@@ -85,6 +85,7 @@ type Server struct {
 	pushHostOK     func(endpoint string) bool
 	pushHTTP       *http.Client
 	pushSink       func(userID string, msg pushMessage)
+	filesAdded     *filesAddedBatcher
 	linkViewNotice *rateLimiter
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
@@ -222,6 +223,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		releases:              newReleaseCache(),
 		pushHostOK:            isPushServiceEndpoint,
 		pushHTTP:              newPushHTTPClient(),
+		filesAdded:            newFilesAddedBatcher(filesAddedWindow),
 		linkViewNotice:        newRateLimiter(1, 10*time.Minute),
 		twoFAIPLimiter:        newRateLimiter(10, 5*time.Minute),
 		twoFAUserLimiter:      newRateLimiter(5, 5*time.Minute),
