@@ -465,11 +465,12 @@ describe("tauri (inside the Tauri runtime)", () => {
     const bytes = new Uint8Array([1, 2, 3]).buffer;
     invokeMock.mockResolvedValue(bytes);
     const mod = await import("@/lib/tauri");
-    await expect(mod.sidecarDecryptToMemory("f1", "pw", "user1")).resolves.toBe(bytes);
+    await expect(mod.sidecarDecryptToMemory("f1", "pw", "user1", "t1")).resolves.toBe(bytes);
     expect(invokeMock).toHaveBeenCalledWith("decrypt_to_memory", {
       fileId: "f1",
       passphrase: "pw",
       userId: "user1",
+      transferId: "t1",
     });
   });
 
@@ -497,10 +498,11 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     const { toBase64 } = await import("@/lib/crypto");
     const spaceKeyBytes = new Uint8Array([7, 7, 7]);
-    await expect(mod.sidecarDecryptSpaceToMemory("f1", spaceKeyBytes)).resolves.toBe(bytes);
+    await expect(mod.sidecarDecryptSpaceToMemory("f1", spaceKeyBytes, "t2")).resolves.toBe(bytes);
     expect(invokeMock).toHaveBeenCalledWith("decrypt_space_to_memory", {
       fileId: "f1",
       spaceKeyB64: toBase64(spaceKeyBytes),
+      transferId: "t2",
     });
   });
 

@@ -98,6 +98,12 @@ export function isForegroundDecryptActive(): boolean {
   return false;
 }
 
+/** True while the in-flight decrypt for `id` is background-only: no foreground
+ *  caller has joined it, so cancelling it hurts nobody. */
+export function isBackgroundOnly(id: string): boolean {
+  return inflight.has(id) && backgroundIds.has(id);
+}
+
 // In-flight decrypts started by background work (thumbnails). They share the
 // cache and de-duplication but don't count as foreground, or every thumbnail
 // would hold back every other one. A foreground caller joining one promotes it.

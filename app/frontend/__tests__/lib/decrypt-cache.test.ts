@@ -4,6 +4,7 @@ import {
   getCachedCEK,
   isWarmOrInflight,
   isForegroundDecryptActive,
+  isBackgroundOnly,
   cachedDecrypt,
   cachedResolveCEK,
   clearDecryptCache,
@@ -80,6 +81,17 @@ describe("decrypt-cache", () => {
     d.resolve(sizedBlob(10));
     await p;
     expect(isForegroundDecryptActive()).toBe(false); // cached ≠ in flight
+  });
+
+  it("isBackgroundOnly is true until a foreground caller joins the run", async () => {
+    const d = deferred<Blob>();
+    const p = cachedDecrypt("f1", null, () => d.promise, { background: true });
+    expect(isBackgroundOnly("f1")).toBe(true);
+    const joined = cachedDecrypt("f1", null, () => d.promise);
+    expect(isBackgroundOnly("f1")).toBe(false);
+    d.resolve(sizedBlob(10));
+    await Promise.all([p, joined]);
+    expect(isBackgroundOnly("f1")).toBe(false);
   });
 
   it("isForegroundDecryptActive returns false again after a failed decrypt", async () => {

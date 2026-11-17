@@ -55,6 +55,7 @@ const {
   tauriMock: {
     isTauri: false,
     sidecarDecryptToMemory: vi.fn(),
+    cancelTransfer: vi.fn(async () => true),
     subscribeProgress: vi.fn(),
   },
   // The module registers its shared-pool teardown on the decrypt cache's
@@ -487,6 +488,7 @@ describe("runDecryptPipeline on desktop", () => {
   afterEach(async () => {
     tauriMock.isTauri = false;
     tauriMock.sidecarDecryptToMemory.mockReset();
+    tauriMock.cancelTransfer.mockClear();
     tauriMock.subscribeProgress.mockReset();
     vi.resetModules();
   });
@@ -499,7 +501,12 @@ describe("runDecryptPipeline on desktop", () => {
 
     expect(blob.size).toBe(5);
     expect(blob.type).toBe("video/mp4");
-    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "user-1");
+    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith(
+      "file-1",
+      "pw",
+      "user-1",
+      expect.stringMatching(/^preview-/),
+    );
     // The whole browser pipeline is skipped, no meta fetch, no chunk fetch.
     expect(getFileMetaMock).not.toHaveBeenCalled();
     expect(getFileChunkMock).not.toHaveBeenCalled();
@@ -537,7 +544,53 @@ describe("runDecryptPipeline on desktop", () => {
 
     await run(makeFile(), "pw");
 
-    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "");
+    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith(
+      "file-1",
+      "pw",
+      "",
+      expect.stringMatching(/^preview-/),
+    );
+  });
+
+  it("cancels the core's decrypt by its transfer id when the caller aborts", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    let finish: (b: Uint8Array) => void = () => {};
+    tauriMock.sidecarDecryptToMemory.mockImplementation(
+      () => new Promise<Uint8Array>((resolve) => (finish = resolve)),
+    );
+    const ctl = new AbortController();
+
+    const p = run(makeFile(), "pw", undefined, ctl.signal);
+    await vi.waitFor(() => expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalled());
+    const id = tauriMock.sidecarDecryptToMemory.mock.calls[0][3];
+    expect(tauriMock.cancelTransfer).not.toHaveBeenCalled();
+
+    ctl.abort();
+    expect(tauriMock.cancelTransfer).toHaveBeenCalledExactlyOnceWith(id);
+    finish(new Uint8Array([1]));
+    await p.catch(() => {});
+  });
+
+  it("surfaces an abort as an AbortError, not the core's cancelled message", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    const ctl = new AbortController();
+    tauriMock.sidecarDecryptToMemory.mockImplementation(async () => {
+      ctl.abort();
+      throw new Error("cancelled");
+    });
+    await expect(run(makeFile(), "pw", undefined, ctl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
+  it("does not start the core when the signal is already aborted", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    const ctl = new AbortController();
+    ctl.abort();
+    await expect(run(makeFile(), "pw", undefined, ctl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(tauriMock.sidecarDecryptToMemory).not.toHaveBeenCalled();
   });
 
   it("does not subscribe at all when the caller wants no progress", async () => {

@@ -95,6 +95,7 @@ export interface FileViewerProps {
   decrypt: (
     file: FileMetadata,
     onProgress?: (done: number, total: number) => void,
+    signal?: AbortSignal,
   ) => Promise<Blob>;
   /**
    * Optional best-effort cache warm-up for a file (never prompts). When given,
@@ -186,6 +187,7 @@ export function FileViewer({
   useEffect(() => {
     if (!open || !file) return;
     let cancelled = false;
+    const ctl = new AbortController();
     revokeUrl();
 
     // Non-previewable types have no in-browser viewer, so decrypting on open
@@ -215,10 +217,14 @@ export function FileViewer({
         // Chunk-level progress feeds the "Decrypting… X/Y" loading UI. Only
         // update while still loading (a stale callback after ready/error would
         // otherwise resurrect the spinner).
-        const blob = await decryptRef.current(file, (done, total) => {
-          if (cancelled) return;
-          setState((s) => (s.status === "loading" ? { status: "loading", done, total } : s));
-        });
+        const blob = await decryptRef.current(
+          file,
+          (done, total) => {
+            if (cancelled) return;
+            setState((s) => (s.status === "loading" ? { status: "loading", done, total } : s));
+          },
+          ctl.signal,
+        );
         if (cancelled) return;
         // Some sub-viewers want a URL (image/video/audio), others read the blob
         // directly (pdf via pdf.js, docx/html/md/csv/text). Build the URL eagerly
@@ -273,6 +279,7 @@ export function FileViewer({
 
     return () => {
       cancelled = true;
+      ctl.abort();
     };
     // Keyed on the file IDENTITY (id) + retry, NOT on `decrypt` (unstable each
     // render), so the decrypt runs once per opened file, not on every render.

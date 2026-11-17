@@ -90,3 +90,29 @@ describe("FileViewer minimize", () => {
     expect(revoke).toHaveBeenCalledWith("blob:mini");
   });
 });
+
+describe("FileViewer decrypt cancellation", () => {
+  it("passes a signal to the decrypt and aborts it when the viewer unmounts mid-decrypt", async () => {
+    let seen: AbortSignal | undefined;
+    const decrypt = vi.fn(
+      (_f: FileMetadata, _p?: unknown, signal?: AbortSignal) =>
+        new Promise<Blob>(() => {
+          seen = signal;
+        }),
+    );
+    const { unmount } = render(
+      <FileViewer
+        open
+        files={[media("a", "one.mp3")]}
+        index={0}
+        onIndexChange={() => {}}
+        onClose={() => {}}
+        decrypt={decrypt}
+      />,
+    );
+    await vi.waitFor(() => expect(seen).toBeDefined());
+    expect(seen?.aborted).toBe(false);
+    unmount();
+    expect(seen?.aborted).toBe(true);
+  });
+});

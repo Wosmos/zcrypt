@@ -255,11 +255,13 @@ export async function sidecarDecryptToMemory(
   fileId: string,
   passphrase: string,
   userId: string,
+  transferId?: string,
 ): Promise<ArrayBuffer> {
   return tauriInvoke<ArrayBuffer>("decrypt_to_memory", {
     fileId,
     passphrase,
     userId,
+    transferId,
   });
 }
 
@@ -289,11 +291,13 @@ export async function sidecarDownloadSpace(
 export async function sidecarDecryptSpaceToMemory(
   fileId: string,
   spaceKeyBytes: Uint8Array,
+  transferId?: string,
 ): Promise<ArrayBuffer> {
   const { toBase64 } = await import("@/lib/crypto");
   return tauriInvoke<ArrayBuffer>("decrypt_space_to_memory", {
     fileId,
     spaceKeyB64: toBase64(spaceKeyBytes),
+    transferId,
   });
 }
 

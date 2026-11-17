@@ -13,7 +13,8 @@ import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { mediaMimeFor, extOf } from "@/lib/media-formats";
 import { retryTransient } from "@/lib/retry";
-import { isTauri, sidecarDecryptToMemory, subscribeProgress } from "@/lib/tauri";
+import { cancelTransfer, isTauri, sidecarDecryptToMemory, subscribeProgress } from "@/lib/tauri";
+import { isAbortError } from "@/lib/transport";
 import { viewerKindFor } from "@/components/viewers/viewer-kind";
 import {
   resolveFilePasswordGlobal,
@@ -100,6 +101,7 @@ export interface UseFileDecryptor {
   decryptToBlob: (
     file: FileMetadata,
     onProgress?: (done: number, total: number) => void,
+    signal?: AbortSignal,
   ) => Promise<Blob>;
   /**
    * Best-effort, non-prompting cache warm-up for a file (e.g. a viewer
@@ -249,7 +251,9 @@ export async function runDecryptPipeline(
   file: Pick<FileMetadata, "id" | "original_name" | "folder_id">,
   password: string,
   onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
 ): Promise<Blob> {
+  if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
   // Desktop: decrypt natively in the in-process Rust core, byos-direct bytes,
   // native crypto speed, and the same DNS/relay-fallback resilience as download.
   // Only "the core can't serve this" falls through to the in-browser pipeline
@@ -258,6 +262,9 @@ export async function runDecryptPipeline(
     const { useAuthStore } = await import("@/store/auth");
     const userId = useAuthStore.getState().user?.id ?? "";
     let unlisten: (() => void) | undefined;
+    const transferId = `preview-${crypto.randomUUID()}`;
+    const onAbort = () => void cancelTransfer(transferId).catch(() => {});
+    signal?.addEventListener("abort", onAbort, { once: true });
     try {
       if (onProgress) {
         unlisten = await subscribeProgress((p) => {
@@ -266,13 +273,15 @@ export async function runDecryptPipeline(
           }
         });
       }
-      const buf = await sidecarDecryptToMemory(file.id, password, userId);
+      const buf = await sidecarDecryptToMemory(file.id, password, userId, transferId);
       return new Blob([buf as BlobPart], { type: mimeForFilename(file.original_name) });
     } catch (err) {
+      if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
       if (!coreCannotServe(err instanceof Error ? err.message : String(err))) {
         throw coreError(err);
       }
     } finally {
+      signal?.removeEventListener("abort", onAbort);
       unlisten?.();
     }
   }
@@ -292,8 +301,11 @@ export async function runDecryptPipeline(
   // The size in the file list can be stale or unknown; the server's decides.
   if (meta.original_size > VIEWER_MAX_BYTES) throw new Error(tr("viewer.tooLarge"));
   const fetchChunk = createChunkSource(file.id);
-  const fetchRetried = (index: number, signal?: AbortSignal) =>
-    retryTransient(() => fetchChunk(index, signal), { signal });
+  const fetchRetried = (index: number, chunkSignal?: AbortSignal) => {
+    const merged =
+      chunkSignal && signal ? AbortSignal.any([chunkSignal, signal]) : (chunkSignal ?? signal);
+    return retryTransient(() => fetchChunk(index, merged), { signal: merged });
+  };
   const salt = fromBase64(meta.salt);
   // Warm CEK cache: the unwrap itself is cheap, but this file's key may already
   // be resolved (a thumbnail peek, a neighbour prefetch, a previous viewer open)
@@ -329,6 +341,9 @@ export async function runDecryptPipeline(
   let failed = false;
   const failCtl = new AbortController();
   let failure: { reason: unknown } | undefined;
+  const stopIfAborted = () => {
+    if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+  };
 
   const processChunk = async (index: number) => {
     // Chunk 0 may already be fetched by the legacy key check above.
@@ -378,6 +393,7 @@ export async function runDecryptPipeline(
   }
 
   await Promise.allSettled(fetchers);
+  stopIfAborted();
   if (failure) throw failure.reason;
 
   // Integrity check, scheme-aware, mirroring lib/download-session.ts. 'hmac_v1'
@@ -470,18 +486,27 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
     async (
       file: FileMetadata,
       onProgress?: (done: number, total: number) => void,
+      signal?: AbortSignal,
     ): Promise<Blob> => {
       try {
         // Cache hit → returns instantly, skipping the prompt and the pipeline.
         // Concurrent callers for the same id share one decrypt.
         prefetchFailures.delete(file.id);
-        return await cachedDecrypt(file.id, file.folder_id ?? null, async () => {
-          // Resolve the right password (vault, or folder pass for a protected
-          // folder: prompting/verifying through the existing unlock flow). Can
-          // reject with FolderUnlockCancelled if the user cancels.
-          const password = await folderProtection.passwordForFile(file);
-          return runDecryptPipeline(file, password, onProgress);
-        });
+        const run = () =>
+          cachedDecrypt(file.id, file.folder_id ?? null, async () => {
+            // Resolve the right password (vault, or folder pass for a protected
+            // folder: prompting/verifying through the existing unlock flow). Can
+            // reject with FolderUnlockCancelled if the user cancels.
+            const password = await folderProtection.passwordForFile(file);
+            return runDecryptPipeline(file, password, onProgress, signal);
+          });
+        try {
+          return await run();
+        } catch (err) {
+          // Joined a run another caller's abort ended: start our own.
+          if (isAbortError(err) && !signal?.aborted) return await run();
+          throw err;
+        }
       } catch (err) {
         if (err instanceof IntegrityError) throw err;
         // A cancelled unlock prompt is a clean no-op, let it propagate.
