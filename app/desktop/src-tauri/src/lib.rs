@@ -1037,13 +1037,13 @@ async fn check_published_key(client: &Client, key: &str) -> Result<(), String> {
 
 const PHOTO_BACKUP_ANDROID_ONLY: &str = "Photo backup is only in the Android app.";
 
-/// Android: backs up the phone's photo and video folders from now on, in the
+/// Android: backs up the albums the person chose from now on, in the
 /// background job, sealed to the account's published key.
 #[tauri::command]
 async fn photo_backup_enable(
     state: tauri::State<'_, EngineState>,
     public_key: String,
-) -> Result<Vec<backup_agent::BackupFolderView>, String> {
+) -> Result<photo_backup::PhotoStatus, String> {
     if !cfg!(target_os = "android") {
         return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
     }
@@ -1059,6 +1059,36 @@ async fn photo_backup_enable(
         Path::new(photo_backup::SHARED_STORAGE),
     )
     .await
+}
+
+/// Android: the photo backup choices and how many photos are backed up.
+#[tauri::command]
+async fn photo_backup_options(
+    state: tauri::State<'_, EngineState>,
+) -> Result<photo_backup::PhotoStatus, String> {
+    if !cfg!(target_os = "android") {
+        return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
+    }
+    let (_, user_id) = backup_client(&state).await?;
+    let db = state.db()?;
+    Ok(photo_backup::status(
+        &db,
+        &user_id,
+        Path::new(photo_backup::SHARED_STORAGE),
+    ))
+}
+
+/// Android: saves which albums to back up, photos / videos / both, and the
+/// Wi-Fi and charging choices.
+#[tauri::command]
+async fn photo_backup_set_options(
+    state: tauri::State<'_, EngineState>,
+    options: photo_backup::PhotoOptions,
+) -> Result<(), String> {
+    if !cfg!(target_os = "android") {
+        return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
+    }
+    options.save(&*state.db()?)
 }
 
 /// Android: stops backing up photos. Files already in the vault stay.
@@ -1079,17 +1109,22 @@ async fn photo_backup_disable(state: tauri::State<'_, EngineState>) -> Result<()
     Ok(())
 }
 
-/// Entry point for android/PhotoBackupWorker.kt: one backup run over the photo
-/// folders, with the app open or not. Returns a [`photo_backup::RunOutcome`].
+/// Entry point for android/PhotoBackupWorker.kt: one backup run over the
+/// chosen albums, with the app open or not. `source` is the worker's
+/// `MediaStoreSource`. Returns a [`photo_backup::RunOutcome`].
 #[cfg(any(target_os = "android", test))]
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     data_dir: jni::objects::JString,
+    media_source: jni::objects::JObject,
 ) -> jni::sys::jint {
     use photo_backup::RunOutcome;
     let Ok(dir) = env.get_string(&data_dir).map(String::from) else {
+        return RunOutcome::Retry as i32;
+    };
+    let Ok(source) = photo_backup::JniMediaSource::new(&env, &media_source) else {
         return RunOutcome::Retry as i32;
     };
     let Some(base_url) = option_env!("ZCRYPT_API_URL").filter(|u| !u.is_empty()) else {
@@ -1113,6 +1148,7 @@ pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
             &db,
             base_url,
             Path::new(photo_backup::SHARED_STORAGE),
+            &source,
             |client| EngineContext {
                 client,
                 db: db.clone(),
@@ -1971,6 +2007,8 @@ pub fn run() {
             set_backup_notifications,
             photo_backup_enable,
             photo_backup_disable,
+            photo_backup_options,
+            photo_backup_set_options,
             pick_backup_folder,
             install_channel,
             local_upload,

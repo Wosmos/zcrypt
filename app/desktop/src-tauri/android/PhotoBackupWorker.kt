@@ -4,7 +4,8 @@
 // Photo and video backup that runs with the app closed. Android's WorkManager
 // starts PhotoBackupWorker on the person's schedule and network, even after a
 // reboot, and the worker calls into the Rust shell (NativeBackup.runPass) to
-// back up DCIM, Pictures and Movies, sealed to the account public key
+// back up the albums the person chose from Android's media library
+// (MediaStoreSource.kt), sealed to the account public key
 // (src/photo_backup.rs). The settings live in the app's SharedPreferences so
 // the worker can read them without the app running.
 //
@@ -44,7 +45,7 @@ object NativeBackup {
   }
 
   /** One backup run. 0 done, 1 try again later, 2 stop (signed out or turned off). */
-  @JvmStatic external fun runPass(dataDir: String): Int
+  @JvmStatic external fun runPass(dataDir: String, source: MediaStoreSource): Int
 
   /** Stops the run in flight; called when WorkManager stops the worker. */
   @JvmStatic external fun cancel()
@@ -191,7 +192,7 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
     }
     if (isStopped) return Result.retry()
     val outcome = try {
-      NativeBackup.runPass(applicationContext.dataDir.absolutePath)
+      NativeBackup.runPass(applicationContext.dataDir.absolutePath, MediaStoreSource(applicationContext))
     } catch (e: Throwable) {
       1
     }

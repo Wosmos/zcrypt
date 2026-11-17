@@ -12,6 +12,7 @@ mod decrypt_to_memory;
 mod delete;
 mod download;
 mod local_upload;
+pub mod media_backup;
 pub mod ordered_writer;
 mod pipeline;
 mod stream_upload;

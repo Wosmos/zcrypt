@@ -214,6 +214,22 @@ impl LocalDb {
                 uploaded_at    TEXT NOT NULL DEFAULT (datetime('now')),
                 PRIMARY KEY (root_id, rel_path)
             );
+            CREATE TABLE IF NOT EXISTS backup_media (
+                user_id        TEXT NOT NULL,
+                media_key      TEXT NOT NULL,
+                size           INTEGER NOT NULL,
+                modified       INTEGER NOT NULL,
+                bucket_id      TEXT NOT NULL DEFAULT '',
+                remote_file_id TEXT NOT NULL,
+                uploaded_at    TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (user_id, media_key)
+            );
+            CREATE TABLE IF NOT EXISTS backup_media_dirs (
+                user_id          TEXT NOT NULL,
+                bucket_id        TEXT NOT NULL,
+                remote_folder_id TEXT NOT NULL,
+                PRIMARY KEY (user_id, bucket_id)
+            );
             CREATE TABLE IF NOT EXISTS settings (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -795,6 +811,15 @@ pub struct BackupRoot {
     pub last_scan_at: String,
 }
 
+/// What the last successful upload of one MediaStore item looked like.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MediaFileState {
+    pub size: i64,
+    pub modified: i64,
+    pub bucket_id: String,
+    pub remote_file_id: String,
+}
+
 /// What the last successful upload of one backed-up file looked like.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackupFileState {
@@ -960,6 +985,116 @@ impl LocalDb {
                 [root_id],
                 |r| r.get(0),
             )
+        })
+    }
+
+    /// Every ledger row of a folder root, as (relative path, state).
+    pub fn backup_file_rows(
+        &self,
+        root_id: &str,
+    ) -> Result<Vec<(String, BackupFileState)>, DbError> {
+        self.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT rel_path, size, mtime_ns, remote_file_id FROM backup_files WHERE root_id = ?1",
+            )?;
+            let rows = stmt.query_map([root_id], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    BackupFileState {
+                        size: r.get(1)?,
+                        mtime_ns: r.get(2)?,
+                        remote_file_id: r.get(3)?,
+                    },
+                ))
+            })?;
+            rows.collect()
+        })
+    }
+
+    pub fn media_file(
+        &self,
+        user_id: &str,
+        media_key: &str,
+    ) -> Result<Option<MediaFileState>, DbError> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT size, modified, bucket_id, remote_file_id FROM backup_media
+                 WHERE user_id = ?1 AND media_key = ?2",
+                [user_id, media_key],
+                |r| {
+                    Ok(MediaFileState {
+                        size: r.get(0)?,
+                        modified: r.get(1)?,
+                        bucket_id: r.get(2)?,
+                        remote_file_id: r.get(3)?,
+                    })
+                },
+            )
+            .optional()
+        })
+    }
+
+    /// Recorded only after the server confirmed the upload.
+    pub fn set_media_file(
+        &self,
+        user_id: &str,
+        media_key: &str,
+        state: &MediaFileState,
+    ) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO backup_media (user_id, media_key, size, modified, bucket_id, remote_file_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT (user_id, media_key) DO UPDATE SET size = excluded.size,
+                   modified = excluded.modified, bucket_id = excluded.bucket_id,
+                   remote_file_id = excluded.remote_file_id, uploaded_at = datetime('now')",
+                rusqlite::params![
+                    user_id,
+                    media_key,
+                    state.size,
+                    state.modified,
+                    state.bucket_id,
+                    state.remote_file_id
+                ],
+            )
+            .map(|_| ())
+        })
+    }
+
+    pub fn media_file_count(&self, user_id: &str) -> Result<i64, DbError> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT COUNT(*) FROM backup_media WHERE user_id = ?1",
+                [user_id],
+                |r| r.get(0),
+            )
+        })
+    }
+
+    pub fn media_dir(&self, user_id: &str, bucket_id: &str) -> Result<Option<String>, DbError> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT remote_folder_id FROM backup_media_dirs WHERE user_id = ?1 AND bucket_id = ?2",
+                [user_id, bucket_id],
+                |r| r.get(0),
+            )
+            .optional()
+        })
+    }
+
+    pub fn set_media_dir(
+        &self,
+        user_id: &str,
+        bucket_id: &str,
+        folder_id: &str,
+    ) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "INSERT INTO backup_media_dirs (user_id, bucket_id, remote_folder_id) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (user_id, bucket_id) DO UPDATE SET remote_folder_id = excluded.remote_folder_id",
+                [user_id, bucket_id, folder_id],
+            )
+            .map(|_| ())
         })
     }
 

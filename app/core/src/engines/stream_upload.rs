@@ -97,6 +97,73 @@ pub async fn run(
     .map(|_| ())
 }
 
+/// Where an upload reads its bytes from: a path, or an already open file such
+/// as one Android's media library handed over (no path exists to reopen).
+#[derive(Clone, Copy)]
+pub enum UploadSource<'a> {
+    Path(&'a std::path::Path),
+    Open {
+        file: &'a std::fs::File,
+        name: &'a str,
+    },
+}
+
+impl UploadSource<'_> {
+    fn name(&self) -> String {
+        match self {
+            Self::Path(p) => p
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "file".to_string()),
+            Self::Open { name, .. } => name.to_string(),
+        }
+    }
+
+    async fn stamp(&self) -> Result<(super::local_upload::SourceStamp, i64), EngineError> {
+        match self {
+            Self::Path(p) => {
+                let size = tokio::fs::metadata(p).await?.len() as i64;
+                Ok((super::local_upload::SourceStamp::of(p).await?, size))
+            }
+            Self::Open { file, .. } => Ok((
+                super::local_upload::SourceStamp::of_file(file)?,
+                file.metadata()?.len() as i64,
+            )),
+        }
+    }
+
+    async fn ensure_unchanged(
+        &self,
+        stamp: super::local_upload::SourceStamp,
+    ) -> Result<(), EngineError> {
+        match self {
+            Self::Path(p) => stamp.ensure_unchanged(p).await,
+            Self::Open { file, .. } => {
+                if super::local_upload::SourceStamp::of_file(file)? == stamp {
+                    Ok(())
+                } else {
+                    Err(EngineError::Io(std::io::Error::new(
+                        std::io::ErrorKind::Interrupted,
+                        "source file changed during upload, retry once it stops changing",
+                    )))
+                }
+            }
+        }
+    }
+
+    /// A reader positioned at byte 0.
+    async fn open(&self) -> Result<tokio::fs::File, EngineError> {
+        match self {
+            Self::Path(p) => Ok(tokio::fs::File::open(p).await?),
+            Self::Open { file, .. } => {
+                let mut f = tokio::fs::File::from_std(file.try_clone()?);
+                f.seek(std::io::SeekFrom::Start(0)).await?;
+                Ok(f)
+            }
+        }
+    }
+}
+
 /// Uploads one file with the given sealing and returns its backend file id.
 pub async fn run_sealed(
     ctx: &EngineContext,
@@ -105,13 +172,27 @@ pub async fn run_sealed(
     platform: Option<String>,
     folder_id: Option<String>,
 ) -> Result<String, EngineError> {
+    run_sealed_from(
+        ctx,
+        UploadSource::Path(file_path),
+        sealing,
+        platform,
+        folder_id,
+    )
+    .await
+}
+
+/// [`run_sealed`] for any [`UploadSource`].
+pub async fn run_sealed_from(
+    ctx: &EngineContext,
+    source: UploadSource<'_>,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+) -> Result<String, EngineError> {
     let t0 = Instant::now();
-    let file_name = file_path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "file".to_string());
-    let stamp = super::local_upload::SourceStamp::of(file_path).await?;
-    let file_size = tokio::fs::metadata(file_path).await?.len() as i64;
+    let file_name = source.name();
+    let (stamp, file_size) = source.stamp().await?;
     let mut chunk_size = ctx.profile.chunk_size as i64;
     let mut chunk_count = count_chunks(file_size, chunk_size);
     let total = AtomicU32::new(chunk_count as u32);
@@ -157,22 +238,23 @@ pub async fn run_sealed(
     let hfn = file_name.clone();
     let mut last_emit = 0i64;
     let step = (file_size / 100).max(1);
-    let content_mac = super::local_upload::hash_file_progress(file_path, hasher, |done| {
-        if done - last_emit >= step {
-            last_emit = done;
-            (progress)(Progress {
-                file_id: String::new(),
-                file_name: hfn.clone(),
-                stage: Stage::Hashing,
-                chunks_done: 0,
-                chunks_total: chunk_count as u32,
-                bytes_done: done,
-                bytes_total: file_size,
-                speed: 0.0,
-            });
-        }
-    })
-    .await?;
+    let content_mac =
+        super::local_upload::hash_open_progress(source.open().await?, hasher, |done| {
+            if done - last_emit >= step {
+                last_emit = done;
+                (progress)(Progress {
+                    file_id: String::new(),
+                    file_name: hfn.clone(),
+                    stage: Stage::Hashing,
+                    chunks_done: 0,
+                    chunks_total: chunk_count as u32,
+                    bytes_done: done,
+                    bytes_total: file_size,
+                    speed: 0.0,
+                });
+            }
+        })
+        .await?;
     emit(Stage::DerivingKey, 0, 0);
     let salt = crypto::generate_salt();
     let b64 = base64::engine::general_purpose::STANDARD;
@@ -330,7 +412,7 @@ pub async fn run_sealed(
     let should_compress = compression::should_compress(&file_name);
     let level = ctx.profile.zstd_level;
     let mut join: tokio::task::JoinSet<()> = tokio::task::JoinSet::new();
-    let mut f = tokio::fs::File::open(file_path).await?;
+    let mut f = source.open().await?;
     let t_upload = Instant::now();
 
     for idx in 0..chunk_count {
@@ -473,7 +555,7 @@ pub async fn run_sealed(
         let _ = ctx.client.cancel_upload(&session_id).await;
         return Err(EngineError::Cancelled);
     }
-    stamp.ensure_unchanged(file_path).await?;
+    source.ensure_unchanged(stamp).await?;
     ctx.client
         .complete_upload(
             &session_id,

@@ -66,6 +66,14 @@ impl SourceStamp {
         })
     }
 
+    pub(super) fn of_file(file: &std::fs::File) -> Result<Self, EngineError> {
+        let m = file.metadata()?;
+        Ok(Self {
+            len: m.len(),
+            modified: m.modified().ok(),
+        })
+    }
+
     pub(super) async fn ensure_unchanged(self, path: &Path) -> Result<(), EngineError> {
         if Self::of(path).await? == self {
             return Ok(());
@@ -321,10 +329,17 @@ fn bump_progress(
 /// upload showed while hashing).
 pub(super) async fn hash_file_progress(
     path: &Path,
+    hasher: crypto::ContentHasher,
+    on_bytes: impl FnMut(i64),
+) -> Result<String, EngineError> {
+    hash_open_progress(tokio::fs::File::open(path).await?, hasher, on_bytes).await
+}
+
+pub(super) async fn hash_open_progress(
+    mut f: tokio::fs::File,
     mut hasher: crypto::ContentHasher,
     mut on_bytes: impl FnMut(i64),
 ) -> Result<String, EngineError> {
-    let mut f = tokio::fs::File::open(path).await?;
     let mut buf = vec![0u8; 4 * 1024 * 1024];
     let mut total = 0i64;
     loop {

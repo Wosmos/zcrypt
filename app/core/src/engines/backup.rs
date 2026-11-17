@@ -21,12 +21,12 @@ use crate::pk1;
 
 /// A file whose size or mtime changed this recently may still be being written.
 pub const STABLE_FOR: Duration = Duration::from_secs(3);
-const MAX_REPORTED_ERRORS: usize = 20;
+pub(super) const MAX_REPORTED_ERRORS: usize = 20;
 /// A file that keeps failing is retried after 30s, doubling to an hour, and
 /// left alone after this many tries until it changes or the app restarts. A
 /// sealed upload restarts from byte 0 and re-hashes the whole file, so retrying
 /// every pass would loop forever on one bad file.
-const MAX_FILE_ATTEMPTS: u32 = 12;
+pub(super) const MAX_FILE_ATTEMPTS: u32 = 12;
 
 struct Failing {
     attempts: u32,
@@ -43,7 +43,7 @@ fn retry_key(root_id: &str, f: &Found) -> String {
     format!("{root_id}\0{}\0{}\0{}", f.rel_path, f.size, f.mtime_ns)
 }
 
-fn attempt_due(key: &str) -> bool {
+pub(super) fn attempt_due(key: &str) -> bool {
     failing()
         .lock()
         .unwrap()
@@ -51,7 +51,7 @@ fn attempt_due(key: &str) -> bool {
         .is_none_or(|f| f.attempts < MAX_FILE_ATTEMPTS && Instant::now() >= f.next_at)
 }
 
-fn record_failure(key: &str) -> u32 {
+pub(super) fn record_failure(key: &str) -> u32 {
     let mut map = failing().lock().unwrap();
     if map.len() > 10_000 {
         map.clear();
@@ -66,7 +66,7 @@ fn record_failure(key: &str) -> u32 {
     entry.attempts
 }
 
-fn clear_failure(key: &str) {
+pub(super) fn clear_failure(key: &str) {
     failing().lock().unwrap().remove(key);
 }
 
