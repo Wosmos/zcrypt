@@ -184,7 +184,7 @@ func (s *Server) HandleGetShareInfo(w http.ResponseWriter, r *http.Request) {
 
 	reason, valid := validateShare(share)
 	if valid && s.linkViewNotice.allow(share.ID) {
-		s.pushToUser(share.UserID, pushMessage{Type: "linkViewed", URL: "/tools"})
+		s.notifyUser(share.UserID, userEvent{Type: "linkViewed", URL: "/tools"})
 	}
 
 	// Get file info

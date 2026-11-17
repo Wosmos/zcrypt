@@ -84,6 +84,7 @@ type Server struct {
 	push           pushState
 	pushHostOK     func(endpoint string) bool
 	pushHTTP       *http.Client
+	pushSink       func(userID string, msg pushMessage)
 	linkViewNotice *rateLimiter
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
