@@ -95,6 +95,7 @@ func main() {
 	defer cancel()
 	server.StartCleanupWorker(ctx)
 	server.StartSyncWorker(ctx)
+	server.StartScheduledVerify(ctx)
 	server.StartNetGuard(ctx)
 
 	// Graceful shutdown on SIGINT/SIGTERM

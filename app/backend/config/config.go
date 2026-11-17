@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -126,6 +127,11 @@ type Config struct {
 	// Port is the HTTP listen port: ZCRYPT_PORT, then legacy zcrypt_PORT, then
 	// PORT (set by cloud hosts), then DefaultPort. Environment only.
 	Port string `json:"-"`
+	// VerifyInterval is how often the background durability check lists each
+	// user's repos to find chunks missing on their platform
+	// (ZCRYPT_VERIFY_INTERVAL, a Go duration such as "6h"; 0 or "off"
+	// disables it).
+	VerifyInterval time.Duration `json:"-"`
 	// From environment only, never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
@@ -138,10 +144,14 @@ type Config struct {
 	MetricsToken string `json:"-"`
 }
 
+// DefaultVerifyInterval is the background durability check period.
+const DefaultVerifyInterval = 6 * time.Hour
+
 // DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
 		DefaultPlatform: types.PlatformGitHub,
+		VerifyInterval:  DefaultVerifyInterval,
 		Thresholds: map[string]int64{
 			types.PlatformGitHub: 850 * 1024 * 1024,  // 850MB
 			types.PlatformGitLab: 9000 * 1024 * 1024, // 9GB
@@ -271,6 +281,13 @@ func (c *Config) applyEnvOverrides() {
 		}
 	}
 	c.TurnstileSecret = strings.TrimSpace(os.Getenv("TURNSTILE_SECRET_KEY"))
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_VERIFY_INTERVAL"))); v != "" {
+		if v == "off" || v == "false" || v == "disabled" {
+			c.VerifyInterval = 0
+		} else if d, err := time.ParseDuration(v); err == nil && d >= 0 {
+			c.VerifyInterval = d
+		}
+	}
 	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			c.TrustedProxyCount = n

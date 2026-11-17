@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
@@ -85,6 +87,12 @@ type VerifyReport struct {
 // whose chunks are all present again to ok. Files with any chunk in a repo that
 // could not be listed are left untouched.
 func (s *Server) VerifyUserFiles(ctx context.Context, userID string) (VerifyReport, error) {
+	return s.verifyUserFiles(ctx, userID, 0)
+}
+
+// verifyUserFiles is VerifyUserFiles pausing repoGap between repos, so a
+// background sweep stays gentle on platform API limits.
+func (s *Server) verifyUserFiles(ctx context.Context, userID string, repoGap time.Duration) (VerifyReport, error) {
 	report := VerifyReport{DamagedFiles: []string{}, RecoveredFiles: []string{}}
 	repos, err := s.db.ListRepos(ctx, userID, "")
 	if err != nil {
@@ -94,7 +102,14 @@ func (s *Server) VerifyUserFiles(ctx context.Context, userID string) (VerifyRepo
 	checked := map[string]bool{}
 	damaged := map[string]bool{}
 	unverified := map[string]bool{}
-	for _, repo := range repos {
+	for i, repo := range repos {
+		if i > 0 && repoGap > 0 {
+			select {
+			case <-ctx.Done():
+				return report, ctx.Err()
+			case <-time.After(repoGap):
+			}
+		}
 		d, ok := s.verifyRepo(ctx, userID, repo)
 		if !ok {
 			report.UnverifiedRepos++
@@ -194,4 +209,77 @@ func (s *Server) HandleVerifyFiles(w http.ResponseWriter, r *http.Request) {
 		"damaged": len(report.DamagedFiles),
 	})
 	writeJSON(w, http.StatusOK, report)
+}
+
+const (
+	verifyFirstRunDelay = 10 * time.Minute
+	verifyUserGap       = 5 * time.Second
+	verifyRepoGap       = 2 * time.Second
+)
+
+// StartScheduledVerify runs the verify sweep for every user on cfg.VerifyInterval
+// so a chunk lost on its platform is found without waiting for the owner to
+// click verify. One user and one repo at a time, with pauses between them,
+// listing only (no commits), so platform rate limits are respected. A zero
+// interval disables it.
+func (s *Server) StartScheduledVerify(ctx context.Context) {
+	interval := s.cfg.VerifyInterval
+	if interval <= 0 {
+		log.Println("verify: scheduled verify disabled")
+		return
+	}
+	go func() {
+		first := verifyFirstRunDelay + time.Duration(rand.Int63n(int64(verifyFirstRunDelay)))
+		timer := time.NewTimer(min(first, interval))
+		defer timer.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				s.runScheduledVerify(ctx, verifyUserGap, verifyRepoGap)
+				timer.Reset(interval)
+			}
+		}
+	}()
+}
+
+// runScheduledVerify verifies every user's repos once, skipping any user a
+// manual run is already covering.
+func (s *Server) runScheduledVerify(ctx context.Context, userGap, repoGap time.Duration) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("verify: scheduled run panic recovered: %v", r)
+		}
+	}()
+	ids, err := s.db.ListUserIDsWithRepos(ctx)
+	if err != nil {
+		log.Printf("verify: scheduled run: %v", err)
+		return
+	}
+	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
+	for i, id := range ids {
+		if i > 0 && userGap > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(userGap):
+			}
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		if _, busy := verifyInFlight.LoadOrStore(id, true); busy {
+			continue
+		}
+		report, err := s.verifyUserFiles(ctx, id, repoGap)
+		verifyInFlight.Delete(id)
+		if err != nil {
+			log.Printf("verify: scheduled run for user %s: %v", logSafe(id), err) // #nosec G706 -- control chars stripped via logSafe
+			continue
+		}
+		if len(report.DamagedFiles) > 0 {
+			log.Printf("verify: scheduled run: user %s has %d damaged file(s)", logSafe(id), len(report.DamagedFiles)) // #nosec G706 -- control chars stripped via logSafe
+		}
+	}
 }
