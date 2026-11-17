@@ -133,7 +133,7 @@ describe("SpaceNew", () => {
       </>,
     );
     fillName();
-    fireEvent.change(screen.getByLabelText("Email or username"), {
+    fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "bob@example.com" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -152,6 +152,15 @@ describe("SpaceNew", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Invited 1 person"));
   });
 
+  it("rejects an entry that is not an email before any lookup", async () => {
+    renderWithQuery(<SpaceNew />);
+    fillName();
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "bob" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(await screen.findByText("Enter a valid email.")).toBeInTheDocument();
+    expect(spaces.shareSpace).not.toHaveBeenCalled();
+  });
+
   it("does not retry when the changed key is declined", async () => {
     spaces.shareSpace.mockRejectedValue(new KeyChangedError("peer-1", "NEW-FP", "OLD-FP"));
     renderWithQuery(
@@ -161,7 +170,7 @@ describe("SpaceNew", () => {
       </>,
     );
     fillName();
-    fireEvent.change(screen.getByLabelText("Email or username"), {
+    fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "bob@example.com" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));

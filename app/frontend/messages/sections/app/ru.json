@@ -1033,6 +1033,7 @@
       "newSignIn": "Новый вход в ваш аккаунт",
       "newSignInBody": "{device}. Это не вы? Завершите сеанс в настройках.",
       "inviteReceived": "Вас пригласили в {space}",
+      "inviteReceivedBy": "{name} добавил(а) вас в «{space}»",
       "inviteReceivedBody": "Откройте zcrypt, чтобы принять или отклонить.",
       "linkViewed": "Кто-то открыл вашу ссылку",
       "storageFull": "Хранилище заполнено",

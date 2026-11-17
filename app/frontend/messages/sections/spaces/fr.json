@@ -61,7 +61,7 @@
       "errorNoKey": "Cet espace n’a pas de clé que vous puissiez partager (il date d’avant le partage chiffré).",
       "adminOwnerOnly": "Seul le propriétaire peut accorder le rôle d’administrateur.",
       "adding": "Ajout...",
-      "placeholder": "E-mail ou nom d’utilisateur",
+      "placeholder": "Adresse e-mail",
       "errorNotFound": "Aucun compte zcrypt n'utilise cet e-mail.",
       "errorRateLimited": "Trop de recherches. Réessayez dans quelques minutes.",
       "errorInvalidEmail": "Saisissez un e-mail valide.",

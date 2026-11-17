@@ -169,6 +169,10 @@ func TestSpaceEventsReachTheRightPeopleOnTheRightChannels(t *testing.T) {
 		inv := rig.tap(memberID).bothChannels(t, "inviteReceived")
 		assert.Equal(t, space, dataOf(inv)["space_id"])
 		assert.Equal(t, "/spaces", inv.Payload["url"])
+		adminUser, err := ts.db.GetUserByID(context.Background(), adminID)
+		require.NoError(t, err)
+		assert.NotEmpty(t, adminUser.Username)
+		assert.Equal(t, adminUser.Username, dataOf(inv)["username"], "the invitee is told who added them")
 
 		joined := rig.tap(ownerID).bothChannels(t, "memberJoined")
 		assert.Equal(t, memberID, dataOf(joined)["user_id"])

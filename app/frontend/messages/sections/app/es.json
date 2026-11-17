@@ -1033,6 +1033,7 @@
       "newSignIn": "Nuevo inicio de sesión en tu cuenta",
       "newSignInBody": "{device}. ¿No fuiste tú? Ciérrala en Ajustes.",
       "inviteReceived": "Te invitaron a {space}",
+      "inviteReceivedBy": "{name} te añadió a {space}",
       "inviteReceivedBody": "Abre zcrypt para aceptar o rechazar.",
       "linkViewed": "Alguien abrió tu enlace",
       "storageFull": "Tu almacenamiento está lleno",

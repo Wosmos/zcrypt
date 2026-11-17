@@ -61,7 +61,7 @@
       "errorNoKey": "This space has no key you can share (it predates encrypted sharing).",
       "adminOwnerOnly": "Only the owner can grant admin.",
       "adding": "Adding...",
-      "placeholder": "Email or username",
+      "placeholder": "Email address",
       "errorNotFound": "No zcrypt account uses this email.",
       "errorRateLimited": "Too many lookups. Try again in a few minutes.",
       "errorInvalidEmail": "Enter a valid email.",

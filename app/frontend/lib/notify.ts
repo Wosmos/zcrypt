@@ -30,7 +30,7 @@ export type NotifyEvent =
   | { type: "transferFailed"; kind: TransferKind; name: string; reason: string }
   | { type: "downloadDone"; name: string }
   | ({ type: "newSignIn"; device: string } & Routed)
-  | ({ type: "inviteReceived"; space: string } & Routed)
+  | ({ type: "inviteReceived"; space: string; name?: string } & Routed)
   | ({ type: "invitePending"; name: string } & Routed)
   | ({ type: "memberJoined"; name: string; space: string } & Routed)
   | ({ type: "memberLeft"; name: string; space: string } & Routed)
@@ -214,7 +214,9 @@ export function describeNotification(event: NotifyEvent, thumbnails: boolean): N
     case "inviteReceived":
       return {
         ...base,
-        title: tr("notify.inviteReceived", { space: event.space }),
+        title: event.name
+          ? tr("notify.inviteReceivedBy", { name: event.name, space: event.space })
+          : tr("notify.inviteReceived", { space: event.space }),
         body: tr("notify.inviteReceivedBody"),
         area: "sharing",
         ...routed(event, "/spaces", "zcrypt-invite"),

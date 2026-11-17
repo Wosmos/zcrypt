@@ -1033,6 +1033,7 @@
       "newSignIn": "Nouvelle connexion à votre compte",
       "newSignInBody": "{device}. Ce n'est pas vous ? Déconnectez-la dans les Réglages.",
       "inviteReceived": "Vous êtes invité dans {space}",
+      "inviteReceivedBy": "{name} vous a ajouté à {space}",
       "inviteReceivedBody": "Ouvrez zcrypt pour accepter ou refuser.",
       "linkViewed": "Quelqu'un a ouvert votre lien",
       "storageFull": "Votre stockage est plein",

@@ -1033,6 +1033,7 @@
       "newSignIn": "你的账户有新的登录",
       "newSignInBody": "{device}。不是你？请在设置中将其退出。",
       "inviteReceived": "你被邀请加入 {space}",
+      "inviteReceivedBy": "{name} 把你添加到了「{space}」",
       "inviteReceivedBody": "打开 zcrypt 接受或拒绝。",
       "linkViewed": "有人打开了你的链接",
       "storageFull": "你的存储空间已满",

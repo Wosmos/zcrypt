@@ -61,7 +61,7 @@
       "errorNoKey": "此空间没有可共享的密钥（它早于加密共享功能）。",
       "adminOwnerOnly": "只有所有者可以授予管理员权限。",
       "adding": "正在添加...",
-      "placeholder": "邮箱或用户名",
+      "placeholder": "邮箱地址",
       "errorNotFound": "没有 zcrypt 账户使用这个邮箱。",
       "errorRateLimited": "查询过多，请几分钟后再试。",
       "errorInvalidEmail": "请输入有效的邮箱。",

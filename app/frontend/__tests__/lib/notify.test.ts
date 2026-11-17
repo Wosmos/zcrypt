@@ -178,6 +178,9 @@ describe("describeNotification", () => {
       area: "sharing",
       url: "/spaces",
     });
+    expect(N.describeNotification({ type: "inviteReceived", space: "Trips", name: "Wasif" }, true).title).toBe(
+      "Wasif added you to Trips",
+    );
     expect(N.describeNotification({ type: "linkViewed", name: "Lease.pdf" }, true)).toMatchObject({
       title: "Someone opened your link",
       body: "Lease.pdf",

@@ -107,6 +107,7 @@ describe("delivery rule", () => {
 describe("copy and url per event", () => {
   it.each([
     ["inviteReceived", { space_id: "s1", role: "viewer" }, "You were invited to Trip", "/spaces"],
+    ["inviteReceived", { space_id: "s1", role: "viewer", username: "Wasif" }, "Wasif added you to Trip", "/spaces"],
     ["invitePending", { username: "Wasif" }, "Wasif invited you to a Space", "/spaces"],
     ["memberJoined", { space_id: "s1", username: "Wasif" }, "Wasif joined Trip", "/spaces"],
     ["memberLeft", { space_id: "s1", username: "Wasif" }, "Wasif left Trip", "/spaces"],

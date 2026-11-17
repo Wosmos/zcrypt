@@ -10,7 +10,9 @@ import (
 // Space events. Data carries ids and plain counts only; Space and file names
 // are sealed on the device, so clients look the name up by space_id.
 //
-//	inviteReceived       invitee            a member's key grant is in place
+//	inviteReceived       invitee            a member's key grant is in place;
+//	                                        carries the inviter's (or the admin
+//	                                        who completed it) username
 //	invitePending        invitee            invited before they unlocked their
 //	                                        vault; carries the inviter's username
 //	                                        only (the Space is not visible yet)

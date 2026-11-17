@@ -42,6 +42,8 @@ const INVITE_ERRORS: Record<string, string> = {
   forbidden: "invites.errorForbidden",
 };
 
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+
 export function inviteErrorMessage(err: unknown, t: Translate): string {
   if (err instanceof KeyChangeDeclinedError) return t("keyChange.declined");
   if (err instanceof NoSpaceKeyError) return t("invites.errorNoKey");
@@ -135,6 +137,10 @@ export function InviteForm({
   const submit = async () => {
     const value = email.trim();
     if (!value) return;
+    if (!EMAIL_SHAPE.test(value)) {
+      setError(t("invites.errorInvalidEmail"));
+      return;
+    }
     setPending(true);
     setError("");
     const res = await onSubmit(value, role);
@@ -148,7 +154,7 @@ export function InviteForm({
     <div className="space-y-2">
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
-          type="text"
+          type="email"
           inputMode="email"
           autoComplete="off"
           value={email}

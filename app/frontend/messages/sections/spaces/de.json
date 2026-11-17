@@ -61,7 +61,7 @@
       "errorNoKey": "Dieser Space hat keinen Schlüssel, den du teilen kannst (er stammt aus der Zeit vor verschlüsselter Freigabe).",
       "adminOwnerOnly": "Nur der Besitzer kann Admin-Rechte vergeben.",
       "adding": "Wird hinzugefügt...",
-      "placeholder": "E-Mail oder Benutzername",
+      "placeholder": "E-Mail-Adresse",
       "errorNotFound": "Kein zcrypt-Konto nutzt diese E-Mail.",
       "errorRateLimited": "Zu viele Suchen. Versuche es in ein paar Minuten erneut.",
       "errorInvalidEmail": "Gib eine gültige E-Mail ein.",

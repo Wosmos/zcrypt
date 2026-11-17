@@ -201,7 +201,10 @@ func TestPendingInviteAndKeyHandOff(t *testing.T) {
 			map[string]string{"wrapped_space_key": b64("sealed-to-late")}, adminTok), &m)
 		assert.Equal(t, "active", m.Status)
 
-		rig.tap(lateID).bothChannels(t, "inviteReceived")
+		done := rig.tap(lateID).bothChannels(t, "inviteReceived")
+		adminUser, err := ts.db.GetUserByID(ctx, adminID)
+		require.NoError(t, err)
+		assert.Equal(t, adminUser.Username, dataOf(done)["username"], "the admin who completed the invite is named")
 		require.Eventually(t, func() bool { return countSSE(rig.tap(ownerID), "memberJoined") > before }, 3e9, 10e6)
 
 		var d struct {
@@ -211,7 +214,7 @@ func TestPendingInviteAndKeyHandOff(t *testing.T) {
 		decodeJSON(t, ts.GET("/api/shared-vaults/"+space, late), &d)
 		assert.Equal(t, "editor", d.Role)
 		assert.Equal(t, b64("sealed-to-late"), d.WrappedSpaceKey)
-		_, err := ts.db.MemberSpaceFileGrant(ctx, lateID, fileID)
+		_, err = ts.db.MemberSpaceFileGrant(ctx, lateID, fileID)
 		assert.NoError(t, err)
 
 		assert.Equal(t, "not_pending", codeOf(t, ts.POST("/api/shared-vaults/"+space+"/members/"+lateID+"/key",

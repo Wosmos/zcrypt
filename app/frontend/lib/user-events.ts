@@ -93,6 +93,12 @@ export async function describeUserEvent(
     case "invitePending":
       return { type, name, ...route };
     case "inviteReceived":
+      return {
+        type,
+        space: await spaceName(event, known),
+        name: data.username || undefined,
+        ...route,
+      };
     case "memberRemoved":
     case "spaceDeleted": {
       return { type, space: await spaceName(event, known), ...route };

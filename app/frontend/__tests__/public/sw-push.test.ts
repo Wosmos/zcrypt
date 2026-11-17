@@ -72,6 +72,16 @@ describe("service worker push", () => {
     expect(shown.at(-1)?.options.body).toBe("Unlock your vault to join.");
   });
 
+  it("names who added you when the invite carries a username, and keeps the plain copy without one", async () => {
+    await push({ type: "inviteReceived", lang: "en", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif added you to a Space");
+    expect(shown.at(-1)?.options.body).toBe("Open zcrypt to see what was shared with you.");
+    await push({ type: "inviteReceived", lang: "de", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif hat dich zu einem Space hinzugefügt");
+    await push({ type: "inviteReceived", lang: "en", data: { space_id: "s1" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("You were added to a Space");
+  });
+
   it("falls back to English and ignores unknown events or junk", async () => {
     await push({ type: "linkViewed", lang: "xx", url: "/tools" });
     expect(shown.at(-1)?.title).toBe("Someone opened your share link");

@@ -1033,6 +1033,7 @@
       "newSignIn": "Neue Anmeldung bei deinem Konto",
       "newSignInBody": "{device}. Nicht du? Melde es in den Einstellungen ab.",
       "inviteReceived": "Du wurdest zu {space} eingeladen",
+      "inviteReceivedBy": "{name} hat dich zu {space} hinzugefügt",
       "inviteReceivedBody": "Öffne zcrypt, um anzunehmen oder abzulehnen.",
       "linkViewed": "Jemand hat deinen Link geöffnet",
       "storageFull": "Dein Speicher ist voll",

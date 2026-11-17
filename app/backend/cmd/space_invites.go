@@ -125,7 +125,7 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 
 	switch {
 	case member.Status == "active":
-		s.notifyUser(target.ID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role}))
+		s.notifyUser(target.ID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role, "username": me.Username}))
 		s.spaceMemberAdded(ctx, vaultID, target.ID, member.Role, userID)
 	default:
 		s.notifyUser(target.ID, userEvent{Type: "invitePending", Data: map[string]string{"username": me.Username}, URL: spaceURL})
@@ -196,7 +196,7 @@ func (s *Server) HandleCompleteSharedVaultMember(w http.ResponseWriter, r *http.
 		return
 	}
 
-	s.notifyUser(memberUID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role}))
+	s.notifyUser(memberUID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role, "username": s.usernameOf(ctx, userID)}))
 	s.spaceMemberAdded(ctx, vaultID, memberUID, member.Role, userID)
 
 	writeJSON(w, http.StatusOK, member)

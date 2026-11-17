@@ -12,6 +12,7 @@ const PUSH_TEXT = {
   en: {
     newSignIn: ["New sign-in to your zcrypt account", "{device} just signed in. Not you? Review your devices."],
     inviteReceived: ["You were added to a Space", "Open zcrypt to see what was shared with you."],
+    inviteReceivedBy: ["{name} added you to a Space", ""],
     linkViewed: ["Someone opened your share link", "One of your share links was just opened."],
     invitePending: ["{name} invited you to a Space", "Unlock your vault to join."],
     memberJoined: ["{name} joined one of your Spaces", ""],
@@ -24,6 +25,7 @@ const PUSH_TEXT = {
   ar: {
     newSignIn: ["تسجيل دخول جديد إلى حسابك في zcrypt", "سجّل {device} الدخول للتو. لست أنت؟ راجع أجهزتك."],
     inviteReceived: ["تمت إضافتك إلى مساحة", "افتح zcrypt لترى ما تمت مشاركته معك."],
+    inviteReceivedBy: ["أضافك {name} إلى مساحة", ""],
     linkViewed: ["فتح شخص ما رابط المشاركة الخاص بك", "تم فتح أحد روابط المشاركة الخاصة بك للتو."],
     invitePending: ["دعاك {name} إلى مساحة", "افتح خزنتك للانضمام."],
     memberJoined: ["انضم {name} إلى إحدى مساحاتك", ""],
@@ -36,6 +38,7 @@ const PUSH_TEXT = {
   de: {
     newSignIn: ["Neue Anmeldung bei deinem zcrypt-Konto", "{device} hat sich gerade angemeldet. Nicht du? Prüfe deine Geräte."],
     inviteReceived: ["Du wurdest zu einem Space hinzugefügt", "Öffne zcrypt, um zu sehen, was mit dir geteilt wurde."],
+    inviteReceivedBy: ["{name} hat dich zu einem Space hinzugefügt", ""],
     linkViewed: ["Jemand hat deinen Freigabelink geöffnet", "Einer deiner Freigabelinks wurde gerade geöffnet."],
     invitePending: ["{name} hat dich zu einem Space eingeladen", "Entsperre deinen Tresor, um beizutreten."],
     memberJoined: ["{name} ist einem deiner Spaces beigetreten", ""],
@@ -48,6 +51,7 @@ const PUSH_TEXT = {
   es: {
     newSignIn: ["Nuevo inicio de sesión en tu cuenta de zcrypt", "{device} acaba de iniciar sesión. ¿No eras tú? Revisa tus dispositivos."],
     inviteReceived: ["Te añadieron a un Space", "Abre zcrypt para ver lo que compartieron contigo."],
+    inviteReceivedBy: ["{name} te añadió a un Space", ""],
     linkViewed: ["Alguien abrió tu enlace compartido", "Uno de tus enlaces compartidos se acaba de abrir."],
     invitePending: ["{name} te invitó a un Space", "Desbloquea tu bóveda para unirte."],
     memberJoined: ["{name} se unió a uno de tus Spaces", ""],
@@ -60,6 +64,7 @@ const PUSH_TEXT = {
   fr: {
     newSignIn: ["Nouvelle connexion à votre compte zcrypt", "{device} vient de se connecter. Ce n'est pas vous ? Vérifiez vos appareils."],
     inviteReceived: ["Vous avez été ajouté à un Space", "Ouvrez zcrypt pour voir ce qui a été partagé avec vous."],
+    inviteReceivedBy: ["{name} vous a ajouté à un Space", ""],
     linkViewed: ["Quelqu'un a ouvert votre lien de partage", "L'un de vos liens de partage vient d'être ouvert."],
     invitePending: ["{name} vous a invité dans un Space", "Déverrouillez votre coffre pour le rejoindre."],
     memberJoined: ["{name} a rejoint l'un de vos Spaces", ""],
@@ -72,6 +77,7 @@ const PUSH_TEXT = {
   ru: {
     newSignIn: ["Новый вход в ваш аккаунт zcrypt", "Только что выполнен вход: {device}. Это не вы? Проверьте устройства."],
     inviteReceived: ["Вас добавили в пространство", "Откройте zcrypt, чтобы увидеть, чем с вами поделились."],
+    inviteReceivedBy: ["{name} добавил(а) вас в пространство", ""],
     linkViewed: ["Кто-то открыл вашу ссылку", "Одну из ваших ссылок только что открыли."],
     invitePending: ["{name} приглашает вас в пространство", "Разблокируйте хранилище, чтобы присоединиться."],
     memberJoined: ["{name} присоединился к одному из ваших пространств", ""],
@@ -84,6 +90,7 @@ const PUSH_TEXT = {
   ur: {
     newSignIn: ["آپ کے zcrypt اکاؤنٹ میں نیا سائن ان", "{device} نے ابھی سائن ان کیا۔ آپ نہیں تھے؟ اپنے آلات دیکھیں۔"],
     inviteReceived: ["آپ کو ایک اسپیس میں شامل کیا گیا", "دیکھنے کے لیے zcrypt کھولیں کہ آپ کے ساتھ کیا شیئر ہوا۔"],
+    inviteReceivedBy: ["{name} نے آپ کو ایک اسپیس میں شامل کیا", ""],
     linkViewed: ["کسی نے آپ کا شیئر لنک کھولا", "آپ کا ایک شیئر لنک ابھی کھولا گیا۔"],
     invitePending: ["{name} نے آپ کو ایک اسپیس میں مدعو کیا", "شامل ہونے کے لیے اپنی والٹ کھولیں۔"],
     memberJoined: ["{name} آپ کے ایک اسپیس میں شامل ہوئے", ""],
@@ -96,6 +103,7 @@ const PUSH_TEXT = {
   zh: {
     newSignIn: ["你的 zcrypt 账户有新的登录", "{device} 刚刚登录。不是你本人？请检查你的设备。"],
     inviteReceived: ["你被添加到了一个空间", "打开 zcrypt 查看与你共享的内容。"],
+    inviteReceivedBy: ["{name} 把你添加到了一个空间", ""],
     linkViewed: ["有人打开了你的分享链接", "你的一个分享链接刚刚被打开。"],
     invitePending: ["{name} 邀请你加入一个空间", "解锁你的保险库即可加入。"],
     memberJoined: ["{name} 加入了你的一个空间", ""],
@@ -118,9 +126,11 @@ function pushTag(msg) {
 
 function pushText(msg) {
   const lang = PUSH_TEXT[msg.lang] ? msg.lang : "en";
-  const pair = PUSH_TEXT[lang][msg.type] || PUSH_TEXT.en[msg.type];
-  if (!pair) return null;
   const d = msg.data || {};
+  const lookup = (type) => PUSH_TEXT[lang][type] || PUSH_TEXT.en[type];
+  let pair = lookup(msg.type);
+  if (!pair) return null;
+  if (msg.type === "inviteReceived" && d.username) pair = [lookup("inviteReceivedBy")[0], pair[1]];
   const fill = (s) => s.replace("{device}", d.device || "").replace("{name}", d.username || "");
   return { title: fill(pair[0]), body: fill(pair[1]) };
 }

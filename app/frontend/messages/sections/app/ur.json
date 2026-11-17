@@ -1033,6 +1033,7 @@
       "newSignIn": "آپ کے اکاؤنٹ میں نیا سائن اِن",
       "newSignInBody": "{device}۔ آپ نہیں تھے؟ ترتیبات میں اسے سائن آؤٹ کریں۔",
       "inviteReceived": "آپ کو {space} میں مدعو کیا گیا ہے",
+      "inviteReceivedBy": "{name} نے آپ کو {space} میں شامل کیا",
       "inviteReceivedBody": "قبول یا مسترد کرنے کے لیے zcrypt کھولیں۔",
       "linkViewed": "کسی نے آپ کا لنک کھولا",
       "storageFull": "آپ کی اسٹوریج بھر گئی ہے",
