@@ -236,7 +236,7 @@ func cleanDB(t *testing.T, db *index.DB) {
 	ctx := context.Background()
 	// Delete in dependency order (FK constraints)
 	tables := []string{
-		"audit_events", "admin_email_campaigns", "upload_sessions", "chunks", "files",
+		"audit_events", "admin_email_campaigns", "pending_deletions", "send_transfers", "upload_sessions", "chunks", "files",
 		"platform_tokens", "refresh_tokens", "email_tokens", "users",
 	}
 	for _, table := range tables {
