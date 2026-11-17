@@ -334,9 +334,8 @@ class MainActivity : TauriActivity() {
         this@MainActivity,
         PhotoBackup.Settings(
           o.optBoolean("enabled", false),
-          o.optString("mode"),
-          o.optString("time"),
-          o.optString("network"),
+          o.optBoolean("wifi_only", true),
+          o.optBoolean("charging_only", false),
         ),
       )
     }
