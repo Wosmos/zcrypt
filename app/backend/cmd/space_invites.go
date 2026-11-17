@@ -28,9 +28,10 @@ func validInviteEmail(email string) bool {
 
 // HandleAddSharedVaultMember invites an existing account to a Space. With a
 // wrapped_space_key (sealed to the invitee's public key on the inviter's
-// device) the member is active at once. Without one, or when the invitee has no
-// published key yet, the membership is pending: it holds no grant and reads
-// nothing until an owner/admin completes it (HandleCompleteSharedVaultMember).
+// device) the member is active at once. Without one the membership is pending:
+// it holds no grant and reads nothing until an owner/admin completes it
+// (HandleCompleteSharedVaultMember). A client sends no key when the lookup said
+// the invitee has none yet.
 //
 // Errors are {error, code}: forbidden, invalid_email, invalid_role, self_invite,
 // not_found, already_member, already_invited.
@@ -110,12 +111,7 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		internalError(w, "invite: invitee key", err)
 		return
 	}
-	wrapped := req.WrappedSpaceKey
-	if pk == nil {
-		wrapped = ""
-	}
-
-	member, err := s.db.AddSharedVaultMember(ctx, vaultID, target.ID, userID, req.Role, wrapped)
+	member, err := s.db.AddSharedVaultMember(ctx, vaultID, target.ID, userID, req.Role, req.WrappedSpaceKey)
 	if errors.Is(err, index.ErrMemberExists) {
 		writeCodedError(w, http.StatusConflict, "already_member", "already a member")
 		return

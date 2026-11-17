@@ -115,6 +115,8 @@ type filesAddedBatcher struct {
 	mu      sync.Mutex
 	window  time.Duration
 	pending map[string]*filesAddedBurst
+	// flush delivers a finished burst; nil means Server.flushFilesAdded.
+	flush func(spaceID, actorID string, count int)
 }
 
 type filesAddedBurst struct {
@@ -151,6 +153,10 @@ func (s *Server) spaceFilesAdded(spaceID, actorID string, count int) {
 		total := burst.count
 		delete(b.pending, key)
 		b.mu.Unlock()
+		if b.flush != nil {
+			b.flush(spaceID, actorID, total)
+			return
+		}
 		s.flushFilesAdded(spaceID, actorID, total)
 	})
 }
