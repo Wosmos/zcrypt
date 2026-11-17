@@ -435,6 +435,39 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandleSendCancel abandons a send that has not completed: its stored chunks
+// are queued for platform deletion and the transfer row is removed. Like chunk
+// upload and complete it is authorised by the secret session id returned at
+// init; a signed-in caller must also be the sender when the send has an owner.
+// A finished send is not cancellable here.
+// DELETE /api/send/{sid}
+func (s *Server) HandleSendCancel(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	transfer, err := s.db.GetSendTransferByID(ctx, r.PathValue("sid"))
+	if err != nil {
+		http.Error(w, `{"error":"send session not found"}`, http.StatusNotFound)
+		return
+	}
+	if claims := GetUserClaims(r); claims != nil && transfer.UserID != "" && claims.Sub != transfer.UserID {
+		http.Error(w, `{"error":"not your send"}`, http.StatusForbidden)
+		return
+	}
+	if transfer.Status != types.StatusUploading {
+		http.Error(w, `{"error":"send session is not active"}`, http.StatusConflict)
+		return
+	}
+	queued, err := s.db.DeleteSendTransfer(ctx, transfer.ID)
+	if err != nil {
+		log.Printf("send: cancel transfer: %v", err)
+		http.Error(w, `{"error":"failed to cancel"}`, http.StatusInternalServerError)
+		return
+	}
+	if queued > 0 {
+		s.signalDeletion()
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // HandleGetSendInfo returns public info about a send transfer.
 // GET /api/send/{token}
 func (s *Server) HandleGetSendInfo(w http.ResponseWriter, r *http.Request) {

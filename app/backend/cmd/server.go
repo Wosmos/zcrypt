@@ -926,6 +926,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.OptionalAuthMiddleware(s.HandleSendInit))))
 	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(idleStream(s.HandleSendChunkUpload)))
+	mux.HandleFunc("DELETE /api/send/{sid}", s.ShareRateLimitMiddleware(s.OptionalAuthMiddleware(s.HandleSendCancel)))
 	mux.HandleFunc("POST /api/send/{sid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleSendComplete)))
 	mux.HandleFunc("GET /api/send/{token}", s.ShareRateLimitMiddleware(s.HandleGetSendInfo))
 	mux.HandleFunc("GET /api/send/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetSendMeta))

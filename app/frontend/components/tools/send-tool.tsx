@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
-import { sendInit, SendInitError, sendChunkUpload, sendComplete } from "@/lib/api";
+import { sendInit, SendInitError, sendChunkUpload, sendComplete, sendCancel } from "@/lib/api";
 import { sealText, keyFromBytes } from "@/lib/sealed";
 import { runWithConcurrency } from "@/lib/concurrent";
 import { useCopyFeedback } from "@/hooks/useCopyFeedback";
@@ -35,6 +35,12 @@ export function SendTool() {
   const [loginRequired, setLoginRequired] = useState(false);
   const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
   const abortRef = useRef<AbortController | null>(null);
+  const openSessionRef = useRef<string | null>(null);
+  const dropOpenSession = useCallback(() => {
+    const id = openSessionRef.current;
+    openSessionRef.current = null;
+    if (id) void sendCancel(id);
+  }, []);
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -97,6 +103,7 @@ export function SendTool() {
         expires_hours: expiryHours,
       });
 
+      openSessionRef.current = session.session_id;
       if (ctl.signal.aborted) return;
 
       const { getDeviceProfile } = await import("@/lib/device-profile");
@@ -153,6 +160,7 @@ export function SendTool() {
 
       setProgress({ stage: t("send.finalizing"), percent: 95 });
       await sendComplete(session.session_id, ctl.signal);
+      openSessionRef.current = null;
 
       const url = `${window.location.origin}/send/${session.token}#key=${keyPassphrase}`;
       setShareUrl(url);
@@ -160,6 +168,7 @@ export function SendTool() {
       setState("done");
     } catch (err) {
       if (ctl.signal.aborted) return;
+      dropOpenSession();
       let msg = t("send.failed");
       if (err instanceof SendInitError && (err as any).status === 429) {
         if ((err as any).loginRequired) {
@@ -179,18 +188,20 @@ export function SendTool() {
       setLoginRequired(false);
       setState("error");
     }
-  }, [selectedFile, burnAfterRead, expiryHours, t]);
+  }, [selectedFile, burnAfterRead, expiryHours, t, dropOpenSession]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    dropOpenSession();
     setState("idle");
     setProgress({ stage: "", percent: 0 });
     setErrorMsg("");
-  }, []);
+  }, [dropOpenSession]);
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
+    dropOpenSession();
     setState("idle");
     setSelectedFile(null);
     setShareUrl("");
@@ -198,7 +209,7 @@ export function SendTool() {
     setErrorMsg("");
     setLoginRequired(false);
     reset();
-  }, [reset]);
+  }, [reset, dropOpenSession]);
 
   const handleRetry = useCallback(() => {
     setState("idle");

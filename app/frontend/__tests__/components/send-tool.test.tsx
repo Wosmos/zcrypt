@@ -6,6 +6,7 @@ const api = vi.hoisted(() => ({
   sendInit: vi.fn(),
   sendChunkUpload: vi.fn(),
   sendComplete: vi.fn(),
+  sendCancel: vi.fn(),
   SendInitError: class extends Error {},
 }));
 vi.mock("@/lib/api", () => api);
@@ -67,7 +68,18 @@ describe("send tool upload", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(calls.every((c) => c.signal?.aborted)).toBe(true));
     expect(api.sendComplete).not.toHaveBeenCalled();
+    expect(api.sendCancel).toHaveBeenCalledTimes(1);
+    expect(api.sendCancel).toHaveBeenCalledWith("s");
     expect(await screen.findByRole("button", { name: /Encrypt|Send|Create/i })).toBeInTheDocument();
+  });
+
+  it("a finished send is not cancelled on the server", async () => {
+    await start(10);
+    await waitFor(() => expect(calls.length).toBe(3));
+    calls.forEach((c) => c.resolve());
+    await waitFor(() => expect(api.sendComplete).toHaveBeenCalled());
+    await screen.findByText(/tok/, { exact: false }).catch(() => null);
+    expect(api.sendCancel).not.toHaveBeenCalled();
   });
 
   it("a chunk that fails for good stops the other PUTs and shows the error", async () => {
@@ -77,5 +89,6 @@ describe("send tool upload", () => {
     await waitFor(() => expect(calls.every((c) => c.signal?.aborted)).toBe(true));
     expect(await screen.findByText(/forbidden/)).toBeInTheDocument();
     expect(api.sendComplete).not.toHaveBeenCalled();
+    expect(api.sendCancel).toHaveBeenCalledWith("s");
   });
 });

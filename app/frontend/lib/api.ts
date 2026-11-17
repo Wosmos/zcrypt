@@ -1909,6 +1909,18 @@ export async function sendComplete(
   return res.json();
 }
 
+/** Abandon an unfinished send so the server drops its stored chunks. Best effort: the session expires anyway. */
+export async function sendCancel(sessionId: string): Promise<void> {
+  try {
+    await withControlTimeout(
+      (s) => fetch(`${API_BASE}/api/send/${sessionId}`, { method: "DELETE", signal: s }),
+      undefined,
+    );
+  } catch {
+    // The half-uploaded session expires on its own.
+  }
+}
+
 export async function getSendInfo(token: string): Promise<SendInfo> {
   const res = await fetch(`${API_BASE}/api/send/${token}`);
   if (!res.ok) throw new Error("Transfer not found");

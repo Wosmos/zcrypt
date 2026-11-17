@@ -365,3 +365,48 @@ func TestAdminHealthDetails(t *testing.T) {
 	assert.NotContains(t, string(raw), "one.bin")
 	assert.NotContains(t, string(raw), "two.bin")
 }
+
+func TestSendCancelDeletesStagedChunksAndOnlyWhileUploading(t *testing.T) {
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	ts.srv.InjectGlobalTestAdapter("mock:acct", newKeepAdapter())
+
+	status, body := ts.sendInitFrom(uniqueTestIP(), "", 128, 2, false)
+	require.Equal(t, http.StatusOK, status)
+	sid := body["session_id"].(string)
+	ts.sendUploadChunk(sid, 0, bytes.Repeat([]byte{1}, 64))
+	chunks, err := ts.db.GetSendChunks(ctx, sid)
+	require.NoError(t, err)
+	require.Len(t, chunks, 1)
+	path := chunks[0].RemotePath
+
+	requireStatus(t, ts.DELETE("/api/send/"+uuid.NewString(), ""), http.StatusNotFound)
+	requireStatus(t, ts.DELETE("/api/send/"+sid, ""), http.StatusNoContent)
+	assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM send_transfers WHERE id = $1`, sid), "the session is gone")
+	assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM pending_deletions WHERE remote_path = $1`, path), "its chunk is queued for platform deletion")
+	requireStatus(t, ts.DELETE("/api/send/"+sid, ""), http.StatusNotFound)
+
+	status, body = ts.sendInitFrom(uniqueTestIP(), "", 64, 1, false)
+	require.Equal(t, http.StatusOK, status)
+	done := body["session_id"].(string)
+	ts.sendUploadChunk(done, 0, bytes.Repeat([]byte{2}, 64))
+	requireStatus(t, ts.POST("/api/send/"+done+"/complete", map[string]interface{}{}, ""), http.StatusOK)
+	requireStatus(t, ts.DELETE("/api/send/"+done, ""), http.StatusConflict)
+	assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM send_transfers WHERE id = $1`, done), "a finished send is kept")
+}
+
+func TestSendCancelByAnotherSignedInUserIsRefused(t *testing.T) {
+	ts := setupTestServer(t)
+	ts.srv.InjectGlobalTestAdapter("mock:acct", newKeepAdapter())
+	ownerTok := ts.registerAndLogin("send-cancel-owner-"+uuid.NewString()+"@example.com", "SecurePass@123!")
+	otherTok := ts.registerAndLogin("send-cancel-other-"+uuid.NewString()+"@example.com", "SecurePass@123!")
+
+	status, body := ts.sendInitFrom(uniqueTestIP(), ownerTok, 64, 1, false)
+	require.Equal(t, http.StatusOK, status)
+	sid := body["session_id"].(string)
+
+	requireStatus(t, ts.DELETE("/api/send/"+sid, otherTok), http.StatusForbidden)
+	assert.Equal(t, 1, ts.countScalar(`SELECT count(*) FROM send_transfers WHERE id = $1`, sid))
+	requireStatus(t, ts.DELETE("/api/send/"+sid, ownerTok), http.StatusNoContent)
+	assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM send_transfers WHERE id = $1`, sid))
+}
