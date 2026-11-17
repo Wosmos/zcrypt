@@ -877,7 +877,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Client-side encrypted upload (chunked)
 	mux.HandleFunc("POST /api/upload/init", maxJSON(s.AuthMiddleware(s.HandleUploadInit)))
-	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", s.AuthMiddleware(s.HandleChunkUpload))
+	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", s.AuthMiddleware(idleStream(s.HandleChunkUpload)))
 	mux.HandleFunc("POST /api/upload/{sid}/presign/{idx}", maxJSON(s.AuthMiddleware(s.HandlePresignChunk)))
 	mux.HandleFunc("POST /api/upload/{sid}/confirm/{idx}", maxJSON(s.AuthMiddleware(s.HandleConfirmChunk)))
 	mux.HandleFunc("POST /api/upload/{sid}/complete", maxJSON(s.AuthMiddleware(s.HandleUploadComplete)))
@@ -888,7 +888,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Client-side decrypted download (chunked)
 	mux.HandleFunc("GET /api/files/{id}/meta", s.AuthMiddleware(uuidPathParams(s.HandleGetFileMeta, "id")))
 	mux.HandleFunc("POST /api/files/meta", maxJSON(s.AuthMiddleware(s.HandleBatchFileMeta)))
-	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(uuidPathParams(s.HandleGetChunk, "id")))
+	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(uuidPathParams(idleStream(s.HandleGetChunk), "id")))
 	mux.HandleFunc("GET /api/files/{id}/locators", s.AuthMiddleware(uuidPathParams(s.HandleGetFileLocators, "id")))
 	mux.HandleFunc("GET /api/changes", s.AuthMiddleware(s.HandleGetChanges))
 
@@ -905,7 +905,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Public share access (no auth, rate-limited)
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
-	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(s.HandleGetShareChunk))
+	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(idleStream(s.HandleGetShareChunk)))
 	mux.HandleFunc("POST /api/share/{token}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload)))
 
 	// Folder shares: public link for a whole folder (management is authed;
@@ -915,16 +915,16 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/folder-shares/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRevokeFolderShare, "id"))))
 	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
-	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(s.HandleGetFolderShareChunk))
+	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(idleStream(s.HandleGetFolderShareChunk)))
 	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload)))
 
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.OptionalAuthMiddleware(s.HandleSendInit))))
-	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(s.HandleSendChunkUpload))
+	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(idleStream(s.HandleSendChunkUpload)))
 	mux.HandleFunc("POST /api/send/{sid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleSendComplete)))
 	mux.HandleFunc("GET /api/send/{token}", s.ShareRateLimitMiddleware(s.HandleGetSendInfo))
 	mux.HandleFunc("GET /api/send/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetSendMeta))
-	mux.HandleFunc("GET /api/send/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetSendChunk))
+	mux.HandleFunc("GET /api/send/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(idleStream(s.HandleGetSendChunk)))
 
 	// Encrypted pads (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/pad", MaxBodyMiddleware(2<<20, s.PadRateLimitMiddleware(s.HandleCreatePad)))

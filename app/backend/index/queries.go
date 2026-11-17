@@ -1095,7 +1095,7 @@ func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]ty
 
 // IncrementSessionChunks atomically increments the uploaded_chunks counter and
 // returns the new count, so concurrent uploaders can compute progress from the
-// post-increment value instead of a stale read.
+// post-increment value instead of a stale read..
 func (db *DB) IncrementSessionChunks(ctx context.Context, sessionID string) (int, error) {
 	var uploaded int
 	err := db.pool.QueryRow(ctx,
@@ -1497,9 +1497,9 @@ func (db *DB) CountStuckChunks(ctx context.Context, maxAttempts int) (int, error
 func (db *DB) GetChunkByID(ctx context.Context, chunkID string) (*types.ChunkRef, error) {
 	c := &types.ChunkRef{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed
 		 FROM chunks WHERE chunk_id = $1`, chunkID,
-	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
+	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed, &c.Committed)
 	if err != nil {
 		return nil, fmt.Errorf("get chunk by id: %w", err)
 	}

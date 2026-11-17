@@ -192,6 +192,11 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "event: connected\ndata: {\"id\":\"%s\"}\n\n", subID)
 	flusher.Flush()
 
+	rc := http.NewResponseController(w)
+	_ = rc.SetReadDeadline(time.Time{})
+	extend := func() { _ = rc.SetWriteDeadline(time.Now().Add(sseWriteWindow)) }
+	extend()
+
 	ticker := time.NewTicker(25 * time.Second)
 	defer ticker.Stop()
 	expiry := time.NewTimer(time.Until(caller.streamUntil))
@@ -207,18 +212,24 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 			if gone, _ := revoked(); gone {
 				return
 			}
+			extend()
 			fmt.Fprintf(w, ": heartbeat\n\n")
 			flusher.Flush()
 		case event, ok := <-ch:
 			if !ok {
 				return
 			}
+			extend()
 			data, _ := json.Marshal(event.Payload)
 			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
 			flusher.Flush()
 		}
 	}
 }
+
+// sseWriteWindow is how long one SSE write may block; heartbeats every 25s
+// renew it, so the stream is never cut by the server's flat WriteTimeout.
+const sseWriteWindow = 60 * time.Second
 
 // sseSubscriber picks the stream identity for a session. A decoy session gets
 // one no real event targets, so it never sees the real vault's uploads or audit.

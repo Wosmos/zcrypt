@@ -5,15 +5,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/auth"
-	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/index"
 	"golang.org/x/crypto/bcrypt"
 
@@ -364,19 +361,16 @@ func shareFileName(share *types.ShareLink, file *types.FileMetadata) string {
 func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID string, chunk *types.ChunkRef, logPrefix string, commit func() (bool, error)) {
 	var data []byte
 	if chunk.RemotePath == "" {
-		stagingDir, err := config.StagingDir()
-		if err != nil {
-			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+		var done bool
+		data, chunk, done = s.readStagedOrRefresh(r.Context(), w, chunk, logPrefix)
+		if done {
 			return
 		}
-		name := filepath.Base(chunk.ChunkID) + ".enc"
-		data, err = os.ReadFile(filepath.Clean(filepath.Join(stagingDir, name)))
-		if err != nil {
-			log.Printf("%s: read staging file failed: %v", logPrefix, err)
-			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
-			return
-		}
-	} else if data = readCachedChunk(chunk.ChunkID, chunk.SHA256); data == nil {
+	}
+	if data == nil {
+		data = readCachedChunk(chunk.ChunkID, chunk.SHA256)
+	}
+	if data == nil {
 		adapter := s.resolveAdapterForUser(r.Context(), ownerID, chunk.Platform, chunk.Account)
 		if adapter == nil {
 			if reason := s.adapterError(ownerID, chunk.Platform); reason != "" {

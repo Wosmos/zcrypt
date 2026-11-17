@@ -557,8 +557,7 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 
 	data, err := adapter.Download(ctx, ref)
 	if err != nil {
-		log.Printf("send: download chunk %d: %v", chunkIndex, err)
-		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+		s.writeChunkFetchError(ctx, w, adapter, "", &ref, err, "send")
 		return
 	}
 

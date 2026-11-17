@@ -45,6 +45,33 @@ func (s *Server) authorizeFileRead(ctx context.Context, userID, fileID string) (
 	return f, grant.OwnerID, grant.WrappedCEK, true
 }
 
+// readStagedOrRefresh serves a chunk the sync worker has not pushed yet from
+// the staging dir. When the file is gone it re-reads the chunk row once: the
+// worker may have pushed it and removed staging between the caller's read and
+// now, in which case the refreshed row (with its remote path) is returned for a
+// platform fetch. A chunk that is nowhere yet answers a retryable 503
+// (done=true).
+func (s *Server) readStagedOrRefresh(ctx context.Context, w http.ResponseWriter, chunk *types.ChunkRef, logPrefix string) (data []byte, cur *types.ChunkRef, done bool) {
+	stagingDir, err := config.StagingDir()
+	if err != nil {
+		http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+		return nil, chunk, true
+	}
+	data, err = os.ReadFile(filepath.Join(stagingDir, filepath.Base(chunk.ChunkID)+".enc"))
+	if err == nil {
+		return data, chunk, false
+	}
+	if fresh, ferr := s.db.GetChunkByID(ctx, chunk.ChunkID); ferr == nil && fresh.RemotePath != "" {
+		return nil, fresh, false
+	}
+	log.Printf("%s: read staging file failed: %v", logPrefix, err)
+	writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+		"error":  "chunk is not available on storage yet",
+		"reason": "chunk_pending",
+	})
+	return nil, chunk, true
+}
+
 // writeChunkFetchError answers a failed platform download. A 404 alone is not
 // proof of loss: GitHub and GitLab answer 404 for a private repo the token can
 // no longer read. So a committed chunk is only marked damaged, with a 410 that
@@ -257,19 +284,13 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 	var data []byte
 
 	if chunk.RemotePath == "" {
-		// Chunk not yet synced to git platform, serve from staging dir
-		stagingDir, err := config.StagingDir()
-		if err != nil {
-			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+		var done bool
+		data, chunk, done = s.readStagedOrRefresh(ctx, w, chunk, "download")
+		if done {
 			return
 		}
-		data, err = os.ReadFile(filepath.Join(stagingDir, chunk.ChunkID+".enc"))
-		if err != nil {
-			log.Printf("download: read staging file failed: %v", err)
-			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
-			return
-		}
-	} else {
+	}
+	if data == nil {
 		// Chunk synced: try the local ciphertext cache first. Chunks are
 		// immutable (a re-upload mints a new chunk id), so a hit never goes
 		// stale, and it serves even when the platform is unreachable.
