@@ -215,3 +215,11 @@ func SetSyncChunkMaxDurationForTest(d time.Duration) func() {
 	syncChunkMaxDuration = d
 	return func() { syncChunkMaxDuration = old }
 }
+
+// RunScheduledVerifyOnce runs one scheduled verify sweep over every user with no
+// pauses between them.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) RunScheduledVerifyOnce(ctx context.Context) {
+	s.runScheduledVerify(ctx, 0, 0)
+}
