@@ -8,8 +8,6 @@
 
 use zeroize::Zeroize;
 
-use crate::types::{Progress, Stage};
-
 use super::download::{chunk_source, fetch_plain_chunk, open_file, OpenedFile};
 use super::{ordered_writer, EngineContext, EngineError};
 
@@ -25,18 +23,9 @@ pub async fn run(
     user_id: &str,
     space_key: Option<Vec<u8>>,
 ) -> Result<Vec<u8>, EngineError> {
-    let emit = |stage: Stage, done: u32, total: u32, bytes: i64, total_bytes: i64| {
-        (ctx.progress)(Progress {
-            file_id: file_id.to_string(),
-            file_name: file_id.to_string(),
-            stage,
-            chunks_done: done,
-            chunks_total: total,
-            bytes_done: bytes,
-            bytes_total: total_bytes,
-            speed: 0.0,
-        });
-    };
+    // Previews and thumbnails are not transfers: no progress events, so they
+    // never show up beside (or collide with) a real download of the same file.
+    let silent = |_: crate::types::Stage, _: u32, _: u32, _: i64, _: i64| {};
 
     let OpenedFile {
         meta,
@@ -51,7 +40,7 @@ pub async fn run(
         user_id,
         space_key,
         Some(MAX_BYTES),
-        &emit,
+        &silent,
     )
     .await?;
     let total = meta.chunk_count as u32;
@@ -68,8 +57,6 @@ pub async fn run(
     // Assemble strictly in index order into one buffer (bounded by MAX_BYTES).
     let concurrency = ctx.profile.concurrent_downloads;
     let mut bytes: Vec<u8> = Vec::with_capacity(meta.original_size.max(0) as usize);
-    let mut done_chunks = 0u32;
-    let mut done_bytes = 0i64;
     let assemble = ordered_writer::fetch_in_order(
         total,
         concurrency,
@@ -78,15 +65,6 @@ pub async fn run(
         |idx| fetch_plain_chunk(ctx, &sources, &key, file_id, idx, true),
         |data: Vec<u8>| {
             hasher.update(&data);
-            done_chunks += 1;
-            done_bytes += data.len() as i64;
-            emit(
-                Stage::Downloading,
-                done_chunks,
-                total,
-                done_bytes,
-                meta.original_size,
-            );
             bytes.extend_from_slice(&data);
             Ok(())
         },
@@ -97,13 +75,6 @@ pub async fn run(
 
     // 4. Whole-file integrity (also the wrong-passphrase catch for legacy
     //    files): only enforced when it's actually meaningful; see above.
-    emit(
-        Stage::Verifying,
-        total,
-        total,
-        done_bytes,
-        meta.original_size,
-    );
     let got = hasher.finalize_hex();
     if can_verify_hash && got != meta.sha256 {
         return Err(EngineError::Integrity(
@@ -111,6 +82,5 @@ pub async fn run(
         ));
     }
 
-    emit(Stage::Done, total, total, done_bytes, meta.original_size);
     Ok(bytes)
 }

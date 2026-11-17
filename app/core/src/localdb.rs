@@ -315,7 +315,7 @@ impl LocalDb {
                         backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg, sha256_scheme, encrypted_name
                  FROM files WHERE user_id=?1 AND (
                         sync_status IN ('{S_PENDING}','{S_INIT_DONE}','{S_UPLOADING}')
-                     OR (sync_status='{S_ERROR}' AND last_attempt + min(?2, ?3 << min(attempts, 10)) <= ?4))
+                     OR (sync_status='{S_ERROR}' AND last_attempt + min(?2, ?3 << max(min(attempts, 11) - 1, 0)) <= ?4))
                  ORDER BY created_at"
             ))?;
             let rows = stmt.query_map(
@@ -558,9 +558,9 @@ const S_SYNCED: &str = SyncStatus::Synced.as_str();
 const S_ERROR: &str = SyncStatus::Error.as_str();
 const S_FAILED: &str = SyncStatus::Failed.as_str();
 
-const MAX_SYNC_ATTEMPTS: i64 = 8;
-const BASE_BACKOFF_SECS: i64 = 15;
-const MAX_BACKOFF_SECS: i64 = 30 * 60;
+const MAX_SYNC_ATTEMPTS: i64 = 12;
+const BASE_BACKOFF_SECS: i64 = 30;
+const MAX_BACKOFF_SECS: i64 = 60 * 60;
 
 fn unix_now() -> i64 {
     std::time::SystemTime::now()
@@ -730,6 +730,35 @@ mod tests {
         assert!(db.pending_files_at("u1", now + 86_400).unwrap().is_empty());
         assert_eq!(db.get_sync_stats().unwrap().error_files, 1);
 
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn sync_backoff_starts_at_30s_doubles_and_caps_at_an_hour() {
+        let (db, dir) = temp_db();
+        db.insert_file(&LocalFile {
+            id: "f1".into(),
+            original_name: "a".into(),
+            salt: vec![1; 32],
+            chunk_count: 1,
+            user_id: "u1".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let wait = |db: &LocalDb| {
+            let t0 = unix_now();
+            (0..=4000)
+                .find(|d| !db.pending_files_at("u1", t0 + d).unwrap().is_empty())
+                .unwrap()
+        };
+        let mut waits = Vec::new();
+        for _ in 0..8 {
+            db.update_file_sync_error("f1", "net").unwrap();
+            waits.push(wait(&db));
+        }
+        assert_eq!(&waits[..3], &[30, 60, 120]);
+        assert_eq!(waits[7], 3600);
+        assert_eq!(MAX_SYNC_ATTEMPTS, 12);
         let _ = std::fs::remove_dir_all(dir);
     }
 
