@@ -44,7 +44,9 @@
 // 6. Photo backup (PhotoBackupWorker.kt). The page asks for photo access and
 //    hands over the schedule and network through the bridge; the worker then
 //    runs on its own, with the app closed. On Android 14+ a person can allow
-//    only some photos; the page is told so it can offer access to all.
+//    only some photos; the page is told so it can offer access to all. The
+//    album list (MediaStore buckets, MediaStoreSource.kt) and each album's
+//    small cover thumbnail come through the same bridge.
 //
 // The package must equal tauri.conf.json's `identifier`; device.yml asserts it.
 package app.zcrypt.desktop
@@ -338,6 +340,12 @@ class MainActivity : TauriActivity() {
         ),
       )
     }
+
+    @JavascriptInterface
+    fun listPhotoAlbums(): String = MediaAlbums.list(this@MainActivity)
+
+    @JavascriptInterface
+    fun photoAlbumThumbnail(uri: String): String = MediaAlbums.thumbnail(this@MainActivity, uri)
 
     @JavascriptInterface
     fun runPhotoBackupNow() = PhotoBackup.runNow(this@MainActivity)

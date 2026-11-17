@@ -904,6 +904,10 @@ jobs:
             || { echo "::error::android/PhotoBackupWorker.kt declares a different package than $PKG."; exit 1; }
           cp android/PhotoBackupWorker.kt "$(dirname "$DEST")/PhotoBackupWorker.kt"
           echo "PhotoBackupWorker added next to it"
+          grep -qx "package $PKG" android/MediaStoreSource.kt \
+            || { echo "::error::android/MediaStoreSource.kt declares a different package than $PKG."; exit 1; }
+          cp android/MediaStoreSource.kt "$(dirname "$DEST")/MediaStoreSource.kt"
+          echo "MediaStoreSource added next to it"
 
       # "Share to zcrypt": the generated manifest only has the launcher filter,
       # so add SEND / SEND_MULTIPLE for any MIME type to the main activity.
