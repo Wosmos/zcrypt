@@ -11,6 +11,9 @@ import (
 // are sealed on the device, so clients look the name up by space_id.
 //
 //	inviteReceived       invitee            a member's key grant is in place
+//	invitePending        invitee            invited before they unlocked their
+//	                                        vault; carries the inviter's username
+//	                                        only (the Space is not visible yet)
 //	memberJoined         owner + admins     someone was added to a Space
 //	memberLeft           owner + admins     a member left
 //	memberRemoved        the removed user   an owner/admin removed them

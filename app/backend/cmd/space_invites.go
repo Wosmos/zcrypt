@@ -127,8 +127,11 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	case member.Status == "active":
 		s.notifyUser(target.ID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role}))
 		s.spaceMemberAdded(ctx, vaultID, target.ID, member.Role, userID)
-	case pk != nil:
-		s.spaceKeyNeeded(ctx, vaultID, target.ID)
+	default:
+		s.notifyUser(target.ID, userEvent{Type: "invitePending", Data: map[string]string{"username": me.Username}, URL: spaceURL})
+		if pk != nil {
+			s.spaceKeyNeeded(ctx, vaultID, target.ID)
+		}
 	}
 
 	writeJSON(w, http.StatusCreated, member)

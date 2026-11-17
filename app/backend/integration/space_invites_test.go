@@ -113,6 +113,9 @@ func TestPendingInviteAndKeyHandOff(t *testing.T) {
 	adminTok, adminID := rig.user("ph-admin@example.com")
 	editorTok, editorID := rig.user("ph-editor@example.com")
 	late, lateID := rig.user("ph-late@example.com")
+	ownerUser, err := ts.db.GetUserByID(ctx, ownerID)
+	require.NoError(t, err)
+	ownerName := ownerUser.Username
 	space := ts.createSpace(owner, "Pending", 0)
 	requireStatus(t, ts.inviteSpace(owner, space, "ph-admin@example.com", "admin", true), http.StatusCreated)
 	requireStatus(t, ts.inviteSpace(owner, space, "ph-editor@example.com", "editor", true), http.StatusCreated)
@@ -144,6 +147,11 @@ func TestPendingInviteAndKeyHandOff(t *testing.T) {
 		settle()
 		rig.tap(lateID).never(t, "inviteReceived")
 		rig.tap(ownerID).never(t, "spaceKeyNeeded")
+
+		e := rig.tap(lateID).bothChannels(t, "invitePending")
+		assert.Equal(t, map[string]string{"username": ownerName}, dataOf(e), "only the inviter's name: the Space is not visible to an invitee yet")
+		assert.Equal(t, "/spaces", e.Payload["url"])
+		rig.tap(ownerID).never(t, "invitePending")
 	})
 
 	t.Run("a pending member reads nothing and cannot act", func(t *testing.T) {
