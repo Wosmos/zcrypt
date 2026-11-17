@@ -574,9 +574,33 @@ export interface BackupSchedule {
   time: string;
 }
 
-/** Android: back up the phone's photo and video folders, sealed to `publicKey`. */
-export async function photoBackupEnable(publicKey: string): Promise<BackupFolder[]> {
+/** Android photo backup choices, kept on the device so the background job can read them. */
+export interface PhotoOptions {
+  /** Album ids switched on; null until chosen, which means the Camera albums. */
+  albums: string[] | null;
+  kinds: "photos" | "videos" | "both";
+  wifi_only: boolean;
+  charging_only: boolean;
+}
+
+export interface PhotoStatus extends PhotoOptions {
+  /** Photos and videos backed up so far. */
+  files: number;
+}
+
+/** Android: back up the chosen albums from now on, sealed to `publicKey`. */
+export async function photoBackupEnable(publicKey: string): Promise<PhotoStatus> {
   return tauriInvoke("photo_backup_enable", { publicKey });
+}
+
+/** Android: the saved choices and how many files are backed up. */
+export async function photoBackupOptions(): Promise<PhotoStatus> {
+  return tauriInvoke("photo_backup_options");
+}
+
+/** Android: saves the album, photo/video and Wi-Fi/charging choices. */
+export async function photoBackupSetOptions(options: PhotoOptions): Promise<void> {
+  return tauriInvoke("photo_backup_set_options", { options });
 }
 
 /** Android: stop backing up photos. Files already in the vault stay. */

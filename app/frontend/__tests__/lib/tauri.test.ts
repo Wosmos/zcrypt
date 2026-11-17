@@ -573,6 +573,11 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("end_session", undefined);
     await mod.photoBackupEnable("a2V5");
     expect(invokeMock).toHaveBeenCalledWith("photo_backup_enable", { publicKey: "a2V5" });
+    await mod.photoBackupOptions();
+    expect(invokeMock).toHaveBeenCalledWith("photo_backup_options", undefined);
+    const options = { albums: ["1"], kinds: "photos" as const, wifi_only: true, charging_only: false };
+    await mod.photoBackupSetOptions(options);
+    expect(invokeMock).toHaveBeenCalledWith("photo_backup_set_options", { options });
     await mod.photoBackupDisable();
     expect(invokeMock).toHaveBeenCalledWith("photo_backup_disable", undefined);
     await mod.isAutostartEnabled();
