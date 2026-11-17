@@ -10,7 +10,14 @@ import {
   type DownloadOptions,
   type DownloadResumeState,
 } from "@/lib/download-session";
-import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
+import {
+  createZipRun,
+  downloadAsZip,
+  ZipPausedError,
+  zipRefusal,
+  type BulkDownloadFile,
+  type ZipRun,
+} from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
@@ -171,11 +178,77 @@ interface ZipSession {
   passphrase: string;
   resolvePassword?: DownloadPasswordResolver;
   abort: AbortController;
+  /** A browser run's open archive, kept across a pause. Absent for the desktop core path, which cannot pause. */
+  run?: ZipRun;
+  /** The settling run, so a resume starts only after the paused one let go. */
+  runPromise?: Promise<void>;
   /** Present only for a desktop-originated session, lets retry re-invoke the
    *  core path instead of the browser one. */
   userId?: string;
 }
 const zipSessions = new Map<string, ZipSession>();
+
+const zipPausedIds = new Set<string>();
+
+async function runBrowserZip(id: string): Promise<void> {
+  const session = zipSessions.get(id);
+  if (!session?.run) return;
+  const { files, passphrase, resolvePassword, run } = session;
+  const controller = session.abort;
+  try {
+    updateProgress(id, DownloadStatus.Downloading, 0, "Starting ZIP...");
+    const report = await downloadAsZip(files, passphrase, {
+      onProgress: (info) => {
+        if (zipPausedIds.has(id)) return;
+        updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage);
+      },
+      signal: controller.signal,
+      resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
+      run,
+      pausing: () => zipPausedIds.has(id),
+    });
+
+    updateProgress(id, DownloadStatus.Done, 100, "Done");
+    zipSessions.delete(id);
+    notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
+    notifyZipDone(report.added, report.failed.length);
+    if (report.failed.length === 0) {
+      toast.success(tr("toasts.zipDone", { count: files.length }), {
+        sound: { event: "done", area: "transfers" },
+      });
+      return;
+    }
+    for (const f of report.failed) {
+      if (looksLikeWrongKey(f.error)) recoverWrongFolderPassword(f.fileId, f.error);
+    }
+    const names = report.failed.map((f) => f.filename).join(", ");
+    toast.warning(
+      tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
+      { sound: { event: "headsUp", area: "transfers" } },
+    );
+  } catch (err) {
+    if (err instanceof ZipPausedError) return;
+    if (err instanceof DOMException && err.name === "AbortError") {
+      zipSessions.delete(id);
+      zipPausedIds.delete(id);
+      updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
+      return;
+    }
+    const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
+    let recovered = false;
+    if (looksLikeWrongKey(msg)) {
+      for (const f of files) {
+        if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
+      }
+    }
+    setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
+    if (recovered) {
+      toast.error(tr("toasts.zipWrongPassword"));
+    } else {
+      toast.error(tr("toasts.zipFailedMsg", { msg }));
+    }
+  }
+}
 
 interface DownloadStore {
   queue: DownloadItem[];
@@ -585,54 +658,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         return;
       }
 
-      try {
-        updateProgress(id, DownloadStatus.Downloading, 0, "Starting ZIP...");
-        const report = await downloadAsZip(files, passphrase, {
-          onProgress: (info) =>
-            updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage),
-          signal: controller.signal,
-          resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
-          saveToDisk,
-        });
-
-        updateProgress(id, DownloadStatus.Done, 100, "Done");
+      const session = zipSessions.get(id);
+      if (!session) return;
+      session.run = createZipRun(saveToDisk);
+      if (controller.signal.aborted) {
         zipSessions.delete(id);
-        notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
-        notifyZipDone(report.added, report.failed.length);
-        if (report.failed.length === 0) {
-          toast.success(tr("toasts.zipDone", { count: files.length }), {
-            sound: { event: "done", area: "transfers" },
-          });
-          return;
-        }
-        for (const f of report.failed) {
-          if (looksLikeWrongKey(f.error)) recoverWrongFolderPassword(f.fileId, f.error);
-        }
-        const names = report.failed.map((f) => f.filename).join(", ");
-        toast.warning(
-          tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
-          { sound: { event: "headsUp", area: "transfers" } },
-        );
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          zipSessions.delete(id);
-          updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
-          return;
-        }
-        const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
-        let recovered = false;
-        if (looksLikeWrongKey(msg)) {
-          for (const f of files) {
-            if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
-          }
-        }
-        setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
-        if (recovered) {
-          toast.error(tr("toasts.zipWrongPassword"));
-        } else {
-          toast.error(tr("toasts.zipFailedMsg", { msg }));
-        }
+        updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
+        return;
       }
+      session.runPromise = runBrowserZip(id);
     })();
   },
 
@@ -762,7 +796,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       item.status === DownloadStatus.Paused
     )
       return;
-    if (!sessions.has(id)) return; // ZIP downloads aren't pausable
+    const zip = zipSessions.get(id);
+    if (zip) {
+      if (!zip.run) return; // the desktop core path cannot pause
+      zipPausedIds.add(id);
+      zip.abort.abort();
+      updateProgress(id, DownloadStatus.Paused, item.progress, "Paused");
+      return;
+    }
+    if (!sessions.has(id)) return;
     pausedIds.add(id);
     sessions.get(id)!.abort.abort();
     updateProgress(id, DownloadStatus.Paused, item.progress, "Paused");
@@ -772,6 +814,26 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   // settle (its aborted fetches reject promptly), then run again, the pipeline
   // continues from the resume state on the same open disk writable.
   resumeDownload: (id, passphrase, resolvePassword) => {
+    const zip = zipSessions.get(id);
+    if (zip?.run && zipPausedIds.has(id)) {
+      zipPausedIds.delete(id);
+      zip.passphrase = passphrase;
+      if (resolvePassword) zip.resolvePassword = resolvePassword;
+      zip.abort = new AbortController();
+      set((state) => ({
+        queue: state.queue.map((i) =>
+          i.id === id
+            ? { ...i, status: DownloadStatus.Downloading, stage: "Resuming…", error: undefined }
+            : i,
+        ),
+      }));
+      const prior = zip.runPromise;
+      relaunchAfterPrior(prior, () => {
+        zip.runPromise = runBrowserZip(id);
+        return zip.runPromise;
+      });
+      return;
+    }
     const session = sessions.get(id);
     if (!session) return;
     pausedIds.delete(id);
@@ -829,7 +891,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       return;
     }
     session?.abort.abort();
-    zipSessions.get(id)?.abort.abort();
+    const zip = zipSessions.get(id);
+    if (zip && zipPausedIds.delete(id)) {
+      zipSessions.delete(id);
+      void zip.run?.saveToDisk?.abort?.().catch(() => {});
+      zip.run?.zip.terminate();
+      updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
+      return;
+    }
+    zip?.abort.abort();
     if (!session && !zipSessions.has(id)) {
       const item = get().queue.find((i) => i.id === id);
       if (item?.status === DownloadStatus.Queued) {
@@ -905,6 +975,10 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     const zip = zipSessions.get(id);
     if (zip) {
       zip.abort.abort();
+      if (zipPausedIds.delete(id)) {
+        void zip.run?.saveToDisk?.abort?.().catch(() => {});
+        zip.run?.zip.terminate();
+      }
       zipSessions.delete(id);
     }
 

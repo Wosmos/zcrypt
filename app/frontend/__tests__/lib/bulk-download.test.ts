@@ -79,7 +79,9 @@ const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));
 
 import {
+  createZipRun,
   downloadAsZip,
+  ZipPausedError,
   zipEntryName,
   zipRefusal,
   ZIP_ENTRY_MAX_BYTES,
@@ -589,6 +591,76 @@ describe("downloadAsZip: folders and disk streaming", () => {
       downloadAsZip([{ fileId: "a", filename: "d.txt", fileSize: 1 }], "pw", { saveToDisk: disk }),
     ).rejects.toThrow("disk full");
     expect(disk.close).not.toHaveBeenCalled();
+  });
+});
+
+describe("pausing a ZIP", () => {
+  it("stops mid-file without closing the disk, then continues the same archive and refetches only the interrupted file", async () => {
+    const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("first")] });
+    const f2 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("second")] });
+    const byId: Record<string, typeof f1> = { id1: f1, id2: f2 };
+    getFileMeta.mockImplementation(async (id: string) => byId[id].meta);
+    const calls: Record<string, number> = {};
+    let pausing = false;
+    const first = new AbortController();
+    getFileChunk.mockImplementation(async (id: string, idx: number, signal?: AbortSignal) => {
+      calls[id] = (calls[id] ?? 0) + 1;
+      if (id === "id2" && calls[id] === 1) {
+        pausing = true;
+        first.abort();
+        throw new DOMException("x", "AbortError");
+      }
+      void signal;
+      return { data: byId[id].encryptedChunks[idx], sha256: "", compressed: false };
+    });
+    const written: Uint8Array[] = [];
+    const disk = {
+      write: vi.fn(async (d: Uint8Array) => void written.push(d.slice())),
+      close: vi.fn(async () => {}),
+      abort: vi.fn(async () => {}),
+    };
+    const run = createZipRun(disk);
+    const files: BulkDownloadFile[] = [
+      { fileId: "id1", filename: "a.txt", fileSize: 5 },
+      { fileId: "id2", filename: "b.txt", fileSize: 6 },
+    ];
+
+    await expect(
+      downloadAsZip(files, "pw", { run, signal: first.signal, pausing: () => pausing }),
+    ).rejects.toBeInstanceOf(ZipPausedError);
+    expect(disk.close).not.toHaveBeenCalled();
+    expect(disk.abort).not.toHaveBeenCalled();
+    expect(run.report.added).toBe(1);
+    expect(run.next).toBe(1);
+
+    pausing = false;
+    const report = await downloadAsZip(files, "pw", { run, signal: new AbortController().signal, pausing: () => pausing });
+    expect(report.added).toBe(2);
+    expect(calls.id1).toBe(1);
+    expect(calls.id2).toBe(2);
+    expect(disk.close).toHaveBeenCalledTimes(1);
+    const unzipped = unzipSync(concatUint8(written));
+    expect(dec.decode(unzipped["a.txt"])).toBe("first");
+    expect(dec.decode(unzipped["b.txt"])).toBe("second");
+  });
+
+  it("an abort that is not a pause still discards the disk archive", async () => {
+    const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    getFileMeta.mockResolvedValue(f1.meta);
+    const ctl = new AbortController();
+    getFileChunk.mockImplementation(async () => {
+      ctl.abort();
+      throw new DOMException("x", "AbortError");
+    });
+    const disk = { write: vi.fn(async () => {}), close: vi.fn(async () => {}), abort: vi.fn(async () => {}) };
+    await expect(
+      downloadAsZip([{ fileId: "a", filename: "a.txt", fileSize: 1 }], "pw", {
+        run: createZipRun(disk),
+        signal: ctl.signal,
+        pausing: () => false,
+      }),
+    ).rejects.not.toBeInstanceOf(ZipPausedError);
+    expect(disk.abort).toHaveBeenCalledTimes(1);
   });
 });
 

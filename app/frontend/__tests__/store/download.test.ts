@@ -31,6 +31,8 @@ vi.mock("@/lib/open-desktop-app", () => ({ desktopAppAction: () => desktopAction
 vi.mock("@/lib/bulk-download", () => ({
   downloadAsZip: vi.fn(),
   zipRefusal: vi.fn(() => null),
+  createZipRun: vi.fn((saveToDisk?: unknown) => ({ saveToDisk, zip: { terminate: vi.fn() } })),
+  ZipPausedError: class ZipPausedError extends Error {},
 }));
 const tauriMocks = vi.hoisted(() => ({
   sidecarDownload: vi.fn(),
@@ -53,7 +55,7 @@ vi.mock("@/lib/notify", () => ({
 import { useDownloadStore, canStreamToDisk } from "@/store/download";
 import { downloadAndDecryptFile, DownloadPausedError, type DownloadOptions } from "@/lib/download-session";
 const FakeDownloadPausedError = DownloadPausedError;
-import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
+import { downloadAsZip, zipRefusal, ZipPausedError, type BulkDownloadFile } from "@/lib/bulk-download";
 import { toast } from "@/store/toast";
 import { ApiError } from "@/lib/http-error";
 import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
@@ -503,16 +505,6 @@ describe("useDownloadStore", () => {
       expect(getItem("bystander")).toEqual(
         expect.objectContaining({ status: "queued", stage: "Queued" }),
       );
-    });
-
-    it("pause is a no-op for a ZIP download (not pausable)", async () => {
-      (downloadAsZip as Mock).mockImplementation(() => new Promise(() => {}));
-      useDownloadStore.getState().startBulkZipDownload([{ fileId: "f1", filename: "a", fileSize: 1 }], "pw");
-      const id = firstId();
-      await flush();
-      useDownloadStore.getState().pauseDownload(id);
-      await flush();
-      expect(getItem(id)?.status).toBe("downloading"); // unchanged
     });
 
     it("pause is a no-op for an unknown id", () => {
@@ -1520,6 +1512,49 @@ describe("useDownloadStore", () => {
       expect(item.stage).toBe("Zipping");
     });
 
+    it("pauses a ZIP, keeps its run, and resume continues the same run", async () => {
+      const runs: unknown[] = [];
+      let n = 0;
+      (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) => {
+        runs.push(opts.run);
+        if (n++ > 0) return Promise.resolve({ added: 2, failed: [] });
+        return new Promise((_res, rej) => {
+          opts.signal.addEventListener("abort", () => rej(opts.pausing() ? new ZipPausedError() : new DOMException("c", "AbortError")));
+        });
+      });
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("paused");
+      useDownloadStore.getState().resumeDownload(id, "pw");
+      await flush();
+      expect(getItem(id)?.status).toBe("done");
+      expect(downloadAsZip).toHaveBeenCalledTimes(2);
+      expect(runs[0]).toBeDefined();
+      expect(runs[1]).toBe(runs[0]);
+    });
+
+    it("cancelling a paused ZIP aborts its disk file and lands cancelled", async () => {
+      const abort = vi.fn(async () => {});
+      (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) =>
+        new Promise((_res, rej) => {
+          opts.signal.addEventListener("abort", () => rej(new ZipPausedError()));
+        }),
+      );
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      const run = (downloadAsZip as Mock).mock.calls[0][2].run as { saveToDisk?: unknown };
+      run.saveToDisk = { abort };
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      useDownloadStore.getState().cancelDownload(id);
+      expect(abort).toHaveBeenCalledTimes(1);
+      expect(getItem(id)?.status).toBe("cancelled");
+    });
+
     it("cancels cleanly when aborted mid-zip", async () => {
       (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) =>
         new Promise((_res, rej) => { opts.signal.addEventListener("abort", () => rej(new DOMException("cancelled", "AbortError"))); })
@@ -1609,7 +1644,7 @@ describe("useDownloadStore", () => {
         const id = firstId();
         await flush();
         expect(picker).toHaveBeenCalledWith({ suggestedName: "zcrypt-2-files.zip" });
-        expect((downloadAsZip as Mock).mock.calls[0][2].saveToDisk).toBe(writable);
+        expect((downloadAsZip as Mock).mock.calls[0][2].run.saveToDisk).toBe(writable);
         expect(getItem(id)?.status).toBe("done");
       });
 

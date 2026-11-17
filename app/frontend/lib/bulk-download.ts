@@ -196,53 +196,91 @@ async function fetchVerifiedFile(
   return chunkResults;
 }
 
+/** Thrown when a run is stopped to be paused: the archive and its disk writable stay open. */
+export class ZipPausedError extends Error {
+  constructor() {
+    super("ZIP download paused");
+    this.name = "ZipPausedError";
+  }
+}
+
+/**
+ * Everything a ZIP run builds up, kept outside the call so a paused run can be
+ * continued: the open archive writer, the parts (when assembling in memory), the
+ * files already packed and which file comes next. A file is added only once it
+ * is fully fetched and verified, so stopping mid-file leaves no partial entry.
+ */
+export interface ZipRun {
+  zip: Zip;
+  parts: Uint8Array[];
+  report: BulkDownloadReport;
+  taken: Set<string>;
+  next: number;
+  packed: number;
+  firstError: unknown;
+  pending: Promise<void>;
+  zipError: Error | null;
+  saveToDisk?: DiskWritable;
+}
+
+export function createZipRun(saveToDisk?: DiskWritable): ZipRun {
+  const run = {
+    parts: [],
+    report: { added: 0, failed: [] },
+    taken: new Set<string>(),
+    next: 0,
+    packed: ZIP_END_RECORD,
+    firstError: null,
+    pending: Promise.resolve(),
+    zipError: null,
+    saveToDisk,
+  } as unknown as ZipRun;
+  run.zip = new Zip((err, chunk) => {
+    if (err) {
+      run.zipError ??= err;
+    } else if (run.saveToDisk) {
+      const sink = run.saveToDisk;
+      run.pending = run.pending.then(() => sink.write(chunk));
+    } else {
+      run.parts.push(chunk);
+    }
+  });
+  return run;
+}
+
 /**
  * Download, decrypt multiple files and stream them into a ZIP. Resolves with
  * what made it in and what was skipped; rejects only on cancel, a sink failure,
- * or when no file at all could be added.
+ * or when no file at all could be added. Pass a `run` and a `pausing` check to
+ * make it pausable: a stop while `pausing()` is true throws ZipPausedError and
+ * leaves the run (and any disk writable) intact for the next call to continue.
  */
 export async function downloadAsZip(
   files: BulkDownloadFile[],
   passphrase: string,
-  options?: BulkDownloadOptions,
+  options?: BulkDownloadOptions & { run?: ZipRun; pausing?: () => boolean },
 ): Promise<BulkDownloadReport> {
-  const { onProgress, signal, resolvePassword, saveToDisk } = options ?? {};
+  const { onProgress, signal, resolvePassword, saveToDisk, pausing } = options ?? {};
   assertNotAborted(signal);
   const refusal = zipRefusal(files);
   if (refusal) throw new Error(refusal);
 
   const totalFiles = files.length;
-  const report: BulkDownloadReport = { added: 0, failed: [] };
-  const parts: Uint8Array[] = [];
+  const run = options?.run ?? createZipRun(saveToDisk);
+  const { report, zip, taken } = run;
   const pool = new WorkerPool();
-  let packed = ZIP_END_RECORD;
-  let firstError: unknown = null;
-  let pending: Promise<void> = Promise.resolve();
-  let zipError: Error | null = null;
-
-  const zip = new Zip((err, chunk) => {
-    if (err) {
-      zipError ??= err;
-    } else if (saveToDisk) {
-      pending = pending.then(() => saveToDisk.write(chunk));
-    } else {
-      parts.push(chunk);
-    }
-  });
 
   try {
-    const taken = new Set<string>();
-    let filesDone = 0;
-    for (const file of files) {
+    for (; run.next < files.length; run.next++) {
+      const file = files[run.next];
       assertNotAborted(signal);
       onProgress?.({
         stage: tr("l10n.zip.stageDownloading", { name: file.filename }),
-        percent: Math.round((filesDone / totalFiles) * 95),
+        percent: Math.round((run.next / totalFiles) * 95),
         currentFile: file.filename,
-        filesDone,
+        filesDone: run.next,
         filesTotal: totalFiles,
       });
-      filesDone++;
 
       if (file.fileSize > ZIP_ENTRY_MAX_BYTES) {
         report.failed.push({
@@ -254,17 +292,18 @@ export async function downloadAsZip(
       }
 
       let data: Uint8Array[];
+      let cost = 0;
       try {
         data = await fetchVerifiedFile(file, passphrase, signal, resolvePassword, pool, (size) => {
           if (size > ZIP_ENTRY_MAX_BYTES) throw new Error(tr("l10n.zip.overLimit"));
-          const cost =
+          cost =
             size + ZIP_ENTRY_OVERHEAD + 2 * new TextEncoder().encode(zipEntryName(file)).length;
-          if (packed + cost > ZIP32_MAX_BYTES) throw new Error(tr("l10n.zip.tooBig"));
-          packed += cost;
+          if (run.packed + cost > ZIP32_MAX_BYTES) throw new Error(tr("l10n.zip.tooBig"));
         });
+        run.packed += cost;
       } catch (err) {
         if (isAbort(err)) throw err;
-        firstError ??= err;
+        run.firstError ??= err;
         report.failed.push({
           fileId: file.fileId,
           filename: file.filename,
@@ -279,12 +318,12 @@ export async function downloadAsZip(
       zip.add(entry);
       if (data.length === 0) entry.push(new Uint8Array(), true);
       data.forEach((part, i) => entry.push(part, i === data.length - 1));
-      await pending;
+      await run.pending;
       report.added++;
     }
 
     assertNotAborted(signal);
-    if (report.added === 0 && firstError) throw firstError;
+    if (report.added === 0 && run.firstError) throw run.firstError;
 
     onProgress?.({
       stage: tr("l10n.zip.stageSaving"),
@@ -294,19 +333,21 @@ export async function downloadAsZip(
       filesTotal: totalFiles,
     });
     zip.end();
-    await pending;
-    if (zipError) throw zipError;
-    if (saveToDisk) {
-      await saveToDisk.close();
+    await run.pending;
+    if (run.zipError) throw run.zipError;
+    if (run.saveToDisk) {
+      await run.saveToDisk.close();
     } else {
       saveBlob(
         `zcrypt-${totalFiles}-files.zip`,
-        new Blob(parts as BlobPart[], { type: "application/zip" }),
+        new Blob(run.parts as BlobPart[], { type: "application/zip" }),
       );
+      run.parts.length = 0;
     }
   } catch (err) {
+    if (pausing?.() && isAbort(err)) throw new ZipPausedError();
     zip.terminate();
-    if (saveToDisk?.abort) await saveToDisk.abort().catch(() => {});
+    if (run.saveToDisk?.abort) await run.saveToDisk.abort().catch(() => {});
     throw err;
   } finally {
     pool.terminate();
