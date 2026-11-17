@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -60,14 +62,27 @@ func (s *Server) HandlePublishKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.announcePendingKeys(ctx, userID)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-// HandleLookupUserKey resolves a user's PUBLIC key by email or username, so an
-// admin can seal a space key to them before inviting. Returns 404 both when no
-// such user exists and when they exist but have no published key (don't
-// distinguish: reduces user enumeration; rate-limiting is the real mitigation).
+const (
+	keyLookupLimit  = 30
+	keyLookupWindow = 10 * time.Minute
+)
+
+// HandleLookupUserKey resolves an account by email or username so an admin can
+// seal a space key to it before inviting. The three outcomes are distinct so
+// the invite UI can say what is wrong, which makes it an email-existence
+// oracle: each caller gets keyLookupLimit lookups per keyLookupWindow.
+//
+//	200 {user_id, public_key, fingerprint, status:"ready"}  account with a key
+//	404 {error, code:"no_key", user_id}                      account, no key yet
+//	404 {error, code:"not_found"}                            no such account
+//	429 {error, code:"rate_limited"}
+//
 // GET /api/keys/lookup?identifier=<email-or-username>
 func (s *Server) HandleLookupUserKey(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -76,20 +91,34 @@ func (s *Server) HandleLookupUserKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"identifier required"}`, http.StatusBadRequest)
 		return
 	}
+	if !s.keyLookupLimiter.allow(GetUserID(r)) {
+		w.Header().Set("Retry-After", strconv.Itoa(int(keyLookupWindow.Seconds())))
+		writeCodedError(w, http.StatusTooManyRequests, "rate_limited", "too many lookups, try again later")
+		return
+	}
 
-	pk, err := s.db.ResolveUserPublicKey(ctx, identifier)
+	if strings.Contains(identifier, "@") {
+		identifier = strings.ToLower(identifier)
+	}
+	userID, pk, found, err := s.db.LookupUserForInvite(ctx, identifier)
 	if err != nil {
 		log.Printf("keys: lookup: %v", err)
 		http.Error(w, `{"error":"lookup failed"}`, http.StatusInternalServerError)
 		return
 	}
-	if pk == nil {
-		http.Error(w, `{"error":"no user with a published key"}`, http.StatusNotFound)
+	if !found {
+		writeCodedError(w, http.StatusNotFound, "not_found", "no account with this email")
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pk)
+	if pk == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{
+			"error": "this account has no key yet", "code": "no_key", "user_id": userID,
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{
+		"user_id": pk.UserID, "public_key": pk.PublicKey, "fingerprint": pk.Fingerprint, "status": "ready",
+	})
 }
 
 // HandleGetUserPublicKey returns another user's PUBLIC key (never the wrapped

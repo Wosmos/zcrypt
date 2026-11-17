@@ -83,7 +83,8 @@ func (db *DB) GetAvatarForViewer(ctx context.Context, viewerID, targetID string)
 		  AND ($1 = $2 OR EXISTS (
 		    SELECT 1 FROM shared_vault_members a
 		    JOIN shared_vault_members b ON a.vault_id = b.vault_id
-		    WHERE a.user_id::text = $1 AND b.user_id::text = $2))`,
+		    WHERE a.user_id::text = $1 AND b.user_id::text = $2
+		      AND a.status = 'active' AND b.status = 'active'))`,
 		viewerID, targetID).Scan(&uri)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
@@ -166,4 +167,27 @@ func (db *DB) DeleteRecoveryKit(ctx context.Context, userID string) (bool, error
 		return false, err
 	}
 	return tag.RowsAffected() > 0, nil
+}
+
+// LookupUserForInvite resolves an email or username to an account and, when it
+// has one, its published public key. found is false for no such account; pk is
+// nil for an account that has not published a key yet.
+func (db *DB) LookupUserForInvite(ctx context.Context, identifier string) (userID string, pk *types.PublicKey, found bool, err error) {
+	var publicKey, fingerprint *string
+	err = db.pool.QueryRow(ctx, `
+		SELECT u.id, k.public_key, k.fingerprint
+		FROM users u LEFT JOIN user_keys k ON k.user_id = u.id
+		WHERE u.email = $1 OR u.username = $1
+		ORDER BY (u.email = $1) DESC
+		LIMIT 1`, identifier).Scan(&userID, &publicKey, &fingerprint)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil, false, nil
+	}
+	if err != nil {
+		return "", nil, false, err
+	}
+	if publicKey == nil {
+		return userID, nil, true, nil
+	}
+	return userID, &types.PublicKey{UserID: userID, PublicKey: *publicKey, Fingerprint: *fingerprint}, true, nil
 }

@@ -45,13 +45,13 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	rows, err := db.pool.Query(ctx, `
 		SELECT sv.id, sv.name, sv.owner_id, sv.description, sv.file_ids, sv.created_at, sv.updated_at,
 		       svm.wrapped_space_key, svm.role, sv.size_limit_bytes, sv.needs_rotation,
-		       (SELECT COUNT(*) FROM shared_vault_members m WHERE m.vault_id = sv.id),
+		       (SELECT COUNT(*) FROM shared_vault_members m WHERE m.vault_id = sv.id AND m.status = 'active'),
 		       (SELECT COUNT(*) FROM shared_vault_files f WHERE f.vault_id = sv.id),
 		       COALESCE((SELECT SUM(fl.original_size) FROM shared_vault_files f
 		                 JOIN files fl ON fl.id = f.file_id WHERE f.vault_id = sv.id), 0)
 		FROM shared_vaults sv
 		JOIN shared_vault_members svm ON sv.id = svm.vault_id
-		WHERE svm.user_id = $1
+		WHERE svm.user_id = $1 AND svm.status = 'active'
 		ORDER BY sv.updated_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	prev, err := db.pool.Query(ctx, `
 		SELECT m.vault_id::text, m.user_id::text, u.username, length(u.avatar_url) > 0, CASE WHEN u.avatar_url = '' THEN '' ELSE left(encode(sha256(convert_to(u.avatar_url, 'UTF8')), 'hex'), 16) END
 		FROM shared_vault_members m JOIN users u ON u.id = m.user_id
-		WHERE m.vault_id::text = ANY($1)
+		WHERE m.vault_id::text = ANY($1) AND m.status = 'active'
 		ORDER BY m.joined_at`, ids)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	// Check membership + capture the caller's own key grant.
 	var memberRole, callerWrappedKey string
 	err := db.pool.QueryRow(ctx, `
-		SELECT role, wrapped_space_key FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`,
+		SELECT role, wrapped_space_key FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2 AND status = 'active'`,
 		vaultID, userID).Scan(&memberRole, &callerWrappedKey)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	// LEFT JOIN user_keys so a member's key fingerprint (for out-of-band
 	// verification) rides along; empty when they've not set up a keypair yet.
 	rows, err := db.pool.Query(ctx, `
-		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at, svm.wrapped_space_key,
+		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.status, COALESCE(svm.invited_by::text, ''), svm.joined_at, svm.wrapped_space_key,
 		       COALESCE(uk.fingerprint, ''), COALESCE(uk.public_key, ''),
 		       length(u.avatar_url) > 0, CASE WHEN u.avatar_url = '' THEN '' ELSE left(encode(sha256(convert_to(u.avatar_url, 'UTF8')), 'hex'), 16) END
 		FROM shared_vault_members svm
@@ -147,7 +147,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	for rows.Next() {
 		var m types.SharedVaultMember
-		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint, &m.PublicKey, &m.HasAvatar, &m.AvatarVersion); err != nil {
+		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.Status, &m.InvitedBy, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint, &m.PublicKey, &m.HasAvatar, &m.AvatarVersion); err != nil {
 			return nil, err
 		}
 		vault.Members = append(vault.Members, m)
@@ -187,30 +187,86 @@ func (db *DB) ListSharedVaultFiles(ctx context.Context, vaultID string) ([]types
 	return files, rows.Err()
 }
 
-// AddSharedVaultMember adds (or re-grants) a user to a shared vault by email,
-// storing the space key sealed to that user's public key. Re-inviting updates
-// the role + key grant (supports key rotation / role changes).
-func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, email, role, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
+// ErrMemberExists means the user already has a membership row in the space.
+var ErrMemberExists = errors.New("already a member")
+
+// AddSharedVaultMember adds a user to a shared vault. With a wrapped space key
+// the member is active at once; with an empty one they are pending until an
+// owner/admin device seals the space key to them (CompleteSharedVaultMember).
+// The WHERE clause forbids targeting the vault owner. ErrMemberExists is
+// returned when a row already exists, so an invite never overwrites a grant.
+func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, userID, invitedBy, role, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
+	status := "active"
+	if wrappedSpaceKey == "" {
+		status = "pending"
+	}
 	member := &types.SharedVaultMember{}
-	// The WHERE clause forbids targeting the vault owner, so no caller can demote
-	// or re-grant the owner via add-member (a partial-role downgrade attack).
 	err := db.pool.QueryRow(ctx, `
-		WITH target_user AS (
-			SELECT id FROM users WHERE email = $2
-		)
-		INSERT INTO shared_vault_members (vault_id, user_id, role, wrapped_space_key)
-		SELECT $1, tu.id, $3, $4 FROM target_user tu
-		WHERE tu.id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)
-		ON CONFLICT (vault_id, user_id)
-		DO UPDATE SET role = EXCLUDED.role, wrapped_space_key = EXCLUDED.wrapped_space_key
-		RETURNING id, vault_id, user_id, role, joined_at, wrapped_space_key`,
-		vaultID, email, role, wrappedSpaceKey,
-	).Scan(&member.ID, &member.VaultID, &member.UserID, &member.Role, &member.JoinedAt, &member.WrappedSpaceKey)
+		INSERT INTO shared_vault_members (vault_id, user_id, role, wrapped_space_key, status, invited_by)
+		SELECT $1, $2, $3, $4, $5, $6
+		WHERE $2::uuid <> (SELECT owner_id FROM shared_vaults WHERE id = $1)
+		ON CONFLICT (vault_id, user_id) DO NOTHING
+		RETURNING id, vault_id, user_id, role, status, joined_at, wrapped_space_key`,
+		vaultID, userID, role, wrappedSpaceKey, status, invitedBy,
+	).Scan(&member.ID, &member.VaultID, &member.UserID, &member.Role, &member.Status, &member.JoinedAt, &member.WrappedSpaceKey)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrMemberExists
+	}
 	if err != nil {
 		return nil, err
 	}
-	member.Email = email
+	member.InvitedBy = invitedBy
 	return member, nil
+}
+
+// SharedVaultMemberStatus returns a user's membership status in a space
+// ("active", "pending"), or "" when they have no row.
+func (db *DB) SharedVaultMemberStatus(ctx context.Context, vaultID, userID string) (string, error) {
+	var status string
+	err := db.pool.QueryRow(ctx, `
+		SELECT status FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`, vaultID, userID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return status, err
+}
+
+// CompleteSharedVaultMember stores the space key grant for a pending member and
+// activates them. It reports false when the member is not pending or the user
+// has no published key, so a grant is never attached to a keyless account.
+func (db *DB) CompleteSharedVaultMember(ctx context.Context, vaultID, userID, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
+	member := &types.SharedVaultMember{}
+	err := db.pool.QueryRow(ctx, `
+		UPDATE shared_vault_members SET status = 'active', wrapped_space_key = $3
+		WHERE vault_id = $1 AND user_id = $2 AND status = 'pending'
+		  AND EXISTS (SELECT 1 FROM user_keys WHERE user_id = $2)
+		RETURNING id, vault_id, user_id, role, status, COALESCE(invited_by::text, ''), joined_at, wrapped_space_key`,
+		vaultID, userID, wrappedSpaceKey,
+	).Scan(&member.ID, &member.VaultID, &member.UserID, &member.Role, &member.Status, &member.InvitedBy, &member.JoinedAt, &member.WrappedSpaceKey)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return member, err
+}
+
+// PendingSpacesForUser lists the spaces where userID is invited but still
+// waiting for a key hand-off.
+func (db *DB) PendingSpacesForUser(ctx context.Context, userID string) ([]string, error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT vault_id::text FROM shared_vault_members WHERE user_id = $1 AND status = 'pending'`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // RotateSharedVaultKeys atomically re-keys a space: it overwrites each listed
@@ -240,7 +296,7 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 		SELECT svm.user_id::text, uk.user_id IS NOT NULL
 		FROM shared_vault_members svm
 		LEFT JOIN user_keys uk ON uk.user_id = svm.user_id
-		WHERE svm.vault_id = $1`, vaultID)
+		WHERE svm.vault_id = $1 AND svm.status = 'active'`, vaultID)
 	if err != nil {
 		return err
 	}
@@ -343,18 +399,23 @@ func (db *DB) RemoveSharedVaultMember(ctx context.Context, vaultID, memberUserID
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	tag, err := tx.Exec(ctx, `
+	var status string
+	err = tx.QueryRow(ctx, `
 		DELETE FROM shared_vault_members
 		WHERE vault_id = $1 AND user_id = $2
-		  AND user_id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)`, vaultID, memberUserID)
+		  AND user_id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)
+		RETURNING status`, vaultID, memberUserID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
-	if tag.RowsAffected() == 0 {
-		return false, nil
-	}
-	if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET needs_rotation = true, updated_at = NOW() WHERE id = $1`, vaultID); err != nil {
-		return false, err
+	// A pending member never held the space key, so removing one needs no re-key.
+	if status == "active" {
+		if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET needs_rotation = true, updated_at = NOW() WHERE id = $1`, vaultID); err != nil {
+			return false, err
+		}
 	}
 	return true, tx.Commit(ctx)
 }
@@ -421,7 +482,7 @@ func (db *DB) DeleteSharedVault(ctx context.Context, ownerID, vaultID string) er
 func (db *DB) IsSharedVaultMember(ctx context.Context, vaultID, userID string) (string, error) {
 	var role string
 	err := db.pool.QueryRow(ctx, `
-		SELECT role FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`, vaultID, userID).Scan(&role)
+		SELECT role FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2 AND status = 'active'`, vaultID, userID).Scan(&role)
 	return role, err
 }
 
@@ -512,7 +573,7 @@ func (db *DB) MemberSpaceFileGrant(ctx context.Context, userID, fileID string) (
 	err := db.pool.QueryRow(ctx, `
 		SELECT f.user_id, svf.wrapped_cek
 		FROM shared_vault_files svf
-		JOIN shared_vault_members svm ON svm.vault_id = svf.vault_id AND svm.user_id = $1
+		JOIN shared_vault_members svm ON svm.vault_id = svf.vault_id AND svm.user_id = $1 AND svm.status = 'active'
 		JOIN files f ON f.id = svf.file_id
 		WHERE svf.file_id = $2
 		LIMIT 1`, userID, fileID,
@@ -537,7 +598,7 @@ func (db *DB) MemberSpaceFilesByIDs(ctx context.Context, userID string, ids []st
 		       f.encrypted_size, f.chunk_count, f.sha256, f.sha256_scheme, f.salt, f.iv, f.wrapped_cek, f.status, f.created_at,
 		       svf.wrapped_cek
 		FROM shared_vault_files svf
-		JOIN shared_vault_members svm ON svm.vault_id = svf.vault_id AND svm.user_id = $1
+		JOIN shared_vault_members svm ON svm.vault_id = svf.vault_id AND svm.user_id = $1 AND svm.status = 'active'
 		JOIN files f ON f.id = svf.file_id AND f.deleted_at IS NULL
 		WHERE svf.file_id = ANY($2::uuid[])
 		ORDER BY f.id`, userID, ids)
@@ -660,7 +721,7 @@ func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, 
 // its owner and admins (the owner is an admin member).
 func (db *DB) SharedVaultAudience(ctx context.Context, vaultID string) (members, admins []string, err error) {
 	rows, err := db.pool.Query(ctx, `
-		SELECT user_id::text, role FROM shared_vault_members WHERE vault_id = $1`, vaultID)
+		SELECT user_id::text, role FROM shared_vault_members WHERE vault_id = $1 AND status = 'active'`, vaultID)
 	if err != nil {
 		return nil, nil, err
 	}

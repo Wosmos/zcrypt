@@ -695,6 +695,12 @@ CREATE INDEX IF NOT EXISTS idx_shared_vault_members_user ON shared_vault_members
 -- private key can open it. Empty for legacy metadata-only memberships.
 ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS wrapped_space_key TEXT NOT NULL DEFAULT '';
 
+-- 'pending' = invited, but the invitee has not published a key yet (or an
+-- owner/admin device has not sealed the space key to it). A pending member has
+-- no grant and reads nothing; completing the hand-off flips it to 'active'.
+ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS invited_by UUID REFERENCES users(id) ON DELETE SET NULL;
+
 -- Files shared into a space, each with its CEK re-wrapped under the SPACE KEY
 -- (not the owner's vault key), so any member can unwrap it with the space key
 -- and decrypt the file. wrapped_cek is opaque base64; the server never sees the

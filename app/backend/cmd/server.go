@@ -81,12 +81,13 @@ type Server struct {
 
 	// Web Push: cached signing keys, the endpoint allowlist check (a field so
 	// tests can point it at a local server) and a client that won't redirect.
-	push           pushState
-	pushHostOK     func(endpoint string) bool
-	pushHTTP       *http.Client
-	pushSink       func(userID string, msg pushMessage)
-	filesAdded     *filesAddedBatcher
-	linkViewNotice *rateLimiter
+	push             pushState
+	pushHostOK       func(endpoint string) bool
+	pushHTTP         *http.Client
+	pushSink         func(userID string, msg pushMessage)
+	filesAdded       *filesAddedBatcher
+	linkViewNotice   *rateLimiter
+	keyLookupLimiter *rateLimiter
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
 	// from authLimiter so a 2FA login doesn't consume login-attempt budget.
@@ -225,6 +226,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		pushHTTP:              newPushHTTPClient(),
 		filesAdded:            newFilesAddedBatcher(filesAddedWindow),
 		linkViewNotice:        newRateLimiter(1, 10*time.Minute),
+		keyLookupLimiter:      newRateLimiter(keyLookupLimit, keyLookupWindow),
 		twoFAIPLimiter:        newRateLimiter(10, 5*time.Minute),
 		twoFAUserLimiter:      newRateLimiter(5, 5*time.Minute),
 		sendLimiter:           newRateLimiter(5, time.Hour),
@@ -1018,6 +1020,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/shared-vaults/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleUpdateSharedVault, "id"))))
 	mux.HandleFunc("PATCH /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleUpdateSharedVaultMemberRole, "id", "uid"))))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleAddSharedVaultMember, "id"))))
+	mux.HandleFunc("POST /api/shared-vaults/{id}/members/{uid}/key", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleCompleteSharedVaultMember, "id", "uid"))))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRemoveSharedVaultMember, "id", "uid"))))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleAddSharedVaultFile, "id"))))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files/batch", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleAddSharedVaultFiles, "id"))))

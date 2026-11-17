@@ -73,7 +73,7 @@ func (s *Server) spaceMemberAdded(ctx context.Context, spaceID, memberID, role, 
 	s.signalMembersChanged(without(members, memberID), spaceID)
 }
 
-func (s *Server) spaceMemberGone(ctx context.Context, spaceID, memberID string, left bool) {
+func (s *Server) spaceMemberGone(ctx context.Context, spaceID, memberID string, left, wasActive bool) {
 	members, admins, err := s.db.SharedVaultAudience(ctx, spaceID)
 	if err != nil {
 		return
@@ -83,7 +83,7 @@ func (s *Server) spaceMemberGone(ctx context.Context, spaceID, memberID string, 
 		for _, id := range without(admins, memberID) {
 			s.notifyUser(id, spaceEvent("memberLeft", spaceID, extra))
 		}
-	} else {
+	} else if wasActive {
 		s.notifyUser(memberID, spaceEvent("memberRemoved", spaceID, nil))
 	}
 	s.signalMembersChanged(without(members, memberID), spaceID)
@@ -94,8 +94,13 @@ func (s *Server) spaceRoleChanged(ctx context.Context, spaceID, memberID, role s
 	if err != nil {
 		return
 	}
-	s.notifyUser(memberID, spaceEvent("roleChanged", spaceID, map[string]string{"role": role}))
-	s.signalMembersChanged(without(members, memberID), spaceID)
+	for _, id := range members {
+		if id == memberID {
+			s.notifyUser(id, spaceEvent("roleChanged", spaceID, map[string]string{"role": role}))
+		} else {
+			s.signalUser(id, spaceEvent("spaceMembersChanged", spaceID, nil))
+		}
+	}
 }
 
 func (s *Server) spaceDeleted(spaceID, actorID string, members []string) {

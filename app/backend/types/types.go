@@ -943,7 +943,9 @@ type SharedVaultMember struct {
 	UserID          string    `json:"user_id"`
 	Username        string    `json:"username,omitempty"`
 	Email           string    `json:"email,omitempty"`
-	Role            string    `json:"role"` // viewer, editor, admin
+	Role            string    `json:"role"`   // viewer, editor, admin
+	Status          string    `json:"status"` // active, pending (invited; no key hand-off yet)
+	InvitedBy       string    `json:"invited_by,omitempty"`
 	JoinedAt        time.Time `json:"joined_at"`
 	WrappedSpaceKey string    `json:"wrapped_space_key,omitempty"`
 	// Fingerprint of this member's published public key, for out-of-band
