@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 vi.mock("@/hooks/useFolderProtection", () => ({ resolveFilePasswordGlobal: vi.fn() }));
 vi.mock("@/store/toast", () => ({ toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() } }));
 
+import { AUTO_RESUME_TICK_MS } from "@/lib/transport";
 import { TransferManager } from "@/components/transfer/transfer-manager";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore, type DownloadItem } from "@/store/download";
@@ -436,9 +437,55 @@ describe("TransferManager panel", () => {
       window.dispatchEvent(new Event("online"));
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass");
+    expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass", true);
     expect(actions.resumeUpload).not.toHaveBeenCalledWith("b", expect.anything());
     expect(dlActions.autoResumeInterrupted).toHaveBeenCalled();
+  });
+
+  it("also retries on a timer while the page is visible, not only on focus or reconnect", () => {
+    vi.useFakeTimers();
+    actions.getResumableUploadIds.mockImplementation(() => ["a"]);
+    seed([up("a", { status: "failed", error: "x" })]);
+    render(<TransferManager />);
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS);
+    });
+    expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass", true);
+    expect(dlActions.autoResumeInterrupted).toHaveBeenCalled();
+  });
+
+  it("does not poll while the page is hidden or offline", () => {
+    vi.useFakeTimers();
+    actions.getResumableUploadIds.mockImplementation(() => ["a"]);
+    seed([up("a", { status: "failed", error: "x" })]);
+    render(<TransferManager />);
+    const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS * 2);
+    });
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
+    hidden.mockRestore();
+
+    const offline = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS * 2);
+    });
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
+    offline.mockRestore();
+  });
+
+  it("stops polling once it unmounts", () => {
+    vi.useFakeTimers();
+    actions.getResumableUploadIds.mockImplementation(() => ["a"]);
+    seed([up("a", { status: "failed", error: "x" })]);
+    const { unmount } = render(<TransferManager />);
+    unmount();
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS * 3);
+    });
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
   });
 });
 

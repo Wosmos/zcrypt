@@ -40,6 +40,7 @@ import {
 } from "@/lib/transfer-progress";
 import { TransferItem, TransferState, type TransferEntry } from "./transfer-item";
 import { ProgressRing, TONE, type Segment } from "./transfer-parts";
+import { AUTO_RESUME_TICK_MS } from "@/lib/transport";
 import {
   BatchBlock,
   DropOverlay,
@@ -207,7 +208,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
       for (const id of getResumableUploadIds()) {
         const pass = silentUploadPassword(id);
-        if (pass) resumeUpload(id, pass);
+        if (pass) resumeUpload(id, pass, true);
       }
       autoResumeDownloads();
     };
@@ -216,7 +217,9 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", resumeInterrupted);
+    const timer = setInterval(onVisible, AUTO_RESUME_TICK_MS);
     return () => {
+      clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", resumeInterrupted);
     };

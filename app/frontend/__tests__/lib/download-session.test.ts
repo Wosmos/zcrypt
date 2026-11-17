@@ -66,6 +66,8 @@ const { processMock, terminateMock, WorkerPoolCtor } = vi.hoisted(() => {
 vi.mock("@/lib/worker-pool", () => ({ WorkerPool: WorkerPoolCtor }));
 
 import { downloadAndDecryptFile, type DiskWritable } from "@/lib/download-session";
+import { ApiError } from "@/lib/http-error";
+import { StalledError } from "@/lib/transport";
 
 function chunkBytes(i: number, len = 4): Uint8Array {
   const b = new Uint8Array(len);
@@ -293,7 +295,7 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     const hash = expectedHash([chunk]);
     getFileMeta.mockResolvedValueOnce(baseMeta(1, hash));
     getFileChunk
-      .mockRejectedValueOnce(new Error("network request failed"))
+      .mockRejectedValueOnce(new TypeError("network request failed"))
       .mockResolvedValueOnce({ data: chunk.buffer, sha256: "", compressed: false });
 
     const promise = downloadAndDecryptFile("f1", "pw");
@@ -573,5 +575,52 @@ describe("downloadAndDecryptFile, abort/cancel", () => {
     await expect(downloadAndDecryptFile("f1", "pw", { signal: controller.signal })).rejects.toMatchObject({
       name: "AbortError",
     });
+  });
+});
+
+describe("downloadAndDecryptFile: one chunk failing fails the session", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("streaming: stops the other fetchers and rejects with the chunk's error instead of waiting forever for the missing chunk", async () => {
+    vi.useFakeTimers();
+    getFileMeta.mockResolvedValueOnce(baseMeta(8, "irrelevant"));
+    getFileChunk.mockImplementation(async (_f: string, index: number) => {
+      if (index === 0) throw new ApiError("forbidden", 403);
+      return { data: chunkBytes(index).buffer, sha256: "", compressed: false };
+    });
+    const saveToDisk = fakeDiskWritable();
+
+    const pending = downloadAndDecryptFile("f1", "pw", { saveToDisk });
+    const assertion = expect(pending).rejects.toMatchObject({ status: 403 });
+    await vi.advanceTimersByTimeAsync(2_000);
+    await assertion;
+
+    expect(saveToDisk.written).toHaveLength(0);
+  });
+
+  it("streaming: a stalled chunk that exhausts its retries also fails the whole session", async () => {
+    vi.useFakeTimers();
+    getFileMeta.mockResolvedValueOnce(baseMeta(6, "irrelevant"));
+    getFileChunk.mockImplementation(async (_f: string, index: number) => {
+      if (index === 0) throw new StalledError("chunk 0 stalled");
+      return { data: chunkBytes(index).buffer, sha256: "", compressed: false };
+    });
+
+    const pending = downloadAndDecryptFile("f1", "pw", { saveToDisk: fakeDiskWritable() });
+    const assertion = expect(pending).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(120_000);
+    await assertion;
+  });
+
+  it("a caller pause during the failure still wins as the stop reason", async () => {
+    getFileMeta.mockResolvedValueOnce(baseMeta(4, "irrelevant"));
+    const ctl = new AbortController();
+    getFileChunk.mockImplementation(async () => {
+      ctl.abort();
+      throw new ApiError("forbidden", 403);
+    });
+    await expect(
+      downloadAndDecryptFile("f1", "pw", { signal: ctl.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 });

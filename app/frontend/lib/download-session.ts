@@ -282,15 +282,25 @@ export async function downloadAndDecryptFile(
   // mark. Seeded from writtenCount so a resumed run continues the count.
   let decryptedCount = alreadyDone;
 
+  // One chunk exhausting its retries fails the whole session: this aborts the
+  // other fetchers and any writer waits instead of leaving them to spin behind
+  // the missing chunk. A caller pause/cancel still wins (see below).
+  const failCtl = new AbortController();
+  const runSignal = signal ? AbortSignal.any([signal, failCtl.signal]) : failCtl.signal;
+  let failure: { reason: unknown } | undefined;
+
   try {
     // No entry guard here: the only caller is the fetcher loop below, which
     // already checks the signal immediately before every call (and the whole
     // pipeline is gated on it up front). The post-fetch check is the one that
     // matters: it catches a cancel that landed while this chunk was in flight.
     const processChunk = async (index: number) => {
-      const { data, compressed } = await retryTransient(() => getFileChunk(fileId, index, signal), {
-        signal,
-      });
+      const { data, compressed } = await retryTransient(
+        () => getFileChunk(fileId, index, runSignal),
+        {
+          signal: runSignal,
+        },
+      );
 
       if (signal?.aborted) throw stopError();
 
@@ -298,7 +308,7 @@ export async function downloadAndDecryptFile(
       // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
       const plain = await decryptChunkInPool(pool, index, data, keyBytes, compressed);
       if (writer) {
-        await writer.put(index, plain, signal); // streamed to disk in order + hashed
+        await writer.put(index, plain, runSignal); // streamed to disk in order + hashed
       } else {
         assertSet(decryptedChunks, "decryptedChunks")[index] = plain;
         assertSet(done, "done").add(index);
@@ -335,8 +345,17 @@ export async function downloadAndDecryptFile(
         (async () => {
           while (queue.length > 0) {
             if (signal?.aborted) throw stopError();
+            if (failCtl.signal.aborted) return;
             const idx = queue.shift()!;
-            await processChunk(idx);
+            try {
+              await processChunk(idx);
+            } catch (err) {
+              if (!signal?.aborted && !failure) {
+                failure = { reason: err };
+                failCtl.abort();
+              }
+              throw err;
+            }
           }
         })(),
       );
@@ -350,6 +369,7 @@ export async function downloadAndDecryptFile(
     // stop reason from the signal here yields DownloadPausedError while pausing,
     // so a pause stays a pause (and a real cancel stays a cancel).
     if (signal?.aborted) throw stopError();
+    if (failure) throw failure.reason;
     const rejection = settled.find((r) => r.status === "rejected") as
       | PromiseRejectedResult
       | undefined;

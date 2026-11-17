@@ -19,6 +19,9 @@ import { desktopAppAction } from "@/lib/open-desktop-app";
 import { DownloadStatus } from "@/types";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { createFrameBatch } from "@/lib/frame-batch";
+import { createAutoResumeBudget } from "@/lib/auto-resume";
+import { isTransientError } from "@/lib/retry";
+import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
 
 function notifyZipDone(count: number, failed: number) {
   void notify({ type: "transferDone", kind: "download", count, failed, folder: "" });
@@ -149,12 +152,28 @@ interface SingleSession {
   abort: AbortController;
   runToken: symbol;
   runPromise?: Promise<void>;
+  /** Whether the last failure was transient (worth an automatic resume). */
+  transient?: boolean;
+  /** Frees the decrypted chunks of a failed in-memory session after a grace. */
+  graceTimer?: ReturnType<typeof setTimeout>;
 }
 const sessions = new Map<string, SingleSession>();
 // Ids the user has paused: the pipeline's `pausing()` reads this to preserve
 // state (keep the disk writable open) instead of discarding on abort.
 const pausedIds = new Set<string>();
 const cancelledIds = new Set<string>();
+const autoBudget = createAutoResumeBudget();
+
+// A failed in-memory session keeps its decrypted chunks so a retry continues
+// from them. Held indefinitely they pin the whole file in tab memory, so they
+// are freed once the failure is final, or after a grace for a transient one.
+// Resume metadata (meta, key, disk writable and write high-water mark) stays.
+function dropChunkBuffers(session: SingleSession) {
+  clearTimeout(session.graceTimer);
+  session.graceTimer = undefined;
+  session.resume.decryptedChunks = undefined;
+  session.resume.done = undefined;
+}
 
 // A ZIP download has no resume pipeline; it keeps just an abort controller and
 // its params so a retry can restart it.
@@ -228,17 +247,6 @@ interface DownloadStore {
   clearCompleted: () => void;
 }
 
-// A download that FAILED for a transient reason (network drop / suspended tab)
-// is safe to auto-resume; one that failed on a crypto/auth problem is NOT, it
-// would just re-fail (and re-toast) on every tab focus. Unknown → assume
-// transient (network is the overwhelmingly common interruption cause).
-function isTransientDownloadFailure(error?: string): boolean {
-  if (!error) return true;
-  const status = /\b(4\d\d)\b/.exec(error);
-  if (status && status[1] !== "408" && status[1] !== "429") return false;
-  return !/integrity|corrupt|hash|password|passphrase|decrypt|wrong key/i.test(error);
-}
-
 function updateProgress(id: string, status: DownloadStatus, progress?: number, stage?: string) {
   if (
     status === DownloadStatus.Done ||
@@ -271,6 +279,8 @@ function runSingleDownload(id: string): Promise<void> {
   const runToken = Symbol("dlRun");
   session.abort = abort;
   session.runToken = runToken;
+  clearTimeout(session.graceTimer);
+  session.graceTimer = undefined;
   const isCurrentRun = () => sessions.get(id)?.runToken === runToken;
 
   const p = (async () => {
@@ -291,6 +301,7 @@ function runSingleDownload(id: string): Promise<void> {
 
       if (!isCurrentRun()) return;
       updateProgress(id, DownloadStatus.Done, 100, "Done");
+      autoBudget.reset(id);
       sessions.delete(id);
       pausedIds.delete(id);
       toast.success(tr("toasts.downloaded", { name: session.filename }), {
@@ -316,6 +327,17 @@ function runSingleDownload(id: string): Promise<void> {
       }
       const msg = err instanceof Error ? err.message : tr("toasts.downloadFailed");
       // Keep the session so Retry continues from what's already decrypted.
+      session.transient = isTransientError(err);
+      if (!session.transient || autoBudget.attempts(id) >= AUTO_RESUME_MAX_ATTEMPTS) {
+        dropChunkBuffers(session);
+      } else {
+        clearTimeout(session.graceTimer);
+        session.graceTimer = setTimeout(() => {
+          const live = sessions.get(id);
+          const item = useDownloadStore.getState().queue.find((i) => i.id === id);
+          if (live === session && item?.status === DownloadStatus.Failed) dropChunkBuffers(session);
+        }, FAILED_BUFFER_GRACE_MS);
+      }
       const recovered = recoverWrongFolderPassword(session.fileId, msg);
       setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
       if (recovered) {
@@ -338,6 +360,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
 
   startDownload: (fileId, filename, fileSize, passphrase, resolvePassword) => {
+    const alreadyActive = get().queue.some(
+      (i) =>
+        i.fileId === fileId &&
+        (i.status === DownloadStatus.Downloading ||
+          i.status === DownloadStatus.Queued ||
+          i.status === DownloadStatus.Paused),
+    );
+    if (alreadyActive) return;
+
     const id = genId("dl");
 
     set((state) => ({
@@ -752,6 +783,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     const session = sessions.get(id);
     if (!session) return;
     pausedIds.delete(id);
+    autoBudget.reset(id);
     session.passphrase = passphrase;
     if (resolvePassword) session.resolvePassword = resolvePassword;
     set((state) => ({
@@ -777,7 +809,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     for (const item of failed) {
       const session = sessions.get(item.id);
       if (!session) continue; // ZIP or discarded session, nothing to resume from
-      if (!isTransientDownloadFailure(item.error)) continue; // permanent. Don't loop
+      if (session.transient === false) continue; // permanent. Don't loop
+      if (!autoBudget.due(item.id)) continue; // backing off, or out of attempts
+      autoBudget.spend(item.id);
       pausedIds.delete(item.id);
       set((state) => ({
         queue: state.queue.map((i) =>
@@ -821,6 +855,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     if (session) {
       // Single download: continue from what's already decrypted, don't restart.
       pausedIds.delete(id);
+      autoBudget.reset(id);
       session.passphrase = passphrase;
       if (resolvePassword) session.resolvePassword = resolvePassword;
       set((state) => ({
@@ -871,8 +906,10 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       if (disk?.abort) {
         void disk.abort().catch(() => {});
       }
+      clearTimeout(session.graceTimer);
       sessions.delete(id);
     }
+    autoBudget.reset(id);
     const zip = zipSessions.get(id);
     if (zip) {
       zip.abort.abort();
