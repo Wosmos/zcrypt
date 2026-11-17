@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use zcrypt_core::api::{ApiError, Client};
-use zcrypt_core::engines::EngineContext;
 use zcrypt_core::engines::backup;
+use zcrypt_core::engines::{CancelToken, EngineContext, EngineError};
 use zcrypt_core::localdb::{BackupRoot, LocalDb};
 
 use crate::backup_agent::{self, BackupFolderView};
@@ -38,6 +38,25 @@ pub enum RunOutcome {
     Retry = 1,
     /// Signed out or turned off; Android should stop scheduling.
     Stop = 2,
+}
+
+static CURRENT_PASS: std::sync::Mutex<Option<CancelToken>> = std::sync::Mutex::new(None);
+
+/// Registers the cancel token of the run that is starting, so the Android job
+/// can stop it when WorkManager stops the worker.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn begin_pass() -> CancelToken {
+    let token = CancelToken::new();
+    *CURRENT_PASS.lock().unwrap() = Some(token.clone());
+    token
+}
+
+/// Cancels the run in flight, if any.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn stop_pass() {
+    if let Some(token) = CURRENT_PASS.lock().unwrap().take() {
+        token.cancel();
+    }
 }
 
 /// The photo folders that exist under `storage`.
@@ -177,11 +196,20 @@ pub async fn run(
     let mut outcome = RunOutcome::Done;
     for root in roots {
         match backup::run_pass(&ctx, &root).await {
-            Ok(_) => {}
+            Ok(report) => {
+                if report.all_transient() {
+                    eprintln!(
+                        "zcrypt photo backup {}: nothing got through, will retry",
+                        root.id
+                    );
+                    outcome = RunOutcome::Retry;
+                }
+            }
             Err(e) if is_signed_out(&e) => {
                 clear_session(db);
                 return RunOutcome::Stop;
             }
+            Err(EngineError::Cancelled) => return RunOutcome::Retry,
             Err(e) => {
                 eprintln!("zcrypt photo backup {}: {e}", root.id);
                 outcome = RunOutcome::Retry;
@@ -192,11 +220,8 @@ pub async fn run(
 }
 
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-fn is_signed_out(e: &zcrypt_core::engines::EngineError) -> bool {
-    matches!(
-        e,
-        zcrypt_core::engines::EngineError::Api(ApiError::Unauthorized)
-    )
+fn is_signed_out(e: &EngineError) -> bool {
+    matches!(e, EngineError::Api(ApiError::Unauthorized))
 }
 
 #[cfg(test)]
@@ -273,5 +298,85 @@ mod tests {
         assert_eq!(RunOutcome::Done as i32, 0);
         assert_eq!(RunOutcome::Retry as i32, 1);
         assert_eq!(RunOutcome::Stop as i32, 2);
+    }
+
+    async fn serve_status(status: u16) -> String {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            while let Ok((mut sock, _)) = listener.accept().await {
+                let mut buf = [0u8; 4096];
+                let _ = sock.read(&mut buf).await;
+                let reply = format!(
+                    "HTTP/1.1 {status} X\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                );
+                let _ = sock.write_all(reply.as_bytes()).await;
+            }
+        });
+        base
+    }
+
+    fn token_for(sub: &str) -> String {
+        use base64::Engine as _;
+        let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        format!(
+            "{}.{}.sig",
+            b.encode("{}"),
+            b.encode(format!(r#"{{"sub":"{sub}"}}"#))
+        )
+    }
+
+    async fn run_against(status: u16) -> (RunOutcome, Arc<LocalDb>) {
+        let base = serve_status(status).await;
+        let (dir, db) = db();
+        let storage = dir.path().join("storage");
+        std::fs::create_dir_all(storage.join("DCIM")).unwrap();
+        let file = std::fs::File::create(storage.join("DCIM/a.jpg")).unwrap();
+        file.set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(120))
+            .unwrap();
+        let mut r = root("dcim", &storage.join("DCIM"));
+        r.user_id = "u1".into();
+        r.public_key = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::STANDARD.encode([7u8; 32])
+        };
+        db.add_backup_root(&r).unwrap();
+        save_session(&db, &token_for("u1"), "refresh");
+        let keep = db.clone();
+        let outcome = run(&db, &base, &storage, |client| EngineContext {
+            client,
+            db: keep.clone(),
+            profile: zcrypt_core::profiles::NORMAL,
+            progress: Arc::new(|_| {}),
+            creds: zcrypt_core::engines::no_creds(),
+            cancel: CancelToken::new(),
+            vault_passphrase: None,
+        })
+        .await;
+        std::mem::forget(dir);
+        (outcome, db)
+    }
+
+    #[tokio::test]
+    async fn a_signed_out_run_stops_and_forgets_the_session() {
+        let (outcome, db) = run_against(401).await;
+        assert_eq!(outcome, RunOutcome::Stop);
+        assert_eq!(stored_session(&db), None);
+    }
+
+    #[tokio::test]
+    async fn a_run_where_every_failure_is_transient_asks_android_to_retry() {
+        let (outcome, _db) = run_against(503).await;
+        assert_eq!(outcome, RunOutcome::Retry);
+    }
+
+    #[test]
+    fn stopping_trips_the_registered_pass_once() {
+        let token = begin_pass();
+        assert!(!token.is_cancelled());
+        stop_pass();
+        assert!(token.is_cancelled());
+        stop_pass();
     }
 }

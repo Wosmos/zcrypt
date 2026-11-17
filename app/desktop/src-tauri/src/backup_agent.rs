@@ -15,8 +15,8 @@ use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tokio::sync::{mpsc, watch};
-use zcrypt_core::engines::EngineContext;
 use zcrypt_core::engines::backup::{self, BackupReport};
+use zcrypt_core::engines::{CancelToken, EngineContext, EngineError};
 use zcrypt_core::localdb::{BackupRoot, LocalDb};
 
 /// Full pass interval: the safety net for anything a watcher missed.
@@ -34,6 +34,24 @@ pub static PASS_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(())
 
 const SCHEDULE_KEY: &str = "backup.schedule";
 const LAST_RUN_KEY: &str = "backup.last_run";
+
+/// Lets sign-out, end of session and removing a folder stop the pass that is
+/// running right now. `stop` cancels the current pass and arms a fresh token,
+/// so the next pass is not born cancelled.
+#[derive(Clone, Default)]
+pub struct PassControl(std::sync::Arc<std::sync::Mutex<CancelToken>>);
+
+impl PassControl {
+    pub fn token(&self) -> CancelToken {
+        self.0.lock().unwrap().clone()
+    }
+
+    pub fn stop(&self) {
+        let mut guard = self.0.lock().unwrap();
+        guard.cancel();
+        *guard = CancelToken::new();
+    }
+}
 
 /// What wakes the backup loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -216,22 +234,27 @@ pub fn overlaps(existing: &[BackupRoot], candidate: &std::path::Path) -> bool {
     })
 }
 
-async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext) {
+/// Runs one pass over every folder; false when it was cancelled part way.
+async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext, control: &PassControl) -> bool {
     let Ok(user_id) = ctx.client.user_id().await else {
-        return;
+        return true;
     };
     let Ok(roots) = ctx.db.list_backup_roots(&user_id) else {
-        return;
+        return true;
     };
     let _pass = PASS_LOCK.lock().await;
+    let mut ctx = ctx.clone();
+    ctx.cancel = control.token();
     for root in roots {
-        match backup::run_pass(ctx, &root).await {
+        match backup::run_pass(&ctx, &root).await {
             Ok(report) => {
                 let _ = app.emit("zcrypt://backup", BackupEvent::of(&root.id, &report));
             }
+            Err(EngineError::Cancelled) => return false,
             Err(e) => eprintln!("zcrypt backup {}: {e}", root.id),
         }
     }
+    true
 }
 
 /// Watches every backed-up folder and nudges the loop on any change. The
@@ -261,6 +284,7 @@ pub fn watch_roots(
 pub async fn run_loop(
     app: tauri::AppHandle,
     ctx: EngineContext,
+    control: PassControl,
     mut nudges: mpsc::UnboundedReceiver<Nudge>,
     mut cancel: watch::Receiver<bool>,
 ) {
@@ -270,8 +294,7 @@ pub async fn run_loop(
         let due = schedule
             .nightly_at()
             .is_some_and(|at| nightly_due(Local::now().naive_local(), last_run(&ctx.db), at));
-        if forced || due {
-            run_all(&app, &ctx).await;
+        if (forced || due) && run_all(&app, &ctx, &control).await {
             mark_run(&ctx.db);
         }
         match next_wake(&schedule, &mut nudges, &mut cancel).await {
@@ -391,6 +414,23 @@ mod tests {
         assert!(bad.save(&db).is_err());
         db.set_setting(SCHEDULE_KEY, "not json").unwrap();
         assert_eq!(BackupSchedule::load(&db), BackupSchedule::default());
+    }
+
+    #[tokio::test]
+    async fn stopping_cancels_the_pass_in_flight_but_not_the_next_one() {
+        let control = PassControl::default();
+        let running = control.token();
+        let waiting = {
+            let t = running.clone();
+            tokio::spawn(async move { t.cancelled().await })
+        };
+        control.stop();
+        tokio::time::timeout(Duration::from_secs(2), waiting)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(running.is_cancelled());
+        assert!(!control.token().is_cancelled());
     }
 
     #[test]

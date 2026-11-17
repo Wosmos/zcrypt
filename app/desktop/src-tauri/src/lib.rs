@@ -84,6 +84,8 @@ struct EngineState {
     saves: paths::SaveApprovals,
     /// Wakes the folder-backup loop (see backup_agent) after a change.
     backup_nudge: StdMutex<Option<mpsc::UnboundedSender<backup_agent::Nudge>>>,
+    /// Stops the backup pass in flight (sign-out, end of session, folder removed).
+    backup_control: backup_agent::PassControl,
     /// Watches the backed-up folders; dropping it stops watching.
     backup_watcher: StdMutex<Option<notify::RecommendedWatcher>>,
     /// Folders the user picked in the native dialog for backup. Only these can
@@ -104,6 +106,7 @@ impl Default for EngineState {
             last_activity: StdMutex::new(Instant::now()),
             saves: paths::SaveApprovals::default(),
             backup_nudge: StdMutex::new(None),
+            backup_control: backup_agent::PassControl::default(),
             backup_watcher: StdMutex::new(None),
             backup_picks: StdMutex::new(std::collections::HashSet::new()),
         }
@@ -511,13 +514,18 @@ async fn decrypt_to_memory(
     file_id: String,
     passphrase: String,
     user_id: String,
+    transfer_id: Option<String>,
 ) -> Result<tauri::ipc::Response, String> {
     state.touch_activity();
-    let ctx = state.context(&app).await?;
-    let bytes = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id, None)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(tauri::ipc::Response::new(bytes))
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
+    let res = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id, None).await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    Ok(tauri::ipc::Response::new(res.map_err(|e| e.to_string())?))
 }
 
 /// Download a shared-space file via the in-process core, works for the owner
@@ -567,14 +575,19 @@ async fn decrypt_space_to_memory(
     state: tauri::State<'_, EngineState>,
     file_id: String,
     space_key_b64: String,
+    transfer_id: Option<String>,
 ) -> Result<tauri::ipc::Response, String> {
     state.touch_activity(); // see download_space_file
-    let ctx = state.context(&app).await?;
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
     let space_key = base64_decode(&space_key_b64)?;
-    let bytes = engines::decrypt_to_memory(&ctx, &file_id, "", "", Some(space_key))
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(tauri::ipc::Response::new(bytes))
+    let res = engines::decrypt_to_memory(&ctx, &file_id, "", "", Some(space_key)).await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    Ok(tauri::ipc::Response::new(res.map_err(|e| e.to_string())?))
 }
 
 fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
@@ -708,6 +721,7 @@ async fn end_session(state: tauri::State<'_, EngineState>) -> Result<(), String>
     if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
         let _ = cancel.send(true);
     }
+    state.backup_control.stop();
     *state.backup_watcher.lock().unwrap() = None;
     *state.backup_nudge.lock().unwrap() = None;
     *state.client.write().await = None;
@@ -806,6 +820,7 @@ async fn start_engine(
         tauri::async_runtime::spawn(backup_agent::run_loop(
             app.clone(),
             backup_ctx,
+            state.backup_control.clone(),
             nudge_rx,
             backup_cancel,
         ));
@@ -832,6 +847,7 @@ async fn stop_sync(state: tauri::State<'_, EngineState>) -> Result<(), String> {
     if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
         let _ = cancel.send(true);
     }
+    state.backup_control.stop();
     Ok(())
 }
 
@@ -1091,6 +1107,7 @@ pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
             return RunOutcome::Retry;
         };
         let profile = profiles::detect();
+        let cancel = photo_backup::begin_pass();
         rt.block_on(photo_backup::run(
             &db,
             base_url,
@@ -1101,12 +1118,23 @@ pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
                 profile,
                 progress: Arc::new(|_| {}),
                 creds: keychain_creds(),
-                cancel: CancelToken::new(),
+                cancel: cancel.clone(),
                 vault_passphrase: None,
             },
         ))
     });
     outcome.unwrap_or(RunOutcome::Retry) as i32
+}
+
+/// Entry point for PhotoBackupWorker.onStopped: WorkManager stopped the worker
+/// (constraints lost, time limit, replaced), so the run in flight stops now.
+#[cfg(any(target_os = "android", test))]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_cancel(
+    _env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+) {
+    photo_backup::stop_pass();
 }
 
 /// Stops backing up a folder on this device. Files already in the vault stay.
@@ -1119,6 +1147,7 @@ async fn backup_remove_folder(
     let db = state.db()?;
     db.remove_backup_root(&id, &user_id)
         .map_err(|e| e.to_string())?;
+    state.backup_control.stop();
     let ctx = EngineContext {
         client,
         db,

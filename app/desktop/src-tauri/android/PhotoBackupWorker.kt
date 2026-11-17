@@ -43,6 +43,9 @@ object NativeBackup {
 
   /** One backup run. 0 done, 1 try again later, 2 stop (signed out or turned off). */
   @JvmStatic external fun runPass(dataDir: String): Int
+
+  /** Stops the run in flight; called when WorkManager stops the worker. */
+  @JvmStatic external fun cancel()
 }
 
 object PhotoBackup {
@@ -181,6 +184,7 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
       // Android refused a foreground notice (started from the background on
       // 12+): run anyway within the normal time limit; the next run resumes.
     }
+    if (isStopped) return Result.retry()
     val outcome = try {
       NativeBackup.runPass(applicationContext.dataDir.absolutePath)
     } catch (e: Throwable) {
@@ -196,6 +200,14 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
         Result.success()
       }
       else -> Result.retry()
+    }
+  }
+
+  override fun onStopped() {
+    try {
+      NativeBackup.cancel()
+    } catch (e: Throwable) {
+      // The native library never loaded, so there is no run to stop.
     }
   }
 
