@@ -1,4 +1,5 @@
 mod backup_agent;
+mod backup_notify;
 mod paths;
 mod photo_backup;
 mod secrets;
@@ -1126,6 +1127,20 @@ pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
     outcome.unwrap_or(RunOutcome::Retry) as i32
 }
 
+/// Entry point for PhotoBackupWorker: the notification the last run left, as
+/// "title\nbody", or null when there is nothing to tell the person.
+#[cfg(any(target_os = "android", test))]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_takeSummary(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+) -> jni::sys::jstring {
+    match backup_notify::take_pending().and_then(|m| env.new_string(m).ok()) {
+        Some(s) => s.into_raw(),
+        None => std::ptr::null_mut(),
+    }
+}
+
 /// Entry point for PhotoBackupWorker.onStopped: WorkManager stopped the worker
 /// (constraints lost, time limit, replaced), so the run in flight stops now.
 #[cfg(any(target_os = "android", test))]
@@ -1188,6 +1203,17 @@ async fn backup_set_schedule(
     schedule.save(&db)?;
     nudge_backup(&state, backup_agent::Nudge::Reschedule);
     Ok(())
+}
+
+/// Saves which backup notifications the person wants and their texts, so
+/// passes that run with no window open follow them.
+#[tauri::command]
+async fn set_backup_notifications(
+    state: tauri::State<'_, EngineState>,
+    prefs: backup_notify::NotifyPrefs,
+) -> Result<(), String> {
+    let db = state.db()?;
+    prefs.save(&db)
 }
 
 /// Watch a folder: every newly-created file is encrypted into the local ledger
@@ -1325,7 +1351,7 @@ async fn backup_when_stable(app: &tauri::AppHandle, path: &Path) {
             return; // engine not connected yet → skip
         };
         match engines::local_upload(&ctx, path, &pass).await {
-            Ok(_) => return notify_backup(app, path),
+            Ok(_) => return note_watched_backup(app, path),
             Err(engines::EngineError::Io(e)) if e.kind() == std::io::ErrorKind::Interrupted => {
                 continue;
             }
@@ -1342,19 +1368,46 @@ async fn stop_folder_watch(state: tauri::State<'_, EngineState>) -> Result<(), S
     Ok(())
 }
 
-/// Post a local "Backed up <file>" OS notification (all platforms).
-fn notify_backup(app: &tauri::AppHandle, path: &Path) {
-    use tauri_plugin_notification::NotificationExt;
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+static WATCH_BATCH: std::sync::Mutex<Option<backup_notify::PassSummary>> =
+    std::sync::Mutex::new(None);
+const WATCH_BATCH_QUIET: Duration = Duration::from_secs(10);
+
+/// Counts a watched file and, once uploads go quiet, posts one summary for the
+/// batch instead of one notification per file.
+fn note_watched_backup(app: &tauri::AppHandle, path: &Path) {
+    let folder = path
+        .parent()
+        .map(|p| backup_agent::folder_name(&p.to_string_lossy()))
         .unwrap_or_default();
-    let _ = app
-        .notification()
-        .builder()
-        .title("zcrypt backup")
-        .body(format!("Backed up {}", name))
-        .show();
+    let first = {
+        let mut batch = WATCH_BATCH.lock().unwrap();
+        let first = batch.is_none();
+        batch.get_or_insert_with(Default::default).add(
+            &folder,
+            &zcrypt_core::engines::backup::BackupReport {
+                uploaded: 1,
+                ..Default::default()
+            },
+        );
+        first
+    };
+    if !first {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(WATCH_BATCH_QUIET).await;
+        let summary = WATCH_BATCH.lock().unwrap().take();
+        let (Some(summary), Ok(db)) = (summary, app.state::<EngineState>().db()) else {
+            return;
+        };
+        backup_notify::deliver(
+            &db,
+            &backup_notify::OsSink(app.clone()),
+            &summary,
+            backup_notify::Subject::Folders,
+        );
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -1915,6 +1968,7 @@ pub fn run() {
             backup_run_now,
             backup_get_schedule,
             backup_set_schedule,
+            set_backup_notifications,
             photo_backup_enable,
             photo_backup_disable,
             pick_backup_folder,

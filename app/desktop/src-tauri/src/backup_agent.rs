@@ -15,9 +15,12 @@ use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tokio::sync::{mpsc, watch};
+use zcrypt_core::api::ApiError;
 use zcrypt_core::engines::backup::{self, BackupReport};
 use zcrypt_core::engines::{CancelToken, EngineContext, EngineError};
 use zcrypt_core::localdb::{BackupRoot, LocalDb};
+
+use crate::backup_notify::{OsSink, PassSummary, Subject, deliver};
 
 /// Full pass interval: the safety net for anything a watcher missed.
 pub const RESCAN_EVERY: Duration = Duration::from_secs(10 * 60);
@@ -187,14 +190,18 @@ impl BackupEvent {
     }
 }
 
+pub fn folder_name(path: &str) -> String {
+    PathBuf::from(path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
 pub fn view(db: &LocalDb, root: &BackupRoot) -> BackupFolderView {
     let path = PathBuf::from(&root.local_path);
     BackupFolderView {
         id: root.id.clone(),
-        name: path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default(),
+        name: folder_name(&root.local_path),
         available: path.is_dir(),
         files: db.backup_file_count(&root.id).unwrap_or(0),
         last_scan_at: root.last_scan_at.clone(),
@@ -245,15 +252,28 @@ async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext, control: &PassCont
     let _pass = PASS_LOCK.lock().await;
     let mut ctx = ctx.clone();
     ctx.cancel = control.token();
+    let mut summary = PassSummary::default();
     for root in roots {
         match backup::run_pass(&ctx, &root).await {
             Ok(report) => {
+                let name = folder_name(&root.local_path);
+                summary.add(&name, &report);
                 let _ = app.emit("zcrypt://backup", BackupEvent::of(&root.id, &report));
             }
             Err(EngineError::Cancelled) => return false,
-            Err(e) => eprintln!("zcrypt backup {}: {e}", root.id),
+            Err(EngineError::Api(ApiError::Unauthorized)) => {
+                summary.signed_out = true;
+                break;
+            }
+            Err(e) => {
+                eprintln!("zcrypt backup {}: {e}", root.id);
+                if e.is_transient() {
+                    summary.add_transient_error();
+                }
+            }
         }
     }
+    deliver(&ctx.db, &OsSink(app.clone()), &summary, Subject::Folders);
     true
 }
 

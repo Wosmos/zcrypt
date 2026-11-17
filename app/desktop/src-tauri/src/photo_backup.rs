@@ -17,6 +17,7 @@ use zcrypt_core::engines::{CancelToken, EngineContext, EngineError};
 use zcrypt_core::localdb::{BackupRoot, LocalDb};
 
 use crate::backup_agent::{self, BackupFolderView};
+use crate::backup_notify::{PassSummary, PendingSink, Subject, deliver};
 
 const SESSION_ACCESS: &str = "background.access";
 const SESSION_REFRESH: &str = "background.refresh";
@@ -194,9 +195,11 @@ pub async fn run(
     let ctx = make_ctx(client);
     let _pass = backup_agent::PASS_LOCK.lock().await;
     let mut outcome = RunOutcome::Done;
+    let mut summary = PassSummary::default();
     for root in roots {
         match backup::run_pass(&ctx, &root).await {
             Ok(report) => {
+                summary.add(&backup_agent::folder_name(&root.local_path), &report);
                 if report.all_transient() {
                     eprintln!(
                         "zcrypt photo backup {}: nothing got through, will retry",
@@ -207,15 +210,21 @@ pub async fn run(
             }
             Err(e) if is_signed_out(&e) => {
                 clear_session(db);
+                summary.signed_out = true;
+                deliver(db, &PendingSink, &summary, Subject::Photos);
                 return RunOutcome::Stop;
             }
             Err(EngineError::Cancelled) => return RunOutcome::Retry,
             Err(e) => {
                 eprintln!("zcrypt photo backup {}: {e}", root.id);
+                if e.is_transient() {
+                    summary.add_transient_error();
+                }
                 outcome = RunOutcome::Retry;
             }
         }
     }
+    deliver(db, &PendingSink, &summary, Subject::Photos);
     outcome
 }
 
