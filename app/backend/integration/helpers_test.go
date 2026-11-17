@@ -30,6 +30,7 @@ type testServer struct {
 	*httptest.Server
 	db  *index.DB
 	srv *cmd.Server
+	hub *pipeline.ProgressEmitter
 	t   *testing.T
 }
 
@@ -90,7 +91,7 @@ func setupTestServerWith(t *testing.T, mutate func(*config.Config)) *testServer 
 	ts := httptest.NewServer(buildMux(server))
 	t.Cleanup(ts.Close)
 
-	return &testServer{Server: ts, db: db, srv: server, t: t}
+	return &testServer{Server: ts, db: db, srv: server, hub: progress, t: t}
 }
 
 // enableMockStorage attaches an in-memory storage adapter to the given user so

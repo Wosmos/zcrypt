@@ -223,3 +223,16 @@ func SetSyncChunkMaxDurationForTest(d time.Duration) func() {
 func (s *Server) RunScheduledVerifyOnce(ctx context.Context) {
 	s.runScheduledVerify(ctx, 0, 0)
 }
+
+// SetPushSink replaces web push delivery with fn, so a test can assert which
+// push each user would get without a push service.
+func (s *Server) SetPushSink(fn func(userID, typ string, data map[string]string)) {
+	s.pushSink = func(userID string, msg pushMessage) { fn(userID, msg.Type, msg.Data) }
+}
+
+// SetFilesAddedWindow shortens the filesAdded batching window.
+func (s *Server) SetFilesAddedWindow(d time.Duration) {
+	s.filesAdded.mu.Lock()
+	defer s.filesAdded.mu.Unlock()
+	s.filesAdded.window = d
+}

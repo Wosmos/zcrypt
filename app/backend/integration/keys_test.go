@@ -125,7 +125,7 @@ func TestUserKeyLookup(t *testing.T) {
 		resp.Body.Close()
 	})
 
-	t.Run("lookup of a nonexistent user returns 404 (indistinguishable, anti-enumeration)", func(t *testing.T) {
+	t.Run("lookup of a nonexistent user returns 404 (rate-limited per caller instead of hidden)", func(t *testing.T) {
 		resp := ts.GET("/api/keys/lookup?identifier=ghost@example.com", token)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		resp.Body.Close()

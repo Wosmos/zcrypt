@@ -672,13 +672,13 @@ func TestSharedVaultRoleParity(t *testing.T) {
 	t.Run("an admin can invite viewers and editors but not admins", func(t *testing.T) {
 		id := newSpace("AdminInvites")
 		assert.Equal(t, http.StatusCreated, status(ts.invite(admin, id, "rp-newbie@example.com", "viewer")))
-		assert.Equal(t, http.StatusCreated, status(ts.invite(admin, id, "rp-newbie@example.com", "editor")))
+		assert.Equal(t, http.StatusConflict, status(ts.invite(admin, id, "rp-newbie@example.com", "editor")), "a second invite is refused, roles change through PATCH")
 		assert.Equal(t, http.StatusForbidden, status(ts.invite(admin, id, "rp-newbie@example.com", "admin")))
 	})
 
 	t.Run("an admin cannot demote an admin by re-inviting them", func(t *testing.T) {
 		id := newSpace("NoReinviteDemote")
-		assert.Equal(t, http.StatusForbidden, status(ts.invite(admin, id, "rp-admin2@example.com", "viewer")))
+		assert.Equal(t, http.StatusConflict, status(ts.invite(admin, id, "rp-admin2@example.com", "viewer")))
 		assert.Equal(t, "admin", ts.memberByEmail(owner, id, "rp-admin2@example.com").Role)
 	})
 
