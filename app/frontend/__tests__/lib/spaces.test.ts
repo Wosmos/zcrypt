@@ -20,8 +20,9 @@ vi.mock("@/lib/api", () => ({
   getMyKey: vi.fn(),
   publishKey: vi.fn(),
 }));
-vi.mock("@/lib/download-session", () => ({
-  downloadAndDecryptFile: vi.fn(),
+const startDownload = vi.hoisted(() => vi.fn());
+vi.mock("@/store/download", () => ({
+  useDownloadStore: { getState: () => ({ startDownload }) },
 }));
 
 const tauriMocks = vi.hoisted(() => {
@@ -59,7 +60,6 @@ import {
   getUserPublicKey,
   rotateSpace,
 } from "@/lib/api";
-import { downloadAndDecryptFile } from "@/lib/download-session";
 import {
   createSpace,
   loadSpaceKey,
@@ -270,12 +270,19 @@ describe("downloadSpaceFile", () => {
     const cek = generateCEK();
     const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), cek));
 
-    await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin");
+    await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin", {
+      fileSize: 5_000,
+    });
 
-    expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
-    const [fileId, pass, opts] = vi.mocked(downloadAndDecryptFile).mock.calls[0];
+    // The browser path goes through the download store, so it gets the queue,
+    // progress row, pause/auto-resume and stream-to-disk like any other download.
+    expect(startDownload).toHaveBeenCalledTimes(1);
+    const [fileId, name, size, pass, resolvePassword, opts] = startDownload.mock.calls[0];
     expect(fileId).toBe("file-9");
+    expect(name).toBe("file-9.bin");
+    expect(size).toBe(5_000);
     expect(pass).toBe(""); // no passphrase is used on the space path
+    expect(resolvePassword).toBeUndefined();
 
     // The injected resolveKey must yield the file's CEK from the space envelope.
     const resolved = await opts!.resolveKey!({} as never);
@@ -286,7 +293,7 @@ describe("downloadSpaceFile", () => {
     await expect(
       downloadSpaceFile(vault("locked"), "file-9", "irrelevant", "file-9.bin")
     ).rejects.toThrow("This space's key isn't available");
-    expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+    expect(startDownload).not.toHaveBeenCalled();
   });
 
   describe("on desktop (Tauri)", () => {

@@ -147,6 +147,13 @@ describe("useDownloadStore", () => {
       expect(toast.success).toHaveBeenCalledWith("small.txt downloaded", expect.anything());
     });
 
+    it("passes a space file's key resolver through to the pipeline", async () => {
+      const resolveKey = vi.fn(async () => new ArrayBuffer(32));
+      useDownloadStore.getState().startDownload("f1", "s.txt", 10, "", undefined, { resolveKey });
+      await flush();
+      expect(lastCallOptions().resolveKey).toBe(resolveKey);
+    });
+
     it("passes a persistent resume object and a pausing() callback into the pipeline", async () => {
       useDownloadStore.getState().startDownload("f1", "small.txt", 10, "pw");
       await flush();

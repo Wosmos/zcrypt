@@ -7,6 +7,7 @@ import {
   downloadAndDecryptFile,
   DownloadPausedError,
   type DiskWritable,
+  type DownloadOptions,
   type DownloadResumeState,
 } from "@/lib/download-session";
 import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
@@ -100,6 +101,9 @@ function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: Downl
  */
 export type DownloadPasswordResolver = (fileId: string) => Promise<string> | string;
 
+/** Supplies the file key directly (shared-space files), bypassing passphrases. */
+export type ResolveKey = NonNullable<DownloadOptions["resolveKey"]>;
+
 function protectedFolderOf(fileId: string): string | null {
   const file = getFilesData().find((f) => f.id === fileId);
   const fid = file?.folder_id ?? null;
@@ -132,6 +136,7 @@ interface SingleSession {
   fileSize: number;
   passphrase: string;
   resolvePassword?: DownloadPasswordResolver;
+  resolveKey?: ResolveKey;
   resume: DownloadResumeState;
   abort: AbortController;
   runToken: symbol;
@@ -180,6 +185,7 @@ interface DownloadStore {
     fileSize: number,
     passphrase: string,
     resolvePassword?: DownloadPasswordResolver,
+    options?: { resolveKey?: ResolveKey },
   ) => void;
   /** Desktop-only: download through the in-process Rust core. The core streams
    *  chunks straight to a native-picked path on disk (bounded memory) and pulls
@@ -279,6 +285,7 @@ function runSingleDownload(id: string): Promise<void> {
         },
         signal: abort.signal,
         resolvePassword: session.resolvePassword ?? resolveFilePasswordGlobal,
+        resolveKey: session.resolveKey,
         resume: session.resume,
         pausing: () => pausedIds.has(id),
       });
@@ -343,7 +350,7 @@ function runSingleDownload(id: string): Promise<void> {
 export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
 
-  startDownload: (fileId, filename, fileSize, passphrase, resolvePassword) => {
+  startDownload: (fileId, filename, fileSize, passphrase, resolvePassword, options) => {
     const alreadyActive = get().queue.some(
       (i) =>
         i.fileId === fileId &&
@@ -418,6 +425,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         fileSize,
         passphrase,
         resolvePassword,
+        resolveKey: options?.resolveKey,
         resume,
         abort: new AbortController(),
         runToken: Symbol("dlRun"),

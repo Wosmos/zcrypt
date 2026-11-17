@@ -273,6 +273,13 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("refuses a file of 1 GB or more with no disk writable even when the caller's size was unknown", async () => {
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, "x", { original_size: 1024 ** 3 }));
+
+    await expect(downloadAndDecryptFile("f1", "pw")).rejects.toThrow(/Too large to download in this browser/);
+    expect(getFileChunk).not.toHaveBeenCalled();
+  });
+
   it("wraps a worker decrypt failure as a wrong-passphrase error", async () => {
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "irrelevant"));
     getFileChunk.mockResolvedValueOnce({ data: chunkBytes(0).buffer, sha256: "", compressed: false });

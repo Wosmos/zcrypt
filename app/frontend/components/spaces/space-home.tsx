@@ -162,7 +162,9 @@ export function SpaceHome() {
           if (!row) continue;
           setDownloading((prev) => new Set(prev).add(fid));
           try {
-            await downloadSpaceFile(detail, fid, row.wrappedCek, row.name);
+            await downloadSpaceFile(detail, fid, row.wrappedCek, row.name, {
+              fileSize: row.size ?? 0,
+            });
           } catch (err) {
             toast.error(
               `${midTrunc(row.name, 24, 8)}: ${err instanceof Error ? err.message : t("home.downloadFailed")}`,

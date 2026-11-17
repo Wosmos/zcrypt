@@ -33,7 +33,8 @@ import {
   unwrapKey,
   toArrayBuffer,
 } from "@/lib/crypto";
-import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
+import type { DownloadOptions } from "@/lib/download-session";
+import { useDownloadStore } from "@/store/download";
 import { isTauri, sidecarDownloadSpace, pickSaveLocation, subscribeProgress } from "@/lib/tauri";
 import { ApiError } from "@/lib/http-error";
 import { useKeysStore } from "@/store/keys";
@@ -333,13 +334,15 @@ export async function unshareFileFromSpace(vaultId: string, fileId: string): Pro
 /** Download + decrypt a file from a space, using the space-wrapped CEK (from the
  *  vault detail) rather than the vault passphrase: works for owner and members
  *  alike. Desktop routes through the in-process core (byos-direct bytes, native
- *  save dialog); the browser path is unchanged. */
+ *  save dialog). The browser hands the file to the download store, so it gets the
+ *  same queue, progress row, pause, auto-resume and stream-to-disk as any other
+ *  download. `fileSize` (0 when unknown) picks stream-to-disk at 1 GB. */
 export async function downloadSpaceFile(
   vault: SharedVault,
   fileId: string,
   spaceWrappedCek: string,
   filename: string,
-  options?: DownloadOptions,
+  options?: DownloadOptions & { fileSize?: number },
 ): Promise<void> {
   const keyBytes = await spaceFileKey(vault, spaceWrappedCek);
 
@@ -365,7 +368,11 @@ export async function downloadSpaceFile(
     return;
   }
 
-  await downloadAndDecryptFile(fileId, "", { ...options, resolveKey: async () => keyBytes });
+  useDownloadStore
+    .getState()
+    .startDownload(fileId, filename, options?.fileSize ?? 0, "", undefined, {
+      resolveKey: async () => keyBytes,
+    });
 }
 
 /** Rotate a space's key so a removed member loses access for good. Generates a

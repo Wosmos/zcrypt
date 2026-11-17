@@ -29,6 +29,7 @@ import { OrderedWriter } from "@/lib/ordered-writer";
 import { retryTransient } from "@/lib/retry";
 import { decryptChunkInPool } from "@/lib/decrypt-chunk";
 import { saveBlob } from "@/lib/utils";
+import { STREAM_TO_DISK_MIN_BYTES } from "@/lib/disk-save";
 import type { DownloadPasswordResolver } from "@/store/download";
 
 /** The subset of FileSystemWritableFileStream we use, structural so this module
@@ -180,6 +181,12 @@ export async function downloadAndDecryptFile(
   });
   const meta = resume.meta ?? (await getFileMeta(fileId));
   resume.meta = meta;
+
+  // The size the caller passed can be unknown (a shared-space row carries none);
+  // the real one stops a file too big for tab memory from being assembled there.
+  if (!saveToDisk && meta.original_size >= STREAM_TO_DISK_MIN_BYTES) {
+    throw new Error("Too large to download in this browser");
+  }
 
   if (signal?.aborted) throw stopError();
 
