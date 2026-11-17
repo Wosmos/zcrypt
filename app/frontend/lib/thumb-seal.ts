@@ -50,7 +50,13 @@ export function dataUrlToBytes(dataUrl: string): Uint8Array {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
-export function bytesToDataUrl(bytes: Uint8Array, mime = "image/webp"): string {
+function sniffMime(bytes: Uint8Array): string {
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e) return "image/png";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
+  return "image/webp";
+}
+
+export function bytesToDataUrl(bytes: Uint8Array, mime = sniffMime(bytes)): string {
   let s = "";
   for (let i = 0; i < bytes.length; i += 0x8000)
     s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

@@ -110,10 +110,19 @@ describe("server-thumbs", () => {
     expect(await openThumb(key, sealed)).toEqual(new Uint8Array([1, 2, 3]));
   });
 
-  it("stores nothing that isn't a WebP preview, too large, or refused", async () => {
+  it("stores a PNG or JPEG preview from a browser that cannot encode WebP", async () => {
     const mod = await load();
     m.getFileMeta.mockResolvedValue(meta("a"));
-    expect(await mod.publishThumb("a", null, "data:image/png;base64,AQID", "pw")).toBe(false);
+    m.putFileThumb.mockResolvedValue(undefined);
+    expect(await mod.publishThumb("a", null, "data:image/png;base64,AQID", "pw")).toBe(true);
+    expect(await mod.publishThumb("a", null, "data:image/jpeg;base64,AQID", "pw")).toBe(true);
+    expect(m.putFileThumb).toHaveBeenCalledTimes(2);
+  });
+
+  it("stores nothing that isn't an image preview, too large, or refused", async () => {
+    const mod = await load();
+    m.getFileMeta.mockResolvedValue(meta("a"));
+    expect(await mod.publishThumb("a", null, "data:image/gif;base64,AQID", "pw")).toBe(false);
     const big = `data:image/webp;base64,${btoa("x".repeat(70_000))}`;
     expect(await mod.publishThumb("a", null, big, "pw")).toBe(false);
     m.putFileThumb.mockRejectedValueOnce(Object.assign(new Error("forbidden"), { status: 403 }));

@@ -256,7 +256,7 @@ function FileCardInner({
               />
             )}
           </div>
-          {unavailable && !thumbnailUrl && (
+          {unavailable && !thumbnailUrl && file.health !== "damaged" && (
             <button
               type="button"
               onClick={(e) => {

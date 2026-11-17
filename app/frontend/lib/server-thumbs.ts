@@ -17,6 +17,7 @@ import { cachedResolveCEK } from "@/lib/decrypt-cache";
 import { bytesToDataUrl, dataUrlToBytes, openThumb, sealThumb } from "@/lib/thumb-seal";
 
 const BATCH_WAIT_MS = 30;
+const PUBLISHABLE = /^data:image\/(webp|png|jpeg);/;
 const BATCH_MAX = 200;
 
 interface Found {
@@ -103,7 +104,7 @@ export async function publishThumb(
   dataUrl: string,
   password: string,
 ): Promise<boolean> {
-  if (unsupported || !dataUrl.startsWith("data:image/webp")) return false;
+  if (unsupported || !PUBLISHABLE.test(dataUrl)) return false;
   try {
     const meta = await getFileMeta(fileId);
     const key = await fileKey(meta, folderId, password);
