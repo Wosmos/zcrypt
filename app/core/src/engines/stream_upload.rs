@@ -347,8 +347,14 @@ pub async fn run_sealed(
         // Acquire BEFORE reading so at most `conc` chunks' bytes are ever
         // resident. This is the RAM window. Reads are serialized (one at a
         // time, here in the loop); encrypt+upload run concurrently in tasks.
-        let permit = sem.clone().acquire_owned().await.expect("semaphore");
-        let slot = window.clone().acquire_owned().await.expect("semaphore");
+        let Some(permit) = acquire_or_cancel(&sem, &ctx.cancel).await else {
+            set_err(&first_err, EngineError::Cancelled);
+            break;
+        };
+        let Some(slot) = acquire_or_cancel(&window, &ctx.cancel).await else {
+            set_err(&first_err, EngineError::Cancelled);
+            break;
+        };
         let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
         f.seek(std::io::SeekFrom::Start((idx * chunk_size) as u64))
             .await?;
@@ -385,7 +391,7 @@ pub async fn run_sealed(
             enc_total.fetch_add(processed.encrypted.len() as i64, Ordering::Relaxed);
             comp_total.fetch_add(processed.compressed_size as i64, Ordering::Relaxed);
 
-            match upload_one_retrying(
+            match upload_one(
                 &ctx,
                 &session_id,
                 idx,
@@ -414,11 +420,30 @@ pub async fn run_sealed(
         });
     }
     cek.zeroize();
-    while join.join_next().await.is_some() {}
-    if let Some(e) = first_err.lock().unwrap().take() {
+    loop {
+        tokio::select! {
+            joined = join.join_next() => {
+                if joined.is_none() {
+                    break;
+                }
+            }
+            _ = ctx.cancel.cancelled() => {
+                join.abort_all();
+                while join.join_next().await.is_some() {}
+                set_err(&first_err, EngineError::Cancelled);
+                break;
+            }
+        }
+    }
+    if ctx.cancel.is_cancelled() {
+        set_err(&first_err, EngineError::Cancelled);
+    }
+    let failure = first_err.lock().unwrap().take();
+    if let Some(e) = failure {
         // A user-requested cancel is not a failure. Return quietly without the
         // alarming FAILED diagnostics line below.
         if matches!(e, EngineError::Cancelled) {
+            let _ = ctx.client.cancel_upload(&session_id).await;
             eprintln!(
                 "zcrypt stream upload {file_name}: cancelled at {}/{chunk_count} chunks",
                 done.load(Ordering::SeqCst)
@@ -444,6 +469,10 @@ pub async fn run_sealed(
         return Err(e);
     }
 
+    if ctx.cancel.is_cancelled() {
+        let _ = ctx.client.cancel_upload(&session_id).await;
+        return Err(EngineError::Cancelled);
+    }
     stamp.ensure_unchanged(file_path).await?;
     ctx.client
         .complete_upload(
@@ -465,46 +494,24 @@ pub async fn run_sealed(
     Ok(backend_id)
 }
 
-/// `upload_one` with bounded retry: a single transient blip (dropped
-/// connection, 5xx, timeout) on ONE chunk must not kill a multi-minute upload.
-/// The browser pipeline retried every chunk; so does the download path. Safe to
-/// retry: the backend dedups by chunk index (a re-sent chunk returns
-/// `duplicate:true`), so a partially-succeeded chunk isn't double-counted.
-/// "upload session is not active" is terminal for this session (retrying the
-/// same dead session is pointless): surfaced immediately so the caller can
-/// re-init/resume instead.
-async fn upload_one_retrying(
-    ctx: &EngineContext,
-    session_id: &str,
-    idx: i64,
-    p: &ProcessedChunk,
-    direct: bool,
-    repo: Option<&RepoInfo>,
-    platform: &str,
-) -> Result<(), EngineError> {
-    let mut last: Option<EngineError> = None;
-    for attempt in 0..4u32 {
-        // A cancel while a chunk is mid-retry should abort now, not burn the
-        // remaining backoff attempts against a transfer the user has stopped.
-        if ctx.cancel.is_cancelled() {
-            return Err(EngineError::Cancelled);
-        }
-        match upload_one(ctx, session_id, idx, p, direct, repo, platform).await {
-            Ok(()) => return Ok(()),
-            Err(e) if e.to_string().contains("upload session is not active") => return Err(e),
-            Err(e) => last = Some(e),
-        }
-        if attempt < 3 {
-            tokio::time::sleep(std::time::Duration::from_millis(500 << attempt)).await;
-        }
+async fn acquire_or_cancel(
+    sem: &Arc<tokio::sync::Semaphore>,
+    cancel: &super::CancelToken,
+) -> Option<tokio::sync::OwnedSemaphorePermit> {
+    tokio::select! {
+        p = sem.clone().acquire_owned() => Some(p.expect("semaphore")),
+        _ = cancel.cancelled() => None,
     }
-    Err(last.unwrap_or_else(|| EngineError::Other(format!("chunk {idx}: no upload attempts"))))
 }
 
 /// Fire ONE already-encrypted chunk (bytes in RAM) at its destination. Three
 /// planes, same as `sync::push_chunk*` but byte-based (no staging file): byos
 /// (user's own token, direct to platform), presigned direct (HuggingFace LFS),
-/// or relay (server stages + forwards).
+/// or relay (server stages + forwards). Each stage retries only transient
+/// failures (a single blip on ONE chunk must not kill a multi-minute upload)
+/// and is raced against cancel. Retrying a stage is safe: the backend dedups by
+/// chunk index, and a confirm retry reuses the bytes already pushed instead of
+/// pushing them again.
 async fn upload_one(
     ctx: &EngineContext,
     session_id: &str,
@@ -527,74 +534,87 @@ async fn upload_one(
             compressed: p.compressed,
             ..ChunkRef::default()
         };
-        let uploaded = adapter
-            .upload(
-                &repo.url,
-                Chunk {
-                    r#ref: cref,
-                    data: p.encrypted.clone(),
-                },
-            )
-            .await
-            .map_err(|e| EngineError::Other(format!("upload chunk {idx}: {e}")))?;
-        ctx.client
-            .confirm_chunk(
-                session_id,
-                idx,
-                &ConfirmChunkRequest {
-                    sha256: p.sha256.clone(),
-                    size: p.encrypted.len() as i64,
-                    remote_path: uploaded.remote_path,
-                    compressed: p.compressed,
-                    platform: platform.to_string(),
-                    account: creds.account,
-                    repo_id: repo.id.clone(),
-                    committed: true,
-                },
-            )
-            .await?;
-        Ok(())
+        let uploaded = super::retry_transient(&ctx.cancel, 4, || async {
+            adapter
+                .upload(
+                    &repo.url,
+                    Chunk {
+                        r#ref: cref.clone(),
+                        data: p.encrypted.clone(),
+                    },
+                )
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
+        super::confirm_chunk(
+            ctx,
+            session_id,
+            idx,
+            &ConfirmChunkRequest {
+                sha256: p.sha256.clone(),
+                size: p.encrypted.len() as i64,
+                remote_path: uploaded.remote_path.clone(),
+                compressed: p.compressed,
+                platform: platform.to_string(),
+                account: creds.account,
+                repo_id: repo.id.clone(),
+                committed: true,
+            },
+            Some((adapter.as_ref(), &uploaded)),
+        )
+        .await
     } else if direct {
         // HuggingFace LFS presigned: presign -> external PUT -> confirm.
-        let presign = ctx
-            .client
-            .presign_chunk(session_id, idx, &p.sha256, p.encrypted.len() as i64)
-            .await?;
-        if !presign.already_exists {
+        let presign = super::retry_transient(&ctx.cancel, 4, || async {
             ctx.client
-                .direct_upload_to_url(
-                    &presign.upload_url,
-                    &presign.upload_headers,
-                    p.encrypted.clone(),
-                )
-                .await?;
-        }
-        ctx.client
-            .confirm_chunk(
-                session_id,
-                idx,
-                &ConfirmChunkRequest {
-                    sha256: p.sha256.clone(),
-                    size: p.encrypted.len() as i64,
-                    remote_path: presign.remote_path,
-                    compressed: p.compressed,
-                    ..Default::default()
-                },
-            )
+                .presign_chunk(session_id, idx, &p.sha256, p.encrypted.len() as i64)
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
+        if !presign.already_exists {
+            super::retry_transient(&ctx.cancel, 4, || async {
+                ctx.client
+                    .direct_upload_to_url(
+                        &presign.upload_url,
+                        &presign.upload_headers,
+                        p.encrypted.clone(),
+                    )
+                    .await
+                    .map_err(EngineError::from)
+            })
             .await?;
-        Ok(())
+        }
+        super::confirm_chunk(
+            ctx,
+            session_id,
+            idx,
+            &ConfirmChunkRequest {
+                sha256: p.sha256.clone(),
+                size: p.encrypted.len() as i64,
+                remote_path: presign.remote_path,
+                compressed: p.compressed,
+                ..Default::default()
+            },
+            None,
+        )
+        .await
     } else {
         // Relay: the server stages + pushes to the platform.
-        ctx.client
-            .upload_chunk(
-                session_id,
-                idx,
-                p.encrypted.clone(),
-                &p.sha256,
-                p.compressed,
-            )
-            .await?;
-        Ok(())
+        super::retry_transient(&ctx.cancel, 4, || async {
+            ctx.client
+                .upload_chunk(
+                    session_id,
+                    idx,
+                    p.encrypted.clone(),
+                    &p.sha256,
+                    p.compressed,
+                )
+                .await
+                .map_err(EngineError::from)
+        })
+        .await
     }
 }
 
@@ -661,5 +681,91 @@ mod tests {
             session_layout(100 * MIB, 10 * MIB, 10, &resumed(16 * MIB, 9)),
             None
         );
+    }
+
+    use crate::testutil::{serve, Reply};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn cancel_mid_chunk_stops_fast_cancels_the_session_and_skips_complete() {
+        let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+        let record = seen.clone();
+        let (base, _) = serve(move |_, req| {
+            record
+                .lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.path));
+            match (req.method.as_str(), req.path.as_str()) {
+                ("POST", "/api/upload/init") => {
+                    Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+                }
+                ("PUT", _) => Reply::Hang,
+                _ => Reply::status(200, "{}"),
+            }
+        })
+        .await;
+
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let cancel = crate::engines::CancelToken::new();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(&base, "t", "r")),
+            db: Arc::new(crate::localdb::LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: cancel.clone(),
+            vault_passphrase: None,
+        };
+        let trip = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(600)).await;
+            trip.cancel();
+        });
+
+        let started = Instant::now();
+        let r = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
+        assert!(started.elapsed() < Duration::from_secs(5));
+
+        let calls = seen.lock().unwrap().clone();
+        assert!(
+            calls.iter().any(|c| c == "DELETE /api/upload/s1"),
+            "{calls:?}"
+        );
+        assert!(!calls.iter().any(|c| c.contains("/complete")), "{calls:?}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn a_403_on_a_relay_chunk_is_sent_once_not_four_times() {
+        let (base, hits) = serve(|_, req| match (req.method.as_str(), req.path.as_str()) {
+            ("POST", "/api/upload/init") => {
+                Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+            }
+            ("PUT", _) => Reply::status(403, "forbidden"),
+            _ => Reply::status(200, "{}"),
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(&base, "t", "r")),
+            db: Arc::new(crate::localdb::LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+        let r = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(r.is_err());
+        // init + one PUT + the session cancel is not sent on a plain failure
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

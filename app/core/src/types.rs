@@ -32,7 +32,7 @@ pub struct ChunkRef {
 #[derive(Debug, Clone)]
 pub struct Chunk {
     pub r#ref: ChunkRef,
-    pub data: Vec<u8>,
+    pub data: bytes::Bytes,
 }
 
 /// A repository in the pool.

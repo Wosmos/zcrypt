@@ -38,12 +38,115 @@ pub enum EngineError {
     Crypto(#[from] crate::crypto::CryptoError),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("platform: {0}")]
+    Adapter(#[from] crate::adapters::AdapterError),
     #[error("integrity: {0}")]
     Integrity(String),
     #[error("cancelled")]
     Cancelled,
     #[error("{0}")]
     Other(String),
+}
+
+impl EngineError {
+    /// Whether retrying the same operation can succeed: transient network and
+    /// server failures only. Auth, 403/413 and other client errors are final.
+    pub fn is_transient(&self) -> bool {
+        match self {
+            EngineError::Api(e) => e.is_transient(),
+            EngineError::Adapter(e) => e.is_transient(),
+            _ => false,
+        }
+    }
+
+    pub fn retry_after_secs(&self) -> Option<u64> {
+        match self {
+            EngineError::Api(e) => e.retry_after_secs(),
+            EngineError::Adapter(e) => e.retry_after_secs(),
+            _ => None,
+        }
+    }
+}
+
+/// Runs `op` up to `attempts` times, retrying only transient failures with
+/// jittered backoff that honors `Retry-After`. A cancel drops the in-flight
+/// attempt (aborting its request) or the backoff sleep and returns
+/// [`EngineError::Cancelled`] at once.
+pub(crate) async fn retry_transient<T, F, Fut>(
+    cancel: &CancelToken,
+    attempts: u32,
+    mut op: F,
+) -> Result<T, EngineError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, EngineError>>,
+{
+    let mut n = 0;
+    loop {
+        if cancel.is_cancelled() {
+            return Err(EngineError::Cancelled);
+        }
+        let result = tokio::select! {
+            r = op() => r,
+            _ = cancel.cancelled() => return Err(EngineError::Cancelled),
+        };
+        let e = match result {
+            Ok(v) => return Ok(v),
+            Err(e) => e,
+        };
+        n += 1;
+        if n >= attempts || !e.is_transient() {
+            return Err(e);
+        }
+        let delay = crate::transport::honor_retry_after(
+            crate::transport::backoff(n - 1, 500, 8_000),
+            e.retry_after_secs(),
+        );
+        tokio::select! {
+            _ = tokio::time::sleep(delay) => {}
+            _ = cancel.cancelled() => return Err(EngineError::Cancelled),
+        }
+    }
+}
+
+/// Races `fut` against cancel; dropping `fut` aborts any request it holds.
+pub(crate) async fn or_cancel<T>(
+    cancel: &CancelToken,
+    fut: impl std::future::Future<Output = T>,
+) -> Result<T, EngineError> {
+    tokio::select! {
+        r = fut => Ok(r),
+        _ = cancel.cancelled() => Err(EngineError::Cancelled),
+    }
+}
+
+/// Confirms a pushed chunk with the backend, retrying transient failures. When
+/// the backend definitively rejects it, the ciphertext just pushed to the
+/// user's own storage (`orphan`) is removed best-effort instead of left behind.
+/// A transient failure leaves it, since the backend may have recorded it.
+pub(crate) async fn confirm_chunk(
+    ctx: &EngineContext,
+    session_id: &str,
+    idx: i64,
+    req: &crate::api::types::ConfirmChunkRequest,
+    orphan: Option<(
+        &dyn crate::adapters::PlatformAdapter,
+        &crate::types::ChunkRef,
+    )>,
+) -> Result<(), EngineError> {
+    let result = retry_transient(&ctx.cancel, 4, || async {
+        ctx.client
+            .confirm_chunk(session_id, idx, req)
+            .await
+            .map_err(EngineError::from)
+    })
+    .await;
+    if let (Err(e), Some((adapter, uploaded))) = (&result, orphan) {
+        if !e.is_transient() && !matches!(e, EngineError::Cancelled) {
+            let _ = adapter.delete(uploaded).await;
+        }
+    }
+    result
 }
 
 /// Cooperative cancellation for one foreground transfer. Cheap to clone (a
@@ -54,7 +157,13 @@ pub enum EngineError {
 /// error or finish. Default = never cancelled, tests and background/internal
 /// calls that don't wire a token behave exactly as before.
 #[derive(Clone, Default)]
-pub struct CancelToken(Arc<std::sync::atomic::AtomicBool>);
+pub struct CancelToken(Arc<CancelState>);
+
+#[derive(Default)]
+struct CancelState {
+    flag: std::sync::atomic::AtomicBool,
+    notify: tokio::sync::Notify,
+}
 
 impl CancelToken {
     pub fn new() -> Self {
@@ -62,10 +171,23 @@ impl CancelToken {
     }
     /// Request cancellation; idempotent and thread-safe.
     pub fn cancel(&self) {
-        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.0.flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.0.notify.notify_waiters();
     }
     pub fn is_cancelled(&self) -> bool {
-        self.0.load(std::sync::atomic::Ordering::SeqCst)
+        self.0.flag.load(std::sync::atomic::Ordering::SeqCst)
+    }
+    /// Resolves once cancelled, so in-flight work can be raced against it.
+    pub async fn cancelled(&self) {
+        loop {
+            let notified = self.0.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.is_cancelled() {
+                return;
+            }
+            notified.await;
+        }
     }
 }
 
@@ -357,6 +479,131 @@ pub fn sync_status(db: &LocalDb) -> Result<SyncStats, EngineError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::api::ApiError;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::time::{Duration, Instant};
+
+    fn status(s: u16) -> EngineError {
+        EngineError::Api(ApiError::Status {
+            status: s,
+            body: String::new(),
+        })
+    }
+
+    #[tokio::test]
+    async fn a_403_is_not_retried() {
+        let calls = AtomicU32::new(0);
+        let r: Result<(), _> = retry_transient(&CancelToken::new(), 4, || async {
+            calls.fetch_add(1, Ordering::SeqCst);
+            Err(status(403))
+        })
+        .await;
+        assert!(r.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_413_and_a_401_are_not_retried() {
+        for unauthorized in [false, true] {
+            let calls = AtomicU32::new(0);
+            let r: Result<(), _> = retry_transient(&CancelToken::new(), 4, || {
+                calls.fetch_add(1, Ordering::SeqCst);
+                async move {
+                    Err(if unauthorized {
+                        EngineError::Api(ApiError::Unauthorized)
+                    } else {
+                        status(413)
+                    })
+                }
+            })
+            .await;
+            assert!(r.is_err());
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_transient_failure_is_retried_until_it_succeeds() {
+        let calls = AtomicU32::new(0);
+        let r = retry_transient(&CancelToken::new(), 4, || async {
+            if calls.fetch_add(1, Ordering::SeqCst) < 2 {
+                Err(status(503))
+            } else {
+                Ok(7)
+            }
+        })
+        .await;
+        assert_eq!(r.unwrap(), 7);
+        assert_eq!(calls.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn retry_after_is_honored_between_attempts() {
+        let calls = AtomicU32::new(0);
+        let started = Instant::now();
+        let r = retry_transient(&CancelToken::new(), 3, || async {
+            if calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                Err(EngineError::Api(ApiError::RateLimited {
+                    retry_after_secs: Some(1),
+                    body: String::new(),
+                }))
+            } else {
+                Ok(())
+            }
+        })
+        .await;
+        assert!(r.is_ok());
+        assert!(started.elapsed() >= Duration::from_secs(1));
+    }
+
+    #[tokio::test]
+    async fn cancel_during_the_backoff_sleep_stops_at_once() {
+        let cancel = CancelToken::new();
+        let trip = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(60)).await;
+            trip.cancel();
+        });
+        let started = Instant::now();
+        let r: Result<(), _> = retry_transient(&cancel, 4, || async { Err(status(503)) }).await;
+        assert!(matches!(r, Err(EngineError::Cancelled)));
+        assert!(started.elapsed() < Duration::from_millis(220));
+    }
+
+    #[tokio::test]
+    async fn cancel_aborts_an_attempt_that_is_in_flight() {
+        let cancel = CancelToken::new();
+        let trip = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(60)).await;
+            trip.cancel();
+        });
+        let started = Instant::now();
+        let r: Result<(), _> = retry_transient(&cancel, 4, || async {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            Ok(())
+        })
+        .await;
+        assert!(matches!(r, Err(EngineError::Cancelled)));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[tokio::test]
+    async fn cancelled_resolves_for_a_token_cancelled_before_and_after_waiting() {
+        let t = CancelToken::new();
+        t.cancel();
+        t.cancelled().await;
+        let t = CancelToken::new();
+        let trip = t.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            trip.cancel();
+        });
+        tokio::time::timeout(Duration::from_secs(2), t.cancelled())
+            .await
+            .unwrap();
+    }
+
     use super::*;
 
     #[test]

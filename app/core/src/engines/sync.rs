@@ -16,7 +16,7 @@ use crate::localdb::{LocalChunk, LocalFile};
 use crate::reppool::{self, RepoStore};
 use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage, SyncStatus, UploadMode};
 
-use super::{EngineContext, EngineError};
+use super::{retry_transient, EngineContext, EngineError};
 
 /// File ids currently being synced. Guards against the 1s `sync_once` loop and
 /// an explicit `sync_file_by_id` call (from `upload()`, right after a file is
@@ -91,10 +91,25 @@ pub async fn sync_once(ctx: &EngineContext) {
                 let _ = ctx.db.reset_file_for_retry(&file_id);
                 eprintln!("sync: {file_id} lost its session to a concurrent pass, retrying fresh");
             } else {
+                record_failure(ctx, &file_id, &e);
                 eprintln!("sync: {e}");
             }
         }
         drop(guard);
+    }
+}
+
+/// A failed pass that left the row in an in-flight state (the failure came
+/// before any ledger error was written) would be retried every tick forever.
+/// Put it on the ledger's backoff schedule instead, which ends in 'failed'.
+fn record_failure(ctx: &EngineContext, file_id: &str, e: &EngineError) {
+    let Ok(Some(row)) = ctx.db.get_file_by_id(file_id) else {
+        return;
+    };
+    let errored = row.sync_status == SyncStatus::Error.as_str()
+        || row.sync_status == SyncStatus::Failed.as_str();
+    if !errored {
+        let _ = ctx.db.update_file_sync_error(file_id, &e.to_string());
     }
 }
 
@@ -471,44 +486,60 @@ async fn push_chunk(
     f: &LocalFile,
     chunk: &LocalChunk,
 ) -> Result<(), EngineError> {
-    let data = tokio::fs::read(&chunk.staging_path).await?;
+    let data = bytes::Bytes::from(tokio::fs::read(&chunk.staging_path).await?);
 
     let remote_path = if f.direct_upload {
         // Presigned direct path (HuggingFace LFS): presign → external PUT → confirm.
-        let presign = ctx
-            .client
-            .presign_chunk(&f.session_id, chunk.idx, &chunk.sha256, data.len() as i64)
-            .await?;
-        if !presign.already_exists {
+        let presign = retry_transient(&ctx.cancel, 4, || async {
             ctx.client
-                .direct_upload_to_url(&presign.upload_url, &presign.upload_headers, data)
-                .await?;
-        }
-        ctx.client
-            .confirm_chunk(
-                &f.session_id,
-                chunk.idx,
-                &ConfirmChunkRequest {
-                    sha256: chunk.sha256.clone(),
-                    size: chunk.encrypted_size,
-                    remote_path: presign.remote_path.clone(),
-                    compressed: chunk.compressed,
-                    ..Default::default()
-                },
-            )
+                .presign_chunk(&f.session_id, chunk.idx, &chunk.sha256, data.len() as i64)
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
+        if !presign.already_exists {
+            retry_transient(&ctx.cancel, 4, || async {
+                ctx.client
+                    .direct_upload_to_url(
+                        &presign.upload_url,
+                        &presign.upload_headers,
+                        data.clone(),
+                    )
+                    .await
+                    .map_err(EngineError::from)
+            })
             .await?;
+        }
+        super::confirm_chunk(
+            ctx,
+            &f.session_id,
+            chunk.idx,
+            &ConfirmChunkRequest {
+                sha256: chunk.sha256.clone(),
+                size: chunk.encrypted_size,
+                remote_path: presign.remote_path.clone(),
+                compressed: chunk.compressed,
+                ..Default::default()
+            },
+            None,
+        )
+        .await?;
         presign.remote_path
     } else {
         // Relay path: the server stages + pushes to the platform.
-        ctx.client
-            .upload_chunk(
-                &f.session_id,
-                chunk.idx,
-                data,
-                &chunk.sha256,
-                chunk.compressed,
-            )
-            .await?;
+        retry_transient(&ctx.cancel, 4, || async {
+            ctx.client
+                .upload_chunk(
+                    &f.session_id,
+                    chunk.idx,
+                    data.clone(),
+                    &chunk.sha256,
+                    chunk.compressed,
+                )
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
         String::new()
     };
 
@@ -563,7 +594,7 @@ async fn push_chunk_byos_with_repo(
     let adapter = adapters::shared_adapter(&f.platform, &creds.token, &creds.account)
         .ok_or_else(|| EngineError::Other(format!("no adapter for {}", f.platform)))?;
 
-    let data = tokio::fs::read(&chunk.staging_path).await?;
+    let data = bytes::Bytes::from(tokio::fs::read(&chunk.staging_path).await?);
     let cref = ChunkRef {
         platform: f.platform.clone(),
         account: creds.account.clone(),
@@ -572,60 +603,42 @@ async fn push_chunk_byos_with_repo(
         compressed: chunk.compressed,
         ..ChunkRef::default()
     };
-    // Push to the user's OWN platform, retrying a transient failure a couple of
-    // times before giving up. Mirrors the download direct-path's 2-attempt
-    // resilience, a blip reaching e.g. Telegram shouldn't fail the chunk on the
-    // first try. The sync loop already retries the whole file on a later pass, so
-    // this only tightens the retry loop; it adds no new at-least-once risk.
-    // NOTE: this is intra-plane (byos) resilience only. A true byos-direct ->
-    // relay fallback needs a BACKEND change first: a byos-direct session has no
+    // Push to the user's OWN platform, retrying transient failures only. NOTE:
+    // this is intra-plane (byos) resilience only. A true byos-direct -> relay
+    // fallback needs a BACKEND change first: a byos-direct session has no
     // server repo (RepoURL empty) and uses the user's personal token, so the
     // relay HandleChunkUpload path can't currently complete its chunks.
-    let mut uploaded = None;
-    let mut last_err: Option<EngineError> = None;
-    for n in 0..2u32 {
-        let obj = Chunk {
-            r#ref: cref.clone(),
-            data: data.clone(),
-        };
-        match adapter.upload(&repo.url, obj).await {
-            Ok(u) => {
-                uploaded = Some(u);
-                break;
-            }
-            Err(e) => {
-                last_err = Some(EngineError::Other(format!(
-                    "upload chunk {}: {e}",
-                    chunk.idx
-                )))
-            }
-        }
-        if n + 1 < 2 {
-            tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
-        }
-    }
-    let uploaded = uploaded.ok_or_else(|| {
-        last_err.unwrap_or_else(|| {
-            EngineError::Other(format!("upload chunk {}: no attempts", chunk.idx))
-        })
-    })?;
+    let uploaded = retry_transient(&ctx.cancel, 4, || async {
+        adapter
+            .upload(
+                &repo.url,
+                Chunk {
+                    r#ref: cref.clone(),
+                    data: data.clone(),
+                },
+            )
+            .await
+            .map_err(EngineError::from)
+    })
+    .await?;
 
-    ctx.client
-        .confirm_chunk(
-            &f.session_id,
-            chunk.idx,
-            &ConfirmChunkRequest {
-                sha256: chunk.sha256.clone(),
-                size: chunk.encrypted_size,
-                remote_path: uploaded.remote_path.clone(),
-                compressed: chunk.compressed,
-                platform: f.platform.clone(),
-                account: creds.account.clone(),
-                repo_id: repo.id.clone(),
-                committed: true,
-            },
-        )
-        .await?;
+    super::confirm_chunk(
+        ctx,
+        &f.session_id,
+        chunk.idx,
+        &ConfirmChunkRequest {
+            sha256: chunk.sha256.clone(),
+            size: chunk.encrypted_size,
+            remote_path: uploaded.remote_path.clone(),
+            compressed: chunk.compressed,
+            platform: f.platform.clone(),
+            account: creds.account.clone(),
+            repo_id: repo.id.clone(),
+            committed: true,
+        },
+        Some((adapter.as_ref(), &uploaded)),
+    )
+    .await?;
 
     ctx.db
         .update_chunk_synced(&chunk.id, &uploaded.remote_path)?;
@@ -704,6 +717,68 @@ mod identity_tests {
         };
         let err = init_remote_session(&ctx, &legacy, None).await.unwrap_err();
         assert!(err.to_string().contains("not sealed"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn token_for(sub: &str) -> String {
+        use base64::Engine as _;
+        let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        format!(
+            "{}.{}.sig",
+            b.encode("{}"),
+            b.encode(format!(r#"{{"sub":"{sub}"}}"#))
+        )
+    }
+
+    #[tokio::test]
+    async fn a_pass_that_fails_before_any_chunk_goes_on_the_backoff_schedule() {
+        let dir = std::env::temp_dir().join(format!("zcrypt-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = Arc::new(LocalDb::open_at(&dir.join("db.sqlite")).unwrap());
+        db.insert_file(&LocalFile {
+            id: "f1".into(),
+            original_name: "a".into(),
+            salt: vec![1; 32],
+            chunk_count: 1,
+            user_id: "u1".into(),
+            mode: UploadMode::ByosDirect.as_str().into(),
+            platform: "telegram".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        db.update_file_sync_state(
+            "f1",
+            SyncStatus::Uploading.as_str(),
+            "s1",
+            "b1",
+            "telegram",
+            "",
+            false,
+        )
+        .unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(
+                "http://127.0.0.1:0",
+                &token_for("u1"),
+                "r",
+            )),
+            db: db.clone(),
+            profile: profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+
+        sync_once(&ctx).await;
+        let row = db.get_file_by_id("f1").unwrap().unwrap();
+        assert_eq!(row.sync_status, SyncStatus::Error.as_str());
+        assert!(!row.error_msg.is_empty());
+
+        sync_once(&ctx).await;
+        let again = db.get_file_by_id("f1").unwrap().unwrap();
+        assert_eq!(again.sync_status, SyncStatus::Error.as_str());
+        assert_eq!(db.get_pending_files("u1").unwrap().len(), 0);
         let _ = std::fs::remove_dir_all(dir);
     }
 }

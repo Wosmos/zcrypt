@@ -13,11 +13,13 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
 use crate::adapters::{AdapterError, PlatformAdapter};
 use crate::disguise;
+use crate::transport::{backoff, honor_retry_after, upload_client, Idle, IDLE_TIMEOUT};
 use crate::types::{Chunk, ChunkRef, Platform};
 
 const API_BASE: &str = "https://api.telegram.org";
@@ -27,18 +29,17 @@ const API_BASE: &str = "https://api.telegram.org";
 const MAX_PART_SIZE: usize = 19 * 1024 * 1024;
 
 const MAX_RETRIES: u32 = 3;
-const RETRY_BASE: Duration = Duration::from_secs(2);
 
 const PLATFORM: &str = Platform::Telegram.as_str();
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+const CONTROL_TIMEOUT: Duration = crate::transport::CONTROL_TIMEOUT;
 /// Short on purpose, and downloads only: when api.telegram.org is filtered on
 /// this network the caller falls back to the server relay, and every second
 /// spent here is a second the user stares at a spinner. Uploads keep the long
 /// connect timeout so slow mobile networks still get through.
 const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const GET_FILE_TIMEOUT: Duration = Duration::from_secs(10);
-const PART_DEADLINE_BASE: Duration = Duration::from_secs(20);
 const FILE_PATH_TTL: Duration = Duration::from_secs(50 * 60);
 const FILE_PATH_CACHE_CAP: usize = 4096;
 
@@ -51,18 +52,25 @@ pub struct Telegram {
     chat_id: String,
     api_base: String,
     client: reqwest::Client,
+    up_client: reqwest::Client,
     dl_client: reqwest::Client,
+    idle: Duration,
     file_paths: FilePathCache,
 }
 
 impl Telegram {
     pub fn new(token: &str, account: &str) -> Self {
-        // No overall request timeout: uploads can be large (matches the
-        // timeout-less Go upload client).
-        let build = |connect: Duration| {
-            reqwest::Client::builder()
-                .connect_timeout(connect)
-                .pool_idle_timeout(Duration::from_secs(90))
+        Self::with_endpoint(token, account, API_BASE, IDLE_TIMEOUT)
+    }
+
+    pub(crate) fn with_endpoint(
+        token: &str,
+        account: &str,
+        api_base: &str,
+        idle: Duration,
+    ) -> Self {
+        let pooled = |b: reqwest::ClientBuilder| {
+            b.pool_idle_timeout(Duration::from_secs(90))
                 .pool_max_idle_per_host(4)
                 .build()
                 .expect("build reqwest client")
@@ -70,9 +78,19 @@ impl Telegram {
         Self {
             token: token.trim().to_string(),
             chat_id: account.trim().to_string(),
-            api_base: API_BASE.to_string(),
-            client: build(CONNECT_TIMEOUT),
-            dl_client: build(DOWNLOAD_CONNECT_TIMEOUT),
+            api_base: api_base.to_string(),
+            client: pooled(
+                reqwest::Client::builder()
+                    .connect_timeout(CONNECT_TIMEOUT)
+                    .timeout(CONTROL_TIMEOUT),
+            ),
+            up_client: pooled(upload_client().connect_timeout(CONNECT_TIMEOUT)),
+            dl_client: pooled(
+                reqwest::Client::builder()
+                    .connect_timeout(DOWNLOAD_CONNECT_TIMEOUT)
+                    .read_timeout(idle),
+            ),
+            idle,
             file_paths: Mutex::new(HashMap::new()),
         }
     }
@@ -81,29 +99,29 @@ impl Telegram {
         format!("{}/bot{}/{}", self.api_base, self.token, method)
     }
 
-    /// Uploads a document with exponential backoff retries (2s, 4s, 8s),
-    /// mirroring the Go `sendDocumentWithRetry`.
+    /// Uploads a document, retrying transient failures with jittered backoff
+    /// and honoring Telegram's `retry_after`.
     async fn send_document_with_retry(
         &self,
-        data: &[u8],
+        data: &Bytes,
         filename: &str,
     ) -> Result<(i64, String), AdapterError> {
         let mut last_err: Option<AdapterError> = None;
 
         for attempt in 0..=MAX_RETRIES {
             if attempt > 0 {
-                tokio::time::sleep(RETRY_BASE * 2u32.pow(attempt - 1)).await;
+                let retry_after = last_err.as_ref().and_then(AdapterError::retry_after_secs);
+                tokio::time::sleep(honor_retry_after(
+                    backoff(attempt - 1, 2_000, 16_000),
+                    retry_after,
+                ))
+                .await;
             }
 
-            match self
-                .send_document(data.to_vec(), filename.to_string())
-                .await
-            {
+            match self.send_document(data.clone(), filename.to_string()).await {
                 Ok(ok) => return Ok(ok),
                 Err(err) => {
-                    // Retry on transient transport errors, rate limits, and 500s;
-                    // fail fast on everything else (matches Go's classification).
-                    if !is_retryable(&err) {
+                    if !err.is_transient() {
                         return Err(err);
                     }
                     last_err = Some(err);
@@ -115,46 +133,48 @@ impl Telegram {
             .unwrap_or_else(|| AdapterError::Other("sendDocument: retries exhausted".into())))
     }
 
-    /// Uploads one document to the chat; returns `(message_id, file_id)`.
+    /// Uploads one document to the chat; returns `(message_id, file_id)`. Fails
+    /// only when no bytes move for the idle limit.
     async fn send_document(
         &self,
-        data: Vec<u8>,
+        data: Bytes,
         filename: String,
     ) -> Result<(i64, String), AdapterError> {
-        let form = reqwest::multipart::Form::new()
-            .text("chat_id", self.chat_id.clone())
-            // Suppress notifications to avoid spam.
-            .text("disable_notification", "true")
-            .part(
-                "document",
-                reqwest::multipart::Part::bytes(data).file_name(filename),
-            );
+        let idle = Idle::new(self.idle);
+        idle.guard(async {
+            let len = data.len() as u64;
+            let form = reqwest::multipart::Form::new()
+                .text("chat_id", self.chat_id.clone())
+                // Suppress notifications to avoid spam.
+                .text("disable_notification", "true")
+                .part(
+                    "document",
+                    reqwest::multipart::Part::stream_with_length(idle.body(data), len)
+                        .file_name(filename),
+                );
 
-        let resp = self
-            .client
-            .post(self.api_url("sendDocument"))
-            .multipart(form)
-            .send()
-            .await?;
-        let status = resp.status().as_u16();
-        let body = resp.text().await?;
+            let resp = self
+                .up_client
+                .post(self.api_url("sendDocument"))
+                .multipart(form)
+                .send()
+                .await?;
+            let status = resp.status().as_u16();
+            let body = resp.text().await?;
 
-        let result: SendDocumentResult = parse_envelope("sendDocument", status, &body)?;
-        Ok((result.message_id, result.document.file_id))
+            let result: SendDocumentResult = parse_envelope("sendDocument", status, &body)?;
+            Ok((result.message_id, result.document.file_id))
+        })
+        .await
     }
 
     /// Fetches a file by `file_id`: `getFile` → file_path → direct download
     /// from `https://api.telegram.org/file/bot<token>/<file_path>`.
     async fn download_file(&self, file_id: &str) -> Result<Vec<u8>, AdapterError> {
-        let (file_path, file_size) = self.resolve_file_path(file_id).await?;
+        let (file_path, _) = self.resolve_file_path(file_id).await?;
         let dl_url = format!("{}/file/bot{}/{}", self.api_base, self.token, file_path);
         let res = async {
-            let dl = self
-                .dl_client
-                .get(&dl_url)
-                .timeout(part_deadline(file_size))
-                .send()
-                .await?;
+            let dl = self.dl_client.get(&dl_url).send().await?;
             let dl_status = dl.status().as_u16();
             if dl_status != 200 {
                 let dl_body = dl.text().await.unwrap_or_default();
@@ -245,26 +265,42 @@ impl PlatformAdapter for Telegram {
         };
 
         let mut part_refs = Vec::new();
+        let mut sent_ids: Vec<i64> = Vec::new();
 
-        if data.len() <= MAX_PART_SIZE {
-            // Single part: fits within the Telegram download limit.
-            let (msg_id, file_id) = self.send_document_with_retry(&data, &remote_path).await?;
-            part_refs.push(format!("{msg_id}:{file_id}"));
-        } else {
-            // Multi-part: split into 19MB sub-chunks named `<name>.p<idx>`.
-            for (part_idx, (start, end)) in part_ranges(data.len()).into_iter().enumerate() {
-                let name = part_name(&remote_path, part_idx);
-                let (msg_id, file_id) = self
-                    .send_document_with_retry(&data[start..end], &name)
-                    .await
-                    .map_err(|e| match e {
-                        AdapterError::Other(msg) => {
-                            AdapterError::Other(format!("upload chunk part {part_idx}: {msg}"))
-                        }
-                        other => other,
-                    })?;
+        let sent: Result<(), AdapterError> = async {
+            if data.len() <= MAX_PART_SIZE {
+                // Single part: fits within the Telegram download limit.
+                let (msg_id, file_id) = self.send_document_with_retry(&data, &remote_path).await?;
+                sent_ids.push(msg_id);
                 part_refs.push(format!("{msg_id}:{file_id}"));
+            } else {
+                // Multi-part: split into 19MB sub-chunks named `<name>.p<idx>`.
+                for (part_idx, (start, end)) in part_ranges(data.len()).into_iter().enumerate() {
+                    let name = part_name(&remote_path, part_idx);
+                    let (msg_id, file_id) = self
+                        .send_document_with_retry(&data.slice(start..end), &name)
+                        .await
+                        .map_err(|e| match e {
+                            AdapterError::Other(msg) => {
+                                AdapterError::Other(format!("upload chunk part {part_idx}: {msg}"))
+                            }
+                            other => other,
+                        })?;
+                    sent_ids.push(msg_id);
+                    part_refs.push(format!("{msg_id}:{file_id}"));
+                }
             }
+            Ok(())
+        }
+        .await;
+
+        // A later part failing would otherwise leave the earlier parts in the
+        // user's chat for good: the caller retries the whole chunk.
+        if let Err(e) = sent {
+            for id in sent_ids {
+                let _ = self.delete_message(id).await;
+            }
+            return Err(e);
         }
 
         r.platform = PLATFORM.to_string();
@@ -373,13 +409,6 @@ struct GetFileResult {
     file_size: u64,
 }
 
-/// Overall deadline for one part's file download: a fixed allowance plus the
-/// part's size at a slow-but-alive 512 KiB/s. Without it a stalled transfer on
-/// a filtered network sat until the OS gave up before the relay fallback ran.
-fn part_deadline(size: u64) -> Duration {
-    PART_DEADLINE_BASE + Duration::from_secs(size / (512 * 1024))
-}
-
 /// Decodes a Bot API response. `ok:false` with `parameters.retry_after` (or an
 /// HTTP 429) maps to `RateLimited`; any other `ok:false` maps to `Api` with
 /// the Telegram `description` as the body.
@@ -411,18 +440,6 @@ fn parse_envelope<T: DeserializeOwned>(
 }
 
 // --- pure helpers ---
-
-/// Whether a failed sendDocument should be retried: transient transport
-/// errors, rate limits, and HTTP 429/500, mirroring the Go adapter's
-/// `isRetryable(err) || "429" || "500"` check.
-fn is_retryable(err: &AdapterError) -> bool {
-    match err {
-        AdapterError::Http(_) => true,
-        AdapterError::RateLimited { .. } => true,
-        AdapterError::Api { status, .. } => *status == 429 || *status == 500,
-        _ => false,
-    }
-}
 
 /// Whether a deleteMessage failure is terminal: the message is already gone
 /// or the Bot API will never allow deleting it.
@@ -488,15 +505,6 @@ mod tests {
     #[test]
     fn parse_part_ref_rejects_missing_colon() {
         assert!(parse_part_ref("12345").is_err());
-    }
-
-    #[test]
-    fn part_deadline_scales_with_size() {
-        assert_eq!(part_deadline(0), PART_DEADLINE_BASE);
-        assert_eq!(
-            part_deadline(19 * 1024 * 1024),
-            PART_DEADLINE_BASE + Duration::from_secs(38)
-        );
     }
 
     #[test]
@@ -593,28 +601,32 @@ mod tests {
     }
 
     #[test]
-    fn is_retryable_classification() {
-        assert!(is_retryable(&AdapterError::RateLimited {
+    fn transient_classification() {
+        assert!(AdapterError::RateLimited {
             platform: PLATFORM,
             retry_after_secs: Some(5),
-        }));
-        assert!(is_retryable(&AdapterError::Api {
+        }
+        .is_transient());
+        assert!(AdapterError::Api {
             platform: PLATFORM,
             status: 500,
             body: "internal".into(),
-        }));
-        assert!(is_retryable(&AdapterError::Api {
+        }
+        .is_transient());
+        assert!(AdapterError::Api {
             platform: PLATFORM,
             status: 429,
             body: "too many requests".into(),
-        }));
-        assert!(!is_retryable(&AdapterError::Api {
+        }
+        .is_transient());
+        assert!(!AdapterError::Api {
             platform: PLATFORM,
             status: 400,
             body: "bad request".into(),
-        }));
-        assert!(!is_retryable(&AdapterError::Other("decode".into())));
-        assert!(!is_retryable(&AdapterError::NotFound("x".into())));
+        }
+        .is_transient());
+        assert!(!AdapterError::Other("decode".into()).is_transient());
+        assert!(!AdapterError::NotFound("x".into()).is_transient());
     }
 
     #[test]
@@ -657,5 +669,82 @@ mod tests {
         let res: SendDocumentResult = parse_envelope("sendDocument", 200, body).unwrap();
         assert_eq!(res.message_id, 42);
         assert_eq!(res.document.file_id, "XYZ");
+    }
+}
+
+#[cfg(test)]
+mod transfer_tests {
+    use super::*;
+    use crate::testutil::{serve, Reply};
+    use std::sync::atomic::Ordering;
+    use std::sync::Arc;
+    use std::time::Instant;
+
+    const OK: &str = r#"{"ok":true,"result":{"message_id":11,"document":{"file_id":"F1"}}}"#;
+
+    fn chunk(len: usize) -> Chunk {
+        Chunk {
+            r#ref: ChunkRef::default(),
+            data: Bytes::from(vec![3u8; len]),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_send_the_server_never_answers_fails_near_the_idle_limit() {
+        let (base, _) = serve(|_, _| Reply::Hang).await;
+        let tg = Telegram::with_endpoint("tok", "1", &base, Duration::from_millis(400));
+        let started = Instant::now();
+        let r = tg
+            .send_document(Bytes::from(vec![1u8; 2048]), "a.bin".into())
+            .await;
+        assert!(matches!(r, Err(AdapterError::Stalled(_))), "{r:?}");
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+
+    #[tokio::test]
+    async fn the_retry_after_a_rate_limit_is_waited_out() {
+        let (base, hits) = serve(|n, _| {
+            if n == 0 {
+                Reply::status(
+                    429,
+                    r#"{"ok":false,"description":"Too Many Requests","parameters":{"retry_after":3}}"#,
+                )
+            } else {
+                Reply::status(200, OK)
+            }
+        })
+        .await;
+        let tg = Telegram::with_endpoint("tok", "1", &base, Duration::from_secs(5));
+        let started = Instant::now();
+        tg.upload("tg:1/x", chunk(1024)).await.unwrap();
+        assert!(started.elapsed() >= Duration::from_secs(3));
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn a_failed_later_part_deletes_the_earlier_ones_from_the_chat() {
+        let deleted: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+        let record = deleted.clone();
+        let (base, _) = serve(move |n, req| {
+            if req.path.ends_with("/deleteMessage") {
+                record
+                    .lock()
+                    .unwrap()
+                    .push(String::from_utf8_lossy(&req.body).to_string());
+                return Reply::status(200, r#"{"ok":true,"result":true}"#);
+            }
+            if n == 0 {
+                Reply::status(200, OK)
+            } else {
+                Reply::status(400, r#"{"ok":false,"description":"Bad Request: nope"}"#)
+            }
+        })
+        .await;
+        let tg = Telegram::with_endpoint("tok", "1", &base, Duration::from_secs(10));
+        let r = tg.upload("tg:1/x", chunk(MAX_PART_SIZE + 1)).await;
+        assert!(r.is_err());
+        let gone = deleted.lock().unwrap().clone();
+        assert_eq!(gone.len(), 1, "{gone:?}");
+        assert!(gone[0].contains("\"message_id\":11"), "{gone:?}");
     }
 }

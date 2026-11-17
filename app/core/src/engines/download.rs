@@ -18,7 +18,9 @@ use crate::api::Client;
 use crate::crypto::{self, ContentHasher};
 use crate::types::{ChunkRef, Progress, Stage};
 
-use super::{chunk_cache, ordered_writer, pipeline, EngineContext, EngineError};
+use super::{
+    chunk_cache, or_cancel, ordered_writer, pipeline, CancelToken, EngineContext, EngineError,
+};
 
 /// Per-chunk direct-download sources for byos-direct: the owner's locators plus
 /// one own-token adapter per platform. Any chunk absent here (or on a platform
@@ -92,13 +94,14 @@ pub(super) async fn acquire_chunk(
     file_id: &str,
     idx: i64,
     cache_fetched: bool,
+    cancel: &CancelToken,
 ) -> Result<(Vec<u8>, bool), EngineError> {
     if let Some(l) = &loc {
         if let Some(data) = chunk_cache::get(&l.sha256).await {
             return Ok((data, l.compressed));
         }
     }
-    let (data, compressed, sha) = fetch_chunk(client, loc, adapter, file_id, idx).await?;
+    let (data, compressed, sha) = fetch_chunk(client, loc, adapter, file_id, idx, cancel).await?;
     if cache_fetched && !sha.is_empty() {
         chunk_cache::put(&sha, &data);
     }
@@ -147,7 +150,7 @@ fn mark_direct_unreachable(platform: &str) {
 }
 
 fn is_unreachable(e: &AdapterError) -> bool {
-    matches!(e, AdapterError::Http(h) if h.is_connect() || h.is_timeout())
+    matches!(e, AdapterError::Http(h) if h.is_connect())
 }
 
 async fn fetch_chunk(
@@ -156,6 +159,7 @@ async fn fetch_chunk(
     adapter: Option<Arc<dyn PlatformAdapter>>,
     file_id: &str,
     idx: i64,
+    cancel: &CancelToken,
 ) -> Result<(Vec<u8>, bool, String), EngineError> {
     let sha_ok = |data: &[u8], sha: &str| sha.is_empty() || crypto::sha256_hex(data) == *sha;
     let mut last_err: Option<EngineError> = None;
@@ -178,7 +182,7 @@ async fn fetch_chunk(
                 compressed: loc.compressed,
                 ..ChunkRef::default()
             };
-            match adapter.download(&r).await {
+            match or_cancel(cancel, adapter.download(&r)).await? {
                 Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
                     out = Some((bytes, loc.compressed, loc.sha256.clone()));
                     break;
@@ -198,10 +202,28 @@ async fn fetch_chunk(
                     last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
                     break;
                 }
-                Err(e) => last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}"))),
+                Err(e) => {
+                    let transient = e.is_transient();
+                    let delay = crate::transport::honor_retry_after(
+                        crate::transport::backoff(n, 500, 8_000),
+                        e.retry_after_secs(),
+                    );
+                    last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
+                    if !transient {
+                        break;
+                    }
+                    if n + 1 < 2 {
+                        or_cancel(cancel, tokio::time::sleep(delay)).await?;
+                    }
+                    continue;
+                }
             }
             if n + 1 < 2 {
-                tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
+                or_cancel(
+                    cancel,
+                    tokio::time::sleep(crate::transport::backoff(n, 500, 8_000)),
+                )
+                .await?;
             }
         }
     }
@@ -209,7 +231,8 @@ async fn fetch_chunk(
     // --- relay fallback (4 attempts) ---
     if out.is_none() {
         for n in 0..4u32 {
-            match client.get_chunk(file_id, idx).await {
+            let mut delay = crate::transport::backoff(n, 500, 8_000);
+            match or_cancel(cancel, client.get_chunk(file_id, idx)).await? {
                 Ok(c) if sha_ok(&c.data, &c.sha256) => {
                     out = Some((c.data, c.compressed, c.sha256));
                     break;
@@ -219,11 +242,18 @@ async fn fetch_chunk(
                         "chunk {idx}: sha mismatch (relay)"
                     )))
                 }
-                Err(e) => last_err = Some(EngineError::from(e)),
+                Err(e) => {
+                    let e = EngineError::from(e);
+                    if !e.is_transient() {
+                        last_err = Some(e);
+                        break;
+                    }
+                    delay = crate::transport::honor_retry_after(delay, e.retry_after_secs());
+                    last_err = Some(e);
+                }
             }
             if n + 1 < 4 {
-                let delay = std::time::Duration::from_millis((500u64 << n).min(8_000));
-                tokio::time::sleep(delay).await;
+                or_cancel(cancel, tokio::time::sleep(delay)).await?;
             }
         }
     }
@@ -256,8 +286,16 @@ pub(super) fn fetch_plain_chunk(
         if cancel.is_cancelled() {
             return Err(EngineError::Cancelled);
         }
-        let (data, compressed) =
-            acquire_chunk(&client, loc, adapter, &fid, idx as i64, cache_fetched).await?;
+        let (data, compressed) = acquire_chunk(
+            &client,
+            loc,
+            adapter,
+            &fid,
+            idx as i64,
+            cache_fetched,
+            &cancel,
+        )
+        .await?;
         tokio::task::spawn_blocking(move || decrypt_chunk_zeroizing(&data, key, compressed))
             .await
             .map_err(|e| EngineError::Other(format!("join: {e}")))?
@@ -553,4 +591,57 @@ pub(super) async fn open_file(
         can_verify_hash,
         sources,
     })
+}
+
+#[cfg(test)]
+mod transfer_tests {
+    use super::*;
+    use crate::testutil::{serve, Reply};
+    use std::sync::atomic::Ordering;
+
+    #[tokio::test]
+    async fn a_slow_platform_is_not_blacklisted_as_unreachable() {
+        let (base, _) = serve(|_, _| Reply::Hang).await;
+        let http = reqwest::Client::builder()
+            .read_timeout(Duration::from_millis(100))
+            .build()
+            .unwrap();
+        let err = http.get(&base).send().await.unwrap_err();
+        assert!(err.is_timeout());
+        assert!(!is_unreachable(&AdapterError::from(err)));
+    }
+
+    #[tokio::test]
+    async fn a_refused_connection_is_unreachable() {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        drop(l);
+        let err = reqwest::get(format!("http://{addr}")).await.unwrap_err();
+        assert!(is_unreachable(&AdapterError::from(err)));
+    }
+
+    #[tokio::test]
+    async fn a_relay_404_is_tried_once() {
+        let (base, hits) = serve(|_, _| Reply::status(404, "gone")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let r = fetch_chunk(&client, None, None, "f", 0, &CancelToken::new()).await;
+        assert!(r.is_err());
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn cancel_stops_a_chunk_retry_loop_at_once() {
+        let (base, _) = serve(|_, _| Reply::status(503, "busy")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let cancel = CancelToken::new();
+        let trip = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(80)).await;
+            trip.cancel();
+        });
+        let started = Instant::now();
+        let r = fetch_chunk(&client, None, None, "f", 0, &cancel).await;
+        assert!(matches!(r, Err(EngineError::Cancelled)));
+        assert!(started.elapsed() < Duration::from_millis(300));
+    }
 }

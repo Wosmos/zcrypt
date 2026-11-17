@@ -11,6 +11,11 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
+use crate::transport::{
+    backoff, download_client, honor_retry_after, retry_after_secs, upload_client, Idle,
+    CONNECT_TIMEOUT, CONTROL_TIMEOUT, IDLE_TIMEOUT,
+};
+
 /// A reqwest DNS resolver backed by hickory-resolver pointed at PUBLIC
 /// nameservers (Cloudflare 1.1.1.1) with its own cache. The OS resolver on
 /// macOS reads a stale/misconfigured /etc/resolv.conf and, under a large
@@ -68,13 +73,43 @@ pub enum ApiError {
     Http(#[from] reqwest::Error),
     #[error("api {status}: {body}")]
     Status { status: u16, body: String },
+    #[error("api 429: {body}")]
+    RateLimited {
+        retry_after_secs: Option<u64>,
+        body: String,
+    },
     #[error("unauthorized, token refresh failed")]
     Unauthorized,
+    #[error("{0}")]
+    Stalled(#[from] crate::transport::Stalled),
     #[error("{0}")]
     Other(String),
 }
 
 impl ApiError {
+    /// Whether a retry can improve on this failure: network trouble, a stall,
+    /// 408, 429 and 5xx. Auth failures and other 4xx are final.
+    pub fn is_transient(&self) -> bool {
+        match self {
+            ApiError::Unauthorized => false,
+            ApiError::Status { status, .. } => {
+                !(400..500).contains(status) || matches!(status, 408 | 429)
+            }
+            ApiError::Http(e) => !e.is_builder(),
+            ApiError::RateLimited { .. } | ApiError::Stalled(_) => true,
+            ApiError::Other(_) => true,
+        }
+    }
+
+    pub fn retry_after_secs(&self) -> Option<u64> {
+        match self {
+            ApiError::RateLimited {
+                retry_after_secs, ..
+            } => *retry_after_secs,
+            _ => None,
+        }
+    }
+
     /// Full cause chain. reqwest 0.12's Display collapses every transport
     /// failure to a generic "error sending request for url (...)" and drops the
     /// underlying reason (DNS failure, connection reset, timeout, TLS), walk
@@ -156,7 +191,13 @@ fn marker_headers() -> reqwest::header::HeaderMap {
 
 pub struct Client {
     pub base_url: String,
+    /// JSON control calls: short total timeout.
     http: reqwest::Client,
+    /// Chunk and presigned-URL downloads: per-read idle timeout.
+    down: reqwest::Client,
+    /// Chunk and presigned-URL uploads: guarded by an [`Idle`] watchdog.
+    up: reqwest::Client,
+    idle: Duration,
     tokens: Mutex<TokenState>,
     /// Called with (access, refresh) after a successful rotation.
     on_rotate: Option<RotateHook>,
@@ -198,28 +239,46 @@ struct RefreshResponse {
 
 impl Client {
     pub fn new(base_url: &str, access: &str, refresh: &str) -> Self {
-        let mut http = reqwest::Client::builder()
-            .default_headers(marker_headers())
-            .user_agent(format!("zcrypt/{}", client_marker()))
-            .timeout(Duration::from_secs(30))
-            // Fail a stalled connect fast (flaky/filtered networks hang the
-            // TCP/TLS handshake) so with_retry gets a chance instead of
-            // burning the whole 30s budget on one dead attempt.
-            .connect_timeout(Duration::from_secs(10));
+        Self::with_idle(base_url, access, refresh, IDLE_TIMEOUT)
+    }
+
+    pub fn with_idle(base_url: &str, access: &str, refresh: &str, idle: Duration) -> Self {
         // Reliable public DNS (Cloudflare) + cache instead of the flaky OS
         // resolver that returns intermittent EAI_NONAME on macOS.
-        if let Some(dns) = PublicDnsResolver::new() {
-            http = http.dns_resolver(Arc::new(dns));
-        }
+        let dns = PublicDnsResolver::new().map(Arc::new);
+        let finish = |mut b: reqwest::ClientBuilder| {
+            b = b
+                .default_headers(marker_headers())
+                .user_agent(format!("zcrypt/{}", client_marker()));
+            if let Some(dns) = &dns {
+                b = b.dns_resolver(dns.clone());
+            }
+            b.build().expect("reqwest client")
+        };
         Client {
             base_url: base_url.trim_end_matches('/').to_string(),
-            http: http.build().expect("reqwest client"),
+            http: finish(
+                reqwest::Client::builder()
+                    .timeout(CONTROL_TIMEOUT)
+                    .connect_timeout(CONNECT_TIMEOUT),
+            ),
+            down: finish(download_client(idle)),
+            up: finish(upload_client()),
+            idle,
             tokens: Mutex::new(TokenState {
                 access: access.into(),
                 refresh: refresh.into(),
             }),
             on_rotate: None,
         }
+    }
+
+    pub(super) fn idle(&self) -> Idle {
+        Idle::new(self.idle)
+    }
+
+    pub(super) fn upload_http(&self) -> &reqwest::Client {
+        &self.up
     }
 
     pub fn with_rotate_hook(mut self, hook: RotateHook) -> Self {
@@ -300,10 +359,7 @@ impl Client {
             return Err(ApiError::Unauthorized);
         }
         if !resp.status().is_success() {
-            return Err(ApiError::Status {
-                status,
-                body: resp.text().await.unwrap_or_default(),
-            });
+            return Err(status_error(resp).await);
         }
         let body: RefreshResponse = resp.json().await?;
         tokens.access = body.access_token;
@@ -322,8 +378,33 @@ impl Client {
     where
         F: Fn(&reqwest::Client, &str) -> reqwest::RequestBuilder,
     {
+        self.send_on(&self.http, build).await
+    }
+
+    pub(super) async fn send_download<F>(&self, build: F) -> Result<reqwest::Response, ApiError>
+    where
+        F: Fn(&reqwest::Client, &str) -> reqwest::RequestBuilder,
+    {
+        self.send_on(&self.down, build).await
+    }
+
+    pub(super) async fn send_upload<F>(&self, build: F) -> Result<reqwest::Response, ApiError>
+    where
+        F: Fn(&reqwest::Client, &str) -> reqwest::RequestBuilder,
+    {
+        self.send_on(&self.up, build).await
+    }
+
+    async fn send_on<F>(
+        &self,
+        http: &reqwest::Client,
+        build: F,
+    ) -> Result<reqwest::Response, ApiError>
+    where
+        F: Fn(&reqwest::Client, &str) -> reqwest::RequestBuilder,
+    {
         let token = self.access_token().await;
-        let resp = build(&self.http, &self.base_url)
+        let resp = build(http, &self.base_url)
             .bearer_auth(&token)
             .send()
             .await?;
@@ -332,10 +413,14 @@ impl Client {
         }
         self.refresh(&token).await?;
         let token = self.access_token().await;
-        Ok(build(&self.http, &self.base_url)
+        let resp = build(http, &self.base_url)
             .bearer_auth(&token)
             .send()
-            .await?)
+            .await?;
+        if resp.status().as_u16() == 401 {
+            return Err(ApiError::Unauthorized);
+        }
+        Ok(resp)
     }
 
     /// `send` + JSON-decode, mapping non-2xx to `ApiError::Status`.
@@ -345,12 +430,8 @@ impl Client {
         F: Fn(&reqwest::Client, &str) -> reqwest::RequestBuilder,
     {
         let resp = self.send(build).await?;
-        let status = resp.status();
-        if !status.is_success() {
-            return Err(ApiError::Status {
-                status: status.as_u16(),
-                body: resp.text().await.unwrap_or_default(),
-            });
+        if !resp.status().is_success() {
+            return Err(status_error(resp).await);
         }
         Ok(resp.json().await?)
     }
@@ -370,12 +451,15 @@ impl Client {
                     // Don't burn retries on auth failures or a definitive
                     // client error (404 for a non-owner's locators, a deleted
                     // file): only transient failures can improve on a retry.
-                    if !is_retryable(&e) {
+                    if !e.is_transient() {
                         return Err(e);
                     }
                     last = Some(e);
                     if n + 1 < attempts {
-                        let delay = Duration::from_millis((500u64 << n).min(8_000));
+                        let delay = honor_retry_after(
+                            backoff(n, 500, 8_000),
+                            last.as_ref().and_then(ApiError::retry_after_secs),
+                        );
                         tokio::time::sleep(delay).await;
                     }
                 }
@@ -385,13 +469,18 @@ impl Client {
     }
 }
 
-fn is_retryable(e: &ApiError) -> bool {
-    match e {
-        ApiError::Unauthorized => false,
-        ApiError::Status { status, .. } => {
-            !(400..500).contains(status) || matches!(status, 408 | 429)
+/// A failed response as an `ApiError`: 429 keeps its `Retry-After`.
+pub(super) async fn status_error(resp: reqwest::Response) -> ApiError {
+    let status = resp.status().as_u16();
+    let retry_after_secs = retry_after_secs(resp.headers());
+    let body = resp.text().await.unwrap_or_default();
+    if status == 429 {
+        ApiError::RateLimited {
+            retry_after_secs,
+            body,
         }
-        _ => true,
+    } else {
+        ApiError::Status { status, body }
     }
 }
 
@@ -499,12 +588,133 @@ mod retry_tests {
 
     #[test]
     fn only_transient_errors_retry() {
-        assert!(!is_retryable(&ApiError::Unauthorized));
-        assert!(!is_retryable(&status(404)));
-        assert!(!is_retryable(&status(403)));
-        assert!(is_retryable(&status(408)));
-        assert!(is_retryable(&status(429)));
-        assert!(is_retryable(&status(502)));
-        assert!(is_retryable(&ApiError::Other("x".into())));
+        assert!(!ApiError::Unauthorized.is_transient());
+        assert!(!status(404).is_transient());
+        assert!(!status(403).is_transient());
+        assert!(status(408).is_transient());
+        assert!(status(502).is_transient());
+        assert!(ApiError::Other("x".into()).is_transient());
+        assert!(ApiError::RateLimited {
+            retry_after_secs: None,
+            body: String::new()
+        }
+        .is_transient());
+    }
+}
+
+#[cfg(test)]
+mod transfer_tests {
+    use super::*;
+    use crate::testutil::{serve, Reply};
+    use bytes::Bytes;
+    use std::time::Instant;
+
+    const IDLE: Duration = Duration::from_millis(400);
+
+    #[tokio::test]
+    async fn a_slow_but_moving_chunk_download_outlives_the_idle_limit() {
+        let body = vec![7u8; 24];
+        let (base, _) = serve(move |_, _| Reply::Trickle {
+            body: body.clone(),
+            piece: 1,
+            gap: Duration::from_millis(50),
+        })
+        .await;
+        let client = Client::with_idle(&base, "t", "r", IDLE);
+        let started = Instant::now();
+        let chunk = client.get_chunk("f", 0).await.unwrap();
+        assert_eq!(chunk.data.len(), 24);
+        assert!(started.elapsed() > IDLE);
+    }
+
+    #[tokio::test]
+    async fn a_stalled_chunk_download_fails_near_the_idle_limit() {
+        let (base, _) = serve(|_, _| Reply::StallBody {
+            declared: 1000,
+            sent: vec![1; 10],
+        })
+        .await;
+        let client = Client::with_idle(&base, "t", "r", IDLE);
+        let started = Instant::now();
+        assert!(client.get_chunk("f", 0).await.is_err());
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+
+    #[tokio::test]
+    async fn a_chunk_upload_sends_its_length_and_bytes() {
+        let seen = Arc::new(std::sync::Mutex::new((0usize, String::new())));
+        let record = seen.clone();
+        let (base, _) = serve(move |_, req| {
+            *record.lock().unwrap() = (
+                req.body.len(),
+                req.headers
+                    .get("content-length")
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+            Reply::status(200, "{}")
+        })
+        .await;
+        let client = Client::with_idle(&base, "t", "r", IDLE);
+        let data = Bytes::from(vec![9u8; 300_000]);
+        client
+            .upload_chunk("s", 0, data, "abc", false)
+            .await
+            .unwrap();
+        assert_eq!(*seen.lock().unwrap(), (300_000, "300000".to_string()));
+    }
+
+    #[tokio::test]
+    async fn a_chunk_upload_the_server_never_answers_fails_near_the_idle_limit() {
+        let (base, _) = serve(|_, _| Reply::Hang).await;
+        let client = Client::with_idle(&base, "t", "r", IDLE);
+        let started = Instant::now();
+        let r = client
+            .upload_chunk("s", 0, Bytes::from(vec![1u8; 1024]), "abc", false)
+            .await;
+        assert!(matches!(r, Err(ApiError::Stalled(_))));
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+
+    #[tokio::test]
+    async fn a_presigned_put_the_server_never_answers_fails_instead_of_hanging() {
+        let (base, _) = serve(|_, _| Reply::Hang).await;
+        let client = Client::with_idle(&base, "t", "r", IDLE);
+        let started = Instant::now();
+        let r = client
+            .direct_upload_to_url(
+                &format!("{base}/put"),
+                &Default::default(),
+                Bytes::from(vec![1u8; 1024]),
+            )
+            .await;
+        assert!(matches!(r, Err(ApiError::Stalled(_))));
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+
+    #[tokio::test]
+    async fn a_second_401_after_a_refresh_is_unauthorized_not_retryable() {
+        let (base, _) = serve(|_, req| {
+            if req.path.starts_with("/api/auth/refresh") {
+                Reply::status(200, r#"{"access_token":"a2","refresh_token":"r2"}"#)
+            } else {
+                Reply::status(401, "")
+            }
+        })
+        .await;
+        let client = Client::with_idle(&base, "a1", "r1", IDLE);
+        let err = client.get_chunk("f", 0).await.err().unwrap();
+        assert!(matches!(err, ApiError::Unauthorized), "{err:?}");
+        assert!(!err.is_transient());
+    }
+
+    #[tokio::test]
+    async fn a_429_keeps_its_retry_after() {
+        let (base, _) =
+            serve(|_, _| Reply::with_header(429, "retry-after", "7", "slow down")).await;
+        let client = Client::with_idle(&base, "t", "r", IDLE);
+        let err = client.get_chunk("f", 0).await.err().unwrap();
+        assert_eq!(err.retry_after_secs(), Some(7));
+        assert!(err.is_transient());
     }
 }

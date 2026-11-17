@@ -18,11 +18,16 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::Deserialize;
 
 use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::crypto;
 use crate::disguise;
+use crate::transport::{
+    backoff as jittered, download_client, honor_retry_after, upload_client, Idle, CONNECT_TIMEOUT,
+    CONTROL_TIMEOUT, IDLE_TIMEOUT,
+};
 use crate::types::{Chunk, ChunkRef, Platform};
 
 const ENDPOINT: &str = "https://huggingface.co";
@@ -33,21 +38,33 @@ pub struct HuggingFace {
     token: String,
     account: String,
     client: reqwest::Client,
+    dl: reqwest::Client,
+    up: reqwest::Client,
+    idle: Duration,
 }
 
 impl HuggingFace {
     pub fn new(token: &str, account: &str) -> Self {
-        let client = reqwest::Client::builder()
-            // No overall timeout. LFS PUTs can be large; rely on connect/read
-            // timeouts at the transport layer instead (matches Go's Timeout: 0).
-            .connect_timeout(Duration::from_secs(30))
-            .user_agent("zcrypt-core")
-            .build()
-            .expect("build reqwest client");
+        Self::with_idle(token, account, IDLE_TIMEOUT)
+    }
+
+    pub(crate) fn with_idle(token: &str, account: &str, idle: Duration) -> Self {
+        let build = |b: reqwest::ClientBuilder| {
+            b.user_agent("zcrypt-core")
+                .build()
+                .expect("build reqwest client")
+        };
         Self {
             token: token.into(),
             account: account.into(),
-            client,
+            client: build(
+                reqwest::Client::builder()
+                    .connect_timeout(CONNECT_TIMEOUT)
+                    .timeout(CONTROL_TIMEOUT),
+            ),
+            dl: build(download_client(idle)),
+            up: build(upload_client()),
+            idle,
         }
     }
 
@@ -129,35 +146,44 @@ impl HuggingFace {
         Err(last.unwrap_or_else(|| AdapterError::Other("lfs batch after retries".into())))
     }
 
-    /// PUT ciphertext to a presigned LFS URL. Retries transient 5xx.
+    /// PUT ciphertext to a presigned LFS URL. Retries transient failures
+    /// (network, stall, 429, 5xx); it fails only when no bytes move for the
+    /// idle limit.
     async fn lfs_put(
         &self,
         url: &str,
         headers: &HashMap<String, String>,
-        data: Vec<u8>,
+        data: Bytes,
     ) -> Result<(), AdapterError> {
         let mut last: Option<AdapterError> = None;
         for attempt in 0..=MAX_RETRIES {
             if attempt > 0 {
-                tokio::time::sleep(backoff(attempt)).await;
+                let retry_after = last.as_ref().and_then(AdapterError::retry_after_secs);
+                tokio::time::sleep(honor_retry_after(backoff(attempt), retry_after)).await;
             }
-            let mut rb = self
-                .client
-                .put(url)
-                .header("Content-Type", "application/octet-stream");
-            for (k, v) in headers {
-                rb = rb.header(k, v);
+            let idle = Idle::new(self.idle);
+            let sent = idle
+                .guard(async {
+                    let mut rb = self
+                        .up
+                        .put(url)
+                        .header("Content-Type", "application/octet-stream")
+                        .header("Content-Length", data.len());
+                    for (k, v) in headers {
+                        rb = rb.header(k, v);
+                    }
+                    let resp = rb.body(idle.body(data.clone())).send().await?;
+                    if resp.status().is_success() {
+                        return Ok(());
+                    }
+                    Err(error_from("lfs put", resp).await)
+                })
+                .await;
+            match sent {
+                Ok(()) => return Ok(()),
+                Err(e) if e.is_transient() => last = Some(e),
+                Err(e) => return Err(e),
             }
-            let resp = rb.body(data.clone()).send().await?;
-            let status = resp.status().as_u16();
-            if status >= 500 {
-                last = Some(error_from("lfs put", resp).await);
-                continue;
-            }
-            if !resp.status().is_success() {
-                return Err(error_from("lfs put", resp).await);
-            }
-            return Ok(());
         }
         Err(last.unwrap_or_else(|| AdapterError::Other("lfs put after retries".into())))
     }
@@ -283,7 +309,7 @@ impl PlatformAdapter for HuggingFace {
         let repo = self.full_repo(&r#ref.repo);
         self.check(&repo, &r#ref.remote_path)?;
         let url = format!("{ENDPOINT}/{repo}/resolve/main/{}", r#ref.remote_path);
-        let resp = self.auth(self.client.get(&url)).send().await?;
+        let resp = self.auth(self.dl.get(&url)).send().await?;
         if !resp.status().is_success() {
             return Err(error_from("download chunk", resp).await);
         }
@@ -451,20 +477,9 @@ fn parse_next_link(header: &str) -> Option<String> {
     None
 }
 
-/// Exponential backoff: 2s, 4s, 8s for attempts 1, 2, 3 (Go: `2s * 2^(n-1)`).
+/// Jittered exponential backoff: about 2s, 4s, 8s for attempts 1, 2, 3.
 fn backoff(attempt: u32) -> Duration {
-    Duration::from_secs(2u64 << (attempt.saturating_sub(1)).min(3))
-}
-
-/// Seconds from a `Retry-After` header, when present and numeric.
-fn retry_after_secs(headers: &reqwest::header::HeaderMap) -> Option<u64> {
-    headers
-        .get(reqwest::header::RETRY_AFTER)?
-        .to_str()
-        .ok()?
-        .trim()
-        .parse()
-        .ok()
+    jittered(attempt, 1_000, 8_000)
 }
 
 /// Map a failed status to the right `AdapterError` (pure, unit-testable).
@@ -486,7 +501,7 @@ fn classify(status: u16, body: String, retry_after: Option<u64>, context: &str) 
 /// Consume a failed response into an `AdapterError`.
 async fn error_from(context: &str, resp: reqwest::Response) -> AdapterError {
     let status = resp.status().as_u16();
-    let retry_after = retry_after_secs(resp.headers());
+    let retry_after = crate::transport::retry_after_secs(resp.headers());
     let body = resp.text().await.unwrap_or_default();
     classify(status, body, retry_after, context)
 }
@@ -556,10 +571,44 @@ mod tests {
             AdapterError::Api { status: 500, .. }
         ));
     }
+}
 
-    #[test]
-    fn backoff_grows_then_caps() {
-        let secs: Vec<u64> = (1..=6).map(|a| backoff(a).as_secs()).collect();
-        assert_eq!(secs, vec![2, 4, 8, 16, 16, 16]);
+#[cfg(test)]
+mod transfer_tests {
+    use super::*;
+    use crate::testutil::{serve, Reply};
+    use std::sync::atomic::Ordering;
+    use std::time::Instant;
+
+    #[tokio::test]
+    async fn an_lfs_put_gives_up_on_a_403_without_retrying() {
+        let (base, hits) = serve(|_, _| Reply::status(403, "no")).await;
+        let hf = HuggingFace::with_idle("tok", "acct", Duration::from_secs(5));
+        let r = hf
+            .lfs_put(
+                &format!("{base}/put"),
+                &HashMap::new(),
+                Bytes::from(vec![1u8; 64]),
+            )
+            .await;
+        assert!(r.is_err());
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn an_lfs_put_that_never_gets_an_answer_does_not_hang_forever() {
+        let (base, hits) = serve(|_, _| Reply::Hang).await;
+        let hf = HuggingFace::with_idle("tok", "acct", Duration::from_millis(200));
+        let started = Instant::now();
+        let r = hf
+            .lfs_put(
+                &format!("{base}/put"),
+                &HashMap::new(),
+                Bytes::from(vec![1u8; 64]),
+            )
+            .await;
+        assert!(matches!(r, Err(AdapterError::Stalled(_))), "{r:?}");
+        assert!(hits.load(Ordering::SeqCst) >= 2);
+        assert!(started.elapsed() < Duration::from_secs(40));
     }
 }

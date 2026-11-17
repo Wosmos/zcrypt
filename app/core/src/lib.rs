@@ -20,4 +20,7 @@ pub mod pk1;
 pub mod placement;
 pub mod profiles;
 pub mod reppool;
+#[cfg(test)]
+mod testutil;
+pub mod transport;
 pub mod types;
