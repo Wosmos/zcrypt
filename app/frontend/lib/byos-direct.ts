@@ -131,6 +131,14 @@ export async function resolveWebDirect(platform?: string): Promise<DirectTarget 
   return toTarget(await loadCredentials(Platform.Telegram));
 }
 
+/** A resumed upload's earlier chunks went to the user's own Telegram, and its credentials are not available now. */
+export class ReconnectTelegramError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReconnectTelegramError";
+  }
+}
+
 /**
  * The target for a resumed direct session. A resume keeps its mode, so this
  * skips the reachability and page-session checks and only needs the user's own

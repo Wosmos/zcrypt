@@ -7,6 +7,7 @@ import {
   type RepoInfo,
   type UploadItem,
 } from "@/types";
+import { Platform } from "@/lib/platforms";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import {
@@ -38,6 +39,7 @@ import {
 } from "@/lib/upload-session";
 import {
   directTargetForResume,
+  ReconnectTelegramError,
   disableWebDirect,
   isDirectUnreachable,
   discardDirectChunk,
@@ -872,6 +874,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       const home = resume?.platform ?? "";
       if (wasResumed) direct = await directTargetForResume(home);
       if (!direct) {
+        if (home === Platform.Telegram) {
+          throw new ReconnectTelegramError(tr("toasts.reconnectTelegram", { name: file.name }));
+        }
         throw new Error(tr("toasts.directResumeElsewhere", { name: file.name, platform: home }));
       }
       byos = { target: direct, repo: await resolveDirectRepo(direct) };
@@ -1307,6 +1312,16 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       if (!isCurrentRun()) return;
       setError(id, err.message, err.limit);
       showWebTransferLimit(err.limit, { name: file.name, size: file.size }, opts.batch);
+      return;
+    }
+    if (err instanceof ReconnectTelegramError) {
+      patchMeta(id, { transient: false });
+      if (!isCurrentRun()) return;
+      setError(id, err.message);
+      toast.warning(err.message, {
+        label: tr("toasts.reconnectTelegramAction"),
+        onClick: () => window.open("/settings?tab=platforms", "_blank", "noopener"),
+      });
       return;
     }
     const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");

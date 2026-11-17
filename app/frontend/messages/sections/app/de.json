@@ -911,6 +911,8 @@
     "toasts": {
       "restartUpload": "Der vorherige Upload von „{name}“ konnte nicht fortgesetzt werden, Neustart auf {platform}.",
       "directResumeElsewhere": "„{name}“ wurde direkt in dein eigenes {platform} hochgeladen und kann in diesem Browser nicht abgeschlossen werden. Entferne es und lade es erneut hoch.",
+      "reconnectTelegram": "Verbinde Telegram erneut, um \"{name}\" fertig hochzuladen.",
+      "reconnectTelegramAction": "Speichereinstellungen öffnen",
       "andMore": "und {count} weitere",
       "tooBig": "{names} {count, plural, one {überschreitet das Limit von} other {überschreiten das Limit von}} {limit} pro Datei.",
       "uploaded": "{name} hochgeladen",

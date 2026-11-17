@@ -89,6 +89,7 @@ const byosMock = vi.hoisted(() => ({
   discardDirectChunk: vi.fn(),
   disableWebDirect: vi.fn(),
   isDirectUnreachable: vi.fn((err: unknown) => err instanceof TypeError),
+  ReconnectTelegramError: class ReconnectTelegramError extends Error {},
 }));
 vi.mock("@/lib/byos-direct", () => byosMock);
 
@@ -549,6 +550,54 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("done");
       const persisted = JSON.parse(localStorage.getItem("zc_upl:big.bin:3072:1000:") ?? "null");
       expect(persisted).toBeNull();
+    });
+
+    it("a resume whose Telegram credentials are gone tells the person to reconnect, links to storage settings, and finishes after reconnecting", async () => {
+      const open = vi.spyOn(window, "open").mockImplementation(() => null);
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
+      const key = `zc_upl:${file.name}:${file.size}:${file.lastModified}:`;
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          sessionId: "sess-direct",
+          fileId: "file-1",
+          chunkCount: 3,
+          chunkSize: SMALL_PROFILE.chunkSize,
+          directUpload: true,
+          shouldCompress: true,
+          platform: "telegram",
+          mode: "byos-direct",
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-direct",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 3,
+        uploaded_chunks: [0],
+        completed_count: 1,
+      });
+      byosMock.directTargetForResume.mockResolvedValue(null);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe('Reconnect Telegram to finish uploading "big.bin".');
+      const [message, action] = (toast.warning as Mock).mock.calls.at(-1)!;
+      expect(message).toBe('Reconnect Telegram to finish uploading "big.bin".');
+      action.onClick();
+      expect(open).toHaveBeenCalledWith("/settings?tab=platforms", "_blank", "noopener");
+      expect(localStorage.getItem(key)).not.toBeNull();
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(byosMock.pushDirectChunk).not.toHaveBeenCalled();
+
+      byosMock.directTargetForResume.mockResolvedValue(TARGET);
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush();
+      expect(byosMock.pushDirectChunk.mock.calls.length).toBeGreaterThan(0);
+      expect(getItem(id)?.status).toBe("done");
+      open.mockRestore();
     });
 
     it("relays when the direct path is not available", async () => {

@@ -911,6 +911,8 @@
     "toasts": {
       "restartUpload": "Не удалось продолжить предыдущую загрузку «{name}», начинаем заново на {platform}.",
       "directResumeElsewhere": "«{name}» загружался напрямую в ваш собственный {platform}, и завершить загрузку в этом браузере нельзя. Удалите его и загрузите заново.",
+      "reconnectTelegram": "Подключите Telegram снова, чтобы завершить загрузку \"{name}\".",
+      "reconnectTelegramAction": "Открыть настройки хранилища",
       "andMore": "и ещё {count}",
       "tooBig": "{names}: превышен лимит {limit} на файл (файлов: {count}).",
       "uploaded": "{name}: загружено",

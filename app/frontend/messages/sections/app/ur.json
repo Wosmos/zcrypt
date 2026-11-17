@@ -911,6 +911,8 @@
     "toasts": {
       "restartUpload": "\"{name}\" کی پچھلی اپ لوڈ جاری نہیں رہ سکی، {platform} پر دوبارہ شروع ہو رہی ہے۔",
       "directResumeElsewhere": "\"{name}\" براہِ راست آپ کے اپنے {platform} پر جا رہی تھی اور اس براؤزر میں مکمل نہیں ہو سکتی۔ اسے ہٹا کر دوبارہ اپ لوڈ کریں۔",
+      "reconnectTelegram": "\"{name}\" کی اپ لوڈ مکمل کرنے کے لیے ٹیلیگرام دوبارہ جوڑیں۔",
+      "reconnectTelegramAction": "اسٹوریج کی ترتیبات کھولیں",
       "andMore": "اور {count} مزید",
       "tooBig": "{names} فی فائل {limit} کی حد سے تجاوز کرتی ہیں ({count})۔",
       "uploaded": "{name} اپ لوڈ ہو گیا",
