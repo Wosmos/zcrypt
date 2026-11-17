@@ -16,12 +16,14 @@ package app.zcrypt.desktop
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -46,6 +48,9 @@ object NativeBackup {
 
   /** Stops the run in flight; called when WorkManager stops the worker. */
   @JvmStatic external fun cancel()
+
+  /** The result notice the last run left as "title\nbody", or null when there is none. */
+  @JvmStatic external fun takeSummary(): String?
 }
 
 object PhotoBackup {
@@ -190,6 +195,11 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
     } catch (e: Throwable) {
       1
     }
+    try {
+      NativeBackup.takeSummary()?.let { postResult(it) }
+    } catch (e: Throwable) {
+      // No notice is better than a failed run.
+    }
     return when (outcome) {
       0 -> {
         if (s.mode == "nightly") PhotoBackup.schedule(applicationContext)
@@ -209,6 +219,30 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
     } catch (e: Throwable) {
       // The native library never loaded, so there is no run to stop.
     }
+  }
+
+  private fun postResult(summary: String) {
+    val (title, body) = summary.split("\n", limit = 2).let { Pair(it[0], it.getOrElse(1) { "" }) }
+    val nm = NotificationManagerCompat.from(applicationContext)
+    if (!nm.areNotificationsEnabled()) return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      manager.createNotificationChannel(
+        NotificationChannel(RESULT_CHANNEL, "Backup results", NotificationManager.IMPORTANCE_DEFAULT),
+      )
+    }
+    val launch = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
+    val tap = launch?.let {
+      PendingIntent.getActivity(applicationContext, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+    val notification = NotificationCompat.Builder(applicationContext, RESULT_CHANNEL)
+      .setContentTitle(title)
+      .setContentText(body)
+      .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+      .setContentIntent(tap)
+      .setAutoCancel(true)
+      .build()
+    nm.notify(RESULT_NOTIFICATION_ID, notification)
   }
 
   private fun foregroundInfo(): ForegroundInfo {
@@ -235,5 +269,7 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
   companion object {
     private const val CHANNEL = "photo-backup"
     private const val NOTIFICATION_ID = 7302
+    private const val RESULT_CHANNEL = "backup-results"
+    private const val RESULT_NOTIFICATION_ID = 7303
   }
 }
