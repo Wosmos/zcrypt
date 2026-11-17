@@ -13,6 +13,10 @@ import (
 // so callers can tell lost data from a network blip.
 var ErrNotFound = errors.New("chunk not found on platform")
 
+// ErrRepoNotFound means a repository listing answered 404: the repo was
+// deleted, or the token lost access. It does not prove the chunks are gone.
+var ErrRepoNotFound = errors.New("repository not found or not accessible")
+
 // PlatformAdapter defines the unified interface for all platform backends.
 type PlatformAdapter interface {
 	// Upload pushes a chunk to the platform and returns its reference.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/transport"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -29,7 +31,7 @@ type GitlabAdapter struct {
 func NewGitlabAdapter(token string) (*GitlabAdapter, error) {
 	adapter := &GitlabAdapter{
 		token:  token,
-		client: &http.Client{Timeout: 60 * time.Second},
+		client: transport.NewClient(transport.IdleTimeout),
 	}
 
 	// Verify token by fetching current user
@@ -105,16 +107,43 @@ func (g *GitlabAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 		return types.ChunkRef{}, fmt.Errorf("marshal upload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(data))
-	if err != nil {
-		return types.ChunkRef{}, fmt.Errorf("create upload request: %w", err)
-	}
-
 	var result struct {
 		FilePath string `json:"file_path"`
 	}
-	if err := g.doJSON(req, &result); err != nil {
-		return types.ChunkRef{}, fmt.Errorf("upload chunk: %w", err)
+	var lastErr error
+	for attempt := 0; attempt < gitlabUploadAttempts; attempt++ {
+		if attempt > 0 {
+			wait := transport.Backoff(attempt-1, time.Second, 8*time.Second)
+			var se *gitlabStatusError
+			if errors.As(lastErr, &se) {
+				wait = transport.RetryAfter(wait, se.header)
+			}
+			select {
+			case <-ctx.Done():
+				return types.ChunkRef{}, ctx.Err()
+			case <-time.After(wait):
+			}
+		}
+		req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(data))
+		if err != nil {
+			return types.ChunkRef{}, fmt.Errorf("create upload request: %w", err)
+		}
+		lastErr = g.do(req, &result, false)
+		if lastErr == nil {
+			break
+		}
+		var se *gitlabStatusError
+		if attempt > 0 && errors.As(lastErr, &se) && se.status == http.StatusBadRequest &&
+			strings.Contains(se.body, "already exists") {
+			lastErr = nil
+			break
+		}
+		if !gitlabRetryable(lastErr) {
+			return types.ChunkRef{}, fmt.Errorf("upload chunk: %w", lastErr)
+		}
+	}
+	if lastErr != nil {
+		return types.ChunkRef{}, fmt.Errorf("upload chunk: %w", lastErr)
 	}
 
 	ref := chunk.Ref
@@ -177,6 +206,9 @@ func (g *GitlabAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 		return fmt.Errorf("create delete request: %w", err)
 	}
 
+	cctx, cancel := transport.Control(ctx)
+	defer cancel()
+	req = req.WithContext(cctx)
 	g.setHeaders(req)
 	resp, err := g.client.Do(req)
 	if err != nil {
@@ -291,8 +323,39 @@ func (g *GitlabAdapter) setHeaders(req *http.Request) {
 	}
 }
 
-// doJSON executes a request with auth headers and decodes JSON response.
+const gitlabUploadAttempts = 4
+
+type gitlabStatusError struct {
+	status int
+	body   string
+	header http.Header
+}
+
+func (e *gitlabStatusError) Error() string {
+	return fmt.Sprintf("gitlab API %d: %s", e.status, e.body)
+}
+
+func gitlabRetryable(err error) bool {
+	var se *gitlabStatusError
+	if errors.As(err, &se) {
+		return transport.Retryable(se.status)
+	}
+	return isTransientNetErr(err)
+}
+
+// doJSON runs a small control call under the short total timeout.
 func (g *GitlabAdapter) doJSON(req *http.Request, result interface{}) error {
+	return g.do(req, result, true)
+}
+
+// do executes a request with auth headers and decodes the JSON response. Bulk
+// calls pass control=false and are bound by the idle rule alone.
+func (g *GitlabAdapter) do(req *http.Request, result interface{}, control bool) error {
+	if control {
+		ctx, cancel := transport.Control(req.Context())
+		defer cancel()
+		req = req.WithContext(ctx)
+	}
 	g.setHeaders(req)
 
 	resp, err := g.client.Do(req)
@@ -303,7 +366,7 @@ func (g *GitlabAdapter) doJSON(req *http.Request, result interface{}) error {
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("gitlab API %d: %s", resp.StatusCode, string(body))
+		return &gitlabStatusError{status: resp.StatusCode, body: string(body), header: resp.Header}
 	}
 
 	return json.NewDecoder(resp.Body).Decode(result)

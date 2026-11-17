@@ -10,13 +10,13 @@ import (
 	"io"
 	"log"
 	"math"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/transport"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -39,6 +39,7 @@ type HuggingFaceAdapter struct {
 	token    string
 	username string
 	client   *http.Client
+	ctl      *http.Client
 
 	mu             sync.Mutex
 	pendingCommits []lfsFileEntry
@@ -46,25 +47,10 @@ type HuggingFaceAdapter struct {
 
 // NewHuggingFaceAdapter creates a HuggingFace adapter with the given token.
 func NewHuggingFaceAdapter(token string) (*HuggingFaceAdapter, error) {
-	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		TLSHandshakeTimeout:   30 * time.Second,
-		ResponseHeaderTimeout: 120 * time.Second,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		MaxIdleConns:        10,
-		IdleConnTimeout:     90 * time.Second,
-		DisableKeepAlives:   false,
-		MaxIdleConnsPerHost: 4,
-	}
 	adapter := &HuggingFaceAdapter{
-		token: token,
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   0, // no overall timeout, uploads can be large
-		},
+		token:  token,
+		client: transport.NewClient(transport.IdleTimeout),
+		ctl:    transport.NewControlClient(transport.IdleTimeout),
 	}
 
 	user, err := adapter.whoami()
@@ -74,6 +60,14 @@ func NewHuggingFaceAdapter(token string) (*HuggingFaceAdapter, error) {
 	adapter.username = user
 
 	return adapter, nil
+}
+
+// control is the client for small JSON calls, with a short total timeout.
+func (h *HuggingFaceAdapter) control() *http.Client {
+	if h.ctl != nil {
+		return h.ctl
+	}
+	return h.client
 }
 
 func (h *HuggingFaceAdapter) PlatformName() string {
@@ -198,9 +192,10 @@ func (h *HuggingFaceAdapter) commitEntries(ctx context.Context, repo string, pen
 
 	// Retry with exponential backoff
 	var lastErr error
+	var hdr http.Header
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			wait := transport.RetryAfter(retryBaseWait*time.Duration(math.Pow(2, float64(attempt-1))), hdr)
 			log.Printf("retrying batch commit (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
 			select {
 			case <-ctx.Done():
@@ -216,7 +211,7 @@ func (h *HuggingFaceAdapter) commitEntries(ctx context.Context, repo string, pen
 		req.Header.Set("Content-Type", "application/x-ndjson")
 		h.setAuth(req)
 
-		resp, err := h.client.Do(req)
+		resp, err := h.control().Do(req)
 		if err != nil {
 			lastErr = err
 			if isRetryable(err) {
@@ -231,8 +226,9 @@ func (h *HuggingFaceAdapter) commitEntries(ctx context.Context, repo string, pen
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return nil
 		}
-		if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+		if transport.Retryable(resp.StatusCode) {
 			lastErr = fmt.Errorf("batch commit returned %d: %s", resp.StatusCode, string(body))
+			hdr = resp.Header
 			continue
 		}
 		return fmt.Errorf("batch commit returned %d: %s", resp.StatusCode, string(body))
@@ -303,7 +299,7 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 	req.Header.Set("Content-Type", "application/x-ndjson")
 	h.setAuth(req)
 
-	resp, err := h.client.Do(req)
+	resp, err := h.control().Do(req)
 	if err != nil {
 		return fmt.Errorf("delete commit: %w", err)
 	}
@@ -377,7 +373,7 @@ func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remot
 	req.Header.Set("Content-Type", "application/x-ndjson")
 	h.setAuth(req)
 
-	resp, err := h.client.Do(req)
+	resp, err := h.control().Do(req)
 	if err != nil {
 		return fmt.Errorf("batch delete: %w", err)
 	}
@@ -439,7 +435,7 @@ func (h *HuggingFaceAdapter) ListChunks(ctx context.Context, repo string) ([]typ
 		}
 		h.setAuth(req)
 
-		resp, err := h.client.Do(req)
+		resp, err := h.control().Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("list tree: %w", err)
 		}
@@ -511,6 +507,9 @@ func isRetryable(err error) bool {
 	if err == nil {
 		return false
 	}
+	if transport.IsStalled(err) {
+		return true
+	}
 	s := err.Error()
 	return strings.Contains(s, "TLS handshake timeout") ||
 		strings.Contains(s, "connection reset") ||
@@ -554,9 +553,10 @@ func (h *HuggingFaceAdapter) getLFSUploadInfo(ctx context.Context, repo, oid str
 	}
 
 	var lastErr error
+	var hdr http.Header
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			wait := transport.RetryAfter(retryBaseWait*time.Duration(math.Pow(2, float64(attempt-1))), hdr)
 			log.Printf("retrying LFS batch (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
 			select {
 			case <-ctx.Done():
@@ -573,7 +573,7 @@ func (h *HuggingFaceAdapter) getLFSUploadInfo(ctx context.Context, repo, oid str
 		req.Header.Set("Accept", "application/vnd.git-lfs+json")
 		h.setAuth(req)
 
-		resp, err := h.client.Do(req)
+		resp, err := h.control().Do(req)
 		if err != nil {
 			lastErr = err
 			if isRetryable(err) {
@@ -582,10 +582,11 @@ func (h *HuggingFaceAdapter) getLFSUploadInfo(ctx context.Context, repo, oid str
 			return "", nil, fmt.Errorf("lfs batch: %w", err)
 		}
 
-		if resp.StatusCode >= 500 {
+		if transport.Retryable(resp.StatusCode) {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			lastErr = fmt.Errorf("lfs batch returned %d: %s", resp.StatusCode, string(body))
+			hdr = resp.Header
 			continue
 		}
 
@@ -624,9 +625,10 @@ func (h *HuggingFaceAdapter) getLFSUploadInfo(ctx context.Context, repo, oid str
 // uploadToLFSURL uploads data to a presigned LFS URL with retries.
 func (h *HuggingFaceAdapter) uploadToLFSURL(ctx context.Context, url string, headers map[string]string, data []byte) error {
 	var lastErr error
+	var hdr http.Header
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			wait := transport.RetryAfter(retryBaseWait*time.Duration(math.Pow(2, float64(attempt-1))), hdr)
 			log.Printf("retrying LFS upload (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
 			select {
 			case <-ctx.Done():
@@ -653,10 +655,11 @@ func (h *HuggingFaceAdapter) uploadToLFSURL(ctx context.Context, url string, hea
 			return fmt.Errorf("lfs upload: %w", err)
 		}
 
-		if uploadResp.StatusCode >= 500 {
+		if transport.Retryable(uploadResp.StatusCode) {
 			body, _ := io.ReadAll(uploadResp.Body)
 			uploadResp.Body.Close()
 			lastErr = fmt.Errorf("lfs upload returned %d: %s", uploadResp.StatusCode, string(body))
+			hdr = uploadResp.Header
 			continue
 		}
 
@@ -714,9 +717,10 @@ func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oi
 	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
 
 	var lastErr error
+	var hdr http.Header
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			wait := transport.RetryAfter(retryBaseWait*time.Duration(math.Pow(2, float64(attempt-1))), hdr)
 			select {
 			case <-ctx.Done():
 				return fmt.Errorf("commit: %w", ctx.Err())
@@ -731,7 +735,7 @@ func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oi
 		req.Header.Set("Content-Type", "application/x-ndjson")
 		h.setAuth(req)
 
-		resp, err := h.client.Do(req)
+		resp, err := h.control().Do(req)
 		if err != nil {
 			lastErr = err
 			if isRetryable(err) {
@@ -798,7 +802,7 @@ func (h *HuggingFaceAdapter) doJSON(req *http.Request, result interface{}) error
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := h.client.Do(req)
+	resp, err := h.control().Do(req)
 	if err != nil {
 		return err
 	}
