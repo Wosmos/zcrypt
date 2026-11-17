@@ -140,6 +140,31 @@ export async function withControlTimeout<T>(
   }
 }
 
+/** Read a JSON response body under the same total limit as the call that
+ *  produced it: headers arriving does not end the control timeout. */
+export async function readJsonControl<T>(
+  res: Response,
+  caller?: AbortSignal,
+  ms = CONTROL_TIMEOUT_MS,
+): Promise<T> {
+  const w = watch(caller, ms, false);
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const onAbort = () => {
+        void res.body?.cancel?.().catch(() => {});
+        reject(new DOMException("Cancelled", "AbortError"));
+      };
+      if (w.signal.aborted) onAbort();
+      else w.signal.addEventListener("abort", onAbort, { once: true });
+      (res.json() as Promise<T>).then(resolve, reject);
+    });
+  } catch (err) {
+    throw w.translate(err);
+  } finally {
+    w.dispose();
+  }
+}
+
 /** Read a response body, restarting the idle clock on every chunk that arrives. */
 export async function readBodyIdle(res: Response, w: Watch): Promise<ArrayBuffer> {
   const reader = res.body?.getReader?.();

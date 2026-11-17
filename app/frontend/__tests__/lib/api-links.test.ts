@@ -174,6 +174,22 @@ describe("request() timeout with a caller signal", () => {
     await assertion;
   });
 
+  it("a JSON body that stalls after the headers also times out at 30s", async () => {
+    const stalled = {
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      body: { cancel: vi.fn(async () => {}) },
+      json: () => new Promise(() => {}),
+    };
+    fetchMock.mockResolvedValue(stalled);
+    const p = api.apiRequest("/api/x");
+    const assertion = expect(p).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await assertion;
+    expect(stalled.body.cancel).toHaveBeenCalled();
+  });
+
   it("the caller's abort still cancels at once as an AbortError", async () => {
     fetchMock.mockImplementation(hang);
     const ctl = new AbortController();

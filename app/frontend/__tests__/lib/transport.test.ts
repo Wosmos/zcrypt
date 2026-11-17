@@ -146,3 +146,33 @@ describe("backoff and Retry-After", () => {
     expect(retryAfterMs(new Error("x"))).toBe(0);
   });
 });
+
+describe("readJsonControl", () => {
+  it("parses a body that arrives in time", async () => {
+    const { readJsonControl } = await import("@/lib/transport");
+    const res = { json: async () => ({ a: 1 }) } as unknown as Response;
+    await expect(readJsonControl(res)).resolves.toEqual({ a: 1 });
+  });
+
+  it("times out a body that never finishes and cancels the stream", async () => {
+    vi.useFakeTimers();
+    const { readJsonControl, StalledError } = await import("@/lib/transport");
+    const cancel = vi.fn(async () => {});
+    const res = { body: { cancel }, json: () => new Promise(() => {}) } as unknown as Response;
+    const p = readJsonControl(res, undefined, 1_000);
+    const assertion = expect(p).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await assertion;
+    expect(cancel).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("surfaces a caller abort as an AbortError", async () => {
+    const { readJsonControl } = await import("@/lib/transport");
+    const ctl = new AbortController();
+    const res = { json: () => new Promise(() => {}) } as unknown as Response;
+    const p = readJsonControl(res, ctl.signal);
+    ctl.abort();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+  });
+});

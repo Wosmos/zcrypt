@@ -45,7 +45,7 @@ import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fet
 import { throwResponseError, parseErrorJson, parseErrorBody, ApiError } from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
-import { fetchIdleBody, withControlTimeout } from "@/lib/transport";
+import { fetchIdleBody, readJsonControl, withControlTimeout } from "@/lib/transport";
 import { retryTransient } from "@/lib/retry";
 import { xhrPut } from "@/lib/upload-session";
 import type { PlatformCredentials } from "@/lib/platform-credentials";
@@ -64,7 +64,7 @@ function chunkFromResponse(
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await requestResponse(path, options);
-  return res.json() as Promise<T>;
+  return readJsonControl<T>(res, options?.signal ?? undefined);
 }
 
 /** The authenticated JSON request core, exported for tests. */
@@ -376,7 +376,7 @@ export async function listFiles(limit?: number): Promise<FileMetadata[]> {
   do {
     const qs: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
     const res = await requestResponse(`/api/files${qs}`);
-    files.push(...((await res.json()) as FileMetadata[]));
+    files.push(...(await readJsonControl<FileMetadata[]>(res)));
     cursor = res.headers.get("X-Next-Cursor");
   } while (cursor);
   return files;

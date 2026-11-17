@@ -30,6 +30,22 @@ describe("throwResponseError", () => {
     await expect(throwResponseError(res)).rejects.toThrow("quota exceeded");
   });
 
+  it("carries the server's machine-readable reason", async () => {
+    const res = {
+      status: 410,
+      text: async () => '{"error":"gone","reason":"chunk_missing"}',
+    } as unknown as Response;
+    await expect(throwResponseError(res)).rejects.toMatchObject({
+      status: 410,
+      reason: "chunk_missing",
+    });
+  });
+
+  it("has an empty reason when the body has none", async () => {
+    const res = { status: 500, text: async () => "boom" } as unknown as Response;
+    await expect(throwResponseError(res)).rejects.toMatchObject({ reason: "" });
+  });
+
   it("throws with the raw body for a non-JSON response", async () => {
     const res = { text: async () => "upstream timeout" } as unknown as Response;
     await expect(throwResponseError(res)).rejects.toThrow("upstream timeout");

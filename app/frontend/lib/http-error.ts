@@ -23,11 +23,14 @@ export class ApiError extends Error {
   status: number;
   /** Seconds the server asked to wait (Retry-After), 0 when it sent none. */
   retryAfter: number;
-  constructor(message: string, status: number, retryAfter = 0) {
+  /** The server's machine-readable `reason` (chunk_pending, chunk_missing), "" when none. */
+  reason: string;
+  constructor(message: string, status: number, retryAfter = 0, reason = "") {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.retryAfter = retryAfter;
+    this.reason = reason;
   }
 }
 
@@ -46,11 +49,23 @@ export function isRetryableStatus(status: number): boolean {
 
 /** Read a non-ok response body and throw an ApiError carrying the server message + status. */
 export async function throwResponseError(res: Response): Promise<never> {
+  const body = await res.text();
   throw new ApiError(
-    parseErrorBody(await res.text()),
+    parseErrorBody(body),
     res.status,
     retryAfterSeconds(res.headers?.get?.("Retry-After")),
+    parseErrorReason(body),
   );
+}
+
+/** The server's `reason` field from a JSON error body, "" when absent. */
+export function parseErrorReason(body: string): string {
+  try {
+    const reason = JSON.parse(body).reason;
+    return typeof reason === "string" ? reason : "";
+  } catch {
+    return "";
+  }
 }
 
 /**
