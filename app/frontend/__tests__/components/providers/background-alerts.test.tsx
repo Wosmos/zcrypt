@@ -1,18 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 
-const h = vi.hoisted(() => ({ alerts: vi.fn(), register: vi.fn(async () => {}) }));
+const h = vi.hoisted(() => ({ alerts: vi.fn(), userEvents: vi.fn(), register: vi.fn(async () => {}) }));
 vi.mock("@/hooks/useAlertEvents", () => ({ useAlertEvents: h.alerts }));
+vi.mock("@/hooks/useUserEvents", () => ({ useUserEvents: h.userEvents }));
 vi.mock("@/lib/service-worker", () => ({ registerServiceWorker: h.register }));
 
 import { BackgroundAlerts } from "@/components/providers/background-alerts";
 
 describe("BackgroundAlerts", () => {
-  it("listens for alerts and registers the service worker once, rendering nothing", () => {
+  it("listens for alerts and user events, and registers the service worker once, rendering nothing", () => {
     const { container, rerender } = render(<BackgroundAlerts />);
     rerender(<BackgroundAlerts />);
     expect(container).toBeEmptyDOMElement();
     expect(h.alerts).toHaveBeenCalled();
+    expect(h.userEvents).toHaveBeenCalled();
     expect(h.register).toHaveBeenCalledTimes(1);
   });
 });
