@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAlertEvents } from "@/hooks/useAlertEvents";
 import { useUserEvents } from "@/hooks/useUserEvents";
+import { useBackupNotifications } from "@/hooks/useBackupNotifications";
 import { useThemeEvents } from "@/hooks/useThemeEvents";
 import { registerServiceWorker } from "@/lib/service-worker";
 
@@ -11,6 +12,7 @@ export function BackgroundAlerts() {
   useAlertEvents();
   useUserEvents();
   useThemeEvents();
+  useBackupNotifications();
   useEffect(() => {
     void registerServiceWorker();
   }, []);
