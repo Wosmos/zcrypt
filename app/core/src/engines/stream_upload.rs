@@ -24,6 +24,7 @@ use crate::adapters;
 use crate::api::types::{ConfirmChunkRequest, UploadInitRequest, UploadInitResponse};
 use crate::compression;
 use crate::crypto;
+use crate::localdb::LocalDb;
 use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage, UploadMode};
 
 use super::pipeline::{self, ProcessedChunk};
@@ -164,6 +165,53 @@ impl UploadSource<'_> {
     }
 }
 
+/// What a sealed backup keeps between attempts at one file: the content key and
+/// its content MAC. The device holds no private key, so without this a failed
+/// attempt could neither continue its server session (the key is gone) nor skip
+/// re-hashing (the MAC is keyed by the content key). It only ever covers a file
+/// that is still in plaintext on this device, and is dropped on success, cancel,
+/// or any change to the file.
+struct SealedAttempt {
+    cek: [u8; crypto::KEY_SIZE],
+    mac: String,
+}
+
+impl SealedAttempt {
+    fn key(source: &UploadSource<'_>) -> String {
+        match source {
+            UploadSource::Path(p) => format!("sealed_attempt:{}", p.display()),
+            UploadSource::Open { name, .. } => format!("sealed_attempt:open:{name}"),
+        }
+    }
+
+    fn load(db: &LocalDb, key: &str, token: &str) -> Option<Self> {
+        let raw = db.setting(key).ok().flatten()?;
+        let mut parts = raw.splitn(3, '|');
+        let (saved, cek, mac) = (parts.next()?, parts.next()?, parts.next()?);
+        if saved != token {
+            return None;
+        }
+        let cek: [u8; crypto::KEY_SIZE] = base64::engine::general_purpose::STANDARD
+            .decode(cek)
+            .ok()?
+            .try_into()
+            .ok()?;
+        Some(Self {
+            cek,
+            mac: mac.to_string(),
+        })
+    }
+
+    fn save(&self, db: &LocalDb, key: &str, token: &str) {
+        let cek = base64::engine::general_purpose::STANDARD.encode(self.cek);
+        let _ = db.set_setting(key, &format!("{token}|{cek}|{}", self.mac));
+    }
+
+    fn clear(db: &LocalDb, key: &str) {
+        let _ = db.set_setting(key, "");
+    }
+}
+
 /// Uploads one file with the given sealing and returns its backend file id.
 pub async fn run_sealed(
     ctx: &EngineContext,
@@ -218,6 +266,14 @@ pub async fn run_sealed_from(
     // the original envelope and discards this fresh one, so re-streamed chunks
     // MUST use the original CEK or the file becomes undecryptable.
     let mut cek = crypto::generate_cek();
+    let attempt_key = matches!(sealing, Sealing::PublicKey(_)).then(|| SealedAttempt::key(&source));
+    let stamp_token = stamp.token();
+    let cached = attempt_key
+        .as_deref()
+        .and_then(|k| SealedAttempt::load(&ctx.db, k, &stamp_token));
+    if let Some(a) = &cached {
+        cek = a.cek;
+    }
     let keys = match &sealing {
         Sealing::Vault(passphrase) => Some(super::upload_keys(ctx, passphrase).await?),
         Sealing::PublicKey(_) => None,
@@ -238,7 +294,9 @@ pub async fn run_sealed_from(
     let hfn = file_name.clone();
     let mut last_emit = 0i64;
     let step = (file_size / 100).max(1);
-    let content_mac =
+    let content_mac = if let Some(a) = &cached {
+        a.mac.clone()
+    } else {
         super::local_upload::hash_open_progress(source.open().await?, hasher, |done| {
             if done - last_emit >= step {
                 last_emit = done;
@@ -254,7 +312,15 @@ pub async fn run_sealed_from(
                 });
             }
         })
-        .await?;
+        .await?
+    };
+    if let (Some(k), None) = (attempt_key.as_deref(), &cached) {
+        SealedAttempt {
+            cek,
+            mac: content_mac.clone(),
+        }
+        .save(&ctx.db, k, &stamp_token);
+    }
     emit(Stage::DerivingKey, 0, 0);
     let salt = crypto::generate_salt();
     let b64 = base64::engine::general_purpose::STANDARD;
@@ -301,9 +367,9 @@ pub async fn run_sealed_from(
     }
     .with_identity_scheme(encrypted_name, content_mac, scheme);
     let mut resp = ctx.client.init_upload(&req).await?;
-    if resp.resumed && matches!(sealing, Sealing::PublicKey(_)) {
-        // A sealed backup can't recover an earlier session's key (it holds no
-        // private key), so it never resumes: start the file over.
+    if resp.resumed && matches!(sealing, Sealing::PublicKey(_)) && cached.is_none() {
+        // A sealed backup holds no private key, so it can only continue a
+        // session whose key it kept (`SealedAttempt`). Any other: start over.
         ctx.client.cancel_upload(&resp.session_id).await?;
         resp = ctx.client.init_upload(&req).await?;
         if resp.resumed {
@@ -345,34 +411,41 @@ pub async fn run_sealed_from(
     // stored envelope → an undecryptable file. Recover the original CEK from the
     // file-meta envelope (exactly as the browser did on resume).
     let have: HashSet<i64> = if resp.resumed {
-        let meta = ctx.client.get_file_meta(&backend_id).await?;
-        let orig_salt = b64
-            .decode(&meta.salt)
-            .map_err(|e| EngineError::Other(format!("resume: bad stored salt: {e}")))?;
-        let orig_wrapped = crypto::WrappedKey::parse(&meta.wrapped_cek)?
-            .ok_or_else(|| EngineError::Other("resume: stored file has no envelope".into()))?;
-        let Sealing::Vault(passphrase) = sealing else {
-            return Err(EngineError::Other(
-                "backup: resumed session without a vault key".into(),
-            ));
-        };
-        if orig_wrapped.is_mk1() {
-            super::ensure_master_key(ctx, passphrase).await?;
+        match sealing {
+            Sealing::Vault(passphrase) => {
+                let meta = ctx.client.get_file_meta(&backend_id).await?;
+                let orig_salt = b64
+                    .decode(&meta.salt)
+                    .map_err(|e| EngineError::Other(format!("resume: bad stored salt: {e}")))?;
+                let orig_wrapped =
+                    crypto::WrappedKey::parse(&meta.wrapped_cek)?.ok_or_else(|| {
+                        EngineError::Other("resume: stored file has no envelope".into())
+                    })?;
+                if orig_wrapped.is_mk1() {
+                    super::ensure_master_key(ctx, passphrase).await?;
+                }
+                let pass = passphrase.to_string();
+                let mut recovered = tokio::task::spawn_blocking(move || {
+                    crypto::resolve_file_key(&pass, &orig_salt, Some(&orig_wrapped))
+                })
+                .await
+                .map_err(join_err)??;
+                if recovered.len() != cek.len() {
+                    recovered.zeroize();
+                    return Err(EngineError::Other(
+                        "resume: recovered key has wrong length (wrong passphrase?)".into(),
+                    ));
+                }
+                cek.copy_from_slice(&recovered);
+                recovered.zeroize();
+            }
+            Sealing::PublicKey(_) if cached.is_some() => {}
+            Sealing::PublicKey(_) => {
+                return Err(EngineError::Other(
+                    "backup: resumed session without its key".into(),
+                ));
+            }
         }
-        let pass = passphrase.to_string();
-        let mut recovered = tokio::task::spawn_blocking(move || {
-            crypto::resolve_file_key(&pass, &orig_salt, Some(&orig_wrapped))
-        })
-        .await
-        .map_err(join_err)??;
-        if recovered.len() != cek.len() {
-            recovered.zeroize();
-            return Err(EngineError::Other(
-                "resume: recovered key has wrong length (wrong passphrase?)".into(),
-            ));
-        }
-        cek.copy_from_slice(&recovered);
-        recovered.zeroize();
 
         ctx.client
             .upload_status(&session_id)
@@ -526,6 +599,9 @@ pub async fn run_sealed_from(
         // alarming FAILED diagnostics line below.
         if matches!(e, EngineError::Cancelled) {
             let _ = ctx.client.cancel_upload(&session_id).await;
+            if let Some(k) = attempt_key.as_deref() {
+                SealedAttempt::clear(&ctx.db, k);
+            }
             eprintln!(
                 "zcrypt stream upload {file_name}: cancelled at {}/{chunk_count} chunks",
                 done.load(Ordering::SeqCst)
@@ -563,6 +639,9 @@ pub async fn run_sealed_from(
             comp_total.load(Ordering::Relaxed),
         )
         .await?;
+    if let Some(k) = attempt_key.as_deref() {
+        SealedAttempt::clear(&ctx.db, k);
+    }
     emit(Stage::Done, chunk_count as u32, file_size);
 
     // Timing line so a real upload prints where the wall-clock actually went.
@@ -848,6 +927,141 @@ mod tests {
         assert!(r.is_err());
         // init + one PUT + the session cancel is not sent on a plain failure
         assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn sealed_ctx(base: &str, dir: &std::path::Path) -> EngineContext {
+        EngineContext {
+            client: Arc::new(crate::api::Client::new(base, "t", "r")),
+            db: Arc::new(crate::localdb::LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_sealed_upload_resumes_with_its_key_and_hash_instead_of_starting_over() {
+        let inits: Arc<Mutex<Vec<String>>> = Arc::default();
+        let calls: Arc<Mutex<Vec<String>>> = Arc::default();
+        let puts = Arc::new(AtomicU32::new(0));
+        let (i, c, p) = (inits.clone(), calls.clone(), puts.clone());
+        let (base, _) = serve(move |_, req| {
+            c.lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.path));
+            match (req.method.as_str(), req.path.as_str()) {
+                ("POST", "/api/upload/init") => {
+                    let mut seen = i.lock().unwrap();
+                    seen.push(String::from_utf8_lossy(&req.body).to_string());
+                    if seen.len() == 1 {
+                        Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+                    } else {
+                        Reply::status(200, r#"{"session_id":"s1","file_id":"f1","resumed":true}"#)
+                    }
+                }
+                ("PUT", _) => {
+                    if p.fetch_add(1, Ordering::SeqCst) == 0 {
+                        Reply::status(403, "forbidden")
+                    } else {
+                        Reply::status(200, r#"{"success":true}"#)
+                    }
+                }
+                ("GET", "/api/upload/s1/status") => Reply::status(200, r#"{"uploaded_chunks":[]}"#),
+                ("POST", "/api/upload/s1/complete") => {
+                    Reply::status(200, r#"{"success":true,"file_id":"f1"}"#)
+                }
+                _ => Reply::status(200, "{}"),
+            }
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let ctx = sealed_ctx(&base, &dir);
+
+        let first = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(first.is_err());
+        let second = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(second.is_ok(), "{second:?}");
+
+        let bodies = inits.lock().unwrap().clone();
+        let mac = |b: &str| {
+            serde_json::from_str::<serde_json::Value>(b).unwrap()["sha256"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(bodies.len(), 2);
+        assert_eq!(
+            mac(&bodies[0]),
+            mac(&bodies[1]),
+            "the content MAC is reused, so the server matches the session"
+        );
+        let seen = calls.lock().unwrap().clone();
+        assert!(
+            !seen.iter().any(|c| c.starts_with("DELETE")),
+            "the resumed session is kept: {seen:?}"
+        );
+        assert!(seen.iter().any(|c| c.contains("/complete")), "{seen:?}");
+        let key = format!("sealed_attempt:{}", file.display());
+        assert_eq!(
+            ctx.db.setting(&key).unwrap().as_deref(),
+            Some(""),
+            "a finished upload drops the saved key"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn a_changed_file_does_not_reuse_the_saved_key_and_a_foreign_resume_starts_over() {
+        let inits: Arc<Mutex<Vec<String>>> = Arc::default();
+        let calls: Arc<Mutex<Vec<String>>> = Arc::default();
+        let (i, c) = (inits.clone(), calls.clone());
+        let (base, _) = serve(move |_, req| {
+            c.lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.path));
+            match (req.method.as_str(), req.path.as_str()) {
+                ("POST", "/api/upload/init") => {
+                    let mut seen = i.lock().unwrap();
+                    seen.push(String::from_utf8_lossy(&req.body).to_string());
+                    Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+                }
+                ("PUT", _) => Reply::status(403, "forbidden"),
+                _ => Reply::status(200, "{}"),
+            }
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let ctx = sealed_ctx(&base, &dir);
+
+        assert!(
+            run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None)
+                .await
+                .is_err()
+        );
+        std::fs::write(&file, vec![6u8; 8192]).unwrap();
+        assert!(
+            run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None)
+                .await
+                .is_err()
+        );
+
+        let bodies = inits.lock().unwrap().clone();
+        let mac = |b: &str| {
+            serde_json::from_str::<serde_json::Value>(b).unwrap()["sha256"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        assert_ne!(mac(&bodies[0]), mac(&bodies[1]));
         let _ = std::fs::remove_dir_all(dir);
     }
 }

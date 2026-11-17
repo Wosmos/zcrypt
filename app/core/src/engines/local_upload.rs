@@ -74,6 +74,16 @@ impl SourceStamp {
         })
     }
 
+    /// A string that changes whenever the size or modification time does.
+    pub(super) fn token(&self) -> String {
+        let nanos = self
+            .modified
+            .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        format!("{}:{nanos}", self.len)
+    }
+
     pub(super) async fn ensure_unchanged(self, path: &Path) -> Result<(), EngineError> {
         if Self::of(path).await? == self {
             return Ok(());
