@@ -6,6 +6,7 @@ type Listener = (event: Record<string, unknown>) => void;
 const listeners: Record<string, Listener> = {};
 const shown: Array<{ title: string; options: Record<string, unknown> }> = [];
 const opened: string[] = [];
+let windows: Array<{ visibilityState: string; url: string }> = [];
 
 beforeAll(() => {
   const self = {
@@ -21,7 +22,7 @@ beforeAll(() => {
     },
     clients: {
       claim: async () => {},
-      matchAll: async () => [],
+      matchAll: async () => windows,
       openWindow: async (url: string) => {
         opened.push(url);
       },
@@ -47,7 +48,28 @@ describe("service worker push", () => {
     const last = shown.at(-1);
     expect(last?.title).toBe("Neue Anmeldung bei deinem zcrypt-Konto");
     expect(last?.options.body).toContain("Chrome on Mac");
-    expect(last?.options.tag).toBe("zcrypt-push-newSignIn");
+    expect(last?.options.tag).toBe("zcrypt-sign-in");
+  });
+
+  it("shows nothing while a visible window exists, because that window got a toast", async () => {
+    const before = shown.length;
+    windows = [{ visibilityState: "visible", url: "https://example.com/dashboard" }];
+    await push({ type: "memberLeft", lang: "en", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.length).toBe(before);
+    windows = [{ visibilityState: "hidden", url: "https://example.com/dashboard" }];
+    await push({ type: "memberLeft", lang: "en", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.length).toBe(before + 1);
+    windows = [];
+  });
+
+  it("words each Space event and tags it like the live event so they replace each other", async () => {
+    await push({ type: "memberLeft", lang: "de", data: { space_id: "s1", user_id: "u9", username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif hat einen deiner Spaces verlassen");
+    expect(shown.at(-1)?.options.tag).toBe("zcrypt-memberLeft-s1-u9");
+    expect(shown.at(-1)?.options.renotify).toBe(false);
+    await push({ type: "invitePending", lang: "en", data: { username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif invited you to a Space");
+    expect(shown.at(-1)?.options.body).toBe("Unlock your vault to join.");
   });
 
   it("falls back to English and ignores unknown events or junk", async () => {

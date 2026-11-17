@@ -1039,7 +1039,23 @@
       "storageFullBody": "Les nouveaux envois attendent que vous libériez de l'espace ou connectiez votre propre compte.",
       "view": "Voir",
       "retry": "Réessayer",
-      "open": "Ouvrir"
+      "open": "Ouvrir",
+      "invitePending": "{name} vous a invité dans un Space",
+      "invitePendingBody": "Déverrouillez votre coffre pour le rejoindre.",
+      "memberJoined": "{name} a rejoint {space}",
+      "memberLeft": "{name} a quitté {space}",
+      "memberRemoved": "Vous avez été retiré de {space}",
+      "roleChanged": "Votre rôle dans {space} est maintenant {role}",
+      "spaceDeleted": "{space} a été supprimé",
+      "filesAdded": "{name} a ajouté {count, plural, one {# fichier} other {# fichiers}} à {space}",
+      "someone": "Quelqu'un",
+      "aSpace": "un Space",
+      "role": {
+        "owner": "Propriétaire",
+        "admin": "Admin",
+        "editor": "Éditeur",
+        "viewer": "Lecteur"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Trop volumineux pour le navigateur",

@@ -1039,7 +1039,23 @@
       "storageFullBody": "Las nuevas subidas esperan hasta que liberes espacio o conectes tu propia cuenta.",
       "view": "Ver",
       "retry": "Reintentar",
-      "open": "Abrir"
+      "open": "Abrir",
+      "invitePending": "{name} te invitó a un Space",
+      "invitePendingBody": "Desbloquea tu bóveda para unirte.",
+      "memberJoined": "{name} se unió a {space}",
+      "memberLeft": "{name} salió de {space}",
+      "memberRemoved": "Te quitaron de {space}",
+      "roleChanged": "Tu rol en {space} ahora es {role}",
+      "spaceDeleted": "Se eliminó {space}",
+      "filesAdded": "{name} añadió {count, plural, one {# archivo} other {# archivos}} a {space}",
+      "someone": "Alguien",
+      "aSpace": "un Space",
+      "role": {
+        "owner": "Propietario",
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Lector"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Demasiado grande para el navegador",

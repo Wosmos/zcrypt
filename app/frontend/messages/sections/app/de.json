@@ -1039,7 +1039,23 @@
       "storageFullBody": "Neue Uploads warten, bis du Platz schaffst oder dein eigenes Konto verbindest.",
       "view": "Ansehen",
       "retry": "Erneut versuchen",
-      "open": "Öffnen"
+      "open": "Öffnen",
+      "invitePending": "{name} hat dich zu einem Space eingeladen",
+      "invitePendingBody": "Entsperre deinen Tresor, um beizutreten.",
+      "memberJoined": "{name} ist {space} beigetreten",
+      "memberLeft": "{name} hat {space} verlassen",
+      "memberRemoved": "Du wurdest aus {space} entfernt",
+      "roleChanged": "Deine Rolle in {space} ist jetzt {role}",
+      "spaceDeleted": "{space} wurde gelöscht",
+      "filesAdded": "{name} hat {count, plural, one {# Datei} other {# Dateien}} zu {space} hinzugefügt",
+      "someone": "Jemand",
+      "aSpace": "einem Space",
+      "role": {
+        "owner": "Inhaber",
+        "admin": "Admin",
+        "editor": "Bearbeiter",
+        "viewer": "Betrachter"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Zu groß für den Browser",

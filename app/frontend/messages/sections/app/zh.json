@@ -1039,7 +1039,23 @@
       "storageFullBody": "新的上传会等待，直到你释放空间或连接自己的账户。",
       "view": "查看",
       "retry": "重试",
-      "open": "打开"
+      "open": "打开",
+      "invitePending": "{name} 邀请你加入一个空间",
+      "invitePendingBody": "解锁你的保险库即可加入。",
+      "memberJoined": "{name} 加入了「{space}」",
+      "memberLeft": "{name} 退出了「{space}」",
+      "memberRemoved": "你已被移出「{space}」",
+      "roleChanged": "你在「{space}」中的角色现为{role}",
+      "spaceDeleted": "「{space}」已被删除",
+      "filesAdded": "{name} 向「{space}」添加了 {count} 个文件",
+      "someone": "有人",
+      "aSpace": "一个空间",
+      "role": {
+        "owner": "所有者",
+        "admin": "管理员",
+        "editor": "编辑者",
+        "viewer": "查看者"
+      }
     },
     "webLimit": {
       "tooBigTitle": "文件太大，无法在浏览器中上传",

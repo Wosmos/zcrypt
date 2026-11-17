@@ -1039,7 +1039,23 @@
       "storageFullBody": "نئے اپ لوڈ تب تک رکے رہیں گے جب تک آپ جگہ خالی نہ کریں یا اپنا اکاؤنٹ نہ جوڑیں۔",
       "view": "دیکھیں",
       "retry": "دوبارہ کوشش کریں",
-      "open": "کھولیں"
+      "open": "کھولیں",
+      "invitePending": "{name} نے آپ کو ایک اسپیس میں مدعو کیا",
+      "invitePendingBody": "شامل ہونے کے لیے اپنی والٹ کھولیں۔",
+      "memberJoined": "{name} {space} میں شامل ہوئے",
+      "memberLeft": "{name} نے {space} چھوڑ دیا",
+      "memberRemoved": "آپ کو {space} سے ہٹا دیا گیا",
+      "roleChanged": "{space} میں آپ کا کردار اب {role} ہے",
+      "spaceDeleted": "{space} حذف کر دیا گیا",
+      "filesAdded": "{name} نے {space} میں {count, plural, one {# فائل} other {# فائلیں}} شامل کیں",
+      "someone": "کوئی",
+      "aSpace": "ایک اسپیس",
+      "role": {
+        "owner": "مالک",
+        "admin": "ایڈمن",
+        "editor": "ایڈیٹر",
+        "viewer": "ناظر"
+      }
     },
     "webLimit": {
       "tooBigTitle": "براؤزر کے لیے بہت بڑی",

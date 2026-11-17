@@ -1039,7 +1039,23 @@
       "storageFullBody": "New uploads wait until you free up space or connect your own account.",
       "view": "View",
       "retry": "Retry",
-      "open": "Open"
+      "open": "Open",
+      "invitePending": "{name} invited you to a Space",
+      "invitePendingBody": "Unlock your vault to join.",
+      "memberJoined": "{name} joined {space}",
+      "memberLeft": "{name} left {space}",
+      "memberRemoved": "You were removed from {space}",
+      "roleChanged": "Your role in {space} is now {role}",
+      "spaceDeleted": "{space} was deleted",
+      "filesAdded": "{name} added {count, plural, one {# file} other {# files}} to {space}",
+      "someone": "Someone",
+      "aSpace": "a Space",
+      "role": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Viewer"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Too big for the browser",

@@ -1039,7 +1039,23 @@
       "storageFullBody": "تنتظر عمليات الرفع الجديدة حتى تفرّغ مساحة أو تربط حسابك الخاص.",
       "view": "عرض",
       "retry": "إعادة المحاولة",
-      "open": "فتح"
+      "open": "فتح",
+      "invitePending": "دعاك {name} إلى مساحة",
+      "invitePendingBody": "افتح خزنتك للانضمام.",
+      "memberJoined": "انضم {name} إلى {space}",
+      "memberLeft": "غادر {name} {space}",
+      "memberRemoved": "تمت إزالتك من {space}",
+      "roleChanged": "دورك في {space} أصبح الآن {role}",
+      "spaceDeleted": "تم حذف {space}",
+      "filesAdded": "أضاف {name} {count, plural, one {ملفًا} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}} إلى {space}",
+      "someone": "شخص ما",
+      "aSpace": "مساحة",
+      "role": {
+        "owner": "المالك",
+        "admin": "مشرف",
+        "editor": "محرر",
+        "viewer": "مشاهد"
+      }
     },
     "webLimit": {
       "tooBigTitle": "أكبر من أن يُرفع من المتصفح",

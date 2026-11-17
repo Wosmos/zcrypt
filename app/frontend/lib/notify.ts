@@ -29,10 +29,23 @@ export type NotifyEvent =
     }
   | { type: "transferFailed"; kind: TransferKind; name: string; reason: string }
   | { type: "downloadDone"; name: string }
-  | { type: "newSignIn"; device: string }
-  | { type: "inviteReceived"; space: string }
-  | { type: "linkViewed"; name: string }
+  | ({ type: "newSignIn"; device: string } & Routed)
+  | ({ type: "inviteReceived"; space: string } & Routed)
+  | ({ type: "invitePending"; name: string } & Routed)
+  | ({ type: "memberJoined"; name: string; space: string } & Routed)
+  | ({ type: "memberLeft"; name: string; space: string } & Routed)
+  | ({ type: "memberRemoved"; space: string } & Routed)
+  | ({ type: "roleChanged"; space: string; role: string } & Routed)
+  | ({ type: "spaceDeleted"; space: string } & Routed)
+  | ({ type: "filesAdded"; name: string; space: string; count: number } & Routed)
+  | ({ type: "linkViewed"; name: string } & Routed)
   | { type: "storageFull" };
+
+/** Where an event came from and where it leads, as the server sent them. */
+interface Routed {
+  url?: string;
+  tag?: string;
+}
 
 /** How a notification reaches the person: a service worker, the desktop or Android shell, or nothing. */
 export type NotifyChannel = "sw" | "tauri" | "tauri-mobile" | "none";
@@ -64,6 +77,8 @@ export interface NotifyPayload {
   actions: ActionId[];
   progress: boolean;
   silent: boolean;
+  /** False for a server event, so its push and live copies replace each other quietly. */
+  renotify?: boolean;
 }
 
 const ICON = "/brand/icon-192.png";
@@ -100,6 +115,24 @@ export function failureReason(
   percent: number,
 ): string {
   return translateLabel((k, v) => tr(`transfer.${k}`, v), errorLabel(kind, error, percent));
+}
+
+/** The tag shared by a live event and its web push, so the two never show twice. */
+export function eventTag(type: string, data: Record<string, string> = {}): string {
+  const fixed = FIXED_TAGS[type];
+  if (fixed) return fixed;
+  return ["zcrypt", type, data.space_id, data.user_id].filter(Boolean).join("-");
+}
+
+const FIXED_TAGS: Record<string, string> = {
+  newSignIn: "zcrypt-sign-in",
+  inviteReceived: "zcrypt-invite",
+  linkViewed: "zcrypt-link",
+};
+
+function routed(event: Routed, fallbackUrl: string, fallbackTag: string) {
+  const safe = event.url && /^\/(?![/\\])/.test(event.url) ? event.url : fallbackUrl;
+  return { url: safe, tag: event.tag ?? fallbackTag, renotify: false };
 }
 
 function folderUrl(folderId: string | null | undefined): string {
@@ -175,26 +208,60 @@ export function describeNotification(event: NotifyEvent, thumbnails: boolean): N
         ...base,
         title: tr("notify.newSignIn"),
         body: tr("notify.newSignInBody", { device: event.device }),
-        tag: "zcrypt-sign-in",
         area: "security",
-        url: "/settings?tab=sessions",
+        ...routed(event, "/settings?tab=sessions", "zcrypt-sign-in"),
       };
     case "inviteReceived":
       return {
         ...base,
         title: tr("notify.inviteReceived", { space: event.space }),
         body: tr("notify.inviteReceivedBody"),
-        tag: "zcrypt-invite",
         area: "sharing",
-        url: "/spaces",
+        ...routed(event, "/spaces", "zcrypt-invite"),
       };
+    case "invitePending":
+      return {
+        ...base,
+        title: tr("notify.invitePending", { name: event.name }),
+        body: tr("notify.invitePendingBody"),
+        area: "sharing",
+        ...routed(event, "/spaces", "zcrypt-invitePending"),
+      };
+    case "memberJoined":
+      return spaceNotice(
+        base,
+        event,
+        tr("notify.memberJoined", { name: event.name, space: event.space }),
+      );
+    case "memberLeft":
+      return spaceNotice(
+        base,
+        event,
+        tr("notify.memberLeft", { name: event.name, space: event.space }),
+      );
+    case "memberRemoved":
+      return spaceNotice(base, event, tr("notify.memberRemoved", { space: event.space }));
+    case "roleChanged":
+      return spaceNotice(
+        base,
+        event,
+        tr("notify.roleChanged", { space: event.space, role: tr(`notify.role.${event.role}`) }),
+      );
+    case "spaceDeleted":
+      return spaceNotice(base, event, tr("notify.spaceDeleted", { space: event.space }));
+    case "filesAdded":
+      return spaceNotice(
+        base,
+        event,
+        tr("notify.filesAdded", { name: event.name, space: event.space, count: event.count }),
+      );
     case "linkViewed":
       return {
         ...base,
         title: tr("notify.linkViewed"),
         body: event.name,
-        tag: "zcrypt-link",
         area: "sharing",
+        ...routed(event, DASHBOARD, "zcrypt-link"),
       };
     case "storageFull":
       return {
@@ -206,6 +273,20 @@ export function describeNotification(event: NotifyEvent, thumbnails: boolean): N
         url: "/settings?tab=storage",
       };
   }
+}
+
+function spaceNotice(
+  base: { url: string; actions: ActionId[]; progress: boolean; silent: boolean },
+  event: Routed & { type: string },
+  title: string,
+): NotifyPayload {
+  return {
+    ...base,
+    title,
+    body: "",
+    area: "sharing",
+    ...routed(event, "/spaces", `zcrypt-${event.type}`),
+  };
 }
 
 /** The pure gate: should this payload reach the operating system? */
@@ -271,7 +352,7 @@ function workerOptions(p: NotifyPayload): NotificationOptions & Record<string, u
     icon: ICON,
     badge: ICON,
     silent: p.silent,
-    renotify: !p.progress,
+    renotify: p.renotify ?? !p.progress,
     data: { url: p.url, folderId: p.folderId ?? null, click: p.click ?? null },
     actions: p.actions.map((action) => ({ action, title: tr(`notify.${action}`) })),
   };

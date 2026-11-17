@@ -1039,7 +1039,23 @@
       "storageFullBody": "Новые загрузки ждут, пока вы не освободите место или не подключите свой аккаунт.",
       "view": "Открыть папку",
       "retry": "Повторить",
-      "open": "Открыть"
+      "open": "Открыть",
+      "invitePending": "{name} приглашает вас в пространство",
+      "invitePendingBody": "Разблокируйте хранилище, чтобы присоединиться.",
+      "memberJoined": "{name} присоединился к «{space}»",
+      "memberLeft": "{name} покинул «{space}»",
+      "memberRemoved": "Вас удалили из «{space}»",
+      "roleChanged": "Ваша роль в «{space}»: {role}",
+      "spaceDeleted": "«{space}» удалено",
+      "filesAdded": "{name} добавил в «{space}» {count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}",
+      "someone": "Кто-то",
+      "aSpace": "пространство",
+      "role": {
+        "owner": "Владелец",
+        "admin": "Админ",
+        "editor": "Редактор",
+        "viewer": "Читатель"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Слишком большой для браузера",
