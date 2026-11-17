@@ -94,9 +94,10 @@ export async function refreshSessionToken(): Promise<RefreshOutcome> {
  * access-token lifetime keeps going (every chunk that hits a 401 transparently
  * refreshes) instead of dying with "invalid or expired token".
  *
- * No timeout is imposed: chunk uploads can legitimately take a while on a slow
- * relay. Pass `init.signal` if a caller needs cancellation. The body must be a
- * buffered type (string / ArrayBuffer / typed array) so it survives the retry;
+ * No timeout is imposed here: callers pass `init.signal`, built by
+ * withControlTimeout (small JSON calls) or an idle watch (chunk bodies) in
+ * lib/transport.ts. The body must be a buffered type (string / ArrayBuffer /
+ * typed array) so it survives the retry;
  * all upload-session callers use those, never a one-shot ReadableStream.
  */
 export async function authedFetch(input: string, init?: RequestInit): Promise<Response> {

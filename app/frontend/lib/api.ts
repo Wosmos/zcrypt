@@ -45,14 +45,22 @@ import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fet
 import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
+import { fetchIdleBody } from "@/lib/transport";
 import type { PlatformCredentials } from "@/lib/platform-credentials";
 
-/** Build the chunk-download return payload from a response (body + chunk headers). */
 async function readChunkResponse(
   res: Response,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
+  return chunkFromResponse(res, await res.arrayBuffer());
+}
+
+/** Build the chunk-download return payload from a response (body + chunk headers). */
+function chunkFromResponse(
+  res: Response,
+  data: ArrayBuffer,
+): { data: ArrayBuffer; sha256: string; compressed: boolean } {
   return {
-    data: await res.arrayBuffer(),
+    data,
     sha256: res.headers.get("X-Chunk-SHA256") || "",
     compressed: res.headers.get("X-Chunk-Compressed") === "true",
   };
@@ -332,17 +340,31 @@ export async function putFileThumb(fileId: string, sealed: Uint8Array): Promise<
   });
 }
 
-/** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
-// A chunk download is a bare fetch (not the `request()` wrapper), so it must
-// carry its own timeout. Without one, a stalled fetch, e.g. a chunk still
-// syncing from staging to the git platform, or an unresponsive server, hangs
-// forever. Because foreground decrypts (viewer/preview/prefetch) go through
-// here and register in the decrypt cache's in-flight set, one hung fetch pins
-// `isForegroundDecryptActive()` true and starves the whole thumbnail queue
-// (perpetual shimmer). Generous, since chunks can be ~17MB on slow links; the
-// timeout covers the body read too, so it catches a mid-download stall.
-const CHUNK_TIMEOUT_MS = 90_000;
+/** Where one stored chunk lives, for a download straight from the user's own storage. */
+export interface ChunkLocator {
+  index: number;
+  platform: string;
+  account: string;
+  repo: string;
+  /** Telegram: "msgId:fileId" per part, joined by commas. */
+  remote_path: string;
+  size: number;
+  /** SHA-256 of the stored (encrypted) chunk bytes. */
+  sha256: string;
+  compressed: boolean;
+}
 
+/** GET /api/files/{id}/locators. Owner only; anyone else gets an ApiError. */
+export function getFileLocators(
+  fileId: string,
+): Promise<{ file_id: string; chunks: ChunkLocator[] }> {
+  return request(`/api/files/${fileId}/locators`, { cache: "no-store" });
+}
+
+/** Download a single encrypted chunk. Returns raw bytes + metadata headers.
+ *  Fails only after the idle limit with no bytes moving, never for taking long;
+ *  the caller's cancel/pause stays an AbortError. authedFetch refreshes a stale
+ *  access token on a 401, so a download outliving the token keeps going. */
 export async function getFileChunk(
   fileId: string,
   index: number,
@@ -352,44 +374,12 @@ export async function getFileChunk(
   sha256: string;
   compressed: boolean;
 }> {
-  // The stall watchdog always runs, caller signal or not: the caller's
-  // cancel/pause is forwarded into our own controller so either one aborts the
-  // fetch. Keep the timer alive through the body read so a stall mid-download
-  // aborts too.
-  const controller = new AbortController();
-  const onCallerAbort = () => controller.abort();
-  if (signal?.aborted) controller.abort();
-  else signal?.addEventListener("abort", onCallerAbort, { once: true });
-  const timeoutId = setTimeout(() => controller.abort(), CHUNK_TIMEOUT_MS);
-  const useSignal = controller.signal;
-
-  try {
-    // authedFetch attaches the access token AND refreshes it on a 401, then
-    // retries, so a download that outlives the ~15-min access-token lifetime
-    // (a long/big transfer, a resume that skips the meta call, or just a tab
-    // left open) keeps going instead of every chunk failing with a 401. A bare
-    // fetch here (no refresh) was why downloads failed "pretty much every time"
-    // once the token went stale; this matches the upload path.
-    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, {
-      signal: useSignal,
-    });
-
-    if (!res.ok) await throwResponseError(res);
-
-    return readChunkResponse(res);
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      // Our own timeout fired → surface a retryable "timed out". The caller's
-      // cancel/pause must instead stay an AbortError so the pipeline treats it
-      // as a stop (not a transient failure), re-throw it unchanged.
-      if (signal?.aborted) throw err;
-      throw new Error(`chunk ${index} download timed out`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-    signal?.removeEventListener("abort", onCallerAbort);
-  }
+  const { res, body } = await fetchIdleBody(
+    (s) => authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { signal: s }),
+    throwResponseError,
+    { signal },
+  );
+  return chunkFromResponse(res, body);
 }
 
 /** With a limit, the newest `limit` files. Without one, the whole library,
@@ -1684,9 +1674,11 @@ export async function getShareChunk(
   compressed: boolean;
 }> {
   const headers = publicLinkHeaders(password, ticket);
-  const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
-  if (!res.ok) throw new ApiError("Failed to download chunk", res.status);
-  return readChunkResponse(res);
+  const { res, body } = await fetchIdleBody(
+    (s) => fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers, signal: s }),
+    (r) => Promise.reject(new ApiError("Failed to download chunk", r.status)),
+  );
+  return chunkFromResponse(res, body);
 }
 
 // ─── Folder Shares (public folder links) ───

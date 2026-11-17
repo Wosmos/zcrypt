@@ -21,11 +21,20 @@ export function parseErrorBody(body: string): string {
  *  without re-parsing the response. */
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Seconds the server asked to wait (Retry-After), 0 when it sent none. */
+  retryAfter: number;
+  constructor(message: string, status: number, retryAfter = 0) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.retryAfter = retryAfter;
   }
+}
+
+/** Seconds from a numeric Retry-After header, 0 when absent or not a number. */
+export function retryAfterSeconds(value: string | null | undefined): number {
+  const n = Number(value?.trim());
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 /** Statuses worth retrying: request timeout, rate limit, and any server error.
@@ -37,7 +46,11 @@ export function isRetryableStatus(status: number): boolean {
 
 /** Read a non-ok response body and throw an ApiError carrying the server message + status. */
 export async function throwResponseError(res: Response): Promise<never> {
-  throw new ApiError(parseErrorBody(await res.text()), res.status);
+  throw new ApiError(
+    parseErrorBody(await res.text()),
+    res.status,
+    retryAfterSeconds(res.headers?.get?.("Retry-After")),
+  );
 }
 
 /**

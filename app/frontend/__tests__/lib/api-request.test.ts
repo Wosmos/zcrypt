@@ -35,6 +35,7 @@ const { getState, tryRefreshToken, authedFetch, shouldRefreshOn401 } = vi.hoiste
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken, authedFetch, shouldRefreshOn401 }));
 
+import { StalledError } from "@/lib/transport";
 import {
   getConfig,
   getFileChunk,
@@ -295,8 +296,8 @@ describe("getFileChunk (custom download path)", () => {
         }),
     );
     const controller = new AbortController();
-    const assertion = expect(getFileChunk("f", 3, controller.signal)).rejects.toThrow("chunk 3 download timed out");
-    await vi.advanceTimersByTimeAsync(90_000);
+    const assertion = expect(getFileChunk("f", 3, controller.signal)).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(60_000);
     await assertion;
     vi.useRealTimers();
   });
@@ -307,11 +308,6 @@ describe("getFileChunk (custom download path)", () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(getFileChunk("f", 0, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
     expect((fetchMock.mock.calls.at(-1)![1] as RequestInit).signal?.aborted).toBe(true);
-  });
-
-  it("maps an aborted chunk fetch to a chunk-specific timeout error", async () => {
-    fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
-    await expect(getFileChunk("f", 4)).rejects.toThrow("chunk 4 download timed out");
   });
 
   it("refreshes the token on a 401 and retries the chunk (long/stale-token downloads)", async () => {
@@ -328,7 +324,7 @@ describe("getFileChunk (custom download path)", () => {
     expect(new Uint8Array(out.data)).toEqual(new Uint8Array([9]));
   });
 
-  it("aborts a chunk that stalls past the 90s ceiling", async () => {
+  it("aborts a chunk that sends nothing for the 60s idle limit, not before", async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(
       (_url: string, init: RequestInit) =>
@@ -339,11 +335,11 @@ describe("getFileChunk (custom download path)", () => {
         }),
     );
 
-    // The timer stays alive through the body read, so a mid-download stall
-    // aborts too, not just a stalled response head.
     const pending = getFileChunk("f", 7);
-    const assertion = expect(pending).rejects.toThrow("chunk 7 download timed out");
-    await vi.advanceTimersByTimeAsync(90_000);
+    const assertion = expect(pending).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
     vi.useRealTimers();
   });
