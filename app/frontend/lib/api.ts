@@ -42,17 +42,13 @@ import type {
 import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
-import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
+import { throwResponseError, parseErrorJson, parseErrorBody, ApiError } from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
-import { fetchIdleBody } from "@/lib/transport";
+import { fetchIdleBody, withControlTimeout } from "@/lib/transport";
+import { retryTransient } from "@/lib/retry";
+import { xhrPut } from "@/lib/upload-session";
 import type { PlatformCredentials } from "@/lib/platform-credentials";
-
-async function readChunkResponse(
-  res: Response,
-): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
-  return chunkFromResponse(res, await res.arrayBuffer());
-}
 
 /** Build the chunk-download return payload from a response (body + chunk headers). */
 function chunkFromResponse(
@@ -71,6 +67,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** The authenticated JSON request core, exported for tests. */
+export { request as apiRequest };
+
 async function requestResponse(
   path: string,
   options?: RequestInit,
@@ -85,29 +84,18 @@ async function requestResponse(
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  // Timeout: use the caller's signal if it supplied one, else bound the fetch
-  // ourselves at 30s. The timer is created unconditionally (and always cleared
-  // below), when a caller signal is in play the controller's own signal is
-  // simply never wired to the fetch, so its abort is inert.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
-  const signal = options?.signal ?? controller.signal;
+  const send = (h: Record<string, string>) =>
+    withControlTimeout(
+      (signal) => fetch(`${API_BASE}${path}`, { ...options, headers: h, signal }),
+      options?.signal ?? undefined,
+    );
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-      signal,
-    });
+    res = await send(headers);
   } catch (err) {
     reportConnectivityFailure();
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error("Request timed out");
-    }
     throw err;
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   // On 401, try refreshing the token and retry once
@@ -115,10 +103,7 @@ async function requestResponse(
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers,
-      });
+      res = await send(headers);
     }
   }
 
@@ -1632,13 +1617,14 @@ export async function getShareInfo(token: string): Promise<ShareInfo> {
 export async function getShareFileMeta(
   token: string,
   password?: string,
+  signal?: AbortSignal,
 ): Promise<FileMetaResponse> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
-  const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
-  if (!res.ok) {
-    throw new ApiError(await parseErrorJson(res, "Failed to get file metadata"), res.status);
-  }
+  const res = await linkFetch(
+    `${API_BASE}/api/share/${token}/meta`,
+    publicLinkHeaders(password),
+    {},
+    signal,
+  );
   return res.json();
 }
 
@@ -1649,18 +1635,28 @@ function publicLinkHeaders(password?: string, ticket?: string): Record<string, s
   return headers;
 }
 
-async function postLinkComplete(url: string, ticket: string, password?: string): Promise<void> {
-  const res = await shareFetchRetry(
+async function postLinkComplete(
+  url: string,
+  ticket: string,
+  password?: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await linkFetch(
     url,
     { ...publicLinkHeaders(password), "Content-Type": "application/json" },
     { method: "POST", body: JSON.stringify({ ticket }) },
+    signal,
   );
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to confirm download"));
 }
 
 /** Confirm a finished public-link download so it counts once against max_downloads. */
-export function completeShareDownload(token: string, ticket: string, password?: string) {
-  return postLinkComplete(`${API_BASE}/api/share/${token}/complete`, ticket, password);
+export function completeShareDownload(
+  token: string,
+  ticket: string,
+  password?: string,
+  signal?: AbortSignal,
+) {
+  return postLinkComplete(`${API_BASE}/api/share/${token}/complete`, ticket, password, signal);
 }
 
 export async function getShareChunk(
@@ -1668,6 +1664,7 @@ export async function getShareChunk(
   index: number,
   password?: string,
   ticket?: string,
+  signal?: AbortSignal,
 ): Promise<{
   data: ArrayBuffer;
   sha256: string;
@@ -1676,7 +1673,8 @@ export async function getShareChunk(
   const headers = publicLinkHeaders(password, ticket);
   const { res, body } = await fetchIdleBody(
     (s) => fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers, signal: s }),
-    (r) => Promise.reject(new ApiError("Failed to download chunk", r.status)),
+    throwResponseError,
+    { signal },
   );
   return chunkFromResponse(res, body);
 }
@@ -1737,44 +1735,29 @@ export function revokeFolderShare(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folder-shares/${id}`, { method: "DELETE" });
 }
 
-const shareSleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /**
- * Fetch a public share endpoint with retries. Downloading a folder fires many
- * requests concurrently, so a transient rate-limit (429) must not fail an
- * otherwise-healthy file:
- *   - 429      → wait (honoring Retry-After) and retry, up to a few times.
- *   - network  → short backoff, retried a couple times.
- *   - other    → returned as-is (a real 4xx/5xx like a missing chunk fails fast,
- *                so the caller can skip it immediately).
+ * Fetch a public link endpoint (no auth) under the shared transfer rule: a
+ * control-call time limit per attempt, then the one retry helper (network
+ * failure, 408, 429 with Retry-After, 5xx). Anything else, like a 403 or 404,
+ * throws an ApiError at once so the caller can skip it.
  */
-async function shareFetchRetry(
+async function linkFetch(
   url: string,
   headers: Record<string, string>,
   init: RequestInit = {},
+  signal?: AbortSignal,
 ): Promise<Response> {
-  const RL_MAX = 5; // rate-limit retries
-  const ERR_MAX = 2; // transient network retries
-  let rl = 0;
-  let err = 0;
-  for (;;) {
-    let res: Response;
-    try {
-      res = await fetch(url, { ...init, headers });
-    } catch (e) {
-      if (err++ >= ERR_MAX) throw e;
-      await shareSleep(Math.min(4000, 400 * 2 ** err));
-      continue;
-    }
-    if (res.status === 429 && rl < RL_MAX) {
-      rl++;
-      const ra = Number(res.headers.get("Retry-After"));
-      await res.arrayBuffer().catch(() => {}); // drain so the connection frees
-      await shareSleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : Math.min(8000, 500 * 2 ** rl));
-      continue;
-    }
-    return res;
-  }
+  return retryTransient(
+    async () => {
+      const res = await withControlTimeout(
+        (s) => fetch(url, { ...init, headers, signal: s }),
+        signal,
+      );
+      if (!res.ok) await throwResponseError(res);
+      return res;
+    },
+    { signal },
+  );
 }
 
 // Public folder-link access (no auth, rate-limited). The optional password
@@ -1794,14 +1777,14 @@ export async function getFolderShareFileMeta(
   token: string,
   fileId: string,
   password?: string,
+  signal?: AbortSignal,
 ): Promise<FileMetaResponse> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
-  const res = await shareFetchRetry(
+  const res = await linkFetch(
     `${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`,
-    headers,
+    publicLinkHeaders(password),
+    {},
+    signal,
   );
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
   return res.json();
 }
 
@@ -1811,11 +1794,13 @@ export function completeFolderShareDownload(
   fileId: string,
   ticket: string,
   password?: string,
+  signal?: AbortSignal,
 ) {
   return postLinkComplete(
     `${API_BASE}/api/folder-share/${token}/files/${fileId}/complete`,
     ticket,
     password,
+    signal,
   );
 }
 
@@ -1825,14 +1810,19 @@ export async function getFolderShareChunk(
   index: number,
   password?: string,
   ticket?: string,
+  signal?: AbortSignal,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
   const headers = publicLinkHeaders(password, ticket);
-  const res = await shareFetchRetry(
-    `${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`,
-    headers,
+  const { res, body } = await fetchIdleBody(
+    (s) =>
+      fetch(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, {
+        headers,
+        signal: s,
+      }),
+    throwResponseError,
+    { signal },
   );
-  if (!res.ok) throw new Error("Failed to download chunk");
-  return readChunkResponse(res);
+  return chunkFromResponse(res, body);
 }
 
 // ─── Anonymous Send API (no auth) ───
@@ -1869,32 +1859,54 @@ export async function sendInit(data: SendInitRequest): Promise<SendInitResponse>
   return res.json();
 }
 
+/** Upload one send chunk over XHR (per-chunk progress, 60s stall watchdog), retried
+ *  by the shared helper. `signal` aborts the in-flight PUT and any backoff. */
 export async function sendChunkUpload(
   sessionId: string,
   idx: number,
   chunk: Uint8Array,
   sha256: string,
   compressed: boolean,
+  opts: { signal?: AbortSignal; onProgress?: (sentBytes: number) => void } = {},
 ): Promise<void> {
-  const headers: Record<string, string> = {
-    "X-Chunk-SHA256": sha256,
-  };
+  const headers: Record<string, string> = { "X-Chunk-SHA256": sha256 };
   if (compressed) headers["X-Chunk-Compressed"] = "true";
 
-  const res = await fetch(`${API_BASE}/api/send/${sessionId}/chunk/${idx}`, {
-    method: "PUT",
-    headers,
-    body: chunk as unknown as BodyInit,
-  });
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to upload chunk"));
+  await retryTransient(
+    async () => {
+      const res = await xhrPut(
+        `${API_BASE}/api/send/${sessionId}/chunk/${idx}`,
+        headers,
+        chunk,
+        opts.onProgress,
+        opts.signal,
+      );
+      if (res.status < 200 || res.status >= 300) {
+        throw new ApiError(
+          parseErrorBody(res.body) || "Failed to upload chunk",
+          res.status,
+          res.retryAfter,
+        );
+      }
+    },
+    { signal: opts.signal },
+  );
 }
 
-export async function sendComplete(sessionId: string): Promise<{ token: string }> {
-  const res = await fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  });
+export async function sendComplete(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<{ token: string }> {
+  const res = await withControlTimeout(
+    (s) =>
+      fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        signal: s,
+      }),
+    signal,
+  );
   if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to complete send"));
   return res.json();
 }
@@ -1914,14 +1926,18 @@ export async function getSendMeta(token: string): Promise<SendMeta> {
 export async function getSendChunk(
   token: string,
   idx: number,
+  signal?: AbortSignal,
 ): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
 }> {
-  const res = await fetch(`${API_BASE}/api/send/${token}/chunks/${idx}`);
-  if (!res.ok) throw new Error("Failed to download chunk");
-  return readChunkResponse(res);
+  const { res, body } = await fetchIdleBody(
+    (s) => fetch(`${API_BASE}/api/send/${token}/chunks/${idx}`, { signal: s }),
+    throwResponseError,
+    { signal },
+  );
+  return chunkFromResponse(res, body);
 }
 
 // ─── Pad (anonymous encrypted text sharing) ─────────────────────────────────
@@ -1967,12 +1983,10 @@ export function listClipboard(): Promise<ClipboardItem[]> {
 export async function getClipboardContent(
   id: string,
 ): Promise<{ data: ArrayBuffer; contentType: string }> {
-  const { accessToken } = useAuthStore.getState();
-  const headers: Record<string, string> = {};
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`${API_BASE}/api/clipboard/${id}`, { headers });
-  if (!res.ok) throw new Error("Failed to get clipboard content");
+  const res = await withControlTimeout((signal) =>
+    authedFetch(`${API_BASE}/api/clipboard/${id}`, { signal }),
+  );
+  if (!res.ok) await throwResponseError(res);
   return {
     data: await res.arrayBuffer(),
     contentType: res.headers.get("X-Content-Type") || "text",

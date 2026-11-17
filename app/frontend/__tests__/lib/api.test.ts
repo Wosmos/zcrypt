@@ -196,7 +196,7 @@ describe("shareFetchRetry (via getFolderShareFileMeta)", () => {
     fetchMock.mockRejectedValue(new TypeError("still down"));
     const p = getFolderShareFileMeta("tok", "f1");
     const assertion = expect(p).rejects.toThrow("still down");
-    await vi.advanceTimersByTimeAsync(20000); // flush every backoff until it throws
+    await vi.advanceTimersByTimeAsync(120000); // flush every backoff until it throws
     await assertion;
   });
 });

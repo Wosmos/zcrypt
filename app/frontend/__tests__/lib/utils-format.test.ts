@@ -16,6 +16,7 @@ import {
   fileNameById,
   concatChunks,
   saveBlob,
+  BLOB_URL_REVOKE_DELAY_MS,
 } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 
@@ -210,12 +211,19 @@ describe("saveBlob", () => {
     vi.restoreAllMocks();
   });
 
-  it("saves a Blob directly (no mime) via a hidden <a download> then revokes", () => {
-    saveBlob("out.txt", new Blob(["hi"]));
-    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
-    expect(clicked?.download).toBe("out.txt");
-    expect(clicked?.href).toContain("blob:fake-url");
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
+  it("saves a Blob directly (no mime) via a hidden <a download> then revokes after a delay", () => {
+    vi.useFakeTimers();
+    try {
+      saveBlob("out.txt", new Blob(["hi"]));
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(clicked?.download).toBe("out.txt");
+      expect(clicked?.href).toContain("blob:fake-url");
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(BLOB_URL_REVOKE_DELAY_MS);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("re-wraps a Blob with the given mime type", () => {
@@ -239,7 +247,6 @@ describe("saveBlob", () => {
     saveBlob("part.txt", "raw string part", "text/plain");
     const passed = createSpy.mock.calls[0][0] as Blob;
     expect(passed.type).toBe("text/plain");
-    expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 
   it("defaults a raw BlobPart to octet-stream when no MIME is given", () => {

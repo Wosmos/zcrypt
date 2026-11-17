@@ -18,41 +18,22 @@ import { genId } from "@/lib/id";
 import { desktopAppAction } from "@/lib/open-desktop-app";
 import { DownloadStatus } from "@/types";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
+import { STREAM_TO_DISK_MIN_BYTES, getSaveFilePicker, canStreamToDisk } from "@/lib/disk-save";
+
 import { createFrameBatch } from "@/lib/frame-batch";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
 import { isTransientError } from "@/lib/retry";
 import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
 
+export { canStreamToDisk };
+
 function notifyZipDone(count: number, failed: number) {
   void notify({ type: "transferDone", kind: "download", count, failed, folder: "" });
 }
 
-// Files at/above this size stream to disk (a Save-As prompt) instead of being
-// assembled in memory: the only way to download something too big to hold in a
-// browser tab. Smaller files keep the silent, no-prompt download, and a browser
-// that cannot stream to disk is refused files of this size.
-const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024; // 1 GB
-
 // A ZIP that cannot stream to disk is assembled in tab memory; above this it
 // is refused rather than crashing the tab.
 export const ZIP_IN_MEMORY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
-
-// showSaveFilePicker isn't in the default TS DOM lib: declare the bit we use.
-interface SaveFilePickerOptions {
-  suggestedName?: string;
-}
-type ShowSaveFilePicker = (
-  options?: SaveFilePickerOptions,
-) => Promise<{ createWritable(): Promise<DiskWritable> }>;
-function getSaveFilePicker(): ShowSaveFilePicker | undefined {
-  if (typeof window === "undefined") return undefined;
-  return (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
-}
-
-/** Whether this browser can stream a download straight to disk. */
-export function canStreamToDisk(): boolean {
-  return getSaveFilePicker() !== undefined;
-}
 
 export interface DownloadItem {
   id: string;

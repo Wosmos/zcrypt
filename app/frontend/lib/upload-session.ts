@@ -35,7 +35,7 @@ async function throwIfNotOk(res: Response): Promise<void> {
 
 // Minimal XHR result: enough to reproduce the fetch error-handling shape
 // (status check + server-message extraction) without touching Response.
-interface XhrResult {
+export interface XhrResult {
   status: number;
   body: string;
   retryAfter: number;
@@ -49,7 +49,7 @@ interface XhrResult {
  * handled by the caller. `onProgress` receives the number of BODY bytes the
  * browser has sent so far (monotonic within one attempt).
  */
-function xhrPut(
+export function xhrPut(
   url: string,
   headers: Record<string, string>,
   data: Uint8Array,

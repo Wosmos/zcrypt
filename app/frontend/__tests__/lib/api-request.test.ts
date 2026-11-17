@@ -175,9 +175,9 @@ describe("api request core", () => {
     }
   });
 
-  it("maps an aborted fetch to a timeout error", async () => {
+  it("an abort that is not the timeout stays an AbortError", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
-    await expect(getConfig()).rejects.toThrow("Request timed out");
+    await expect(getConfig()).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("propagates a non-abort network error as-is", async () => {

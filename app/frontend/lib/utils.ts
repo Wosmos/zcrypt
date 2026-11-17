@@ -901,6 +901,9 @@ export function concatChunks(chunks: Uint8Array[]): Uint8Array {
   return out;
 }
 
+/** Revoking right after click() can cancel a large save the browser has not started reading. */
+export const BLOB_URL_REVOKE_DELAY_MS = 60_000;
+
 /** Trigger a browser "save as": createObjectURL -> hidden <a download> -> click
  *  -> revoke. For a Uint8Array the bytes are copied into a FRESH ArrayBuffer so
  *  the Blob gets contiguous, offset-free bytes (matches the app/f hand-roll).
@@ -923,5 +926,5 @@ export function saveBlob(name: string, data: Blob | BlobPart | Uint8Array, mime?
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
 }
