@@ -3,8 +3,12 @@ package cmd
 import (
 	"context"
 	"log"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -33,55 +37,104 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 	}
 
 	for k, group := range groups {
-		adapter := s.resolveAdapterForUser(ctx, k.userID, k.platform, k.account)
-		if adapter == nil {
-			log.Printf("commit-verify: no adapter for %s/%s repo=%s: leaving %d chunk(s) uncommitted for retry", k.platform, k.account, k.repo, len(group))
-			s.bumpUncommitted(ctx, group)
-			continue
-		}
+		s.commitGroup(ctx, k.userID, k.platform, k.account, k.repo, group)
+	}
+}
 
-		bc, batch := adapter.(adapters.BatchCommitter)
-		if cv, ok := adapter.(adapters.ChunkVerifier); ok && !batch {
-			s.verifyEach(ctx, cv, k.platform, group)
-			continue
-		}
+// commitGroupMaxDuration bounds all platform calls for one repo group so one
+// stuck platform call cannot hold the single sync goroutine forever.
+var commitGroupMaxDuration = 15 * time.Minute
 
-		confirmed, missing, err := s.splitPresent(ctx, adapter, k.repo, group)
-		if err != nil {
-			log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", k.platform, k.repo, err)
-			s.bumpUncommitted(ctx, group)
-			continue
-		}
+func (s *Server) commitGroup(ctx context.Context, userID, platform, account, repo string, group []types.ChunkRef) {
+	pctx, cancel := context.WithTimeout(ctx, commitGroupMaxDuration)
+	defer cancel()
 
-		if batch && len(missing) > 0 {
-			files := make([]adapters.CommitFile, len(missing))
-			for i, c := range missing {
-				files[i] = adapters.CommitFile{Path: c.RemotePath, OID: c.SHA256, Size: c.Size}
-			}
-			if err := bc.CommitChunks(ctx, k.repo, files); err != nil {
-				log.Printf("commit-verify: commit %d chunk(s) to %s repo=%s failed: %v", len(missing), k.platform, k.repo, err)
-				s.markCommitted(ctx, confirmed)
-				s.bumpUncommitted(ctx, missing)
-				continue
-			}
-			// VERIFY: re-list and trust ONLY what is actually present. A commit
-			// that returns 200 but whose object never lands (LFS dedup false
-			// positive, etc.) is caught here and retried, not silently trusted.
-			landed, still, err := s.splitPresent(ctx, adapter, k.repo, missing)
-			if err != nil {
-				log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", k.platform, k.repo, err)
-				s.markCommitted(ctx, confirmed)
-				s.bumpUncommitted(ctx, missing)
-				continue
-			}
-			confirmed = append(confirmed, landed...)
-			missing = still
-		}
+	adapter := s.resolveAdapterForUser(ctx, userID, platform, account)
+	if adapter == nil {
+		log.Printf("commit-verify: no adapter for %s/%s repo=%s: leaving %d chunk(s) uncommitted for retry", platform, account, repo, len(group))
+		s.bumpUncommitted(ctx, group)
+		return
+	}
 
-		s.markCommitted(ctx, confirmed)
-		if len(missing) > 0 {
-			log.Printf("commit-verify: %d chunk(s) absent on %s repo=%s, retrying", len(missing), k.platform, k.repo)
+	bc, batch := adapter.(adapters.BatchCommitter)
+	if cv, ok := adapter.(adapters.ChunkVerifier); ok && !batch {
+		s.verifyEach(pctx, cv, platform, group)
+		return
+	}
+
+	confirmed, missing, err := s.splitPresent(pctx, adapter, repo, group)
+	if err != nil {
+		log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", platform, repo, err)
+		s.bumpUncommitted(ctx, group)
+		return
+	}
+
+	if batch && len(missing) > 0 {
+		files := make([]adapters.CommitFile, len(missing))
+		for i, c := range missing {
+			files[i] = adapters.CommitFile{Path: c.RemotePath, OID: c.SHA256, Size: c.Size}
+		}
+		if err := bc.CommitChunks(pctx, repo, files); err != nil {
+			log.Printf("commit-verify: commit %d chunk(s) to %s repo=%s failed: %v", len(missing), platform, repo, err)
+			s.markCommittedAndClean(ctx, confirmed)
+			s.repushStaged(pctx, adapter, repo, missing)
 			s.bumpUncommitted(ctx, missing)
+			return
+		}
+		// VERIFY: re-list and trust ONLY what is actually present. A commit
+		// that returns 200 but whose object never lands (LFS dedup false
+		// positive, etc.) is caught here and retried, not silently trusted.
+		landed, still, err := s.splitPresent(pctx, adapter, repo, missing)
+		if err != nil {
+			log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", platform, repo, err)
+			s.markCommittedAndClean(ctx, confirmed)
+			s.bumpUncommitted(ctx, missing)
+			return
+		}
+		confirmed = append(confirmed, landed...)
+		missing = still
+	}
+
+	s.markCommittedAndClean(ctx, confirmed)
+	if len(missing) > 0 {
+		log.Printf("commit-verify: %d chunk(s) absent on %s repo=%s, retrying", len(missing), platform, repo)
+		s.repushStaged(pctx, adapter, repo, missing)
+		s.bumpUncommitted(ctx, missing)
+	}
+}
+
+// markCommittedAndClean flips committed=TRUE and then drops each chunk's
+// staging copy, which the sync worker keeps for batch-commit platforms until
+// the commit is confirmed.
+func (s *Server) markCommittedAndClean(ctx context.Context, chunks []types.ChunkRef) {
+	s.markCommitted(ctx, chunks)
+	if len(chunks) == 0 {
+		return
+	}
+	ids := make([]string, len(chunks))
+	for i, c := range chunks {
+		ids[i] = c.ChunkID
+	}
+	removeStagedChunkFiles(ids)
+}
+
+// repushStaged re-uploads the blob of chunks that never became visible, from
+// the staging copy kept for them. A chunk with no staging copy is skipped.
+func (s *Server) repushStaged(ctx context.Context, adapter adapters.PlatformAdapter, repo string, chunks []types.ChunkRef) {
+	stagingDir, err := config.StagingDir()
+	if err != nil {
+		return
+	}
+	for _, c := range chunks {
+		data, err := os.ReadFile(filepath.Join(stagingDir, c.ChunkID+".enc"))
+		if err != nil {
+			continue
+		}
+		if _, err := adapter.Upload(ctx, repo, types.Chunk{
+			Ref:  types.ChunkRef{FileID: c.FileID, Index: c.Index, Size: c.Size, SHA256: c.SHA256, RemotePath: c.RemotePath},
+			Data: data,
+		}); err != nil {
+			log.Printf("commit-verify: re-push chunk %s from staging: %v", c.ChunkID, err)
 		}
 	}
 }

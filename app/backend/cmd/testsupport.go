@@ -205,3 +205,13 @@ func (s *Server) SetCloudNetworksForTest(cidrs string, mode string) {
 func (s *Server) SetTurnstileURLForTest(url string) {
 	s.turnstileURL = url
 }
+
+// SetSyncChunkMaxDurationForTest overrides the per-chunk safety-net bound and
+// returns a function that restores it.
+//
+// integration build tag only, never in a production binary.
+func SetSyncChunkMaxDurationForTest(d time.Duration) func() {
+	old := syncChunkMaxDuration
+	syncChunkMaxDuration = d
+	return func() { syncChunkMaxDuration = old }
+}

@@ -25,6 +25,7 @@ type mockAdapter struct {
 	deleteCalls     int
 	failDeletes     bool // when true, Delete returns an error (exercise the retry lane)
 	listChunksCalls int
+	uploadCalls     int
 	failCreateRepo  bool
 
 	// uploadFailMsg, when non-empty, makes Upload fail with this message instead
@@ -124,6 +125,7 @@ func (m *mockAdapter) Upload(ctx context.Context, repo string, chunk types.Chunk
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.uploadCalls++
 
 	if m.uploadFailMsg != "" {
 		msg := m.uploadFailMsg
@@ -283,4 +285,10 @@ func (m *mockAdapter) seedOrphan(repo, remotePath string) {
 		Repo:       repo,
 		RemotePath: remotePath,
 	}
+}
+
+func (m *mockAdapter) uploadCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.uploadCalls
 }
