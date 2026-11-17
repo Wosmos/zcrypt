@@ -14,7 +14,8 @@
  */
 
 import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
-import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
+import { getFileMeta, type FileMetaResponse } from "@/lib/api";
+import { createChunkSource } from "@/lib/chunk-source";
 import {
   resolveFileKey,
   fromBase64,
@@ -288,6 +289,7 @@ export async function downloadAndDecryptFile(
   const failCtl = new AbortController();
   const runSignal = signal ? AbortSignal.any([signal, failCtl.signal]) : failCtl.signal;
   let failure: { reason: unknown } | undefined;
+  const fetchChunk = createChunkSource(fileId);
 
   try {
     // No entry guard here: the only caller is the fetcher loop below, which
@@ -295,12 +297,9 @@ export async function downloadAndDecryptFile(
     // pipeline is gated on it up front). The post-fetch check is the one that
     // matters: it catches a cancel that landed while this chunk was in flight.
     const processChunk = async (index: number) => {
-      const { data, compressed } = await retryTransient(
-        () => getFileChunk(fileId, index, runSignal),
-        {
-          signal: runSignal,
-        },
-      );
+      const { data, compressed } = await retryTransient(() => fetchChunk(index, runSignal), {
+        signal: runSignal,
+      });
 
       if (signal?.aborted) throw stopError();
 

@@ -9,7 +9,8 @@
  */
 
 import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
-import { getFileMeta, getFileChunk } from "@/lib/api";
+import { getFileMeta } from "@/lib/api";
+import { createChunkSource } from "@/lib/chunk-source";
 import { retryTransient } from "@/lib/retry";
 import { runWithConcurrency } from "@/lib/concurrent";
 import {
@@ -153,14 +154,12 @@ async function fetchVerifiedFile(
 
   const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);
   const chunkResults: Uint8Array[] = new Array(meta.chunk_count);
+  const fetchChunk = createChunkSource(file.fileId);
 
   // No entry guard: runWithConcurrency re-checks the signal immediately before
   // every worker call, so a duplicate here can never be the one that fires.
   const processChunk = async (index: number) => {
-    const { data, compressed } = await retryTransient(
-      () => getFileChunk(file.fileId, index, signal),
-      { signal },
-    );
+    const { data, compressed } = await retryTransient(() => fetchChunk(index, signal), { signal });
 
     let plain: Uint8Array;
     try {
