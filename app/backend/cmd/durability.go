@@ -269,11 +269,10 @@ func (s *Server) runScheduledVerify(ctx context.Context, userGap, repoGap time.D
 		if ctx.Err() != nil {
 			return
 		}
-		if _, busy := verifyInFlight.LoadOrStore(id, true); busy {
+		report, ran, err := s.verifyScheduledUser(ctx, id, repoGap)
+		if !ran {
 			continue
 		}
-		report, err := s.verifyUserFiles(ctx, id, repoGap)
-		verifyInFlight.Delete(id)
 		if err != nil {
 			log.Printf("verify: scheduled run for user %s: %v", logSafe(id), err) // #nosec G706 -- control chars stripped via logSafe
 			continue
@@ -282,4 +281,13 @@ func (s *Server) runScheduledVerify(ctx context.Context, userGap, repoGap time.D
 			log.Printf("verify: scheduled run: user %s has %d damaged file(s)", logSafe(id), len(report.DamagedFiles)) // #nosec G706 -- control chars stripped via logSafe
 		}
 	}
+}
+
+func (s *Server) verifyScheduledUser(ctx context.Context, id string, repoGap time.Duration) (VerifyReport, bool, error) {
+	if _, busy := verifyInFlight.LoadOrStore(id, true); busy {
+		return VerifyReport{}, false, nil
+	}
+	defer verifyInFlight.Delete(id)
+	report, err := s.verifyUserFiles(ctx, id, repoGap)
+	return report, true, err
 }
