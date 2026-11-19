@@ -456,7 +456,11 @@ func (s *Server) HandleSendCancel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"send session is not active"}`, http.StatusConflict)
 		return
 	}
-	queued, err := s.db.DeleteSendTransfer(ctx, transfer.ID)
+	queued, err := s.db.CancelSendTransfer(ctx, transfer.ID)
+	if errors.Is(err, index.ErrSendNotUploading) {
+		http.Error(w, `{"error":"send session is not active"}`, http.StatusConflict)
+		return
+	}
 	if err != nil {
 		log.Printf("send: cancel transfer: %v", err)
 		http.Error(w, `{"error":"failed to cancel"}`, http.StatusInternalServerError)

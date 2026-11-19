@@ -100,6 +100,20 @@ func (db *DB) MarkSendChunkServed(ctx context.Context, id string, idx int) (int,
 // in one transaction. Returns the number of chunk deletions queued; the caller
 // should signalDeletion() when it is above zero.
 func (db *DB) DeleteSendTransfer(ctx context.Context, id string) (int, error) {
+	return db.deleteSendTransfer(ctx, id, false)
+}
+
+// ErrSendNotUploading is returned by CancelSendTransfer when the transfer is
+// gone or has already moved past the uploading state.
+var ErrSendNotUploading = errors.New("send transfer is not uploading")
+
+// CancelSendTransfer is DeleteSendTransfer restricted to a transfer that is
+// still uploading, decided inside the delete so a racing complete wins cleanly.
+func (db *DB) CancelSendTransfer(ctx context.Context, id string) (int, error) {
+	return db.deleteSendTransfer(ctx, id, true)
+}
+
+func (db *DB) deleteSendTransfer(ctx context.Context, id string, onlyUploading bool) (int, error) {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
@@ -113,8 +127,16 @@ func (db *DB) DeleteSendTransfer(ctx context.Context, id string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("queue send chunk deletions: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM send_transfers WHERE id = $1`, id); err != nil {
+	delSQL := `DELETE FROM send_transfers WHERE id = $1`
+	if onlyUploading {
+		delSQL += ` AND status = 'uploading'`
+	}
+	delTag, err := tx.Exec(ctx, delSQL, id)
+	if err != nil {
 		return 0, fmt.Errorf("delete send transfer: %w", err)
+	}
+	if onlyUploading && delTag.RowsAffected() == 0 {
+		return 0, ErrSendNotUploading
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, fmt.Errorf("commit: %w", err)
