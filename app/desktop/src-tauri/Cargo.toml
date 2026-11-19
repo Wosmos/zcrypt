@@ -96,6 +96,7 @@ opt-level = 3
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+staging-hooks = ["zcrypt-core/staging-hooks"]
 
 [dev-dependencies]
 tempfile = "3"

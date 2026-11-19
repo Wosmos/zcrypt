@@ -514,6 +514,14 @@ fn cancel_transfer(state: tauri::State<'_, EngineState>, transfer_id: String) ->
     state.request_cancel(&transfer_id)
 }
 
+/// "Try again" on a waiting transfer: forgets the cached reachability answer
+/// and wakes every transfer paused on `telegram_blocked` / `allowance_used_up`
+/// to re-check at once.
+#[tauri::command]
+fn transfer_retry_now() {
+    zcrypt_core::reach::retry_now();
+}
+
 /// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
 /// verify → decrypt → decompress → return the plaintext bytes (no disk write).
 /// Returns a raw byte IPC response (not base64) so large previews don't inflate
@@ -2045,6 +2053,7 @@ pub fn run() {
             decrypt_to_memory,
             bulk_download_zip,
             cancel_transfer,
+            transfer_retry_now,
             file_sizes,
             download_space_file,
             decrypt_space_to_memory,
@@ -2438,5 +2447,25 @@ mod install_channel_tests {
     fn channel_names_match_the_frontend() {
         assert_eq!(InstallChannel::Store.as_str(), "store");
         assert_eq!(InstallChannel::Direct.as_str(), "direct");
+    }
+}
+
+#[cfg(test)]
+mod transfer_retry_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn retry_now_wakes_a_sleeping_transfer() {
+        let reach = zcrypt_core::reach::shared();
+        let before = reach.generation();
+        transfer_retry_now();
+        assert!(reach.generation() > before);
+        reach
+            .sleep_or_wake(
+                std::time::Duration::from_secs(30),
+                before,
+                &CancelToken::new(),
+            )
+            .await;
     }
 }

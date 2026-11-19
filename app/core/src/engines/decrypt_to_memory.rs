@@ -44,6 +44,9 @@ pub async fn run(
     )
     .await?;
     let total = meta.chunk_count as u32;
+    // A preview never waits: with Telegram blocked and no allowance left it
+    // fails with `Blocked` so the viewer can say so instead of spinning.
+    let gate = super::gate::Gate::live(ctx, None, meta.original_size);
 
     // 3. Concurrent fetch/decrypt feeding the ordered assembler.
     let direct_chunks = (0..meta.chunk_count)
@@ -62,7 +65,7 @@ pub async fn run(
         concurrency,
         (concurrency * 3).max(4) as u32,
         || ctx.cancel.is_cancelled(),
-        |idx| fetch_plain_chunk(ctx, &sources, &key, file_id, idx, true),
+        |idx| fetch_plain_chunk(ctx, &gate, &sources, &key, file_id, idx, true),
         |data: Vec<u8>| {
             hasher.update(&data);
             bytes.extend_from_slice(&data);

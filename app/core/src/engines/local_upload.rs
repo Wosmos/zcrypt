@@ -117,6 +117,7 @@ pub async fn run(
             bytes_done: bytes,
             bytes_total: file_size,
             speed: 0.0,
+            waiting: None,
         });
     };
 
@@ -330,6 +331,7 @@ fn bump_progress(
         bytes_done: bytes,
         bytes_total: file_size,
         speed: bytes as f64 / elapsed,
+        waiting: None,
     });
 }
 
