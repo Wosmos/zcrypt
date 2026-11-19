@@ -359,3 +359,56 @@ describe("uploads held back for the desktop app", () => {
     });
   });
 });
+
+describe("transfers held while Telegram is blocked or the allowance is used up", () => {
+  it("an upload says why it waits, whatever its stage says", () => {
+    const view = describeUpload(
+      up({ status: "uploading", stage: "Uploading", bytesProcessed: 5, totalBytes: 10, waiting: "telegram_blocked" }),
+      ctx,
+    );
+    expect(view.phase).toBe("waiting");
+    expect(view.label).toEqual({ key: "progress.waitingTelegram" });
+  });
+
+  it("an upload held on the allowance has its own sentence", () => {
+    const view = describeUpload(up({ status: "uploading", waiting: "allowance_used_up" }), ctx);
+    expect(view.label).toEqual({ key: "progress.waitingAllowance" });
+  });
+
+  it("a download waits the same way", () => {
+    const view = describeDownload(
+      { status: "downloading", progress: 40, waiting: "telegram_blocked" } as Parameters<typeof describeDownload>[0],
+      ctx,
+    );
+    expect(view).toMatchObject({ phase: "waiting", label: { key: "progress.waitingTelegram" } });
+  });
+
+  it("a finished, failed or paused transfer ignores a stale wait", () => {
+    expect(describeUpload(up({ status: "done", waiting: "telegram_blocked" }), ctx).phase).toBe("saved");
+    expect(describeUpload(up({ status: "failed", error: "x", waiting: "telegram_blocked" }), ctx).phase).toBe("failed");
+    expect(describeUpload(up({ status: "paused", waiting: "telegram_blocked" }), ctx).phase).toBe("paused");
+  });
+
+  it("offline still reads as waiting for Wi-Fi, not for Telegram", () => {
+    expect(
+      describeUpload(up({ status: "uploading", waiting: "telegram_blocked" }), { ...ctx, online: false }).phase,
+    ).toBe("offline");
+  });
+
+  it("the batch sentence asks for a VPN when everything waits on Telegram", () => {
+    const counts: BatchCounts = {
+      direction: "upload",
+      done: 0,
+      failed: 0,
+      active: 0,
+      waiting: 2,
+      paused: 0,
+      blocked: 2,
+      photos: false,
+      folderName: "Family",
+      online: true,
+    };
+    expect(batchSentence(counts)).toEqual({ key: "batch.blocked", values: { count: 2 } });
+    expect(batchSentence({ ...counts, blocked: 0 }).key).toBe("batch.waiting");
+  });
+});

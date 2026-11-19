@@ -1,4 +1,4 @@
-import { resolveWebDirect } from "@/lib/byos-direct";
+import { directPossible } from "@/lib/byos-direct";
 import { Platform } from "@/lib/platforms";
 import { isTauri } from "@/lib/tauri";
 import {
@@ -13,7 +13,9 @@ import { useWebTransferNotice, type RefusedFile } from "@/store/web-transfer-not
  * Whether a file is too big to upload from this browser. Only an upload whose
  * bytes would pass through the server is limited: a file that goes straight to
  * the user's own Telegram, or to HuggingFace (which the browser uploads to
- * directly), and anything in the desktop app, is never held back.
+ * directly), and anything in the desktop app, is never held back. A file that
+ * could go to their own Telegram but cannot right now (blocked network) is not
+ * refused either: it waits for Telegram instead.
  */
 export async function webFileLimitFor(
   size: number,
@@ -22,7 +24,7 @@ export async function webFileLimitFor(
   const limitBytes = getQuotaData()?.relay_max_file_bytes ?? 0;
   if (!limitBytes || size <= limitBytes) return null;
   if (isTauri || platform === Platform.HuggingFace) return null;
-  if (await resolveWebDirect(platform)) return null;
+  if (await directPossible(platform)) return null;
   return new WebTransferLimitError(WebTransferLimitCode.FileTooLarge, { limitBytes }, 413);
 }
 

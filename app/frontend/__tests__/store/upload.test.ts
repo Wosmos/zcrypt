@@ -52,6 +52,7 @@ import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import type { SidecarProgress } from "@/lib/tauri";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { useTransferWait } from "@/store/transfer-wait";
 
 const { notifyMock, getCachedThumbnailMock } = vi.hoisted(() => ({
   notifyMock: vi.fn(async (_event: import("@/lib/notify").NotifyEvent) => true),
@@ -88,10 +89,21 @@ const byosMock = vi.hoisted(() => ({
   pushDirectChunk: vi.fn(),
   discardDirectChunk: vi.fn(),
   disableWebDirect: vi.fn(),
+  enableWebDirect: vi.fn(),
+  directPossible: vi.fn(),
   isDirectUnreachable: vi.fn((err: unknown) => err instanceof TypeError),
   ReconnectTelegramError: class ReconnectTelegramError extends Error {},
 }));
 vi.mock("@/lib/byos-direct", () => byosMock);
+
+const gateMock = vi.hoisted(() => ({
+  relayFitsNow: vi.fn(),
+  waitForTelegram: vi.fn(),
+  probeTelegram: vi.fn(),
+}));
+vi.mock("@/lib/relay-gate", () => ({ relayFitsNow: gateMock.relayFitsNow }));
+vi.mock("@/lib/transfer-wait", () => ({ waitForTelegram: gateMock.waitForTelegram }));
+vi.mock("@/lib/telegram-reach", () => ({ probeTelegram: gateMock.probeTelegram }));
 
 const guardMock = vi.hoisted(() => ({
   webFileLimitFor: vi.fn(),
@@ -297,6 +309,11 @@ describe("useUploadStore", () => {
     byosMock.resolveDirectRepo.mockReset();
     byosMock.pushDirectChunk.mockReset();
     byosMock.disableWebDirect.mockReset();
+    byosMock.enableWebDirect.mockReset();
+    byosMock.directPossible.mockReset().mockResolvedValue(false);
+    gateMock.relayFitsNow.mockReset().mockResolvedValue(true);
+    gateMock.waitForTelegram.mockReset().mockResolvedValue(undefined);
+    gateMock.probeTelegram.mockReset().mockResolvedValue("blocked");
     guardMock.webFileLimitFor.mockReset().mockResolvedValue(null);
     guardMock.showWebTransferLimit.mockReset();
     (initUpload as Mock).mockReset().mockResolvedValue(defaultInitResponse());
@@ -489,6 +506,173 @@ describe("useUploadStore", () => {
 
       expect(directUploadToURL).not.toHaveBeenCalled();
       expect(confirmChunk).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("startUpload: Telegram blocked and the allowance cannot carry the file", () => {
+    const TARGET = {
+      platform: "telegram",
+      account: "vault_bot",
+      telegram: { botToken: "123:SECRET", chatId: "-100777" },
+    };
+    const REPO = { id: "repo-1", platform: "telegram", account: "vault_bot" };
+
+    beforeEach(() => {
+      byosMock.directPossible.mockResolvedValue(true);
+      byosMock.directTargetForResume.mockResolvedValue(TARGET);
+      byosMock.resolveDirectRepo.mockResolvedValue(REPO);
+      byosMock.pushDirectChunk.mockImplementation(async (_t: unknown, data: Uint8Array) => `${data.byteLength}:FID`);
+    });
+
+    it("waits for Telegram instead of using the server, then uploads directly", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      let reached = false;
+      byosMock.resolveWebDirect.mockImplementation(async () => (reached ? TARGET : null));
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      let reach: () => void = () => {};
+      gateMock.waitForTelegram.mockImplementation(
+        () =>
+          new Promise<void>((r) => {
+            reach = () => {
+              reached = true;
+              r();
+            };
+          }),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "telegram_blocked", expect.any(AbortSignal));
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(uploadChunk).not.toHaveBeenCalled();
+
+      reach();
+      await flush();
+      expect(byosMock.enableWebDirect).toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ mode: "byos-direct" }), expect.anything());
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("goes through the server when Telegram is blocked but the file fits the allowance", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(true);
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(gateMock.waitForTelegram).not.toHaveBeenCalled();
+      expect(gateMock.relayFitsNow).toHaveBeenCalledWith(10);
+      expect(uploadChunk).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not wait when Telegram answers but cannot be used for another reason", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      gateMock.probeTelegram.mockResolvedValue("ok");
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(gateMock.waitForTelegram).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the session direct and waits when the first push cannot reach Telegram and the server cannot carry it", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      byosMock.pushDirectChunk
+        .mockRejectedValueOnce(new TypeError("Network request failed"))
+        .mockImplementation(async (_t: unknown, data: Uint8Array) => `${data.byteLength}:FID`);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "telegram_blocked", expect.any(AbortSignal));
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(cancelUpload).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("waits when a later chunk loses Telegram, then carries on directly", async () => {
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ mode: "byos-direct", direct_upload: true, chunk_count: 3 }),
+      );
+      let calls = 0;
+      byosMock.pushDirectChunk.mockImplementation(async (_t: unknown, data: Uint8Array) => {
+        calls++;
+        if (calls === 2) throw new TypeError("Network request failed");
+        return `${data.byteLength}:FID`;
+      });
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("big.bin", SMALL_PROFILE.chunkSize * 3)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledTimes(1);
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("holds an upload the server turns away on the allowance, then restarts it straight to Telegram", async () => {
+      const limit = new WebTransferLimitError(
+        WebTransferLimitCode.DailyExceeded,
+        { limitBytes: 20, usedBytes: 20, resetsAt: "2026-11-20T00:00:00Z" },
+        403,
+      );
+      byosMock.resolveWebDirect.mockResolvedValueOnce(null).mockResolvedValue(TARGET);
+      (initUpload as Mock)
+        .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-relay" }))
+        .mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      (uploadChunk as Mock).mockRejectedValueOnce(limit);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal));
+      expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
+      expect(cancelUpload).toHaveBeenCalledWith("sess-relay");
+      expect(initUpload).toHaveBeenCalledTimes(2);
+      expect((initUpload as Mock).mock.calls[1][0]).toMatchObject({ mode: "byos-direct" });
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("still fails with the dialog when the allowance runs out and there is no Telegram of the user's own", async () => {
+      byosMock.directPossible.mockResolvedValue(false);
+      const limit = new WebTransferLimitError(WebTransferLimitCode.DailyExceeded, { limitBytes: 20 }, 403);
+      (initUpload as Mock).mockRejectedValue(limit);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(gateMock.waitForTelegram).not.toHaveBeenCalled();
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalled();
+      expect(getItem(queueIdFor())?.status).toBe("failed");
+    });
+
+    it("stops waiting when the upload is cancelled", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      gateMock.waitForTelegram.mockImplementation(
+        (_k: string, _r: string, signal: AbortSignal) =>
+          new Promise((_res, rej) =>
+            signal.addEventListener("abort", () => rej(new DOMException("Aborted", "AbortError"))),
+          ),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+      useUploadStore.getState().removeFromQueue(id);
+      await flush();
+
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(getItem(id)).toBeUndefined();
     });
   });
 
@@ -709,7 +893,7 @@ describe("useUploadStore", () => {
       expect(uploadChunk).not.toHaveBeenCalled();
     });
 
-    it("continues a resumed byos-direct session directly, without a reachability fallback", async () => {
+    it("keeps a resumed byos-direct session direct: a blocked Telegram makes it wait, never relay", async () => {
       (initUpload as Mock).mockResolvedValue(
         defaultInitResponse({ resumed: true, mode: "byos-direct", direct_upload: true, session_id: "sess-old" }),
       );
@@ -730,7 +914,10 @@ describe("useUploadStore", () => {
       expect(byosMock.pushDirectChunk.mock.calls[0][2]).not.toHaveProperty("probe");
       expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
       expect(cancelUpload).not.toHaveBeenCalled();
-      expect(getItem(id)?.status).toBe("failed");
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "telegram_blocked", expect.any(AbortSignal));
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(2);
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
     });
 
     it("resumes a direct session after a page reload in its original mode", async () => {
@@ -923,7 +1110,7 @@ describe("useUploadStore", () => {
       );
       expect(getItem(queueIdFor())).toMatchObject({
         status: "failed",
-        error: expect.stringContaining("Resets on December 1"),
+        error: expect.stringContaining("It resets on December 1"),
         limit: limit.limit,
       });
       noToasts();
@@ -2125,6 +2312,24 @@ describe("useUploadStore", () => {
       await flush(10);
       return { run, releases, sidecarUpload: sidecarUpload as Mock };
     }
+
+    it("marks a desktop upload waiting while the engine reports it, and clears it when it moves again", async () => {
+      const { subscribeProgress } = await import("@/lib/tauri");
+      let emit: ((p: Record<string, unknown>) => void) | undefined;
+      (subscribeProgress as Mock).mockImplementation(async (cb: typeof emit) => {
+        emit = cb;
+        return vi.fn();
+      });
+      const { run, releases } = await startGatedDesktopUpload(["/tmp/a.bin"]);
+      const id = useUploadStore.getState().queue[0].id;
+
+      emit!({ file_name: "a.bin", stage: "waiting", waiting: "allowance_used_up", bytes_done: 0, bytes_total: 5 });
+      expect(useTransferWait.getState().waits[`up:${id}`]).toBe("allowance_used_up");
+      emit!({ file_name: "a.bin", stage: "uploading", bytes_done: 2, bytes_total: 5 });
+      expect(useTransferWait.getState().waits).toEqual({});
+      for (const release of releases) release();
+      await run;
+    });
 
     it("uploads picked files concurrently instead of one after another", async () => {
       const { run, releases, sidecarUpload } = await startGatedDesktopUpload([

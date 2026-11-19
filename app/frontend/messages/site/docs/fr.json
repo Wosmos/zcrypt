@@ -2210,7 +2210,7 @@
         "parallel": "Parallèle, et adapté au mobile",
         "folders": "Envois adaptés aux dossiers",
         "next": "Pour aller plus loin",
-        "limits": "Limites web et application de bureau",
+        "limits": "Limites quand vous passez par notre serveur",
         "whole-folder": "Importer un dossier entier"
       },
       "p1": "Au début d'un envoi, le fichier est déjà découpé en fragments sur votre appareil, et chaque fragment a été compressé avec zstd et chiffré avec AES-256-GCM (voir <l1>Comment ça marche</l1>). Ce qui est envoyé est une suite de fragments chiffrés : le serveur ne reçoit que du chiffré.",
@@ -2260,10 +2260,10 @@
       "a45": "Pour aller plus loin",
       "title": "Envoi",
       "description": "Les fichiers sont compressés, chiffrés et découpés en chunks sur votre appareil, puis diffusés vers votre stockage un chunk à la fois. L’envoi survit aux rafraîchissements, aux coupures et même à un changement d’appareil, et il atterrit exactement là où vous êtes dans votre disque.",
-      "limitsTitle": "Limites web et application de bureau",
-      "limitsP1": "Tout ce que l'application web envoie par le serveur de zcrypt est limité : un fichier peut atteindre <strong>2 Go</strong>, et chaque compte dispose de <strong>20 Go de transferts web par mois</strong>. Les envois comptent, les téléchargements aussi. Le compteur se trouve dans <strong>Paramètres, Stockage</strong> et repart de zéro le 1er de chaque mois (UTC).",
-      "limitsP2": "Les envois qui vont directement de votre navigateur vers votre stockage évitent le serveur : ils ne sont ni limités ni comptés. C'est le cas de Hugging Face et de votre propre Telegram (voir <l1>Connecter un stockage</l1>). L'application de bureau envoie toujours ainsi, elle n'a donc aucune limite.",
-      "limitsP3": "Quand un import dépasse une limite, un message s'affiche avec un bouton <strong>Ouvrir l'application de bureau</strong>. Le navigateur ne peut pas transmettre le fichier à l'application : ouvrez l'application et déposez-y le fichier. Le bouton essaie toujours d'abord l'application, et si rien ne s'ouvre, la page de téléchargement s'ouvre dans un nouvel onglet, pour que les imports en cours ici continuent.",
+      "limitsTitle": "Limites quand vous passez par notre serveur",
+      "limitsP1": "Tout ce qui passe par le serveur de zcrypt est limité sur toutes les applications : un fichier peut peser jusqu'à <strong>2 Go</strong> et chaque compte dispose d'un quota de transfert de <strong>5 Go par jour</strong> et de <strong>20 Go par mois</strong>, le premier épuisé l'emportant. Les envois comptent, les téléchargements aussi. Les jauges sont dans <strong>Réglages, Stockage, Utilisation et limites</strong>.",
+      "limitsP2": "Les envois qui vont directement de votre appareil vers votre propre stockage évitent le serveur : ils ne sont jamais limités ni comptés, dans le navigateur, l'application de bureau et Android. Cela couvre Hugging Face et votre propre Telegram (voir <l1>Connecter un stockage</l1>). Si votre réseau bloque Telegram, l'application n'utilise notre serveur que tant que le reste tient dans votre quota, sinon elle attend un VPN. Voir <l2>Limites et quota de transfert</l2>.",
+      "limitsP3": "Quand le serveur refuse un envoi, un message indique quelle fenêtre est épuisée et quand elle repart. Si vous avez connecté votre propre Telegram, l'envoi attend puis continue directement vers lui dès qu'il est joignable.",
       "wholeFolderTitle": "Importer un dossier entier",
       "wholeFolderP1": "Pour importer un dossier avec tout son contenu, choisissez <strong>Importer un dossier</strong> dans la fenêtre d'import, ou déposez le dossier sur la fenêtre ou dans le coffre. zcrypt recrée ses dossiers dans le dossier affiché, chaque nom chiffré dans votre navigateur comme un dossier que vous créez vous-même, et chaque fichier arrive dans son propre dossier.",
       "wholeFolderP2": "Importer le même dossier une nouvelle fois complète les dossiers déjà présents au lieu de créer des copies, et les fichiers déjà en place sont ignorés. Les fichiers système comme <code>.DS_Store</code> et <code>Thumbs.db</code> sont laissés de côté.",
@@ -2349,7 +2349,7 @@
       "title": "Application web",
       "description": "L’application web zcrypt est le produit complet dans un onglet de navigateur : un vrai disque chiffré avec chiffrement côté client, un verrou de session unique et un moyen facultatif de rester déverrouillé sur un appareil de confiance.",
       "limTitle": "Limites dans le navigateur",
-      "limP1": "Ce que l'application web envoie par le serveur de zcrypt est limité : 2 Go par fichier et 20 Go de transferts web par mois. Les envois directs vers votre propre Telegram ou vers Hugging Face ne comptent pas, et l'application de bureau n'a aucune limite. Les détails sont dans <l1>Envoi de fichiers</l1>.",
+      "limP1": "Ce qui passe par le serveur de zcrypt est limité sur toutes les applications : 2 Go par fichier, 5 Go par jour et 20 Go par mois. Les envois et téléchargements directs avec votre propre stockage ne comptent pas. Détails dans <l1>Envoi</l1>.",
       "themeTitle": "Votre thème sur tous vos appareils",
       "themeP1": "Votre thème de couleurs et le mode clair ou sombre sont liés à votre compte. Choisissez-les une fois dans <strong>Paramètres</strong>, <strong>Apparence</strong>, et ils vous suivent dans chaque navigateur, l'application de bureau et l'application Android où vous êtes connecté. Un changement apparaît aussitôt sur vos autres appareils, couleurs personnalisées comprises.",
       "themeP2": "Pour donner à un appareil son propre style, désactivez <strong>Même thème sur tous mes appareils</strong> sur cet appareil. Il garde son thème pendant que vos autres appareils suivent votre compte, et réactiver l'option reprend le thème de votre compte. Les personnes qui partagent un appareil obtiennent chacune leur propre thème en se connectant, jamais celui de la personne précédente."
@@ -2678,6 +2678,10 @@
       "glossary": {
         "title": "Glossaire",
         "desc": "Les termes utilisés dans zcrypt, définis."
+      },
+      "limits": {
+        "title": "Limites et quota de transfert",
+        "desc": "Ce que zcrypt limite, ce qu'il ne limite pas et ce qui compte."
       }
     },
     "quick": {
@@ -2734,6 +2738,38 @@
       },
       "breadcrumb": "Fil d'Ariane",
       "pagination": "Pagination"
+    },
+    "limits": {
+      "title": "Limites et quota de transfert",
+      "description": "Votre propre stockage est à vous et zcrypt ne le limite pas. Ce qui est plafonné, c'est ce qui passe par notre serveur, avec un quota de transfert quotidien et un quota mensuel.",
+      "toc": {
+        "own": "Votre stockage est à vous",
+        "allowance": "Le quota de transfert",
+        "counts": "Ce qui compte",
+        "blocked": "Quand Telegram est bloqué",
+        "where": "Où voir votre utilisation",
+        "next": "Pour aller plus loin"
+      },
+      "p1": "Les fichiers que vous gardez sur votre propre Telegram, GitHub, GitLab ou Hugging Face sont dans votre espace et zcrypt ne les limite pas. Si vous utilisez plutôt le stockage partagé de zcrypt, il a son propre quota de taille, visible dans les réglages.",
+      "a1": "Votre stockage est à vous",
+      "a2": "Le quota de transfert",
+      "p2": "C'est comme une limite d'utilisation. Le stockage n'est pas plafonné, mais ce qui passe par notre serveur l'est. Il y a deux fenêtres et la première épuisée l'emporte : <strong>5 Go par jour</strong>, remis à zéro à minuit UTC, et <strong>20 Go par mois</strong>, remis à zéro le 1er (UTC). Un fichier peut peser jusqu'à <strong>2 Go</strong> via notre serveur. Ce sont les valeurs par défaut du serveur de zcrypt ; un serveur auto-hébergé définit les siennes.",
+      "p3": "Les envois en cours réservent les octets qu'il leur reste à transférer, si bien que deux gros envois ne peuvent pas se partager le dernier reste de votre quota. Les administrateurs n'ont aucune limite.",
+      "a3": "Ce qui compte",
+      "p4": "Les envois et téléchargements qui passent par notre serveur, dans le navigateur, l'application de bureau ou Android.",
+      "p5": "Les personnes qui téléchargent vos liens de partage et vos dossiers partagés. Cela compte pour vous, le propriétaire.",
+      "a4": "Gratuit : directement vers votre stockage",
+      "p6": "Tout ce qui circule directement entre votre appareil et votre propre Telegram, GitHub, GitLab ou Hugging Face ne touche jamais notre serveur, donc ne compte pas. C'est valable sur toutes les applications : web, bureau et Android.",
+      "a5": "Quand Telegram est bloqué",
+      "p7": "Chaque application essaie d'abord votre propre Telegram en direct. Certains réseaux et pays le bloquent. Dans ce cas :",
+      "p8": "Si le reste du transfert tient dans ce qu'il reste de votre quota et que le fichier respecte la limite par fichier, il passe par notre serveur.",
+      "p9": "S'il ne tient pas, le transfert se met en pause et vous demande d'activer un VPN. zcrypt vérifie Telegram toutes les 10 secondes et reprend tout seul dès qu'il répond. Réessayer vérifie tout de suite. Annuler reste possible.",
+      "p10": "Si le serveur refuse un transfert en cours de route parce que le quota est épuisé, il se met en pause de la même façon et reprend directement vers Telegram dès qu'il est joignable.",
+      "a6": "Où voir votre utilisation",
+      "p11": "<l1>Réglages, Stockage, Utilisation et limites</l1> affiche les deux jauges avec leurs heures de remise à zéro, la limite par fichier, ce qui est réservé aux envois en cours et ce qu'il reste. Quand il en reste moins d'un dixième, un avis apparaît au-dessus de vos fichiers.",
+      "a7": "Pour aller plus loin",
+      "p12": "<l1>Envoi : envois directs et limites web</l1>",
+      "p13": "<l1>Gestionnaire de transferts : pause, reprise et nouvel essai</l1>"
     }
   }
 }

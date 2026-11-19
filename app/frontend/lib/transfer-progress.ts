@@ -6,6 +6,7 @@
  */
 
 import { WebTransferLimitCode, type WebTransferLimit } from "@/lib/web-transfer-limit";
+import { WaitReason } from "@/store/transfer-wait";
 import { DownloadStatus, UploadStatus } from "@/types";
 
 export type TransferDirection = "upload" | "download";
@@ -23,6 +24,7 @@ export type TransferPhase =
   | "queued"
   | "choose"
   | "paused"
+  | "waiting"
   | "offline"
   | "failed"
   | "needsApp"
@@ -52,6 +54,8 @@ export interface UploadProgressInput {
   etaSeconds?: number;
   /** Refused by the web limits: only the desktop app can send it. */
   limit?: Pick<WebTransferLimit, "code">;
+  /** Held, not failed: Telegram is out of reach or the transfer allowance is used up. */
+  waiting?: WaitReason;
 }
 
 /** Raw download fields, exactly as the download store keeps them. */
@@ -62,6 +66,8 @@ export interface DownloadProgressInput {
   fileSize?: number;
   error?: string;
   etaSeconds?: number;
+  /** Held, not failed: Telegram is out of reach or the transfer allowance is used up. */
+  waiting?: WaitReason;
 }
 
 /** Context a row needs beyond its own item. */
@@ -174,6 +180,15 @@ function uploadEstimate(i: UploadProgressInput): { phase: TransferPhase; bar: nu
   return { phase: "ready", bar: Math.min(7, Math.max(0, i.progress) * 2) };
 }
 
+function waitingLabel(reason: WaitReason | undefined): TransferLabel {
+  return {
+    key:
+      reason === WaitReason.AllowanceUsedUp
+        ? "progress.waitingAllowance"
+        : "progress.waitingTelegram",
+  };
+}
+
 function sendingLabel(i: UploadProgressInput): TransferLabel {
   const total = i.totalBytes ?? 0;
   const bytes = i.bytesProcessed ?? 0;
@@ -192,6 +207,7 @@ export function describeUpload(i: UploadProgressInput, ctx: ProgressContext): Tr
   else if (i.status === UploadStatus.Failed) phase = i.limit ? "needsApp" : "failed";
   else if (i.status === UploadStatus.Paused) phase = "paused";
   else if (!ctx.online) phase = "offline";
+  else if (i.waiting) phase = "waiting";
   else if (i.status === UploadStatus.Queued)
     phase = /^(Waiting for slot|Retrying)/.test(stage) ? "ready" : "queued";
   else phase = est.phase;
@@ -209,11 +225,16 @@ export function describeUpload(i: UploadProgressInput, ctx: ProgressContext): Tr
         key:
           i.limit?.code === WebTransferLimitCode.AllowanceExceeded
             ? "needsApp.allowance"
-            : "needsApp.tooBig",
+            : i.limit?.code === WebTransferLimitCode.DailyExceeded
+              ? "needsApp.daily"
+              : "needsApp.tooBig",
       };
       break;
     case "sending":
       label = sendingLabel(i);
+      break;
+    case "waiting":
+      label = waitingLabel(i.waiting);
       break;
     default:
       label = { key: `progress.${phase}` };
@@ -245,6 +266,7 @@ export function describeDownload(i: DownloadProgressInput, ctx: ProgressContext)
   else if (i.status === DownloadStatus.Cancelled) phase = "stopped";
   else if (i.status === DownloadStatus.Paused) phase = "paused";
   else if (!ctx.online) phase = "offline";
+  else if (i.waiting) phase = "waiting";
   else if (i.status === DownloadStatus.Queued)
     phase = /^Choose where/.test(i.stage ?? "") ? "choose" : "queued";
   else phase = est.phase;
@@ -252,6 +274,7 @@ export function describeDownload(i: DownloadProgressInput, ctx: ProgressContext)
   let label: TransferLabel;
   if (phase === "failed") label = errorLabel("download", i.error, bar, ctx.noPlatformText);
   else if (phase === "fetching") label = fetchingLabel(i);
+  else if (phase === "waiting") label = waitingLabel(i.waiting);
   else label = { key: `progress.${phase}` };
   return { phase, bar, label };
 }
@@ -266,6 +289,8 @@ export interface BatchCounts {
   active: number;
   waiting: number;
   paused: number;
+  /** Rows held for a blocked Telegram or a used-up allowance; they count in `waiting` too. */
+  blocked?: number;
   photos: boolean;
   folderName: string;
   online: boolean;
@@ -292,6 +317,8 @@ export function batchSentence(c: BatchCounts): TransferLabel {
       : { key: "batch.saved", values: { count: c.done, folder: c.folderName } };
   }
   if (!c.online) return { key: "batch.offline" };
+  if (c.active === 0 && (c.blocked ?? 0) > 0 && c.paused === 0)
+    return { key: "batch.blocked", values: { count: c.blocked ?? 0 } };
   if (c.active === 0)
     return c.paused > 0
       ? { key: "batch.paused", values: { count: open } }

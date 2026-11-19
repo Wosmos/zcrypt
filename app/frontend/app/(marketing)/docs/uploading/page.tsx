@@ -127,7 +127,7 @@ export default function UploadingDocPage() {
         <DocP>
           <T
             k="docs.uploading.limitsP2"
-            links={{ l1: "/docs/connect-storage" }}
+            links={{ l1: "/docs/connect-storage", l2: "/docs/limits" }}
             linkClassName="text-cyan-600 hover:underline dark:text-cyan-400"
           />
         </DocP>

@@ -1,5 +1,5 @@
 import { formatBytes } from "@/lib/utils";
-import { WebTransferLimitCode, formatResetDate } from "@/lib/web-transfer-limit";
+import { WebTransferLimitCode, formatResetDate, formatResetTime } from "@/lib/web-transfer-limit";
 import type { WebTransferNotice } from "@/store/web-transfer-notice";
 
 /** How many refused files the dialog names before it says "and N more". */
@@ -28,6 +28,22 @@ export function noticeCopy(notice: WebTransferNotice): NoticeCopy {
   const limit = formatBytes(notice.limitBytes);
   const count = notice.files.length;
   const hint = count > 0 ? { key: "hint", values: { count } } : undefined;
+
+  if (notice.code === WebTransferLimitCode.DailyExceeded) {
+    const used = formatBytes(Math.min(notice.usedBytes ?? notice.limitBytes, notice.limitBytes));
+    return {
+      title: { key: "dailyTitle" },
+      body: notice.resetsAt
+        ? {
+            key: "dailyBody",
+            values: { used, limit, time: formatResetTime(notice.resetsAt) },
+          }
+        : { key: "dailyBodyNoTime", values: { used, limit } },
+      hint,
+      list: [],
+      more: 0,
+    };
+  }
 
   if (notice.code === WebTransferLimitCode.AllowanceExceeded) {
     const used = formatBytes(Math.min(notice.usedBytes ?? notice.limitBytes, notice.limitBytes));

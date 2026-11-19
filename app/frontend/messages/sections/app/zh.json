@@ -164,7 +164,9 @@
         "choose": "选择保存位置",
         "paused": "已暂停",
         "offline": "等待 Wi-Fi",
-        "stopped": "已停止"
+        "stopped": "已停止",
+        "waitingTelegram": "此网络屏蔽了 Telegram。打开 VPN 后会自动继续。",
+        "waitingAllowance": "传输额度已用完。打开 VPN 直接发送到 Telegram，会自动继续。"
       },
       "time": {
         "fewSeconds": "几秒",
@@ -203,7 +205,8 @@
         "allFailed": "{failed} 个无法发送。",
         "downloaded": "已下载 {count} 个。",
         "downloadedSomeFailed": "已下载 {count} 个。{failed} 个无法下载。",
-        "needsApp": "{count} 个文件需要桌面应用。"
+        "needsApp": "{count} 个文件需要桌面应用。",
+        "blocked": "有 {count} 个文件在等待 Telegram。打开 VPN 后会自动继续。"
       },
       "legend": {
         "done": "已完成",
@@ -228,9 +231,11 @@
       "orb": "传输，还剩 {left} 个。点按打开，长按暂停或继续。",
       "needsApp": {
         "tooBig": "太大，无法在浏览器中上传",
-        "allowance": "本月网页传输额度已用完",
-        "action": "使用应用"
-      }
+        "allowance": "超出本月传输额度",
+        "action": "使用应用",
+        "daily": "超出今天的传输额度"
+      },
+      "tryAgain": "重试"
     },
     "tokens": {
       "expired": "已过期",
@@ -937,12 +942,14 @@
       "zipWrongPassword": "此 ZIP 中的文件夹密码错误。请重试并重新输入。",
       "zipFilesLabel": "{count} 个文件 (ZIP)",
       "webFileTooLarge": "超过 {limit} 的文件无法通过浏览器上传。大文件请使用桌面应用：速度更快，可在后台持续传输，且没有大小限制。",
-      "webAllowanceUsed": "你本月 {limit} 的网页传输额度已用完。将于 {date} 重置。桌面应用没有限制。",
-      "webAllowanceUsedNoDate": "你本月 {limit} 的网页传输额度已用完。桌面应用没有限制。",
+      "webAllowanceUsed": "你本月 {limit} 的传输额度已用完。将于 {date} 重置。直接发往你自己存储的内容不计入。",
+      "webAllowanceUsedNoDate": "你本月 {limit} 的传输额度已用完。直接发往你自己存储的内容不计入。",
       "getDesktopApp": "获取桌面应用",
       "openDesktopApp": "打开桌面应用",
       "desktopAppMissing": "无法打开桌面应用。还没有安装？",
-      "downloadDesktopApp": "下载桌面应用"
+      "downloadDesktopApp": "下载桌面应用",
+      "webDailyUsed": "你今天 {limit} 的传输额度已用完。将于 {time} 重置。直接发往你自己存储的内容不计入。",
+      "webDailyUsedNoTime": "你今天 {limit} 的传输额度已用完。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。"
     },
     "l10n": {
       "justNow": "刚刚",
@@ -1077,9 +1084,9 @@
       "tooBigManyTitle": "{count} 个文件太大，无法在浏览器中上传",
       "tooBigBody": "{name} 的大小为 {size}。浏览器上传会经过我们的服务器，因此上限为 {limit}。桌面应用会把文件直接发送到你的存储，没有大小限制。",
       "capBody": "浏览器上传会经过我们的服务器，因此上限为 {limit}。桌面应用会把文件直接发送到你的存储，没有大小限制。",
-      "allowanceTitle": "本月的网页传输额度已用完",
-      "allowanceBody": "已用 {used}，共 {limit}。将于 {date} 重置。桌面应用没有限制。",
-      "allowanceBodyNoDate": "已用 {used}，共 {limit}。桌面应用没有限制。",
+      "allowanceTitle": "本月的传输额度已用完",
+      "allowanceBody": "已用 {used}，共 {limit}。将于 {date} 重置。直接发往你自己存储的内容不计入。",
+      "allowanceBodyNoDate": "已用 {used}，共 {limit}。直接发往你自己存储的内容不计入。",
       "hint": "打开应用，然后把{count, plural, other {文件}}拖进去。",
       "more": "还有 {count} 个",
       "open": "打开桌面应用",
@@ -1087,7 +1094,18 @@
       "get": "获取桌面应用",
       "missing": "没有看到？获取桌面应用",
       "missingNote": "没有打开任何内容，这台设备上可能还没有安装应用。",
-      "notNow": "以后再说"
+      "notNow": "以后再说",
+      "dailyTitle": "今天的传输额度已用完",
+      "dailyBody": "今天已用 {used}，共 {limit}。将于 {time} 重置。直接发往你自己存储的内容不计入。",
+      "dailyBodyNoTime": "今天已用 {used}，共 {limit}。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。"
+    },
+    "lowAllowance": {
+      "title": "你的传输额度快用完了",
+      "bodyDaily": "今天的额度只剩 {remaining}。将于 {time} 重置。直接上传到你自己的存储不占用额度。",
+      "bodyDailyNoTime": "今天的额度只剩 {remaining}。将于 UTC 午夜重置。直接上传到你自己的存储不占用额度。",
+      "bodyMonthly": "本月的额度只剩 {remaining}。将于 {date} 重置。直接上传到你自己的存储不占用额度。",
+      "bodyMonthlyNoDate": "本月的额度只剩 {remaining}。直接上传到你自己的存储不占用额度。",
+      "seeUsage": "查看用量"
     }
   }
 }

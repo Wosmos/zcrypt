@@ -413,6 +413,11 @@ export const docsNav: DocsNavGroup[] = [
         desc: "Fetching, decrypting, and streaming large files to disk.",
       },
       {
+        title: "Limits & transfer allowance",
+        href: "/docs/limits",
+        desc: "What zcrypt caps, what it doesn't, and what counts.",
+      },
+      {
         title: "Transfer manager",
         href: "/docs/transfer-manager",
         desc: "Pause, resume, retry, and track every transfer.",

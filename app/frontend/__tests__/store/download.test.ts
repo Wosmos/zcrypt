@@ -65,6 +65,7 @@ import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { useTransferWait } from "@/store/transfer-wait";
 import type { FileMetadata } from "@/types";
 
 const ONE_GB = 1024 * 1024 * 1024;
@@ -147,6 +148,14 @@ describe("useDownloadStore", () => {
       expect(lastCallOptions().saveToDisk).toBeUndefined();
       expect(getItem(id)?.status).toBe("done");
       expect(toast.success).toHaveBeenCalledWith("small.txt downloaded", expect.anything());
+    });
+
+    it("lets the download hold on its own row key when Telegram is blocked or the allowance is used up", async () => {
+      stubPicker();
+      useDownloadStore.getState().startDownload("f1", "small.txt", ONE_GB - 1, "pw");
+      const id = firstId();
+      await flush();
+      expect(lastCallOptions().waitKey).toBe(`dl:${id}`);
     });
 
     it("passes a space file's key resolver through to the pipeline", async () => {
@@ -1219,6 +1228,26 @@ describe("useDownloadStore", () => {
       await flush();
       expect(getItem(id)?.progress).toBe(25);
       expect(getItem(id)?.stage).toBe("Downloading");
+    });
+
+    it("marks the row waiting while the engine reports a blocked Telegram, and clears it when it moves again", async () => {
+      let progressCb: ((p: Record<string, unknown>) => void) | undefined;
+      tauriMocks.subscribeProgress.mockImplementation(async (cb: typeof progressCb) => {
+        progressCb = cb;
+        return vi.fn();
+      });
+      tauriMocks.sidecarDownload.mockImplementation(() => new Promise(() => {}));
+      useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
+      const id = firstId();
+      await flush();
+
+      progressCb!({ file_id: "f1", stage: "waiting", waiting: "telegram_blocked", bytes_done: 0, bytes_total: 10 });
+      expect(useTransferWait.getState().waits[`dl:${id}`]).toBe("telegram_blocked");
+      progressCb!({ file_id: "other", stage: "waiting", waiting: "telegram_blocked", bytes_done: 0, bytes_total: 10 });
+      expect(Object.keys(useTransferWait.getState().waits)).toEqual([`dl:${id}`]);
+      progressCb!({ file_id: "f1", stage: "Downloading", bytes_done: 5, bytes_total: 10 });
+      expect(useTransferWait.getState().waits).toEqual({});
+      await flush();
     });
 
     it("keeps the previous stage when a progress payload arrives with no stage", async () => {

@@ -2210,7 +2210,7 @@
         "parallel": "En paralelo y apta para móviles",
         "folders": "Subidas conscientes de las carpetas",
         "next": "Adónde ir después",
-        "limits": "Límites en la web y la app de escritorio",
+        "limits": "Límites cuando pasas por nuestro servidor",
         "whole-folder": "Subir una carpeta entera"
       },
       "p1": "Cuando empieza una subida, el archivo ya está dividido en fragmentos en tu dispositivo, y cada fragmento se ha comprimido con zstd y cifrado con AES-256-GCM (consulta <l1>Cómo funciona</l1>). Lo que se envía es una secuencia de fragmentos cifrados: el servidor solo recibe texto cifrado.",
@@ -2260,10 +2260,10 @@
       "a45": "Adónde ir después",
       "title": "Subir",
       "description": "Los archivos se comprimen, cifran y dividen en fragmentos en tu dispositivo, y luego se transmiten a tu almacenamiento fragmento a fragmento. La subida sobrevive a recargas, caídas e incluso a un cambio a otro dispositivo, y llega exactamente al lugar de tu unidad donde estás.",
-      "limitsTitle": "Límites en la web y la app de escritorio",
-      "limitsP1": "Todo lo que la app web envía a través del servidor de zcrypt tiene límites: un archivo puede pesar hasta <strong>2 GB</strong>, y cada cuenta dispone de <strong>20 GB de transferencias web al mes</strong>. Cuentan las subidas y también las descargas. El contador está en <strong>Ajustes, Almacenamiento</strong> y se reinicia el día 1 de cada mes (UTC).",
-      "limitsP2": "Las subidas que van directamente de tu navegador a tu almacenamiento no pasan por el servidor, así que nunca tienen límite ni se cuentan. Es el caso de Hugging Face y de tu propio Telegram (consulta <l1>Conectar almacenamiento</l1>). La app de escritorio siempre sube así, por lo que no tiene ningún límite.",
-      "limitsP3": "Cuando una subida supera un límite, aparece un mensaje con el botón <strong>Abrir la app de escritorio</strong>. El navegador no puede pasar el archivo a la app, así que abre la app y suelta el archivo allí. El botón siempre intenta abrir la app primero, y si no se abre nada, la página de descarga se abre en una pestaña nueva, para que las subidas en curso aquí sigan adelante.",
+      "limitsTitle": "Límites cuando pasas por nuestro servidor",
+      "limitsP1": "Todo lo que pasa por el servidor de zcrypt tiene límites en todas las apps: un archivo puede pesar hasta <strong>2 GB</strong> y cada cuenta tiene un cupo de transferencia de <strong>5 GB al día</strong> y <strong>20 GB al mes</strong>, lo que se agote antes. Cuentan las subidas y también las descargas. Los medidores están en <strong>Ajustes, Almacenamiento, Uso y límites</strong>.",
+      "limitsP2": "Las subidas que van directo de tu dispositivo a tu propio almacenamiento no pasan por el servidor, así que nunca se limitan ni se cuentan, ni en el navegador, ni en la app de escritorio ni en Android. Eso incluye Hugging Face y tu propio Telegram (ver <l1>Conectar almacenamiento</l1>). Si tu red bloquea Telegram, la app usa nuestro servidor solo mientras el resto quepa en tu cupo; si no, espera a que actives una VPN. Ver <l2>Límites y cupo de transferencia</l2>.",
+      "limitsP3": "Cuando el servidor rechaza una subida, recibes un mensaje que dice qué ventana se agotó y cuándo se restablece. Si tienes tu propio Telegram conectado, la subida espera y continúa directo a él en cuanto se pueda llegar.",
       "wholeFolderTitle": "Subir una carpeta entera",
       "wholeFolderP1": "Para subir una carpeta con todo su contenido, elige <strong>Subir una carpeta</strong> en el diálogo de subida, o suelta la carpeta sobre el diálogo o la bóveda. zcrypt recrea sus carpetas dentro de la carpeta que estás viendo, con cada nombre cifrado en tu navegador como cualquier carpeta que crees tú, y cada archivo va a su propia carpeta.",
       "wholeFolderP2": "Subir la misma carpeta otra vez rellena las carpetas que ya existen en lugar de crear copias, y se omiten los archivos que ya están. Los archivos del sistema como <code>.DS_Store</code> y <code>Thumbs.db</code> se dejan fuera.",
@@ -2349,7 +2349,7 @@
       "title": "App web",
       "description": "La app web de zcrypt es el producto completo en una pestaña del navegador: una unidad cifrada real con cifrado en el cliente, un único bloqueo de sesión y una forma opcional de mantenerse desbloqueado en un dispositivo de confianza.",
       "limTitle": "Límites en el navegador",
-      "limP1": "Lo que la app web envía a través del servidor de zcrypt tiene límite: 2 GB por archivo y 20 GB de transferencias web al mes. Las subidas directas a tu propio Telegram o a Hugging Face no cuentan, y la app de escritorio no tiene límites. Los detalles están en <l1>Subir archivos</l1>.",
+      "limP1": "Lo que pasa por el servidor de zcrypt tiene límites en todas las apps: 2 GB por archivo, 5 GB al día y 20 GB al mes. Las subidas y descargas directas con tu propio almacenamiento no cuentan. Los detalles están en <l1>Subidas</l1>.",
       "themeTitle": "Tu tema en todos tus dispositivos",
       "themeP1": "Tu tema de color y el modo claro u oscuro pertenecen a tu cuenta. Elígelos una vez en <strong>Ajustes</strong>, <strong>Apariencia</strong>, y te siguen a cada navegador, a la app de escritorio y a la app de Android donde inicies sesión. Un cambio aparece al momento en tus otros dispositivos, colores personalizados incluidos.",
       "themeP2": "Para que un dispositivo tenga su propio aspecto, desactiva <strong>El mismo tema en todos mis dispositivos</strong> en ese dispositivo. Conserva su tema mientras tus otros dispositivos siguen a tu cuenta, y al volver a activarlo recupera el tema de tu cuenta. Quienes comparten un dispositivo reciben cada uno su propio tema al iniciar sesión, nunca el de la persona anterior."
@@ -2678,6 +2678,10 @@
       "glossary": {
         "title": "Glosario",
         "desc": "Términos usados en zcrypt, definidos."
+      },
+      "limits": {
+        "title": "Límites y cupo de transferencia",
+        "desc": "Qué limita zcrypt, qué no y qué cuenta."
       }
     },
     "quick": {
@@ -2734,6 +2738,38 @@
       },
       "breadcrumb": "Ruta de navegación",
       "pagination": "Paginación"
+    },
+    "limits": {
+      "title": "Límites y cupo de transferencia",
+      "description": "Tu propio almacenamiento es tuyo y zcrypt no lo limita. Lo que tiene tope es lo que pasa por nuestro servidor, con un cupo de transferencia diario y otro mensual.",
+      "toc": {
+        "own": "Tu almacenamiento es tuyo",
+        "allowance": "El cupo de transferencia",
+        "counts": "Qué cuenta",
+        "blocked": "Cuando Telegram está bloqueado",
+        "where": "Dónde ver tu uso",
+        "next": "Qué leer después"
+      },
+      "p1": "Los archivos que guardas en tu propio Telegram, GitHub, GitLab o Hugging Face están en tu espacio y zcrypt no los limita. Si usas el almacenamiento compartido de zcrypt, tiene su propia cuota de tamaño, que ves en los ajustes.",
+      "a1": "Tu almacenamiento es tuyo",
+      "a2": "El cupo de transferencia",
+      "p2": "Piénsalo como un límite de uso. El almacenamiento no tiene tope, pero lo que pasa por nuestro servidor sí. Hay dos ventanas y manda la que se agote antes: <strong>5 GB al día</strong>, que se restablece a medianoche UTC, y <strong>20 GB al mes</strong>, que se restablece el día 1 (UTC). Un archivo puede pesar hasta <strong>2 GB</strong> por nuestro servidor. Son los valores por defecto del servidor de zcrypt; un servidor autoalojado define los suyos.",
+      "p3": "Las subidas en curso reservan los bytes que aún necesitan, así que dos subidas grandes no pueden reclamar a la vez lo último de tu cupo. Los administradores no tienen límites.",
+      "a3": "Qué cuenta",
+      "p4": "Subidas y descargas que pasan por nuestro servidor, en el navegador, la app de escritorio o Android.",
+      "p5": "Personas que descargan tus enlaces compartidos y carpetas compartidas. Cuentan para ti, el propietario.",
+      "a4": "Gratis: directo a tu almacenamiento",
+      "p6": "Todo lo que va directo entre tu dispositivo y tu propio Telegram, GitHub, GitLab o Hugging Face nunca toca nuestro servidor, así que no cuenta. Vale para todas las apps: web, escritorio y Android.",
+      "a5": "Cuando Telegram está bloqueado",
+      "p7": "Cada app prueba primero tu propio Telegram de forma directa. Algunas redes y países lo bloquean. Cuando pasa:",
+      "p8": "Si el resto de la transferencia cabe en lo que queda de tu cupo y el archivo está dentro del límite por archivo, pasa por nuestro servidor.",
+      "p9": "Si no cabe, la transferencia se pausa y te pide activar una VPN. zcrypt comprueba Telegram cada 10 segundos y continúa sola en cuanto responde. Reintentar comprueba ahora mismo. Cancelar sigue funcionando.",
+      "p10": "Si el servidor rechaza una transferencia a medias porque se acabó el cupo, se pausa igual y continúa directo a Telegram en cuanto se pueda llegar a él.",
+      "a6": "Dónde ver tu uso",
+      "p11": "<l1>Ajustes, Almacenamiento, Uso y límites</l1> muestra ambos medidores con sus horas de reinicio, el límite por archivo, lo reservado para subidas en curso y lo que queda. Cuando queda menos de una décima parte, aparece un aviso sobre tus archivos.",
+      "a7": "Qué leer después",
+      "p12": "<l1>Subidas: subidas directas y límites web</l1>",
+      "p13": "<l1>Gestor de transferencias: pausar, reanudar y reintentar</l1>"
     }
   }
 }

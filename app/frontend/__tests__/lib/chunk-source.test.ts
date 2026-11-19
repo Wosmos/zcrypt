@@ -5,7 +5,11 @@ const m = vi.hoisted(() => ({
   getFileLocators: vi.fn(),
   resolveWebDirect: vi.fn(),
   downloadTelegramChunk: vi.fn(),
+  relayFitsNow: vi.fn(),
+  waitForTelegram: vi.fn(),
 }));
+vi.mock("@/lib/relay-gate", () => ({ relayFitsNow: m.relayFitsNow }));
+vi.mock("@/lib/transfer-wait", () => ({ waitForTelegram: m.waitForTelegram }));
 vi.mock("@/lib/api", () => ({ getFileChunk: m.getFileChunk, getFileLocators: m.getFileLocators }));
 vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: m.resolveWebDirect }));
 vi.mock("@/lib/telegram-download", async (importOriginal) => ({
@@ -17,6 +21,8 @@ import { createChunkSource, resetDirectDownloadState } from "@/lib/chunk-source"
 import { TelegramUnreachableError } from "@/lib/telegram-download";
 import { sha256Hex } from "@/lib/crypto";
 import { DIRECT_UNREACHABLE_FOR_MS, StalledError } from "@/lib/transport";
+import { ApiError } from "@/lib/http-error";
+import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 const TARGET = {
   platform: "telegram",
@@ -49,6 +55,8 @@ beforeEach(async () => {
   m.getFileLocators.mockResolvedValue({ file_id: "f", chunks: [loc(0), loc(1)] });
   m.downloadTelegramChunk.mockImplementation(async () => PLAIN.slice());
   m.getFileChunk.mockResolvedValue(relayChunk);
+  m.relayFitsNow.mockResolvedValue(true);
+  m.waitForTelegram.mockResolvedValue(undefined);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -142,5 +150,93 @@ describe("createChunkSource", () => {
     m.downloadTelegramChunk.mockRejectedValue(new StalledError());
     m.getFileChunk.mockRejectedValue(Object.assign(new Error("gone"), { status: 410 }));
     await expect(createChunkSource("f")(0)).rejects.toMatchObject({ status: 410 });
+  });
+});
+
+describe("createChunkSource with a transfer row to hold", () => {
+  const blocked = () =>
+    m.downloadTelegramChunk.mockRejectedValue(new TelegramUnreachableError(new TypeError("cors")));
+
+  it("goes through the server while the rest of the file fits the allowance", async () => {
+    blocked();
+    const out = await createChunkSource("f", { waitKey: "dl:1" })(0);
+    expect(out).toBe(relayChunk);
+    expect(m.relayFitsNow).toHaveBeenCalledWith(8, 0);
+    expect(m.waitForTelegram).not.toHaveBeenCalled();
+  });
+
+  it("waits for Telegram instead of using the server when the rest does not fit, then reads directly", async () => {
+    blocked();
+    m.relayFitsNow.mockResolvedValue(false);
+    m.waitForTelegram.mockImplementation(async () => {
+      m.downloadTelegramChunk.mockImplementation(async () => PLAIN.slice());
+      resetDirectDownloadState();
+    });
+    const ctl = new AbortController();
+    const out = await createChunkSource("f", { waitKey: "dl:1" })(0, ctl.signal);
+
+    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "telegram_blocked", ctl.signal);
+    expect(m.getFileChunk).not.toHaveBeenCalled();
+    expect(new Uint8Array(out.data)).toEqual(PLAIN);
+  });
+
+  it("counts only the chunks still to fetch when it checks what fits", async () => {
+    const fetchChunk = createChunkSource("f", { waitKey: "dl:1" });
+    await fetchChunk(0);
+    blocked();
+    await fetchChunk(1);
+    expect(m.relayFitsNow).toHaveBeenCalledWith(4, 0);
+  });
+
+  it("holds the download when the server refuses on the allowance, then continues", async () => {
+    blocked();
+    m.getFileChunk
+      .mockRejectedValueOnce(
+        new WebTransferLimitError(WebTransferLimitCode.DailyExceeded, { limitBytes: 1 }, 403),
+      )
+      .mockResolvedValue(relayChunk);
+    const out = await createChunkSource("f", { waitKey: "dl:1" })(0);
+
+    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "allowance_used_up", undefined);
+    expect(out).toBe(relayChunk);
+    expect(m.getFileChunk).toHaveBeenCalledTimes(2);
+  });
+
+  it("recognises an allowance refusal that arrives as a plain API error with its code", async () => {
+    blocked();
+    m.getFileChunk
+      .mockRejectedValueOnce(new ApiError("used up", 403, 0, "", "relay_allowance_exceeded"))
+      .mockResolvedValue(relayChunk);
+    await createChunkSource("f", { waitKey: "dl:1" })(0);
+    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "allowance_used_up", undefined);
+  });
+
+  it("does not hold on any other server error", async () => {
+    blocked();
+    m.getFileChunk.mockRejectedValue(new ApiError("gone", 404));
+    await expect(createChunkSource("f", { waitKey: "dl:1" })(0)).rejects.toThrow("gone");
+    expect(m.waitForTelegram).not.toHaveBeenCalled();
+  });
+
+  it("without a row to show a wait on, a refusal stands and the server decides", async () => {
+    blocked();
+    m.relayFitsNow.mockResolvedValue(false);
+    m.getFileChunk.mockRejectedValue(
+      new WebTransferLimitError(WebTransferLimitCode.AllowanceExceeded, { limitBytes: 1 }, 403),
+    );
+    await expect(createChunkSource("f")(0)).rejects.toBeInstanceOf(WebTransferLimitError);
+    expect(m.waitForTelegram).not.toHaveBeenCalled();
+    expect(m.relayFitsNow).not.toHaveBeenCalled();
+  });
+
+  it("never holds a chunk that is not on the user's own Telegram", async () => {
+    m.getFileLocators.mockResolvedValue({ file_id: "f", chunks: [loc(0, { platform: "github" })] });
+    m.getFileChunk.mockRejectedValue(
+      new WebTransferLimitError(WebTransferLimitCode.AllowanceExceeded, { limitBytes: 1 }, 403),
+    );
+    await expect(createChunkSource("f", { waitKey: "dl:1" })(0)).rejects.toBeInstanceOf(
+      WebTransferLimitError,
+    );
+    expect(m.waitForTelegram).not.toHaveBeenCalled();
   });
 });

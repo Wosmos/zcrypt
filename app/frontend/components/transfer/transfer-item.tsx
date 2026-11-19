@@ -57,11 +57,20 @@ export interface TransferItemControls {
   onRetryDownload: (id: string) => void;
   /** Explain again why an upload needs the desktop app, with the way into it. */
   onNeedsApp: (id: string) => void;
+  /** Look for Telegram now instead of at the next 10 second check. */
+  onTryAgain: () => void;
   onDismiss: (entry: TransferEntry) => void;
 }
 
 const DOWNLOAD_PHASES = new Set<TransferPhase>(["fetching", "unlocking", "saving"]);
-const IDLE_PHASES = new Set<TransferPhase>(["queued", "choose", "paused", "offline", "stopped"]);
+const IDLE_PHASES = new Set<TransferPhase>([
+  "queued",
+  "choose",
+  "paused",
+  "waiting",
+  "offline",
+  "stopped",
+]);
 
 function barColor(phase: TransferPhase): string {
   if (DOWNLOAD_PHASES.has(phase)) return TONE.ok;
@@ -190,6 +199,7 @@ function TransferItemBase({
   const needsApp = entry.state === TransferState.NeedsApp;
   const settled = failed || done || needsApp;
   const { phase, bar } = entry.view;
+  const held = phase === "waiting" && !settled;
   const retryLabel = entry.direction === "upload" && entry.desktop ? t("resumeUpload") : t("retry");
   const retry = () =>
     entry.direction === "upload"
@@ -246,7 +256,7 @@ function TransferItemBase({
             />
           )}
           <span
-            className={cn("min-w-0", failed || needsApp ? "line-clamp-2" : "truncate")}
+            className={cn("min-w-0", failed || needsApp || held ? "line-clamp-2" : "truncate")}
             style={
               failed
                 ? { color: TONE.err }
@@ -269,6 +279,15 @@ function TransferItemBase({
           className="flex-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
         >
           {retryLabel}
+        </button>
+      )}
+      {held && (
+        <button
+          type="button"
+          onClick={controls.onTryAgain}
+          className="flex-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        >
+          {t("tryAgain")}
         </button>
       )}
       {needsApp && (

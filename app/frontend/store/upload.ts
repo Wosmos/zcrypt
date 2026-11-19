@@ -40,7 +40,9 @@ import {
 import {
   directTargetForResume,
   ReconnectTelegramError,
+  directPossible,
   disableWebDirect,
+  enableWebDirect,
   isDirectUnreachable,
   discardDirectChunk,
   pushDirectChunk,
@@ -65,7 +67,15 @@ import { retryTransient, isTransientError } from "@/lib/retry";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
 import { PausedError, isAbortError, isPauseError } from "@/lib/transport";
 import { extOf } from "@/lib/media-formats";
-import { WebTransferLimitError, type WebTransferLimit } from "@/lib/web-transfer-limit";
+import {
+  WebTransferLimitError,
+  isAllowanceCode,
+  type WebTransferLimit,
+} from "@/lib/web-transfer-limit";
+import { probeTelegram } from "@/lib/telegram-reach";
+import { relayFitsNow } from "@/lib/relay-gate";
+import { waitForTelegram } from "@/lib/transfer-wait";
+import { WaitReason, applyEngineWait } from "@/store/transfer-wait";
 import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
 import { createFrameBatch } from "@/lib/frame-batch";
 import type { WorkerOutput } from "@/workers/crypto-worker";
@@ -528,6 +538,8 @@ interface UploadFileOpts {
 // an active session returns that session (`resumed: true`), pinned to its
 // original platform and chunk size.
 const batchHashGates = new WeakMap<WorkerPool, Map<string, Promise<void>>>();
+/** How many times one chunk waits for Telegram and still fails to reach it before the upload gives up. */
+const MAX_DIRECT_WAITS = 5;
 const VAULT_LOCKED_MSG = "Unlock your vault to continue";
 
 async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
@@ -566,6 +578,47 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     /* v8 ignore start */
     if (isCurrentRun()) updateStatus(id, UploadStatus.Paused, undefined, "Paused");
     /* v8 ignore stop */
+    return true;
+  };
+
+  // Hold this upload until Telegram answers. A pause or cancel aborts the wait
+  // and surfaces as a PausedError, the same stop every other phase uses.
+  const waitForDirect = async (reason: WaitReason) => {
+    try {
+      await waitForTelegram(`up:${id}`, reason, abort.signal);
+    } catch (err) {
+      if (isAbortError(err)) throw new PausedError();
+      throw err;
+    }
+    enableWebDirect();
+  };
+
+  // The server turned this upload away because the transfer allowance ran out.
+  // A user with their own Telegram has somewhere else to send it, so hold it
+  // until Telegram answers, then start it again straight to Telegram. Returns
+  // false when there is nowhere else to send it: the refusal then stands.
+  const holdForAllowance = async (): Promise<boolean> => {
+    const home = itemMeta.get(id)?.platform ?? platform;
+    if (!(await directPossible(home))) return false;
+    // The run's own controller is spent (the refusal aborted it), so the wait
+    // gets a fresh one that pause and cancel can still reach.
+    const waitAbort = new AbortController();
+    patchMeta(id, { abort: waitAbort });
+    try {
+      await waitForTelegram(`up:${id}`, WaitReason.AllowanceUsedUp, waitAbort.signal);
+    } catch (err) {
+      if (isAbortError(err) && isPaused() && isCurrentRun()) {
+        useUploadStore.getState().updateStatus(id, UploadStatus.Paused, undefined, "Paused");
+      }
+      return true;
+    }
+    enableWebDirect();
+    const ctx = itemMeta.get(id)?.resume;
+    patchMeta(id, { resume: undefined });
+    clearPersistedResume(file, destFolderId);
+    if (ctx) await cancelUpload(ctx.sessionId).catch(() => {});
+    useUploadStore.getState().updateStatus(id, UploadStatus.Queued, 0, "Retrying...");
+    relaunchItem(file, id, itemMeta.get(id), passphrase);
     return true;
   };
 
@@ -774,6 +827,17 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       };
 
       direct = await resolveWebDirect(platform);
+      if (!direct && (await directPossible(platform)) && !(await relayFitsNow(file.size))) {
+        // Telegram is out of reach and the server cannot carry this file: hold
+        // the upload until Telegram answers instead of failing or going round.
+        for (;;) {
+          enableWebDirect();
+          direct = await resolveWebDirect(platform);
+          if (direct || (await probeTelegram()) === "ok") break;
+          await waitForDirect(WaitReason.TelegramBlocked);
+          if (pauseCheckpoint()) return;
+        }
+      }
       let session = await doInit(undefined, direct);
       // doInit only ever returns null via its own pause check (retry
       // exhaustion re-throws the underlying error directly instead of
@@ -1029,11 +1093,21 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     ) => {
       if (byos) {
         const { target, repo } = byos;
-        const remotePath = await pushDirectChunk(target, encrypted, {
-          onProgress: onChunkProgress,
-          signal: abort.signal,
-          shouldStop: stopAll,
-        });
+        let remotePath: string | undefined;
+        for (let waits = 0; remotePath === undefined; waits++) {
+          try {
+            remotePath = await pushDirectChunk(target, encrypted, {
+              onProgress: onChunkProgress,
+              signal: abort.signal,
+              shouldStop: stopAll,
+            });
+          } catch (err) {
+            // Telegram went out of reach mid-file: the earlier chunks live
+            // there, so this session stays direct and waits for it.
+            if (!isDirectUnreachable(err) || stopAll() || waits >= MAX_DIRECT_WAITS) throw err;
+            await waitForDirect(WaitReason.TelegramBlocked);
+          }
+        }
         await confirmDirect(target, repo, result, encrypted.byteLength, remotePath);
       } else if (useDirectUpload) {
         // DIRECT MODE: presign -> upload to platform -> confirm
@@ -1113,6 +1187,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       result: WorkerOutput,
       encrypted: Uint8Array,
       onChunkProgress: (sentBytes: number) => void,
+      waits = 0,
     ) => {
       const { target, repo } = byos as { target: DirectTarget; repo: RepoInfo };
       let remotePath: string;
@@ -1125,6 +1200,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         });
       } catch (err) {
         if (!isDirectUnreachable(err)) throw err;
+        if (!(await relayFitsNow(Math.max(0, file.size - completedPlainBytes), file.size))) {
+          if (waits >= MAX_DIRECT_WAITS) throw err;
+          await waitForDirect(WaitReason.TelegramBlocked);
+          return pushFirstChunk(result, encrypted, onChunkProgress, waits + 1);
+        }
         await restartOnRelay();
         return sendChunk(result, encrypted, onChunkProgress);
       }
@@ -1310,6 +1390,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     }
     if (err instanceof WebTransferLimitError) {
       if (!isCurrentRun()) return;
+      if (isAllowanceCode(err.code) && (await holdForAllowance())) return;
       setError(id, err.message, err.limit);
       showWebTransferLimit(err.limit, { name: file.name, size: file.size }, opts.batch);
       return;
@@ -1798,6 +1879,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const { sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
         const unlistenRetry = await subscribeProgress((progress) => {
           if (progress.file_name !== item.file.name) return;
+          applyEngineWait(`up:${id}`, progress);
+          if (progress.stage === "waiting") return;
           const percent = blendDesktopUploadProgress(
             progress.stage,
             progress.bytes_done,
@@ -1966,6 +2049,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           i.status !== UploadStatus.Failed,
       );
       if (!item) return;
+      applyEngineWait(`up:${item.id}`, progress);
+      if (progress.stage === "waiting") return;
       const percent = blendDesktopUploadProgress(
         progress.stage,
         progress.bytes_done,

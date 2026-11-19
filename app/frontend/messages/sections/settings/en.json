@@ -537,16 +537,6 @@
       "pushDesc": "New sign-ins, Space invites and opened share links reach this browser even when zcrypt isn't open.",
       "pushFailed": "Couldn't turn on alerts for this browser. Try again."
     },
-    "webTransfers": {
-      "title": "Web transfers this month",
-      "description": "Files you upload or download in the browser count toward a monthly allowance. Uploads that go straight to your own Telegram don't count.",
-      "usage": "{used} of {limit}",
-      "resets": "Resets on {date}",
-      "desktopHint": "The desktop app has no limit.",
-      "getDesktop": "Get the desktop app",
-      "openDesktop": "Open the desktop app",
-      "usedUp": "All {limit} used this month"
-    },
     "recoveryKit": {
       "label": "Recovery kit",
       "footnote": "We never see your passphrase, so we can't reset it. A recovery kit is the only way back in if you forget it.",
@@ -674,6 +664,43 @@
       "chargingDesc": "Waits until your phone is plugged in",
       "runNowDesc": "Starts once your phone meets the options above",
       "saveFailed": "Couldn't save that. Try again."
+    },
+    "usageLimits": {
+      "title": "Usage & limits",
+      "description": "What zcrypt caps, what it doesn't, and where you stand. It's the same on the web, desktop and Android.",
+      "storage": {
+        "title": "Storage",
+        "own": "Files you keep on your own Telegram, GitHub, GitLab or Hugging Face live in your space. zcrypt doesn't cap them.",
+        "shared": "zcrypt shared storage",
+        "sharedUsage": "{used} of {quota}"
+      },
+      "allowance": {
+        "title": "Transfer allowance",
+        "intro": "Think of it as a usage limit. Storage isn't capped, but what passes through our server is.",
+        "none": "No limits on this account.",
+        "today": "Today",
+        "month": "This month",
+        "usage": "{used} of {limit}",
+        "usedUp": "All {limit} used",
+        "resetsAt": "Resets at {time}",
+        "resetsOn": "Resets on {date}",
+        "perFile": "Biggest file through our server",
+        "noFileCap": "No cap",
+        "reserved": "Held for uploads in progress",
+        "remaining": "Left right now"
+      },
+      "counts": {
+        "title": "What counts",
+        "yesTitle": "Counts against your allowance",
+        "yesTransfers": "Uploads and downloads that go through our server, on any app.",
+        "yesShares": "People downloading your share links. Those count against you, the owner.",
+        "noTitle": "Doesn't count",
+        "noDirect": "Anything that goes straight between your device and your own Telegram, GitHub, GitLab or Hugging Face. That is free on every app: web, desktop and Android."
+      },
+      "blocked": {
+        "title": "When Telegram is blocked",
+        "body": "Every app tries your own Telegram directly first. If your network blocks it, we use our server only while the rest of the transfer fits your allowance. If it doesn't fit, the transfer pauses and asks you to turn on a VPN, then continues by itself."
+      }
     }
   }
 }

@@ -7,6 +7,7 @@ import { tr } from "@/store/translate";
 export const WebTransferLimitCode = {
   FileTooLarge: "relay_file_too_large",
   AllowanceExceeded: "relay_allowance_exceeded",
+  DailyExceeded: "relay_daily_exceeded",
 } as const;
 export type WebTransferLimitCode = (typeof WebTransferLimitCode)[keyof typeof WebTransferLimitCode];
 
@@ -16,15 +17,42 @@ export const DESKTOP_DOWNLOAD_PATH = "/download";
 /** The numbers behind a refused web upload. */
 export interface WebTransferLimitInfo {
   limitBytes: number;
-  /** How much of the monthly allowance is gone. Only set for the allowance. */
+  /** How much of the daily or monthly allowance is gone. Only set for an allowance. */
   usedBytes?: number;
-  /** When the monthly allowance starts over (ISO 8601). Only set for the allowance. */
+  /** When the daily or monthly allowance starts over (ISO 8601). Only set for an allowance. */
   resetsAt?: string;
 }
 
 /** A refused web upload, as the upload queue keeps it and the dialog explains it. */
 export interface WebTransferLimit extends WebTransferLimitInfo {
   code: WebTransferLimitCode;
+}
+
+/** Whether the code means an allowance window (daily or monthly) ran out. */
+export function isAllowanceCode(code: WebTransferLimitCode): boolean {
+  return (
+    code === WebTransferLimitCode.AllowanceExceeded || code === WebTransferLimitCode.DailyExceeded
+  );
+}
+
+/** Whether `err` is the server turning a transfer away because an allowance window ran out. */
+export function isAllowanceRefusal(err: unknown): boolean {
+  if (err instanceof WebTransferLimitError) return isAllowanceCode(err.code);
+  return (
+    err instanceof ApiError &&
+    (err.code === WebTransferLimitCode.AllowanceExceeded ||
+      err.code === WebTransferLimitCode.DailyExceeded)
+  );
+}
+
+/** The time of day an allowance starts over, in the reader's language. The server counts UTC days. */
+export function formatResetTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(intlLocale(), {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  });
 }
 
 /** The day the monthly allowance starts over, in the reader's language. The server counts UTC days. */
@@ -44,6 +72,11 @@ export function webTransferLimitMessage(
   const limit = formatBytes(info.limitBytes);
   if (code === WebTransferLimitCode.FileTooLarge) {
     return tr("toasts.webFileTooLarge", { limit });
+  }
+  if (code === WebTransferLimitCode.DailyExceeded) {
+    return info.resetsAt
+      ? tr("toasts.webDailyUsed", { limit, time: formatResetTime(info.resetsAt) })
+      : tr("toasts.webDailyUsedNoTime", { limit });
   }
   return info.resetsAt
     ? tr("toasts.webAllowanceUsed", { limit, date: formatResetDate(info.resetsAt) })
@@ -70,7 +103,9 @@ export class WebTransferLimitError extends ApiError {
 
 function isLimitCode(value: unknown): value is WebTransferLimitCode {
   return (
-    value === WebTransferLimitCode.FileTooLarge || value === WebTransferLimitCode.AllowanceExceeded
+    value === WebTransferLimitCode.FileTooLarge ||
+    value === WebTransferLimitCode.AllowanceExceeded ||
+    value === WebTransferLimitCode.DailyExceeded
   );
 }
 

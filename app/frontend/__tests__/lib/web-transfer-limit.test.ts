@@ -31,13 +31,22 @@ describe("webTransferLimitMessage", () => {
       resetsAt: "2026-12-01T00:00:00Z",
     });
     expect(msg).toBe(
-      "You've used your 20 GB of web transfers this month. Resets on December 1. The desktop app has no limit.",
+      "You've used your 20 GB transfer allowance for this month. It resets on December 1. Anything that goes straight to your own storage doesn't count.",
     );
+  });
+
+  it("names the daily allowance and the time it resets", () => {
+    const msg = webTransferLimitMessage(WebTransferLimitCode.DailyExceeded, {
+      limitBytes: 5 * GIB,
+      resetsAt: "2026-11-20T00:00:00Z",
+    });
+    expect(msg).toContain("today's 5 GB transfer allowance");
+    expect(msg).toMatch(/resets at 12:00 AM/);
   });
 
   it("leaves the date out when the server did not send one", () => {
     const msg = webTransferLimitMessage(WebTransferLimitCode.AllowanceExceeded, { limitBytes: 20 * GIB });
-    expect(msg).toBe("You've used your 20 GB of web transfers this month. The desktop app has no limit.");
+    expect(msg).toBe("You've used your 20 GB transfer allowance for this month. Anything that goes straight to your own storage doesn't count.");
   });
 
   it("never says relay", () => {
@@ -94,6 +103,20 @@ describe("webTransferLimitFrom", () => {
       usedBytes: 21 * GIB,
       resetsAt: "2026-12-01T00:00:00Z",
     });
+  });
+
+  it("reads a daily refusal with its reset time", () => {
+    const err = webTransferLimitFrom(
+      JSON.stringify({
+        code: "relay_daily_exceeded",
+        used_bytes: 5 * GIB,
+        limit_bytes: 5 * GIB,
+        resets_at: "2026-11-20T00:00:00Z",
+      }),
+      403,
+    );
+    expect(err?.code).toBe(WebTransferLimitCode.DailyExceeded);
+    expect(err?.info.resetsAt).toBe("2026-11-20T00:00:00Z");
   });
 
   it("tolerates missing or malformed numbers", () => {
