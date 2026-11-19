@@ -10,7 +10,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use base64::Engine;
-use chrono::{Local, NaiveDateTime, NaiveTime, TimeZone};
+use jiff::civil::{DateTime, Time};
+use jiff::tz::TimeZone;
+use jiff::{Timestamp, ZonedDateTime};
 use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
@@ -113,11 +115,11 @@ impl BackupSchedule {
             .map_err(|e| e.to_string())
     }
 
-    fn at(&self) -> Option<NaiveTime> {
-        NaiveTime::parse_from_str(&self.time, "%H:%M").ok()
+    fn at(&self) -> Option<Time> {
+        Time::strptime("%H:%M", &self.time).ok()
     }
 
-    fn nightly_at(&self) -> Option<NaiveTime> {
+    fn nightly_at(&self) -> Option<Time> {
         (self.mode == ScheduleMode::Nightly)
             .then(|| self.at())
             .flatten()
@@ -126,31 +128,33 @@ impl BackupSchedule {
 
 /// True when the latest daily slot at `at` that is not after `now` came after
 /// the last pass, so a slot missed while the computer slept still runs.
-pub fn nightly_due(now: NaiveDateTime, last_run: Option<NaiveDateTime>, at: NaiveTime) -> bool {
-    let today = now.date().and_time(at);
+pub fn nightly_due(now: DateTime, last_run: Option<DateTime>, at: Time) -> bool {
+    let today = now.date().to_datetime(at);
     let slot = if now >= today {
         today
     } else {
-        today - chrono::Duration::days(1)
+        match today.date().yesterday() {
+            Ok(d) => d.to_datetime(at),
+            Err(_) => return false,
+        }
     };
     last_run.is_none_or(|last| last < slot)
 }
 
-fn last_run(db: &LocalDb) -> Option<NaiveDateTime> {
+fn last_run(db: &LocalDb) -> Option<DateTime> {
     let secs = db
         .setting(LAST_RUN_KEY)
         .ok()
         .flatten()?
         .parse::<i64>()
         .ok()?;
-    Local
-        .timestamp_opt(secs, 0)
-        .single()
-        .map(|t| t.naive_local())
+    Timestamp::from_second(secs)
+        .ok()
+        .map(|t| t.to_zoned_datetime(TimeZone::system()).datetime())
 }
 
 fn mark_run(db: &LocalDb) {
-    let _ = db.set_setting(LAST_RUN_KEY, &Local::now().timestamp().to_string());
+    let _ = db.set_setting(LAST_RUN_KEY, &Timestamp::now().as_second().to_string());
 }
 
 /// A backed-up folder as the settings screen shows it.
@@ -313,7 +317,7 @@ pub async fn run_loop(
         let schedule = BackupSchedule::load(&ctx.db);
         let due = schedule
             .nightly_at()
-            .is_some_and(|at| nightly_due(Local::now().naive_local(), last_run(&ctx.db), at));
+            .is_some_and(|at| nightly_due(ZonedDateTime::now().datetime(), last_run(&ctx.db), at));
         if (forced || due) && run_all(&app, &ctx, &control).await {
             mark_run(&ctx.db);
         }
@@ -380,13 +384,13 @@ mod tests {
         }
     }
 
-    fn at(s: &str) -> NaiveDateTime {
-        NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").unwrap()
+    fn at(s: &str) -> DateTime {
+        DateTime::strptime("%Y-%m-%d %H:%M", s).unwrap()
     }
 
     #[test]
     fn nightly_runs_once_per_slot_and_catches_up_after_sleep() {
-        let two = NaiveTime::from_hms_opt(2, 0, 0).unwrap();
+        let two = Time::new(2, 0, 0, 0).unwrap();
         assert!(nightly_due(at("2026-11-10 02:00"), None, two));
         assert!(nightly_due(
             at("2026-11-10 02:01"),
@@ -426,7 +430,7 @@ mod tests {
         };
         nightly.save(&db).unwrap();
         assert_eq!(BackupSchedule::load(&db), nightly);
-        assert_eq!(nightly.nightly_at(), NaiveTime::from_hms_opt(23, 30, 0));
+        assert_eq!(nightly.nightly_at(), Time::new(23, 30, 0, 0).ok());
         let bad = BackupSchedule {
             mode: ScheduleMode::Nightly,
             time: "25:00".into(),
