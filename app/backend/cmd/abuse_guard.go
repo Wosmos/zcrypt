@@ -46,12 +46,17 @@ func (s *Server) StartNetGuard(ctx context.Context) {
 // personIP is the address of the person behind a request. The site's /api
 // proxy (Vercel, which the desktop and Android apps go through) reaches us
 // from its own cloud address and names the person in X-Vercel-Forwarded-For.
-// That header is read only when the request proves it came through our proxy
-// with the shared X-Zcrypt-Proxy-Secret, so no other caller can claim an
-// address.
+// With ZCRYPT_PROXY_SECRET set, the header is read only when the request
+// carries the same X-Zcrypt-Proxy-Secret, so no other caller can claim an
+// address. Without it, the header is read when the direct caller is on a
+// cloud network, which a server on another cloud can forge.
 func (s *Server) personIP(r *http.Request) string {
 	ip := s.clientIP(r)
-	if s.viaOwnProxy(r) {
+	trusted := s.viaOwnProxy(r)
+	if s.cfg.ProxySecret == "" {
+		trusted = s.netGuard.Blocked(ip)
+	}
+	if trusted {
 		if fwd := firstForwarded(r.Header.Get("X-Vercel-Forwarded-For")); fwd != "" {
 			return fwd
 		}
