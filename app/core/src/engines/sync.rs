@@ -328,6 +328,7 @@ async fn sync_file(
                         bytes_done: (n as i64) * (f_size / f_count.max(1)),
                         bytes_total: f_size,
                         speed: 0.0,
+                        waiting: None,
                     });
                 }
                 Err(e) => {
@@ -359,6 +360,7 @@ async fn sync_file(
         bytes_done: f.original_size,
         bytes_total: f.original_size,
         speed: 0.0,
+        waiting: None,
     });
     let (enc, comp) = ctx.db.get_chunk_totals(&f.id)?;
     ctx.client.complete_upload(&f.session_id, enc, comp).await?;
