@@ -26,7 +26,7 @@ vi.mock("@/lib/spaces", () => ({
 }));
 vi.mock("@/lib/keys", () => ({ sealTo: h.seal }));
 
-import { handOffPendingKeys } from "@/lib/space-handoff";
+import { HANDOFF_BACKOFF_MS, handOffPendingKeys, resetHandoffBackoff } from "@/lib/space-handoff";
 import { toBase64 } from "@/lib/crypto";
 import type { SharedVaultDetail, SharedVaultMember } from "@/types";
 
@@ -46,6 +46,8 @@ const detail = (members: SharedVaultMember[], role = "admin"): SharedVaultDetail
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
+  resetHandoffBackoff();
   h.ready = true;
   h.user = { id: "owner" };
   h.check.mockResolvedValue({ fingerprint: "fp", status: "new" });
@@ -90,11 +92,23 @@ describe("handOffPendingKeys", () => {
     expect(h.complete).not.toHaveBeenCalled();
   });
 
-  it("stays silent when the post fails and tries again on the next load", async () => {
+  it("stays silent when the post fails and does not retry inside the backoff", async () => {
+    vi.useFakeTimers();
     h.complete.mockRejectedValueOnce(new Error("503"));
     expect(await handOffPendingKeys(detail([member({})]))).toBe(0);
     expect(h.invalidate).not.toHaveBeenCalled();
+    expect(await handOffPendingKeys(detail([member({})]))).toBe(0);
+    expect(h.complete).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(HANDOFF_BACKOFF_MS + 1);
     expect(await handOffPendingKeys(detail([member({})]))).toBe(1);
+  });
+
+  it("backs off a 409 key_rotating the same way", async () => {
+    vi.useFakeTimers();
+    h.complete.mockRejectedValueOnce(Object.assign(new Error("key_rotating"), { status: 409 }));
+    await handOffPendingKeys(detail([member({})]));
+    await handOffPendingKeys(detail([member({})]));
+    expect(h.complete).toHaveBeenCalledTimes(1);
   });
 
   it("hands over to each waiting member once", async () => {
