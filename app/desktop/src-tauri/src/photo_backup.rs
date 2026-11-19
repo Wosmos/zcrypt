@@ -288,7 +288,7 @@ fn all_media() -> MediaQuery {
 /// First run of the media source: what the path-based backup uploaded is
 /// marked done in the media ledger and the old roots are dropped. Returns the
 /// albums that already held backed-up photos, or None when it can't be done
-/// yet (no photo access, or the library shows nothing to match against).
+/// yet (no or partial photo access, or the library shows nothing to match).
 fn migrate(
     db: &LocalDb,
     user_id: &str,
@@ -298,6 +298,10 @@ fn migrate(
 ) -> Option<Vec<String>> {
     if legacy.is_empty() {
         return Some(vec![]);
+    }
+    // A partial listing would drop the old ledger rows of every photo not in it.
+    if source.partial_access() {
+        return None;
     }
     let items = source.list(&all_media()).ok().filter(|i| !i.is_empty())?;
     let roots: Vec<LegacyRoot> = legacy
@@ -502,26 +506,29 @@ impl MediaSource for JniMediaSource {
         use media_backup::MediaError;
         let other = |e: &dyn std::fmt::Display| MediaError::Other(e.to_string());
         let mut env = self.vm.attach_current_thread().map_err(|e| other(&e))?;
-        let arg = env.new_string(query.to_json()).map_err(|e| other(&e))?;
-        let reply = env
-            .call_method(
-                &self.source,
-                "listMedia",
-                "(Ljava/lang/String;)Ljava/lang/String;",
-                &[JValue::Object(&arg)],
-            )
-            .and_then(|v| v.l());
-        let reply = match reply {
-            Ok(r) => r,
-            Err(e) => {
-                let _ = env.exception_clear();
-                return Err(other(&e));
-            }
-        };
-        let json: String = env
-            .get_string(&JString::from(reply))
-            .map_err(|e| other(&e))?
-            .into();
+        // The frame frees the string refs; a pass would otherwise leak them
+        // into the native frame's table, one per call.
+        let json = env
+            .with_local_frame(8, |env| -> jni::errors::Result<String> {
+                let arg = env.new_string(query.to_json())?;
+                let reply = env
+                    .call_method(
+                        &self.source,
+                        "listMedia",
+                        "(Ljava/lang/String;)Ljava/lang/String;",
+                        &[JValue::Object(&arg)],
+                    )
+                    .and_then(|v| v.l());
+                let reply = match reply {
+                    Ok(r) => r,
+                    Err(e) => {
+                        let _ = env.exception_clear();
+                        return Err(e);
+                    }
+                };
+                Ok(env.get_string(&JString::from(reply))?.into())
+            })
+            .map_err(|e| other(&e))?;
         media_backup::parse_items(&json)
     }
 
@@ -529,28 +536,42 @@ impl MediaSource for JniMediaSource {
         use jni::objects::JValue;
         use std::os::fd::FromRawFd;
         let mut env = self.vm.attach_current_thread().map_err(|e| e.to_string())?;
-        let arg = env.new_string(&item.uri).map_err(|e| e.to_string())?;
         let fd = env
-            .call_method(
-                &self.source,
-                "openFd",
-                "(Ljava/lang/String;)I",
-                &[JValue::Object(&arg)],
-            )
-            .and_then(|v| v.i());
-        let fd = match fd {
-            Ok(fd) => fd,
-            Err(e) => {
-                let _ = env.exception_clear();
-                return Err(e.to_string());
-            }
-        };
+            .with_local_frame(4, |env| -> jni::errors::Result<i32> {
+                let arg = env.new_string(&item.uri)?;
+                let fd = env
+                    .call_method(
+                        &self.source,
+                        "openFd",
+                        "(Ljava/lang/String;)I",
+                        &[JValue::Object(&arg)],
+                    )
+                    .and_then(|v| v.i());
+                if fd.is_err() {
+                    let _ = env.exception_clear();
+                }
+                fd
+            })
+            .map_err(|e| e.to_string())?;
         if fd < 0 {
             return Err("Android would not open the photo".into());
         }
         // SAFETY: openFd detached the descriptor from its ParcelFileDescriptor,
         // so this is the only owner and closes it on drop.
         Ok(unsafe { std::fs::File::from_raw_fd(fd) })
+    }
+
+    fn partial_access(&self) -> bool {
+        let Ok(mut env) = self.vm.attach_current_thread() else {
+            return false;
+        };
+        let partial = env
+            .call_method(&self.source, "isPartialAccess", "()Z", &[])
+            .and_then(|v| v.z());
+        partial.unwrap_or_else(|_| {
+            let _ = env.exception_clear();
+            false
+        })
     }
 }
 
@@ -601,6 +622,42 @@ mod tests {
             std::fs::write(&p, b"bytes").map_err(|e| e.to_string())?;
             std::fs::File::open(p).map_err(|e| e.to_string())
         }
+    }
+
+    struct Partial(Fake);
+
+    impl MediaSource for Partial {
+        fn list(&self, q: &MediaQuery) -> Result<Vec<MediaItem>, MediaError> {
+            self.0.list(q)
+        }
+
+        fn open(&self, item: &MediaItem) -> Result<std::fs::File, String> {
+            self.0.open(item)
+        }
+
+        fn partial_access(&self) -> bool {
+            true
+        }
+    }
+
+    #[test]
+    fn partial_photo_access_keeps_the_legacy_roots_and_ledger() {
+        let (_d, db) = db();
+        let storage = Path::new("/storage/emulated/0");
+        let mut r = root("dcim", &storage.join("DCIM"));
+        r.user_id = "u1".into();
+        db.add_backup_root(&r).unwrap();
+        let state = BackupFileState {
+            size: 5,
+            mtime_ns: 1_000_000_000_000,
+            remote_file_id: "r1".into(),
+        };
+        db.set_backup_file("dcim", "Camera/a.jpg", &state).unwrap();
+        let src = Partial(Fake::new(vec![camera(1, "a.jpg")]));
+        assert!(migrate(&db, "u1", &src, &photo_roots(&db, "u1", storage), storage).is_none());
+        assert_eq!(photo_roots(&db, "u1", storage).len(), 1);
+        assert_eq!(db.backup_file_rows("dcim").unwrap().len(), 1);
+        assert_eq!(db.media_file_count("u1").unwrap(), 0);
     }
 
     fn item(id: i64, bucket: &str, bucket_id: &str, rel: &str, name: &str) -> MediaItem {
@@ -887,7 +944,7 @@ mod tests {
                 path,
                 &BackupFileState {
                     size: 5,
-                    mtime_ns: 1,
+                    mtime_ns: 1_000_000_000_000,
                     remote_file_id: id.into(),
                 },
             )
