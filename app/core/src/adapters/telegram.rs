@@ -93,8 +93,15 @@ impl Telegram {
         }
     }
 
+    fn base(&self) -> &str {
+        if self.api_base == API_BASE && crate::reach::telegram_blocked_for_testing() {
+            return "http://127.0.0.1:9";
+        }
+        &self.api_base
+    }
+
     fn api_url(&self, method: &str) -> String {
-        format!("{}/bot{}/{}", self.api_base, self.token, method)
+        format!("{}/bot{}/{}", self.base(), self.token, method)
     }
 
     /// Uploads one document to the chat; returns `(message_id, file_id)`. Fails
@@ -136,7 +143,7 @@ impl Telegram {
     /// from `https://api.telegram.org/file/bot<token>/<file_path>`.
     async fn download_file(&self, file_id: &str) -> Result<Vec<u8>, AdapterError> {
         let (file_path, _) = self.resolve_file_path(file_id).await?;
-        let dl_url = format!("{}/file/bot{}/{}", self.api_base, self.token, file_path);
+        let dl_url = format!("{}/file/bot{}/{}", self.base(), self.token, file_path);
         let res = async {
             let dl = self.dl_client.get(&dl_url).send().await?;
             let dl_status = dl.status().as_u16();

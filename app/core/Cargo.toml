@@ -61,3 +61,7 @@ x25519-dalek = { version = "3", features = ["static_secrets"] }
 hkdf = "0.13"
 
 [dev-dependencies]
+
+[features]
+# Test-only switches for local staging builds; never enabled in releases.
+staging-hooks = []

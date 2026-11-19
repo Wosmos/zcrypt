@@ -111,7 +111,20 @@ pub fn shared() -> &'static Reach {
 }
 
 pub async fn reachable(origin: &str) -> bool {
+    if origin == TELEGRAM_ORIGIN && telegram_blocked_for_testing() {
+        return false;
+    }
     global().reachable(origin).await
+}
+
+/// Staging builds only (`staging-hooks` feature): while the file named by
+/// `ZCRYPT_BLOCK_TELEGRAM_FILE` exists, this device behaves as if Telegram were
+/// filtered, so the blocked paths can be tested with a VPN on. Release builds
+/// never read it.
+pub fn telegram_blocked_for_testing() -> bool {
+    cfg!(feature = "staging-hooks")
+        && std::env::var_os("ZCRYPT_BLOCK_TELEGRAM_FILE")
+            .is_some_and(|p| std::path::Path::new(&p).exists())
 }
 
 pub fn forget(origin: &str) {
@@ -208,5 +221,24 @@ mod tests {
         r.sleep_or_wake(Duration::from_secs(30), g, &CancelToken::new())
             .await;
         assert!(t.elapsed() < Duration::from_secs(1));
+    }
+}
+
+#[cfg(all(test, feature = "staging-hooks"))]
+mod staging_hook_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_block_file_makes_telegram_unreachable_while_it_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let flag = dir.path().join("block-telegram");
+        // SAFETY: only this test reads or writes the variable.
+        unsafe { std::env::set_var("ZCRYPT_BLOCK_TELEGRAM_FILE", &flag) };
+        assert!(!telegram_blocked_for_testing());
+        std::fs::write(&flag, b"").unwrap();
+        assert!(telegram_blocked_for_testing());
+        assert!(!reachable(TELEGRAM_ORIGIN).await);
+        std::fs::remove_file(&flag).unwrap();
+        assert!(!telegram_blocked_for_testing());
     }
 }
