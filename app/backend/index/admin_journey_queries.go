@@ -85,7 +85,7 @@ func journeyCTE(w *whereBuilder) string {
 	  FROM shares WHERE user_id = $1::uuid
 	UNION ALL
 	SELECT 'space-' || id::text, 'space_join', joined_at, '', '', jsonb_build_object('role', role), '', 0, 0
-	  FROM shared_vault_members WHERE user_id = $1::uuid
+	  FROM shared_vault_members WHERE user_id = $1::uuid AND status = 'active'
 ), k AS (SELECT j.*, ` + journeyFamilySQL(w) + ` AS family FROM j)`
 }
 
@@ -208,7 +208,7 @@ func (db *DB) UserReport(ctx context.Context, userID string, activityDays int) (
 	}
 	if err := db.pool.QueryRow(ctx,
 		`SELECT (SELECT COUNT(*) FROM shares WHERE user_id = $1),
-		        (SELECT COUNT(*) FROM shared_vault_members WHERE user_id = $1),
+		        (SELECT COUNT(*) FROM shared_vault_members WHERE user_id = $1 AND status = 'active'),
 		        (SELECT COUNT(*) FROM audit_events WHERE user_id = $1 AND created_at > NOW() - INTERVAL '7 days'
 		            AND event_type IN ('login_failed', '2fa_failed', 'password_change_failed')),
 		        (SELECT COUNT(*) FROM audit_events WHERE user_id = $1 AND created_at > NOW() - INTERVAL '7 days'
