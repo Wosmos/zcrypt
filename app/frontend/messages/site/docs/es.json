@@ -2150,7 +2150,7 @@
         "too-large": "Archivo demasiado grande para una plataforma",
         "disconnected": "Plataforma desconectada o token caducado",
         "rate-limited": "Límite de frecuencia alcanzado",
-        "web-limits": "Límites de subida en la web y Telegram"
+        "web-limits": "Límites de transferencia web y Telegram"
       },
       "p1": "Si el descifrado sigue fallando o entras en un bucle de desbloqueo/Reintentar, la causa más probable es una frase de contraseña que no coincide con la que se usó para cifrar un archivo: un error tipográfico, una distribución de teclado distinta o una frase de contraseña antigua. zcrypt no puede decirte que la frase de contraseña es incorrecta antes de intentar descifrar, porque en el servidor no hay nada legible contra lo que comprobarla.",
       "p2": "Vuelve a introducir la frase de contraseña con cuidado: fíjate en las mayúsculas bloqueadas y en los espacios finales.",
@@ -2192,11 +2192,11 @@
       "a38": "Límite de frecuencia alcanzado",
       "title": "Solución de problemas",
       "description": "Los pocos problemas que más se encuentran, y cómo resolverlos. La mayoría tienen una causa sencilla: la clave equivocada, un fallo de red transitorio o un límite de plataforma haciendo su trabajo.",
-      "wlTitle": "Límites de subida en la web y Telegram",
-      "wlP1": "Las subidas desde la app web tienen límites porque pasan por el servidor de zcrypt. La app de escritorio no tiene ninguno.",
-      "wlL1": "<strong>Demasiado grande para subirlo desde la web.</strong> Un archivo de más de 2 GB no se puede subir desde el navegador. Súbelo desde la app de escritorio.",
-      "wlL2": "<strong>Has usado tus transferencias web de este mes.</strong> Se agotó el cupo mensual de 20 GB. Se reinicia el día 1 del mes (UTC) y Ajustes, Almacenamiento muestra la fecha. Hasta entonces, usa la app de escritorio, que no cuenta. Las descargas nunca se bloquean.",
-      "wlL3": "<strong>Telegram parece bloqueado.</strong> Tu red o tu país bloquea Telegram. Activa una VPN y vuelve a intentarlo. Las subidas siguen funcionando sin ella, pero pasan por el servidor y cuentan para tus transferencias web.",
+      "wlTitle": "Límites de transferencia web y Telegram",
+      "wlP1": "El almacenamiento no tiene límite. Lo que pasa por el servidor de zcrypt sí: hay una cuota de transferencia diaria y otra mensual, además de un tamaño máximo por archivo. En Ajustes, Almacenamiento, Uso y límites ves tus cifras. Lo que va directo entre tu dispositivo y tu propio almacenamiento no cuenta, y las apps de escritorio y Android siempre van directo.",
+      "wlL1": "<strong>Demasiado grande para el navegador.</strong> Un archivo que supera el tamaño máximo no puede pasar por el servidor. Envíalo a Hugging Face o a tu propio Telegram, a los que el navegador llega directamente, o usa la app de escritorio.",
+      "wlL2": "<strong>No queda suficiente cuota.</strong> Cuentan las subidas y descargas por el servidor, y también las descargas de tus enlaces compartidos. Una transferencia que no cabe en lo que queda se detiene antes de empezar y te dice cuándo se restablece: la diaria a medianoche UTC y la mensual el día 1. Hasta entonces, usa la app de escritorio, que no cuenta.",
+      "wlL3": "<strong>Telegram parece bloqueado.</strong> Tu red o tu país bloquea Telegram. Si el resto de la transferencia cabe en tu cuota, pasa por el servidor. Si no, se pausa y te pide activar una VPN, y sigue sola en cuanto Telegram responde. <strong>Reintentar</strong> lo comprueba al momento.",
       "wlP2": "Si <strong>Abrir la app de escritorio</strong> te lleva a la página de descarga aunque la app esté instalada, abre la app tú mismo una vez y vuelve a intentarlo. Las versiones antiguas de la app no se pueden abrir desde el navegador, así que actualízala si sigue sin funcionar. Siempre puedes abrir la app tú mismo y soltar el archivo allí."
     },
     "uploading": {

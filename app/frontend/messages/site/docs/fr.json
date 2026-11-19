@@ -2150,7 +2150,7 @@
         "too-large": "Fichier trop volumineux pour une plateforme",
         "disconnected": "Plateforme déconnectée ou jeton expiré",
         "rate-limited": "Limite de débit atteinte",
-        "web-limits": "Limites d'envoi web et Telegram"
+        "web-limits": "Limites de transfert web et Telegram"
       },
       "p1": "Si le déchiffrement échoue sans cesse ou si vous tournez en boucle entre déverrouillage et nouvelle tentative, la cause la plus probable est une phrase secrète qui ne correspond pas à celle avec laquelle un fichier a été chiffré : une faute de frappe, une autre disposition de clavier ou une ancienne phrase secrète. zcrypt ne peut pas vous dire que la phrase secrète est incorrecte avant d’essayer de déchiffrer, car il n’y a rien de lisible sur le serveur pour la vérifier.",
       "p2": "Ressaisissez soigneusement la phrase secrète : attention aux majuscules verrouillées et aux espaces en fin de saisie.",
@@ -2192,11 +2192,11 @@
       "a38": "Limite de débit atteinte",
       "title": "Dépannage",
       "description": "La poignée de problèmes les plus fréquents, et comment les résoudre. La plupart ont une cause simple : la mauvaise clé, un petit accroc réseau passager, ou une limite de plateforme qui fait son travail.",
-      "wlTitle": "Limites d'envoi web et Telegram",
-      "wlP1": "Les envois depuis l'application web sont limités parce qu'ils passent par le serveur de zcrypt. L'application de bureau n'a aucune limite.",
-      "wlL1": "<strong>Trop volumineux pour un envoi web.</strong> Un fichier de plus de 2 Go ne peut pas être envoyé depuis le navigateur. Envoyez-le depuis l'application de bureau.",
-      "wlL2": "<strong>Vous avez utilisé vos transferts web ce mois-ci.</strong> Le quota mensuel de 20 Go est épuisé. Il repart de zéro le 1er du mois (UTC), et Paramètres, Stockage indique la date. D'ici là, utilisez l'application de bureau, qui ne compte pas. Les téléchargements ne sont jamais bloqués.",
-      "wlL3": "<strong>Telegram semble bloqué.</strong> Votre réseau ou votre pays bloque Telegram. Activez un VPN et réessayez. Les envois fonctionnent aussi sans VPN, mais ils passent par le serveur et comptent dans vos transferts web.",
+      "wlTitle": "Limites de transfert web et Telegram",
+      "wlP1": "Le stockage n'est pas plafonné. Ce qui passe par le serveur de zcrypt l'est : il y a un quota de transfert quotidien et un mensuel, plus une taille maximale par fichier. Réglages, Stockage, Utilisation et limites affiche tes chiffres. Tout ce qui va directement de ton appareil à ton propre stockage ne compte pas, et les apps de bureau et Android passent toujours en direct.",
+      "wlL1": "<strong>Trop gros pour le navigateur.</strong> Un fichier au-delà de la taille maximale ne peut pas passer par le serveur. Envoie-le sur Hugging Face ou ton propre Telegram, que le navigateur atteint directement, ou utilise l'app de bureau.",
+      "wlL2": "<strong>Il ne reste pas assez de quota.</strong> Les envois et téléchargements via le serveur comptent, tout comme les téléchargements de tes liens de partage. Un transfert qui ne tient pas dans ce qui reste s'arrête avant de commencer et indique quand le quota repart : celui du jour à minuit UTC, celui du mois le 1er. D'ici là, utilise l'app de bureau, qui ne compte pas.",
+      "wlL3": "<strong>Telegram semble bloqué.</strong> Ton réseau ou ton pays bloque Telegram. Si le reste du transfert tient dans ton quota, il passe par le serveur. Sinon, il se met en pause, te demande d'activer un VPN, puis reprend tout seul dès que Telegram répond. <strong>Réessayer</strong> vérifie tout de suite.",
       "wlP2": "Si <strong>Ouvrir l'application de bureau</strong> vous mène à la page de téléchargement alors que l'application est installée, ouvrez l'application vous-même une fois puis réessayez. Les anciennes versions de l'application ne peuvent pas être ouvertes depuis le navigateur : mettez-la à jour si cela ne fonctionne toujours pas. Vous pouvez toujours ouvrir l'application vous-même et y déposer le fichier."
     },
     "uploading": {

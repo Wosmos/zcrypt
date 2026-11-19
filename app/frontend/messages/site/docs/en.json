@@ -2150,7 +2150,7 @@
         "too-large": "File too large for a platform",
         "disconnected": "Platform disconnected or token expired",
         "rate-limited": "Rate limited",
-        "web-limits": "Web upload limits and Telegram"
+        "web-limits": "Web transfer limits and Telegram"
       },
       "p1": "If decryption keeps failing or you land in a unlock/Retry loop, the most likely cause is a passphrase that doesn't match the one a file was encrypted with, a typo, a different keyboard layout, or an old passphrase. zcrypt can't tell you the passphrase is wrong before it tries to decrypt, because there's nothing readable on the server to check it against.",
       "p2": "Re-enter the passphrase carefully: watch for caps lock and trailing spaces.",
@@ -2192,11 +2192,11 @@
       "a38": "Rate limited",
       "title": "Troubleshooting",
       "description": "The handful of issues people hit most, and how to clear them. Most have a simple cause: the wrong key, a transient network hiccup, or a platform limit doing its job.",
-      "wlTitle": "Web upload limits and Telegram",
-      "wlP1": "Uploads from the web app have limits because they pass through zcrypt's server. The desktop app has none.",
-      "wlL1": "<strong>Too big for a web upload.</strong> A single file over 2 GB can't be uploaded from the browser. Upload it from the desktop app instead.",
-      "wlL2": "<strong>You've used your web transfers this month.</strong> The 20 GB monthly allowance is used up. It starts over on the 1st of the month (UTC), and Settings, Storage shows the date. Until then, use the desktop app, which doesn't count. Downloads are never blocked.",
-      "wlL3": "<strong>Telegram looks blocked.</strong> Your network or country blocks Telegram. Turn on a VPN and retry. Uploads still work without one, but they pass through the server and count toward your web transfers.",
+      "wlTitle": "Web transfer limits and Telegram",
+      "wlP1": "Storage isn't capped. What passes through zcrypt's server is: there's a daily and a monthly transfer allowance, plus a size cap per file. Settings, Storage, Usage & limits shows your numbers. Anything that goes straight between your device and your own storage doesn't count, and the desktop and Android apps always go straight.",
+      "wlL1": "<strong>Too big for the browser.</strong> A file over the per-file cap can't go through the server. Send it to Hugging Face or your own Telegram, which the browser reaches directly, or use the desktop app.",
+      "wlL2": "<strong>Not enough allowance left.</strong> Uploads and downloads through the server count, and so do people downloading your share links. A transfer that won't fit what's left stops before it starts and says when the allowance resets: today's at midnight UTC, the month's on the 1st. Until then, use the desktop app, which doesn't count.",
+      "wlL3": "<strong>Telegram looks blocked.</strong> Your network or country blocks Telegram. If the rest of the transfer fits your allowance, it goes through the server instead. If not, it pauses and asks you to turn on a VPN, then carries on by itself as soon as Telegram answers. <strong>Try again</strong> checks right away.",
       "wlP2": "If <strong>Open the desktop app</strong> takes you to the download page even though the app is installed, open the app once yourself and try again. Older versions of the app can't be opened from the browser, so update it if that still doesn't work. You can always open the app yourself and drop the file there."
     },
     "uploading": {

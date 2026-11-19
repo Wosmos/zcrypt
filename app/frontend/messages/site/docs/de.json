@@ -2150,7 +2150,7 @@
         "too-large": "Datei zu groß für eine Plattform",
         "disconnected": "Plattform getrennt oder Token abgelaufen",
         "rate-limited": "Ratenbegrenzt",
-        "web-limits": "Web-Upload-Limits und Telegram"
+        "web-limits": "Übertragungslimits im Web und Telegram"
       },
       "p1": "Schlägt die Entschlüsselung immer wieder fehl oder landest du in einer Entsperren-/Wiederholen-Schleife, ist die wahrscheinlichste Ursache eine Passphrase, die nicht mit der übereinstimmt, mit der eine Datei verschlüsselt wurde: ein Tippfehler, ein anderes Tastaturlayout oder eine alte Passphrase. zcrypt kann dir nicht sagen, dass die Passphrase falsch ist, bevor es versucht zu entschlüsseln, weil auf dem Server nichts Lesbares existiert, wogegen sie geprüft werden könnte.",
       "p2": "Gib die Passphrase sorgfältig neu ein: Achte auf die Feststelltaste und Leerzeichen am Ende.",
@@ -2192,11 +2192,11 @@
       "a38": "Ratenbegrenzt",
       "title": "Fehlerbehebung",
       "description": "Die Handvoll Probleme, auf die Leute am häufigsten stoßen, und wie du sie behebst. Die meisten haben eine einfache Ursache: den falschen Schlüssel, einen vorübergehenden Netzwerkaussetzer oder ein Plattformlimit, das seine Arbeit tut.",
-      "wlTitle": "Web-Upload-Limits und Telegram",
-      "wlP1": "Uploads aus der Web-App sind begrenzt, weil sie über den Server von zcrypt laufen. Die Desktop-App hat keine Limits.",
-      "wlL1": "<strong>Zu groß für einen Web-Upload.</strong> Eine einzelne Datei über 2 GB lässt sich nicht aus dem Browser hochladen. Lade sie stattdessen mit der Desktop-App hoch.",
-      "wlL2": "<strong>Du hast deine Web-Transfers diesen Monat aufgebraucht.</strong> Das monatliche Kontingent von 20 GB ist verbraucht. Es beginnt am 1. des Monats (UTC) von vorn; das Datum steht unter Einstellungen, Speicher. Bis dahin nutze die Desktop-App, die nicht zählt. Downloads werden nie blockiert.",
-      "wlL3": "<strong>Telegram scheint blockiert.</strong> Dein Netzwerk oder Land blockiert Telegram. Schalte ein VPN ein und versuche es erneut. Uploads funktionieren auch ohne, laufen dann aber über den Server und zählen für deine Web-Transfers.",
+      "wlTitle": "Übertragungslimits im Web und Telegram",
+      "wlP1": "Der Speicher ist nicht begrenzt. Begrenzt ist, was über den Server von zcrypt läuft: Es gibt ein tägliches und ein monatliches Übertragungskontingent sowie eine Größengrenze pro Datei. Unter Einstellungen, Speicher, Nutzung & Limits siehst du deine Werte. Alles, was direkt zwischen deinem Gerät und deinem eigenen Speicher läuft, zählt nicht, und die Desktop- und Android-App übertragen immer direkt.",
+      "wlL1": "<strong>Zu groß für den Browser.</strong> Eine Datei über der Größengrenze kann nicht über den Server laufen. Schick sie an Hugging Face oder dein eigenes Telegram, die der Browser direkt erreicht, oder nimm die Desktop-App.",
+      "wlL2": "<strong>Nicht mehr genug Kontingent übrig.</strong> Uploads und Downloads über den Server zählen, ebenso Downloads deiner Freigabelinks durch andere. Eine Übertragung, die nicht mehr passt, stoppt vor dem Start und sagt, wann das Kontingent zurückgesetzt wird: das tägliche um Mitternacht UTC, das monatliche am 1. Bis dahin nimm die Desktop-App, die nicht zählt.",
+      "wlL3": "<strong>Telegram scheint blockiert zu sein.</strong> Dein Netzwerk oder Land blockiert Telegram. Passt der Rest der Übertragung in dein Kontingent, läuft er stattdessen über den Server. Wenn nicht, pausiert sie, bittet dich, ein VPN einzuschalten, und läuft von selbst weiter, sobald Telegram antwortet. <strong>Erneut versuchen</strong> prüft sofort.",
       "wlP2": "Führt <strong>Desktop-App öffnen</strong> zur Download-Seite, obwohl die App installiert ist, öffne die App einmal selbst und versuche es erneut. Ältere Versionen der App lassen sich nicht aus dem Browser öffnen, aktualisiere sie also, falls es dann noch nicht klappt. Du kannst die App jederzeit selbst öffnen und die Datei dort hineinziehen."
     },
     "uploading": {
