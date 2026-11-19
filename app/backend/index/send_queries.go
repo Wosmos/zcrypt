@@ -34,7 +34,9 @@ func (db *DB) CreateSendTransfer(ctx context.Context, t *types.SendTransfer) err
 // 24h. The check and insert share a transaction under a per-sender advisory
 // lock, so parallel inits cannot each slip under the cap. The ledger, not the
 // transfer row, is what is summed: burn-after-read and expiry delete the row.
-func (db *DB) CreateSendTransferCapped(ctx context.Context, t *types.SendTransfer, limit int64) error {
+// A non-nil relay also checks a signed-in sender's transfer allowance and
+// returns *ErrRelayWindowExceeded when the send does not fit.
+func (db *DB) CreateSendTransferCapped(ctx context.Context, t *types.SendTransfer, limit int64, relay *RelayLimits) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -62,6 +64,18 @@ func (db *DB) CreateSendTransferCapped(ctx context.Context, t *types.SendTransfe
 	}
 	if used+t.OriginalSize > limit {
 		return ErrSendDailyCap
+	}
+	if relay != nil && t.UserID != "" {
+		if err := lockRelay(ctx, tx, t.UserID); err != nil {
+			return err
+		}
+		totals, err := relayTotals(ctx, tx, t.UserID)
+		if err != nil {
+			return err
+		}
+		if exceeded := totals.Check(*relay, t.OriginalSize); exceeded != nil {
+			return exceeded
+		}
 	}
 
 	if _, err := tx.Exec(ctx, insertSendTransferSQL,

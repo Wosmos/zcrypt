@@ -322,6 +322,11 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NUL
 -- same data plane. The shared managed-pool token is never used for byos-direct.
 ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'relay';
 
+-- Transfer allowance reservation: the declared bytes a relay session promised
+-- to send through the server (0 for presigned and byos-direct sessions). The
+-- unsent remainder counts against the user's daily and monthly windows.
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS relay_reserve BIGINT NOT NULL DEFAULT 0;
+
 -- Cross-device sync feed. Every mutation to a user's files (added / updated /
 -- deleted / moved / renamed) stamps the file with a per-user monotonic revision
 -- so any device can pull just what changed via GET /api/changes?since=<rev> and
