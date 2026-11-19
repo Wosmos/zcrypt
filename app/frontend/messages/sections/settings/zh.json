@@ -537,16 +537,6 @@
       "pushDesc": "即使 zcrypt 没有打开，新的登录、空间邀请和被打开的分享链接也会通知到这个浏览器。",
       "pushFailed": "无法为这个浏览器开启提醒，请重试。"
     },
-    "webTransfers": {
-      "title": "本月网页传输",
-      "description": "在浏览器中上传或下载的文件会计入每月额度。直接上传到你自己的 Telegram 不计入。",
-      "usage": "{used} / {limit}",
-      "resets": "{date} 重置",
-      "desktopHint": "桌面应用没有限制。",
-      "getDesktop": "获取桌面应用",
-      "openDesktop": "打开桌面应用",
-      "usedUp": "本月 {limit} 已全部用完"
-    },
     "recoveryKit": {
       "label": "恢复套件",
       "footnote": "我们从不会看到你的口令，因此无法为你重置。如果你忘记了口令，恢复套件是唯一的补救办法。",
@@ -674,6 +664,43 @@
       "chargingDesc": "等手机接上电源后再备份",
       "runNowDesc": "手机满足上面的选项后开始",
       "saveFailed": "无法保存，请重试。"
+    },
+    "usageLimits": {
+      "title": "用量与限制",
+      "description": "zcrypt 限制什么、不限制什么，以及你目前的用量。网页、桌面和 Android 上都一样。",
+      "storage": {
+        "title": "存储",
+        "own": "保存在你自己的 Telegram、GitHub、GitLab 或 Hugging Face 上的文件属于你自己的空间，zcrypt 不设上限。",
+        "shared": "zcrypt 共享存储",
+        "sharedUsage": "已用 {used}，共 {quota}"
+      },
+      "allowance": {
+        "title": "传输额度",
+        "intro": "可以把它看作使用上限：存储本身不设上限，经过我们服务器的流量才有上限。",
+        "none": "此账户没有任何限制。",
+        "today": "今天",
+        "month": "本月",
+        "usage": "已用 {used}，共 {limit}",
+        "usedUp": "{limit} 已全部用完",
+        "resetsAt": "将于 {time} 重置",
+        "resetsOn": "将于 {date} 重置",
+        "perFile": "经过我们服务器的最大文件",
+        "noFileCap": "不限",
+        "reserved": "为进行中的上传预留",
+        "remaining": "当前剩余"
+      },
+      "counts": {
+        "title": "哪些计入",
+        "yesTitle": "计入你的额度",
+        "yesTransfers": "经过我们服务器的上传和下载，任何应用都一样。",
+        "yesShares": "其他人通过你的分享链接下载。这部分计在你（所有者）名下。",
+        "noTitle": "不计入",
+        "noDirect": "你的设备与你自己的 Telegram、GitHub、GitLab 或 Hugging Face 之间直接传输的内容。所有应用都免费：网页、桌面和 Android。"
+      },
+      "blocked": {
+        "title": "Telegram 被屏蔽时",
+        "body": "每个应用都会先直接连接你自己的 Telegram。如果网络屏蔽了它，只有在传输剩余部分不超出你的额度时，我们才会改走服务器。超出时传输会暂停并提示你打开 VPN，之后自动继续。"
+      }
     }
   }
 }

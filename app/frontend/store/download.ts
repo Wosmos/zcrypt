@@ -568,6 +568,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       const unlisten = await subscribeProgress((p) => {
         if (p.file_id !== fileId) return;
         applyEngineWait(`dl:${id}`, p);
+        if (p.stage === "waiting") return;
         const percent =
           p.bytes_total > 0 ? Math.round((p.bytes_done / p.bytes_total) * 100) : undefined;
         updateProgress(id, DownloadStatus.Downloading, percent, p.stage);
@@ -717,7 +718,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       const unlisten = await subscribeProgress((p) => {
         if (!fileIds.has(p.file_id)) return;
         applyEngineWait(`dl:${id}`, p);
-        if (p.chunks_total <= 0) return;
+        if (p.stage === "waiting" || p.chunks_total <= 0) return;
         const idx = order.indexOf(p.file_id);
         // Belt-and-braces: `order` and `fileIds` are built from the same `files`
         // array and the guard above already required a `fileIds` hit, so indexOf

@@ -537,16 +537,6 @@
       "pushDesc": "Les nouvelles connexions, les invitations aux Spaces et les liens de partage ouverts arrivent dans ce navigateur même quand zcrypt n'est pas ouvert.",
       "pushFailed": "Impossible d'activer les alertes pour ce navigateur. Réessayez."
     },
-    "webTransfers": {
-      "title": "Transferts web ce mois-ci",
-      "description": "Les fichiers que vous envoyez ou téléchargez dans le navigateur comptent dans une limite mensuelle. Les envois directs vers votre propre Telegram ne comptent pas.",
-      "usage": "{used} sur {limit}",
-      "resets": "Remise à zéro le {date}",
-      "desktopHint": "L'application de bureau n'a aucune limite.",
-      "getDesktop": "Obtenir l'application de bureau",
-      "openDesktop": "Ouvrir l'application de bureau",
-      "usedUp": "Les {limit} du mois sont utilisés"
-    },
     "recoveryKit": {
       "label": "Kit de récupération",
       "footnote": "Nous ne voyons jamais votre phrase secrète, nous ne pouvons donc pas la réinitialiser. Un kit de récupération est le seul moyen de revenir si vous l'oubliez.",
@@ -674,6 +664,43 @@
       "chargingDesc": "Attend que le téléphone soit branché",
       "runNowDesc": "Démarre dès que le téléphone respecte les options ci-dessus",
       "saveFailed": "Impossible d'enregistrer. Réessayez."
+    },
+    "usageLimits": {
+      "title": "Utilisation et limites",
+      "description": "Ce que zcrypt limite, ce qu'il ne limite pas et où vous en êtes. C'est identique sur le web, le bureau et Android.",
+      "storage": {
+        "title": "Stockage",
+        "own": "Les fichiers que vous gardez sur votre propre Telegram, GitHub, GitLab ou Hugging Face sont dans votre espace. zcrypt ne les limite pas.",
+        "shared": "Stockage partagé zcrypt",
+        "sharedUsage": "{used} sur {quota}"
+      },
+      "allowance": {
+        "title": "Quota de transfert",
+        "intro": "C'est comme une limite d'utilisation. Le stockage n'est pas plafonné, mais ce qui passe par notre serveur l'est.",
+        "none": "Aucune limite sur ce compte.",
+        "today": "Aujourd'hui",
+        "month": "Ce mois-ci",
+        "usage": "{used} sur {limit}",
+        "usedUp": "Les {limit} sont épuisés",
+        "resetsAt": "Remise à zéro à {time}",
+        "resetsOn": "Remise à zéro le {date}",
+        "perFile": "Plus gros fichier via notre serveur",
+        "noFileCap": "Pas de plafond",
+        "reserved": "Réservé aux envois en cours",
+        "remaining": "Disponible maintenant"
+      },
+      "counts": {
+        "title": "Ce qui compte",
+        "yesTitle": "Compte dans votre quota",
+        "yesTransfers": "Les envois et téléchargements qui passent par notre serveur, sur toutes les applications.",
+        "yesShares": "Les personnes qui téléchargent vos liens de partage. Cela compte pour vous, le propriétaire.",
+        "noTitle": "Ne compte pas",
+        "noDirect": "Tout ce qui circule directement entre votre appareil et votre propre Telegram, GitHub, GitLab ou Hugging Face. C'est gratuit sur toutes les applications : web, bureau et Android."
+      },
+      "blocked": {
+        "title": "Quand Telegram est bloqué",
+        "body": "Chaque application essaie d'abord votre propre Telegram en direct. Si votre réseau le bloque, nous n'utilisons notre serveur que tant que le reste du transfert tient dans votre quota. Sinon, le transfert se met en pause et vous demande d'activer un VPN, puis reprend tout seul."
+      }
     }
   }
 }

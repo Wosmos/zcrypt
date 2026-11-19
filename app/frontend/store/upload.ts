@@ -1880,6 +1880,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const unlistenRetry = await subscribeProgress((progress) => {
           if (progress.file_name !== item.file.name) return;
           applyEngineWait(`up:${id}`, progress);
+          if (progress.stage === "waiting") return;
           const percent = blendDesktopUploadProgress(
             progress.stage,
             progress.bytes_done,
@@ -2049,6 +2050,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       );
       if (!item) return;
       applyEngineWait(`up:${item.id}`, progress);
+      if (progress.stage === "waiting") return;
       const percent = blendDesktopUploadProgress(
         progress.stage,
         progress.bytes_done,
