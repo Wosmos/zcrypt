@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { isInBackground } from "@/lib/sounds";
 import { loadSpaceKey, openSpaceText } from "@/lib/spaces";
+import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { usePreferencesStore } from "@/store/preferences";
 import { tr } from "@/store/translate";
@@ -129,8 +130,10 @@ export async function deliverUserEvent(
   event: UserEvent,
   navigate: (url: string) => void,
 ): Promise<Delivered> {
+  const userId = useAuthStore.getState().user?.id;
   const model = await describeUserEvent(event);
   if (!model) return "skipped";
+  if (!userId || useAuthStore.getState().user?.id !== userId) return "skipped";
   const prefs = usePreferencesStore.getState();
   const payload = describeNotification(model, false);
   if (!prefs.sound.areas[payload.area]) return "skipped";

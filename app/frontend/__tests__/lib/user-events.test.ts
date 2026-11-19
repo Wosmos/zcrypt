@@ -7,7 +7,9 @@ const h = vi.hoisted(() => ({
   warning: vi.fn(),
   areas: { transfers: true, sharing: true, security: true, problems: true },
   cache: new Map<string, unknown>(),
+  user: { id: "u1" } as { id: string } | null,
 }));
+vi.mock("@/store/auth", () => ({ useAuthStore: { getState: () => ({ user: h.user }) } }));
 
 vi.mock("@/lib/sounds", () => ({ isInBackground: () => h.background }));
 vi.mock("@/store/toast", () => ({ toast: { info: h.info, warning: h.warning } }));
@@ -34,6 +36,7 @@ vi.mock("@/lib/notify", async () => {
 
 import { deliverUserEvent, describeUserEvent, parseUserEvent, type UserEvent } from "@/lib/user-events";
 import { describeNotification } from "@/lib/notify";
+import { loadSpaceKey } from "@/lib/spaces";
 
 function event(type: string, data: Record<string, string>, url = "/spaces"): UserEvent {
   return { type, data, url };
@@ -43,6 +46,7 @@ const navigate = vi.fn();
 
 beforeEach(() => {
   h.background = false;
+  h.user = { id: "u1" };
   h.areas.sharing = true;
   h.cache.clear();
   h.cache.set(JSON.stringify(["space", "s1"]), { id: "s1", name: "s1:Trip" });
@@ -66,6 +70,20 @@ describe("parseUserEvent", () => {
 });
 
 describe("delivery rule", () => {
+  it("drops an event that was still being described when the user signed out or switched", async () => {
+    for (const next of [null, { id: "u2" }]) {
+      let release!: (k: Uint8Array) => void;
+      vi.mocked(loadSpaceKey).mockImplementationOnce(() => new Promise((r) => (release = r)));
+      h.user = { id: "u1" };
+      const pending = deliverUserEvent(event("memberLeft", { space_id: "s1", username: "W" }), navigate);
+      h.user = next;
+      release(new Uint8Array(32));
+      expect(await pending).toBe("skipped");
+      expect(h.info).not.toHaveBeenCalled();
+      expect(h.notify).not.toHaveBeenCalled();
+    }
+  });
+
   it("shows a toast and no system notification while zcrypt is in view", async () => {
     const out = await deliverUserEvent(event("memberLeft", { space_id: "s1", username: "Wasif" }), navigate);
     expect(out).toBe("toast");
