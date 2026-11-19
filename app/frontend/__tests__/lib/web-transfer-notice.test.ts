@@ -86,4 +86,27 @@ describe("noticeCopy", () => {
     });
     expect(copy.hint).toBeUndefined();
   });
+
+  it("explains the daily window with the time it starts over", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.DailyExceeded,
+      limitBytes: 3 * MB,
+      usedBytes: 3 * MB,
+      resetsAt: "2026-11-20T00:00:00Z",
+      files: [],
+    });
+    expect(copy.title).toEqual({ key: "dailyTitle" });
+    expect(copy.body.key).toBe("dailyBody");
+    expect(copy.body.values).toMatchObject({ used: "3 MB", limit: "3 MB" });
+    expect(copy.body.values?.time).toMatch(/12:00 AM/);
+  });
+
+  it("drops the time when the server sent none", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.DailyExceeded,
+      limitBytes: 3 * MB,
+      files: [],
+    });
+    expect(copy.body.key).toBe("dailyBodyNoTime");
+  });
 });

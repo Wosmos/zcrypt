@@ -228,8 +228,9 @@
       "orb": "Übertragungen, noch {left}. Tippen zum Öffnen, gedrückt halten zum Pausieren oder Fortsetzen.",
       "needsApp": {
         "tooBig": "Zu groß für den Browser",
-        "allowance": "Web-Übertragungen für diesen Monat aufgebraucht",
-        "action": "App nutzen"
+        "allowance": "Über dem Übertragungskontingent des Monats",
+        "action": "App nutzen",
+        "daily": "Über dem heutigen Übertragungskontingent"
       }
     },
     "tokens": {
@@ -937,12 +938,14 @@
       "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben.",
       "zipFilesLabel": "{count, plural, one {# Datei (ZIP)} other {# Dateien (ZIP)}}",
       "webFileTooLarge": "Dateien über {limit} können nicht im Browser hochgeladen werden. Große Dateien gehören in die Desktop-App: Sie ist schneller, arbeitet im Hintergrund weiter und hat keine Größenbeschränkung.",
-      "webAllowanceUsed": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Es wird am {date} zurückgesetzt. Die Desktop-App hat kein Limit.",
-      "webAllowanceUsedNoDate": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Die Desktop-App hat kein Limit.",
+      "webAllowanceUsed": "Du hast dein Übertragungskontingent von {limit} für diesen Monat aufgebraucht. Es wird am {date} zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "webAllowanceUsedNoDate": "Du hast dein Übertragungskontingent von {limit} für diesen Monat aufgebraucht. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
       "getDesktopApp": "Desktop-App holen",
       "openDesktopApp": "Desktop-App öffnen",
       "desktopAppMissing": "Die Desktop-App ließ sich nicht öffnen. Noch nicht installiert?",
-      "downloadDesktopApp": "Desktop-App herunterladen"
+      "downloadDesktopApp": "Desktop-App herunterladen",
+      "webDailyUsed": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um {time} zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "webDailyUsedNoTime": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um Mitternacht UTC zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit."
     },
     "l10n": {
       "justNow": "gerade eben",
@@ -1077,9 +1080,9 @@
       "tooBigManyTitle": "{count} Dateien sind zu groß für den Browser",
       "tooBigBody": "{name} ist {size} groß. Uploads im Browser sind auf {limit} begrenzt, weil sie über unsere Server laufen. Die Desktop-App schickt Dateien direkt in deinen Speicher, ohne Größenlimit.",
       "capBody": "Uploads im Browser sind auf {limit} begrenzt, weil sie über unsere Server laufen. Die Desktop-App schickt Dateien direkt in deinen Speicher, ohne Größenlimit.",
-      "allowanceTitle": "Deine Web-Übertragungen für diesen Monat sind aufgebraucht",
-      "allowanceBody": "{used} von {limit}. Am {date} geht es wieder von vorn los. Die Desktop-App hat kein Limit.",
-      "allowanceBodyNoDate": "{used} von {limit}. Die Desktop-App hat kein Limit.",
+      "allowanceTitle": "Dein Übertragungskontingent für diesen Monat ist aufgebraucht",
+      "allowanceBody": "{used} von {limit}. Am {date} geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "allowanceBodyNoDate": "{used} von {limit}. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
       "hint": "Öffne die App und zieh {count, plural, one {die Datei} other {die Dateien}} dort hinein.",
       "more": "und {count} weitere",
       "open": "Desktop-App öffnen",
@@ -1087,7 +1090,10 @@
       "get": "Desktop-App holen",
       "missing": "Nichts passiert? Desktop-App holen",
       "missingNote": "Es hat sich nichts geöffnet, die App ist auf diesem Gerät wohl noch nicht installiert.",
-      "notNow": "Nicht jetzt"
+      "notNow": "Nicht jetzt",
+      "dailyTitle": "Dein heutiges Übertragungskontingent ist aufgebraucht",
+      "dailyBody": "Heute {used} von {limit}. Um {time} geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "dailyBodyNoTime": "Heute {used} von {limit}. Um Mitternacht UTC geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit."
     }
   }
 }

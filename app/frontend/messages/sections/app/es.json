@@ -228,8 +228,9 @@
       "orb": "Transferencias, quedan {left}. Toca para abrir, mantén pulsado para pausar o reanudar.",
       "needsApp": {
         "tooBig": "Demasiado grande para el navegador",
-        "allowance": "Sin transferencias web este mes",
-        "action": "Usar la app"
+        "allowance": "Por encima del cupo de transferencia del mes",
+        "action": "Usar la app",
+        "daily": "Por encima del cupo de transferencia de hoy"
       }
     },
     "tokens": {
@@ -937,12 +938,14 @@
       "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla.",
       "zipFilesLabel": "{count, plural, one {# archivo (ZIP)} other {# archivos (ZIP)}}",
       "webFileTooLarge": "Los archivos de más de {limit} no se pueden subir desde el navegador. Los archivos grandes van en la app de escritorio: es más rápida, sigue trabajando en segundo plano y no tiene límite de tamaño.",
-      "webAllowanceUsed": "Has usado tus {limit} de transferencias web de este mes. Se restablece el {date}. La app de escritorio no tiene límite.",
-      "webAllowanceUsedNoDate": "Has usado tus {limit} de transferencias web de este mes. La app de escritorio no tiene límite.",
+      "webAllowanceUsed": "Has usado tu cupo de transferencia de {limit} de este mes. Se restablece el {date}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "webAllowanceUsedNoDate": "Has usado tu cupo de transferencia de {limit} de este mes. Lo que va directo a tu propio almacenamiento no cuenta.",
       "getDesktopApp": "Descargar la app de escritorio",
       "openDesktopApp": "Abrir la app de escritorio",
       "desktopAppMissing": "No se pudo abrir la app de escritorio. ¿Aún no la tienes?",
-      "downloadDesktopApp": "Descargar la app de escritorio"
+      "downloadDesktopApp": "Descargar la app de escritorio",
+      "webDailyUsed": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "webDailyUsedNoTime": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta."
     },
     "l10n": {
       "justNow": "ahora mismo",
@@ -1077,9 +1080,9 @@
       "tooBigManyTitle": "{count} archivos son demasiado grandes para el navegador",
       "tooBigBody": "{name} ocupa {size}. Las subidas desde el navegador tienen un tope de {limit} porque pasan por nuestros servidores. La app de escritorio envía los archivos directamente a tu almacenamiento, sin límite de tamaño.",
       "capBody": "Las subidas desde el navegador tienen un tope de {limit} porque pasan por nuestros servidores. La app de escritorio envía los archivos directamente a tu almacenamiento, sin límite de tamaño.",
-      "allowanceTitle": "Has usado las transferencias web de este mes",
-      "allowanceBody": "{used} de {limit}. Se restablece el {date}. La app de escritorio no tiene límite.",
-      "allowanceBodyNoDate": "{used} de {limit}. La app de escritorio no tiene límite.",
+      "allowanceTitle": "Has usado el cupo de transferencia de este mes",
+      "allowanceBody": "{used} de {limit}. Se restablece el {date}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "allowanceBodyNoDate": "{used} de {limit}. Lo que va directo a tu propio almacenamiento no cuenta.",
       "hint": "Abre la app y suelta {count, plural, one {el archivo} other {los archivos}} allí.",
       "more": "y {count} más",
       "open": "Abrir la app de escritorio",
@@ -1087,7 +1090,10 @@
       "get": "Descargar la app de escritorio",
       "missing": "¿No aparece? Descarga la app de escritorio",
       "missingNote": "No se abrió nada, así que puede que la app aún no esté en este dispositivo.",
-      "notNow": "Ahora no"
+      "notNow": "Ahora no",
+      "dailyTitle": "Has usado el cupo de transferencia de hoy",
+      "dailyBody": "Hoy {used} de {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "dailyBodyNoTime": "Hoy {used} de {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta."
     }
   }
 }

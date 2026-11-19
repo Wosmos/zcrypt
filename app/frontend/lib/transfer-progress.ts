@@ -209,7 +209,9 @@ export function describeUpload(i: UploadProgressInput, ctx: ProgressContext): Tr
         key:
           i.limit?.code === WebTransferLimitCode.AllowanceExceeded
             ? "needsApp.allowance"
-            : "needsApp.tooBig",
+            : i.limit?.code === WebTransferLimitCode.DailyExceeded
+              ? "needsApp.daily"
+              : "needsApp.tooBig",
       };
       break;
     case "sending":

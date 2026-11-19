@@ -310,6 +310,14 @@ export interface QuotaInfo {
   relay_max_file_bytes?: number;
   /** When the monthly web transfer allowance starts over (ISO 8601). */
   relay_resets_at?: string;
+  /** Bytes moved through the server this UTC day. */
+  relay_day_used_bytes?: number;
+  /** Daily allowance for transfers through the server. 0 = no daily cap. */
+  relay_day_limit_bytes?: number;
+  /** When the daily allowance starts over: the next UTC midnight (ISO 8601). */
+  relay_day_resets_at?: string;
+  /** Bytes promised to uploads in progress, already counted against both windows. */
+  relay_reserved_bytes?: number;
 }
 
 export interface PlatformTokenInfo {
