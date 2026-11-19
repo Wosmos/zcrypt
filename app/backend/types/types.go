@@ -180,6 +180,9 @@ type UploadSession struct {
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
 	ExpiresAt      time.Time `json:"expires_at"`
+	// RelayReserve is the declared size reserved against the transfer allowance
+	// at init; 0 for sessions whose bytes never pass through the server.
+	RelayReserve int64 `json:"-"`
 }
 
 // UploadInitRequest is the JSON body for initiating a chunked upload.
@@ -406,6 +409,15 @@ type QuotaInfo struct {
 	RelayMaxFileBytes int64 `json:"relay_max_file_bytes"`
 	// RelayResetsAt is when the monthly allowance starts over.
 	RelayResetsAt time.Time `json:"relay_resets_at"`
+	// RelayDayUsedBytes is what the user moved through the server today (UTC).
+	RelayDayUsedBytes int64 `json:"relay_day_used_bytes"`
+	// RelayDayLimitBytes is the daily allowance; 0 means none.
+	RelayDayLimitBytes int64 `json:"relay_day_limit_bytes"`
+	// RelayDayResetsAt is the next UTC midnight.
+	RelayDayResetsAt time.Time `json:"relay_day_resets_at"`
+	// RelayReservedBytes is what in-flight server uploads still promise to send;
+	// it already counts against both windows.
+	RelayReservedBytes int64 `json:"relay_reserved_bytes"`
 }
 
 // Feedback represents user-submitted feedback.

@@ -150,12 +150,22 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dailyLimit := sendAnonDailyBytes()
+	var relay *index.RelayLimits
 	if claims := GetUserClaims(r); claims != nil && !claims.Decoy {
 		transfer.UserID = claims.Sub
 		dailyLimit = sendUserDailyBytes()
+		if !IsAdmin(r) {
+			l := relayLimits()
+			relay = &l
+		}
 	}
 
-	if err := s.db.CreateSendTransferCapped(ctx, transfer, dailyLimit); err != nil {
+	if err := s.db.CreateSendTransferCapped(ctx, transfer, dailyLimit, relay); err != nil {
+		var exceeded *index.ErrRelayWindowExceeded
+		if errors.As(err, &exceeded) {
+			writeRelayRefusal(w, exceeded, false)
+			return
+		}
 		if errors.Is(err, index.ErrSendDailyCap) {
 			msg := "daily send limit reached"
 			if transfer.UserID == "" {
@@ -367,6 +377,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
 	}
+	s.recordRelay(ctx, transfer.UserID, int64(len(data)), 0)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -574,6 +585,10 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
+	// A signed-in sender's allowance pays for every download of their send.
+	if transfer.UserID != "" && !s.relayDownloadAllowed(w, r, transfer.UserID, s.userIsAdmin(ctx, transfer.UserID), true, chunk.Size) {
+		return
+	}
 
 	// Resolve the adapter that actually stored this chunk (pinned to its
 	// platform:account). Picking a random global adapter here can land on a
@@ -603,7 +618,11 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 	if chunk.Compressed {
 		w.Header().Set("X-Chunk-Compressed", "true")
 	}
-	if _, err := w.Write(data); err != nil {
+	n, err := w.Write(data)
+	if n > 0 {
+		s.recordRelay(ctx, transfer.UserID, 0, int64(n))
+	}
+	if err != nil {
 		return
 	}
 	s.burnIfFullyServed(ctx, transfer, chunkIndex)

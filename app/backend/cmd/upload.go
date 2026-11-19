@@ -69,14 +69,28 @@ func maxEncryptedTotal(size int64, count int) int64 {
 // chunkFitsDeclaredSize refuses a chunk that would push the file's stored
 // ciphertext past what its declared size allows, so a client cannot declare a
 // tiny file to pass the quota check and then upload far more.
-func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWriter, session *types.UploadSession, n int64) bool {
+func (s *Server) chunkFitsDeclaredSize(w http.ResponseWriter, r *http.Request, session *types.UploadSession, n int64) bool {
+	ctx := r.Context()
 	received, err := s.db.GetTotalReceivedChunkSize(ctx, session.FileID)
 	if err != nil {
 		internalError(w, "upload: received size", err)
 		return false
 	}
 	if received+n > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
-		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		writeCodedError(w, http.StatusRequestEntityTooLarge, types.ErrCodeRelayChunkExceedsDeclared, index.ErrChunkExceedsDeclaredSize.Error())
+		return false
+	}
+	if IsAdmin(r) {
+		return true
+	}
+	// The session's reservation already covers its declared bytes; only the
+	// part of this chunk beyond it needs fresh headroom.
+	over := n - max(session.RelayReserve-received, 0)
+	if over < 0 {
+		over = 0
+	}
+	if ex := s.relayFits(ctx, session.UserID, over); ex != nil {
+		writeRelayRefusal(w, ex, false)
 		return false
 	}
 	return true
@@ -84,7 +98,7 @@ func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWrite
 
 func writeChunkStoreError(w http.ResponseWriter, msg string, err error) {
 	if errors.Is(err, index.ErrChunkExceedsDeclaredSize) {
-		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		writeCodedError(w, http.StatusRequestEntityTooLarge, types.ErrCodeRelayChunkExceedsDeclared, index.ErrChunkExceedsDeclaredSize.Error())
 		return
 	}
 	log.Printf("%s: %v", msg, err)
@@ -253,6 +267,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	var platform, account, repoID, repoURL string
 	var directUpload bool
+	var relaySession bool
 	var quota int64
 
 	if mode == types.UploadModeBYOSDirect {
@@ -314,8 +329,11 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if _, presigned := selected.(adapters.DirectUploader); !presigned && !s.relayUploadAllowed(w, r, userID, req.OriginalSize) {
-			return
+		if _, presigned := selected.(adapters.DirectUploader); !presigned {
+			if !s.relayUploadAllowed(w, r, userID, req.OriginalSize) {
+				return
+			}
+			relaySession = !IsAdmin(r)
 		}
 
 		repo, err := pool.GetOrCreateRepo(ctx)
@@ -395,7 +413,20 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		Client:        clientMarker(r),
 	}
 
-	sessionID, err := s.db.CreateUploadSession(ctx, session)
+	var sessionID string
+	if relaySession {
+		sessionID, err = s.db.CreateRelayUploadSession(ctx, session, relayLimits())
+	} else {
+		sessionID, err = s.db.CreateUploadSession(ctx, session)
+	}
+	var exceeded *index.ErrRelayWindowExceeded
+	if errors.As(err, &exceeded) {
+		if _, delErr := s.db.DeleteFile(ctx, userID, fileID); delErr != nil {
+			log.Printf("upload: drop refused file %s: %v", fileID, delErr)
+		}
+		writeRelayRefusal(w, exceeded, false)
+		return
+	}
 	if err != nil {
 		log.Printf("upload: create session failed: %v", err)
 		http.Error(w, `{"error":"failed to start upload"}`, http.StatusInternalServerError)
@@ -511,7 +542,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk too small"}`, http.StatusBadRequest)
 		return
 	}
-	if !s.chunkFitsDeclaredSize(ctx, w, session, int64(len(data))) {
+	if !s.chunkFitsDeclaredSize(w, r, session, int64(len(data))) {
 		return
 	}
 

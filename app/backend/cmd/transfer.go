@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/zcrypt/zcrypt/config"
 )
 
 // transferRoom represents a pairing room for real-time file transfer.
@@ -34,6 +35,8 @@ const (
 	maxTransferRooms      = 500
 	maxTransferRoomsPerIP = 5
 	maxTransferRoomBytes  = int64(10) << 30
+	// defaultTransferIPDailyBytes caps what one sender IP may relay per UTC day.
+	defaultTransferIPDailyBytes = int64(5) << 30
 	// transferUnpairedFor is how long a code waits for someone to join it.
 	transferUnpairedFor = 10 * time.Minute
 	// transferIdleFor ends a transfer once nothing has moved for this long; a
@@ -51,6 +54,31 @@ const (
 type transferHub struct {
 	mu    sync.RWMutex
 	rooms map[string]*transferRoom
+
+	budgetMu  sync.Mutex
+	budgetDay string
+	budget    map[string]int64
+}
+
+func transferIPDailyBytes() int64 {
+	return config.EnvNonNegativeInt64("ZCRYPT_TRANSFER_IP_DAILY_BYTES", defaultTransferIPDailyBytes)
+}
+
+// charge adds n relayed bytes to the sender IP's UTC-day budget and reports
+// whether it is still within it. Transfer has no account, so the IP is the only
+// identity to bound the bandwidth it can spend.
+func (h *transferHub) charge(ip string, n int64, limit int64) bool {
+	if limit <= 0 {
+		return true
+	}
+	day := time.Now().UTC().Format("2006-01-02")
+	h.budgetMu.Lock()
+	defer h.budgetMu.Unlock()
+	if h.budgetDay != day || h.budget == nil {
+		h.budgetDay, h.budget = day, make(map[string]int64)
+	}
+	h.budget[ip] += n
+	return h.budget[ip] <= limit
 }
 
 func newTransferHub() *transferHub {
@@ -282,6 +310,11 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn,
 		}
 		relayed++
 		relayedBytes += int64(len(msg))
+		if !s.transferHub.charge(ip, int64(len(msg)), transferIPDailyBytes()) {
+			log.Printf("transfer: daily byte cap reached code=%s", room.code)
+			_ = conn.Close(websocket.StatusPolicyViolation, "daily transfer limit reached")
+			return
+		}
 		if relayedBytes > maxTransferRoomBytes {
 			log.Printf("transfer: byte cap reached code=%s relayed=%d", room.code, relayed)
 			_ = conn.Close(websocket.StatusMessageTooBig, "transfer too large")

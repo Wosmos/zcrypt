@@ -280,6 +280,9 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
+	if !s.relayDownloadAllowed(w, r, userID, IsAdmin(r), false, chunk.Size) {
+		return
+	}
 
 	var data []byte
 

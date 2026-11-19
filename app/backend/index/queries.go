@@ -1003,13 +1003,17 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 
 // CreateUploadSession creates a new upload session and returns its ID.
 func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
+	return insertUploadSession(ctx, db.pool, s)
+}
+
+func insertUploadSession(ctx context.Context, q relayQuerier, s *types.UploadSession) (string, error) {
 	var id string
-	err := db.pool.QueryRow(ctx,
-		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode, client)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+	err := q.QueryRow(ctx,
+		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode, client, relay_reserve)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		 RETURNING id`,
 		s.UserID, s.FileID, s.Filename, s.EncryptedName, s.OriginalSize, s.Salt, s.SHA256, sha256SchemeOrDefault(s.SHA256Scheme), s.ChunkCount, s.ChunkSize,
-		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode), s.Client,
+		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode), s.Client, s.RelayReserve,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("create upload session: %w", err)
@@ -1022,11 +1026,11 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size,
-		        platform, account, repo_id, repo_url, mode, uploaded_chunks, status, created_at, expires_at
+		        platform, account, repo_id, repo_url, mode, uploaded_chunks, status, created_at, expires_at, relay_reserve
 		 FROM upload_sessions WHERE id = $1 AND user_id = $2`,
 		sessionID, userID,
 	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.EncryptedName, &s.OriginalSize, &s.Salt, &s.SHA256, &s.SHA256Scheme, &s.ChunkCount, &s.ChunkSize,
-		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.Mode, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
+		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.Mode, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt, &s.RelayReserve)
 	if err != nil {
 		return nil, fmt.Errorf("get upload session: %w", err)
 	}

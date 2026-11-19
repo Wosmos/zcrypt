@@ -98,6 +98,36 @@ components:
         relay_resets_at:
           type: string
           format: date-time
+          description: Start of next UTC month
+        relay_day_used_bytes:
+          type: integer
+          description: Bytes moved through the server today (UTC)
+        relay_day_limit_bytes:
+          type: integer
+          description: Daily allowance, 0 means none
+        relay_day_resets_at:
+          type: string
+          format: date-time
+          description: Next UTC midnight
+        relay_reserved_bytes:
+          type: integer
+          description: >
+            Bytes in-flight server uploads still promise to send. Already counted
+            against both windows; remaining = limit - used - reserved.
+    RelayRefusal:
+      type: object
+      description: >
+        A transfer through the server does not fit the allowance. Public link
+        and Send downloads omit used_bytes and limit_bytes (they are the
+        owner's figures).
+      properties:
+        error: { type: string }
+        code:
+          type: string
+          enum: [relay_file_too_large, relay_allowance_exceeded, relay_daily_exceeded, relay_chunk_exceeds_declared]
+        limit_bytes: { type: integer }
+        used_bytes: { type: integer }
+        resets_at: { type: string, format: date-time }
 
 security:
   - bearerAuth: []
@@ -492,8 +522,20 @@ paths:
       responses:
         "200":
           description: Session created (returns session_id, file_id, platform, direct_upload)
+        "403":
+          description: >
+            Transfer allowance exceeded. `code` is `relay_daily_exceeded` or
+            `relay_allowance_exceeded`; in-flight uploads reserve their
+            declared size against both windows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
         "413":
-          description: File too large / quota exceeded
+          description: >
+            File too large (`relay_file_too_large`) or shared storage full.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
 
   /api/upload/{sid}/presign/{idx}:
     post:
@@ -521,6 +563,16 @@ paths:
       responses:
         "200":
           description: Chunk stored
+        "403":
+          description: Allowance exhausted mid-transfer (`relay_daily_exceeded` / `relay_allowance_exceeded`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
+        "413":
+          description: Chunk would take the file past its declared size (`relay_chunk_exceeds_declared`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
 
   /api/upload/{sid}/confirm/{idx}:
     post:
@@ -621,6 +673,13 @@ paths:
           content:
             application/octet-stream:
               schema: { type: string, format: binary }
+        "403":
+          description: >
+            Serving the chunk would exceed the daily or monthly transfer
+            allowance (`relay_daily_exceeded` / `relay_allowance_exceeded`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
 
   /api/files/{id}:
     delete:

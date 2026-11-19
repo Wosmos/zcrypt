@@ -359,6 +359,9 @@ func shareFileName(share *types.ShareLink, file *types.FileMetadata) string {
 // same way the owner download does: staging while the chunk is unsynced, then
 // the local ciphertext cache, then the OWNER's storage adapter (write-through).
 func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID string, chunk *types.ChunkRef, logPrefix string, commit func() (bool, error)) {
+	if !s.relayDownloadAllowed(w, r, ownerID, s.userIsAdmin(r.Context(), ownerID), true, chunk.Size) {
+		return
+	}
 	var data []byte
 	if chunk.RemotePath == "" {
 		var done bool
