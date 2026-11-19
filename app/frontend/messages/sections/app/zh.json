@@ -1098,6 +1098,14 @@
       "dailyTitle": "今天的传输额度已用完",
       "dailyBody": "今天已用 {used}，共 {limit}。将于 {time} 重置。直接发往你自己存储的内容不计入。",
       "dailyBodyNoTime": "今天已用 {used}，共 {limit}。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。"
+    },
+    "lowAllowance": {
+      "title": "你的传输额度快用完了",
+      "bodyDaily": "今天的额度只剩 {remaining}。将于 {time} 重置。直接上传到你自己的存储不占用额度。",
+      "bodyDailyNoTime": "今天的额度只剩 {remaining}。将于 UTC 午夜重置。直接上传到你自己的存储不占用额度。",
+      "bodyMonthly": "本月的额度只剩 {remaining}。将于 {date} 重置。直接上传到你自己的存储不占用额度。",
+      "bodyMonthlyNoDate": "本月的额度只剩 {remaining}。直接上传到你自己的存储不占用额度。",
+      "seeUsage": "查看用量"
     }
   }
 }

@@ -1098,6 +1098,14 @@
       "dailyTitle": "Dein heutiges Übertragungskontingent ist aufgebraucht",
       "dailyBody": "Heute {used} von {limit}. Um {time} geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
       "dailyBodyNoTime": "Heute {used} von {limit}. Um Mitternacht UTC geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit."
+    },
+    "lowAllowance": {
+      "title": "Dein Übertragungskontingent wird knapp",
+      "bodyDaily": "Von deinem Tageskontingent sind nur noch {remaining} übrig. Es wird um {time} zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "bodyDailyNoTime": "Von deinem Tageskontingent sind nur noch {remaining} übrig. Es wird um Mitternacht UTC zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "bodyMonthly": "Von deinem Monatskontingent sind nur noch {remaining} übrig. Es wird am {date} zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "bodyMonthlyNoDate": "Von deinem Monatskontingent sind nur noch {remaining} übrig. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "seeUsage": "Nutzung ansehen"
     }
   }
 }

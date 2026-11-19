@@ -1098,6 +1098,14 @@
       "dailyTitle": "Vous avez utilisé le quota de transfert du jour",
       "dailyBody": "Aujourd'hui {used} sur {limit}. Remise à zéro à {time}. Ce qui part directement vers votre propre stockage n'est pas compté.",
       "dailyBodyNoTime": "Aujourd'hui {used} sur {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté."
+    },
+    "lowAllowance": {
+      "title": "Votre quota de transfert est presque épuisé",
+      "bodyDaily": "Il ne reste que {remaining} du quota du jour. Remise à zéro à {time}. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "bodyDailyNoTime": "Il ne reste que {remaining} du quota du jour. Remise à zéro à minuit UTC. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "bodyMonthly": "Il ne reste que {remaining} du quota du mois. Remise à zéro le {date}. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "bodyMonthlyNoDate": "Il ne reste que {remaining} du quota du mois. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "seeUsage": "Voir l'utilisation"
     }
   }
 }

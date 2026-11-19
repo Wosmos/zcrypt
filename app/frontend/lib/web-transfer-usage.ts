@@ -106,10 +106,15 @@ export function relayFits(
   return allowance.remaining === null || bytes <= allowance.remaining;
 }
 
+/** A window running low, with which one it is. */
+export type LowWindow = AllowanceWindow & { kind: "daily" | "monthly" };
+
 /** The window that is running low (less than a tenth left), the emptiest first, or null. */
-export function lowestWindow(quota: QuotaInfo | null | undefined): AllowanceWindow | null {
+export function lowestWindow(quota: QuotaInfo | null | undefined): LowWindow | null {
   const a = transferAllowance(quota);
-  const low = [a?.daily, a?.monthly].filter((w): w is AllowanceWindow => !!w && w.low);
+  const low: LowWindow[] = [];
+  if (a?.daily?.low) low.push({ ...a.daily, kind: "daily" });
+  if (a?.monthly?.low) low.push({ ...a.monthly, kind: "monthly" });
   if (low.length === 0) return null;
   return low.reduce((m, w) => (w.remaining / w.limit < m.remaining / m.limit ? w : m));
 }

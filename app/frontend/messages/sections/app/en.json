@@ -1098,6 +1098,14 @@
       "dailyTitle": "You've used today's transfer allowance",
       "dailyBody": "{used} of {limit} today. It resets at {time}. Anything that goes straight to your own storage doesn't count.",
       "dailyBodyNoTime": "{used} of {limit} today. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count."
+    },
+    "lowAllowance": {
+      "title": "Your transfer allowance is running low",
+      "bodyDaily": "Only {remaining} of today's allowance is left. It resets at {time}. Uploads straight to your own storage don't use it.",
+      "bodyDailyNoTime": "Only {remaining} of today's allowance is left. It resets at midnight UTC. Uploads straight to your own storage don't use it.",
+      "bodyMonthly": "Only {remaining} of this month's allowance is left. It resets on {date}. Uploads straight to your own storage don't use it.",
+      "bodyMonthlyNoDate": "Only {remaining} of this month's allowance is left. Uploads straight to your own storage don't use it.",
+      "seeUsage": "See usage"
     }
   }
 }

@@ -1098,6 +1098,14 @@
       "dailyTitle": "Has usado el cupo de transferencia de hoy",
       "dailyBody": "Hoy {used} de {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
       "dailyBodyNoTime": "Hoy {used} de {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta."
+    },
+    "lowAllowance": {
+      "title": "Tu cupo de transferencia se está acabando",
+      "bodyDaily": "Solo quedan {remaining} del cupo de hoy. Se restablece a las {time}. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "bodyDailyNoTime": "Solo quedan {remaining} del cupo de hoy. Se restablece a medianoche UTC. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "bodyMonthly": "Solo quedan {remaining} del cupo de este mes. Se restablece el {date}. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "bodyMonthlyNoDate": "Solo quedan {remaining} del cupo de este mes. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "seeUsage": "Ver el uso"
     }
   }
 }
