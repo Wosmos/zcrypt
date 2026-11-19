@@ -227,11 +227,11 @@ func (db *DB) GetSendTransferByID(ctx context.Context, id string) (*types.SendTr
 func (db *DB) GetSendTransferByToken(ctx context.Context, token string) (*types.SendTransfer, error) {
 	var t types.SendTransfer
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, token, original_name, original_size, encrypted_size, chunk_count, sha256, salt, status, burn_after_read, max_downloads, download_count, expires_at, sender_ip, created_at
+		`SELECT id, token, original_name, original_size, encrypted_size, chunk_count, sha256, salt, status, burn_after_read, max_downloads, download_count, expires_at, sender_ip, created_at, COALESCE(user_id::text, '')
 		 FROM send_transfers WHERE token = $1`, token,
 	).Scan(&t.ID, &t.Token, &t.OriginalName, &t.OriginalSize, &t.EncryptedSize, &t.ChunkCount,
 		&t.SHA256, &t.Salt, &t.Status, &t.BurnAfterRead, &t.MaxDownloads, &t.DownloadCount,
-		&t.ExpiresAt, &t.SenderIP, &t.CreatedAt)
+		&t.ExpiresAt, &t.SenderIP, &t.CreatedAt, &t.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get send transfer by token: %w", err)
 	}

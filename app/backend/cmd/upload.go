@@ -98,7 +98,7 @@ func (s *Server) chunkFitsDeclaredSize(w http.ResponseWriter, r *http.Request, s
 
 func writeChunkStoreError(w http.ResponseWriter, msg string, err error) {
 	if errors.Is(err, index.ErrChunkExceedsDeclaredSize) {
-		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		writeCodedError(w, http.StatusRequestEntityTooLarge, types.ErrCodeRelayChunkExceedsDeclared, index.ErrChunkExceedsDeclaredSize.Error())
 		return
 	}
 	log.Printf("%s: %v", msg, err)
