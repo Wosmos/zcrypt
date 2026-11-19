@@ -203,6 +203,7 @@
         "saved": "{count} saved to {folder}.",
         "savedSomeFailed": "{count} saved to {folder}. {failed} couldn't be sent.",
         "allFailed": "{failed} couldn't be sent.",
+        "allDownloadsFailed": "{failed} couldn't be downloaded.",
         "downloaded": "{count} downloaded.",
         "downloadedSomeFailed": "{count} downloaded. {failed} couldn't be downloaded.",
         "needsApp": "{count, plural, one {# file needs} other {# files need}} the desktop app.",

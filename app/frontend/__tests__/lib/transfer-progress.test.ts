@@ -297,6 +297,10 @@ describe("batchSentence", () => {
       values: { count: 4, folder: "Family" },
     });
     expect(batchSentence({ ...base, failed: 2 })).toEqual({ key: "batch.allFailed", values: { failed: 2 } });
+    expect(batchSentence({ ...base, direction: "download", failed: 1 })).toEqual({
+      key: "batch.allDownloadsFailed",
+      values: { failed: 1 },
+    });
     expect(batchSentence({ ...base, direction: "download", done: 2 })).toEqual({
       key: "batch.downloaded",
       values: { count: 2 },

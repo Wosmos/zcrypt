@@ -203,6 +203,7 @@
         "saved": "{folder} میں محفوظ: {count}۔",
         "savedSomeFailed": "{folder} میں محفوظ: {count}۔ نہیں بھیجی جا سکیں: {failed}۔",
         "allFailed": "نہیں بھیجی جا سکیں: {failed}۔",
+        "allDownloadsFailed": "ڈاؤن لوڈ نہیں ہو سکیں: {failed}۔",
         "downloaded": "ڈاؤن لوڈ ہوئیں: {count}۔",
         "downloadedSomeFailed": "ڈاؤن لوڈ ہوئیں: {count}۔ ڈاؤن لوڈ نہیں ہو سکیں: {failed}۔",
         "needsApp": "ڈیسک ٹاپ ایپ کی ضرورت: {count}۔",

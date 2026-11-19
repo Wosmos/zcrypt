@@ -203,6 +203,7 @@
         "saved": "حُفظ في {folder}: {count}.",
         "savedSomeFailed": "حُفظ في {folder}: {count}. تعذّر إرسال: {failed}.",
         "allFailed": "تعذّر إرسال: {failed}.",
+        "allDownloadsFailed": "تعذّر تنزيل: {failed}.",
         "downloaded": "تم تنزيل: {count}.",
         "downloadedSomeFailed": "تم تنزيل: {count}. تعذّر تنزيل: {failed}.",
         "needsApp": "يحتاج تطبيق سطح المكتب: {count}.",

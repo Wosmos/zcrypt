@@ -304,7 +304,10 @@ export function batchSentence(c: BatchCounts): TransferLabel {
     if (needsApp > 0 && c.done === 0 && c.failed === 0)
       return { key: "batch.needsApp", values: { count: needsApp } };
     if (c.failed > 0 && c.done === 0)
-      return { key: "batch.allFailed", values: { failed: c.failed } };
+      return {
+        key: c.direction === "download" ? "batch.allDownloadsFailed" : "batch.allFailed",
+        values: { failed: c.failed },
+      };
     if (c.direction === "download")
       return c.failed > 0
         ? { key: "batch.downloadedSomeFailed", values: { count: c.done, failed: c.failed } }

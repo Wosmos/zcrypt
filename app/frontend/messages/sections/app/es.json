@@ -203,6 +203,7 @@
         "saved": "{count} guardados en {folder}.",
         "savedSomeFailed": "{count} guardados en {folder}. {failed} no se pudieron enviar.",
         "allFailed": "{failed} no se pudieron enviar.",
+        "allDownloadsFailed": "{failed} no se pudieron descargar.",
         "downloaded": "{count} descargados.",
         "downloadedSomeFailed": "{count} descargados. {failed} no se pudieron descargar.",
         "needsApp": "{count, plural, one {# archivo necesita} other {# archivos necesitan}} la app de escritorio.",

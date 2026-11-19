@@ -203,6 +203,7 @@
         "saved": "{count} in {folder} gespeichert.",
         "savedSomeFailed": "{count} in {folder} gespeichert. {failed} konnten nicht gesendet werden.",
         "allFailed": "{failed} konnten nicht gesendet werden.",
+        "allDownloadsFailed": "{failed} konnten nicht geladen werden.",
         "downloaded": "{count} heruntergeladen.",
         "downloadedSomeFailed": "{count} heruntergeladen. {failed} konnten nicht geladen werden.",
         "needsApp": "{count, plural, one {# Datei braucht} other {# Dateien brauchen}} die Desktop-App.",

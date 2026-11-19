@@ -203,6 +203,7 @@
         "saved": "Сохранено в {folder}: {count}.",
         "savedSomeFailed": "Сохранено в {folder}: {count}. Не удалось отправить: {failed}.",
         "allFailed": "Не удалось отправить: {failed}.",
+        "allDownloadsFailed": "Не удалось скачать: {failed}.",
         "downloaded": "Скачано: {count}.",
         "downloadedSomeFailed": "Скачано: {count}. Не удалось скачать: {failed}.",
         "needsApp": "Нужно приложение для компьютера: {count}.",

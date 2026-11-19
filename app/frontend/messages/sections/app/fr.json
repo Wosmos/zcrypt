@@ -203,6 +203,7 @@
         "saved": "{count} enregistrés dans {folder}.",
         "savedSomeFailed": "{count} enregistrés dans {folder}. {failed} n'ont pas pu être envoyés.",
         "allFailed": "{failed} n'ont pas pu être envoyés.",
+        "allDownloadsFailed": "{failed} n'ont pas pu être téléchargés.",
         "downloaded": "{count} téléchargés.",
         "downloadedSomeFailed": "{count} téléchargés. {failed} n'ont pas pu être téléchargés.",
         "needsApp": "{count, plural, one {# fichier nécessite} other {# fichiers nécessitent}} l'application de bureau.",
