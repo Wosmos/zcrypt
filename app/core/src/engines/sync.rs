@@ -135,7 +135,7 @@ pub async fn sync_once(ctx: &EngineContext) {
     sync_pass(ctx, &|f| file_gate(ctx, f)).await
 }
 
-async fn sync_pass(ctx: &EngineContext, make_gate: &dyn Fn(&LocalFile) -> Gate) {
+async fn sync_pass(ctx: &EngineContext, make_gate: &(dyn Fn(&LocalFile) -> Gate + Sync)) {
     let Ok(user_id) = ctx.client.user_id().await else {
         return;
     };
