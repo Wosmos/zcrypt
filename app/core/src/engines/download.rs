@@ -6,8 +6,10 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex as StdMutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+#[cfg(test)]
+use std::sync::Mutex as StdMutex;
 
 use base64::Engine as _;
 use zeroize::Zeroize;
@@ -18,9 +20,8 @@ use crate::api::Client;
 use crate::crypto::{self, ContentHasher};
 use crate::types::{ChunkRef, Progress, Stage};
 
-use super::{
-    chunk_cache, or_cancel, ordered_writer, pipeline, CancelToken, EngineContext, EngineError,
-};
+use super::gate::{self, Gate};
+use super::{chunk_cache, or_cancel, ordered_writer, pipeline, EngineContext, EngineError};
 
 /// Per-chunk direct-download sources for byos-direct: the owner's locators plus
 /// one own-token adapter per platform. Any chunk absent here (or on a platform
@@ -89,19 +90,19 @@ pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -
 /// open cache.
 pub(super) async fn acquire_chunk(
     client: &Arc<Client>,
+    gate: &Gate,
     loc: Option<ChunkLocator>,
     adapter: Option<Arc<dyn PlatformAdapter>>,
     file_id: &str,
     idx: i64,
     cache_fetched: bool,
-    cancel: &CancelToken,
 ) -> Result<(Vec<u8>, bool), EngineError> {
     if let Some(l) = &loc {
         if let Some(data) = chunk_cache::get(&l.sha256).await {
             return Ok((data, l.compressed));
         }
     }
-    let (data, compressed, sha) = fetch_chunk(client, loc, adapter, file_id, idx, cancel).await?;
+    let (data, compressed, sha) = fetch_chunk(client, gate, loc, adapter, file_id, idx).await?;
     if cache_fetched && !sha.is_empty() {
         chunk_cache::put(&sha, &data);
     }
@@ -124,118 +125,124 @@ pub(super) fn chunk_source(
     (loc, adapter)
 }
 
-/// How long a platform that failed to even connect byos-direct is skipped in
-/// favour of the relay. Without it every chunk of every open re-paid the
-/// connect timeout before falling back.
-const DIRECT_UNREACHABLE_FOR: Duration = Duration::from_secs(600);
-
-fn unreachable_platforms() -> &'static StdMutex<HashMap<String, Instant>> {
-    static SET: OnceLock<StdMutex<HashMap<String, Instant>>> = OnceLock::new();
-    SET.get_or_init(|| StdMutex::new(HashMap::new()))
-}
-
-fn direct_unreachable(platform: &str) -> bool {
-    unreachable_platforms()
-        .lock()
-        .unwrap()
-        .get(platform)
-        .is_some_and(|at| at.elapsed() < DIRECT_UNREACHABLE_FOR)
-}
-
-fn mark_direct_unreachable(platform: &str) {
-    unreachable_platforms()
-        .lock()
-        .unwrap()
-        .insert(platform.to_string(), Instant::now());
-}
-
 fn is_unreachable(e: &AdapterError) -> bool {
     matches!(e, AdapterError::Http(h) if h.is_connect())
 }
 
 async fn fetch_chunk(
     client: &Arc<Client>,
+    gate: &Gate,
     loc: Option<ChunkLocator>,
     adapter: Option<Arc<dyn PlatformAdapter>>,
     file_id: &str,
     idx: i64,
-    cancel: &CancelToken,
 ) -> Result<(Vec<u8>, bool, String), EngineError> {
+    let cancel = &gate.cancel;
     let sha_ok = |data: &[u8], sha: &str| sha.is_empty() || crypto::sha256_hex(data) == *sha;
-    let mut last_err: Option<EngineError> = None;
-    let mut out: Option<(Vec<u8>, bool, String)> = None;
     let direct = match (loc, adapter) {
-        (Some(l), Some(a)) if !direct_unreachable(&l.platform) => Some((l, a)),
+        (Some(l), Some(a)) => Some((l, a)),
         _ => None,
     };
+    let mut last_err: Option<EngineError> = None;
 
-    // --- byos-direct (fast: 2 attempts, then hand off to relay) ---
-    if let Some((loc, adapter)) = &direct {
-        for n in 0..2u32 {
-            let r = ChunkRef {
-                platform: loc.platform.clone(),
-                account: loc.account.clone(),
-                repo: loc.repo.clone(),
-                remote_path: loc.remote_path.clone(),
-                size: loc.size,
-                sha256: loc.sha256.clone(),
-                compressed: loc.compressed,
-                ..ChunkRef::default()
-            };
-            match or_cancel(cancel, adapter.download(&r)).await? {
-                Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
-                    out = Some((bytes, loc.compressed, loc.sha256.clone()));
+    // Direct first. If the platform's own storage cannot serve the chunk, the
+    // relay is used only while the rest of the transfer fits the allowance;
+    // otherwise (or when the relay refuses) wait for Telegram and go direct
+    // again. A chunk with no direct source relays as before: the server
+    // enforces the allowance for it.
+    loop {
+        let mut out: Option<(Vec<u8>, bool, String)> = None;
+        let mut blocked = false;
+        if let Some((loc, adapter)) = &direct {
+            let origin = gate::origin_for(&loc.platform);
+            if let Some(o) = origin {
+                blocked = !gate.env.reachable(o).await;
+            }
+            for n in 0..2u32 {
+                if blocked {
                     break;
                 }
-                Ok(_) => {
-                    last_err = Some(EngineError::Integrity(format!(
-                        "chunk {idx}: sha mismatch (direct)"
-                    )))
-                }
-                Err(e) if is_unreachable(&e) => {
-                    eprintln!(
-                        "zcrypt: {} unreachable byos-direct ({e}), relaying for {}s",
-                        loc.platform,
-                        DIRECT_UNREACHABLE_FOR.as_secs()
-                    );
-                    mark_direct_unreachable(&loc.platform);
-                    last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
-                    break;
-                }
-                Err(e) => {
-                    let transient = e.is_transient();
-                    let delay = crate::transport::honor_retry_after(
-                        crate::transport::backoff(n, 500, 8_000),
-                        e.retry_after_secs(),
-                    );
-                    last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
-                    if !transient {
+                let r = ChunkRef {
+                    platform: loc.platform.clone(),
+                    account: loc.account.clone(),
+                    repo: loc.repo.clone(),
+                    remote_path: loc.remote_path.clone(),
+                    size: loc.size,
+                    sha256: loc.sha256.clone(),
+                    compressed: loc.compressed,
+                    ..ChunkRef::default()
+                };
+                match or_cancel(cancel, adapter.download(&r)).await? {
+                    Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
+                        out = Some((bytes, loc.compressed, loc.sha256.clone()));
                         break;
                     }
-                    if n + 1 < 2 {
-                        or_cancel(cancel, tokio::time::sleep(delay)).await?;
+                    Ok(_) => {
+                        last_err = Some(EngineError::Integrity(format!(
+                            "chunk {idx}: sha mismatch (direct)"
+                        )))
                     }
-                    continue;
+                    Err(e) if is_unreachable(&e) => {
+                        eprintln!("zcrypt: {} unreachable byos-direct ({e})", loc.platform);
+                        if let Some(o) = origin {
+                            gate.env.mark_blocked(o);
+                            blocked = true;
+                        }
+                        last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
+                        break;
+                    }
+                    Err(e) => {
+                        let transient = e.is_transient();
+                        let delay = crate::transport::honor_retry_after(
+                            crate::transport::backoff(n, 500, 8_000),
+                            e.retry_after_secs(),
+                        );
+                        last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}")));
+                        if !transient {
+                            break;
+                        }
+                        if n + 1 < 2 {
+                            or_cancel(cancel, tokio::time::sleep(delay)).await?;
+                        }
+                        continue;
+                    }
+                }
+                if n + 1 < 2 {
+                    or_cancel(
+                        cancel,
+                        tokio::time::sleep(crate::transport::backoff(n, 500, 8_000)),
+                    )
+                    .await?;
                 }
             }
-            if n + 1 < 2 {
-                or_cancel(
-                    cancel,
-                    tokio::time::sleep(crate::transport::backoff(n, 500, 8_000)),
-                )
-                .await?;
+        }
+        if let Some(o) = out {
+            return Ok(o);
+        }
+
+        if let Some((loc, _)) = &direct {
+            let need = gate.remaining.load(Ordering::Relaxed).max(loc.size);
+            if !gate.env.fits(need, 0).await {
+                match gate::origin_for(&loc.platform) {
+                    Some(o) if blocked => {
+                        gate.wait_reachable(gate::WAIT_TELEGRAM_BLOCKED, o).await?;
+                        continue;
+                    }
+                    _ => {
+                        return Err(last_err.unwrap_or_else(|| {
+                            EngineError::Other(format!("chunk {idx}: not available directly"))
+                        }))
+                    }
+                }
             }
         }
-    }
 
-    // --- relay fallback (4 attempts) ---
-    if out.is_none() {
+        let mut refused = false;
         for n in 0..4u32 {
             let mut delay = crate::transport::backoff(n, 500, 8_000);
             match or_cancel(cancel, client.get_chunk(file_id, idx)).await? {
                 Ok(c) if sha_ok(&c.data, &c.sha256) => {
-                    out = Some((c.data, c.compressed, c.sha256));
-                    break;
+                    return Ok((c.data, c.compressed, c.sha256));
                 }
                 Ok(_) => {
                     last_err = Some(EngineError::Integrity(format!(
@@ -244,6 +251,7 @@ async fn fetch_chunk(
                 }
                 Err(e) => {
                     let e = EngineError::from(e);
+                    refused = gate::is_allowance_refusal(&e);
                     if !e.is_transient() {
                         last_err = Some(e);
                         break;
@@ -256,11 +264,15 @@ async fn fetch_chunk(
                 or_cancel(cancel, tokio::time::sleep(delay)).await?;
             }
         }
+        match &direct {
+            Some((loc, _)) if refused && blocked => match gate::origin_for(&loc.platform) {
+                Some(o) => gate.wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, o).await?,
+                None => break,
+            },
+            _ => break,
+        }
     }
-
-    out.ok_or_else(|| {
-        last_err.unwrap_or_else(|| EngineError::Other(format!("chunk {idx}: no attempts")))
-    })
+    Err(last_err.unwrap_or_else(|| EngineError::Other(format!("chunk {idx}: no attempts"))))
 }
 
 /// Decrypt (+ decompress) one chunk, then zeroize the caller's key clone, it's
@@ -271,6 +283,7 @@ async fn fetch_chunk(
 /// by `download` and `decrypt_to_memory`.
 pub(super) fn fetch_plain_chunk(
     ctx: &EngineContext,
+    gate: &Gate,
     sources: &DirectSources,
     key: &[u8],
     file_id: &str,
@@ -279,6 +292,7 @@ pub(super) fn fetch_plain_chunk(
 ) -> impl std::future::Future<Output = Result<Vec<u8>, EngineError>> + Send + 'static {
     let (loc, adapter) = chunk_source(sources, idx as i64);
     let client = ctx.client.clone();
+    let gate = gate.clone();
     let cancel = ctx.cancel.clone();
     let key = key.to_vec();
     let fid = file_id.to_string();
@@ -286,16 +300,18 @@ pub(super) fn fetch_plain_chunk(
         if cancel.is_cancelled() {
             return Err(EngineError::Cancelled);
         }
+        let size = loc.as_ref().map_or(0, |l| l.size);
         let (data, compressed) = acquire_chunk(
             &client,
+            &gate,
             loc,
             adapter,
             &fid,
             idx as i64,
             cache_fetched,
-            &cancel,
         )
         .await?;
+        gate.remaining.fetch_sub(size, Ordering::Relaxed);
         tokio::task::spawn_blocking(move || decrypt_chunk_zeroizing(&data, key, compressed))
             .await
             .map_err(|e| EngineError::Other(format!("join: {e}")))?
@@ -345,6 +361,7 @@ pub async fn run(
             bytes_done: bytes,
             bytes_total: total_bytes,
             speed: 0.0,
+            waiting: None,
         });
     };
 
@@ -356,6 +373,19 @@ pub async fn run(
         sources,
     } = open_file(ctx, file_id, passphrase, user_id, space_key, None, &emit).await?;
     let total = meta.chunk_count as u32;
+    let gate = Gate::live(
+        ctx,
+        Some(Gate::waiting_progress(
+            ctx,
+            file_id.to_string(),
+            save_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            meta.original_size,
+        )),
+        meta.original_size,
+    );
 
     // 3. Concurrent fetch/decrypt feeding the ordered writer. The sink writes
     //    synchronously through a BufWriter (big sequential chunk writes).
@@ -385,7 +415,7 @@ pub async fn run(
         concurrency,
         (concurrency * 3).max(4) as u32,
         || ctx.cancel.is_cancelled(),
-        |idx| fetch_plain_chunk(ctx, &sources, &key, file_id, idx, false),
+        |idx| fetch_plain_chunk(ctx, &gate, &sources, &key, file_id, idx, false),
         |data: Vec<u8>| {
             hasher.update(&data);
             written_chunks += 1;
@@ -596,8 +626,10 @@ pub(super) async fn open_file(
 #[cfg(test)]
 mod transfer_tests {
     use super::*;
+    use crate::engines::gate::fake::{gate, FakeEnv};
     use crate::testutil::{serve, Reply};
     use std::sync::atomic::Ordering;
+    use std::time::{Duration, Instant};
 
     #[tokio::test]
     async fn a_slow_platform_is_not_blacklisted_as_unreachable() {
@@ -624,7 +656,15 @@ mod transfer_tests {
     async fn a_relay_404_is_tried_once() {
         let (base, hits) = serve(|_, _| Reply::status(404, "gone")).await;
         let client = Arc::new(Client::new(&base, "t", "r"));
-        let r = fetch_chunk(&client, None, None, "f", 0, &CancelToken::new()).await;
+        let r = fetch_chunk(
+            &client,
+            &gate(FakeEnv::new(true, true), None),
+            None,
+            None,
+            "f",
+            0,
+        )
+        .await;
         assert!(r.is_err());
         assert_eq!(hits.load(Ordering::SeqCst), 1);
     }
@@ -633,15 +673,132 @@ mod transfer_tests {
     async fn cancel_stops_a_chunk_retry_loop_at_once() {
         let (base, _) = serve(|_, _| Reply::status(503, "busy")).await;
         let client = Arc::new(Client::new(&base, "t", "r"));
-        let cancel = CancelToken::new();
-        let trip = cancel.clone();
+        let g = gate(FakeEnv::new(true, true), None);
+        let trip = g.cancel.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(80)).await;
             trip.cancel();
         });
         let started = Instant::now();
-        let r = fetch_chunk(&client, None, None, "f", 0, &cancel).await;
+        let r = fetch_chunk(&client, &g, None, None, "f", 0).await;
         assert!(matches!(r, Err(EngineError::Cancelled)));
         assert!(started.elapsed() < Duration::from_millis(300));
+    }
+
+    struct Direct(Vec<u8>);
+
+    #[async_trait::async_trait]
+    impl PlatformAdapter for Direct {
+        fn platform_name(&self) -> &'static str {
+            "telegram"
+        }
+        async fn create_repo(&self, _: &str) -> Result<String, AdapterError> {
+            Err(AdapterError::NotFound("x".into()))
+        }
+        async fn upload(&self, _: &str, _: crate::types::Chunk) -> Result<ChunkRef, AdapterError> {
+            Err(AdapterError::NotFound("x".into()))
+        }
+        async fn download(&self, _: &ChunkRef) -> Result<Vec<u8>, AdapterError> {
+            Ok(self.0.clone())
+        }
+        async fn delete(&self, _: &ChunkRef) -> Result<(), AdapterError> {
+            Ok(())
+        }
+        async fn get_repo_size(&self, _: &str) -> Result<i64, AdapterError> {
+            Ok(0)
+        }
+        async fn list_chunks(&self, _: &str) -> Result<Vec<ChunkRef>, AdapterError> {
+            Ok(vec![])
+        }
+    }
+
+    fn loc() -> ChunkLocator {
+        serde_json::from_value(serde_json::json!({
+            "index": 0, "platform": "telegram", "remote_path": "p",
+            "size": 3, "sha256": "", "compressed": false
+        }))
+        .unwrap()
+    }
+
+    fn adapter() -> Option<Arc<dyn PlatformAdapter>> {
+        Some(Arc::new(Direct(b"own".to_vec())))
+    }
+
+    #[tokio::test]
+    async fn blocked_telegram_relays_when_the_rest_fits_the_allowance() {
+        let (base, hits) = serve(|_, _| Reply::status(200, "relayed")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let g = gate(FakeEnv::new(false, true), None);
+        let (data, _, _) = fetch_chunk(&client, &g, Some(loc()), adapter(), "f", 0)
+            .await
+            .unwrap();
+        assert_eq!(data, b"relayed");
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn blocked_telegram_with_no_allowance_waits_and_never_relays() {
+        let (base, hits) = serve(|_, _| Reply::status(200, "relayed")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let env = FakeEnv::new(false, false);
+        let seen = Arc::new(StdMutex::new(Vec::<&'static str>::new()));
+        let s = seen.clone();
+        let g = gate(
+            env.clone(),
+            Some(Arc::new(move |r| s.lock().unwrap().push(r))),
+        );
+        let e2 = env.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            e2.reachable.store(true, Ordering::SeqCst);
+        });
+        let (data, _, _) = fetch_chunk(&client, &g, Some(loc()), adapter(), "f", 0)
+            .await
+            .unwrap();
+        assert_eq!(data, b"own");
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
+        assert!(seen.lock().unwrap().contains(&"telegram_blocked"));
+    }
+
+    #[tokio::test]
+    async fn waiting_for_telegram_stops_on_cancel() {
+        let (base, hits) = serve(|_, _| Reply::status(200, "relayed")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let g = gate(FakeEnv::new(false, false), Some(Arc::new(|_| {})));
+        let c = g.cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(60)).await;
+            c.cancel();
+        });
+        let t = Instant::now();
+        let r = fetch_chunk(&client, &g, Some(loc()), adapter(), "f", 0).await;
+        assert!(matches!(r, Err(EngineError::Cancelled)));
+        assert!(t.elapsed() < Duration::from_secs(2));
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn a_relay_refusal_waits_then_goes_direct() {
+        let (base, _) =
+            serve(|_, _| Reply::status(403, r#"{"error":"x","code":"relay_daily_exceeded"}"#))
+                .await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let env = FakeEnv::new(false, true);
+        let seen = Arc::new(StdMutex::new(Vec::<&'static str>::new()));
+        let s = seen.clone();
+        let g = gate(
+            env.clone(),
+            Some(Arc::new(move |r| s.lock().unwrap().push(r))),
+        );
+        let e2 = env.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            e2.reachable.store(true, Ordering::SeqCst);
+        });
+        let (data, _, _) = fetch_chunk(&client, &g, Some(loc()), adapter(), "f", 0)
+            .await
+            .unwrap();
+        assert_eq!(data, b"own");
+        assert!(seen.lock().unwrap().contains(&"allowance_used_up"));
     }
 }

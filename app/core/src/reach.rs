@@ -15,6 +15,9 @@ use crate::engines::CancelToken;
 pub const TELEGRAM_ORIGIN: &str = "https://api.telegram.org";
 const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
 const CACHE_TTL: Duration = Duration::from_secs(600);
+/// A blocked answer is trusted only briefly, so turning a VPN on is noticed at
+/// the next poll instead of ten minutes later.
+const BLOCKED_TTL: Duration = Duration::from_secs(10);
 
 /// Probe cache + wake signal. The process uses one global instance; tests make
 /// their own so they cannot disturb each other.
@@ -30,10 +33,10 @@ impl Reach {
         Self::default()
     }
 
-    /// Cached probe: at most one request per origin per ten minutes.
+    /// Cached probe: a reachable answer lasts ten minutes, a blocked one ten seconds.
     pub async fn reachable(&self, origin: &str) -> bool {
         if let Some((ok, at)) = self.cache.lock().unwrap().get(origin).copied() {
-            if at.elapsed() < CACHE_TTL {
+            if at.elapsed() < if ok { CACHE_TTL } else { BLOCKED_TTL } {
                 return ok;
             }
         }

@@ -11,6 +11,7 @@ pub mod chunk_cache;
 mod decrypt_to_memory;
 mod delete;
 mod download;
+pub(crate) mod gate;
 mod local_upload;
 pub mod media_backup;
 pub mod ordered_writer;
@@ -45,6 +46,10 @@ pub enum EngineError {
     Integrity(String),
     #[error("cancelled")]
     Cancelled,
+    /// Held back by an unreachable platform or a used-up transfer allowance;
+    /// retry later. Background passes skip the item instead of failing it.
+    #[error("blocked: {0}")]
+    Blocked(String),
     #[error("{0}")]
     Other(String),
 }

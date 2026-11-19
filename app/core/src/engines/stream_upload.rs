@@ -72,6 +72,7 @@ fn session_layout(
 }
 
 /// How an upload protects the file's key and name.
+#[derive(Clone, Copy)]
 pub enum Sealing<'a> {
     /// The normal vault formats, from the vault (or folder) passphrase.
     Vault(&'a str),
@@ -232,12 +233,100 @@ pub async fn run_sealed(
 }
 
 /// [`run_sealed`] for any [`UploadSource`].
+///
+/// Plane policy (see `gate.rs`): direct first; Telegram unreachable means relay
+/// if the whole file fits the allowance, else wait. A server session is bound
+/// to the plane it was created on and a relay session cannot take direct
+/// chunks (or the reverse), so the plane only changes at a session boundary:
+/// the old session is cancelled and the file starts over on the new plane.
+/// Direct to direct (Telegram went away mid-file, then came back) keeps the
+/// session and resumes from the chunks already stored. Vault uploads wait in
+/// place; sealed backups return `Blocked` so the pass skips the file.
 pub async fn run_sealed_from(
     ctx: &EngineContext,
     source: UploadSource<'_>,
     sealing: Sealing<'_>,
     platform: Option<String>,
     folder_id: Option<String>,
+) -> Result<String, EngineError> {
+    use super::gate::Gate;
+    let foreground = matches!(sealing, Sealing::Vault(_));
+    let (_, file_size) = source.stamp().await?;
+    let notify =
+        foreground.then(|| Gate::waiting_progress(ctx, String::new(), source.name(), file_size));
+    let gate = Gate::live(ctx, notify, file_size);
+    run_gated(ctx, &gate, source, sealing, platform, folder_id).await
+}
+
+async fn run_gated(
+    ctx: &EngineContext,
+    gate: &super::gate::Gate,
+    source: UploadSource<'_>,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+) -> Result<String, EngineError> {
+    use super::gate;
+    use crate::reach::TELEGRAM_ORIGIN;
+    let (_, file_size) = source.stamp().await?;
+    let mut session: Option<String> = None;
+    let mut last_mode: Option<UploadMode> = None;
+    let mut force_direct = false;
+    loop {
+        let plane = if force_direct {
+            super::choose_plane(&ctx.creds)
+        } else {
+            gate.pick_plane(&ctx.creds, file_size).await?
+        };
+        force_direct = false;
+        if last_mode.is_some_and(|m| m != plane.0) {
+            if let Some(id) = session.take() {
+                let _ = ctx.client.cancel_upload(&id).await;
+            }
+        }
+        last_mode = Some(plane.0);
+        let telegram_direct = plane.1 == Some(crate::types::Platform::Telegram);
+        let has_telegram =
+            super::choose_plane(&ctx.creds).1 == Some(crate::types::Platform::Telegram);
+        match attempt(
+            ctx,
+            source,
+            sealing,
+            platform.clone(),
+            folder_id.clone(),
+            plane,
+            &mut session,
+        )
+        .await
+        {
+            Err(e) if telegram_direct && gate::is_direct_unreachable(&e) => {
+                gate.env.mark_blocked(TELEGRAM_ORIGIN);
+            }
+            Err(e)
+                if plane.0 == UploadMode::Relay
+                    && has_telegram
+                    && gate::is_allowance_refusal(&e) =>
+            {
+                if let Some(id) = session.take() {
+                    let _ = ctx.client.cancel_upload(&id).await;
+                }
+                gate.wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, TELEGRAM_ORIGIN)
+                    .await?;
+                force_direct = true;
+            }
+            other => return other,
+        }
+    }
+}
+
+async fn attempt(
+    ctx: &EngineContext,
+    source: UploadSource<'_>,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+    plane: (UploadMode, Option<crate::types::Platform>),
+    session_slot: &mut Option<String>,
 ) -> Result<String, EngineError> {
     let t0 = Instant::now();
     let file_name = source.name();
@@ -256,6 +345,7 @@ pub async fn run_sealed_from(
             bytes_done: bytes,
             bytes_total: file_size,
             speed: 0.0,
+            waiting: None,
         });
     };
 
@@ -310,6 +400,7 @@ pub async fn run_sealed_from(
                     bytes_done: done,
                     bytes_total: file_size,
                     speed: 0.0,
+                    waiting: None,
                 });
             }
         })
@@ -348,7 +439,7 @@ pub async fn run_sealed_from(
 
     // Init (or resume) the backend session. Relay leaves mode empty; byos-direct
     // sends the chosen platform so the server makes a metadata-only session.
-    let (mode, plat) = super::choose_plane(&ctx.creds);
+    let (mode, plat) = plane;
     let plat = plat.map(|p| p.to_string()).unwrap_or_default();
     let byos = mode == UploadMode::ByosDirect;
     let req = UploadInitRequest {
@@ -402,6 +493,7 @@ pub async fn run_sealed_from(
         }
     }
     let session_id = resp.session_id;
+    *session_slot = Some(session_id.clone());
     let backend_id = resp.file_id;
     let direct = resp.direct_upload;
 
@@ -569,6 +661,7 @@ pub async fn run_sealed_from(
                         bytes_done: (n as i64) * (file_size / chunk_count.max(1)),
                         bytes_total: file_size,
                         speed: 0.0,
+                        waiting: None,
                     });
                 }
                 Err(e) => set_err(&first_err, e),
@@ -1077,5 +1170,136 @@ mod tests {
         };
         assert_ne!(mac(&bodies[0]), mac(&bodies[1]));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    mod plane {
+        use super::*;
+        use crate::engines::gate::fake::{gate, FakeEnv};
+        use crate::engines::{CredProvider, PlatformCreds};
+        use crate::testutil::{serve, Reply};
+        use std::sync::atomic::Ordering::SeqCst;
+        use std::time::Duration;
+
+        fn tg() -> CredProvider {
+            Arc::new(|p| {
+                (p == "telegram").then(|| PlatformCreds {
+                    token: "t".into(),
+                    account: "a".into(),
+                })
+            })
+        }
+
+        fn token() -> String {
+            let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+            format!("{}.{}.sig", b.encode("{}"), b.encode(r#"{"sub":"u1"}"#))
+        }
+
+        fn ctx(base: &str) -> (tempfile::TempDir, EngineContext, std::path::PathBuf) {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("a.bin");
+            std::fs::write(&file, b"hello").unwrap();
+            let ctx = EngineContext {
+                client: Arc::new(crate::api::Client::new(base, &token(), "r")),
+                db: Arc::new(LocalDb::open_at(&dir.path().join("db.sqlite")).unwrap()),
+                profile: crate::profiles::NORMAL,
+                progress: Arc::new(|_p| {}),
+                creds: tg(),
+                cancel: Default::default(),
+                vault_passphrase: None,
+            };
+            (dir, ctx, file)
+        }
+
+        #[tokio::test]
+        async fn blocked_and_over_allowance_never_reaches_the_server() {
+            let (base, hits) = serve(|_, _| Reply::status(500, "x")).await;
+            let (_d, ctx, file) = ctx(&base);
+            let g = gate(FakeEnv::new(false, false), None);
+            let r = run_gated(
+                &ctx,
+                &g,
+                UploadSource::Path(&file),
+                Sealing::Vault("p"),
+                None,
+                None,
+            )
+            .await;
+            assert!(matches!(r, Err(EngineError::Blocked(_))), "{r:?}");
+            assert_eq!(hits.load(SeqCst), 0);
+        }
+
+        #[tokio::test]
+        async fn blocked_but_fitting_goes_through_the_relay() {
+            let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+            let b = bodies.clone();
+            let (base, _) = serve(move |_, req| {
+                if req.path.contains("upload/init") {
+                    b.lock()
+                        .unwrap()
+                        .push(String::from_utf8_lossy(&req.body).into());
+                }
+                Reply::status(400, "stop")
+            })
+            .await;
+            let (_d, ctx, file) = ctx(&base);
+            let g = gate(FakeEnv::new(false, true), None);
+            let _ = run_gated(
+                &ctx,
+                &g,
+                UploadSource::Path(&file),
+                Sealing::Vault("p"),
+                None,
+                None,
+            )
+            .await;
+            let b = bodies.lock().unwrap();
+            assert!(!b.is_empty());
+            assert!(!b[0].contains("byos-direct"), "{}", b[0]);
+        }
+
+        #[tokio::test]
+        async fn a_refused_relay_waits_then_resumes_direct_when_telegram_returns() {
+            let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+            let b = bodies.clone();
+            let (base, _) = serve(move |_, req| {
+                if !req.path.contains("upload/init") {
+                    return Reply::status(404, "");
+                }
+                let mut b = b.lock().unwrap();
+                b.push(String::from_utf8_lossy(&req.body).into());
+                if b.len() == 1 {
+                    Reply::status(403, r#"{"error":"x","code":"relay_daily_exceeded"}"#)
+                } else {
+                    Reply::status(400, "stop")
+                }
+            })
+            .await;
+            let (_d, ctx, file) = ctx(&base);
+            let env = FakeEnv::new(false, true);
+            let seen = Arc::new(Mutex::new(Vec::<&'static str>::new()));
+            let s = seen.clone();
+            let g = gate(
+                env.clone(),
+                Some(Arc::new(move |r| s.lock().unwrap().push(r))),
+            );
+            let e2 = env.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                e2.reachable.store(true, SeqCst);
+            });
+            let _ = run_gated(
+                &ctx,
+                &g,
+                UploadSource::Path(&file),
+                Sealing::Vault("p"),
+                None,
+                None,
+            )
+            .await;
+            assert!(seen.lock().unwrap().contains(&"allowance_used_up"));
+            let b = bodies.lock().unwrap();
+            assert!(!b[0].contains("byos-direct"));
+            assert!(b[1].contains("byos-direct"), "{}", b[1]);
+        }
     }
 }
