@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -44,6 +45,11 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	actor := s.spaceActorRank(ctx, vaultID, userID)
 	if actor < spaceRoleAdmin {
 		writeCodedError(w, http.StatusForbidden, "forbidden", "only the owner or an admin can invite")
+		return
+	}
+	if !s.inviteLimiter.allow(userID) {
+		w.Header().Set("Retry-After", strconv.Itoa(int(inviteWindow.Seconds())))
+		writeCodedError(w, http.StatusTooManyRequests, "rate_limited", "too many invites, try again later")
 		return
 	}
 

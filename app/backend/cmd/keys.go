@@ -71,6 +71,8 @@ func (s *Server) HandlePublishKey(w http.ResponseWriter, r *http.Request) {
 const (
 	keyLookupLimit  = 30
 	keyLookupWindow = 10 * time.Minute
+	inviteLimit     = 30
+	inviteWindow    = 10 * time.Minute
 )
 
 // HandleLookupUserKey resolves an account by email or username so an admin can

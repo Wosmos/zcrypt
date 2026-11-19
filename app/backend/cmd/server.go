@@ -88,6 +88,7 @@ type Server struct {
 	filesAdded       *filesAddedBatcher
 	linkViewNotice   *rateLimiter
 	keyLookupLimiter *rateLimiter
+	inviteLimiter    *rateLimiter
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
 	// from authLimiter so a 2FA login doesn't consume login-attempt budget.
@@ -227,6 +228,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		filesAdded:            newFilesAddedBatcher(filesAddedWindow),
 		linkViewNotice:        newRateLimiter(1, 10*time.Minute),
 		keyLookupLimiter:      newRateLimiter(keyLookupLimit, keyLookupWindow),
+		inviteLimiter:         newRateLimiter(inviteLimit, inviteWindow),
 		twoFAIPLimiter:        newRateLimiter(10, 5*time.Minute),
 		twoFAUserLimiter:      newRateLimiter(5, 5*time.Minute),
 		sendLimiter:           newRateLimiter(5, time.Hour),
