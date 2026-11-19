@@ -106,6 +106,7 @@ pub enum UploadSource<'a> {
     Open {
         file: &'a std::fs::File,
         name: &'a str,
+        id: &'a str,
     },
 }
 
@@ -180,7 +181,7 @@ impl SealedAttempt {
     fn key(source: &UploadSource<'_>) -> String {
         match source {
             UploadSource::Path(p) => format!("sealed_attempt:{}", p.display()),
-            UploadSource::Open { name, .. } => format!("sealed_attempt:open:{name}"),
+            UploadSource::Open { name, id, .. } => format!("sealed_attempt:open:{id}:{name}"),
         }
     }
 
@@ -792,6 +793,19 @@ fn join_err(e: tokio::task::JoinError) -> EngineError {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn same_named_media_items_get_distinct_attempt_keys() {
+        let f = std::fs::File::open(std::env::current_exe().unwrap()).unwrap();
+        let open = |id| {
+            SealedAttempt::key(&UploadSource::Open {
+                file: &f,
+                name: "IMG_0001.jpg",
+                id,
+            })
+        };
+        assert_ne!(open("external_primary:1"), open("external_primary:2"));
+    }
+
     use super::*;
 
     const MIB: i64 = 1024 * 1024;

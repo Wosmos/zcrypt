@@ -360,11 +360,13 @@ pub async fn run_pass(
             let file = source.open(item).map_err(|e| {
                 EngineError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, e))
             })?;
+            let id = format!("{}:{}", item.volume, item.id);
             run_sealed_from(
                 ctx,
                 UploadSource::Open {
                     file: &file,
                     name: &item.name,
+                    id: &id,
                 },
                 Sealing::PublicKey(public),
                 None,
@@ -858,7 +860,6 @@ mod tests {
         assert_eq!((r.report.unchanged, r.report.failed), (2, 0));
         assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
-}
 
     #[test]
     fn migration_leaves_items_edited_after_their_last_backup_unmarked() {
@@ -872,3 +873,4 @@ mod tests {
         assert_eq!(m.marked, 0);
         assert_eq!(ctx.db.media_file_count("u").unwrap(), 0);
     }
+}
