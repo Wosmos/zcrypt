@@ -42,7 +42,8 @@ mod shared {
                 Some(map) => map,
                 None => {
                     let loaded = match self.item.read()? {
-                        Some(json) => serde_json::from_str(&json).unwrap_or_default(),
+                        Some(json) => serde_json::from_str(&json)
+                            .map_err(|e| keyring::Error::PlatformFailure(Box::new(e)))?,
                         None => Map::new(),
                     };
                     guard.insert(loaded)
@@ -266,5 +267,16 @@ mod tests {
         assert!(secrets.get("auth.access").is_err());
         assert!(secrets.set("auth.access", "a").is_err());
         assert_eq!(denied.0.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn a_corrupt_item_is_neither_cached_as_empty_nor_overwritten() {
+        let fake = Fake::default();
+        *fake.stored.lock().unwrap() = Some("{not json".to_string());
+        let secrets = Secrets::new(&fake);
+        assert!(secrets.get("auth.access").is_err());
+        assert!(secrets.set("auth.access", "a").is_err());
+        assert_eq!(fake.writes.load(Ordering::SeqCst), 0);
+        assert_eq!(fake.stored.lock().unwrap().as_deref(), Some("{not json"));
     }
 }
