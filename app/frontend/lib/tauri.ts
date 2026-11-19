@@ -479,10 +479,19 @@ export async function subscribeProgress(
   });
 }
 
+/** Wake every waiting engine transfer to look again now: the "Try again" button on desktop and Android. */
+export async function transferRetryNow(): Promise<void> {
+  if (!isTauri) return;
+  await tauriInvoke("transfer_retry_now");
+}
+
 export interface SidecarProgress {
   file_id: string;
   file_name: string;
+  /** "waiting" while the engine holds a transfer; `waiting` then says why. */
   stage: string;
+  /** Why a "waiting" transfer is held: "telegram_blocked" or "allowance_used_up". */
+  waiting?: "telegram_blocked" | "allowance_used_up" | null;
   chunks_done: number;
   chunks_total: number;
   bytes_done: number;

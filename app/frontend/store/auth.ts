@@ -10,6 +10,7 @@ import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
 import { broadcastTokens, onTokensFromOtherTabs } from "@/lib/auth-sync";
 import { forgetPlatformCredentials } from "@/lib/platform-credentials";
 import { clearTelegramFilePaths, resetTelegramUnreachable } from "@/lib/telegram-download";
+import { cancelAllTransferWaits } from "@/lib/transfer-wait";
 
 const USER_KEY = "zcrypt-user";
 const ACCESS_KEY = "zcrypt-access-token";
@@ -150,6 +151,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     forgetPlatformCredentials();
     clearTelegramFilePaths(); // file_paths embed the old user's bot token
     resetTelegramUnreachable();
+    cancelAllTransferWaits();
     writeCachedUser(null);
     setPersistUser(null);
     void wipeQueryCache(); // every cached list, in memory and the IndexedDB snapshot
