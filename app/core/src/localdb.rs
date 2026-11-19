@@ -292,6 +292,17 @@ impl LocalDb {
         })
     }
 
+    /// Re-plans a file that has no session yet: its data plane and platform.
+    pub fn set_file_plane(&self, file_id: &str, mode: &str, platform: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "UPDATE files SET mode=?1, platform=?2 WHERE id=?3",
+                params![mode, platform, file_id],
+            )
+            .map(|_| ())
+        })
+    }
+
     pub fn update_file_sync_status(&self, file_id: &str, status: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(

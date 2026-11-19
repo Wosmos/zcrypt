@@ -403,6 +403,12 @@ pub async fn run_pass(
                 }
             }
             Err(EngineError::Cancelled) => return Err(EngineError::Cancelled),
+            // Telegram is blocked and the relay allowance cannot carry this
+            // file: leave it for the next pass instead of counting a failure.
+            Err(EngineError::Blocked(_)) => {
+                report.deferred += 1;
+                break;
+            }
             Err(e) if matches!(e, EngineError::Api(crate::api::ApiError::Unauthorized)) => {
                 return Err(e);
             }
