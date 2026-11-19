@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { eventTag } from "@/lib/notify";
+import { NOTICE_TYPES } from "@/lib/user-events";
 
 type Listener = (event: Record<string, unknown>) => void;
 const listeners: Record<string, Listener> = {};
@@ -112,5 +114,16 @@ describe("service worker push", () => {
     await pending;
     expect(close).toHaveBeenCalled();
     expect(opened.at(-1)).toBe("/spaces");
+  });
+});
+
+describe("push tags match lib/notify eventTag", () => {
+  it.each(NOTICE_TYPES)("%s uses the same tag as its live event", async (type) => {
+    windows = [];
+    const data = { space_id: "s1", user_id: "u9", username: "W", device: "D" };
+    const before = shown.length;
+    await push({ type, lang: "en", data, url: "/spaces" });
+    expect(shown.length).toBe(before + 1);
+    expect(shown.at(-1)?.options.tag).toBe(eventTag(type, data));
   });
 });

@@ -2,8 +2,14 @@ import { getFileChunk, getFileLocators, type ChunkLocator } from "@/lib/api";
 import { resolveWebDirect, type DirectTarget } from "@/lib/byos-direct";
 import { sha256Hex } from "@/lib/crypto";
 import { Platform } from "@/lib/platforms";
-import { downloadTelegramChunk, TelegramUnreachableError } from "@/lib/telegram-download";
-import { DIRECT_UNREACHABLE_FOR_MS, isAbortError } from "@/lib/transport";
+import {
+  downloadTelegramChunk,
+  markTelegramUnreachable,
+  resetTelegramUnreachable,
+  TelegramUnreachableError,
+  telegramRecentlyUnreachable,
+} from "@/lib/telegram-download";
+import { isAbortError } from "@/lib/transport";
 
 export interface ChunkPayload {
   data: ArrayBuffer;
@@ -11,11 +17,9 @@ export interface ChunkPayload {
   compressed: boolean;
 }
 
-let unreachableUntil = 0;
-
 /** Forget that Telegram was unreachable (tests, and a changed network). */
 export function resetDirectDownloadState(): void {
-  unreachableUntil = 0;
+  resetTelegramUnreachable();
 }
 
 interface DirectSource {
@@ -49,7 +53,7 @@ export function createChunkSource(fileId: string) {
   const direct = () => (source ??= resolveDirectSource(fileId).catch(() => null));
 
   return async function fetchChunk(index: number, signal?: AbortSignal): Promise<ChunkPayload> {
-    if (Date.now() >= unreachableUntil) {
+    if (!telegramRecentlyUnreachable()) {
       const src = await direct();
       const loc = src?.locators.get(index);
       if (src && loc) {
@@ -65,7 +69,7 @@ export function createChunkSource(fileId: string) {
         } catch (err) {
           if (isAbortError(err)) throw err;
           if (err instanceof TelegramUnreachableError) {
-            unreachableUntil = Date.now() + DIRECT_UNREACHABLE_FOR_MS;
+            markTelegramUnreachable();
           }
         }
       }

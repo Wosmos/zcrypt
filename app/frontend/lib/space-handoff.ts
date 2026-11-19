@@ -10,6 +10,13 @@ import { useKeysStore } from "@/store/keys";
 import type { SharedVaultDetail, SharedVaultMember } from "@/types";
 
 const inFlight = new Set<string>();
+const failedAt = new Map<string, number>();
+export const HANDOFF_BACKOFF_MS = 5 * 60_000;
+
+/** Forget recorded hand-off failures (tests, sign-out). */
+export function resetHandoffBackoff(): void {
+  failedAt.clear();
+}
 
 function waitingForKey(member: SharedVaultMember): boolean {
   return member.status === "pending" && !!member.public_key;
@@ -28,8 +35,8 @@ async function handOne(detail: SharedVaultDetail, spaceKey: Uint8Array, m: Share
 /**
  * Finish every pending invite whose invitee has published a key: seal the
  * Space key to it and send it. Runs quietly from an owner or admin device with
- * the vault unlocked. A failure leaves the member pending, so the next load or
- * key-needed event tries again. A peer whose key differs from the pin is left
+ * the vault unlocked. A failure leaves the member pending, so a later load or
+ * key-needed event tries again, once the 5-minute backoff has passed. A peer whose key differs from the pin is left
  * for the member list's key warning instead of being trusted silently.
  */
 export async function handOffPendingKeys(detail: SharedVaultDetail): Promise<number> {
@@ -44,11 +51,15 @@ export async function handOffPendingKeys(detail: SharedVaultDetail): Promise<num
     for (const m of waiting) {
       const id = `${detail.id}:${m.user_id}`;
       if (inFlight.has(id)) continue;
+      const failed = failedAt.get(id);
+      if (failed !== undefined && Date.now() - failed < HANDOFF_BACKOFF_MS) continue;
       inFlight.add(id);
       try {
         if (await handOne(detail, spaceKey, m)) done++;
+        failedAt.delete(id);
       } catch {
-        // retried on the next load
+        // includes a 409 key_rotating; retried after the backoff
+        failedAt.set(id, Date.now());
       } finally {
         inFlight.delete(id);
       }

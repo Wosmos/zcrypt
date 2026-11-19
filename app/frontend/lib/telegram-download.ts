@@ -2,7 +2,12 @@ import { TELEGRAM_API_ORIGIN } from "@/lib/config";
 import { ApiError } from "@/lib/http-error";
 import { retryTransient } from "@/lib/retry";
 import { TelegramApiError, type TelegramTarget } from "@/lib/telegram-direct";
-import { FILE_PATH_TTL_MS, fetchIdleBody, withControlTimeout } from "@/lib/transport";
+import {
+  DIRECT_UNREACHABLE_FOR_MS,
+  FILE_PATH_TTL_MS,
+  fetchIdleBody,
+  withControlTimeout,
+} from "@/lib/transport";
 
 /** Telegram never answered the request itself: offline, blocked, or refused by CORS. */
 export class TelegramUnreachableError extends Error {
@@ -19,6 +24,21 @@ export function clearTelegramFilePaths(): void {
   filePaths.clear();
 }
 
+let unreachableUntil = 0;
+
+/** Skip direct Telegram for a while after it proved unreachable. */
+export function markTelegramUnreachable(): void {
+  unreachableUntil = Date.now() + DIRECT_UNREACHABLE_FOR_MS;
+}
+
+export function telegramRecentlyUnreachable(): boolean {
+  return Date.now() < unreachableUntil;
+}
+
+export function resetTelegramUnreachable(): void {
+  unreachableUntil = 0;
+}
+
 /** Only a failure of the request itself counts as unreachable: a TypeError from
  *  fetch before any response, never a slow or interrupted body. */
 function reachable<T>(call: Promise<T>): Promise<T> {
@@ -31,6 +51,7 @@ interface GetFileEnvelope {
   ok?: boolean;
   description?: string;
   result?: { file_path?: string };
+  parameters?: { retry_after?: number };
 }
 
 async function resolveFilePath(
@@ -51,7 +72,12 @@ async function resolveFilePath(
       /* handled below */
     }
     if (!res.ok || !env.ok || !env.result?.file_path) {
-      throw new TelegramApiError(env.description || `getFile failed: ${res.status}`, res.status, 0);
+      const retryAfter = env.parameters?.retry_after;
+      throw new TelegramApiError(
+        env.description || `getFile failed: ${res.status}`,
+        res.status,
+        typeof retryAfter === "number" && retryAfter > 0 ? retryAfter : 0,
+      );
     }
     return env.result.file_path;
   }, signal);
