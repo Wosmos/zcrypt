@@ -83,6 +83,11 @@ export function disableWebDirect(): void {
   webDirectOff = true;
 }
 
+/** Choose direct uploads again: Telegram answered, so the earlier fallback no longer applies. */
+export function enableWebDirect(): void {
+  webDirectOff = false;
+}
+
 /** Whether direct uploads were switched off for this page session. */
 export function isWebDirectDisabled(): boolean {
   return webDirectOff;
@@ -129,6 +134,19 @@ export async function resolveWebDirect(platform?: string): Promise<DirectTarget 
   if (!ownsTelegram(await ensurePlatformStatus())) return null;
   if ((await probeTelegram()) !== "ok") return null;
   return toTarget(await loadCredentials(Platform.Telegram));
+}
+
+/**
+ * Whether a file for `platform` could go straight to the user's own Telegram
+ * were the network not in the way: the platform is Telegram or Auto, the user
+ * connected their own Telegram, and its token can be fetched. Says nothing
+ * about reachability, so an upload that this is true for but resolveWebDirect
+ * turned down is waiting on the network, not on anything the user can fix here.
+ */
+export async function directPossible(platform?: string): Promise<boolean> {
+  if (platform && platform !== Platform.Telegram) return false;
+  if (!ownsTelegram(await ensurePlatformStatus())) return false;
+  return toTarget(await loadCredentials(Platform.Telegram)) !== null;
 }
 
 /** A resumed upload's earlier chunks went to the user's own Telegram, and its credentials are not available now. */
