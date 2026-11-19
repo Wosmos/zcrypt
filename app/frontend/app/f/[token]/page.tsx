@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { linkAllowanceKey } from "@/lib/web-transfer-limit";
 import {
   getFolderShareInfo,
   getFolderShareFileMeta,
@@ -235,7 +236,10 @@ export default function FolderSharePage() {
       } catch (err) {
         await disk?.abort?.().catch(() => {});
         if (!isAbortError(err)) {
-          setErrorMsg(err instanceof Error ? err.message : t("pub.downloadFailed"));
+          const allowance = linkAllowanceKey(err);
+          setErrorMsg(
+            allowance ? t(allowance) : err instanceof Error ? err.message : t("pub.downloadFailed"),
+          );
         }
       } finally {
         abortRef.current = null;

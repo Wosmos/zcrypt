@@ -316,7 +316,9 @@
         "decrypting": "Wird entschlüsselt...",
         "decrypted": "Entschlüsselt",
         "footer": "Bereitgestellt von <b>zcrypt</b> · Zero-Knowledge-verschlüsseltes Teilen von Text"
-      }
+      },
+      "ownerDailyUsed": "Die Person, die das geteilt hat, hat ihr Übertragungskontingent für heute aufgebraucht. Es wird um Mitternacht UTC zurückgesetzt, versuch es dann erneut.",
+      "ownerMonthlyUsed": "Die Person, die das geteilt hat, hat ihr Übertragungskontingent für diesen Monat aufgebraucht. Versuch es nächsten Monat erneut oder bitte sie um eine andere Kopie."
     },
     "demo": {
       "banner": "Demo-Modus, alle Daten sind simuliert. Hochladen, Herunterladen und Löschen sind deaktiviert.",

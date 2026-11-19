@@ -16,6 +16,7 @@ import { openLinkName } from "@/components/tokens/link-name";
 import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
 import { fromBase64 } from "@/lib/crypto";
 import { ApiError } from "@/lib/http-error";
+import { linkAllowanceKey } from "@/lib/web-transfer-limit";
 import { ViewerCard, ViewerError, TokenFileHeader } from "@/components/tokens/viewer";
 import {
   TokenPageShell,
@@ -161,7 +162,12 @@ export default function SharePage() {
   // an error panel that offers a retry.
   const reportDecryptError = useCallback(
     (err: unknown, fallbackMsg: string, { setPageState, setErrorMsg }: ViewerSetters) => {
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      const allowance = linkAllowanceKey(err);
+      if (allowance) {
+        setPageState("error");
+        setErrorMsg(t(allowance));
+        setRetryable(true);
+      } else if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         setPageState("ready");
         setErrorMsg(t("pub.share.wrongPassword"));
         setSharePassword("");

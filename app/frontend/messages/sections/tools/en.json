@@ -316,7 +316,9 @@
         "decrypting": "Decrypting...",
         "decrypted": "Decrypted",
         "footer": "Powered by <b>zcrypt</b> · Zero-knowledge encrypted text sharing"
-      }
+      },
+      "ownerDailyUsed": "The person who shared this has used up today's transfer allowance. It resets at midnight UTC, so try again then.",
+      "ownerMonthlyUsed": "The person who shared this has used up this month's transfer allowance. Try again next month, or ask them for another copy."
     },
     "demo": {
       "banner": "Demo mode, all data is simulated. Uploads, downloads and deletes are disabled.",

@@ -316,7 +316,9 @@
         "decrypting": "Déchiffrement...",
         "decrypted": "Déchiffré",
         "footer": "Propulsé par <b>zcrypt</b> · Partage de texte chiffré à connaissance nulle"
-      }
+      },
+      "ownerDailyUsed": "La personne qui a partagé ceci a épuisé son quota de transfert du jour. Il se réinitialise à minuit UTC, réessaie à ce moment-là.",
+      "ownerMonthlyUsed": "La personne qui a partagé ceci a épuisé son quota de transfert du mois. Réessaie le mois prochain ou demande-lui une autre copie."
     },
     "demo": {
       "banner": "Mode démo : toutes les données sont simulées. Le téléversement, le téléchargement et la suppression sont désactivés.",

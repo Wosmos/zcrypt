@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { linkAllowanceKey } from "@/lib/web-transfer-limit";
 import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
 import { Shield, Send, AlertTriangle, Clock } from "@/lib/icons";
 import { openSendHash } from "@/lib/send-hash";
@@ -108,6 +109,11 @@ export default function SendDownloadPage() {
     previewFallback: t("pub.decryptFailed"),
     downloadFallback: t("pub.downloadFailed"),
     fallbackSaveName: info?.file_name ?? "",
+    onError: (err, fallbackMsg, { setPageState: setState, setErrorMsg: setMsg }) => {
+      const allowance = linkAllowanceKey(err);
+      setState("error");
+      setMsg(allowance ? t(allowance) : err instanceof Error ? err.message : fallbackMsg);
+    },
   });
 
   useEffect(() => {

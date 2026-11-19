@@ -316,7 +316,9 @@
         "decrypting": "Descifrando...",
         "decrypted": "Descifrado",
         "footer": "Con tecnología de <b>zcrypt</b> · Uso compartido de texto cifrado de conocimiento cero"
-      }
+      },
+      "ownerDailyUsed": "Quien compartió esto ha agotado su cuota de transferencia de hoy. Se renueva a medianoche UTC, así que inténtalo de nuevo entonces.",
+      "ownerMonthlyUsed": "Quien compartió esto ha agotado su cuota de transferencia de este mes. Inténtalo de nuevo el mes que viene o pídele otra copia."
     },
     "demo": {
       "banner": "Modo demo: todos los datos son simulados. Subir, descargar y eliminar están desactivados.",

@@ -142,3 +142,18 @@ describe("webTransferLimitFrom", () => {
 it("sends people to the download page", () => {
   expect(DESKTOP_DOWNLOAD_PATH).toBe("/download");
 });
+
+describe("linkAllowanceKey", () => {
+  it("names the owner's daily or monthly allowance and ignores other refusals", async () => {
+    const { linkAllowanceKey } = await import("@/lib/web-transfer-limit");
+    const { ApiError } = await import("@/lib/http-error");
+    expect(linkAllowanceKey(new ApiError("x", 403, 0, "", "relay_daily_exceeded"))).toBe(
+      "pub.ownerDailyUsed",
+    );
+    expect(linkAllowanceKey(new ApiError("x", 403, 0, "", "relay_allowance_exceeded"))).toBe(
+      "pub.ownerMonthlyUsed",
+    );
+    expect(linkAllowanceKey(new ApiError("wrong password", 403))).toBeNull();
+    expect(linkAllowanceKey(new Error("boom"))).toBeNull();
+  });
+});

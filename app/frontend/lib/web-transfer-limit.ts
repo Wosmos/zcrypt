@@ -128,3 +128,14 @@ export function webTransferLimitFrom(body: string, status: number): WebTransferL
   const usedBytes = typeof data.used_bytes === "number" ? data.used_bytes : undefined;
   return new WebTransferLimitError(data.code, { limitBytes, usedBytes, resetsAt }, status);
 }
+
+/** The `tools` message key for someone downloading another person's link when
+ *  the owner's transfer allowance ran out, or null for any other error. */
+export function linkAllowanceKey(
+  err: unknown,
+): "pub.ownerDailyUsed" | "pub.ownerMonthlyUsed" | null {
+  if (!(err instanceof ApiError)) return null;
+  if (err.code === WebTransferLimitCode.DailyExceeded) return "pub.ownerDailyUsed";
+  if (err.code === WebTransferLimitCode.AllowanceExceeded) return "pub.ownerMonthlyUsed";
+  return null;
+}
