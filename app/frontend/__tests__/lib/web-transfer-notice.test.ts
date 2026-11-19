@@ -109,4 +109,18 @@ describe("noticeCopy", () => {
     });
     expect(copy.body.key).toBe("dailyBodyNoTime");
   });
+
+  it("says what a download needed and what is left when it was stopped before starting", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.DailyExceeded,
+      limitBytes: 60 * MB,
+      usedBytes: 51 * MB,
+      resetsAt: "2026-11-20T00:00:00Z",
+      neededBytes: 14 * MB,
+      files: [],
+    });
+    expect(copy.title).toEqual({ key: "dailyShortTitle" });
+    expect(copy.body.key).toBe("dailyShortBody");
+    expect(copy.body.values).toMatchObject({ needed: "14 MB", left: "9 MB", limit: "60 MB" });
+  });
 });

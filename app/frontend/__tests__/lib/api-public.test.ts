@@ -28,6 +28,7 @@ vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken: vi.fn(), authedFetch }));
 
 import * as api from "@/lib/api";
+import { WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 /** Response stand-in. jsonThrows simulates a non-JSON error body. */
 function mk(
@@ -328,6 +329,23 @@ describe("error-fallback + remaining branches", () => {
     // Error JSON without an `error` field -> raw-body fallback (line 183).
     fetchMock.mockResolvedValueOnce(mk(404, { json: { message: "gone" } }));
     await expect(api.getFileChunk("f", 1)).rejects.toThrow('{"message":"gone"}');
+  });
+
+  it("getFileChunk turns an allowance refusal into the friendly limit error", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mk(403, {
+        json: {
+          code: "relay_daily_exceeded",
+          limit_bytes: 60 * 1024 * 1024,
+          used_bytes: 60 * 1024 * 1024,
+          resets_at: "2026-11-20T00:00:00Z",
+        },
+      }),
+    );
+    const err = await api.getFileChunk("f", 1).catch((e) => e);
+    expect(err).toBeInstanceOf(WebTransferLimitError);
+    expect(err.code).toBe("relay_daily_exceeded");
+    expect(err.info.resetsAt).toBe("2026-11-20T00:00:00Z");
   });
 
   it("listFiles (no limit) and listFolders (with parentId) hit both optional-param sides", async () => {

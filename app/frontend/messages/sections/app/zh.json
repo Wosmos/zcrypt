@@ -949,7 +949,9 @@
       "desktopAppMissing": "无法打开桌面应用。还没有安装？",
       "downloadDesktopApp": "下载桌面应用",
       "webDailyUsed": "你今天 {limit} 的传输额度已用完。将于 {time} 重置。直接发往你自己存储的内容不计入。",
-      "webDailyUsedNoTime": "你今天 {limit} 的传输额度已用完。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。"
+      "webDailyUsedNoTime": "你今天 {limit} 的传输额度已用完。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。",
+      "webDailyShort": "这需要通过我们的服务器传输 {needed}，但今天的 {limit} 额度只剩 {left}。额度在 {time} 重置。桌面应用直接从你的存储下载，不计入额度。",
+      "webAllowanceShort": "这需要通过我们的服务器传输 {needed}，但本月的 {limit} 额度只剩 {left}。额度在 {date} 重置。桌面应用直接从你的存储下载，不计入额度。"
     },
     "l10n": {
       "justNow": "刚刚",
@@ -1097,7 +1099,11 @@
       "notNow": "以后再说",
       "dailyTitle": "今天的传输额度已用完",
       "dailyBody": "今天已用 {used}，共 {limit}。将于 {time} 重置。直接发往你自己存储的内容不计入。",
-      "dailyBodyNoTime": "今天已用 {used}，共 {limit}。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。"
+      "dailyBodyNoTime": "今天已用 {used}，共 {limit}。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。",
+      "dailyShortTitle": "今天的额度不够了",
+      "allowanceShortTitle": "本月的额度不够了",
+      "dailyShortBody": "这需要通过我们的服务器传输 {needed}，今天的 {limit} 额度还剩 {left}。额度在 {time} 重置。桌面应用直接从你的存储下载，不计入额度。",
+      "allowanceShortBody": "这需要通过我们的服务器传输 {needed}，本月的 {limit} 额度还剩 {left}。额度在 {date} 重置。桌面应用直接从你的存储下载，不计入额度。"
     },
     "lowAllowance": {
       "title": "你的传输额度快用完了",

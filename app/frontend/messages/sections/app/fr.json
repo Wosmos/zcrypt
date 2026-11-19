@@ -949,7 +949,9 @@
       "desktopAppMissing": "Impossible d'ouvrir l'application de bureau. Vous ne l'avez pas encore ?",
       "downloadDesktopApp": "Télécharger l'application de bureau",
       "webDailyUsed": "Vous avez utilisé votre quota de transfert du jour, {limit}. Remise à zéro à {time}. Ce qui part directement vers votre propre stockage n'est pas compté.",
-      "webDailyUsedNoTime": "Vous avez utilisé votre quota de transfert du jour, {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté."
+      "webDailyUsedNoTime": "Vous avez utilisé votre quota de transfert du jour, {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "webDailyShort": "Il faut {needed} via notre serveur, mais il ne reste que {left} sur les {limit} d'aujourd'hui. Le quota repart à {time}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas.",
+      "webAllowanceShort": "Il faut {needed} via notre serveur, mais il ne reste que {left} sur les {limit} de ce mois. Le quota repart le {date}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas."
     },
     "l10n": {
       "justNow": "à l'instant",
@@ -1097,7 +1099,11 @@
       "notNow": "Pas maintenant",
       "dailyTitle": "Vous avez utilisé le quota de transfert du jour",
       "dailyBody": "Aujourd'hui {used} sur {limit}. Remise à zéro à {time}. Ce qui part directement vers votre propre stockage n'est pas compté.",
-      "dailyBodyNoTime": "Aujourd'hui {used} sur {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté."
+      "dailyBodyNoTime": "Aujourd'hui {used} sur {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "dailyShortTitle": "Il ne reste pas assez pour aujourd'hui",
+      "allowanceShortTitle": "Il ne reste pas assez pour ce mois",
+      "dailyShortBody": "Il faut {needed} via notre serveur, et il reste {left} sur les {limit} d'aujourd'hui. Le quota repart à {time}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas.",
+      "allowanceShortBody": "Il faut {needed} via notre serveur, et il reste {left} sur les {limit} de ce mois. Le quota repart le {date}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas."
     },
     "lowAllowance": {
       "title": "Votre quota de transfert est presque épuisé",

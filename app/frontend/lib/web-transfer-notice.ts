@@ -29,6 +29,30 @@ export function noticeCopy(notice: WebTransferNotice): NoticeCopy {
   const count = notice.files.length;
   const hint = count > 0 ? { key: "hint", values: { count } } : undefined;
 
+  const isDaily = notice.code === WebTransferLimitCode.DailyExceeded;
+  if (
+    notice.neededBytes &&
+    notice.resetsAt &&
+    (isDaily || notice.code === WebTransferLimitCode.AllowanceExceeded)
+  ) {
+    const values = {
+      needed: formatBytes(notice.neededBytes),
+      left: formatBytes(Math.max(0, notice.limitBytes - (notice.usedBytes ?? 0))),
+      limit,
+    };
+    return {
+      title: { key: isDaily ? "dailyShortTitle" : "allowanceShortTitle" },
+      body: isDaily
+        ? { key: "dailyShortBody", values: { ...values, time: formatResetTime(notice.resetsAt) } }
+        : {
+            key: "allowanceShortBody",
+            values: { ...values, date: formatResetDate(notice.resetsAt) },
+          },
+      list: [],
+      more: 0,
+    };
+  }
+
   if (notice.code === WebTransferLimitCode.DailyExceeded) {
     const used = formatBytes(Math.min(notice.usedBytes ?? notice.limitBytes, notice.limitBytes));
     return {

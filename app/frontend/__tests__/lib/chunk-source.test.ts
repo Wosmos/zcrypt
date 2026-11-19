@@ -6,9 +6,13 @@ const m = vi.hoisted(() => ({
   resolveWebDirect: vi.fn(),
   downloadTelegramChunk: vi.fn(),
   relayFitsNow: vi.fn(),
+  relayShortfall: vi.fn(),
   waitForTelegram: vi.fn(),
 }));
-vi.mock("@/lib/relay-gate", () => ({ relayFitsNow: m.relayFitsNow }));
+vi.mock("@/lib/relay-gate", () => ({
+  relayFitsNow: m.relayFitsNow,
+  relayShortfall: m.relayShortfall,
+}));
 vi.mock("@/lib/transfer-wait", () => ({ waitForTelegram: m.waitForTelegram }));
 vi.mock("@/lib/api", () => ({ getFileChunk: m.getFileChunk, getFileLocators: m.getFileLocators }));
 vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: m.resolveWebDirect }));
@@ -56,6 +60,7 @@ beforeEach(async () => {
   m.downloadTelegramChunk.mockImplementation(async () => PLAIN.slice());
   m.getFileChunk.mockResolvedValue(relayChunk);
   m.relayFitsNow.mockResolvedValue(true);
+  m.relayShortfall.mockResolvedValue(null);
   m.waitForTelegram.mockResolvedValue(undefined);
 });
 afterEach(() => vi.useRealTimers());
@@ -238,5 +243,42 @@ describe("createChunkSource with a transfer row to hold", () => {
       WebTransferLimitError,
     );
     expect(m.waitForTelegram).not.toHaveBeenCalled();
+  });
+});
+
+describe("createChunkSource, chunks that only come through the server", () => {
+  const short = new WebTransferLimitError(
+    WebTransferLimitCode.DailyExceeded,
+    { limitBytes: 100, usedBytes: 90, resetsAt: "2026-11-20T00:00:00Z", neededBytes: 30 },
+    403,
+  );
+  const mixed = () =>
+    m.getFileLocators.mockResolvedValue({
+      file_id: "f",
+      chunks: [loc(0, { platform: "github", size: 10 }), loc(1), loc(2, { platform: "huggingface", size: 20 })],
+    });
+
+  it("stops before fetching anything when the server-only rest does not fit", async () => {
+    mixed();
+    m.relayShortfall.mockResolvedValue(short);
+    await expect(createChunkSource("f", { waitKey: "dl:1" })(0)).rejects.toBe(short);
+    expect(m.relayShortfall).toHaveBeenCalledWith(30);
+    expect(m.getFileChunk).not.toHaveBeenCalled();
+  });
+
+  it("checks once per download and then lets the server decide", async () => {
+    mixed();
+    const fetchChunk = createChunkSource("f", { waitKey: "dl:1" });
+    await fetchChunk(0);
+    await fetchChunk(2);
+    expect(m.relayShortfall).toHaveBeenCalledTimes(1);
+    expect(m.getFileChunk).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not check for previews, which have no row to explain it on", async () => {
+    mixed();
+    m.relayShortfall.mockResolvedValue(short);
+    await expect(createChunkSource("f")(0)).resolves.toEqual(relayChunk);
+    expect(m.relayShortfall).not.toHaveBeenCalled();
   });
 });

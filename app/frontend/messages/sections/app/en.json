@@ -949,7 +949,9 @@
       "desktopAppMissing": "Couldn't open the desktop app. Don't have it yet?",
       "downloadDesktopApp": "Download the desktop app",
       "webDailyUsed": "You've used today's {limit} transfer allowance. It resets at {time}. Anything that goes straight to your own storage doesn't count.",
-      "webDailyUsedNoTime": "You've used today's {limit} transfer allowance. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count."
+      "webDailyUsedNoTime": "You've used today's {limit} transfer allowance. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count.",
+      "webDailyShort": "This needs {needed} through our server, but only {left} of today's {limit} allowance is left. It resets at {time}. The desktop app downloads straight from your storage, so it doesn't count.",
+      "webAllowanceShort": "This needs {needed} through our server, but only {left} of this month's {limit} allowance is left. It resets on {date}. The desktop app downloads straight from your storage, so it doesn't count."
     },
     "l10n": {
       "justNow": "just now",
@@ -1097,7 +1099,11 @@
       "notNow": "Not now",
       "dailyTitle": "You've used today's transfer allowance",
       "dailyBody": "{used} of {limit} today. It resets at {time}. Anything that goes straight to your own storage doesn't count.",
-      "dailyBodyNoTime": "{used} of {limit} today. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count."
+      "dailyBodyNoTime": "{used} of {limit} today. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count.",
+      "dailyShortTitle": "Not enough of today's allowance left",
+      "allowanceShortTitle": "Not enough of this month's allowance left",
+      "dailyShortBody": "This needs {needed} through our server, and {left} of today's {limit} is left. It resets at {time}. The desktop app downloads straight from your storage, so it doesn't count.",
+      "allowanceShortBody": "This needs {needed} through our server, and {left} of this month's {limit} is left. It resets on {date}. The desktop app downloads straight from your storage, so it doesn't count."
     },
     "lowAllowance": {
       "title": "Your transfer allowance is running low",

@@ -10,7 +10,7 @@ import {
   telegramRecentlyUnreachable,
 } from "@/lib/telegram-download";
 import { isAbortError } from "@/lib/transport";
-import { relayFitsNow } from "@/lib/relay-gate";
+import { relayFitsNow, relayShortfall } from "@/lib/relay-gate";
 import { waitForTelegram } from "@/lib/transfer-wait";
 import { isAllowanceRefusal } from "@/lib/web-transfer-limit";
 import { WaitReason } from "@/store/transfer-wait";
@@ -72,6 +72,28 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
   const direct = () => (source ??= resolveDirectSource(fileId).catch(() => null));
   const fetched = new Set<number>();
 
+  // A chunk with no direct route (GitHub, GitLab, Hugging Face) can only come
+  // through the server. Before the first one, check that every such chunk
+  // still to fetch fits the allowance, so a download that cannot finish stops
+  // before it spends any. The server still enforces it on every chunk.
+  let serverChecked = false;
+  const checkServerOnly = async (src: DirectSource | null) => {
+    if (serverChecked || !opts.waitKey) return;
+    serverChecked = true;
+    let chunks: ChunkLocator[];
+    try {
+      ({ chunks } = await getFileLocators(fileId));
+    } catch {
+      return;
+    }
+    let bytes = 0;
+    for (const c of chunks) {
+      if (!fetched.has(c.index) && !src?.locators.has(c.index)) bytes += c.size;
+    }
+    const short = await relayShortfall(bytes);
+    if (short) throw short;
+  };
+
   const restBytes = (src: DirectSource) => {
     let sum = 0;
     for (const [i, loc] of src.locators) if (!fetched.has(i)) sum += loc.size;
@@ -110,6 +132,7 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
         await waitForTelegram(waitKey, WaitReason.TelegramBlocked, signal);
         continue;
       }
+      if (!loc) await checkServerOnly(src);
       try {
         const payload = await getFileChunk(fileId, index, signal);
         fetched.add(index);

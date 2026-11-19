@@ -21,6 +21,8 @@ export interface WebTransferLimitInfo {
   usedBytes?: number;
   /** When the daily or monthly allowance starts over (ISO 8601). Only set for an allowance. */
   resetsAt?: string;
+  /** What a transfer needed that the allowance could not cover. Set when it was checked before starting. */
+  neededBytes?: number;
 }
 
 /** A refused web upload, as the upload queue keeps it and the dialog explains it. */
@@ -72,6 +74,16 @@ export function webTransferLimitMessage(
   const limit = formatBytes(info.limitBytes);
   if (code === WebTransferLimitCode.FileTooLarge) {
     return tr("toasts.webFileTooLarge", { limit });
+  }
+  if (info.neededBytes && info.resetsAt) {
+    const values = {
+      needed: formatBytes(info.neededBytes),
+      left: formatBytes(Math.max(0, info.limitBytes - (info.usedBytes ?? 0))),
+      limit,
+    };
+    return code === WebTransferLimitCode.DailyExceeded
+      ? tr("toasts.webDailyShort", { ...values, time: formatResetTime(info.resetsAt) })
+      : tr("toasts.webAllowanceShort", { ...values, date: formatResetDate(info.resetsAt) });
   }
   if (code === WebTransferLimitCode.DailyExceeded) {
     return info.resetsAt

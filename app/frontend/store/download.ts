@@ -35,6 +35,8 @@ import {
 
 import { createFrameBatch } from "@/lib/frame-batch";
 import { applyEngineWait } from "@/store/transfer-wait";
+import { WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { showWebTransferLimit } from "@/lib/web-transfer-guard";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
 import { isTransientError } from "@/lib/retry";
 import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
@@ -407,7 +409,9 @@ function runSingleDownload(id: string): Promise<void> {
       }
       const recovered = recoverWrongFolderPassword(session.fileId, msg);
       setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
-      if (recovered) {
+      if (err instanceof WebTransferLimitError) {
+        showWebTransferLimit(err.limit);
+      } else if (recovered) {
         toast.error(tr("toasts.wrongFolderPassword", { name: session.filename }));
       } else {
         toast.error(tr("toasts.downloadFailedMsg", { msg }));

@@ -42,12 +42,19 @@ import type {
 import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
-import { throwResponseError, parseErrorJson, parseErrorBody, ApiError } from "@/lib/http-error";
+import {
+  apiErrorFrom,
+  throwResponseError,
+  parseErrorJson,
+  parseErrorBody,
+  ApiError,
+} from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
 import { fetchIdleBody, readJsonControl, withControlTimeout } from "@/lib/transport";
 import { retryTransient } from "@/lib/retry";
 import { xhrPut } from "@/lib/upload-session";
+import { webTransferLimitFrom } from "@/lib/web-transfer-limit";
 import type { PlatformCredentials } from "@/lib/platform-credentials";
 
 /** Build the chunk-download return payload from a response (body + chunk headers). */
@@ -361,10 +368,16 @@ export async function getFileChunk(
 }> {
   const { res, body } = await fetchIdleBody(
     (s) => authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { signal: s }),
-    throwResponseError,
+    throwChunkError,
     { signal },
   );
   return chunkFromResponse(res, body);
+}
+
+/** A refused chunk read, as the friendly allowance error when that is why. */
+async function throwChunkError(res: Response): Promise<never> {
+  const body = await res.text();
+  throw webTransferLimitFrom(body, res.status) ?? apiErrorFrom(res, body);
 }
 
 /** With a limit, the newest `limit` files. Without one, the whole library,

@@ -949,7 +949,9 @@
       "desktopAppMissing": "Die Desktop-App ließ sich nicht öffnen. Noch nicht installiert?",
       "downloadDesktopApp": "Desktop-App herunterladen",
       "webDailyUsed": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um {time} zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
-      "webDailyUsedNoTime": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um Mitternacht UTC zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit."
+      "webDailyUsedNoTime": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um Mitternacht UTC zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "webDailyShort": "Dafür werden {needed} über unseren Server gebraucht, aber von den {limit} für heute sind nur noch {left} übrig. Sie werden um {time} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht.",
+      "webAllowanceShort": "Dafür werden {needed} über unseren Server gebraucht, aber von den {limit} für diesen Monat sind nur noch {left} übrig. Sie werden am {date} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht."
     },
     "l10n": {
       "justNow": "gerade eben",
@@ -1097,7 +1099,11 @@
       "notNow": "Nicht jetzt",
       "dailyTitle": "Dein heutiges Übertragungskontingent ist aufgebraucht",
       "dailyBody": "Heute {used} von {limit}. Um {time} geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
-      "dailyBodyNoTime": "Heute {used} von {limit}. Um Mitternacht UTC geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit."
+      "dailyBodyNoTime": "Heute {used} von {limit}. Um Mitternacht UTC geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "dailyShortTitle": "Für heute ist nicht mehr genug übrig",
+      "allowanceShortTitle": "Für diesen Monat ist nicht mehr genug übrig",
+      "dailyShortBody": "Dafür werden {needed} über unseren Server gebraucht, von den {limit} für heute sind noch {left} übrig. Sie werden um {time} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht.",
+      "allowanceShortBody": "Dafür werden {needed} über unseren Server gebraucht, von den {limit} für diesen Monat sind noch {left} übrig. Sie werden am {date} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht."
     },
     "lowAllowance": {
       "title": "Dein Übertragungskontingent wird knapp",

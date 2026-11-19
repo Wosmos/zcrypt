@@ -52,8 +52,12 @@ export function isRetryableStatus(status: number): boolean {
 
 /** Read a non-ok response body and throw an ApiError carrying the server message + status. */
 export async function throwResponseError(res: Response): Promise<never> {
-  const body = await res.text();
-  throw new ApiError(
+  throw apiErrorFrom(res, await res.text());
+}
+
+/** The ApiError for a failed response whose body was already read. */
+export function apiErrorFrom(res: Response, body: string): ApiError {
+  return new ApiError(
     parseErrorBody(body),
     res.status,
     retryAfterSeconds(res.headers?.get?.("Retry-After")),

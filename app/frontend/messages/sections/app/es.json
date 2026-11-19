@@ -949,7 +949,9 @@
       "desktopAppMissing": "No se pudo abrir la app de escritorio. ¿Aún no la tienes?",
       "downloadDesktopApp": "Descargar la app de escritorio",
       "webDailyUsed": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
-      "webDailyUsedNoTime": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta."
+      "webDailyUsedNoTime": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "webDailyShort": "Esto necesita {needed} a través de nuestro servidor, pero solo quedan {left} de los {limit} de hoy. Se restablece a las {time}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta.",
+      "webAllowanceShort": "Esto necesita {needed} a través de nuestro servidor, pero solo quedan {left} de los {limit} de este mes. Se restablece el {date}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta."
     },
     "l10n": {
       "justNow": "ahora mismo",
@@ -1097,7 +1099,11 @@
       "notNow": "Ahora no",
       "dailyTitle": "Has usado el cupo de transferencia de hoy",
       "dailyBody": "Hoy {used} de {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
-      "dailyBodyNoTime": "Hoy {used} de {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta."
+      "dailyBodyNoTime": "Hoy {used} de {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "dailyShortTitle": "No queda suficiente de hoy",
+      "allowanceShortTitle": "No queda suficiente de este mes",
+      "dailyShortBody": "Esto necesita {needed} a través de nuestro servidor y quedan {left} de los {limit} de hoy. Se restablece a las {time}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta.",
+      "allowanceShortBody": "Esto necesita {needed} a través de nuestro servidor y quedan {left} de los {limit} de este mes. Se restablece el {date}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta."
     },
     "lowAllowance": {
       "title": "Tu cupo de transferencia se está acabando",
