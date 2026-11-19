@@ -128,6 +128,24 @@ describe("downloadTelegramChunk", () => {
     expect(new Uint8Array(await pending)).toEqual(new Uint8Array([5]));
   });
 
+  it("waits out the retry_after a 429 getFile asks for", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ ok: false, description: "Too Many Requests", parameters: { retry_after: 20 } }),
+          { status: 429 },
+        ),
+      )
+      .mockResolvedValueOnce(getFileOk("p/a"))
+      .mockResolvedValueOnce(bytes(5));
+    const pending = downloadTelegramChunk(target, "1:A");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(11_000);
+    expect(new Uint8Array(await pending)).toEqual(new Uint8Array([5]));
+  });
+
   it("gives a stalled body 60s with no bytes, then raises a StalledError", async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation((url: string, init: RequestInit) => {

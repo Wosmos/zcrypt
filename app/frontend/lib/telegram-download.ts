@@ -31,6 +31,7 @@ interface GetFileEnvelope {
   ok?: boolean;
   description?: string;
   result?: { file_path?: string };
+  parameters?: { retry_after?: number };
 }
 
 async function resolveFilePath(
@@ -51,7 +52,12 @@ async function resolveFilePath(
       /* handled below */
     }
     if (!res.ok || !env.ok || !env.result?.file_path) {
-      throw new TelegramApiError(env.description || `getFile failed: ${res.status}`, res.status, 0);
+      const retryAfter = env.parameters?.retry_after;
+      throw new TelegramApiError(
+        env.description || `getFile failed: ${res.status}`,
+        res.status,
+        typeof retryAfter === "number" && retryAfter > 0 ? retryAfter : 0,
+      );
     }
     return env.result.file_path;
   }, signal);
