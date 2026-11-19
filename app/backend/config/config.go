@@ -142,6 +142,9 @@ type Config struct {
 	// MetricsToken is the bearer token GET /api/internal/metrics requires.
 	// Empty (default) disables the endpoint.
 	MetricsToken string `json:"-"`
+	// ProxySecret is the shared secret the site's /api proxy sends in
+	// X-Zcrypt-Proxy-Secret. Without it, forwarded-for headers are ignored.
+	ProxySecret string `json:"-"`
 }
 
 // DefaultVerifyInterval is the background durability check period.
@@ -250,6 +253,9 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("METRICS_TOKEN"); v != "" {
 		c.MetricsToken = v
+	}
+	if v := os.Getenv("ZCRYPT_PROXY_SECRET"); v != "" {
+		c.ProxySecret = v
 	}
 	if v := os.Getenv("ZCRYPT_CLIENT_IP_HEADER"); v != "" {
 		c.ClientIPHeader = v

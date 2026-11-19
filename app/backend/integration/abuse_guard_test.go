@@ -90,7 +90,7 @@ func TestSessionEndsWhenAnotherAppRefreshesIt(t *testing.T) {
 }
 
 func TestCloudNetworksCantSignIn(t *testing.T) {
-	ts := setupTestServer(t)
+	ts := setupTestServerWith(t, func(c *config.Config) { c.ProxySecret = "proxy-test-secret" })
 	email := uniqueEmail("cloud")
 	ts.registerAndLogin(email, accountTestPassword)
 	ts.srv.SetCloudNetworksForTest("203.0.113.0/24", config.CloudNetworksBlock)
@@ -118,14 +118,22 @@ func TestCloudNetworksCantSignIn(t *testing.T) {
 	code, _ = ts.postWith("/api/auth/login", creds, map[string]string{
 		"X-Forwarded-For":        "203.0.113.9",
 		"X-Vercel-Forwarded-For": "198.51.100.8",
+		"X-Zcrypt-Proxy-Secret":  "proxy-test-secret",
 	})
 	assert.Equal(t, http.StatusOK, code, "the site's proxy runs in a cloud; the person behind it is who counts")
 
 	code, _ = ts.postWith("/api/auth/login", creds, map[string]string{
 		"X-Forwarded-For":        "203.0.113.10",
 		"X-Vercel-Forwarded-For": "203.0.113.11",
+		"X-Zcrypt-Proxy-Secret":  "proxy-test-secret",
 	})
 	assert.Equal(t, http.StatusForbidden, code, "a person on a cloud network behind the proxy is still refused")
+
+	code, _ = ts.postWith("/api/auth/login", creds, map[string]string{
+		"X-Forwarded-For":        "203.0.113.12",
+		"X-Vercel-Forwarded-For": "198.51.100.8",
+	})
+	assert.Equal(t, http.StatusForbidden, code, "a forged forwarded address without the proxy secret is ignored")
 }
 
 func TestTurnstileOnWebForms(t *testing.T) {

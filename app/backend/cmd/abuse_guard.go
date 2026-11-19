@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"io"
 	"log"
@@ -43,19 +44,28 @@ func (s *Server) StartNetGuard(ctx context.Context) {
 }
 
 // personIP is the address of the person behind a request. The site's /api
-// proxy (Vercel, which the desktop and Android apps and the web session calls
-// go through) reaches us from its own cloud address and names the person in
-// X-Vercel-Forwarded-For, so that header is read when, and only when, the
-// direct caller is on a cloud network. A home connection calling us directly
-// can't use the header to look like anyone else.
+// proxy (Vercel, which the desktop and Android apps go through) reaches us
+// from its own cloud address and names the person in X-Vercel-Forwarded-For.
+// That header is read only when the request proves it came through our proxy
+// with the shared X-Zcrypt-Proxy-Secret, so no other caller can claim an
+// address.
 func (s *Server) personIP(r *http.Request) string {
 	ip := s.clientIP(r)
-	if s.netGuard.Blocked(ip) {
+	if s.viaOwnProxy(r) {
 		if fwd := firstForwarded(r.Header.Get("X-Vercel-Forwarded-For")); fwd != "" {
 			return fwd
 		}
 	}
 	return ip
+}
+
+func (s *Server) viaOwnProxy(r *http.Request) bool {
+	want := s.cfg.ProxySecret
+	if want == "" {
+		return false
+	}
+	got := r.Header.Get("X-Zcrypt-Proxy-Secret")
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }
 
 // refuseCloudNetwork answers 403 when the person is on a cloud or data-center
