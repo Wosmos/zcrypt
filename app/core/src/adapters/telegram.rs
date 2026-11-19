@@ -19,7 +19,7 @@ use serde::Deserialize;
 
 use crate::adapters::{AdapterError, PlatformAdapter};
 use crate::disguise;
-use crate::transport::{backoff, honor_retry_after, upload_client, Idle, IDLE_TIMEOUT};
+use crate::transport::{upload_client, Idle, IDLE_TIMEOUT};
 use crate::types::{Chunk, ChunkRef, Platform};
 
 const API_BASE: &str = "https://api.telegram.org";
@@ -27,8 +27,6 @@ const API_BASE: &str = "https://api.telegram.org";
 /// Bot API limits: 50MB upload, 20MB download via getFile.
 /// Use 19MB sub-chunks to stay safely under the download limit.
 const MAX_PART_SIZE: usize = 19 * 1024 * 1024;
-
-const MAX_RETRIES: u32 = 3;
 
 const PLATFORM: &str = Platform::Telegram.as_str();
 
@@ -97,40 +95,6 @@ impl Telegram {
 
     fn api_url(&self, method: &str) -> String {
         format!("{}/bot{}/{}", self.api_base, self.token, method)
-    }
-
-    /// Uploads a document, retrying transient failures with jittered backoff
-    /// and honoring Telegram's `retry_after`.
-    async fn send_document_with_retry(
-        &self,
-        data: &Bytes,
-        filename: &str,
-    ) -> Result<(i64, String), AdapterError> {
-        let mut last_err: Option<AdapterError> = None;
-
-        for attempt in 0..=MAX_RETRIES {
-            if attempt > 0 {
-                let retry_after = last_err.as_ref().and_then(AdapterError::retry_after_secs);
-                tokio::time::sleep(honor_retry_after(
-                    backoff(attempt - 1, 2_000, 16_000),
-                    retry_after,
-                ))
-                .await;
-            }
-
-            match self.send_document(data.clone(), filename.to_string()).await {
-                Ok(ok) => return Ok(ok),
-                Err(err) => {
-                    if !err.is_transient() {
-                        return Err(err);
-                    }
-                    last_err = Some(err);
-                }
-            }
-        }
-
-        Err(last_err
-            .unwrap_or_else(|| AdapterError::Other("sendDocument: retries exhausted".into())))
     }
 
     /// Uploads one document to the chat; returns `(message_id, file_id)`. Fails
@@ -270,7 +234,9 @@ impl PlatformAdapter for Telegram {
         let sent: Result<(), AdapterError> = async {
             if data.len() <= MAX_PART_SIZE {
                 // Single part: fits within the Telegram download limit.
-                let (msg_id, file_id) = self.send_document_with_retry(&data, &remote_path).await?;
+                let (msg_id, file_id) = self
+                    .send_document(data.clone(), remote_path.clone())
+                    .await?;
                 sent_ids.push(msg_id);
                 part_refs.push(format!("{msg_id}:{file_id}"));
             } else {
@@ -278,7 +244,7 @@ impl PlatformAdapter for Telegram {
                 for (part_idx, (start, end)) in part_ranges(data.len()).into_iter().enumerate() {
                     let name = part_name(&remote_path, part_idx);
                     let (msg_id, file_id) = self
-                        .send_document_with_retry(&data.slice(start..end), &name)
+                        .send_document(data.slice(start..end), name)
                         .await
                         .map_err(|e| match e {
                             AdapterError::Other(msg) => {
@@ -702,23 +668,20 @@ mod transfer_tests {
     }
 
     #[tokio::test]
-    async fn the_retry_after_a_rate_limit_is_waited_out() {
-        let (base, hits) = serve(|n, _| {
-            if n == 0 {
-                Reply::status(
-                    429,
-                    r#"{"ok":false,"description":"Too Many Requests","parameters":{"retry_after":3}}"#,
-                )
-            } else {
-                Reply::status(200, OK)
-            }
+    async fn a_rate_limit_is_surfaced_once_for_the_engine_to_retry() {
+        let (base, hits) = serve(|_, _| {
+            Reply::status(
+                429,
+                r#"{"ok":false,"description":"Too Many Requests","parameters":{"retry_after":3}}"#,
+            )
         })
         .await;
         let tg = Telegram::with_endpoint("tok", "1", &base, Duration::from_secs(5));
         let started = Instant::now();
-        tg.upload("tg:1/x", chunk(1024)).await.unwrap();
-        assert!(started.elapsed() >= Duration::from_secs(3));
-        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let err = tg.upload("tg:1/x", chunk(1024)).await.unwrap_err();
+        assert_eq!(err.retry_after_secs(), Some(3));
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
