@@ -120,3 +120,16 @@ func TestMarkHeavyRelay(t *testing.T) {
 		t.Error("a zero threshold turns the flag off")
 	}
 }
+
+func TestTransferHubChargeBoundsPerIP(t *testing.T) {
+	h := &transferHub{}
+	if !h.charge("1.1.1.1", 60, 100) || h.charge("1.1.1.1", 41, 100) {
+		t.Error("an IP must be refused once its day total passes the limit")
+	}
+	if !h.charge("2.2.2.2", 100, 100) {
+		t.Error("another IP has its own budget")
+	}
+	if !h.charge("1.1.1.1", 1<<40, 0) {
+		t.Error("a zero limit turns the cap off")
+	}
+}
