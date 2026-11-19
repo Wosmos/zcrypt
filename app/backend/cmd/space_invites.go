@@ -173,6 +173,16 @@ func (s *Server) HandleCompleteSharedVaultMember(w http.ResponseWriter, r *http.
 		return
 	}
 
+	rotating, err := s.db.SharedVaultNeedsRotation(ctx, vaultID)
+	if err != nil {
+		internalError(w, "complete invite: rotation", err)
+		return
+	}
+	if rotating {
+		writeCodedError(w, http.StatusConflict, "key_rotating", "the space key is being rotated; finish the rotation, then complete the invite")
+		return
+	}
+
 	status, err := s.db.SharedVaultMemberStatus(ctx, vaultID, memberUID)
 	if err != nil {
 		internalError(w, "complete invite: status", err)
