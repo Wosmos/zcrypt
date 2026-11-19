@@ -2,7 +2,10 @@ import { TELEGRAM_API_ORIGIN } from "@/lib/config";
 import { ApiError } from "@/lib/http-error";
 import { retryTransient } from "@/lib/retry";
 import { TelegramApiError, type TelegramTarget } from "@/lib/telegram-direct";
-import { FILE_PATH_TTL_MS, fetchIdleBody, withControlTimeout } from "@/lib/transport";
+import {
+  DIRECT_UNREACHABLE_FOR_MS,
+  FILE_PATH_TTL_MS,
+  fetchIdleBody, withControlTimeout } from "@/lib/transport";
 
 /** Telegram never answered the request itself: offline, blocked, or refused by CORS. */
 export class TelegramUnreachableError extends Error {
@@ -17,6 +20,21 @@ const filePaths = new Map<string, { path: string; at: number }>();
 
 export function clearTelegramFilePaths(): void {
   filePaths.clear();
+}
+
+let unreachableUntil = 0;
+
+/** Skip direct Telegram for a while after it proved unreachable. */
+export function markTelegramUnreachable(): void {
+  unreachableUntil = Date.now() + DIRECT_UNREACHABLE_FOR_MS;
+}
+
+export function telegramRecentlyUnreachable(): boolean {
+  return Date.now() < unreachableUntil;
+}
+
+export function resetTelegramUnreachable(): void {
+  unreachableUntil = 0;
 }
 
 /** Only a failure of the request itself counts as unreachable: a TypeError from
