@@ -31,7 +31,7 @@ func idleClient(srv *httptest.Server) *http.Client {
 }
 
 // 20 bytes at 40ms apart takes 800ms, far over the 150ms idle limit.
-func trickleHandler(w http.ResponseWriter, r *http.Request) {
+func trickleHandler(w http.ResponseWriter, _ *http.Request) {
 	f := w.(http.Flusher)
 	w.WriteHeader(200)
 	for i := 0; i < 20; i++ {
@@ -138,7 +138,7 @@ func TestTelegramDownloadIdleRule(t *testing.T) {
 
 func TestGitlabUploadSlowBodySucceedsAndRetriesTransient(t *testing.T) {
 	var calls int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if atomic.AddInt32(&calls, 1) == 1 {
 			http.Error(w, "boom", http.StatusServiceUnavailable)
 			return
@@ -158,7 +158,7 @@ func TestGitlabUploadSlowBodySucceedsAndRetriesTransient(t *testing.T) {
 }
 
 func TestGitlabUploadStalledServerFails(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 		case <-time.After(5 * time.Second):
@@ -176,7 +176,7 @@ func TestGitlabUploadStalledServerFails(t *testing.T) {
 
 func TestTelegramMissingFileMapsToErrNotFound(t *testing.T) {
 	for _, status := range []int{http.StatusBadRequest, http.StatusNotFound} {
-		tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		tg := newTelegramTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(status)
 			_, _ = w.Write([]byte(`{"ok":false,"error_code":400,"description":"Bad Request: wrong file_id or the file is temporarily unavailable"}`))
 		})
@@ -188,7 +188,7 @@ func TestTelegramMissingFileMapsToErrNotFound(t *testing.T) {
 }
 
 func TestTelegramAuthFailureIsNotErrNotFound(t *testing.T) {
-	tg := newTelegramTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+	tg := newTelegramTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"ok":false,"error_code":401,"description":"Unauthorized"}`))
 	})

@@ -40,7 +40,7 @@ func echoLen(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, _ = w.Write([]byte{byte(len(b))})
+	_, _ = w.Write([]byte{byte(len(b) & 0xff)})
 }
 
 func TestSlowChunkUploadSurvivesFlatServerReadTimeout(t *testing.T) {
@@ -56,7 +56,7 @@ func TestSlowChunkUploadSurvivesFlatServerReadTimeout(t *testing.T) {
 		if err != nil {
 			return 0, err
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		return resp.StatusCode, nil
 	}
 	if code, err := do(flat.URL); err == nil && code == 200 {
@@ -69,7 +69,7 @@ func TestSlowChunkUploadSurvivesFlatServerReadTimeout(t *testing.T) {
 
 func TestSlowChunkDownloadSurvivesFlatServerWriteTimeout(t *testing.T) {
 	setStreamIdle(t, 400*time.Millisecond, time.Second)
-	send := func(w http.ResponseWriter, r *http.Request) {
+	send := func(w http.ResponseWriter, _ *http.Request) {
 		for i := 0; i < 8; i++ {
 			_, _ = w.Write([]byte("x"))
 			w.(http.Flusher).Flush()
@@ -77,11 +77,11 @@ func TestSlowChunkDownloadSurvivesFlatServerWriteTimeout(t *testing.T) {
 		}
 	}
 	read := func(url string) int {
-		resp, err := http.Get(url)
+		resp, err := http.Get(url) //nolint:gosec // url is the local test server
 		if err != nil {
 			return 0
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		b, _ := io.ReadAll(resp.Body)
 		return len(b)
 	}
@@ -102,13 +102,13 @@ func TestStalledChunkUploadIsCutNearIdleLimit(t *testing.T) {
 	srv := httptest.NewServer(idleStream(echoLen))
 	defer srv.Close()
 	pr, pw := io.Pipe()
-	defer pw.Close()
+	defer func() { _ = pw.Close() }()
 	go func() { _, _ = pw.Write([]byte("a")) }()
 	req, _ := http.NewRequest("PUT", srv.URL, pr)
 	start := time.Now()
 	resp, err := http.DefaultClient.Do(req)
 	if err == nil {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode == http.StatusOK {
 			t.Fatal("stalled upload must not succeed")
 		}
@@ -135,7 +135,7 @@ func TestSlowGetKeepsRequestContextPastIdleWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status %d: a GET working longer than the idle window lost its context", resp.StatusCode)
 	}
@@ -163,7 +163,7 @@ func TestUploadBodyDeadlineClearsAfterEOF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status %d: processing after the body ended lost its context", resp.StatusCode)
 	}

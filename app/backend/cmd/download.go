@@ -57,7 +57,7 @@ func (s *Server) readStagedOrRefresh(ctx context.Context, w http.ResponseWriter,
 		http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
 		return nil, chunk, true
 	}
-	data, err = os.ReadFile(filepath.Join(stagingDir, filepath.Base(chunk.ChunkID)+".enc"))
+	data, err = os.ReadFile(filepath.Join(stagingDir, filepath.Base(chunk.ChunkID)+".enc")) //nolint:gosec // base name of a database UUID
 	if err == nil {
 		return data, chunk, false
 	}

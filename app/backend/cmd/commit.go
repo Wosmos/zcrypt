@@ -126,7 +126,7 @@ func (s *Server) repushStaged(ctx context.Context, adapter adapters.PlatformAdap
 		return
 	}
 	for _, c := range chunks {
-		data, err := os.ReadFile(filepath.Join(stagingDir, c.ChunkID+".enc"))
+		data, err := os.ReadFile(filepath.Join(stagingDir, c.ChunkID+".enc")) //nolint:gosec // chunk id is a database UUID
 		if err != nil {
 			continue
 		}

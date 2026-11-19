@@ -14,14 +14,14 @@ func trickle(w http.ResponseWriter, n int, gap time.Duration) {
 	f := w.(http.Flusher)
 	w.WriteHeader(200)
 	for i := 0; i < n; i++ {
-		w.Write([]byte("x"))
+		_, _ = w.Write([]byte("x"))
 		f.Flush()
 		time.Sleep(gap)
 	}
 }
 
 func TestSlowButMovingDownloadSucceeds(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { trickle(w, 15, 20*time.Millisecond) }))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { trickle(w, 15, 20*time.Millisecond) }))
 	defer srv.Close()
 	c := NewClient(100 * time.Millisecond)
 	start := time.Now()
@@ -30,7 +30,7 @@ func TestSlowButMovingDownloadSucceeds(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil || len(b) != 15 {
 		t.Fatalf("got %d bytes err %v", len(b), err)
 	}
@@ -42,7 +42,7 @@ func TestSlowButMovingDownloadSucceeds(t *testing.T) {
 func TestStalledDownloadFailsNearIdleLimit(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("x"))
+		_, _ = w.Write([]byte("x"))
 		w.(http.Flusher).Flush()
 		select {
 		case <-r.Context().Done():
@@ -57,7 +57,7 @@ func TestStalledDownloadFailsNearIdleLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if !IsStalled(err) {
 		t.Fatalf("want stalled error, got %v", err)
 	}
@@ -67,7 +67,7 @@ func TestStalledDownloadFailsNearIdleLimit(t *testing.T) {
 }
 
 func TestStalledHeadersFail(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 		case <-time.After(5 * time.Second):
@@ -99,7 +99,7 @@ func (s *slowReader) Read(p []byte) (int, error) {
 func TestSlowButMovingUploadSucceeds(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
-		w.Write([]byte(strings.Repeat("o", len(b))))
+		_, _ = w.Write([]byte(strings.Repeat("o", len(b))))
 	}))
 	defer srv.Close()
 	c := NewClient(100 * time.Millisecond)
@@ -109,19 +109,19 @@ func TestSlowButMovingUploadSucceeds(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if len(b) != 15 {
 		t.Fatalf("got %d", len(b))
 	}
 }
 
 func TestStalledUploadFails(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.Copy(io.Discard, r.Body) }))
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { _, _ = io.Copy(io.Discard, r.Body) }))
 	defer srv.Close()
 	c := NewClient(150 * time.Millisecond)
 	pr, pw := io.Pipe()
-	defer pw.Close()
-	go pw.Write([]byte("a"))
+	defer func() { _ = pw.Close() }()
+	go func() { _, _ = pw.Write([]byte("a")) }()
 	req, _ := http.NewRequest("POST", srv.URL, pr)
 	start := time.Now()
 	_, err := c.Do(req)
@@ -134,7 +134,7 @@ func TestStalledUploadFails(t *testing.T) {
 }
 
 func TestCallerCancelStillWorks(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(50 * time.Millisecond); cancel() }()

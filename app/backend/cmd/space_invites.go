@@ -129,8 +129,8 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	member.Email = email
 	member.Username = target.Username
 
-	switch {
-	case member.Status == "active":
+	switch member.Status {
+	case "active":
 		s.notifyUser(target.ID, spaceEvent("inviteReceived", vaultID, map[string]string{"role": member.Role, "username": me.Username}))
 		s.spaceMemberAdded(ctx, vaultID, target.ID, member.Role, userID)
 	default:

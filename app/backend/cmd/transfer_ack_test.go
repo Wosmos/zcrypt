@@ -21,11 +21,11 @@ func dialTransfer(t *testing.T, srv *httptest.Server) (*websocket.Conn, context.
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { c.CloseNow() })
+	t.Cleanup(func() { _ = c.CloseNow() })
 	return c, ctx
 }
 
-func readType(t *testing.T, ctx context.Context, c *websocket.Conn) transferMessage {
+func readType(ctx context.Context, t *testing.T, c *websocket.Conn) transferMessage {
 	t.Helper()
 	_, msg, err := c.Read(ctx)
 	if err != nil {
@@ -47,7 +47,7 @@ func pairedTransfer(t *testing.T) (sender, receiver *websocket.Conn, ctx context
 	if err := sender.Write(ctx, websocket.MessageText, []byte(`{"type":"create"}`)); err != nil {
 		t.Fatal(err)
 	}
-	code := readType(t, ctx, sender)
+	code := readType(ctx, t, sender)
 	var c string
 	_ = json.Unmarshal(code.Data, &c)
 	receiver, _ = dialTransfer(t, srv)
@@ -55,10 +55,10 @@ func pairedTransfer(t *testing.T) (sender, receiver *websocket.Conn, ctx context
 	if err := receiver.Write(ctx, websocket.MessageText, join); err != nil {
 		t.Fatal(err)
 	}
-	if m := readType(t, ctx, receiver); m.Type != "paired" {
+	if m := readType(ctx, t, receiver); m.Type != "paired" {
 		t.Fatalf("receiver got %q", m.Type)
 	}
-	if m := readType(t, ctx, sender); m.Type != "paired" {
+	if m := readType(ctx, t, sender); m.Type != "paired" {
 		t.Fatalf("sender got %q", m.Type)
 	}
 	return sender, receiver, ctx
@@ -67,11 +67,11 @@ func pairedTransfer(t *testing.T) (sender, receiver *websocket.Conn, ctx context
 func TestTransferReceiverAckReachesSender(t *testing.T) {
 	sender, receiver, ctx := pairedTransfer(t)
 	_ = sender.Write(ctx, websocket.MessageText, []byte(`{"type":"done"}`))
-	if m := readType(t, ctx, receiver); m.Type != "done" {
+	if m := readType(ctx, t, receiver); m.Type != "done" {
 		t.Fatalf("receiver got %q", m.Type)
 	}
 	_ = receiver.Write(ctx, websocket.MessageText, []byte(`{"type":"ack"}`))
-	if m := readType(t, ctx, sender); m.Type != "ack" {
+	if m := readType(ctx, t, sender); m.Type != "ack" {
 		t.Fatalf("sender got %q, want ack", m.Type)
 	}
 }
@@ -80,7 +80,7 @@ func TestTransferReceiverCannotInjectOtherMessages(t *testing.T) {
 	sender, receiver, ctx := pairedTransfer(t)
 	_ = receiver.Write(ctx, websocket.MessageText, []byte(`{"type":"chunk","data":{}}`))
 	_ = receiver.Write(ctx, websocket.MessageText, []byte(`{"type":"cancel"}`))
-	if m := readType(t, ctx, sender); m.Type != "cancel" {
+	if m := readType(ctx, t, sender); m.Type != "cancel" {
 		t.Fatalf("sender got %q, want cancel (chunk must not be forwarded)", m.Type)
 	}
 }

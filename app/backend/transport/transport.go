@@ -16,8 +16,11 @@ import (
 )
 
 const (
-	IdleTimeout    = 60 * time.Second
+	// IdleTimeout is how long a transfer may move no bytes before it fails.
+	IdleTimeout = 60 * time.Second
+	// ConnectTimeout bounds dialing and the TLS handshake.
 	ConnectTimeout = 10 * time.Second
+	// ControlTimeout bounds a whole small control call.
 	ControlTimeout = 30 * time.Second
 )
 
@@ -28,7 +31,10 @@ func (e *StalledError) Error() string {
 	return "stalled: no bytes moved for " + e.Limit.String()
 }
 
-func (e *StalledError) Timeout() bool   { return true }
+// Timeout marks the error as a timeout for net.Error.
+func (e *StalledError) Timeout() bool { return true }
+
+// Temporary marks the error as retryable for net.Error.
 func (e *StalledError) Temporary() bool { return true }
 
 // IsStalled reports whether err came from the idle rule.
@@ -187,17 +193,17 @@ func Retryable(status int) bool {
 	return status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= 500
 }
 
-// Backoff is exponential backoff with jitter: base<<attempt capped at max, then
+// Backoff is exponential backoff with jitter: base<<attempt capped at limit, then
 // a random point in its upper half.
-func Backoff(attempt int, base, max time.Duration) time.Duration {
+func Backoff(attempt int, base, limit time.Duration) time.Duration {
 	if attempt > 16 {
 		attempt = 16
 	}
 	d := base << uint(attempt)
-	if d > max || d <= 0 {
-		d = max
+	if d > limit || d <= 0 {
+		d = limit
 	}
-	return d/2 + time.Duration(rand.Int63n(int64(d/2)+1))
+	return d/2 + time.Duration(rand.Int63n(int64(d/2)+1)) //nolint:gosec // retry jitter, not security
 }
 
 // RetryAfter is the longer of delay and a Retry-After header in seconds,

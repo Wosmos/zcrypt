@@ -126,7 +126,7 @@ func TestGithubListChunksEmptyRepo409(t *testing.T) {
 }
 
 func TestGithubListChunksMissingRepoIsDistinguishable(t *testing.T) {
-	g := newGithubFake("alice", func(r *http.Request) (*http.Response, error) {
+	g := newGithubFake("alice", func(_ *http.Request) (*http.Response, error) {
 		return jsonResp(404, `{"message":"Not Found"}`, nil), nil
 	})
 	_, err := g.ListChunks(context.Background(), "alice/repo")
@@ -158,7 +158,7 @@ func TestGithubDeleteSuccess(t *testing.T) {
 }
 
 func TestGithubDelete404Idempotent(t *testing.T) {
-	g := newGithubFake("alice", func(r *http.Request) (*http.Response, error) {
+	g := newGithubFake("alice", func(_ *http.Request) (*http.Response, error) {
 		return jsonResp(404, `{"message":"Not Found"}`, nil), nil
 	})
 	err := g.Delete(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "02/a.bin"})
@@ -257,7 +257,7 @@ func TestGithubDownload(t *testing.T) {
 }
 
 func TestGithubDownloadErrorStatus(t *testing.T) {
-	raw := &http.Client{Transport: rtFunc(func(r *http.Request) (*http.Response, error) {
+	raw := &http.Client{Transport: rtFunc(func(_ *http.Request) (*http.Response, error) {
 		return jsonResp(404, "nope", nil), nil
 	})}
 	g := &GithubAdapter{owner: "alice", token: "t", raw: raw}

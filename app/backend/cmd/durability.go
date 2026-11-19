@@ -229,7 +229,7 @@ func (s *Server) StartScheduledVerify(ctx context.Context) {
 		return
 	}
 	go func() {
-		first := verifyFirstRunDelay + time.Duration(rand.Int63n(int64(verifyFirstRunDelay)))
+		first := verifyFirstRunDelay + time.Duration(rand.Int63n(int64(verifyFirstRunDelay))) //nolint:gosec // schedule jitter, not security
 		timer := time.NewTimer(min(first, interval))
 		defer timer.Stop()
 		for {
@@ -257,6 +257,7 @@ func (s *Server) runScheduledVerify(ctx context.Context, userGap, repoGap time.D
 		log.Printf("verify: scheduled run: %v", err)
 		return
 	}
+	//nolint:gosec // scheduling order, not security
 	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
 	for i, id := range ids {
 		if i > 0 && userGap > 0 {
