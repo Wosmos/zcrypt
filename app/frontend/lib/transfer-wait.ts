@@ -1,5 +1,6 @@
 import { probeTelegram } from "@/lib/telegram-reach";
 import { resetTelegramUnreachable } from "@/lib/telegram-download";
+import { isTauri, transferRetryNow } from "@/lib/tauri";
 import { useTransferWait, type WaitReason } from "@/store/transfer-wait";
 
 /** How often waiting transfers look again for Telegram. */
@@ -51,6 +52,14 @@ export function retryWaitingNow(): Promise<void> {
     checking = null;
   });
   return checking;
+}
+
+/**
+ * The "Try again" button: check Telegram now for the transfers this tab holds,
+ * and wake the desktop or Android engine's own waiting transfers too.
+ */
+export async function tryAgainNow(): Promise<void> {
+  await Promise.allSettled([retryWaitingNow(), isTauri ? transferRetryNow() : undefined]);
 }
 
 /**

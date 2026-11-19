@@ -75,7 +75,7 @@ import {
 import { probeTelegram } from "@/lib/telegram-reach";
 import { relayFitsNow } from "@/lib/relay-gate";
 import { waitForTelegram } from "@/lib/transfer-wait";
-import { WaitReason } from "@/store/transfer-wait";
+import { WaitReason, applyEngineWait } from "@/store/transfer-wait";
 import { showWebTransferLimit, webFileLimitFor } from "@/lib/web-transfer-guard";
 import { createFrameBatch } from "@/lib/frame-batch";
 import type { WorkerOutput } from "@/workers/crypto-worker";
@@ -1879,6 +1879,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const { sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
         const unlistenRetry = await subscribeProgress((progress) => {
           if (progress.file_name !== item.file.name) return;
+          applyEngineWait(`up:${id}`, progress);
           const percent = blendDesktopUploadProgress(
             progress.stage,
             progress.bytes_done,
@@ -2047,6 +2048,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           i.status !== UploadStatus.Failed,
       );
       if (!item) return;
+      applyEngineWait(`up:${item.id}`, progress);
       const percent = blendDesktopUploadProgress(
         progress.stage,
         progress.bytes_done,

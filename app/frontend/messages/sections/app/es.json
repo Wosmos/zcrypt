@@ -164,7 +164,9 @@
         "choose": "Elige dónde guardar",
         "paused": "En pausa",
         "offline": "Esperando wifi",
-        "stopped": "Detenido"
+        "stopped": "Detenido",
+        "waitingTelegram": "Telegram está bloqueado en esta red. Activa una VPN y continúa solo.",
+        "waitingAllowance": "Se acabó el cupo de transferencia. Activa una VPN para enviar directo a Telegram y continúa solo."
       },
       "time": {
         "fewSeconds": "unos segundos",
@@ -203,7 +205,8 @@
         "allFailed": "{failed} no se pudieron enviar.",
         "downloaded": "{count} descargados.",
         "downloadedSomeFailed": "{count} descargados. {failed} no se pudieron descargar.",
-        "needsApp": "{count, plural, one {# archivo necesita} other {# archivos necesitan}} la app de escritorio."
+        "needsApp": "{count, plural, one {# archivo necesita} other {# archivos necesitan}} la app de escritorio.",
+        "blocked": "{count, plural, one {# archivo espera} other {# archivos esperan}} a Telegram. Activa una VPN y continúan solos."
       },
       "legend": {
         "done": "Listos",
@@ -231,7 +234,8 @@
         "allowance": "Por encima del cupo de transferencia del mes",
         "action": "Usar la app",
         "daily": "Por encima del cupo de transferencia de hoy"
-      }
+      },
+      "tryAgain": "Reintentar"
     },
     "tokens": {
       "expired": "Caducado",

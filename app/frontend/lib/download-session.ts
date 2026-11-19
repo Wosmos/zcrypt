@@ -144,6 +144,8 @@ export interface DownloadOptions {
    * AbortError). Omitted ⇒ every abort is a cancel (legacy behavior).
    */
   pausing?: () => boolean;
+  /** The transfer's row key (`dl:<id>`): lets a blocked Telegram or a used-up allowance hold the download instead of failing it. */
+  waitKey?: string;
 }
 
 /**
@@ -296,7 +298,7 @@ export async function downloadAndDecryptFile(
   const failCtl = new AbortController();
   const runSignal = signal ? AbortSignal.any([signal, failCtl.signal]) : failCtl.signal;
   let failure: { reason: unknown } | undefined;
-  const fetchChunk = createChunkSource(fileId);
+  const fetchChunk = createChunkSource(fileId, { waitKey: options?.waitKey });
 
   try {
     // No entry guard here: the only caller is the fetcher loop below, which

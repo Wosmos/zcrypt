@@ -164,7 +164,9 @@
         "choose": "选择保存位置",
         "paused": "已暂停",
         "offline": "等待 Wi-Fi",
-        "stopped": "已停止"
+        "stopped": "已停止",
+        "waitingTelegram": "此网络屏蔽了 Telegram。打开 VPN 后会自动继续。",
+        "waitingAllowance": "传输额度已用完。打开 VPN 直接发送到 Telegram，会自动继续。"
       },
       "time": {
         "fewSeconds": "几秒",
@@ -203,7 +205,8 @@
         "allFailed": "{failed} 个无法发送。",
         "downloaded": "已下载 {count} 个。",
         "downloadedSomeFailed": "已下载 {count} 个。{failed} 个无法下载。",
-        "needsApp": "{count} 个文件需要桌面应用。"
+        "needsApp": "{count} 个文件需要桌面应用。",
+        "blocked": "有 {count} 个文件在等待 Telegram。打开 VPN 后会自动继续。"
       },
       "legend": {
         "done": "已完成",
@@ -231,7 +234,8 @@
         "allowance": "超出本月传输额度",
         "action": "使用应用",
         "daily": "超出今天的传输额度"
-      }
+      },
+      "tryAgain": "重试"
     },
     "tokens": {
       "expired": "已过期",

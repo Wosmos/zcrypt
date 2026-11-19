@@ -52,6 +52,7 @@ import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import type { SidecarProgress } from "@/lib/tauri";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { useTransferWait } from "@/store/transfer-wait";
 
 const { notifyMock, getCachedThumbnailMock } = vi.hoisted(() => ({
   notifyMock: vi.fn(async (_event: import("@/lib/notify").NotifyEvent) => true),
@@ -2311,6 +2312,24 @@ describe("useUploadStore", () => {
       await flush(10);
       return { run, releases, sidecarUpload: sidecarUpload as Mock };
     }
+
+    it("marks a desktop upload waiting while the engine reports it, and clears it when it moves again", async () => {
+      const { subscribeProgress } = await import("@/lib/tauri");
+      let emit: ((p: Record<string, unknown>) => void) | undefined;
+      (subscribeProgress as Mock).mockImplementation(async (cb: typeof emit) => {
+        emit = cb;
+        return vi.fn();
+      });
+      const { run, releases } = await startGatedDesktopUpload(["/tmp/a.bin"]);
+      const id = useUploadStore.getState().queue[0].id;
+
+      emit!({ file_name: "a.bin", stage: "waiting", waiting: "allowance_used_up", bytes_done: 0, bytes_total: 5 });
+      expect(useTransferWait.getState().waits[`up:${id}`]).toBe("allowance_used_up");
+      emit!({ file_name: "a.bin", stage: "uploading", bytes_done: 2, bytes_total: 5 });
+      expect(useTransferWait.getState().waits).toEqual({});
+      for (const release of releases) release();
+      await run;
+    });
 
     it("uploads picked files concurrently instead of one after another", async () => {
       const { run, releases, sidecarUpload } = await startGatedDesktopUpload([

@@ -172,7 +172,10 @@ async function authedXhrPut(
     }
   }
   if (res.status < 200 || res.status >= 300) {
-    throw new ApiError(parseErrorBody(res.body), res.status, res.retryAfter);
+    throw (
+      webTransferLimitFrom(res.body, res.status) ??
+      new ApiError(parseErrorBody(res.body), res.status, res.retryAfter)
+    );
   }
 }
 

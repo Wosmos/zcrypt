@@ -28,6 +28,8 @@ import { toast } from "@/store/toast";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
 import { showWebTransferLimit } from "@/lib/web-transfer-guard";
+import { tryAgainNow } from "@/lib/transfer-wait";
+import { useTransferWait } from "@/store/transfer-wait";
 import { ChevronDown, Lock, X } from "@/lib/icons";
 import { cn, extOf, formatBytes, isImageFile, isVideoFile } from "@/lib/utils";
 import {
@@ -238,9 +240,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     return () => clearInterval(timer);
   }, [downloading]);
 
+  const waits = useTransferWait((s) => s.waits);
+
   const entries = useMemo<TransferEntry[]>(() => {
     const up = uploadQueue.map<TransferEntry>((item) => {
       const key = `up:${item.id}`;
+      const waiting = waits[key];
       const folderId = getItemFolderId(item.id);
       const total = item.totalBytes ?? item.file.size;
       const etaSeconds =
@@ -253,9 +258,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         direction: "upload",
         name: item.file.name,
         fileId: item.fileId,
-        state: uploadState(item),
+        state:
+          waiting && uploadState(item) === TransferState.Active
+            ? TransferState.Queued
+            : uploadState(item),
         view: describeUpload(
-          { ...item, etaSeconds },
+          { ...item, etaSeconds, waiting },
           { online, folderName: folderName(folderId), prevBar: bars[key], noPlatformText },
         ),
         sizeBytes: item.file.size,
@@ -270,6 +278,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     });
     const down = downloadQueue.map<TransferEntry>((item) => {
       const key = `dl:${item.id}`;
+      const waiting = waits[key];
       const etaSeconds = remainingFromElapsed(item.startedAt, item.progress, now);
       return {
         key,
@@ -277,9 +286,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         direction: "download",
         name: item.filename,
         fileId: item.fileId === "zip" ? undefined : item.fileId,
-        state: downloadState(item.status),
+        state:
+          waiting && downloadState(item.status) === TransferState.Active
+            ? TransferState.Queued
+            : downloadState(item.status),
         view: describeDownload(
-          { ...item, etaSeconds },
+          { ...item, etaSeconds, waiting },
           { online, folderName: "", prevBar: bars[key], noPlatformText },
         ),
         sizeBytes: item.fileSize,
@@ -290,7 +302,17 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     return [...up, ...down].sort(
       (a, b) => STATE_RANK[a.state] - STATE_RANK[b.state] || b.startedAt - a.startedAt,
     );
-  }, [uploadQueue, downloadQueue, online, folderName, noPlatformText, getItemFolderId, bars, now]);
+  }, [
+    uploadQueue,
+    downloadQueue,
+    online,
+    folderName,
+    noPlatformText,
+    getItemFolderId,
+    bars,
+    now,
+    waits,
+  ]);
 
   useEffect(() => {
     recordBars(Object.fromEntries(entries.map((e) => [e.key, e.view.bar])));
@@ -366,6 +388,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           retryDownload(id, pass, resolveFilePasswordGlobal),
         );
     },
+    onTryAgain: () => void tryAgainNow(),
     onNeedsApp: (id: string) => {
       const item = uploadQueue.find((u) => u.id === id);
       if (item?.limit)
@@ -457,6 +480,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     active: sentenceList.filter((e) => e.state === TransferState.Active).length,
     waiting: sentenceList.filter((e) => e.state === TransferState.Queued).length,
     paused: sentenceList.filter((e) => e.state === TransferState.Paused).length,
+    blocked: sentenceList.filter((e) => e.view.phase === "waiting").length,
     photos: sentenceList.length > 0 && sentenceList.every((e) => isPhoto(e.name)),
     folderName: folderName(mainFolder),
     online,

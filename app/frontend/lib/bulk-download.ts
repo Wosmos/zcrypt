@@ -56,6 +56,8 @@ export interface BulkDownloadOptions {
   resolvePassword?: DownloadPasswordResolver;
   /** Stream the archive here instead of assembling it in memory. */
   saveToDisk?: DiskWritable;
+  /** The transfer's row key (`dl:<id>`): lets a blocked Telegram or a used-up allowance hold the archive instead of failing it. */
+  waitKey?: string;
 }
 
 export interface BulkDownloadReport {
@@ -148,6 +150,7 @@ async function fetchVerifiedFile(
   resolvePassword: DownloadPasswordResolver | undefined,
   pool: WorkerPool,
   fits: (size: number) => void,
+  waitKey?: string,
 ): Promise<Uint8Array[]> {
   // A per-file resolver (folder-protected files) overrides the shared passphrase.
   const meta = await getFileMeta(file.fileId);
@@ -173,7 +176,7 @@ async function fetchVerifiedFile(
 
   const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);
   const chunkResults: Uint8Array[] = new Array(meta.chunk_count);
-  const fetchChunk = createChunkSource(file.fileId);
+  const fetchChunk = createChunkSource(file.fileId, { waitKey });
 
   // No entry guard: runWithConcurrency re-checks the signal immediately before
   // every worker call, so a duplicate here can never be the one that fires.
@@ -260,7 +263,7 @@ export async function downloadAsZip(
   passphrase: string,
   options?: BulkDownloadOptions & { run?: ZipRun; pausing?: () => boolean },
 ): Promise<BulkDownloadReport> {
-  const { onProgress, signal, resolvePassword, saveToDisk, pausing } = options ?? {};
+  const { onProgress, signal, resolvePassword, saveToDisk, pausing, waitKey } = options ?? {};
   assertNotAborted(signal);
   const refusal = zipRefusal(files);
   if (refusal) throw new Error(refusal);
@@ -294,12 +297,20 @@ export async function downloadAsZip(
       let data: Uint8Array[];
       let cost = 0;
       try {
-        data = await fetchVerifiedFile(file, passphrase, signal, resolvePassword, pool, (size) => {
-          if (size > ZIP_ENTRY_MAX_BYTES) throw new Error(tr("l10n.zip.overLimit"));
-          cost =
-            size + ZIP_ENTRY_OVERHEAD + 2 * new TextEncoder().encode(zipEntryName(file)).length;
-          if (run.packed + cost > ZIP32_MAX_BYTES) throw new Error(tr("l10n.zip.tooBig"));
-        });
+        data = await fetchVerifiedFile(
+          file,
+          passphrase,
+          signal,
+          resolvePassword,
+          pool,
+          (size) => {
+            if (size > ZIP_ENTRY_MAX_BYTES) throw new Error(tr("l10n.zip.overLimit"));
+            cost =
+              size + ZIP_ENTRY_OVERHEAD + 2 * new TextEncoder().encode(zipEntryName(file)).length;
+            if (run.packed + cost > ZIP32_MAX_BYTES) throw new Error(tr("l10n.zip.tooBig"));
+          },
+          waitKey,
+        );
         run.packed += cost;
       } catch (err) {
         if (isAbort(err)) throw err;

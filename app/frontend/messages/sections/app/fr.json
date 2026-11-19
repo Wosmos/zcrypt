@@ -164,7 +164,9 @@
         "choose": "Choisissez où enregistrer",
         "paused": "En pause",
         "offline": "En attente du Wi-Fi",
-        "stopped": "Arrêté"
+        "stopped": "Arrêté",
+        "waitingTelegram": "Telegram est bloqué sur ce réseau. Activez un VPN et le transfert reprend tout seul.",
+        "waitingAllowance": "Le quota de transfert est épuisé. Activez un VPN pour envoyer directement vers Telegram et le transfert reprend tout seul."
       },
       "time": {
         "fewSeconds": "quelques secondes",
@@ -203,7 +205,8 @@
         "allFailed": "{failed} n'ont pas pu être envoyés.",
         "downloaded": "{count} téléchargés.",
         "downloadedSomeFailed": "{count} téléchargés. {failed} n'ont pas pu être téléchargés.",
-        "needsApp": "{count, plural, one {# fichier nécessite} other {# fichiers nécessitent}} l'application de bureau."
+        "needsApp": "{count, plural, one {# fichier nécessite} other {# fichiers nécessitent}} l'application de bureau.",
+        "blocked": "{count, plural, one {# fichier attend} other {# fichiers attendent}} Telegram. Activez un VPN et ils reprennent tout seuls."
       },
       "legend": {
         "done": "Terminés",
@@ -231,7 +234,8 @@
         "allowance": "Quota de transfert du mois dépassé",
         "action": "Utiliser l'app",
         "daily": "Quota de transfert du jour dépassé"
-      }
+      },
+      "tryAgain": "Réessayer"
     },
     "tokens": {
       "expired": "Expiré",

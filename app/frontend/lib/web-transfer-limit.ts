@@ -35,6 +35,16 @@ export function isAllowanceCode(code: WebTransferLimitCode): boolean {
   );
 }
 
+/** Whether `err` is the server turning a transfer away because an allowance window ran out. */
+export function isAllowanceRefusal(err: unknown): boolean {
+  if (err instanceof WebTransferLimitError) return isAllowanceCode(err.code);
+  return (
+    err instanceof ApiError &&
+    (err.code === WebTransferLimitCode.AllowanceExceeded ||
+      err.code === WebTransferLimitCode.DailyExceeded)
+  );
+}
+
 /** The time of day an allowance starts over, in the reader's language. The server counts UTC days. */
 export function formatResetTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(intlLocale(), {

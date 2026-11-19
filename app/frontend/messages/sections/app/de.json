@@ -164,7 +164,9 @@
         "choose": "Speicherort wählen",
         "paused": "Pausiert",
         "offline": "Wartet auf WLAN",
-        "stopped": "Gestoppt"
+        "stopped": "Gestoppt",
+        "waitingTelegram": "Telegram ist in diesem Netzwerk gesperrt. Schalte ein VPN ein, dann geht es von selbst weiter.",
+        "waitingAllowance": "Das Übertragungskontingent ist aufgebraucht. Schalte ein VPN ein, um direkt an Telegram zu senden, dann geht es von selbst weiter."
       },
       "time": {
         "fewSeconds": "ein paar Sekunden",
@@ -203,7 +205,8 @@
         "allFailed": "{failed} konnten nicht gesendet werden.",
         "downloaded": "{count} heruntergeladen.",
         "downloadedSomeFailed": "{count} heruntergeladen. {failed} konnten nicht geladen werden.",
-        "needsApp": "{count, plural, one {# Datei braucht} other {# Dateien brauchen}} die Desktop-App."
+        "needsApp": "{count, plural, one {# Datei braucht} other {# Dateien brauchen}} die Desktop-App.",
+        "blocked": "{count, plural, one {# Datei wartet} other {# Dateien warten}} auf Telegram. Schalte ein VPN ein, dann geht es von selbst weiter."
       },
       "legend": {
         "done": "Fertig",
@@ -231,7 +234,8 @@
         "allowance": "Über dem Übertragungskontingent des Monats",
         "action": "App nutzen",
         "daily": "Über dem heutigen Übertragungskontingent"
-      }
+      },
+      "tryAgain": "Erneut versuchen"
     },
     "tokens": {
       "expired": "Abgelaufen",

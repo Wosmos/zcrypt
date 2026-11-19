@@ -164,7 +164,9 @@
         "choose": "Choose where to save",
         "paused": "Paused",
         "offline": "Waiting for Wi-Fi",
-        "stopped": "Stopped"
+        "stopped": "Stopped",
+        "waitingTelegram": "Telegram is blocked on this network. Turn on a VPN and it continues by itself.",
+        "waitingAllowance": "Transfer allowance used up. Turn on a VPN to send straight to Telegram and it continues by itself."
       },
       "time": {
         "fewSeconds": "a few seconds",
@@ -203,7 +205,8 @@
         "allFailed": "{failed} couldn't be sent.",
         "downloaded": "{count} downloaded.",
         "downloadedSomeFailed": "{count} downloaded. {failed} couldn't be downloaded.",
-        "needsApp": "{count, plural, one {# file needs} other {# files need}} the desktop app."
+        "needsApp": "{count, plural, one {# file needs} other {# files need}} the desktop app.",
+        "blocked": "{count, plural, one {# file is} other {# files are}} waiting for Telegram. Turn on a VPN and they continue by themselves."
       },
       "legend": {
         "done": "Done",
@@ -231,7 +234,8 @@
         "allowance": "Over this month's transfer allowance",
         "action": "Use the app",
         "daily": "Over today's transfer allowance"
-      }
+      },
+      "tryAgain": "Try again"
     },
     "tokens": {
       "expired": "Expired",

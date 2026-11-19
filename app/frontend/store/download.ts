@@ -34,6 +34,7 @@ import {
 } from "@/lib/disk-save";
 
 import { createFrameBatch } from "@/lib/frame-batch";
+import { applyEngineWait } from "@/store/transfer-wait";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
 import { isTransientError } from "@/lib/retry";
 import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
@@ -206,6 +207,7 @@ async function runBrowserZip(id: string): Promise<void> {
       resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
       run,
       pausing: () => zipPausedIds.has(id),
+      waitKey: `dl:${id}`,
     });
 
     updateProgress(id, DownloadStatus.Done, 100, "Done");
@@ -361,6 +363,7 @@ function runSingleDownload(id: string): Promise<void> {
         resolveKey: session.resolveKey,
         resume: session.resume,
         pausing: () => pausedIds.has(id),
+        waitKey: `dl:${id}`,
       });
 
       if (!isCurrentRun()) return;
@@ -564,6 +567,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       // we match on that (unlike upload, which can only match on file name).
       const unlisten = await subscribeProgress((p) => {
         if (p.file_id !== fileId) return;
+        applyEngineWait(`dl:${id}`, p);
         const percent =
           p.bytes_total > 0 ? Math.round((p.bytes_done / p.bytes_total) * 100) : undefined;
         updateProgress(id, DownloadStatus.Downloading, percent, p.stage);
@@ -711,7 +715,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       const fileIds = new Set(files.map((f) => f.fileId));
       const order = files.map((f) => f.fileId);
       const unlisten = await subscribeProgress((p) => {
-        if (!fileIds.has(p.file_id) || p.chunks_total <= 0) return;
+        if (!fileIds.has(p.file_id)) return;
+        applyEngineWait(`dl:${id}`, p);
+        if (p.chunks_total <= 0) return;
         const idx = order.indexOf(p.file_id);
         // Belt-and-braces: `order` and `fileIds` are built from the same `files`
         // array and the guard above already required a `fileIds` hit, so indexOf
