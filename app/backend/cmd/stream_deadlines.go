@@ -23,10 +23,12 @@ const streamWriteSlice = 64 * 1024
 func idleStream(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rc := http.NewResponseController(w)
-		_ = rc.SetReadDeadline(time.Now().Add(streamIdle))
 		_ = rc.SetWriteDeadline(time.Now().Add(streamResponseWindow))
 		if r.Body != nil && r.Body != http.NoBody {
+			_ = rc.SetReadDeadline(time.Now().Add(streamIdle))
 			r.Body = &idleReadBody{ReadCloser: r.Body, rc: rc}
+		} else {
+			_ = rc.SetReadDeadline(time.Time{})
 		}
 		h(&idleWriter{ResponseWriter: w, rc: rc}, r)
 	}
@@ -35,13 +37,24 @@ func idleStream(h http.HandlerFunc) http.HandlerFunc {
 type idleReadBody struct {
 	io.ReadCloser
 	rc *http.ResponseController
+	// done is set at EOF; the idle read deadline then no longer applies, or
+	// the server's background reader would cancel the request context.
+	done bool
 }
 
 func (b *idleReadBody) Read(p []byte) (int, error) {
+	if b.done {
+		return b.ReadCloser.Read(p)
+	}
 	now := time.Now()
 	_ = b.rc.SetReadDeadline(now.Add(streamIdle))
 	_ = b.rc.SetWriteDeadline(now.Add(streamResponseWindow))
-	return b.ReadCloser.Read(p)
+	n, err := b.ReadCloser.Read(p)
+	if err == io.EOF {
+		b.done = true
+		_ = b.rc.SetReadDeadline(time.Time{})
+	}
+	return n, err
 }
 
 type idleWriter struct {

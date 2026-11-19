@@ -117,3 +117,54 @@ func TestStalledChunkUploadIsCutNearIdleLimit(t *testing.T) {
 		t.Fatalf("took %v", time.Since(start))
 	}
 }
+
+func TestSlowGetKeepsRequestContextPastIdleWindow(t *testing.T) {
+	setStreamIdle(t, 150*time.Millisecond, 5*time.Second)
+	slow := func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			http.Error(w, "context canceled", http.StatusServiceUnavailable)
+		case <-time.After(500 * time.Millisecond):
+			_, _ = w.Write([]byte("ok"))
+		}
+	}
+	srv := httptest.NewServer(idleStream(slow))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d: a GET working longer than the idle window lost its context", resp.StatusCode)
+	}
+}
+
+func TestUploadBodyDeadlineClearsAfterEOF(t *testing.T) {
+	setStreamIdle(t, 150*time.Millisecond, 5*time.Second)
+	h := func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.ReadAll(r.Body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		select {
+		case <-r.Context().Done():
+			http.Error(w, "context canceled", http.StatusServiceUnavailable)
+		case <-time.After(500 * time.Millisecond):
+			_, _ = w.Write([]byte("ok"))
+		}
+	}
+	srv := httptest.NewServer(idleStream(h))
+	defer srv.Close()
+
+	req, _ := http.NewRequest("PUT", srv.URL, &trickleBody{n: 2})
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d: processing after the body ended lost its context", resp.StatusCode)
+	}
+}
