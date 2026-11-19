@@ -2,9 +2,9 @@
 set -euo pipefail
 dist="${1:?usage: check-native-bundle.sh <frontend-dist>}"
 fail=0
-if find "$dist" -path '*admin*' -print -quit | grep -q .; then
+if find "$dist" -mindepth 1 -path "$dist/*admin*" -print -quit | grep -q .; then
   echo "::error::admin files found in the app bundle:"
-  find "$dist" -path '*admin*' | head -20
+  find "$dist" -mindepth 1 -path "$dist/*admin*" | head -20
   fail=1
 fi
 if grep -rlF "/api/admin" "$dist" >/dev/null 2>&1; then

@@ -14,8 +14,10 @@
 package app.zcrypt.desktop
 
 import android.content.ContentResolver
+import android.Manifest
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.Bitmap
 import android.net.Uri
@@ -124,10 +126,18 @@ private fun readRow(c: Cursor, volume: String, video: Boolean): Row {
   )
 }
 
+/** How each volume and table query went, so one failure doesn't hide the rest. */
+private class ScanResult {
+  var ok = 0
+  var denied = 0
+  var failure: String? = null
+}
+
 /**
  * Walks the images and video tables of every external volume. `buckets` empty
  * means every album; `since` maps a volume to the generation already seen, so
- * only newer or changed rows come back (Android 11+, ignored before).
+ * only newer or changed rows come back (Android 11+, ignored before). A query
+ * that fails is counted and skipped; the rest still return.
  */
 private fun scan(
   context: Context,
@@ -136,7 +146,8 @@ private fun scan(
   videos: Boolean,
   since: Map<String, Long>,
   onRow: (Row) -> Unit,
-) {
+): ScanResult {
+  val result = ScanResult()
   val resolver: ContentResolver = context.contentResolver
   for (volume in volumes(context)) {
     for (video in listOf(false, true)) {
@@ -156,16 +167,24 @@ private fun scan(
         args += seen.toString()
         args += seen.toString()
       }
-      val cursor = resolver.query(
-        contentUri(volume, video),
-        projection(),
-        clauses.joinToString(" AND ").ifEmpty { null },
-        args.toTypedArray().ifEmpty { null },
-        "${MediaStore.MediaColumns.DATE_ADDED} DESC",
-      ) ?: continue
-      cursor.use { while (it.moveToNext()) onRow(readRow(it, volume, video)) }
+      try {
+        val cursor = resolver.query(
+          contentUri(volume, video),
+          projection(),
+          clauses.joinToString(" AND ").ifEmpty { null },
+          args.toTypedArray().ifEmpty { null },
+          "${MediaStore.MediaColumns.DATE_ADDED} DESC",
+        )
+        cursor?.use { while (it.moveToNext()) onRow(readRow(it, volume, video)) }
+        result.ok++
+      } catch (e: SecurityException) {
+        result.denied++
+      } catch (e: Exception) {
+        result.failure = e.message ?: e.javaClass.simpleName
+      }
     }
   }
+  return result
 }
 
 /** What Rust's `MediaSource` reads: the items to back up, and each one's bytes. */
@@ -183,7 +202,7 @@ class MediaStoreSource(private val context: Context) {
     val buckets = q.optJSONArray("buckets")?.let { a -> List(a.length()) { a.getString(it) } } ?: emptyList()
     val since = q.optJSONObject("since")?.let { o -> o.keys().asSequence().associateWith { o.getLong(it) } } ?: emptyMap()
     val items = JSONArray()
-    scan(context, buckets, kinds != "videos", kinds != "photos", since) { r ->
+    val scanned = scan(context, buckets, kinds != "videos", kinds != "photos", since) { r ->
       items.put(
         JSONObject()
           .put("uri", r.uri.toString())
@@ -201,7 +220,13 @@ class MediaStoreSource(private val context: Context) {
           .put("gen", r.generation),
       )
     }
-    JSONObject().put("items", items).toString()
+    if (scanned.ok == 0 && scanned.denied > 0 && scanned.failure == null) {
+      JSONObject().put("error", "denied").toString()
+    } else if (scanned.ok == 0 && scanned.failure != null) {
+      JSONObject().put("error", scanned.failure).toString()
+    } else {
+      JSONObject().put("items", items).toString()
+    }
   } catch (e: SecurityException) {
     JSONObject().put("error", "denied").toString()
   } catch (e: Exception) {
@@ -209,12 +234,40 @@ class MediaStoreSource(private val context: Context) {
   }
 
   /**
+   * True when Android 14 "selected photos" access is on, so a listing holds
+   * only what the person picked and not the whole library.
+   */
+  @Keep
+  fun isPartialAccess(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+      has(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) &&
+      !(has(Manifest.permission.READ_MEDIA_IMAGES) && has(Manifest.permission.READ_MEDIA_VIDEO))
+
+  private fun has(permission: String): Boolean =
+    context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+  private fun open(uri: Uri): Int =
+    context.contentResolver.openFileDescriptor(uri, "r")?.detachFd() ?: -1
+
+  /**
    * A detached file descriptor for the item, owned by the caller (Rust closes
-   * it), or -1 when it can't be opened, for example it was just deleted.
+   * it), or -1 when it can't be opened, for example it was just deleted. With
+   * the media-location permission the original is opened, so GPS EXIF stays.
    */
   @Keep
   fun openFd(uri: String): Int = try {
-    context.contentResolver.openFileDescriptor(Uri.parse(uri), "r")?.detachFd() ?: -1
+    val plain = Uri.parse(uri)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && has(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
+      try {
+        open(MediaStore.setRequireOriginal(plain))
+      } catch (e: SecurityException) {
+        open(plain)
+      } catch (e: UnsupportedOperationException) {
+        open(plain)
+      }
+    } else {
+      open(plain)
+    }
   } catch (e: Exception) {
     -1
   }

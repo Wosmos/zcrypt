@@ -142,6 +142,11 @@ pub trait MediaSource: Send + Sync {
     fn list(&self, query: &MediaQuery) -> Result<Vec<MediaItem>, MediaError>;
     /// The item's bytes, as an open file.
     fn open(&self, item: &MediaItem) -> Result<std::fs::File, String>;
+    /// True when the person shared only some photos (Android 14), so a listing
+    /// is not the whole library.
+    fn partial_access(&self) -> bool {
+        false
+    }
 }
 
 /// Reads the `{"items":[...]}` / `{"error":"..."}` the Android side answers with.
@@ -192,7 +197,8 @@ pub struct Migration {
 
 /// Carries what the path-based backup already uploaded over to the media
 /// ledger, so none of it goes up twice. Files are matched by folder and name
-/// (`RELATIVE_PATH` + `DISPLAY_NAME`); an album that was a subfolder of an old
+/// (`RELATIVE_PATH` + `DISPLAY_NAME`) and only when size and modified time still
+/// match what was uploaded; an album that was a subfolder of an old
 /// root keeps its vault folder.
 pub fn migrate_legacy(
     db: &LocalDb,
@@ -215,6 +221,10 @@ pub fn migrate_legacy(
         let Some(old) = by_path.get(&item.path()) else {
             continue;
         };
+        // Edited since its last backup: leave it unmarked so it goes up again.
+        if old.size != item.size || old.mtime_ns / 1_000_000_000 != item.modified {
+            continue;
+        }
         db.set_media_file(
             user_id,
             &item.key(),
@@ -350,11 +360,13 @@ pub async fn run_pass(
             let file = source.open(item).map_err(|e| {
                 EngineError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, e))
             })?;
+            let id = format!("{}:{}", item.volume, item.id);
             run_sealed_from(
                 ctx,
                 UploadSource::Open {
                     file: &file,
                     name: &item.name,
+                    id: &id,
                 },
                 Sealing::PublicKey(public),
                 None,
@@ -788,7 +800,7 @@ mod tests {
                     path,
                     &BackupFileState {
                         size: 5,
-                        mtime_ns: 1,
+                        mtime_ns: 1_000_000_000_000,
                         remote_file_id: id.into(),
                     },
                 )
@@ -847,5 +859,18 @@ mod tests {
         .unwrap();
         assert_eq!((r.report.unchanged, r.report.failed), (2, 0));
         assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn migration_leaves_items_edited_after_their_last_backup_unmarked() {
+        let (_d, ctx) = ctx("http://unused");
+        let root = legacy_root(&ctx);
+        let mut resized = item(1, "cam", "DCIM/Camera/", "a.jpg", false);
+        resized.size = 6;
+        let mut touched = item(2, "cam", "DCIM/Camera/", "b.jpg", false);
+        touched.modified = 1_001;
+        let m = migrate_legacy(&ctx.db, "u", &[resized, touched], &[root]).unwrap();
+        assert_eq!(m.marked, 0);
+        assert_eq!(ctx.db.media_file_count("u").unwrap(), 0);
     }
 }

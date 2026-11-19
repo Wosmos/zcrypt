@@ -5,11 +5,16 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 
+WEB_ONLY=(app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin")
+if [ -n "$(git status --porcelain -- "${WEB_ONLY[@]}")" ]; then
+  echo "error: uncommitted changes in the web-only routes; commit or stash them first (they are deleted and restored from git)" >&2
+  exit 1
+fi
+restore_web_routes() { git -C "$REPO" checkout -- "${WEB_ONLY[@]}"; }
+trap restore_web_routes EXIT
+
 echo "== [1/5] remove web-only dynamic routes for static export =="
-rm -rf app/frontend/app/s
-rm -rf "app/frontend/app/pad/[token]"
-rm -rf "app/frontend/app/send/[token]"
-rm -rf "app/frontend/app/(app)/admin"
+rm -rf "${WEB_ONLY[@]}"
 
 echo "== [2/5] build frontend static export =="
 # Backend origin: DESKTOP_API_URL env, else the LOCAL gitignored
@@ -27,7 +32,8 @@ bun run build
 
 echo "== [3/5] restore web-only routes from git (keep tree clean) =="
 cd "$REPO"
-git checkout -- app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin"
+restore_web_routes
+trap - EXIT
 
 echo "== [4/5] prepare frontend-dist =="
 rm -rf app/desktop/frontend-dist

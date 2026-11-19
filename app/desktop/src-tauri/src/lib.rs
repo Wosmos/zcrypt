@@ -258,7 +258,18 @@ fn permitted_key(key: &str) -> Result<&str, String> {
 
 /// Read a keychain secret, returning None for a missing/unreadable entry.
 fn keychain_read(key: &str) -> Option<String> {
-    secrets::get(key).ok().flatten()
+    off_worker(|| secrets::get(key).ok().flatten())
+}
+
+/// Runs a blocking keychain call without stalling a tokio worker (the first
+/// read on macOS can wait on the password prompt).
+fn off_worker<T>(f: impl FnOnce() -> T) -> T {
+    match tokio::runtime::Handle::try_current() {
+        Ok(h) if h.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => {
+            tokio::task::block_in_place(f)
+        }
+        _ => f(),
+    }
 }
 
 /// CredProvider backed by the OS keychain: the user's own platform tokens are
@@ -1450,22 +1461,38 @@ fn note_watched_backup(app: &tauri::AppHandle, path: &Path) {
 // OS keychain
 // ---------------------------------------------------------------------------
 
+async fn keychain_blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| format!("keychain: {e}"))?
+}
+
 #[tauri::command]
 async fn keychain_set(key: String, value: String) -> Result<(), String> {
-    let res =
-        secrets::set(permitted_key(&key)?, &value).map_err(|e| format!("keychain set: {}", e));
+    permitted_key(&key)?;
+    let res = keychain_blocking(move || {
+        secrets::set(&key, &value).map_err(|e| format!("keychain set: {}", e))
+    })
+    .await;
     invalidate_creds();
     res
 }
 
 #[tauri::command]
 async fn keychain_get(key: String) -> Result<Option<String>, String> {
-    secrets::get(permitted_key(&key)?).map_err(|e| format!("keychain get: {}", e))
+    permitted_key(&key)?;
+    keychain_blocking(move || secrets::get(&key).map_err(|e| format!("keychain get: {}", e))).await
 }
 
 #[tauri::command]
 async fn keychain_delete(key: String) -> Result<(), String> {
-    let res = secrets::delete(permitted_key(&key)?).map_err(|e| format!("keychain delete: {}", e));
+    permitted_key(&key)?;
+    let res = keychain_blocking(move || {
+        secrets::delete(&key).map_err(|e| format!("keychain delete: {}", e))
+    })
+    .await;
     invalidate_creds();
     res
 }
