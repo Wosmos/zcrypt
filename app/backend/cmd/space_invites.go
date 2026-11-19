@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -47,12 +48,6 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		writeCodedError(w, http.StatusForbidden, "forbidden", "only the owner or an admin can invite")
 		return
 	}
-	if !s.inviteLimiter.allow(userID) {
-		w.Header().Set("Retry-After", strconv.Itoa(int(inviteWindow.Seconds())))
-		writeCodedError(w, http.StatusTooManyRequests, "rate_limited", "too many invites, try again later")
-		return
-	}
-
 	var req types.SharedVaultAddMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeCodedError(w, http.StatusBadRequest, "invalid_request", "invalid request")
@@ -88,13 +83,24 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		writeCodedError(w, http.StatusBadRequest, "self_invite", "you can't invite yourself")
 		return
 	}
+	if s.keyLookupLimiter.exceeded(userID) {
+		tooManyInvites(w, keyLookupWindow)
+		return
+	}
 	target, err := s.db.GetUserByEmail(ctx, email)
 	if errors.Is(err, pgx.ErrNoRows) {
+		s.keyLookupLimiter.record(userID)
 		writeCodedError(w, http.StatusNotFound, "not_found", "no account with this email")
 		return
 	}
 	if err != nil {
 		internalError(w, "invite: find user", err)
+		return
+	}
+
+	pair := inviteKey(vaultID, target.ID)
+	if s.inviteLimiter.exceeded(pair) {
+		tooManyInvites(w, inviteWindow)
 		return
 	}
 
@@ -126,6 +132,7 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		internalError(w, "invite: add member", err)
 		return
 	}
+	s.inviteLimiter.record(pair)
 	member.Email = email
 	member.Username = target.Username
 
@@ -244,4 +251,15 @@ func (s *Server) announcePendingKeys(ctx context.Context, userID string) {
 	for _, id := range spaces {
 		s.spaceKeyNeeded(ctx, id, userID)
 	}
+}
+
+// inviteKey buckets invites per Space and invitee, so re-inviting the same
+// person can't be used to flood them with notifications.
+func inviteKey(vaultID, inviteeID string) string {
+	return vaultID + "|" + inviteeID
+}
+
+func tooManyInvites(w http.ResponseWriter, window time.Duration) {
+	w.Header().Set("Retry-After", strconv.Itoa(int(window.Seconds())))
+	writeCodedError(w, http.StatusTooManyRequests, "rate_limited", "too many invites, try again later")
 }
