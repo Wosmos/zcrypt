@@ -77,6 +77,7 @@ func (s *Server) StartCleanupWorker(ctx context.Context) {
 				return
 			case <-ticker.C:
 				s.runCleanupBatch(ctx)
+				s.sweepOrphanedStagingFiles(ctx)
 			}
 		}
 	}()
@@ -527,7 +528,9 @@ func removeStagedChunkFiles(chunkIDs []string) {
 
 // sweepOrphanedStagingFiles removes staged .enc files that no longer have a
 // chunks row: orphans accumulated by every historical cancel/purge/expiry
-// that deleted DB rows without touching the staging dir. Runs once at boot.
+// that deleted DB rows without touching the staging dir. Runs at boot and on
+// every cleanup cycle. Chunks that still have a row are never swept, even
+// exhausted ones: a requeue after a degraded sync re-reads their staging copy.
 // Files younger than an hour are skipped: HandleChunkUpload stages the file
 // BEFORE inserting its chunk row, so a very fresh file can be live yet not in
 // the DB for a moment.
