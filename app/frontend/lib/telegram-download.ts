@@ -5,7 +5,9 @@ import { TelegramApiError, type TelegramTarget } from "@/lib/telegram-direct";
 import {
   DIRECT_UNREACHABLE_FOR_MS,
   FILE_PATH_TTL_MS,
-  fetchIdleBody, withControlTimeout } from "@/lib/transport";
+  fetchIdleBody,
+  withControlTimeout,
+} from "@/lib/transport";
 
 /** Telegram never answered the request itself: offline, blocked, or refused by CORS. */
 export class TelegramUnreachableError extends Error {
