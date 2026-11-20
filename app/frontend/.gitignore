@@ -1,3 +1,6 @@
 
 # Vercel local project link (identifiers, not for the repo)
 .vercel
+/dist/
+.vinext/
+.cloudflare/
