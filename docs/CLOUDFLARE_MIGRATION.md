@@ -35,6 +35,14 @@ Verified locally on the Worker build (`vite preview`, workerd):
 - the `/api` proxy, security headers, sign-in, vault unlock, and an HF download through a direct link;
 - the full Playwright suite: 33 passed, 1 skipped on purpose.
 
+## Release data: cached until the next release
+
+`/download` shows the latest GitHub release.
+
+- **Cached data:** the release fetch is kept until a release clears it (`lib/releases.ts`, tag `github-release`), with a one-day refresh as a safety net.
+- **What clears it:** when `device.yml` publishes a release, it calls `POST /hooks/release` (`app/hooks/release/route.web.tsx`, Bearer `RELEASE_HOOK_SECRET`). That clears the cached data and `/download`. It then purges `/download` from Cloudflare's cache by URL.
+- **Load:** at 10k visits a day this is about 1 GitHub call and about 15 page renders a day. The old 5-minute refresh meant up to 288 calls and about 4,000 renders.
+
 ## What I need from you
 
 1. **Cloudflare account**
@@ -43,9 +51,15 @@ Verified locally on the Worker build (`vite preview`, workerd):
 2. **The `zcrypt.cloud` zone on Cloudflare,** if it isn't there yet: point the nameservers to Cloudflare. Then:
    - attach the Worker to `www.zcrypt.cloud` (and the apex redirect) as a Custom Domain;
    - turn on **Rules → Managed Transforms → "Add visitor location headers"**. Without it, the Worker gets the country but not the region and city.
-3. **Worker secret:** `ZCRYPT_PROXY_SECRET`, set as a secret on the Worker and on Railway with the same value. Without it, the backend sees every native-app call as coming from Cloudflare's address: rate limits and the abuse guard collapse onto one IP, and geo is wrong.
+3. **Worker secret:** `ZCRYPT_PROXY_SECRET`, declared in `cloudflare.config.ts` and set as a secret on the Worker and on Railway with the same value. Without it, the backend sees every native-app call as coming from Cloudflare's address: rate limits and the abuse guard collapse onto one IP, and geo is wrong.
 4. **GitHub repository variables,** baked into the bundle at build: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` (from Web Analytics → add site).
-5. **KV:** the first deploy creates the `VINEXT_KV_CACHE` namespace. Free plan: 100k reads and 1k writes a day. The revalidated fetches write about 600 times a day, which fits.
+5. **KV:** the first deploy creates the `VINEXT_KV_CACHE` namespace. Free plan: 100k reads and 1k writes a day. With releases cached until the next release, the reviews (every 5 min) and download stats (hourly) write about 300 times a day.
+6. **Release hook:**
+   - `RELEASE_HOOK_SECRET`, with the same value as a Worker secret and as a GitHub secret.
+   - `CLOUDFLARE_PURGE_TOKEN`, an API token with Zone → Cache Purge on `zcrypt.cloud`.
+   - `CLOUDFLARE_ZONE_ID`.
+   - Without them, a release still shows within a day.
+7. **Plan: free or $5.** The free plan allows 10 ms of CPU per request. A cache miss renders a full React page, which may take longer and return error 1102. Measure the CPU per render on the `workers.dev` preview first; if it's over 10 ms, Workers Paid ($5/month) is needed.
 
 ## Cutover, in order
 

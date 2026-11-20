@@ -19,6 +19,10 @@ export default defineConfig({
       ...workersCache.env,
       ASSETS: bindings.assets(),
       VINEXT_KV_CACHE: bindings.kv(),
+      // Set with the Cloudflare dashboard or CLI, never in the repo. Locally,
+      // put them in app/frontend/.dev.vars (gitignored).
+      ZCRYPT_PROXY_SECRET: bindings.secret(),
+      RELEASE_HOOK_SECRET: bindings.secret(),
     },
   }),
 });
