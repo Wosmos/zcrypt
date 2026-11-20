@@ -99,6 +99,8 @@ jobs:
           rm -rf "app/frontend/app/pad/[token]"
           rm -rf "app/frontend/app/send/[token]"
           rm -rf "app/frontend/app/(app)/admin"
+          # The build type-checks unit tests, and some import the pages above.
+          rm -rf app/frontend/__tests__
 
       - name: Build frontend
         working-directory: app/frontend

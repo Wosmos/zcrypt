@@ -5,7 +5,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 
-WEB_ONLY=(app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin")
+# Unit tests go too: the build type-checks them, and some import the web-only pages.
+WEB_ONLY=(app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin" app/frontend/__tests__)
 if [ -n "$(git status --porcelain -- "${WEB_ONLY[@]}")" ]; then
   echo "error: uncommitted changes in the web-only routes; commit or stash them first (they are deleted and restored from git)" >&2
   exit 1
