@@ -50,7 +50,6 @@
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.3",
     "@tauri-apps/plugin-opener": "^2.7.2",
-    "@vercel/analytics": "^2.0.1",
     "@vinext/cloudflare": "^1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
