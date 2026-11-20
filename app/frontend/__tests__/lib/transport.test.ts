@@ -5,7 +5,9 @@ import {
   StalledError,
   backoffMs,
   fetchIdleBody,
+  idleWatch,
   retryAfterMs,
+  sleep,
   withControlTimeout,
 } from "@/lib/transport";
 import { ApiError } from "@/lib/http-error";
@@ -130,6 +132,80 @@ describe("withControlTimeout", () => {
   });
 });
 
+describe("withControlTimeout error translation", () => {
+  it("reports a cancel as an AbortError even when the call failed with some other error", async () => {
+    const caller = new AbortController();
+    const pending = withControlTimeout(
+      () =>
+        new Promise((_, reject) => {
+          caller.signal.addEventListener("abort", () => reject(new TypeError("network died")));
+        }),
+      caller.signal,
+    );
+    caller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError", message: "Cancelled" });
+  });
+
+  it("reports the 30s limit as a timeout even when the call failed with a non-abort error", async () => {
+    vi.useFakeTimers();
+    const pending = withControlTimeout(
+      (signal) =>
+        new Promise((_, reject) =>
+          signal.addEventListener("abort", () => reject(new TypeError("fetch failed"))),
+        ),
+    );
+    const assertion = expect(pending).rejects.toMatchObject({
+      name: "StalledError",
+      message: "Request timed out after 30s",
+    });
+    await vi.advanceTimersByTimeAsync(CONTROL_TIMEOUT_MS);
+    await assertion;
+  });
+
+  it("leaves an unrelated error untouched while nothing fired or was cancelled", async () => {
+    const boom = new Error("boom");
+    await expect(
+      withControlTimeout(async () => {
+        throw boom;
+      }),
+    ).rejects.toBe(boom);
+  });
+});
+
+describe("sleep", () => {
+  it("rejects at once with an AbortError when the signal is already aborted", async () => {
+    vi.useFakeTimers();
+    const ctl = new AbortController();
+    ctl.abort();
+    await expect(sleep(1_000, ctl.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("idleWatch", () => {
+  it("does not restart the idle clock after it already fired", () => {
+    vi.useFakeTimers();
+    const w = idleWatch(undefined, 1_000);
+    vi.advanceTimersByTime(1_000);
+    expect(w.signal.aborted).toBe(true);
+    w.touch();
+    expect(vi.getTimerCount()).toBe(0);
+    w.dispose();
+  });
+
+  it("restarts the idle clock on every touch while it has not fired", () => {
+    vi.useFakeTimers();
+    const w = idleWatch(undefined, 1_000);
+    vi.advanceTimersByTime(900);
+    w.touch();
+    vi.advanceTimersByTime(900);
+    expect(w.signal.aborted).toBe(false);
+    vi.advanceTimersByTime(100);
+    expect(w.signal.aborted).toBe(true);
+    w.dispose();
+  });
+});
+
 describe("backoff and Retry-After", () => {
   it("grows exponentially into the upper half of the capped delay", () => {
     for (let a = 0; a < 8; a++) {
@@ -165,6 +241,29 @@ describe("readJsonControl", () => {
     await assertion;
     expect(cancel).toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it("rejects at once and cancels the stream when the caller had already cancelled", async () => {
+    const { readJsonControl } = await import("@/lib/transport");
+    const ctl = new AbortController();
+    ctl.abort();
+    const cancel = vi.fn(async () => {});
+    const res = { body: { cancel }, json: () => new Promise(() => {}) } as unknown as Response;
+    await expect(readJsonControl(res, ctl.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("still ends with an AbortError when cancelling the stream itself fails", async () => {
+    const { readJsonControl } = await import("@/lib/transport");
+    const ctl = new AbortController();
+    const cancel = vi.fn(async () => {
+      throw new Error("stream is locked");
+    });
+    const res = { body: { cancel }, json: () => new Promise(() => {}) } as unknown as Response;
+    const p = readJsonControl(res, ctl.signal);
+    ctl.abort();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces a caller abort as an AbortError", async () => {

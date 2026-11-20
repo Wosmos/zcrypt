@@ -3,6 +3,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const h = vi.hoisted(() => ({
   probeTelegram: vi.fn(),
   resetTelegramUnreachable: vi.fn(),
+  isTauri: false,
+  transferRetryNow: vi.fn(async () => {}),
+}));
+vi.mock("@/lib/tauri", () => ({
+  get isTauri() {
+    return h.isTauri;
+  },
+  transferRetryNow: h.transferRetryNow,
 }));
 vi.mock("@/lib/telegram-reach", () => ({ probeTelegram: h.probeTelegram }));
 vi.mock("@/lib/telegram-download", () => ({ resetTelegramUnreachable: h.resetTelegramUnreachable }));
@@ -12,6 +20,7 @@ import {
   cancelAllTransferWaits,
   hasTransferWaits,
   retryWaitingNow,
+  tryAgainNow,
   waitForTelegram,
 } from "@/lib/transfer-wait";
 import { WaitReason, applyEngineWait, useTransferWait } from "@/store/transfer-wait";
@@ -22,6 +31,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.probeTelegram.mockReset().mockResolvedValue("blocked");
   h.resetTelegramUnreachable.mockReset();
+  h.transferRetryNow.mockReset().mockResolvedValue(undefined);
+  h.isTauri = false;
 });
 afterEach(() => {
   cancelAllTransferWaits();
@@ -77,6 +88,27 @@ describe("waitForTelegram", () => {
     expect(h.probeTelegram).toHaveBeenCalledTimes(1);
   });
 
+  it("'Try again' with nothing waiting does not probe Telegram", async () => {
+    await retryWaitingNow();
+    expect(h.probeTelegram).not.toHaveBeenCalled();
+    expect(h.resetTelegramUnreachable).not.toHaveBeenCalled();
+  });
+
+  it("an abort that arrives after the wait already resumed leaves a newer wait on the same row alone", async () => {
+    const ctl = new AbortController();
+    const first = waitForTelegram("up:1", BLOCKED, ctl.signal);
+    h.probeTelegram.mockResolvedValue("ok");
+    await retryWaitingNow();
+    await first;
+
+    h.probeTelegram.mockResolvedValue("blocked");
+    void waitForTelegram("up:1", BLOCKED).catch(() => {});
+    ctl.abort();
+
+    expect(useTransferWait.getState().waits).toEqual({ "up:1": BLOCKED });
+    expect(hasTransferWaits()).toBe(true);
+  });
+
   it("stops waiting for a cancelled transfer and leaves the others waiting", async () => {
     const ctl = new AbortController();
     const a = waitForTelegram("up:1", BLOCKED, ctl.signal);
@@ -124,5 +156,31 @@ describe("applyEngineWait", () => {
     applyEngineWait("up:9", { stage: "waiting", waiting: "telegram_blocked" });
     applyEngineWait("up:9", { stage: "uploading" });
     expect(useTransferWait.getState().waits).toEqual({});
+  });
+});
+
+describe("tryAgainNow", () => {
+  it("in the browser, checks Telegram for this tab's waits and does not touch the engine", async () => {
+    const p = waitForTelegram("up:1", BLOCKED);
+    h.probeTelegram.mockResolvedValue("ok");
+    await tryAgainNow();
+    await p;
+    expect(h.probeTelegram).toHaveBeenCalledWith(true);
+    expect(h.transferRetryNow).not.toHaveBeenCalled();
+  });
+
+  it("in the desktop or Android app, also wakes the engine's own waiting transfers", async () => {
+    h.isTauri = true;
+    await tryAgainNow();
+    expect(h.transferRetryNow).toHaveBeenCalledTimes(1);
+  });
+
+  it("still resolves and still checks Telegram when the engine call fails", async () => {
+    h.isTauri = true;
+    h.transferRetryNow.mockRejectedValue(new Error("engine gone"));
+    const p = waitForTelegram("up:1", BLOCKED);
+    h.probeTelegram.mockResolvedValue("ok");
+    await expect(tryAgainNow()).resolves.toBeUndefined();
+    await p;
   });
 });

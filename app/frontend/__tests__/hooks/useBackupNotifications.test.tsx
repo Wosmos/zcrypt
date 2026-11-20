@@ -24,6 +24,36 @@ describe("useBackupNotifications", () => {
     expect(backupTemplates().files_from_other).toBe("{n} files backed up from {folder}");
   });
 
+  it("sends the choice and templates once more after the language catalog settles", () => {
+    renderHook(() => useBackupNotifications());
+    h.invoke.mockClear();
+
+    act(() => {
+      vi.advanceTimersByTime(1_499);
+    });
+    expect(h.invoke).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(h.invoke).toHaveBeenCalledTimes(1);
+    expect(h.invoke).toHaveBeenCalledWith("set_backup_notifications", {
+      prefs: { success: true, problems: true, templates: backupTemplates() },
+    });
+  });
+
+  it("does not send the delayed copy after it is unmounted", () => {
+    const { unmount } = renderHook(() => useBackupNotifications());
+    h.invoke.mockClear();
+    unmount();
+
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(h.invoke).not.toHaveBeenCalled();
+  });
+
   it("sends again when the transfers or problems switch changes", () => {
     renderHook(() => useBackupNotifications());
     h.invoke.mockClear();

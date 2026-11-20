@@ -381,7 +381,9 @@ export async function downloadAndDecryptFile(
     const rejection = settled.find((r) => r.status === "rejected") as
       | PromiseRejectedResult
       | undefined;
+    /* v8 ignore start -- every rejection sets `failure` or aborts, both handled above; kept as a backstop */
     if (rejection) throw rejection.reason;
+    /* v8 ignore stop */
 
     // Every chunk is in hand. Verify integrity. Streaming has been hashing in
     // write-order as chunks landed; in-memory hashes the full array now. No

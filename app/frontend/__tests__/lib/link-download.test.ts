@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { bytesToHex, createContentHasher, sha256Hex } from "@/lib/crypto";
 import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
-import { confirmLinkDownload, createLinkVerifier, needsDisk } from "@/lib/link-download";
+import { confirmLinkDownload, createLinkVerifier, needsDisk, verifiedDiskSink } from "@/lib/link-download";
 
 const key = new Uint8Array(32).fill(7).buffer;
 const data = new Uint8Array([1, 2, 3, 4]);
@@ -62,5 +62,31 @@ describe("confirmLinkDownload", () => {
         throw new DOMException("x", "AbortError");
       }, ctl.signal),
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+describe("verifiedDiskSink", () => {
+  it("has no sink when the file stays in memory, and no head", () => {
+    const update = vi.fn();
+    const { sink, head } = verifiedDiskSink(undefined, { update });
+    expect(sink).toBeUndefined();
+    expect(head()).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("hashes each chunk, writes it to disk in order and keeps only the first as the head", async () => {
+    const update = vi.fn();
+    const write = vi.fn(async (_d: Uint8Array) => {});
+    const disk = { write, close: vi.fn(async () => {}) };
+    const { sink, head } = verifiedDiskSink(disk, { update });
+    const a = new Uint8Array([1, 2]);
+    const b = new Uint8Array([3]);
+
+    await sink!(a);
+    await sink!(b);
+
+    expect(head()).toBe(a);
+    expect(update.mock.calls.map((c) => c[0])).toEqual([a, b]);
+    expect(write.mock.calls.map((c) => c[0])).toEqual([a, b]);
   });
 });

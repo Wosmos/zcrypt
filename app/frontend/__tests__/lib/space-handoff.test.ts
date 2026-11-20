@@ -9,24 +9,27 @@ const h = vi.hoisted(() => ({
   invalidate: vi.fn(),
   ready: true,
   user: { id: "owner" },
+  loadKey: vi.fn(),
+  fetchQuery: vi.fn(),
+  getVault: vi.fn(),
 }));
 
-vi.mock("@/lib/api", () => ({ completeSharedVaultMember: h.complete, getSharedVault: vi.fn() }));
+vi.mock("@/lib/api", () => ({ completeSharedVaultMember: h.complete, getSharedVault: h.getVault }));
 vi.mock("@/lib/key-pins", () => ({ checkPeerKey: h.check, pinPeerKey: h.pin }));
 vi.mock("@/lib/query-client", () => ({
-  queryClient: { invalidateQueries: h.invalidate, fetchQuery: vi.fn() },
+  queryClient: { invalidateQueries: h.invalidate, fetchQuery: h.fetchQuery },
 }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState: () => ({ user: h.user }) } }));
 vi.mock("@/store/keys", () => ({ useKeysStore: { getState: () => ({ ready: h.ready }) } }));
 vi.mock("@/lib/spaces", () => ({
-  loadSpaceKey: vi.fn(async () => new Uint8Array(32).fill(7)),
+  loadSpaceKey: h.loadKey,
   spacePerms: (v: { owner_id: string; role?: string }, id?: string) => ({
     manage: v.owner_id === id || v.role === "admin",
   }),
 }));
 vi.mock("@/lib/keys", () => ({ sealTo: h.seal }));
 
-import { HANDOFF_BACKOFF_MS, handOffPendingKeys, resetHandoffBackoff } from "@/lib/space-handoff";
+import { HANDOFF_BACKOFF_MS, handOffForSpace, handOffPendingKeys, resetHandoffBackoff } from "@/lib/space-handoff";
 import { toBase64 } from "@/lib/crypto";
 import type { SharedVaultDetail, SharedVaultMember } from "@/types";
 
@@ -46,6 +49,7 @@ const detail = (members: SharedVaultMember[], role = "admin"): SharedVaultDetail
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.loadKey.mockImplementation(async () => new Uint8Array(32).fill(7));
   vi.useRealTimers();
   resetHandoffBackoff();
   h.ready = true;
@@ -115,5 +119,65 @@ describe("handOffPendingKeys", () => {
     const d = detail([member({ user_id: "a" }), member({ user_id: "b" })]);
     expect(await handOffPendingKeys(d)).toBe(2);
     expect(h.complete.mock.calls.map((c) => c[1])).toEqual(["a", "b"]);
+  });
+});
+
+describe("handOffPendingKeys with nothing to hand over", () => {
+  it("returns 0 without loading the key when the detail has no member list", async () => {
+    const noMembers = { id: "s1", owner_id: "owner", role: "admin", files: [] } as unknown as SharedVaultDetail;
+    expect(await handOffPendingKeys(noMembers)).toBe(0);
+    expect(h.loadKey).not.toHaveBeenCalled();
+  });
+
+  it("returns 0 without loading the key when nobody is waiting", async () => {
+    expect(await handOffPendingKeys(detail([member({ status: "active" })]))).toBe(0);
+    expect(h.loadKey).not.toHaveBeenCalled();
+  });
+
+  it("does not hand over twice to a member whose hand-over is still in flight", async () => {
+    let finish: (v: object) => void = () => {};
+    h.complete.mockImplementationOnce(() => new Promise<object>((r) => (finish = r)));
+    const first = handOffPendingKeys(detail([member({})]));
+    await vi.waitFor(() => expect(h.complete).toHaveBeenCalledTimes(1));
+
+    expect(await handOffPendingKeys(detail([member({})]))).toBe(0);
+    expect(h.complete).toHaveBeenCalledTimes(1);
+
+    finish({});
+    expect(await first).toBe(1);
+  });
+});
+
+describe("handOffPendingKeys when the Space key cannot be loaded", () => {
+  it("returns 0 and posts nothing when the key is unavailable", async () => {
+    h.loadKey.mockResolvedValueOnce(null);
+    expect(await handOffPendingKeys(detail([member({})]))).toBe(0);
+    expect(h.complete).not.toHaveBeenCalled();
+  });
+
+  it("returns 0 and posts nothing when loading the key throws", async () => {
+    h.loadKey.mockRejectedValueOnce(new Error("vault locked"));
+    expect(await handOffPendingKeys(detail([member({})]))).toBe(0);
+    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.invalidate).not.toHaveBeenCalled();
+  });
+});
+
+describe("handOffForSpace", () => {
+  it("fetches the fresh member list uncached and hands the key to the waiting member", async () => {
+    h.fetchQuery.mockImplementationOnce(async (opts: { queryFn: () => Promise<unknown> }) => opts.queryFn());
+    h.getVault.mockResolvedValueOnce(detail([member({})]));
+    await handOffForSpace("s1");
+    expect(h.fetchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["space", "s1"], staleTime: 0 }),
+    );
+    expect(h.getVault).toHaveBeenCalledWith("s1");
+    expect(h.complete).toHaveBeenCalledWith("s1", "u2", "SEALED");
+  });
+
+  it("swallows a failed fetch and hands nothing over", async () => {
+    h.fetchQuery.mockRejectedValueOnce(new Error("offline"));
+    await expect(handOffForSpace("s1")).resolves.toBeUndefined();
+    expect(h.complete).not.toHaveBeenCalled();
   });
 });

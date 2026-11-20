@@ -289,6 +289,16 @@ describe("downloadSpaceFile", () => {
     expect(new Uint8Array(resolved)).toEqual(cek);
   });
 
+  it("treats the size as unknown (0) when the caller gives no options", async () => {
+    const spaceKey = generateSpaceKey();
+    useSpacesStore.getState().setSpaceKey("v", spaceKey);
+    const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), generateCEK()));
+
+    await downloadSpaceFile(vault("v"), "file-1", spaceWrappedCek, "file-1.bin");
+
+    expect(startDownload.mock.calls[0].slice(0, 4)).toEqual(["file-1", "file-1.bin", 0, ""]);
+  });
+
   it("throws when the space's key isn't available", async () => {
     await expect(
       downloadSpaceFile(vault("locked"), "file-9", "irrelevant", "file-9.bin")

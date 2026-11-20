@@ -67,6 +67,13 @@ describe("useUserEvents", () => {
     expect(h.deliver).not.toHaveBeenCalled();
   });
 
+  it("ignores a key-needed signal that carries no Space id", () => {
+    renderHook(() => useUserEvents());
+    h.handlers.spaceKeyNeeded({ data: '{"type":"spaceKeyNeeded","data":{},"url":""}' } as MessageEvent);
+    expect(h.handOff).not.toHaveBeenCalled();
+    expect(h.deliver).not.toHaveBeenCalled();
+  });
+
   it("both tells the person and refreshes on a member leaving", () => {
     renderHook(() => useUserEvents());
     h.handlers.memberLeft({ data: '{"type":"memberLeft","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);

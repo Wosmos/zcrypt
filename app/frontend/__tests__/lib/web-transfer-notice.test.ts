@@ -123,4 +123,23 @@ describe("noticeCopy", () => {
     expect(copy.body.key).toBe("dailyShortBody");
     expect(copy.body.values).toMatchObject({ needed: "14 MB", left: "9 MB", limit: "60 MB" });
   });
+
+  it("says the same for the monthly allowance, counting nothing used when the server sent no figure", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.AllowanceExceeded,
+      limitBytes: 20 * MB,
+      resetsAt: "2026-12-01T00:00:00Z",
+      neededBytes: 5 * MB,
+      files: [],
+    });
+    expect(copy.title).toEqual({ key: "allowanceShortTitle" });
+    expect(copy.body.key).toBe("allowanceShortBody");
+    expect(copy.body.values).toMatchObject({ needed: "5 MB", left: "20 MB", limit: "20 MB" });
+    expect(copy.body.values?.date).toBe("December 1");
+  });
+
+  it("does not use the short copy for a per-file cap even when a size was needed", () => {
+    const copy = noticeCopy({ ...tooBig, neededBytes: 5 * MB, resetsAt: "2026-12-01T00:00:00Z", files: [] });
+    expect(copy.title).toEqual({ key: "tooBigTitle" });
+  });
 });

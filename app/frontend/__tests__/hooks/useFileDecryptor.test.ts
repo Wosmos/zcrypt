@@ -326,6 +326,42 @@ describe("runDecryptPipeline", () => {
     expect(getFileChunkMock.mock.calls.map((c) => c[1])).toEqual([0, 1]);
   });
 
+  it("hands chunk fetches a signal that follows the caller's cancel, and surfaces it as an AbortError", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1 }));
+    let seen: AbortSignal | undefined;
+    getFileChunkMock.mockImplementation(
+      (_id: string, _index: number, sig?: AbortSignal) =>
+        new Promise((_, reject) => {
+          seen = sig;
+          sig?.addEventListener("abort", () => reject(new DOMException("x", "AbortError")));
+        }),
+    );
+    const ctl = new AbortController();
+
+    const pending = runDecryptPipeline(makeFile(), "pw", undefined, ctl.signal);
+    await vi.waitFor(() => expect(seen).toBeDefined());
+    expect(seen!.aborted).toBe(false);
+    ctl.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(seen!.aborted).toBe(true);
+    expect(processMock).not.toHaveBeenCalled();
+  });
+
+  it("throws an AbortError when the caller cancels while the last chunk is still being decrypted", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+    const ctl = new AbortController();
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockImplementation(async (input: { chunkIndex: number }) => {
+      ctl.abort();
+      return { chunkIndex: input.chunkIndex, plaintext: chunkPlaintext(input.chunkIndex) };
+    });
+
+    await expect(runDecryptPipeline(makeFile(), "pw", undefined, ctl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
   it("reuses one lazily created worker pool across decrypts and drops it on a lock", async () => {
     getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
     getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
@@ -569,6 +605,25 @@ describe("runDecryptPipeline on desktop", () => {
     expect(tauriMock.cancelTransfer).toHaveBeenCalledExactlyOnceWith(id);
     finish(new Uint8Array([1]));
     await p.catch(() => {});
+  });
+
+  it("ignores a failure to cancel the core and still finishes the decrypt", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    let finish: (b: Uint8Array) => void = () => {};
+    tauriMock.sidecarDecryptToMemory.mockImplementation(
+      () => new Promise<Uint8Array>((resolve) => (finish = resolve)),
+    );
+    tauriMock.cancelTransfer.mockRejectedValueOnce(new Error("already finished"));
+    const ctl = new AbortController();
+
+    const p = run(makeFile(), "pw", undefined, ctl.signal);
+    await vi.waitFor(() => expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalled());
+    ctl.abort();
+    await flushMicrotasks();
+    finish(new Uint8Array([7]));
+
+    await expect(p).resolves.toBeInstanceOf(Blob);
+    expect(tauriMock.cancelTransfer).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces an abort as an AbortError, not the core's cancelled message", async () => {
@@ -850,6 +905,31 @@ describe("useFileDecryptor", () => {
 
     expect(blob).toBeInstanceOf(Blob);
     expect(folderProtection.passwordForFile).toHaveBeenCalledWith(file);
+  });
+
+  it("starts its own decrypt when it joined a run that another caller's cancel ended", async () => {
+    const folderProtection = makeFolderProtection();
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
+    cachedDecryptMock.mockRejectedValueOnce(new DOMException("Cancelled", "AbortError"));
+
+    const { result } = renderHook(() => useFileDecryptor(folderProtection));
+    const blob = await result.current.decryptToBlob(makeFile(), undefined, new AbortController().signal);
+
+    expect(await blob.text()).toBe("chunk-0");
+    expect(cachedDecryptMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not start another decrypt when its own cancel ended the run", async () => {
+    const folderProtection = makeFolderProtection();
+    const ctl = new AbortController();
+    ctl.abort();
+    cachedDecryptMock.mockRejectedValue(new DOMException("Cancelled", "AbortError"));
+
+    const { result } = renderHook(() => useFileDecryptor(folderProtection));
+    await expect(result.current.decryptToBlob(makeFile(), undefined, ctl.signal)).rejects.toThrow();
+    expect(cachedDecryptMock).toHaveBeenCalledTimes(1);
   });
 
   it("maps a wrong-key failure to WrongPasswordError carrying the folder id when the file is protected", async () => {

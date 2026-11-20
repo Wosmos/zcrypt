@@ -166,6 +166,8 @@ type CanvasBehavior = {
   /** Simulate a canvas whose pixels can't be read back at all (a real browser
    *  throws SecurityError on a cross-origin-tainted canvas). */
   getImageDataThrows?: boolean;
+  /** What toDataURL("image/jpeg") returns, when it should differ from `dataUrl`. */
+  jpegUrl?: string;
 };
 let canvasBehavior: CanvasBehavior = {
   ctxAvailable: true,
@@ -192,7 +194,8 @@ function makeFakeCanvas() {
         },
       };
     },
-    toDataURL: () => canvasBehavior.dataUrl,
+    toDataURL: (type?: string) =>
+      type === "image/jpeg" && canvasBehavior.jpegUrl ? canvasBehavior.jpegUrl : canvasBehavior.dataUrl,
   } as unknown as HTMLCanvasElement;
 }
 
@@ -1828,5 +1831,165 @@ describe("useThumbnail failure kinds", () => {
     expect(gates.has("d")).toBe(false);
     gates.get("e")!();
     await waitFor(() => expect(next.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+  });
+});
+
+describe("useThumbnail edge paths", () => {
+  const chunkOk = { data: new ArrayBuffer(4), sha256: "x", compressed: false };
+
+  it.each(["IntegrityError", "ChunkDecryptError", "IncorrectPassphraseError", "WrongPasswordError"])(
+    "a %s from the decrypt is permanent: type icon, no retry, not unavailable",
+    async (name) => {
+      vi.useFakeTimers();
+      const { primeThumbnails, useThumbnail } = await loadModule();
+      getFileMetaMock.mockResolvedValue(makeMeta());
+      getFileChunkMock.mockRejectedValue(Object.assign(new Error("bad"), { name }));
+
+      act(() => primeThumbnails("vault-pass"));
+      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+      await act(async () => { await vi.advanceTimersByTimeAsync(100_000); });
+
+      expect(result.current.unavailable).toBe(false);
+      expect(result.current.pending).toBe(false);
+      expect(getFileMetaMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("cancels the pending retry timer when a retried preview fails again", async () => {
+    vi.useFakeTimers();
+    const setSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+    const { primeThumbnails, useThumbnail, retryThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockRejectedValue(new Error("network down"));
+
+    act(() => primeThumbnails("vault-pass"));
+    renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(getFileMetaMock).toHaveBeenCalledTimes(1);
+    const firstRetryIdx = setSpy.mock.calls.findIndex(([, ms]) => ms === 3_050);
+    expect(firstRetryIdx).toBeGreaterThanOrEqual(0);
+    const firstRetry = setSpy.mock.results[firstRetryIdx].value;
+    expect(clearSpy).not.toHaveBeenCalledWith(firstRetry);
+
+    act(() => retryThumbnail("f1"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+
+    expect(getFileMetaMock).toHaveBeenCalledTimes(2);
+    expect(clearSpy).toHaveBeenCalledWith(firstRetry);
+  });
+
+  it("keeps a large non-WebP raster only as a smaller JPEG", async () => {
+    canvasBehavior.dataUrl = "data:image/png;base64," + "A".repeat(78_001);
+    canvasBehavior.jpegUrl = "data:image/jpeg;base64,SMALLER";
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/jpeg;base64,SMALLER"));
+  });
+
+  it("keeps a small non-WebP raster as it is", async () => {
+    canvasBehavior.dataUrl = "data:image/png;base64,SMALL";
+    canvasBehavior.jpegUrl = "data:image/jpeg;base64,SHOULD-NOT-BE-USED";
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/png;base64,SMALL"));
+  });
+
+  it("skips a file whose folder locked between the preview check and the decrypt, without fetching it", async () => {
+    const answers = ["folder-pass", "folder-pass"];
+    const resolver: ThumbnailPasswordResolver = vi.fn(() => answers.shift() ?? null);
+    const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+
+    act(() => primeThumbnails("vault-pass", resolver));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(resolver).toHaveBeenCalledTimes(3);
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+    expect(hasCachedThumbnail("f1")).toBe(false);
+    expect(result.current.unavailable).toBe(false);
+  });
+
+  it("a tile unmounted before it starts generating leaves no failure behind, so the next mount generates", async () => {
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+
+    act(() => primeThumbnails("vault-pass"));
+    renderHook(() => useThumbnail("f1", "photo.jpg")).unmount();
+    await act(async () => { await Promise.resolve(); });
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+
+    const next = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(next.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+    expect(getFileMetaMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("a tile still queued when its safety net fires is retried after a backoff, not at once", async () => {
+    vi.useFakeTimers();
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockImplementation(() => new Promise(() => {}));
+
+    act(() => primeThumbnails("vault-pass"));
+    ["a", "b", "c", "d"].forEach((id) => renderHook(() => useThumbnail(id, "photo.jpg")));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(getFileMetaMock.mock.calls.map((c) => c[0]).sort()).toEqual(["a", "b", "c"]);
+
+    // Fire every safety net in one synchronous pass: "d" is still waiting for a slot.
+    act(() => { vi.advanceTimersByTime(10 * 60_000); });
+    getFileMetaMock.mockClear();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(getFileMetaMock.mock.calls.map((c) => c[0])).not.toContain("d");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_500); });
+    expect(getFileMetaMock.mock.calls.map((c) => c[0])).toContain("d");
+  });
+
+  it("a re-prime keeps a locked tile locked until its folder password is available", async () => {
+    let unlocked = false;
+    const resolver: ThumbnailPasswordResolver = () => (unlocked ? "folder-pass" : null);
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+
+    act(() => primeThumbnails("vault-pass", resolver));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(result.current.pending).toBe(false));
+
+    act(() => primeThumbnails("vault-pass", resolver));
+    await act(async () => { await Promise.resolve(); });
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+
+    unlocked = true;
+    act(() => primeThumbnails("vault-pass", resolver));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+  });
+
+  it("a re-prime without any resolver unlocks a tile that was locked by an earlier resolver", async () => {
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue(chunkOk);
+
+    act(() => primeThumbnails("vault-pass", () => null));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+
+    act(() => primeThumbnails("vault-pass"));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
   });
 });

@@ -43,7 +43,9 @@ export async function relayShortfall(bytes: number): Promise<WebTransferLimitErr
   ).find(([w]) => w && bytes > w.remaining);
   if (!short) return null;
   const [w, code] = short;
+  /* v8 ignore start -- find() above only matches a defined window; this narrows the type */
   if (!w) return null;
+  /* v8 ignore stop */
   return new WebTransferLimitError(
     code,
     {

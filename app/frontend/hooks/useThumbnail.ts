@@ -441,11 +441,13 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 function abortable<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(new DOMException("Cancelled", "AbortError"));
+    /* v8 ignore start -- acquireSlot returns with no await after its own aborted check, so no cancel can land in between */
     if (signal.aborted) {
       p.catch(() => {});
       onAbort();
       return;
     }
+    /* v8 ignore stop */
     signal.addEventListener("abort", onAbort, { once: true });
     p.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
   });
@@ -524,7 +526,9 @@ async function acquireSlot(fileId: string, signal: AbortSignal): Promise<void> {
     };
     const onAbort = () => {
       const idx = queue.indexOf(entry);
+      /* v8 ignore start -- run() removes this listener when it takes the entry off the queue */
       if (idx === -1) return;
+      /* v8 ignore stop */
       queue.splice(idx, 1);
       reject(new DOMException("Cancelled", "AbortError"));
     };
@@ -705,7 +709,9 @@ async function fetchAndCacheThumbnail(
     return null;
   } finally {
     clearTimeout(safetyNet);
+    /* v8 ignore start -- the inflight guard allows one run per file, so its controller is always the stored one */
     if (controllers.get(fileId) === ctl) controllers.delete(fileId);
+    /* v8 ignore stop */
     inflight.delete(fileId);
     if (slotHeld) releaseSlot();
     notify(fileId); // always: clears `loading`, and reflects the cached/failed result
@@ -979,7 +985,9 @@ export function useThumbnail(
     mounted.set(fileId, (mounted.get(fileId) ?? 0) + 1);
     return () => {
       observerRef.current?.disconnect();
+      /* v8 ignore start -- the effect above always registered this card, so the count exists */
       const left = (mounted.get(fileId) ?? 1) - 1;
+      /* v8 ignore stop */
       if (left > 0) {
         mounted.set(fileId, left);
         return;

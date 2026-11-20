@@ -269,6 +269,17 @@ describe("downloadAsZip: success paths", () => {
     expect(contents["c.txt"]).toBe("decompressed-content");
   });
 
+  it("adds a file with no chunks as an empty zip entry", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+
+    const report = await downloadAsZip([{ fileId: "id1", filename: "empty.txt", fileSize: 0 }], "pw");
+
+    expect(getFileChunk).not.toHaveBeenCalled();
+    expect(await capturedZipContents()).toEqual({ "empty.txt": "" });
+    expect(report.added).toBe(1);
+  });
+
   it("decrypts through the worker pool and frees the pool when done", async () => {
     const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("a"), enc.encode("b")] });
     getFileMeta.mockResolvedValueOnce(f.meta);

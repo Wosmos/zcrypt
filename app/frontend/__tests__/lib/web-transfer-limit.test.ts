@@ -49,6 +49,27 @@ describe("webTransferLimitMessage", () => {
     expect(msg).toBe("You've used your 20 GB transfer allowance for this month. Anything that goes straight to your own storage doesn't count.");
   });
 
+  it("says what a stopped transfer needed against what is left, for each window", () => {
+    const daily = webTransferLimitMessage(WebTransferLimitCode.DailyExceeded, {
+      limitBytes: 5 * GIB,
+      usedBytes: 3 * GIB,
+      neededBytes: 4 * GIB,
+      resetsAt: "2026-11-20T00:00:00Z",
+    });
+    expect(daily).toContain("4 GB");
+    expect(daily).toContain("2 GB");
+    expect(daily).toMatch(/12:00 AM/);
+
+    const monthly = webTransferLimitMessage(WebTransferLimitCode.AllowanceExceeded, {
+      limitBytes: 20 * GIB,
+      neededBytes: 3 * GIB,
+      resetsAt: "2026-12-01T00:00:00Z",
+    });
+    expect(monthly).toContain("3 GB");
+    expect(monthly).toContain("20 GB");
+    expect(monthly).toContain("December 1");
+  });
+
   it("never says relay", () => {
     for (const code of Object.values(WebTransferLimitCode)) {
       expect(webTransferLimitMessage(code, { limitBytes: GIB, resetsAt: "2026-12-01T00:00:00Z" })).not.toMatch(

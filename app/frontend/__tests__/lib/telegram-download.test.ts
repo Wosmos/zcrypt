@@ -27,6 +27,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("TelegramUnreachableError", () => {
+  it("names an Error cause by its message and anything else by its text", () => {
+    expect(new TelegramUnreachableError(new TypeError("Failed to fetch")).message).toBe(
+      "Telegram unreachable: Failed to fetch",
+    );
+    const odd = new TelegramUnreachableError("blocked");
+    expect(odd.message).toBe("Telegram unreachable: blocked");
+    expect(odd.name).toBe("TelegramUnreachableError");
+  });
+});
+
 describe("telegramFileIds", () => {
   it("takes the file id out of each msgId:fileId part, in order", () => {
     expect(telegramFileIds("1:AAA,2:BBB")).toEqual(["AAA", "BBB"]);
@@ -179,5 +190,29 @@ describe("downloadTelegramChunk", () => {
     );
     await expect(downloadTelegramChunk(target, "1:A")).rejects.toMatchObject({ status: 400 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to a status message when getFile refuses without a description", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: false }), { status: 400 }));
+    await expect(downloadTelegramChunk(target, "1:A")).rejects.toMatchObject({
+      message: "getFile failed: 400",
+      status: 400,
+    });
+  });
+
+  it("forgets every remembered file_path once the cache holds 4096, then remembers afresh", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("/getFile?") ? getFileOk("p/x") : bytes(1),
+    );
+    const many = Array.from({ length: 4097 }, (_, i) => `${i}:id${i}`).join(",");
+    await downloadTelegramChunk(target, many);
+    fetchMock.mockClear();
+
+    await downloadTelegramChunk(target, "1:id4096");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockClear();
+    await downloadTelegramChunk(target, "1:id0");
+    expect(fetchMock.mock.calls[0][0]).toContain("/getFile?file_id=id0");
   });
 });

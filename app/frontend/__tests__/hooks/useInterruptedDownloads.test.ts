@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 
-vi.mock("@/lib/tauri", () => ({ isTauri: false }));
+const tauri = vi.hoisted(() => ({ isTauri: false }));
+vi.mock("@/lib/tauri", () => ({
+  get isTauri() {
+    return tauri.isTauri;
+  },
+}));
 const warning = vi.hoisted(() => vi.fn());
 vi.mock("@/store/toast", () => ({ toast: { warning } }));
 
@@ -27,6 +32,7 @@ function unloadPage() {
 
 describe("interrupted downloads", () => {
   beforeEach(() => {
+    tauri.isTauri = false;
     sessionStorage.clear();
     warning.mockClear();
     useDownloadStore.setState({ queue: [] });
@@ -84,5 +90,17 @@ describe("interrupted downloads", () => {
     first.unmount();
     renderHook(() => useInterruptedDownloads());
     expect(warning.mock.calls[0][0]).toContain("f1.bin, f2.bin, f3.bin and 2 more");
+  });
+
+  it("does nothing in the desktop app, where downloads outlive a reload", () => {
+    tauri.isTauri = true;
+    sessionStorage.setItem("zc_dl_interrupted", JSON.stringify(["movie.mkv"]));
+    useDownloadStore.setState({ queue: [item("a", "movie.mkv", DownloadStatus.Downloading)] });
+
+    const hook = renderHook(() => useInterruptedDownloads());
+    hook.unmount();
+
+    expect(warning).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("zc_dl_interrupted")).toBe(JSON.stringify(["movie.mkv"]));
   });
 });

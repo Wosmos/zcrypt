@@ -283,6 +283,13 @@ describe("createChunkSource, chunks that only come through the server", () => {
     expect(m.getFileChunk).toHaveBeenCalledTimes(2);
   });
 
+  it("skips the allowance check and still relays when the locators cannot be read", async () => {
+    m.getFileLocators.mockRejectedValue(new Error("403"));
+    await expect(createChunkSource("f", { waitKey: "dl:1" })(0)).resolves.toEqual(relayChunk);
+    expect(m.relayShortfall).not.toHaveBeenCalled();
+    expect(m.getFileChunk).toHaveBeenCalledTimes(1);
+  });
+
   it("does not check for previews, which have no row to explain it on", async () => {
     mixed();
     m.relayShortfall.mockResolvedValue(short);

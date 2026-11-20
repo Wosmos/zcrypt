@@ -95,6 +95,12 @@ describe("transferAllowance", () => {
     expect(transferAllowance(base)).toBeNull();
   });
 
+  it("with only a per-file cap, has no windows and nothing left to count", () => {
+    const a = transferAllowance({ ...base, relay_max_file_bytes: 500 });
+    expect(a).toMatchObject({ daily: null, monthly: null, maxFileBytes: 500, remaining: null });
+    expect(webTransferUsage({ ...base, relay_max_file_bytes: 500 })).toBeNull();
+  });
+
   it("never reports a negative remainder", () => {
     expect(transferAllowance({ ...q, relay_day_used_bytes: 5000 })?.daily?.remaining).toBe(0);
   });
@@ -155,5 +161,24 @@ describe("lowestWindow", () => {
     });
     expect(w?.limit).toBe(1000);
     expect(w?.resetsAt).toBe("2026-11-20T00:00:00Z");
+  });
+
+  it("picks the emptier window when both are under a tenth", () => {
+    const quota = {
+      ...base,
+      relay_day_used_bytes: 950,
+      relay_day_limit_bytes: 1000,
+      relay_used_bytes: 4990,
+      relay_limit_bytes: 5000,
+    };
+    expect(lowestWindow(quota)).toMatchObject({ kind: "monthly", remaining: 10 });
+    expect(lowestWindow({ ...quota, relay_used_bytes: 4800 })).toMatchObject({ kind: "monthly", remaining: 200 });
+    expect(lowestWindow({ ...quota, relay_day_used_bytes: 999 })).toMatchObject({ kind: "daily", remaining: 1 });
+  });
+
+  it("names the monthly window when only it is low", () => {
+    expect(
+      lowestWindow({ ...base, relay_used_bytes: 4600, relay_limit_bytes: 5000 }),
+    ).toMatchObject({ kind: "monthly", remaining: 400 });
   });
 });

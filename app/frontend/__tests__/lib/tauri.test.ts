@@ -28,6 +28,12 @@ describe("tauri (outside the Tauri runtime)", () => {
     await expect(mod.getAppVersion()).resolves.toBeNull();
   });
 
+  it("transferRetryNow does nothing outside the app", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.transferRetryNow()).resolves.toBeUndefined();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("isTauri is false", async () => {
     const mod = await import("@/lib/tauri");
     expect(mod.isTauri).toBe(false);
@@ -218,6 +224,13 @@ describe("tauri (inside the Tauri runtime)", () => {
   it("isTauri is true", async () => {
     const mod = await import("@/lib/tauri");
     expect(mod.isTauri).toBe(true);
+  });
+
+  it("transferRetryNow asks the engine to look at its waiting transfers again", async () => {
+    invokeMock.mockResolvedValue(undefined);
+    const mod = await import("@/lib/tauri");
+    await mod.transferRetryNow();
+    expect(invokeMock).toHaveBeenCalledWith("transfer_retry_now", undefined);
   });
 
   it("tauriInvoke delegates to @tauri-apps/api/core invoke()", async () => {

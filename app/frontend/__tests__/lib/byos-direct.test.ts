@@ -109,6 +109,15 @@ describe("resolveWebDirect", () => {
     expect(await d.resolveWebDirect("telegram")).toBeNull();
   });
 
+  it("goes direct again once Telegram answered after an earlier fallback", async () => {
+    const d = await load();
+    d.disableWebDirect();
+    expect(await d.resolveWebDirect("telegram")).toBeNull();
+    d.enableWebDirect();
+    expect(d.isWebDirectDisabled()).toBe(false);
+    expect(await d.resolveWebDirect("telegram")).toEqual(TARGET);
+  });
+
   it("refetches the token after sign-out cleared it", async () => {
     const d = await load();
     await d.resolveWebDirect("telegram");
@@ -127,6 +136,45 @@ describe("resolveWebDirect", () => {
     finish(CREDS);
     expect(await pending).toEqual(TARGET);
     expect(d.cachedPlatformCredentials("telegram")).toBeUndefined();
+  });
+});
+
+describe("directPossible", () => {
+  it("is true for Telegram or Auto with an owned Telegram and a loadable token, whatever the network does", async () => {
+    const d = await load();
+    m.probeTelegram.mockResolvedValue("blocked");
+    expect(await d.directPossible("telegram")).toBe(true);
+    expect(await d.directPossible(undefined)).toBe(true);
+    expect(m.probeTelegram).not.toHaveBeenCalled();
+  });
+
+  it("is false for another platform without asking for the platform status", async () => {
+    const d = await load();
+    expect(await d.directPossible("github")).toBe(false);
+    expect(m.ensurePlatformStatus).not.toHaveBeenCalled();
+  });
+
+  it("is false when the only Telegram is shared", async () => {
+    const d = await load();
+    m.ensurePlatformStatus.mockResolvedValue([{ ...OWN_TELEGRAM, is_global: true }]);
+    expect(await d.directPossible("telegram")).toBe(false);
+    expect(m.getPlatformCredentials).not.toHaveBeenCalled();
+  });
+
+  it("is false when the token cannot be fetched", async () => {
+    const d = await load();
+    m.getPlatformCredentials.mockRejectedValue(new Error("404"));
+    expect(await d.directPossible("telegram")).toBe(false);
+  });
+});
+
+describe("ReconnectTelegramError", () => {
+  it("is a named Error carrying its message", async () => {
+    const d = await load();
+    const err = new d.ReconnectTelegramError("reconnect please");
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe("ReconnectTelegramError");
+    expect(err.message).toBe("reconnect please");
   });
 });
 

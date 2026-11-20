@@ -335,6 +335,12 @@ describe("uploads held back for the desktop app", () => {
       ctx,
     );
     expect(allowance.label).toEqual({ key: "needsApp.allowance" });
+    const daily = describeUpload(
+      up({ status: "failed", limit: { code: "relay_daily_exceeded" } }),
+      ctx,
+    );
+    expect(daily.phase).toBe("needsApp");
+    expect(daily.label).toEqual({ key: "needsApp.daily" });
   });
 
   it("sums the batch up as needing the app when nothing else happened", () => {

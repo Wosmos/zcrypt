@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { takeInterrupted, watchPageExit } from "@/lib/interrupted-downloads";
 
 afterEach(() => {
-  sessionStorage.clear();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 describe("interrupted downloads storage", () => {
@@ -42,6 +43,21 @@ describe("interrupted downloads storage", () => {
     const stop = watchPageExit(() => []);
     window.dispatchEvent(new Event("pagehide"));
     stop();
+    expect(takeInterrupted()).toEqual([]);
+  });
+
+  it("reads nothing and records nothing where there is no session storage", () => {
+    vi.stubGlobal("sessionStorage", undefined);
+    expect(takeInterrupted()).toEqual([]);
+    const stop = watchPageExit(() => ["x"]);
+    expect(() => window.dispatchEvent(new Event("pagehide"))).not.toThrow();
+    stop();
+  });
+
+  it("treats session storage that throws on access as absent", () => {
+    vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => {
+      throw new Error("blocked");
+    });
     expect(takeInterrupted()).toEqual([]);
   });
 });

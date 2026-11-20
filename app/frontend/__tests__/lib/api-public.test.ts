@@ -218,6 +218,23 @@ describe("anonymous send", () => {
     expect(chunk.compressed).toBe(false);
   });
 
+  it("sendCancel issues a DELETE for the session and swallows a failure", async () => {
+    await api.sendCancel("sess1");
+    expect(url()).toContain("/api/send/sess1");
+    expect(init().method).toBe("DELETE");
+
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    await expect(api.sendCancel("sess1")).resolves.toBeUndefined();
+  });
+
+  it("getFileLocators reads the owner-only locator list uncached", async () => {
+    const body = { file_id: "f1", chunks: [] };
+    fetchMock.mockResolvedValueOnce(mk(200, { json: body }));
+    expect(await api.getFileLocators("f1")).toEqual(body);
+    expect(url()).toContain("/api/files/f1/locators");
+    expect(init().cache).toBe("no-store");
+  });
+
   it("sendComplete surfaces the error body on failure", async () => {
     fetchMock.mockResolvedValueOnce(mk(409, { json: { error: "already completed" } }));
     await expect(api.sendComplete("s")).rejects.toThrow("already completed");

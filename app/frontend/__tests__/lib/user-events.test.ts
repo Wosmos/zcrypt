@@ -20,9 +20,7 @@ vi.mock("@/lib/api", () => ({ getSharedVault: vi.fn(async () => { throw new Erro
 vi.mock("@/lib/query-client", () => ({
   queryClient: {
     getQueryData: (key: readonly unknown[]) => h.cache.get(JSON.stringify(key)),
-    fetchQuery: async () => {
-      throw new Error("offline");
-    },
+    fetchQuery: async (opts: { queryFn: () => Promise<unknown> }) => opts.queryFn(),
   },
 }));
 vi.mock("@/lib/spaces", () => ({
@@ -37,6 +35,7 @@ vi.mock("@/lib/notify", async () => {
 import { deliverUserEvent, describeUserEvent, parseUserEvent, type UserEvent } from "@/lib/user-events";
 import { describeNotification } from "@/lib/notify";
 import { loadSpaceKey } from "@/lib/spaces";
+import { getSharedVault } from "@/lib/api";
 
 function event(type: string, data: Record<string, string>, url = "/spaces"): UserEvent {
   return { type, data, url };
@@ -66,6 +65,69 @@ describe("parseUserEvent", () => {
       url: "/spaces",
     });
     expect(parseUserEvent("memberLeft", "{nope")).toBeNull();
+  });
+
+  it("rejects a body that is not an object", () => {
+    expect(parseUserEvent("memberLeft", "null")).toBeNull();
+    expect(parseUserEvent("memberLeft", "5")).toBeNull();
+  });
+
+  it("defaults a missing data and url, and stringifies data values", () => {
+    expect(parseUserEvent("memberLeft", "{}")).toEqual({ type: "memberLeft", data: {}, url: "" });
+    expect(parseUserEvent("memberLeft", '{"data":{"count":3},"url":7}')).toEqual({
+      type: "memberLeft",
+      data: { count: "3" },
+      url: "",
+    });
+  });
+});
+
+describe("space name resolution", () => {
+  it("fetches an uncached Space by id and uses its plain name", async () => {
+    vi.mocked(getSharedVault).mockResolvedValueOnce({ id: "s9", name: "Plain" } as never);
+    const out = await copy(event("memberLeft", { space_id: "s9", username: "Wasif" }));
+    expect(getSharedVault).toHaveBeenCalledWith("s9");
+    expect(out).toMatchObject({ title: "Wasif left Plain" });
+  });
+
+  it("falls back to a generic name when sealing the Space name fails", async () => {
+    vi.mocked(loadSpaceKey).mockRejectedValueOnce(new Error("no key"));
+    expect(await copy(event("memberLeft", { space_id: "s1", username: "Wasif" }))).toMatchObject({
+      title: "Wasif left a Space",
+    });
+  });
+
+  it("reads the Space from the cached list when it has no detail entry", async () => {
+    h.cache.set(JSON.stringify(["spaces"]), [{ id: "other", name: "No" }, { id: "s7", name: "Listed" }]);
+    expect(await copy(event("memberLeft", { space_id: "s7", username: "Wasif" }))).toMatchObject({
+      title: "Wasif left Listed",
+    });
+  });
+
+  it("uses a generic name for a Space whose plain name is empty", async () => {
+    h.cache.set(JSON.stringify(["space", "s8"]), { id: "s8", name: "" });
+    expect(await copy(event("memberLeft", { space_id: "s8", username: "Wasif" }))).toMatchObject({
+      title: "Wasif left a Space",
+    });
+  });
+
+  it("falls back to a generic name when the sealed name opens to nothing", async () => {
+    vi.mocked(loadSpaceKey).mockResolvedValueOnce(null as never);
+    expect(await copy(event("memberLeft", { space_id: "s1", username: "Wasif" }))).toMatchObject({
+      title: "Wasif left a Space",
+    });
+  });
+
+  it("defaults the device, role, count and url when the event omits them", async () => {
+    expect(await describeUserEvent(event("newSignIn", {}, ""))).toMatchObject({ device: "", url: undefined });
+    expect(await describeUserEvent(event("roleChanged", { space_id: "s1" }))).toMatchObject({ role: "viewer" });
+    expect(await describeUserEvent(event("filesAdded", { space_id: "s1" }))).toMatchObject({ count: 1 });
+  });
+
+  it("has no notification model for an unknown event type, and skips delivering it", async () => {
+    expect(await describeUserEvent(event("somethingNew", {}))).toBeNull();
+    expect(await deliverUserEvent(event("somethingNew", {}), navigate)).toBe("skipped");
+    expect(h.info).not.toHaveBeenCalled();
   });
 });
 

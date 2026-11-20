@@ -87,10 +87,12 @@ function postDocument(
   signal?: AbortSignal,
 ): Promise<{ messageId: number; fileId: string }> {
   return new Promise((resolve, reject) => {
+    /* v8 ignore start -- retryTransient refuses to start an aborted attempt, so this guard is a backstop */
     if (signal?.aborted) {
       reject(new PausedError());
       return;
     }
+    /* v8 ignore stop */
     const form = new FormData();
     form.append("chat_id", target.chatId);
     form.append("disable_notification", "true");

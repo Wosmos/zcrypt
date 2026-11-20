@@ -264,6 +264,20 @@ describe("sendChunkUpload", () => {
     await expect(p).resolves.toBeUndefined();
   });
 
+  it("marks a compressed chunk and sends its hash header", async () => {
+    const p = api.sendChunkUpload("s", 3, new Uint8Array([1]), "abc", true);
+    expect(last().headers).toMatchObject({ "X-Chunk-SHA256": "abc", "X-Chunk-Compressed": "true" });
+    last().reply(200);
+    await expect(p).resolves.toBeUndefined();
+  });
+
+  it("does not mark an uncompressed chunk", async () => {
+    const p = upload();
+    expect(last().headers["X-Chunk-Compressed"]).toBeUndefined();
+    last().reply(200);
+    await p;
+  });
+
   it("gives up at once on a 403 with an ApiError", async () => {
     const p = upload();
     const assertion = expect(p).rejects.toMatchObject({ name: "ApiError", status: 403 });

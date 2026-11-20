@@ -320,8 +320,11 @@ export function batchSentence(c: BatchCounts): TransferLabel {
       : { key: "batch.saved", values: { count: c.done, folder: c.folderName } };
   }
   if (!c.online) return { key: "batch.offline" };
-  if (c.active === 0 && (c.blocked ?? 0) > 0 && c.paused === 0)
+  if (c.active === 0 && (c.blocked ?? 0) > 0 && c.paused === 0) {
+    /* v8 ignore start -- `?? 0` is for the type only: the guard above already needs blocked > 0 */
     return { key: "batch.blocked", values: { count: c.blocked ?? 0 } };
+    /* v8 ignore stop */
+  }
   if (c.active === 0)
     return c.paused > 0
       ? { key: "batch.paused", values: { count: open } }

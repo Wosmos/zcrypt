@@ -519,6 +519,28 @@ describe("downloadAndDecryptFile, abort/cancel", () => {
     expect(calls).toBe(1);
   });
 
+  it("stops a fetcher at the top of its loop when a cancel lands in the progress callback, before the next chunk is requested", async () => {
+    getDeviceProfile.mockReturnValue({ maxConcurrentDownloads: 1 });
+    getFileMeta.mockResolvedValueOnce(baseMeta(3, "irrelevant-since-aborted"));
+    const controller = new AbortController();
+    getFileChunk.mockImplementation(async (_id: string, index: number) => ({
+      data: chunkBytes(index).buffer,
+      sha256: "",
+      compressed: false,
+    }));
+
+    await expect(
+      downloadAndDecryptFile("f1", "pw", {
+        signal: controller.signal,
+        onProgress: (info) => {
+          if (info.stage.startsWith("Downloading")) controller.abort();
+        },
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(getFileChunk).toHaveBeenCalledTimes(1);
+  });
+
   it("aborts right after key resolution", async () => {
     const controller = new AbortController();
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "x"));
