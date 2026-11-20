@@ -1,6 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
-import { connectMockStorage, openDashboard, setupAuthenticatedUser } from "./helpers";
+import { connectMockStorage, loginUser, setupAuthenticatedUser, skipTourIfShown } from "./helpers";
 
 // The transfer allowance on bytes that pass through the server. CI starts the
 // backend with a small allowance (ci.yml: 12 MiB per file, 100 MiB a day,
@@ -10,6 +10,7 @@ const API_URL = process.env.E2E_API_URL || "http://localhost:8080";
 const MAX_FILE = Number(process.env.E2E_RELAY_MAX_FILE_BYTES || 0);
 const DAILY = Number(process.env.E2E_RELAY_DAILY_BYTES || 0);
 const SALT = Buffer.alloc(32, 7).toString("base64");
+const PASSPHRASE = "allowance-passphrase-2026";
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
@@ -23,7 +24,8 @@ function initUpload(req: APIRequestContext, token: string, size: number) {
   return req.post(`${API_URL}/api/upload/init`, {
     headers: { ...auth(token), "Content-Type": "application/json" },
     data: {
-      filename: `allowance-${randomBytes(4).toString("hex")}.bin`,
+      // The server only ever sees a client-sealed name.
+      encrypted_name: randomBytes(48).toString("base64"),
       original_size: size,
       sha256: randomBytes(32).toString("hex"),
       salt: SALT,
@@ -110,9 +112,14 @@ test.describe("Transfer allowance", () => {
 
     test.beforeEach(async ({ browser }) => {
       page = await browser.newPage();
-      ({ token } = await setupAuthenticatedUser(page));
+      const user = await setupAuthenticatedUser(page);
+      token = user.token;
       await connectMockStorage(page, token);
-      await openDashboard(page);
+      // Sign in through the real form, from a clean guest session.
+      await page.evaluate(() => localStorage.clear());
+      await page.context().clearCookies();
+      await loginUser(page, user.email, user.password);
+      await skipTourIfShown(page);
     });
 
     test.afterEach(async () => {
@@ -138,7 +145,22 @@ test.describe("Transfer allowance", () => {
           mimeType: "application/octet-stream",
           buffer: randomBytes(MAX_FILE + 1024),
         });
-      await expect(page.getByText("Too big for the browser")).toBeVisible({ timeout: 20_000 });
+      // A first upload unlocks the vault and confirms the passphrase once, as a person would.
+      const tooBig = page.getByText("Too big for the browser").first();
+      const unlock = page.getByPlaceholder("Your encryption passphrase");
+      const confirm = page.getByPlaceholder("Type it again");
+      await expect(tooBig.or(unlock).or(confirm).first()).toBeVisible({ timeout: 20_000 });
+      if (await unlock.isVisible()) {
+        await unlock.fill(PASSPHRASE);
+        await page.getByRole("button", { name: "Unlock", exact: true }).click();
+        await expect(tooBig.or(confirm).first()).toBeVisible({ timeout: 20_000 });
+      }
+      if (await confirm.isVisible()) {
+        await confirm.fill(PASSPHRASE);
+        await page.getByRole("checkbox", { name: /I understand my passphrase/ }).click();
+        await page.getByRole("button", { name: "I understand, continue" }).click();
+      }
+      await expect(tooBig).toBeVisible({ timeout: 20_000 });
 
       const q = await quota(page.request, token);
       expect(q.relay_day_used_bytes).toBe(0);

@@ -127,17 +127,6 @@ export async function connectMockStorage(page: Page, token: string): Promise<voi
   expect((await quota.json()).can_upload).toBe(true);
 }
 
-// Land on the dashboard after setupAuthenticatedUser, past first-run onboarding.
-export async function openDashboard(page: Page): Promise<void> {
-  await page.goto("/dashboard");
-  await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 20_000 });
-  if (page.url().includes("/onboarding")) {
-    await page.getByRole("button", { name: "Skip for now" }).click();
-    await page.waitForURL(/\/dashboard/, { timeout: 20_000 });
-  }
-  await page.getByRole("button", { name: "Account menu" }).waitFor({ timeout: 20_000 });
-}
-
 // Wait for toast notification to appear
 export async function waitForToast(page: Page, text: string | RegExp): Promise<void> {
   await expect(page.locator('[role="alert"], [data-toast]').filter({ hasText: text })).toBeVisible({
@@ -176,4 +165,16 @@ export async function uploadFile(
   await expect(
     page.locator('[data-testid="upload-complete"], [class*="success"]').filter({ hasText: fileName })
   ).toBeVisible({ timeout: 30_000 });
+}
+
+// Dismiss the first-run vault tour if it shows.
+export async function skipTourIfShown(p: Page) {
+  const skip = p.getByRole("button", { name: "Skip tour" });
+  try {
+    await skip.waitFor({ state: "visible", timeout: 1_500 });
+    await skip.click();
+    await skip.waitFor({ state: "hidden" });
+  } catch {
+    return;
+  }
 }

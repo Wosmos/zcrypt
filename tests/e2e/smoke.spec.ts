@@ -2,7 +2,7 @@ import { test, expect, request, type Browser, type BrowserContext, type Locator,
 import { execFileSync } from "child_process";
 import { createHash, randomBytes } from "crypto";
 import fs from "fs";
-import { loginUser, registerUser, testEmail } from "./helpers";
+import { loginUser, registerUser, skipTourIfShown, testEmail, testUsername } from "./helpers";
 
 // End-to-end smoke of the core product on the isolated stack. Storage is an
 // in-memory mock platform that the backend exposes only in an integration-tagged
@@ -75,17 +75,6 @@ function promoteToAdmin(adminEmail: string): boolean {
   }
 }
 
-async function skipTourIfShown(p: Page) {
-  const skip = p.getByRole("button", { name: "Skip tour" });
-  try {
-    await skip.waitFor({ state: "visible", timeout: 1_500 });
-    await skip.click();
-    await skip.waitFor({ state: "hidden" });
-  } catch {
-    return;
-  }
-}
-
 async function freshContext(browser: Browser): Promise<BrowserContext> {
   return browser.newContext({ acceptDownloads: true });
 }
@@ -136,7 +125,10 @@ async function adminPage(browser: Browser): Promise<Page | null> {
   const adminEmail = testEmail("smoke-admin");
   const ctx = await freshContext(browser);
   const p = await ctx.newPage();
-  await registerUser(p, adminEmail, PASSWORD);
+  const reg = await p.request.post(`${API_URL}/api/auth/register`, {
+    data: { email: adminEmail, password: PASSWORD, username: testUsername("smokeadmin") },
+  });
+  expect(reg.ok(), `admin register: ${reg.status()}`).toBeTruthy();
   if (!promoteToAdmin(adminEmail)) {
     await ctx.close();
     return null;

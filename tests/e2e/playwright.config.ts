@@ -8,6 +8,8 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: false, // Upload/download tests share state. Run sequentially
   forbidOnly: !!process.env.CI,
+  // Several tests sign up and sign in more than one browser.
+  timeout: 60_000,
   // One retry records a trace; a test that only passes on retry still fails the run.
   retries: process.env.CI ? 1 : 0,
   failOnFlakyTests: !!process.env.CI,

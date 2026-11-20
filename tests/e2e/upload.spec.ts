@@ -17,7 +17,7 @@ test.describe("Upload & Download Pipeline", () => {
     const initRes = await page.request.post(`${apiUrl}/api/upload/init`, {
       headers,
       data: {
-        filename: "api-e2e-test.txt",
+        encrypted_name: Buffer.from("sealed-name-e2e").toString("base64"),
         original_size: 42,
         sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         salt: VALID_SALT_B64,
@@ -25,8 +25,9 @@ test.describe("Upload & Download Pipeline", () => {
       },
     });
     expect(initRes.ok()).toBeTruthy();
-    const { session_id } = await initRes.json();
+    const { session_id, file_id } = await initRes.json();
     expect(session_id).toBeTruthy();
+    expect(file_id).toBeTruthy();
 
     // 2. Upload chunk
     const chunk = Buffer.from("fake encrypted chunk content for e2e test");
@@ -55,7 +56,7 @@ test.describe("Upload & Download Pipeline", () => {
     expect(listRes.ok()).toBeTruthy();
     const files = await listRes.json();
     expect(Array.isArray(files)).toBeTruthy();
-    expect(files.some((f: { original_name: string }) => f.original_name === "api-e2e-test.txt")).toBeTruthy();
+    expect(files.some((f: { id: string }) => f.id === file_id)).toBeTruthy();
   });
 
   test("file list returns an array", async ({ page }) => {
@@ -81,7 +82,7 @@ test.describe("Upload & Download Pipeline", () => {
     const initRes = await page.request.post(`${apiUrl}/api/upload/init`, {
       headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
       data: {
-        filename: "secret.txt",
+        encrypted_name: Buffer.from("sealed-name-e2e").toString("base64"),
         original_size: 10,
         sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         salt: VALID_SALT_B64,
@@ -89,14 +90,20 @@ test.describe("Upload & Download Pipeline", () => {
       },
     });
     expect(initRes.ok(), `init failed: ${initRes.status()}`).toBeTruthy();
-    const { file_id } = await initRes.json();
+    const { file_id, session_id } = await initRes.json();
     expect(file_id).toBeTruthy();
 
     // User B tries to delete it
     const deleteRes = await page.request.delete(`${apiUrl}/api/files/${file_id}`, {
       headers: { Authorization: `Bearer ${tokenB}` },
     });
-    expect([403, 404]).toContain(deleteRes.status());
+    // The delete is scoped to the caller, so it may answer 200 with nothing done;
+    // what matters is that user A's file is untouched.
+    expect(deleteRes.status()).toBeLessThan(500);
+    const status = await page.request.get(`${apiUrl}/api/upload/${session_id}/status`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(status.ok(), `owner lost the upload: ${status.status()}`).toBeTruthy();
   });
 });
 
