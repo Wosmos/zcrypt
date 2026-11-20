@@ -113,16 +113,29 @@ export async function setupAuthenticatedUser(page: Page): Promise<{
   return { email, password, token: access_token, refreshToken: refresh_token };
 }
 
-// Whether the backend has a usable storage platform configured for this user.
-// The upload pipeline requires a git-platform adapter (GitHub/GitLab/etc.); a
-// plain CI backend has none, so upload-dependent tests should skip rather than fail.
-export async function storageAvailable(page: Page, token: string): Promise<boolean> {
-  const res = await page.request.get(`${API_URL}/api/quota`, {
+// Give the user the backend's in-memory storage platform, so uploads really run.
+// It exists only in a `-tags=integration` build with DEV_MODE=true, which is
+// what CI starts; anything else is a broken setup and fails the test.
+export async function connectMockStorage(page: Page, token: string): Promise<void> {
+  const res = await page.request.post(`${API_URL}/api/dev/mock-storage`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok()) return false;
-  const body = await res.json();
-  return body.can_upload === true;
+  expect(res.ok(), "backend needs -tags=integration and DEV_MODE=true").toBeTruthy();
+  const quota = await page.request.get(`${API_URL}/api/quota`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect((await quota.json()).can_upload).toBe(true);
+}
+
+// Land on the dashboard after setupAuthenticatedUser, past first-run onboarding.
+export async function openDashboard(page: Page): Promise<void> {
+  await page.goto("/dashboard");
+  await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 20_000 });
+  if (page.url().includes("/onboarding")) {
+    await page.getByRole("button", { name: "Skip for now" }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 20_000 });
+  }
+  await page.getByRole("button", { name: "Account menu" }).waitFor({ timeout: 20_000 });
 }
 
 // Wait for toast notification to appear

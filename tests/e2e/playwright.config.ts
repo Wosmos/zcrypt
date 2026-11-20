@@ -8,7 +8,9 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: false, // Upload/download tests share state. Run sequentially
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // One retry records a trace; a test that only passes on retry still fails the run.
+  retries: process.env.CI ? 1 : 0,
+  failOnFlakyTests: !!process.env.CI,
   workers: process.env.CI ? 1 : 2,
   reporter: [
     ["list"],

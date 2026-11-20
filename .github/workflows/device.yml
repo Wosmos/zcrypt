@@ -2,7 +2,7 @@ name: Desktop & Android Build
 
 on:
   push:
-    branches: [main, convert-to-tauri]
+    branches: [main, staging, convert-to-tauri]
     paths:
       - "app/desktop/**"
       # zcrypt-core is compiled into both shells (path dependency).

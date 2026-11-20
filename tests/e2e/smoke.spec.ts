@@ -156,6 +156,8 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     const res = await probe.post(`${API_URL}/api/dev/mock-storage`);
     await probe.dispose();
     // 401 means the route exists (auth required); 404/405 means a build without it.
+    // CI always starts that build, so there a missing route is a failure, not a skip.
+    if (process.env.CI) expect(res.status(), "backend has no mock storage").toBe(401);
     test.skip(res.status() !== 401, "backend has no mock storage (needs -tags=integration and DEV_MODE=true)");
 
     const context = await browser.newContext({ acceptDownloads: true });
@@ -392,6 +394,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await expect(page.getByText("Bug report sent. Thank you.").first()).toBeVisible({ timeout: 10_000 });
 
     const admin = await adminPage(browser);
+    if (process.env.CI) expect(admin, "psql could not promote an admin").not.toBeNull();
     if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
     try {
       await admin!.goto("/admin/reports");
@@ -421,6 +424,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     expect(JSON.stringify(pending)).not.toContain(quote);
 
     const admin = await adminPage(browser);
+    if (process.env.CI) expect(admin, "psql could not promote an admin").not.toBeNull();
     if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
     try {
       await admin!.goto("/admin/reviews");
