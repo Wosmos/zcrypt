@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  currentYear,
   formatSizeBand,
   cn,
   formatBytes,
@@ -304,5 +305,17 @@ describe("midTrunc", () => {
   });
   it("respects custom start/end lengths", () => {
     expect(midTrunc("abcdefghijklmnop.txt", 3, 2)).toBe("abc…op.txt");
+  });
+});
+
+describe("currentYear", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reads the clock when called, not when the module loaded", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2031-06-01T00:00:00Z"));
+    expect(currentYear()).toBe(2031);
   });
 });

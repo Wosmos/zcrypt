@@ -936,3 +936,8 @@ export function saveBlob(name: string, data: Blob | BlobPart | Uint8Array, mime?
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
 }
+
+/** This year, read when called: a Worker's clock reads 1970 at module load. */
+export function currentYear(): number {
+  return new Date().getFullYear();
+}
