@@ -1,14 +1,11 @@
 import { bindings, defineConfig, defineWorker } from "cf/config";
-import { createWorkersResponseStoreSelfContainedConfig } from "@vinext/cloudflare/cache/config";
+import { createWorkersCacheConfig } from "@vinext/cloudflare/cache/config";
 
-const cache = await createWorkersResponseStoreSelfContainedConfig({
-  worker: "zcrypt-web",
-  bucket: "zcrypt-web-response-store-cache-bodies",
-});
+const workersCache = await createWorkersCacheConfig();
 
 export default defineConfig({
   worker: defineWorker({
-    ...cache,
+    ...workersCache,
     name: "zcrypt-web",
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-11-20",
@@ -19,8 +16,9 @@ export default defineConfig({
       runWorkerFirst: ["/*", "!/_next/static/*", "!/*/_next/static/*"],
     },
     env: {
-      ...cache.env,
+      ...workersCache.env,
       ASSETS: bindings.assets(),
+      VINEXT_KV_CACHE: bindings.kv(),
     },
   }),
 });

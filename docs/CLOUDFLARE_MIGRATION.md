@@ -12,8 +12,8 @@ After:   browser ─► Cloudflare Worker (vinext build of the same app) ─► 
 - **Same source, two builds.** [vinext](https://github.com/cloudflare/vinext) is Cloudflare's Vite reimplementation of the Next.js API. It builds `app/frontend` into a Worker: `bun run build:vinext`, output in `.cloudflare/output`.
 - **`next build` still matters.** It produces the desktop/Android static export (`NEXT_OUTPUT_EXPORT=1`), and CI runs it next to the Worker build.
 - **Config files:**
-  - `vite.config.ts`: vinext, the React Compiler, and the Workers Response Store cache.
-  - `cloudflare.config.ts`: the Worker (`zcrypt-web`), the `nodejs_compat` flag, and static assets.
+  - `vite.config.ts`: vinext, the React Compiler, and the caches. Pages use Workers Cache (Cloudflare's free edge cache, no storage binding). The few revalidated fetches (GitHub releases, public reviews, download stats) use one KV namespace.
+  - `cloudflare.config.ts`: the Worker (`zcrypt-web`), the `nodejs_compat` flag, static assets, and the KV binding `VINEXT_KV_CACHE`. No R2 and no Durable Objects, so R2 stays free for file storage.
   - `public/_headers`: headers for static files: the install scripts as text, and immutable `/_next/static`.
 - **Kept from `next.config.ts`:** `headers()` (CSP, HSTS and the rest), `rewrites()` (`/api/*` and `/dl/*` to the backend), `pageExtensions` (`.web.tsx` and `.dev.tsx`), and `env`.
 
@@ -45,7 +45,7 @@ Verified locally on the Worker build (`vite preview`, workerd):
    - turn on **Rules → Managed Transforms → "Add visitor location headers"**. Without it, the Worker gets the country but not the region and city.
 3. **Worker secret:** `ZCRYPT_PROXY_SECRET`, set as a secret on the Worker and on Railway with the same value. Without it, the backend sees every native-app call as coming from Cloudflare's address: rate limits and the abuse guard collapse onto one IP, and geo is wrong.
 4. **GitHub repository variables,** baked into the bundle at build: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` (from Web Analytics → add site).
-5. **R2:** the Response Store cache uses a bucket named `zcrypt-web-response-store-cache-bodies`. The first deploy creates it, so R2 must be enabled on the account (the free tier is enough).
+5. **KV:** the first deploy creates the `VINEXT_KV_CACHE` namespace. Free plan: 100k reads and 1k writes a day. The revalidated fetches write about 600 times a day, which fits.
 
 ## Cutover, in order
 
