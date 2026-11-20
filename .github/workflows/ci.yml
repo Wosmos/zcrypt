@@ -209,9 +209,13 @@ jobs:
         working-directory: app/frontend
         run: bun run build
 
-      - name: Vercel cost guard (no per-URL ISR, page weight)
+      # The website ships as a Cloudflare Worker built by vinext; `next build`
+      # above still guards the native static export and the e2e suite.
+      - name: Build the Worker (vinext)
         working-directory: app/frontend
-        run: node ../../scripts/check-vercel-cost.mjs
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: bun run build:vinext
 
   # ── Hardening: new-code-only checks, diff-scoped ─────────────────────────────
   # Fails only on problems the change introduces: oxlint warnings and copy-paste
@@ -309,7 +313,7 @@ jobs:
   # ── Frontend: E2E tests (Playwright) ─────────────────────────────────────────
   # Runs on main branch pushes only: too slow for every PR
   frontend-e2e:
-    name: Playwright E2E
+    name: Playwright E2E (${{ matrix.target }})
     needs: [changes, frontend, backend]
     # always() so this still runs when `backend` is skipped (frontend-only change);
     # GitHub otherwise skips any job whose `needs` includes a skipped job. We start
@@ -324,6 +328,11 @@ jobs:
       needs.frontend.result == 'success' &&
       needs.backend.result != 'failure'
     runs-on: ubuntu-24.04
+    # The same suite against the Next.js build and the Cloudflare Worker (vinext).
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [next, worker]
     services:
       postgres:
         image: postgres:16-alpine
@@ -378,8 +387,13 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8080
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
-          bun run build
-          bun run start -- -p 3000 &
+          if [ "${{ matrix.target }}" = worker ]; then
+            bun run build:vinext
+            bunx vite preview --port 3000 &
+          else
+            bun run build
+            bun run start -- -p 3000 &
+          fi
 
       - name: Install Playwright browsers
         working-directory: tests/e2e
@@ -406,7 +420,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.target }}
           path: tests/e2e/playwright-report/
           retention-days: 14
 
@@ -506,42 +520,34 @@ jobs:
   # that actually produces the deployed artifact), `deploy --prebuilt` ships
   # that output directly instead of triggering yet another remote rebuild.
   frontend-deploy:
-    name: Deploy Frontend (Vercel)
+    name: Deploy Frontend (Cloudflare)
     needs: [changes, frontend]
     if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      # Vercel's build detects bun.lock and installs deps with bun, so bun
-      # must be on the runner or `vercel build` fails with `spawn bun ENOENT`.
       - uses: oven-sh/setup-bun@v2
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Pull Vercel project settings
+      - name: Install dependencies
         working-directory: app/frontend
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: bun install --frozen-lockfile
 
-      - name: Build via Vercel
+      # NEXT_PUBLIC_* values are baked into the bundle at build time.
+      - name: Build the Worker (vinext)
         working-directory: app/frontend
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_CF_ANALYTICS_TOKEN: ${{ vars.NEXT_PUBLIC_CF_ANALYTICS_TOKEN }}
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: bun run build:vinext
 
-      # --archive=tgz uploads the build as ONE tarball instead of thousands of
-      # individual files. The free plan caps uploads at 5000 files per 24h, and
-      # a Next.js output blows through that in a few deploys a day, the failure
-      # surfaces as a wall of "Upload aborted" with the real cause
-      # ("api-upload-free") buried in the middle.
-      - name: Deploy prebuilt output to Vercel
+      # ZCRYPT_PROXY_SECRET is a Worker secret set once in Cloudflare, never here.
+      - name: Deploy to Cloudflare Workers
         working-directory: app/frontend
-        run: vercel deploy --prebuilt --prod --archive=tgz --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bun run deploy:vinext -- --skip-build
