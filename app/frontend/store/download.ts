@@ -427,35 +427,46 @@ function runSingleDownload(id: string): Promise<void> {
   return p;
 }
 
+/** Whether this file already has a transfer queued, running or paused. */
+function hasActiveDownload(queue: DownloadItem[], fileId: string): boolean {
+  return queue.some(
+    (i) =>
+      i.fileId === fileId &&
+      (i.status === DownloadStatus.Downloading ||
+        i.status === DownloadStatus.Queued ||
+        i.status === DownloadStatus.Paused),
+  );
+}
+
+function queuedDownload(
+  id: string,
+  fileId: string,
+  filename: string,
+  fileSize: number,
+  stage: string,
+): DownloadItem {
+  return {
+    id,
+    fileId,
+    filename,
+    fileSize,
+    status: DownloadStatus.Queued,
+    progress: 0,
+    stage,
+    startedAt: Date.now(),
+  };
+}
+
 export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
 
   startDownload: (fileId, filename, fileSize, passphrase, resolvePassword, options) => {
-    const alreadyActive = get().queue.some(
-      (i) =>
-        i.fileId === fileId &&
-        (i.status === DownloadStatus.Downloading ||
-          i.status === DownloadStatus.Queued ||
-          i.status === DownloadStatus.Paused),
-    );
-    if (alreadyActive) return;
+    if (hasActiveDownload(get().queue, fileId)) return;
 
     const id = genId("dl");
 
     set((state) => ({
-      queue: [
-        ...state.queue,
-        {
-          id,
-          fileId,
-          filename,
-          fileSize,
-          status: DownloadStatus.Queued,
-          progress: 0,
-          stage: "Queued",
-          startedAt: Date.now(),
-        },
-      ],
+      queue: [...state.queue, queuedDownload(id, fileId, filename, fileSize, "Queued")],
     }));
 
     void (async () => {
@@ -517,29 +528,13 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   startDesktopDownload: (fileId, filename, fileSize, passphrase, userId, resolvePassword) => {
     // Dedup: never run two transfers for the same file at once (the racing
     // duplicate downloads that clobbered one temp file and froze the app).
-    const alreadyActive = get().queue.some(
-      (i) =>
-        i.fileId === fileId &&
-        (i.status === DownloadStatus.Downloading ||
-          i.status === DownloadStatus.Queued ||
-          i.status === DownloadStatus.Paused),
-    );
-    if (alreadyActive) return;
+    if (hasActiveDownload(get().queue, fileId)) return;
 
     const id = genId("dl");
     set((state) => ({
       queue: [
         ...state.queue,
-        {
-          id,
-          fileId,
-          filename,
-          fileSize,
-          status: DownloadStatus.Queued,
-          progress: 0,
-          stage: "Choose where to save…",
-          startedAt: Date.now(),
-        },
+        queuedDownload(id, fileId, filename, fileSize, "Choose where to save…"),
       ],
     }));
 

@@ -1,6 +1,7 @@
 import { bytesToHex, createContentHasher } from "@/lib/crypto";
 import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
 import { STREAM_TO_DISK_MIN_BYTES } from "@/lib/disk-save";
+import type { DiskWritable } from "@/lib/download-session";
 
 /**
  * File-level integrity for a public-link download, by the same rule as own
@@ -21,6 +22,23 @@ export async function createLinkVerifier(
     update: (d: Uint8Array) => hasher.update(d),
     ok: () => !canVerify || bytesToHex(hasher.digest()) === meta.sha256,
   };
+}
+
+/** A chunk sink that hashes each chunk and streams it to `disk`, keeping the
+ *  first one for type sniffing. No sink when the file stays in memory. */
+export function verifiedDiskSink(
+  disk: DiskWritable | undefined,
+  verifier: { update(d: Uint8Array): void },
+) {
+  let head: Uint8Array | undefined;
+  const sink = disk
+    ? async (d: Uint8Array) => {
+        head ??= d;
+        verifier.update(d);
+        await disk.write(d);
+      }
+    : undefined;
+  return { sink, head: () => head };
 }
 
 /** Whether a file of this size must go to disk instead of tab memory. */

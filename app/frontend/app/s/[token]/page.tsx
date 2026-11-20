@@ -9,7 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Shield, Lock } from "@/lib/icons";
 import { tr } from "@/store/translate";
 import { chooseDiskWriter } from "@/lib/disk-save";
-import { confirmLinkDownload, createLinkVerifier, needsDisk } from "@/lib/link-download";
+import {
+  confirmLinkDownload,
+  createLinkVerifier,
+  needsDisk,
+  verifiedDiskSink,
+} from "@/lib/link-download";
 import { keyFromFragment } from "@/lib/share-link";
 import { keyFromBytes } from "@/lib/sealed";
 import { openLinkName } from "@/components/tokens/link-name";
@@ -93,20 +98,14 @@ export default function SharePage() {
         }
 
         const verifier = await createLinkVerifier(meta, keyBytes);
-        let head: Uint8Array | undefined;
+        const disked = verifiedDiskSink(disk, verifier);
         const decryptedChunks = await downloadChunks({
           count: meta.chunk_count,
           concurrency: getDeviceProfile().maxConcurrentDownloads,
           setProgress,
           stageLabel: (done, total) => t("pub.decryptingN", { done, total }),
           signal,
-          sink: disk
-            ? async (d) => {
-                head ??= d;
-                verifier.update(d);
-                await disk.write(d);
-              }
-            : undefined,
+          sink: disked.sink,
           fetchChunk: async (index, chunkSignal) => {
             const { data, compressed } = await getShareChunk(
               token,
@@ -128,7 +127,7 @@ export default function SharePage() {
         setProgress({ stage: t("pub.verifying"), percent: 93 });
         if (!disk) for (const c of decryptedChunks) verifier.update(c);
         if (!verifier.ok()) throw new Error(t("pub.integrityMismatch"));
-        const sniffBytes = head ?? decryptedChunks[0] ?? new Uint8Array();
+        const sniffBytes = disked.head() ?? decryptedChunks[0] ?? new Uint8Array();
 
         if (meta.download_ticket) {
           const ticket = meta.download_ticket;

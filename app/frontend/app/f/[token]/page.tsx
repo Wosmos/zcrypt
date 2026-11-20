@@ -27,7 +27,7 @@ import {
 import { formatBytes, saveBlob } from "@/lib/utils";
 import { tr } from "@/store/translate";
 import { chooseDiskWriter, ZIP_IN_MEMORY_MAX_BYTES, type DiskChoice } from "@/lib/disk-save";
-import { confirmLinkDownload, createLinkVerifier } from "@/lib/link-download";
+import { confirmLinkDownload, createLinkVerifier, verifiedDiskSink } from "@/lib/link-download";
 import { downloadChunks } from "@/components/tokens/chunk-download";
 import { runWithConcurrency } from "@/lib/concurrent";
 import { isAbortError } from "@/lib/transport";
@@ -171,20 +171,14 @@ export default function FolderSharePage() {
       const keyBytes = cek.buffer.slice(0) as ArrayBuffer;
       const verifier = await createLinkVerifier(meta, keyBytes);
 
-      let head: Uint8Array | undefined;
+      const disked = verifiedDiskSink(disk, verifier);
       const parts = await downloadChunks({
         count: meta.chunk_count,
         concurrency: CHUNK_CONCURRENCY,
         setProgress: () => {},
         stageLabel: () => "",
         signal,
-        sink: disk
-          ? async (d) => {
-              head ??= d;
-              verifier.update(d);
-              await disk.write(d);
-            }
-          : undefined,
+        sink: disked.sink,
         fetchChunk: async (index, chunkSignal) => {
           const { data, compressed } = await getFolderShareChunk(
             token,
@@ -199,7 +193,7 @@ export default function FolderSharePage() {
         },
       });
       if (!disk) for (const p of parts) verifier.update(p);
-      const sniff = head ?? parts[0] ?? new Uint8Array();
+      const sniff = disked.head() ?? parts[0] ?? new Uint8Array();
 
       const opened = await openName(meta.original_name, await keyFromBytes(fk));
       const name = resolveDownloadName(opened || file.name || "", sniff, "file");

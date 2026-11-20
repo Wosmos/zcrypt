@@ -90,6 +90,50 @@ function ConfirmCode({ value }: { value: string }) {
   );
 }
 
+/** The file, confirm code, progress and Cancel shown while a transfer runs. */
+function TransferRunning({
+  name,
+  size,
+  confirm,
+  stage,
+  percent,
+  onCancel,
+}: {
+  name: string;
+  size: number;
+  confirm: string;
+  stage: string;
+  percent: number;
+  onCancel: () => void;
+}) {
+  const t = useTranslations("tools");
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <LogoSpinner size={24} speed="fast" />
+        <div>
+          <p className="text-sm font-semibold">{name}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(size)}</p>
+        </div>
+      </div>
+      {confirm && <ConfirmCode value={confirm} />}
+      <ProgressBar stage={stage} percent={percent} />
+      <Button variant="ghost" size="sm" onClick={onCancel} className="w-full">
+        {t("common.cancel")}
+      </Button>
+    </div>
+  );
+}
+
+/** Drop a live socket without its close handlers firing, telling the peer first. */
+function abandonSocket(ws: WebSocket | null) {
+  if (!ws) return;
+  ws.onclose = null;
+  ws.onerror = null;
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cancel" }));
+  ws.close();
+}
+
 export function TransferTool() {
   const t = useTranslations("tools");
   const [mode, setMode] = useState<Mode>("choose");
@@ -269,12 +313,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     setProgress({ percent: 0, stage: "" });
     setCode("");
     setConfirm("");
-    if (ws) {
-      ws.onclose = null;
-      ws.onerror = null;
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cancel" }));
-      ws.close();
-    }
+    abandonSocket(ws);
     wsRef.current = null;
   }, []);
 
@@ -362,25 +401,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       )}
 
       {(state === "paired" || state === "transferring") && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <LogoSpinner size={24} speed="fast" />
-            <div>
-              <p className="text-sm font-semibold">{selectedFile?.name}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                {formatBytes(selectedFile?.size || 0)}
-              </p>
-            </div>
-          </div>
-          {confirm && <ConfirmCode value={confirm} />}
-          <ProgressBar
-            stage={progress.stage || t("transfer.preparing")}
-            percent={progress.percent}
-          />
-          <Button variant="ghost" size="sm" onClick={handleCancel} className="w-full">
-            {t("common.cancel")}
-          </Button>
-        </div>
+        <TransferRunning
+          name={selectedFile?.name ?? ""}
+          size={selectedFile?.size || 0}
+          confirm={confirm}
+          stage={progress.stage || t("transfer.preparing")}
+          percent={progress.percent}
+          onCancel={handleCancel}
+        />
       )}
 
       {state === "done" && (
@@ -546,12 +574,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
     setProgress({ percent: 0, stage: "" });
     setConfirm("");
     chunksRef.current = [];
-    if (ws) {
-      ws.onclose = null;
-      ws.onerror = null;
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cancel" }));
-      ws.close();
-    }
+    abandonSocket(ws);
     wsRef.current = null;
   }, []);
 
@@ -632,20 +655,14 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
       )}
 
       {state === "receiving" && fileInfo && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <LogoSpinner size={24} speed="fast" />
-            <div>
-              <p className="text-sm font-semibold">{fileInfo.name}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(fileInfo.size)}</p>
-            </div>
-          </div>
-          {confirm && <ConfirmCode value={confirm} />}
-          <ProgressBar stage={progress.stage} percent={progress.percent} />
-          <Button variant="ghost" size="sm" onClick={handleCancel} className="w-full">
-            {t("common.cancel")}
-          </Button>
-        </div>
+        <TransferRunning
+          name={fileInfo.name}
+          size={fileInfo.size}
+          confirm={confirm}
+          stage={progress.stage}
+          percent={progress.percent}
+          onCancel={handleCancel}
+        />
       )}
 
       {state === "done" && (

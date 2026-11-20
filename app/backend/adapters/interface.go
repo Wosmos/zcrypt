@@ -1,3 +1,4 @@
+// Package adapters stores and fetches encrypted chunks on the storage platforms.
 package adapters
 
 import (

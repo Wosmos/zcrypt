@@ -300,7 +300,7 @@ func (h *HuggingFaceAdapter) DownloadURL(ctx context.Context, ref types.ChunkRef
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("resolve chunk: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return "", time.Time{}, fmt.Errorf("resolve chunk %s: %w", ref.RemotePath, ErrNotFound)
 	}
