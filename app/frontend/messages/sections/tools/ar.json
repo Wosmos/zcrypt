@@ -225,6 +225,7 @@
       "incompleteTitle": "رابط غير مكتمل",
       "incompleteBody": "ينقص هذا الرابط مفتاح التشفير. تأكد من نسخ العنوان كاملًا بما في ذلك الجزء <code>#key=...</code>.",
       "previewImage": "المعاينة متاحة للصورة",
+      "sizeUpTo": "حتى {size}",
       "previewVideo": "المعاينة متاحة للفيديو",
       "previewAudio": "المعاينة متاحة للصوت",
       "save": "حفظ",

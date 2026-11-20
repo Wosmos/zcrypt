@@ -225,6 +225,7 @@
       "incompleteTitle": "Unvollständiger Link",
       "incompleteBody": "Diesem Link fehlt der Verschlüsselungsschlüssel. Stelle sicher, dass du die vollständige URL einschließlich des Teils <code>#key=...</code> kopiert hast.",
       "previewImage": "Bildvorschau verfügbar",
+      "sizeUpTo": "Bis zu {size}",
       "previewVideo": "Videovorschau verfügbar",
       "previewAudio": "Audiovorschau verfügbar",
       "save": "Speichern",

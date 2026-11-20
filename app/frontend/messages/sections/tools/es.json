@@ -225,6 +225,7 @@
       "incompleteTitle": "Enlace incompleto",
       "incompleteBody": "A este enlace le falta la clave de cifrado. Asegúrate de haber copiado la URL completa, incluida la parte <code>#key=...</code>.",
       "previewImage": "Vista previa de imagen disponible",
+      "sizeUpTo": "Hasta {size}",
       "previewVideo": "Vista previa de vídeo disponible",
       "previewAudio": "Vista previa de audio disponible",
       "save": "Guardar",

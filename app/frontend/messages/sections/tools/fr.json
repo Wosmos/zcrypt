@@ -225,6 +225,7 @@
       "incompleteTitle": "Lien incomplet",
       "incompleteBody": "Il manque la clé de chiffrement à ce lien. Vérifiez que vous avez copié l’URL complète, y compris la partie <code>#key=...</code>.",
       "previewImage": "Aperçu de l’image disponible",
+      "sizeUpTo": "Jusqu’à {size}",
       "previewVideo": "Aperçu de la vidéo disponible",
       "previewAudio": "Aperçu audio disponible",
       "save": "Enregistrer",

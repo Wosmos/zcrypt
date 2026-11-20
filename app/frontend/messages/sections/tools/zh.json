@@ -225,6 +225,7 @@
       "incompleteTitle": "链接不完整",
       "incompleteBody": "此链接缺少加密密钥。请确认你复制了完整的网址，包括 <code>#key=...</code> 部分。",
       "previewImage": "可预览图片",
+      "sizeUpTo": "最多 {size}",
       "previewVideo": "可预览视频",
       "previewAudio": "可预览音频",
       "save": "保存",

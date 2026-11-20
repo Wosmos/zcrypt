@@ -225,6 +225,7 @@
       "incompleteTitle": "Incomplete Link",
       "incompleteBody": "This link is missing the encryption key. Make sure you copied the full URL including the <code>#key=...</code> part.",
       "previewImage": "Image preview available",
+      "sizeUpTo": "Up to {size}",
       "previewVideo": "Video preview available",
       "previewAudio": "Audio preview available",
       "save": "Save",

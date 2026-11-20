@@ -73,6 +73,14 @@ export function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+/** A public size band (1-2-5 ladder in decimal bytes) reads as a round number: 50 MB, not 47.7 MB. */
+export function formatSizeBand(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(Math.floor(Math.log10(bytes) / 3), sizes.length - 1);
+  return `${parseFloat((bytes / 1000 ** i).toFixed(1))} ${sizes[i]}`;
+}
+
 type RelativeUnit = "minute" | "hour" | "day";
 
 function relativeAgo(count: number, unit: RelativeUnit): string {
