@@ -11,6 +11,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -271,6 +272,54 @@ func (h *HuggingFaceAdapter) Download(ctx context.Context, ref types.ChunkRef) (
 	}
 
 	return data, nil
+}
+
+// hfLinkTTL is how long a minted CDN link is trusted; HF signs it for about an hour.
+const hfLinkTTL = 30 * time.Minute
+
+// DownloadURL resolves a chunk with the token but without following the
+// redirect, and returns the signed CDN URL HF points to.
+func (h *HuggingFaceAdapter) DownloadURL(ctx context.Context, ref types.ChunkRef) (string, time.Time, error) {
+	repo := ref.Repo
+	if !strings.Contains(repo, "/") {
+		repo = h.username + "/" + repo
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("%s/%s/resolve/main/%s", hfEndpoint, repo, ref.RemotePath), nil)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("create resolve request: %w", err)
+	}
+	h.setAuth(req)
+	base := h.ctl
+	if base == nil {
+		base = h.client
+	}
+	noFollow := *base
+	noFollow.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := noFollow.Do(req)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("resolve chunk: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return "", time.Time{}, fmt.Errorf("resolve chunk %s: %w", ref.RemotePath, ErrNotFound)
+	}
+	loc := resp.Header.Get("Location")
+	if resp.StatusCode < 300 || resp.StatusCode >= 400 || !isHFCDN(loc) {
+		return "", time.Time{}, fmt.Errorf("resolve chunk %s: no signed link (status %d)", ref.RemotePath, resp.StatusCode)
+	}
+	return loc, time.Now().Add(hfLinkTTL), nil
+}
+
+// isHFCDN accepts only an absolute https URL on Hugging Face's own hosts, so a
+// relative or unexpected redirect never reaches a client.
+func isHFCDN(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	return strings.HasSuffix(host, ".hf.co") || strings.HasSuffix(host, ".huggingface.co")
 }
 
 func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {

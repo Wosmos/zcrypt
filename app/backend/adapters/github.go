@@ -205,6 +205,29 @@ func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byt
 	return data, nil
 }
 
+// githubLinkTTL is how long a minted raw link is trusted. GitHub's own ?token=
+// expires on its schedule; the client fetches immediately, so keep this short.
+const githubLinkTTL = 5 * time.Minute
+
+// DownloadURL returns the raw.githubusercontent.com link the Contents API mints
+// for one file: for a private repo it carries a token scoped to that path only.
+func (g *GithubAdapter) DownloadURL(ctx context.Context, ref types.ChunkRef) (string, time.Time, error) {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
+	owner, repoName := g.parseRepo(ref.Repo)
+	content, _, resp, err := g.client.Repositories.GetContents(ctx, owner, repoName, ref.RemotePath, nil)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return "", time.Time{}, fmt.Errorf("download url %s: %w", ref.RemotePath, ErrNotFound)
+		}
+		return "", time.Time{}, fmt.Errorf("download url: %w", err)
+	}
+	if content == nil || content.GetDownloadURL() == "" {
+		return "", time.Time{}, fmt.Errorf("download url %s: no link returned", ref.RemotePath)
+	}
+	return content.GetDownloadURL(), time.Now().Add(githubLinkTTL), nil
+}
+
 // parseRepo extracts owner and repo name from either:
 //   - "owner/repo-name" (correct format)
 //   - "github_owner_repo-name" (legacy pool ID format)

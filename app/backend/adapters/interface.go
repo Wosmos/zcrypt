@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -89,6 +90,13 @@ type BatchDeleter interface {
 	// never-committed / 404 paths drains without a wasted commit. A rate-limit
 	// (HTTP 429) is returned as an error the caller can detect and back off on.
 	BatchDelete(ctx context.Context, repo string, remotePaths []string) error
+}
+
+// DirectDownloader is an optional interface for adapters that can mint a
+// short-lived URL for one chunk, so a client fetches the bytes from the platform
+// itself while the token stays on the server.
+type DirectDownloader interface {
+	DownloadURL(ctx context.Context, ref types.ChunkRef) (url string, expires time.Time, err error)
 }
 
 // DirectUploader is an optional interface for adapters that support presigned URL uploads.

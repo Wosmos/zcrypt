@@ -1,4 +1,10 @@
-import { getFileChunk, getFileLocators, type ChunkLocator } from "@/lib/api";
+import {
+  downloadLinkedChunk,
+  getChunkLink,
+  getFileChunk,
+  getFileLocators,
+  type ChunkLocator,
+} from "@/lib/api";
 import { resolveWebDirect, type DirectTarget } from "@/lib/byos-direct";
 import { sha256Hex } from "@/lib/crypto";
 import { Platform } from "@/lib/platforms";
@@ -72,8 +78,8 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
   const direct = () => (source ??= resolveDirectSource(fileId).catch(() => null));
   const fetched = new Set<number>();
 
-  // A chunk with no direct route (GitHub, GitLab, Hugging Face) can only come
-  // through the server. Before the first one, check that every such chunk
+  // A chunk with no Telegram route and no working platform link comes through
+  // the server. Before the first one, check that every such chunk
   // still to fetch fits the allowance, so a download that cannot finish stops
   // before it spends any. The server still enforces it on every chunk.
   let serverChecked = false;
@@ -92,6 +98,28 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
     }
     const short = await relayShortfall(bytes);
     if (short) throw short;
+  };
+
+  // GitHub and Hugging Face chunks are read from a short-lived platform link the
+  // server mints, so their bytes skip the server and the allowance. The first
+  // chunk without a working link turns links off for the rest of the file:
+  // it is the same platform and network, so the rest would fail the same way.
+  let linksOff = false;
+  const viaLink = async (index: number, signal?: AbortSignal): Promise<ChunkPayload | null> => {
+    if (linksOff) return null;
+    try {
+      const link = await getChunkLink(fileId, index, signal);
+      if (link) {
+        const data = await downloadLinkedChunk(link.url, signal);
+        if (!link.sha256 || (await sha256Hex(new Uint8Array(data))) === link.sha256) {
+          return { data, sha256: link.sha256, compressed: link.compressed };
+        }
+      }
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+    }
+    linksOff = true;
+    return null;
   };
 
   const restBytes = (src: DirectSource) => {
@@ -132,7 +160,14 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
         await waitForTelegram(waitKey, WaitReason.TelegramBlocked, signal);
         continue;
       }
-      if (!loc) await checkServerOnly(src);
+      if (!loc) {
+        const linked = await viaLink(index, signal);
+        if (linked) {
+          fetched.add(index);
+          return linked;
+        }
+        await checkServerOnly(src);
+      }
       try {
         const payload = await getFileChunk(fileId, index, signal);
         fetched.add(index);

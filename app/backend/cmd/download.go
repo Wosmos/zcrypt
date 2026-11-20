@@ -403,3 +403,67 @@ func relayStreamedChunk(ctx context.Context, w http.ResponseWriter, streamer ada
 	}
 	return err
 }
+
+// directLinkAllowed reports whether a chunk on platform may be handed to the
+// reader as a platform link. A GitHub link names the account and repo, so it
+// goes only to the owner and only for their own token, never the shared pool's.
+// A Hugging Face link names no account, so the owner and space members get it.
+func (s *Server) directLinkAllowed(userID, ownerID, platform, account string) bool {
+	switch platform {
+	case types.PlatformGitHub:
+		return userID == ownerID && s.isOwnAdapterKey(ownerID, platform+":"+account)
+	case types.PlatformHuggingFace:
+		return true
+	}
+	return false
+}
+
+// HandleGetChunkLink returns a short-lived platform URL for one chunk, so the
+// browser fetches it straight from GitHub or Hugging Face instead of through
+// this server. Nothing is charged to the transfer allowance: no bytes pass here.
+// 409 means no link for this chunk; the client then uses the relay route.
+// GET /api/files/{id}/chunks/{idx}/link
+func (s *Server) HandleGetChunkLink(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	chunkIndex, err := strconv.Atoi(r.PathValue("idx"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid chunk index")
+		return
+	}
+	file, ownerID, _, ok := s.authorizeFileRead(ctx, userID, r.PathValue("id"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "file not found")
+		return
+	}
+	if chunkIndex < 0 || chunkIndex >= file.ChunkCount {
+		writeError(w, http.StatusBadRequest, "chunk index out of range")
+		return
+	}
+	chunk, err := s.db.GetChunkByIndex(ctx, file.ID, chunkIndex, ownerID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "chunk not found")
+		return
+	}
+	// Resolving first also loads the owner's adapters, which the ownership check reads.
+	adapter := s.resolveAdapterForUser(ctx, ownerID, chunk.Platform, chunk.Account)
+	dd, ok := adapter.(adapters.DirectDownloader)
+	if !ok || chunk.RemotePath == "" || !s.directLinkAllowed(userID, ownerID, chunk.Platform, chunk.Account) {
+		writeCodedError(w, http.StatusConflict, "no_direct_link", "this chunk has no direct link")
+		return
+	}
+	link, expires, err := dd.DownloadURL(ctx, *chunk)
+	if err != nil {
+		log.Printf("chunk link: file %s chunk %d: %v", logSafe(file.ID), chunkIndex, err) // #nosec G706 -- control chars stripped via logSafe
+		writeCodedError(w, http.StatusConflict, "no_direct_link", "this chunk has no direct link")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"url":        link,
+		"expires_at": expires.UTC(),
+		"size":       chunk.Size,
+		"sha256":     chunk.SHA256,
+		"compressed": chunk.Compressed,
+	})
+}

@@ -896,6 +896,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/files/{id}/meta", s.AuthMiddleware(uuidPathParams(s.HandleGetFileMeta, "id")))
 	mux.HandleFunc("POST /api/files/meta", maxJSON(s.AuthMiddleware(s.HandleBatchFileMeta)))
 	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(uuidPathParams(idleStream(s.HandleGetChunk), "id")))
+	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}/link", s.AuthMiddleware(uuidPathParams(s.HandleGetChunkLink, "id")))
 	mux.HandleFunc("GET /api/files/{id}/locators", s.AuthMiddleware(uuidPathParams(s.HandleGetFileLocators, "id")))
 	mux.HandleFunc("GET /api/changes", s.AuthMiddleware(s.HandleGetChanges))
 

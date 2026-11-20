@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
   getFileChunk: vi.fn(),
   getFileLocators: vi.fn(),
+  getChunkLink: vi.fn(),
+  downloadLinkedChunk: vi.fn(),
   resolveWebDirect: vi.fn(),
   downloadTelegramChunk: vi.fn(),
   relayFitsNow: vi.fn(),
@@ -14,7 +16,12 @@ vi.mock("@/lib/relay-gate", () => ({
   relayShortfall: m.relayShortfall,
 }));
 vi.mock("@/lib/transfer-wait", () => ({ waitForTelegram: m.waitForTelegram }));
-vi.mock("@/lib/api", () => ({ getFileChunk: m.getFileChunk, getFileLocators: m.getFileLocators }));
+vi.mock("@/lib/api", () => ({
+  getFileChunk: m.getFileChunk,
+  getFileLocators: m.getFileLocators,
+  getChunkLink: m.getChunkLink,
+  downloadLinkedChunk: m.downloadLinkedChunk,
+}));
 vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: m.resolveWebDirect }));
 vi.mock("@/lib/telegram-download", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/telegram-download")>()),
@@ -62,6 +69,7 @@ beforeEach(async () => {
   m.relayFitsNow.mockResolvedValue(true);
   m.relayShortfall.mockResolvedValue(null);
   m.waitForTelegram.mockResolvedValue(undefined);
+  m.getChunkLink.mockResolvedValue(null);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -280,5 +288,68 @@ describe("createChunkSource, chunks that only come through the server", () => {
     m.relayShortfall.mockResolvedValue(short);
     await expect(createChunkSource("f")(0)).resolves.toEqual(relayChunk);
     expect(m.relayShortfall).not.toHaveBeenCalled();
+  });
+});
+
+describe("platform links (GitHub / Hugging Face)", () => {
+  const hfOnly = () =>
+    m.getFileLocators.mockResolvedValue({
+      file_id: "f",
+      chunks: [loc(0, { platform: "huggingface" }), loc(1, { platform: "huggingface" })],
+    });
+  const link = (sha = PLAIN_SHA) => ({
+    url: "https://us.aws.cdn.hf.co/x",
+    expires_at: "",
+    size: 4,
+    sha256: sha,
+    compressed: true,
+  });
+
+  beforeEach(() => {
+    m.resolveWebDirect.mockResolvedValue(null);
+    hfOnly();
+    m.getChunkLink.mockResolvedValue(link());
+    m.downloadLinkedChunk.mockImplementation(async () => PLAIN.slice().buffer);
+  });
+
+  it("reads a chunk from its platform link, verified, without the server or the allowance", async () => {
+    const fetchChunk = createChunkSource("f", { waitKey: "dl:f" });
+    const out = await fetchChunk(0);
+    await fetchChunk(1);
+
+    expect(new Uint8Array(out.data)).toEqual(PLAIN);
+    expect(out).toMatchObject({ sha256: PLAIN_SHA, compressed: true });
+    expect(m.downloadLinkedChunk).toHaveBeenCalledWith("https://us.aws.cdn.hf.co/x", undefined);
+    expect(m.getFileChunk).not.toHaveBeenCalled();
+    expect(m.relayShortfall).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the server when the linked bytes don't match, and stops asking for links", async () => {
+    m.getChunkLink.mockResolvedValue(link("other"));
+    const fetchChunk = createChunkSource("f");
+
+    expect(await fetchChunk(0)).toBe(relayChunk);
+    expect(await fetchChunk(1)).toBe(relayChunk);
+    expect(m.getChunkLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the server when the link can't be fetched, checking the rest fits first", async () => {
+    m.downloadLinkedChunk.mockRejectedValue(new TypeError("Failed to fetch"));
+    const fetchChunk = createChunkSource("f", { waitKey: "dl:f" });
+
+    expect(await fetchChunk(0)).toBe(relayChunk);
+    expect(m.relayShortfall).toHaveBeenCalledWith(8);
+  });
+
+  it("uses the server when the chunk has no link", async () => {
+    m.getChunkLink.mockResolvedValue(null);
+    expect(await createChunkSource("f")(0)).toBe(relayChunk);
+    expect(m.downloadLinkedChunk).not.toHaveBeenCalled();
+  });
+
+  it("a cancel while reading the link stays a cancel, not a server fallback", async () => {
+    m.downloadLinkedChunk.mockRejectedValue(new DOMException("aborted", "AbortError"));
+    await expect(createChunkSource("f")(0)).rejects.toThrow("aborted");
+    expect(m.getFileChunk).not.toHaveBeenCalled();
   });
 });

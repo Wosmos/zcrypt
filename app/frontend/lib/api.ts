@@ -374,6 +374,51 @@ export async function getFileChunk(
   return chunkFromResponse(res, body);
 }
 
+export interface ChunkLink {
+  url: string;
+  expires_at: string;
+  size: number;
+  sha256: string;
+  compressed: boolean;
+}
+
+/** A short-lived GitHub / Hugging Face URL for one chunk, so the browser reads it
+ *  from the platform instead of through the server. null when the chunk has no
+ *  direct link (the server answers 409); the caller then uses getFileChunk. */
+export async function getChunkLink(
+  fileId: string,
+  index: number,
+  signal?: AbortSignal,
+): Promise<ChunkLink | null> {
+  return withControlTimeout(async (s) => {
+    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}/link`, {
+      signal: s,
+      cache: "no-store",
+    });
+    if (res.status === 409) return null;
+    if (!res.ok) throw apiErrorFrom(res, await res.text());
+    return (await res.json()) as ChunkLink;
+  }, signal);
+}
+
+/** Read a chunk from a platform link: no cookies, no referrer, idle-timed like the relay. */
+export async function downloadLinkedChunk(url: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const { body } = await fetchIdleBody(
+    (s) =>
+      fetch(url, {
+        signal: s,
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+        cache: "no-store",
+      }),
+    async (res) => {
+      throw apiErrorFrom(res, "");
+    },
+    { signal },
+  );
+  return body;
+}
+
 /** A refused chunk read, as the friendly allowance error when that is why. */
 async function throwChunkError(res: Response): Promise<never> {
   const body = await res.text();
@@ -495,7 +540,8 @@ export function getAnalyticsFileTypes(
 export interface IncompleteUpload {
   session_id: string;
   file_id: string;
-  filename: string;
+  filename: string; // '' for sealed sessions: the name is in encrypted_name
+  encrypted_name?: string;
   original_size: number;
   platform: string;
   account: string;

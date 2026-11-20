@@ -26,6 +26,9 @@ const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const DEV_API_URL = "http://localhost:8080";
 const apiWss = apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
+// Direct chunk downloads: GitHub raw links and Hugging Face's signed CDN links.
+const PLATFORM_DOWNLOAD_HOSTS =
+  "https://raw.githubusercontent.com https://*.hf.co https://*.huggingface.co";
 const HF_LFS_HOSTS =
   "https://hf-hub-lfs-us-east-1.s3-accelerate.amazonaws.com https://hf-hub-lfs-us-east-1.s3.us-east-1.amazonaws.com";
 const cspValue = [
@@ -34,7 +37,7 @@ const cspValue = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org ${HF_LFS_HOSTS} https://va.vercel-scripts.com https://vitals.vercel-insights.com`
+  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org ${HF_LFS_HOSTS} ${PLATFORM_DOWNLOAD_HOSTS} https://va.vercel-scripts.com https://vitals.vercel-insights.com`
     .replace(/\s+/g, " ")
     .trim(),
   "media-src 'self' blob:",
