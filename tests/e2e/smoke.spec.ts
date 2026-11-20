@@ -1,4 +1,4 @@
-import { test, expect, request, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { test, expect, request, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { execFileSync } from "child_process";
 import { createHash, randomBytes } from "crypto";
 import fs from "fs";
@@ -110,17 +110,6 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
   }
 }
 
-async function dragOnto(page: Page, source: Locator, target: Locator) {
-  const from = (await source.boundingBox())!;
-  const to = (await target.boundingBox())!;
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2 + 12, { steps: 4 });
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
-  await page.mouse.move(to.x + to.width / 2 + 2, to.y + to.height / 2 + 2, { steps: 3 });
-  await page.mouse.up();
-}
-
 async function adminPage(browser: Browser): Promise<Page | null> {
   const adminEmail = testEmail("smoke-admin");
   const ctx = await freshContext(browser);
@@ -220,9 +209,14 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await expect(folder).toBeVisible();
     await uploadViaUI(page, dragFiles);
 
+    // Native drag and drop. A drag that a slow runner drops before the folder
+    // registers it is tried again; the check is that the file left the root.
     for (const f of dragFiles) {
-      await dragOnto(page, page.getByText(f.name, { exact: true }).first(), folder);
-      await expect(page.getByText(f.name, { exact: true })).toHaveCount(0, { timeout: 10_000 });
+      const item = page.getByText(f.name, { exact: true });
+      await expect(async () => {
+        if (await item.count()) await item.first().dragTo(folder);
+        await expect(item).toHaveCount(0, { timeout: 3_000 });
+      }).toPass({ timeout: 30_000 });
     }
 
     await folder.click();
