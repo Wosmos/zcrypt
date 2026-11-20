@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -156,5 +157,28 @@ func TestServerVisitorLocation(t *testing.T) {
 	direct := s.geo.Lookup("1.1.1.1")
 	if via.Country != direct.Country {
 		t.Errorf("proxied request placed in %+v, want %+v", via, direct)
+	}
+}
+
+func TestServerVisitorLocationFromWorker(t *testing.T) {
+	s := &Server{cfg: &config.Config{ProxySecret: "s3cret", ClientIPHeader: "X-Real-IP"}}
+	worker := func(secret string) *http.Request {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.Header.Set("X-Real-IP", "8.8.8.8")
+		r.Header.Set("CF-IPCountry", "US")
+		r.Header.Set("X-Zcrypt-Visitor-Country", "pk")
+		r.Header.Set("X-Zcrypt-Visitor-Region", "PB")
+		r.Header.Set("X-Zcrypt-Visitor-City", "Lahore")
+		if secret != "" {
+			r.Header.Set("X-Zcrypt-Proxy-Secret", secret)
+		}
+		return r
+	}
+	want := types.GeoLocation{Country: "PK", Region: "PB", City: "Lahore"}
+	if got := s.visitorLocation(worker("s3cret")); got != want {
+		t.Errorf("worker location = %+v, want %+v", got, want)
+	}
+	if got := s.visitorLocation(worker("nope")); got.Country != "US" {
+		t.Errorf("unsigned worker headers must be ignored, got %+v", got)
 	}
 }
