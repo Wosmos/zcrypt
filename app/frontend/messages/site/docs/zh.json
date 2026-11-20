@@ -1948,7 +1948,7 @@
       "p87": "组件",
       "p88": "运行位置",
       "p89": "<strong>前端</strong>",
-      "p90": "Vercel（Next.js）",
+      "p90": "Cloudflare Workers（Next.js）",
       "p91": "<strong>后端</strong>",
       "p92": "云端 Linux 虚拟机上的 distroless Docker 镜像（与提供商无关）",
       "p93": "<strong>数据库</strong>",

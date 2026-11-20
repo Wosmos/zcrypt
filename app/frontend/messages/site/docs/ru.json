@@ -1948,7 +1948,7 @@
       "p87": "Компонент",
       "p88": "Где работает",
       "p89": "<strong>Фронтенд</strong>",
-      "p90": "Vercel (Next.js)",
+      "p90": "Cloudflare Workers (Next.js)",
       "p91": "<strong>Бэкенд</strong>",
       "p92": "Distroless-образ Docker на облачной виртуальной машине Linux (независимо от провайдера)",
       "p93": "<strong>База данных</strong>",

@@ -1948,7 +1948,7 @@
       "p87": "Component",
       "p88": "Where it runs",
       "p89": "<strong>Frontend</strong>",
-      "p90": "Vercel (Next.js)",
+      "p90": "Cloudflare Workers (Next.js)",
       "p91": "<strong>Backend</strong>",
       "p92": "Distroless Docker image on a cloud Linux VM (provider-agnostic)",
       "p93": "<strong>Database</strong>",

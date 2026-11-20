@@ -47,7 +47,7 @@
         "l11": "Reviews and feedback: your text, rating and display name. A review is only shown publicly if you allow it and it is approved.",
         "l12": "Dead-man switch, if you set one up: a contact's email and name, your message and a timeout. These are stored unencrypted and emailed to your contact by our server if you stop checking in.",
         "h5": "Not collected",
-        "l13": "We do not run advertising or marketing trackers. We do not use Google Analytics, Sentry, PostHog or similar tools. The website uses Vercel Web Analytics for aggregate page-view statistics."
+        "l13": "We do not run advertising or marketing trackers. We do not use Google Analytics, Sentry, PostHog or similar tools. The website uses Cloudflare Web Analytics for aggregate page-view statistics."
       },
       "s4": {
         "t": "Your storage accounts, and ours",
@@ -60,7 +60,7 @@
         "t": "Who else handles data",
         "p1": "These services process data on our behalf. We list only the ones that exist today.",
         "l1": "<strong>Neon</strong>: our PostgreSQL database (AWS, us-east-1). Holds everything in the sections above, but no file contents.",
-        "l2": "<strong>Vercel</strong>: hosts the website and web app, and provides Web Analytics.",
+        "l2": "<strong>Cloudflare</strong>: hosts the website and web app, and provides Web Analytics.",
         "l3": "<strong>Our backend server</strong>, reached through <strong>Cloudflare</strong>. Cloudflare sees traffic to our API and tells us your country, which we use only to suggest a language and do not store. The server host may change over time.",
         "l4": "<strong>Resend</strong>: sends our emails: verification, magic sign-in links, password resets, new-device notices, account deletion notices and dead-man switch messages. They see the recipient address and message.",
         "l5": "<strong>Google and GitHub</strong>, only if you choose to sign in with them.",

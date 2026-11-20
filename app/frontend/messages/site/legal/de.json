@@ -47,7 +47,7 @@
         "l11": "Bewertungen und Feedback: dein Text, deine Bewertung und dein Anzeigename. Eine Bewertung wird nur öffentlich angezeigt, wenn du es erlaubst und sie freigegeben wird.",
         "l12": "Dead-Man-Switch, falls du einen einrichtest: E-Mail und Name eines Kontakts, deine Nachricht und eine Frist. Diese werden unverschlüsselt gespeichert und von unserem Server an deinen Kontakt gesendet, wenn du dich nicht mehr meldest.",
         "h5": "Nicht erhoben",
-        "l13": "Wir setzen keine Werbe- oder Marketing-Tracker ein. Wir verwenden weder Google Analytics noch Sentry, PostHog oder ähnliche Werkzeuge. Die Website nutzt Vercel Web Analytics für aggregierte Seitenaufruf-Statistiken."
+        "l13": "Wir setzen keine Werbe- oder Marketing-Tracker ein. Wir verwenden weder Google Analytics noch Sentry, PostHog oder ähnliche Werkzeuge. Die Website nutzt Cloudflare Web Analytics für aggregierte Seitenaufruf-Statistiken."
       },
       "s4": {
         "t": "Deine Speicherkonten und unsere",
@@ -60,7 +60,7 @@
         "t": "Wer sonst noch Daten verarbeitet",
         "p1": "Diese Dienste verarbeiten Daten in unserem Auftrag. Wir führen nur die auf, die es heute gibt.",
         "l1": "<strong>Neon</strong>: unsere PostgreSQL-Datenbank (AWS us-east-1). Enthält alles aus den obigen Abschnitten, aber keine Dateiinhalte.",
-        "l2": "<strong>Vercel</strong>: hostet die Website und die Web-App und stellt Web Analytics bereit.",
+        "l2": "<strong>Cloudflare</strong>: hostet die Website und die Web-App und stellt Web Analytics bereit.",
         "l3": "<strong>Unser Backend-Server</strong>, erreichbar über <strong>Cloudflare</strong>. Cloudflare sieht den Datenverkehr zu unserer API und teilt uns dein Land mit, was wir nur verwenden, um eine Sprache vorzuschlagen, und nicht speichern. Der Server-Host kann sich im Laufe der Zeit ändern.",
         "l4": "<strong>Resend</strong>: versendet unsere E-Mails: Verifizierung, Magic-Links zur Anmeldung, Passwort-Zurücksetzungen, Hinweise zu neuen Geräten, Hinweise zur Kontolöschung und Dead-Man-Switch-Nachrichten. Dort sind Empfängeradresse und Nachricht sichtbar.",
         "l5": "<strong>Google und GitHub</strong>, nur wenn du dich mit ihnen anmelden möchtest.",

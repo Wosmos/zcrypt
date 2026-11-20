@@ -5,7 +5,7 @@ zcrypt is a zero-knowledge encrypted cloud storage system.
 - **Backend:** Go 1.26, stdlib HTTP server, pgxpool (PostgreSQL), AES-256-GCM encryption, zstd compression
 - **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Motion (Framer Motion)
 - **Database:** PostgreSQL (Neon serverless) via pgx/v5
-- **Deploy:** Frontend on Vercel, Backend self-hosted in Docker behind a Cloudflare Tunnel (`deploy/server`, target Oracle Always Free in Ashburn next to the us-east-1 Neon DB), DB on Neon
+- **Deploy:** Frontend on Cloudflare Workers (vinext build of the same Next.js app; `bun run build:vinext`, see docs/CLOUDFLARE_MIGRATION.md), Backend self-hosted in Docker behind a Cloudflare Tunnel (`deploy/server`, target Oracle Always Free in Ashburn next to the us-east-1 Neon DB), DB on Neon
 
 ## Directory Structure
 ```

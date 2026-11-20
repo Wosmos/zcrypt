@@ -47,7 +47,7 @@
         "l11": "评价与反馈：你的文字、评分和显示名称。只有在你允许且评价获得批准后，才会公开显示。",
         "l12": "死人开关（如果你设置了）：联系人的邮箱和姓名、你的消息以及超时时间。这些内容以未加密形式存储，如果你停止签到，我们的服务器会将其通过邮件发送给你的联系人。",
         "h5": "不收集的内容",
-        "l13": "我们不运行广告或营销追踪器。我们不使用 Google Analytics、Sentry、PostHog 或类似工具。网站使用 Vercel Web Analytics 来获取汇总的页面浏览统计。"
+        "l13": "我们不运行广告或营销追踪器。我们不使用 Google Analytics、Sentry、PostHog 或类似工具。网站使用 Cloudflare Web Analytics 来获取汇总的页面浏览统计。"
       },
       "s4": {
         "t": "你的存储账户与我们的存储账户",
@@ -60,7 +60,7 @@
         "t": "还有谁处理数据",
         "p1": "这些服务代表我们处理数据。我们只列出目前实际存在的服务。",
         "l1": "<strong>Neon</strong>：我们的 PostgreSQL 数据库（AWS，us-east-1）。保存上述各节中的所有内容，但不包含文件内容。",
-        "l2": "<strong>Vercel</strong>：托管网站和网页应用，并提供 Web Analytics。",
+        "l2": "<strong>Cloudflare</strong>：托管网站和网页应用，并提供 Web Analytics。",
         "l3": "<strong>我们的后端服务器</strong>，通过 <strong>Cloudflare</strong> 访问。Cloudflare 能看到发往我们 API 的流量，并告诉我们你所在的国家，我们仅用它来推荐语言，并且不会存储。服务器托管方可能会随时间变化。",
         "l4": "<strong>Resend</strong>：发送我们的邮件：验证邮件、魔法登录链接、密码重置、新设备通知、账户删除通知和死人开关消息。它们能看到收件人地址和邮件内容。",
         "l5": "<strong>Google 和 GitHub</strong>，仅当你选择使用它们登录时。",
