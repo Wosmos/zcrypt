@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { getIncompleteUploads, type IncompleteUpload } from "@/lib/api";
@@ -11,12 +11,15 @@ import { cancelUpload } from "@/lib/upload-session";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import { useUploadStore } from "@/store/upload";
+import { invalidateQuota } from "@/store/quota";
 import { UploadStatus } from "@/types";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
 import { platformName } from "@/lib/platforms";
 import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
 import { uploadPathFor } from "@/lib/desktop-paths";
-import { startedOnThisDevice } from "@/lib/upload-origin";
+import { resolveUploadNames, startedOnThisDevice } from "@/lib/upload-origin";
+import { ensureNames, getNamesEpoch, subscribeNames } from "@/lib/file-names";
+import { usePassphraseStore } from "@/store/passphrase";
 
 // Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
 // uploads for 7 days, so natural units run from minutes up to about a week.
@@ -61,11 +64,22 @@ export function IncompleteUploads({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Non-critical UI: a failed fetch just leaves the section empty.
+  const unlocked = usePassphraseStore((s) => s.cachedPassphrase != null);
+  const epoch = useSyncExternalStore(subscribeNames, getNamesEpoch, getNamesEpoch);
+  // The cache keeps the raw ciphertext; `select` re-resolves names whenever they decrypt.
+  const select = useCallback(
+    (raw: IncompleteUpload[]) => resolveUploadNames(raw, unlocked, epoch),
+    [epoch, unlocked],
+  );
   const query = useQuery({
     queryKey: qk.incompleteUploads,
     queryFn: () => getIncompleteUploads().then((r) => r.uploads),
+    select,
   });
   const uploads = query.data ?? NO_UPLOADS;
+  useEffect(() => {
+    if (unlocked) void ensureNames(uploads.map((u) => u.encrypted_name));
+  }, [uploads, unlocked]);
   const setUploads = (fn: (prev: IncompleteUpload[]) => IncompleteUpload[]) =>
     setListData<IncompleteUpload>(qk.incompleteUploads, fn);
   const refresh = useCallback(async () => {
@@ -156,6 +170,7 @@ export function IncompleteUploads({
     try {
       await cancelUpload(u.session_id);
       setUploads((prev) => prev.filter((x) => x.session_id !== u.session_id));
+      void invalidateQuota(); // its reserved bytes are freed
       toast.info(t("discarded", { name: u.filename }));
     } catch {
       toast.error(t("discardFailed"));
