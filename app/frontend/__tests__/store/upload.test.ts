@@ -636,7 +636,7 @@ describe("useUploadStore", () => {
       const id = queueIdFor();
       await flush();
 
-      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal));
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal), Date.parse("2026-11-20T00:00:00Z"));
       expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
       expect(cancelUpload).toHaveBeenCalledWith("sess-relay");
       expect(initUpload).toHaveBeenCalledTimes(2);
@@ -4189,7 +4189,7 @@ describe("useUploadStore", () => {
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
       await flush(5);
-      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal));
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal), undefined);
 
       useUploadStore.getState().pauseUpload(id);
       await flush(5);
@@ -4235,7 +4235,7 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(byosMock.directPossible).toHaveBeenCalledWith(undefined);
-      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal));
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal), undefined);
       expect(initUpload).toHaveBeenCalledTimes(2);
       expect(getItem(id)?.status).toBe("done");
     });

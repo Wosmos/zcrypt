@@ -47,6 +47,13 @@ export function isAllowanceRefusal(err: unknown): boolean {
   );
 }
 
+/** When the allowance that refused `err` starts over (ms since epoch), if the server said. */
+export function allowanceResetAt(err: unknown): number | undefined {
+  if (!(err instanceof WebTransferLimitError) || !err.info.resetsAt) return undefined;
+  const at = Date.parse(err.info.resetsAt);
+  return Number.isNaN(at) ? undefined : at;
+}
+
 /** The time of day an allowance starts over, in the reader's language. The server counts UTC days. */
 export function formatResetTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(intlLocale(), {

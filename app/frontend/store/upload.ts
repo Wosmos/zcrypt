@@ -69,6 +69,7 @@ import { PausedError, isAbortError, isPauseError } from "@/lib/transport";
 import { extOf } from "@/lib/media-formats";
 import {
   WebTransferLimitError,
+  allowanceResetAt,
   isAllowanceCode,
   type WebTransferLimit,
 } from "@/lib/web-transfer-limit";
@@ -597,7 +598,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   // A user with their own Telegram has somewhere else to send it, so hold it
   // until Telegram answers, then start it again straight to Telegram. Returns
   // false when there is nowhere else to send it: the refusal then stands.
-  const holdForAllowance = async (): Promise<boolean> => {
+  const holdForAllowance = async (resetAt?: number): Promise<boolean> => {
     const home = itemMeta.get(id)?.platform ?? platform;
     if (!(await directPossible(home))) return false;
     // The run's own controller is spent (the refusal aborted it), so the wait
@@ -605,7 +606,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     const waitAbort = new AbortController();
     patchMeta(id, { abort: waitAbort });
     try {
-      await waitForTelegram(`up:${id}`, WaitReason.AllowanceUsedUp, waitAbort.signal);
+      await waitForTelegram(`up:${id}`, WaitReason.AllowanceUsedUp, waitAbort.signal, resetAt);
     } catch (err) {
       if (isAbortError(err) && isPaused() && isCurrentRun()) {
         useUploadStore.getState().updateStatus(id, UploadStatus.Paused, undefined, "Paused");
@@ -1392,7 +1393,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     }
     if (err instanceof WebTransferLimitError) {
       if (!isCurrentRun()) return;
-      if (isAllowanceCode(err.code) && (await holdForAllowance())) return;
+      if (isAllowanceCode(err.code) && (await holdForAllowance(allowanceResetAt(err)))) return;
       setError(id, err.message, err.limit);
       showWebTransferLimit(err.limit, { name: file.name, size: file.size }, opts.batch);
       return;

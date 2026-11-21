@@ -219,9 +219,29 @@ describe("createChunkSource with a transfer row to hold", () => {
       .mockResolvedValue(relayChunk);
     const out = await createChunkSource("f", { waitKey: "dl:1" })(0);
 
-    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "allowance_used_up", undefined);
+    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "allowance_used_up", undefined, undefined);
     expect(out).toBe(relayChunk);
     expect(m.getFileChunk).toHaveBeenCalledTimes(2);
+  });
+
+  it("holds an allowance refusal until the allowance starts over", async () => {
+    blocked();
+    m.getFileChunk
+      .mockRejectedValueOnce(
+        new WebTransferLimitError(
+          WebTransferLimitCode.DailyExceeded,
+          { limitBytes: 1, resetsAt: "2026-11-23T00:00:00Z" },
+          403,
+        ),
+      )
+      .mockResolvedValue(relayChunk);
+    await createChunkSource("f", { waitKey: "dl:1" })(0);
+    expect(m.waitForTelegram).toHaveBeenCalledWith(
+      "dl:1",
+      "allowance_used_up",
+      undefined,
+      Date.parse("2026-11-23T00:00:00Z"),
+    );
   });
 
   it("recognises an allowance refusal that arrives as a plain API error with its code", async () => {
@@ -230,7 +250,7 @@ describe("createChunkSource with a transfer row to hold", () => {
       .mockRejectedValueOnce(new ApiError("used up", 403, 0, "", "relay_allowance_exceeded"))
       .mockResolvedValue(relayChunk);
     await createChunkSource("f", { waitKey: "dl:1" })(0);
-    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "allowance_used_up", undefined);
+    expect(m.waitForTelegram).toHaveBeenCalledWith("dl:1", "allowance_used_up", undefined, undefined);
   });
 
   it("does not hold on any other server error", async () => {

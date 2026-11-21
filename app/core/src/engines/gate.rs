@@ -4,7 +4,7 @@
 //! (re-checking every few seconds, or at once on `retry_now`) and continues
 //! direct. The server enforces the allowance; this only decides what to try.
 
-use std::sync::atomic::AtomicI64;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -61,6 +61,16 @@ impl Env for LiveEnv {
 
 pub(crate) type Notify = Arc<dyn Fn(&'static str) + Send + Sync>;
 
+/// Why a wait ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Woke {
+    /// The origin answers again: go direct.
+    Reachable,
+    /// The allowance has room for the rest again (its window started over):
+    /// the relay may be used.
+    AllowanceBack,
+}
+
 #[derive(Clone)]
 pub(crate) struct Gate {
     pub env: Arc<dyn Env>,
@@ -106,12 +116,13 @@ impl Gate {
     }
 
     /// Waits until `origin` answers, re-probing every poll interval or at once
-    /// on `retry_now`. Cancel returns `Cancelled` promptly.
+    /// on `retry_now`. A wait on a used-up allowance also ends once the rest of
+    /// the transfer fits it again. Cancel returns `Cancelled` promptly.
     pub(crate) async fn wait_reachable(
         &self,
         reason: &'static str,
         origin: &str,
-    ) -> Result<(), EngineError> {
+    ) -> Result<Woke, EngineError> {
         let Some(notify) = &self.notify else {
             return Err(EngineError::Blocked(reason.into()));
         };
@@ -129,7 +140,13 @@ impl Gate {
                 return Err(EngineError::Cancelled);
             }
             if self.env.probe_fresh(origin).await {
-                return Ok(());
+                return Ok(Woke::Reachable);
+            }
+            if reason == WAIT_ALLOWANCE_USED_UP {
+                let rest = self.remaining.load(Ordering::Relaxed);
+                if rest > 0 && self.env.fits(rest, 0).await {
+                    return Ok(Woke::AllowanceBack);
+                }
             }
         }
     }
@@ -360,6 +377,42 @@ mod tests {
         let t = Instant::now();
         g.wait_reachable(WAIT_ALLOWANCE_USED_UP, "x").await.unwrap();
         assert!(t.elapsed() < Duration::from_secs(5));
+    }
+
+    #[tokio::test]
+    async fn an_allowance_wait_ends_when_the_rest_fits_again_though_telegram_stays_blocked() {
+        let env = FakeEnv::new(false, false);
+        let (notify, _) = recorder();
+        let g = gate(env.clone(), Some(notify));
+        g.remaining.store(100, Ordering::SeqCst);
+        let e2 = env.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(60)).await;
+            e2.fits.store(true, Ordering::SeqCst);
+        });
+        let woke = tokio::time::timeout(
+            Duration::from_secs(5),
+            g.wait_reachable(WAIT_ALLOWANCE_USED_UP, "x"),
+        )
+        .await
+        .expect("the wait ends once the rest fits")
+        .unwrap();
+        assert_eq!(woke, Woke::AllowanceBack);
+    }
+
+    #[tokio::test]
+    async fn a_telegram_wait_ignores_the_allowance() {
+        let env = FakeEnv::new(false, true);
+        let (notify, _) = recorder();
+        let g = gate(env.clone(), Some(notify));
+        g.remaining.store(100, Ordering::SeqCst);
+        let e2 = env.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(80)).await;
+            e2.reachable.store(true, Ordering::SeqCst);
+        });
+        let woke = g.wait_reachable(WAIT_TELEGRAM_BLOCKED, "x").await.unwrap();
+        assert_eq!(woke, Woke::Reachable);
     }
 
     #[test]

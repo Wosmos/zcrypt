@@ -266,7 +266,9 @@ async fn fetch_chunk(
         }
         match &direct {
             Some((loc, _)) if refused && blocked => match gate::origin_for(&loc.platform) {
-                Some(o) => gate.wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, o).await?,
+                Some(o) => {
+                    gate.wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, o).await?;
+                }
                 None => break,
             },
             _ => break,

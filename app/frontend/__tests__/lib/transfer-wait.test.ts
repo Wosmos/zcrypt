@@ -40,6 +40,32 @@ afterEach(() => {
 });
 
 describe("waitForTelegram", () => {
+  it("lets an allowance wait go when the allowance starts over, though Telegram is still blocked", async () => {
+    let settled = false;
+    const p = waitForTelegram("dl:1", WaitReason.AllowanceUsedUp, undefined, Date.now() + 2 * RECHECK_MS).then(
+      () => (settled = true),
+    );
+    const other = waitForTelegram("dl:2", BLOCKED).catch(() => {});
+    await vi.advanceTimersByTimeAsync(RECHECK_MS);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(RECHECK_MS);
+    await p;
+    expect(settled).toBe(true);
+    expect(useTransferWait.getState().waits["dl:1"]).toBeUndefined();
+    expect(useTransferWait.getState().waits["dl:2"]).toBe(BLOCKED);
+    expect(hasTransferWaits()).toBe(true);
+    cancelAllTransferWaits();
+    await other;
+  });
+
+  it("stops looking once the last wait went at its reset time", async () => {
+    const p = waitForTelegram("dl:1", WaitReason.AllowanceUsedUp, undefined, Date.now() + RECHECK_MS);
+    await vi.advanceTimersByTimeAsync(RECHECK_MS);
+    await p;
+    expect(hasTransferWaits()).toBe(false);
+    expect(h.probeTelegram).not.toHaveBeenCalled();
+  });
+
   it("marks the row waiting with the reason", () => {
     void waitForTelegram("up:1", BLOCKED).catch(() => {});
     expect(useTransferWait.getState().waits["up:1"]).toBe(BLOCKED);

@@ -310,9 +310,11 @@ async fn run_gated(
                 if let Some(id) = session.take() {
                     let _ = ctx.client.cancel_upload(&id).await;
                 }
-                gate.wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, TELEGRAM_ORIGIN)
-                    .await?;
-                force_direct = true;
+                // Telegram back: go there. Allowance back: the relay again.
+                force_direct = gate
+                    .wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, TELEGRAM_ORIGIN)
+                    .await?
+                    == gate::Woke::Reachable;
             }
             other => return other,
         }

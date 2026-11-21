@@ -4,12 +4,25 @@ import {
   DESKTOP_DOWNLOAD_PATH,
   WebTransferLimitCode,
   WebTransferLimitError,
+  allowanceResetAt,
   formatResetDate,
   webTransferLimitFrom,
   webTransferLimitMessage,
 } from "@/lib/web-transfer-limit";
 
 const GIB = 1024 ** 3;
+
+describe("allowanceResetAt", () => {
+  it("reads when a refused allowance starts over, and nothing otherwise", () => {
+    const at = "2026-11-23T00:00:00Z";
+    const daily = (info: { limitBytes: number; resetsAt?: string }) =>
+      new WebTransferLimitError(WebTransferLimitCode.DailyExceeded, info, 403);
+    expect(allowanceResetAt(daily({ limitBytes: 1, resetsAt: at }))).toBe(Date.parse(at));
+    expect(allowanceResetAt(daily({ limitBytes: 1 }))).toBeUndefined();
+    expect(allowanceResetAt(daily({ limitBytes: 1, resetsAt: "soon" }))).toBeUndefined();
+    expect(allowanceResetAt(new ApiError("used up", 403, 0, "", "relay_daily_exceeded"))).toBeUndefined();
+  });
+});
 
 describe("formatResetDate", () => {
   it("formats the reset day in UTC, so it never slips to the day before", () => {

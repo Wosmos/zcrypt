@@ -155,6 +155,8 @@ interface SingleSession {
   transient?: boolean;
   /** Frees the decrypted chunks of a failed in-memory session after a grace. */
   graceTimer?: ReturnType<typeof setTimeout>;
+  /** The furthest percent any run reached; going past it is progress. */
+  reached: number;
 }
 const sessions = new Map<string, SingleSession>();
 // Ids the user has paused: the pipeline's `pausing()` reads this to preserve
@@ -353,14 +355,16 @@ function runSingleDownload(id: string): Promise<void> {
   const p = (async () => {
     try {
       updateProgress(id, DownloadStatus.Downloading, undefined, "Starting...");
-      const startedAt = useDownloadStore.getState().queue.find((i) => i.id === id)?.progress ?? 0;
       await downloadAndDecryptFile(session.fileId, session.passphrase, {
         onProgress: (info) => {
           // A stale draining run (after pause/resume replaced it) must not paint
           // the row; and a paused row must not be flipped back to "downloading".
           if (!isCurrentRun() || pausedIds.has(id)) return;
-          // Moving past where this run started is progress: the auto-resume tries start over.
-          if (info.percent > startedAt) autoBudget.reset(id);
+          // Getting further than any run before is progress: the auto-resume tries start over.
+          if (info.percent > session.reached) {
+            session.reached = info.percent;
+            autoBudget.reset(id);
+          }
           updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage);
         },
         signal: abort.signal,
@@ -524,6 +528,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         resume,
         abort: new AbortController(),
         runToken: Symbol("dlRun"),
+        reached: 0,
       });
       await runSingleDownload(id);
     })();

@@ -18,7 +18,7 @@ import {
 import { isAbortError } from "@/lib/transport";
 import { relayFitsNow, relayShortfall } from "@/lib/relay-gate";
 import { waitForTelegram } from "@/lib/transfer-wait";
-import { isAllowanceRefusal } from "@/lib/web-transfer-limit";
+import { allowanceResetAt, isAllowanceRefusal } from "@/lib/web-transfer-limit";
 import { WaitReason } from "@/store/transfer-wait";
 
 export interface ChunkPayload {
@@ -190,7 +190,7 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
         return payload;
       } catch (err) {
         if (!waitKey || !isAllowanceRefusal(err)) throw err;
-        await waitForTelegram(waitKey, WaitReason.AllowanceUsedUp, signal);
+        await waitForTelegram(waitKey, WaitReason.AllowanceUsedUp, signal, allowanceResetAt(err));
       }
     }
   };

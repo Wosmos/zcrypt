@@ -2028,6 +2028,21 @@ describe("useDownloadStore", () => {
       expect((downloadAndDecryptFile as Mock).mock.calls.length).toBe(AUTO_RESUME_MAX_ATTEMPTS + 4);
     });
 
+    it("an auto-resume that only repeats earlier progress still spends its tries", async () => {
+      (downloadAndDecryptFile as Mock).mockImplementation(async (_f, _p, opts: DownloadOptions) => {
+        opts.onProgress?.({ percent: 30, stage: "Downloading" } as never);
+        throw new TypeError("offline");
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 3; i++) {
+        vi.advanceTimersByTime(61_000);
+        useDownloadStore.getState().autoResumeInterrupted();
+        await flush();
+      }
+      expect((downloadAndDecryptFile as Mock).mock.calls.length).toBe(AUTO_RESUME_MAX_ATTEMPTS + 1);
+    });
+
     it("keeps the decrypted chunks for the grace period after the automatic tries run out", async () => {
       let resume: DownloadOptions["resume"];
       (downloadAndDecryptFile as Mock).mockImplementation(async (_f, _p, opts: DownloadOptions) => {

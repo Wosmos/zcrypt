@@ -8,6 +8,8 @@ export const RECHECK_MS = 10_000;
 
 interface Waiter {
   key: string;
+  /** Also release at this time (ms since epoch): when a used-up allowance starts over. */
+  until?: number;
   resolve: () => void;
   reject: (err: unknown) => void;
 }
@@ -34,6 +36,13 @@ function release(waiter: Waiter) {
 }
 
 async function recheck(): Promise<void> {
+  const now = Date.now();
+  for (const waiter of [...waiters]) {
+    if (waiter.until !== undefined && now >= waiter.until) {
+      release(waiter);
+      waiter.resolve();
+    }
+  }
   if (waiters.size === 0) return;
   if ((await probeTelegram(true)) !== "ok") return;
   resetTelegramUnreachable();
@@ -63,21 +72,24 @@ export async function tryAgainNow(): Promise<void> {
 }
 
 /**
- * Hold a transfer until Telegram answers. All waiting transfers share one
- * poller that looks every RECHECK_MS; it stops when none wait. Rejects with an
- * AbortError when `signal` aborts (cancel, or pause) or on cancelAllTransferWaits.
+ * Hold a transfer until Telegram answers, or until `until` (ms since epoch)
+ * when given, e.g. the moment a used-up allowance starts over. All waiting
+ * transfers share one poller that looks every RECHECK_MS; it stops when none
+ * wait. Rejects with an AbortError when `signal` aborts (cancel, or pause) or
+ * on cancelAllTransferWaits.
  */
 export function waitForTelegram(
   key: string,
   reason: WaitReason,
   signal?: AbortSignal,
+  until?: number,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) {
       reject(abortError());
       return;
     }
-    const waiter: Waiter = { key, resolve, reject };
+    const waiter: Waiter = { key, until, resolve, reject };
     waiters.add(waiter);
     useTransferWait.getState().set(key, reason);
     timer ??= setInterval(() => void retryWaitingNow(), RECHECK_MS);
