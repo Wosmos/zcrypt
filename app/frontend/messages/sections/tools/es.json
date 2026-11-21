@@ -86,6 +86,8 @@
       "info": "Los archivos se cifran en el dispositivo emisor con una clave que nunca toca el servidor. Viaja solo en el código QR o el enlace que compartes, o en la clave de emparejamiento que lees en voz alta. El servidor retransmite texto cifrado y no puede leer el archivo ni su nombre, pero sí ve que hubo una transferencia y su tamaño aproximado.",
       "connFailed": "Falló la conexión",
       "connLost": "Se perdió la conexión",
+      "dailyLimit": "Esta red ya usó su cupo diario de Transferencia entre dispositivos. Vuelve a intentarlo mañana o desde otra red.",
+      "tooLarge": "Este archivo supera lo que permite la Transferencia entre dispositivos (10 GB).",
       "confirmCode": "Ambas pantallas deben mostrar el mismo código de confirmación",
       "sendFailed": "Falló la transferencia",
       "error": "Error de transferencia",

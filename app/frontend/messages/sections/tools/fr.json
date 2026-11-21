@@ -86,6 +86,8 @@
       "info": "Les fichiers sont chiffrés sur l’appareil émetteur avec une clé qui ne touche jamais le serveur. Elle ne circule que dans le code QR ou le lien que vous partagez, ou dans la clé d’appairage que vous lisez à voix haute. Le serveur relaie du texte chiffré et ne peut lire ni le fichier ni son nom, mais il voit qu’un transfert a eu lieu et sa taille approximative.",
       "connFailed": "Échec de la connexion",
       "connLost": "Connexion perdue",
+      "dailyLimit": "Ce réseau a utilisé son quota quotidien de Transfert entre appareils. Réessaie demain ou depuis un autre réseau.",
+      "tooLarge": "Ce fichier dépasse la taille permise par le Transfert entre appareils (10 Go).",
       "confirmCode": "Les deux écrans doivent afficher le même code de confirmation",
       "sendFailed": "Échec du transfert",
       "error": "Erreur de transfert",

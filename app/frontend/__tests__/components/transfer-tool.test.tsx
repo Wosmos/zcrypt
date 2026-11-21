@@ -35,7 +35,7 @@ class FakeWS {
   onopen: (() => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((e: { code: number }) => void) | null = null;
   constructor() {
     FakeWS.instances.push(this);
     setTimeout(() => this.onopen?.(), 0);
@@ -96,10 +96,19 @@ describe("device transfer sender", () => {
     await startSender();
     await act(async () => {
       ws().readyState = 3;
-      ws().onclose?.();
+      ws().onclose?.({ code: 1006 });
     });
     expect(screen.queryByText("Transfer Complete")).not.toBeInTheDocument();
     expect(await screen.findByText("Transfer Failed")).toBeInTheDocument();
+  });
+
+  it("says the network's daily limit was reached when the server closes for it", async () => {
+    await startSender();
+    await act(async () => {
+      ws().readyState = 3;
+      ws().onclose?.({ code: 1008 });
+    });
+    expect(await screen.findByText(/used its daily Device Transfer allowance/)).toBeInTheDocument();
   });
 
   it("times out without an ack instead of claiming success", async () => {

@@ -86,6 +86,8 @@
       "info": "Dateien werden auf dem sendenden Gerät mit einem Schlüssel verschlüsselt, der nie den Server berührt. Er wandert nur im QR-Code oder Link, den du teilst, oder im Kopplungsschlüssel, den du vorliest. Der Server leitet Chiffretext weiter und kann weder Datei noch Namen lesen, sieht aber, dass eine Übertragung stattfand und ungefähr wie groß sie ist.",
       "connFailed": "Verbindung fehlgeschlagen",
       "connLost": "Verbindung verloren",
+      "dailyLimit": "Dieses Netzwerk hat sein tägliches Kontingent für Geräteübertragungen aufgebraucht. Versuch es morgen wieder oder aus einem anderen Netzwerk.",
+      "tooLarge": "Diese Datei ist größer, als die Geräteübertragung erlaubt (10 GB).",
       "confirmCode": "Beide Bildschirme müssen denselben Bestätigungscode anzeigen",
       "sendFailed": "Übertragung fehlgeschlagen",
       "error": "Übertragungsfehler",

@@ -86,6 +86,8 @@
       "info": "Files are encrypted on the sending device with a key that never touches the server. It travels only in the QR code or link you share, or in the pairing key you read out. The server relays ciphertext and cannot read the file or its name, but it can see that a transfer happened and roughly how large it is.",
       "connFailed": "Connection failed",
       "connLost": "Connection lost",
+      "dailyLimit": "This network has used its daily Device Transfer allowance. Try again tomorrow, or from another network.",
+      "tooLarge": "This file is larger than Device Transfer allows (10 GB).",
       "confirmCode": "Both screens must show the same confirmation code",
       "sendFailed": "Transfer failed",
       "error": "Transfer error",

@@ -13,6 +13,8 @@ import { formatBytes, saveBlob } from "@/lib/utils";
 import {
   TRANSFER_ACK_WAIT_MS,
   TRANSFER_MAX_RECEIVE_BYTES,
+  closeReason,
+  explainClose,
   waitForBuffer,
 } from "@/lib/transfer-socket";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -72,8 +74,14 @@ function attachWsLifecycle(
       setErrorMsg(t("transfer.connFailed"));
     }
   };
-  ws.onclose = () => {
-    if (stateRef.current !== "done" && stateRef.current !== "error") {
+  ws.onclose = (ev: CloseEvent) => {
+    if (stateRef.current === "done") return;
+    // A stated reason wins over the generic message, whichever arrived first.
+    const reason = explainClose(ws, ev.code);
+    if (reason) {
+      setState("error");
+      setErrorMsg(t(reason));
+    } else if (stateRef.current !== "error") {
       setState("error");
       setErrorMsg(t("transfer.connLost"));
     }
@@ -243,12 +251,15 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       } catch (err) {
         if (stateRef.current === "selecting" || stateRef.current === "done") return;
         setState("error");
+        const reason = wsRef.current ? closeReason(wsRef.current) : null;
         setErrorMsg(
-          err instanceof StalledError
-            ? t("transfer.stalled")
-            : err instanceof Error
-              ? err.message
-              : t("transfer.sendFailed"),
+          reason
+            ? t(reason)
+            : err instanceof StalledError
+              ? t("transfer.stalled")
+              : err instanceof Error
+                ? err.message
+                : t("transfer.sendFailed"),
         );
       } finally {
         ackRef.current = null;

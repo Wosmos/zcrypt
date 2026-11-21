@@ -1,10 +1,24 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { waitForBuffer } from "@/lib/transfer-socket";
+import { closeReason, explainClose, waitForBuffer } from "@/lib/transfer-socket";
 import { StalledError } from "@/lib/transport";
 
 afterEach(() => vi.useRealTimers());
 
 const open = WebSocket.OPEN;
+
+describe("explainClose / closeReason", () => {
+  it("names the daily limit and the size cap, and nothing for other closes", () => {
+    const a = {};
+    const b = {};
+    const c = {};
+    expect(explainClose(a, 1008)).toBe("transfer.dailyLimit");
+    expect(explainClose(b, 1009)).toBe("transfer.tooLarge");
+    expect(explainClose(c, 1006)).toBeNull();
+    expect(closeReason(a)).toBe("transfer.dailyLimit");
+    expect(closeReason(b)).toBe("transfer.tooLarge");
+    expect(closeReason(c)).toBeNull();
+  });
+});
 
 describe("waitForBuffer", () => {
   it("fails with a StalledError when the buffer makes no progress for the idle limit", async () => {
