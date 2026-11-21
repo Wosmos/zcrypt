@@ -1,15 +1,40 @@
 {
   "changelog": {
-    "v0_2_3": {
-      "title": "Stabilere Anmeldung und Backups am Desktop",
-      "summary": "Ordner-Backups auf dem Mac brechen nicht mehr mit einem Anmeldefehler ab, macOS fragt viel seltener nach deinem Passwort, und die Mac-App sieht aus, wie sie soll.",
+    "v0_3_0": {
+      "title": "Übertragungen, die warten statt abzubrechen",
+      "summary": "Wenn dein Netzwerk Telegram blockiert oder das Übertragungskontingent aufgebraucht ist, warten Uploads und Downloads jetzt und laufen von selbst weiter. Spaces wechseln ihren Schlüssel selbst, wenn jemand geht, und Android sichert Fotos nach Album.",
       "items": {
+        "allowanceMeters": "Unter Einstellungen, Speicher, Nutzung & Limits siehst du dein tägliches und monatliches Web-Übertragungskontingent und was darauf zählt, mit einer Warnung, wenn weniger als ein Zehntel übrig ist.",
+        "waitForTelegram": "Blockiert dein Netzwerk Telegram, warten Uploads und Downloads und laufen von selbst weiter, sobald es antwortet oder das Kontingent neu beginnt, statt abzubrechen. Jede wartende Übertragung hat einen Erneut-versuchen-Knopf.",
+        "directDownloads": "Dateien in deinem eigenen Telegram laden direkt von Telegram in deinen Browser, und Teile auf GitHub und Hugging Face kommen direkt von der Plattform, im Web und in den Apps.",
+        "photoAlbums": "Unter Android wählst du, welche Alben gesichert werden, Fotos oder Videos, nur über WLAN und beim Laden. Eine Sicherung startet kurz nach einem neuen Foto oder Video.",
+        "backupSummary": "Nach jeder Sicherung zeigen die Desktop- und Android-App eine Zusammenfassung in deiner Sprache.",
+        "pendingInvites": "Du kannst jemanden einladen, der seinen Tresor noch nicht entsperrt hat. Die Person ist zunächst ausstehend und erhält den Space-Schlüssel automatisch, sobald sie entsperrt. Einladungen nennen, wer dich hinzugefügt hat.",
+        "spaceEvents": "Mitglieder eines Space erfahren sofort von Beitritten, Austritten, Entfernungen, Rollenwechseln und neuen Dateien, als Meldung in der App oder als Systembenachrichtigung.",
+        "zipPause": "Ein ZIP-Download lässt sich pausieren und fortsetzen.",
+        "macInstaller": "Das macOS-Installationsfenster zeigt, wohin du zcrypt ziehst.",
+        "spaceRekey": "Verlässt jemand einen Space oder wird entfernt, wechselt ein Gerät des Besitzers oder eines Admins den Space-Schlüssel automatisch. Ein Gerät, das einen Schlüsselwechsel verpasst hat, holt sich den neuen Schlüssel selbst.",
+        "humanCheck": "Wer in kurzer Zeit viele öffentliche Links erstellt, bestätigt auf der Website kurz, ein Mensch zu sein, statt gesperrt zu werden.",
+        "sendCancel": "Wenn du einen Send abbrichst, wird das bisher Hochgeladene gelöscht.",
+        "slowLinks": "Uploads und Downloads über langsame Verbindungen brechen erst nach 60 Sekunden ohne Bewegung ab, nie nur, weil sie lange dauern.",
+        "viewer": "Der Dateibetrachter versucht fehlgeschlagene Teile erneut und liest Dateien in deinem eigenen Telegram direkt.",
+        "avatars": "Mitglieder-Avatare zeigen zwei Initialen und nennen die Person, wenn du darauf zeigst.",
+        "transferAck": "Die Geräteübertragung meldet erst dann Erfolg, wenn das andere Gerät die ganze Datei bestätigt.",
         "backupSignIn": "Ordner-Backups in der Desktop-App brechen nicht mehr mit „unauthorized, token refresh failed“ ab, nachdem das Fenster geschlossen und wieder geöffnet wurde.",
         "keychainOnce": "Auf dem Mac fragt die App nach einem Update höchstens einmal nach deinem Anmeldepasswort statt einmal für jedes gespeicherte Geheimnis.",
         "macIcon": "Das Symbol der Mac-App füllt sein abgerundetes Quadrat aus, statt klein in einer grauen Kachel zu sitzen.",
         "corners": "Schaltflächen, Felder und Karten behalten in der Mac-App, in Firefox und auf Smartphones ihre weichen Ecken, statt wie Pillen auszusehen.",
+        "allowanceDialog": "Ist das Übertragungskontingent aufgebraucht, sagen Website und Apps das und wann es neu beginnt, statt die rohe Serverantwort zu zeigen.",
+        "sendFinish": "Ein Send wird nicht mehr gelöscht, wenn die Verbindung beim letzten Schritt abreißt.",
+        "androidLocation": "Android-Fotosicherungen behalten den Aufnahmeort jedes Fotos.",
+        "tourUnlock": "Die Begrüßungstour verdeckt die Tresor-Entsperrung nicht mehr.",
+        "uploadsNoHang": "Web-Uploads können nicht mehr hängen oder in Schleifen laufen, und ein fortgesetzter Upload erfasst die ganze Datei.",
+        "previews": "Eine Vorschau gilt nur dann als nicht verfügbar, wenn die Datei wirklich weg ist. Andere Fehler werden erneut versucht.",
         "appSessions": "Eine Anmeldung bleibt bei der Art von App, die sie begonnen hat: Eine in ein anderes Programm kopierte Sitzung wird abgemeldet.",
-        "libraries": "Die Desktop- und Android-Apps nutzen aktualisierte Bibliotheken für Verschlüsselung und Komprimierung."
+        "libraries": "Die Desktop- und Android-Apps nutzen aktualisierte Bibliotheken für Verschlüsselung und Komprimierung.",
+        "botCheck": "Eine Bot-Prüfung schützt Registrierung und Anmeldung auf der Website, und die Zahl neuer Konten, die die Apps pro Netzwerk und Tag anlegen können, ist begrenzt.",
+        "cloudNetworks": "zcrypt kann Anmeldungen aus Cloud- und Rechenzentrumsnetzen ablehnen, aus denen der meiste automatisierte Missbrauch kommt.",
+        "nextjs": "Die Website läuft mit Next.js 16.4.6, das ein gemeldetes Informationsleck behebt."
       }
     },
     "v0_2_2": {

@@ -1,15 +1,40 @@
 {
   "changelog": {
-    "v0_2_3": {
-      "title": "Connexion et sauvegardes plus fiables sur ordinateur",
-      "summary": "Les sauvegardes de dossiers sur Mac ne s'arrêtent plus sur une erreur de connexion, macOS vous demande votre mot de passe bien moins souvent et l'app Mac a l'apparence prévue.",
+    "v0_3_0": {
+      "title": "Des transferts qui attendent au lieu d’échouer",
+      "summary": "Quand ton réseau bloque Telegram ou que le quota de transfert est épuisé, les envois et téléchargements attendent désormais et reprennent tout seuls. Les Spaces changent leur clé d’eux-mêmes quand quelqu’un part, et Android sauvegarde les photos par album.",
       "items": {
+        "allowanceMeters": "Réglages, Stockage, Utilisation et limites affiche ton quota quotidien et mensuel de transferts web et ce qui y compte, avec un avertissement quand il en reste moins d’un dixième.",
+        "waitForTelegram": "Si ton réseau bloque Telegram, les envois et téléchargements attendent et reprennent tout seuls dès qu’il répond, ou quand le quota repart, au lieu d’échouer. Chaque transfert en attente a un bouton Réessayer.",
+        "directDownloads": "Les fichiers de ton propre Telegram se téléchargent directement de Telegram vers ton navigateur, et les parties sur GitHub et Hugging Face viennent directement de la plateforme, sur le web et dans les apps.",
+        "photoAlbums": "Sur Android, choisis les albums à sauvegarder, photos ou vidéos, en Wi-Fi seulement et pendant la charge. Une sauvegarde démarre peu après l’arrivée d’une nouvelle photo ou vidéo.",
+        "backupSummary": "Après chaque sauvegarde, les apps de bureau et Android affichent une notification de résumé dans ta langue.",
+        "pendingInvites": "Tu peux inviter quelqu’un qui n’a pas encore déverrouillé son coffre. La personne est en attente et reçoit la clé du Space automatiquement dès qu’elle le fait. Les invitations disent qui t’a ajouté.",
+        "spaceEvents": "Les membres d’un Space sont prévenus aussitôt des arrivées, départs, retraits, changements de rôle et nouveaux fichiers, par un message dans l’app ou une notification système.",
+        "zipPause": "Un téléchargement ZIP peut être mis en pause et repris.",
+        "macInstaller": "La fenêtre d’installation macOS montre où glisser zcrypt.",
+        "spaceRekey": "Quand quelqu’un quitte un Space ou en est retiré, un appareil du propriétaire ou d’un admin change la clé du Space automatiquement. Un appareil qui a manqué un changement de clé récupère la nouvelle tout seul.",
+        "humanCheck": "Créer beaucoup de liens publics en peu de temps demande sur le site une vérification rapide que tu es une personne, au lieu de te bloquer.",
+        "sendCancel": "Annuler un Send supprime ce qui avait déjà été envoyé.",
+        "slowLinks": "Sur une connexion lente, envois et téléchargements ne s’arrêtent qu’après 60 secondes sans progrès, jamais seulement parce qu’ils sont longs.",
+        "viewer": "La visionneuse réessaie les parties qui échouent et lit directement les fichiers de ton propre Telegram.",
+        "avatars": "Les avatars des membres affichent deux initiales et le nom de la personne quand tu les pointes.",
+        "transferAck": "Le Transfert entre appareils n’indique la réussite que lorsque l’autre appareil confirme avoir le fichier entier.",
         "backupSignIn": "Les sauvegardes de dossiers dans l'app de bureau ne s'arrêtent plus sur « unauthorized, token refresh failed » après avoir fermé puis rouvert la fenêtre.",
         "keychainOnce": "Sur Mac, l'app demande votre mot de passe de session au plus une fois après une mise à jour, au lieu d'une fois par secret enregistré.",
         "macIcon": "L'icône de l'app Mac remplit son carré arrondi au lieu d'apparaître en petit dans une tuile grise.",
         "corners": "Les boutons, champs et cartes gardent leurs coins adoucis dans l'app Mac, dans Firefox et sur téléphone, au lieu de ressembler à des pilules.",
+        "allowanceDialog": "Quand le quota de transfert est épuisé, le site et les apps le disent et indiquent quand il repart, au lieu d’afficher la réponse brute du serveur.",
+        "sendFinish": "Un Send n’est plus supprimé quand la connexion coupe à la dernière étape.",
+        "androidLocation": "Les sauvegardes de photos sur Android gardent le lieu de chaque photo.",
+        "tourUnlock": "La visite d’accueil ne cache plus le déverrouillage du coffre.",
+        "uploadsNoHang": "Les envois web ne peuvent plus rester bloqués ni tourner en boucle, et un envoi repris enregistre le fichier entier.",
+        "previews": "Un aperçu n’est indiqué indisponible que si le fichier a vraiment disparu. Les autres échecs sont réessayés.",
         "appSessions": "Une connexion reste liée au type d'app qui l'a ouverte : une session copiée dans un autre programme est déconnectée.",
-        "libraries": "Les apps de bureau et Android utilisent des bibliothèques de chiffrement et de compression mises à jour."
+        "libraries": "Les apps de bureau et Android utilisent des bibliothèques de chiffrement et de compression mises à jour.",
+        "botCheck": "Une vérification anti-robots protège l’inscription et la connexion sur le site, et le nombre de comptes que les apps peuvent créer depuis un même réseau chaque jour est limité.",
+        "cloudNetworks": "zcrypt peut refuser les connexions depuis les réseaux cloud et de centres de données, d’où vient l’essentiel des abus automatisés.",
+        "nextjs": "Le site utilise Next.js 16.4.6, qui corrige une fuite d’informations signalée."
       }
     },
     "v0_2_2": {

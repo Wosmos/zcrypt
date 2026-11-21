@@ -1,16 +1,53 @@
 [
   {
-    "version": "0.2.3",
+    "version": "0.3.0",
     "date": null,
-    "key": "v0_2_3",
+    "key": "v0_3_0",
     "groups": [
       {
+        "kind": "new",
+        "items": [
+          "allowanceMeters",
+          "waitForTelegram",
+          "directDownloads",
+          "photoAlbums",
+          "backupSummary",
+          "pendingInvites",
+          "spaceEvents",
+          "zipPause",
+          "macInstaller"
+        ]
+      },
+      {
+        "kind": "improved",
+        "items": [
+          "spaceRekey",
+          "humanCheck",
+          "sendCancel",
+          "slowLinks",
+          "viewer",
+          "avatars",
+          "transferAck"
+        ]
+      },
+      {
         "kind": "fixed",
-        "items": ["backupSignIn", "keychainOnce", "macIcon", "corners"]
+        "items": [
+          "backupSignIn",
+          "keychainOnce",
+          "macIcon",
+          "corners",
+          "allowanceDialog",
+          "sendFinish",
+          "androidLocation",
+          "tourUnlock",
+          "uploadsNoHang",
+          "previews"
+        ]
       },
       {
         "kind": "security",
-        "items": ["appSessions", "libraries"]
+        "items": ["appSessions", "libraries", "botCheck", "cloudNetworks", "nextjs"]
       }
     ]
   },

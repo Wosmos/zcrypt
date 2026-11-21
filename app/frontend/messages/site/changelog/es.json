@@ -1,15 +1,40 @@
 {
   "changelog": {
-    "v0_2_3": {
-      "title": "Inicio de sesión y copias de seguridad más estables en el escritorio",
-      "summary": "Las copias de seguridad de carpetas en el Mac ya no se detienen por un error de sesión, macOS te pide la contraseña mucho menos y la app de Mac se ve como debe.",
+    "v0_3_0": {
+      "title": "Transferencias que esperan en lugar de fallar",
+      "summary": "Cuando tu red bloquea Telegram o se acaba el cupo de transferencia, las subidas y descargas ahora esperan y continúan solas. Los Spaces cambian su clave solos cuando alguien se va, y Android puede hacer copia de fotos por álbum.",
       "items": {
+        "allowanceMeters": "En Ajustes, Almacenamiento, Uso y límites ves tu cupo diario y mensual de transferencias web y qué cuenta para él, con un aviso cuando queda menos de una décima parte.",
+        "waitForTelegram": "Si tu red bloquea Telegram, las subidas y descargas esperan y continúan solas cuando responde, o cuando el cupo se renueva, en lugar de fallar. Cada transferencia en espera tiene un botón Reintentar.",
+        "directDownloads": "Los archivos de tu propio Telegram se descargan directamente de Telegram a tu navegador, y las partes en GitHub y Hugging Face llegan directamente de la plataforma, en la web y en las apps.",
+        "photoAlbums": "En Android eliges qué álbumes copiar, fotos o vídeos, solo con Wi-Fi y mientras carga. La copia empieza poco después de que llegue una foto o un vídeo nuevo.",
+        "backupSummary": "Tras cada copia, las apps de escritorio y Android muestran un aviso de resumen en tu idioma.",
+        "pendingInvites": "Puedes invitar a alguien que aún no ha desbloqueado su bóveda. Queda pendiente y recibe la clave del Space automáticamente cuando lo hace. Las invitaciones dicen quién te añadió.",
+        "spaceEvents": "Los miembros de un Space se enteran al momento de altas, salidas, expulsiones, cambios de rol y archivos nuevos, con un mensaje en la app o una notificación del sistema.",
+        "zipPause": "Una descarga ZIP se puede pausar y reanudar.",
+        "macInstaller": "La ventana del instalador de macOS muestra adónde arrastrar zcrypt.",
+        "spaceRekey": "Cuando alguien sale de un Space o es expulsado, un dispositivo del propietario o de un administrador cambia la clave del Space automáticamente. Un dispositivo que se perdió un cambio de clave recoge la nueva solo.",
+        "humanCheck": "Crear muchos enlaces públicos en poco tiempo pide en la web una comprobación rápida de que eres una persona, en lugar de bloquearte.",
+        "sendCancel": "Cancelar un Send borra lo que se había subido.",
+        "slowLinks": "Las subidas y descargas en conexiones lentas se detienen solo tras 60 segundos sin avanzar, nunca por tardar mucho.",
+        "viewer": "El visor de archivos reintenta las partes que fallan y lee directamente los archivos de tu propio Telegram.",
+        "avatars": "Los avatares de los miembros muestran dos iniciales y el nombre de la persona al señalarlos.",
+        "transferAck": "La Transferencia entre dispositivos indica que terminó solo cuando el otro dispositivo confirma que tiene el archivo completo.",
         "backupSignIn": "Las copias de seguridad de carpetas en la app de escritorio ya no se detienen con «unauthorized, token refresh failed» después de cerrar y volver a abrir la ventana.",
         "keychainOnce": "En el Mac, la app pide tu contraseña de inicio de sesión como mucho una vez tras una actualización, en lugar de una vez por cada secreto que guarda.",
         "macIcon": "El icono de la app de Mac ocupa todo su cuadrado redondeado en lugar de quedar pequeño dentro de un recuadro gris.",
         "corners": "Los botones, campos y tarjetas mantienen sus esquinas suaves en la app de Mac, en Firefox y en los teléfonos, en lugar de parecer píldoras.",
+        "allowanceDialog": "Cuando se acaba el cupo de transferencia, la web y las apps lo dicen y cuándo se renueva, en lugar de mostrar la respuesta en bruto del servidor.",
+        "sendFinish": "Un Send ya no se borra cuando la conexión se corta en el último paso.",
+        "androidLocation": "Las copias de fotos en Android conservan la ubicación de cada foto.",
+        "tourUnlock": "El recorrido de bienvenida ya no tapa el desbloqueo de la bóveda.",
+        "uploadsNoHang": "Las subidas web ya no pueden quedarse colgadas ni en bucle, y una subida reanudada registra el archivo completo.",
+        "previews": "Una vista previa aparece como no disponible solo cuando el archivo ya no existe. Los demás fallos se reintentan.",
         "appSessions": "Una sesión se queda con el tipo de app que la inició: si se copia a otro programa, se cierra.",
-        "libraries": "Las apps de escritorio y Android usan bibliotecas de cifrado y compresión actualizadas."
+        "libraries": "Las apps de escritorio y Android usan bibliotecas de cifrado y compresión actualizadas.",
+        "botCheck": "Una comprobación anti-bots protege el registro y el inicio de sesión en la web, y se limita cuántas cuentas nuevas pueden crear las apps desde una misma red al día.",
+        "cloudNetworks": "zcrypt puede rechazar inicios de sesión desde redes de nube y centros de datos, de donde viene la mayor parte del abuso automatizado.",
+        "nextjs": "La web usa Next.js 16.4.6, que corrige una fuga de información notificada."
       }
     },
     "v0_2_2": {
