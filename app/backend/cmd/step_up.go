@@ -19,7 +19,7 @@ const (
 	stepUpPerIP         = 40
 	stepUpNewAccountAge = 24 * time.Hour
 	stepUpClearedFor    = time.Hour
-	stepUpTokenHeader   = "X-Turnstile-Token"
+	stepUpTokenHeader   = "X-Turnstile-Token" //nolint:gosec // header name, not a secret
 )
 
 type stepUpState struct {
