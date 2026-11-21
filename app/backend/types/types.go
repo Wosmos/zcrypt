@@ -922,6 +922,8 @@ type SharedVault struct {
 	SizeLimitBytes int64 `json:"size_limit_bytes"`
 	// NeedsRotation is true after a member removal until the key is rotated.
 	NeedsRotation bool `json:"needs_rotation"`
+	// KeyGeneration counts key rotations; writes under the space key echo it.
+	KeyGeneration int `json:"key_generation"`
 	// Card stats, populated by the list endpoint.
 	MemberCount   int                  `json:"member_count"`
 	FileCount     int                  `json:"file_count"`
@@ -997,6 +999,8 @@ type SharedVaultAddMemberRequest struct {
 	Email           string `json:"email"`
 	Role            string `json:"role"` // viewer, editor, admin
 	WrappedSpaceKey string `json:"wrapped_space_key"`
+	// KeyGeneration of the sealed key; 0 skips the check (older clients).
+	KeyGeneration int `json:"key_generation,omitempty"`
 }
 
 // SharedVaultFile is a file shared into a space, carrying its CEK re-wrapped
@@ -1021,12 +1025,15 @@ type SharedVaultAddFileRequest struct {
 	FileID      string `json:"file_id"`
 	WrappedCEK  string `json:"wrapped_cek"`
 	WrappedName string `json:"wrapped_name"`
+	// KeyGeneration of the space key used; 0 skips the check (older clients).
+	KeyGeneration int `json:"key_generation,omitempty"`
 }
 
 // SharedVaultAddFilesRequest is the JSON body for adding many files to a space
 // in one call; each entry mirrors SharedVaultAddFileRequest.
 type SharedVaultAddFilesRequest struct {
-	Files []SharedVaultAddFileRequest `json:"files"`
+	Files         []SharedVaultAddFileRequest `json:"files"`
+	KeyGeneration int                         `json:"key_generation,omitempty"`
 }
 
 // SharedVaultAddFilesResult reports a batch add.
@@ -1076,6 +1083,8 @@ type SharedVaultRotateRequest struct {
 	// without them a sealed name would stay locked under the discarded key.
 	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
+	// KeyGeneration the client rotated from; 0 skips the check (older clients).
+	KeyGeneration int `json:"key_generation,omitempty"`
 }
 
 // OfflinePin represents a file pinned for offline access.

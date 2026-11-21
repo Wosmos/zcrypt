@@ -25,6 +25,9 @@ import (
 //	spaceMembersChanged  all members        SSE only: refetch the member list
 //	spaceKeyNeeded       owner + admins     SSE only: a pending invitee can now
 //	                                        receive the Space key
+//	spaceRotationNeeded  owner + admins     SSE only: a member with the key left
+//	                                        or was removed; re-key the Space
+//	spaceKeyRotated      other members      SSE only: drop the cached Space key
 const spaceURL = "/spaces"
 
 const filesAddedWindow = 10 * time.Second
@@ -92,6 +95,22 @@ func (s *Server) spaceMemberGone(ctx context.Context, spaceID, memberID string, 
 		s.notifyUser(memberID, spaceEvent("memberRemoved", spaceID, nil))
 	}
 	s.signalMembersChanged(without(members, memberID), spaceID)
+	if wasActive {
+		for _, id := range without(admins, memberID) {
+			s.signalUser(id, spaceEvent("spaceRotationNeeded", spaceID, nil))
+		}
+	}
+}
+
+// spaceKeyRotated tells every other member's open app to drop its cached key.
+func (s *Server) spaceKeyRotated(ctx context.Context, spaceID, actorID string) {
+	members, _, err := s.db.SharedVaultAudience(ctx, spaceID)
+	if err != nil {
+		return
+	}
+	for _, id := range without(members, actorID) {
+		s.signalUser(id, spaceEvent("spaceKeyRotated", spaceID, nil))
+	}
 }
 
 func (s *Server) spaceRoleChanged(ctx context.Context, spaceID, memberID, role string) {

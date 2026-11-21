@@ -199,7 +199,11 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK, req.WrappedName); err != nil {
+	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK, req.WrappedName, req.KeyGeneration); err != nil {
+		if errors.Is(err, index.ErrStaleSpaceKey) {
+			staleSpaceKey(w)
+			return
+		}
 		log.Printf("shared-vaults: add file: %v", err)
 		http.Error(w, `{"error":"failed to add file"}`, http.StatusInternalServerError)
 		return
@@ -343,8 +347,12 @@ func (s *Server) HandleAddSharedVaultFiles(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	added, err := s.db.AddSharedVaultFiles(ctx, vaultID, userID, toAdd)
+	added, err := s.db.AddSharedVaultFiles(ctx, vaultID, userID, req.KeyGeneration, toAdd)
 	if err != nil {
+		if errors.Is(err, index.ErrStaleSpaceKey) {
+			staleSpaceKey(w)
+			return
+		}
 		log.Printf("shared-vaults: batch add files: %v", err)
 		http.Error(w, `{"error":"failed to add files"}`, http.StatusInternalServerError)
 		return
@@ -420,8 +428,14 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// staleSpaceKey refuses a write made with a space key a rotation has replaced;
+// the client drops its cached key, reloads its grant and tries again.
+func staleSpaceKey(w http.ResponseWriter) {
+	writeCodedError(w, http.StatusConflict, "stale_space_key", "the space key changed on another device")
+}
+
 // HandleRotateSharedVault re-keys a space after a membership change. The caller
-// (owner) generates a new space key client-side, seals it to every remaining
+// (owner or admin, who already hold the key) generates a new space key client-side, seals it to every remaining
 // member, and re-wraps every shared file's CEK under it; this endpoint just
 // stores the opaque results atomically. This is what makes member removal a
 // true revocation: a removed member gets no new grant and the re-wrapped files
@@ -432,8 +446,8 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
-	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleOwner {
-		http.Error(w, `{"error":"only the vault owner can rotate the space key"}`, http.StatusForbidden)
+	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleAdmin {
+		http.Error(w, `{"error":"only the owner or an admin can rotate the space key"}`, http.StatusForbidden)
 		return
 	}
 
@@ -460,7 +474,11 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 		req.Description = &d
 	}
 
-	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.Members, req.Files, req.Name, req.Description); err != nil {
+	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.KeyGeneration, req.Members, req.Files, req.Name, req.Description); err != nil {
+		if errors.Is(err, index.ErrStaleSpaceKey) {
+			staleSpaceKey(w)
+			return
+		}
 		if errors.Is(err, index.ErrRotationIncomplete) {
 			http.Error(w, `{"error":"rotation must cover every member and file"}`, http.StatusConflict)
 			return
@@ -469,6 +487,7 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 		http.Error(w, `{"error":"failed to rotate space key"}`, http.StatusInternalServerError)
 		return
 	}
+	s.spaceKeyRotated(ctx, vaultID, userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})

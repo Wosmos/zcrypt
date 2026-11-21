@@ -123,7 +123,11 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		internalError(w, "invite: invitee key", err)
 		return
 	}
-	member, err := s.db.AddSharedVaultMember(ctx, vaultID, target.ID, userID, req.Role, req.WrappedSpaceKey)
+	member, err := s.db.AddSharedVaultMember(ctx, vaultID, target.ID, userID, req.Role, req.WrappedSpaceKey, req.KeyGeneration)
+	if errors.Is(err, index.ErrStaleSpaceKey) {
+		staleSpaceKey(w)
+		return
+	}
 	if errors.Is(err, index.ErrMemberExists) {
 		writeCodedError(w, http.StatusConflict, "already_member", "already a member")
 		return
@@ -170,6 +174,7 @@ func (s *Server) HandleCompleteSharedVaultMember(w http.ResponseWriter, r *http.
 
 	var req struct {
 		WrappedSpaceKey string `json:"wrapped_space_key"`
+		KeyGeneration   int    `json:"key_generation"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.WrappedSpaceKey == "" || len(req.WrappedSpaceKey) > maxWrappedSpaceKeyLen {
 		writeCodedError(w, http.StatusBadRequest, "invalid_request", "wrapped_space_key is required")
@@ -209,7 +214,11 @@ func (s *Server) HandleCompleteSharedVaultMember(w http.ResponseWriter, r *http.
 		return
 	}
 
-	member, err := s.db.CompleteSharedVaultMember(ctx, vaultID, memberUID, req.WrappedSpaceKey)
+	member, err := s.db.CompleteSharedVaultMember(ctx, vaultID, memberUID, req.WrappedSpaceKey, req.KeyGeneration)
+	if errors.Is(err, index.ErrStaleSpaceKey) {
+		staleSpaceKey(w)
+		return
+	}
 	if err != nil {
 		internalError(w, "complete invite", err)
 		return

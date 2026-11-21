@@ -14,6 +14,28 @@ import (
 // was refused, because applying it would strand them on the old key.
 var ErrRotationIncomplete = errors.New("rotation incomplete")
 
+// ErrStaleSpaceKey means a write used a space key that a rotation has replaced.
+var ErrStaleSpaceKey = errors.New("stale space key")
+
+// lockKeyGeneration reads a space's key generation under a row lock and checks
+// it against want (0 skips the check, for older clients). Writes take the lock
+// FOR SHARE and rotation FOR UPDATE, so a write can't land between a rotation's
+// read of the files and its commit.
+func lockKeyGeneration(ctx context.Context, tx pgx.Tx, vaultID string, want int, forUpdate bool) error {
+	q := `SELECT key_generation FROM shared_vaults WHERE id = $1 FOR SHARE`
+	if forUpdate {
+		q = `SELECT key_generation FROM shared_vaults WHERE id = $1 FOR UPDATE`
+	}
+	var gen int
+	if err := tx.QueryRow(ctx, q, vaultID).Scan(&gen); err != nil {
+		return err
+	}
+	if want != 0 && want != gen {
+		return ErrStaleSpaceKey
+	}
+	return nil
+}
+
 // CreateSharedVault creates a new shared vault.
 func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.SharedVaultRequest) (*types.SharedVault, error) {
 	// file_ids is NOT NULL; a client that omits the field (nil slice) would
@@ -44,7 +66,7 @@ func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.S
 func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.SharedVault, error) {
 	rows, err := db.pool.Query(ctx, `
 		SELECT sv.id, sv.name, sv.owner_id, sv.description, sv.file_ids, sv.created_at, sv.updated_at,
-		       svm.wrapped_space_key, svm.role, sv.size_limit_bytes, sv.needs_rotation,
+		       svm.wrapped_space_key, svm.role, sv.size_limit_bytes, sv.needs_rotation, sv.key_generation,
 		       (SELECT COUNT(*) FROM shared_vault_members m WHERE m.vault_id = sv.id AND m.status = 'active'),
 		       (SELECT COUNT(*) FROM shared_vault_files f WHERE f.vault_id = sv.id),
 		       COALESCE((SELECT SUM(fl.original_size) FROM shared_vault_files f
@@ -63,7 +85,7 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	for rows.Next() {
 		var v types.SharedVault
 		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt,
-			&v.WrappedSpaceKey, &v.Role, &v.SizeLimitBytes, &v.NeedsRotation, &v.MemberCount, &v.FileCount, &v.UsedBytes); err != nil {
+			&v.WrappedSpaceKey, &v.Role, &v.SizeLimitBytes, &v.NeedsRotation, &v.KeyGeneration, &v.MemberCount, &v.FileCount, &v.UsedBytes); err != nil {
 			return nil, err
 		}
 		vaults = append(vaults, v)
@@ -119,9 +141,9 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	vault := &types.SharedVaultDetail{}
 	err = db.pool.QueryRow(ctx, `
-		SELECT id, name, owner_id, description, file_ids, created_at, updated_at, size_limit_bytes, needs_rotation
+		SELECT id, name, owner_id, description, file_ids, created_at, updated_at, size_limit_bytes, needs_rotation, key_generation
 		FROM shared_vaults WHERE id = $1`, vaultID,
-	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt, &vault.SizeLimitBytes, &vault.NeedsRotation)
+	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt, &vault.SizeLimitBytes, &vault.NeedsRotation, &vault.KeyGeneration)
 	if err != nil {
 		return nil, err
 	}
@@ -195,13 +217,22 @@ var ErrMemberExists = errors.New("already a member")
 // owner/admin device seals the space key to them (CompleteSharedVaultMember).
 // The WHERE clause forbids targeting the vault owner. ErrMemberExists is
 // returned when a row already exists, so an invite never overwrites a grant.
-func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, userID, invitedBy, role, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
+func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, userID, invitedBy, role, wrappedSpaceKey string, gen int) (*types.SharedVaultMember, error) {
 	status := "active"
 	if wrappedSpaceKey == "" {
 		status = "pending"
+		gen = 0
+	}
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockKeyGeneration(ctx, tx, vaultID, gen, false); err != nil {
+		return nil, err
 	}
 	member := &types.SharedVaultMember{}
-	err := db.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO shared_vault_members (vault_id, user_id, role, wrapped_space_key, status, invited_by)
 		SELECT $1, $2, $3, $4, $5, $6
 		WHERE $2::uuid <> (SELECT owner_id FROM shared_vaults WHERE id = $1)
@@ -216,7 +247,7 @@ func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, userID, invited
 		return nil, err
 	}
 	member.InvitedBy = invitedBy
-	return member, nil
+	return member, tx.Commit(ctx)
 }
 
 // SharedVaultMemberStatus returns a user's membership status in a space
@@ -234,9 +265,17 @@ func (db *DB) SharedVaultMemberStatus(ctx context.Context, vaultID, userID strin
 // CompleteSharedVaultMember stores the space key grant for a pending member and
 // activates them. It reports false when the member is not pending or the user
 // has no published key, so a grant is never attached to a keyless account.
-func (db *DB) CompleteSharedVaultMember(ctx context.Context, vaultID, userID, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
+func (db *DB) CompleteSharedVaultMember(ctx context.Context, vaultID, userID, wrappedSpaceKey string, gen int) (*types.SharedVaultMember, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockKeyGeneration(ctx, tx, vaultID, gen, false); err != nil {
+		return nil, err
+	}
 	member := &types.SharedVaultMember{}
-	err := db.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		UPDATE shared_vault_members SET status = 'active', wrapped_space_key = $3
 		WHERE vault_id = $1 AND user_id = $2 AND status = 'pending'
 		  AND EXISTS (SELECT 1 FROM user_keys WHERE user_id = $2)
@@ -246,7 +285,10 @@ func (db *DB) CompleteSharedVaultMember(ctx context.Context, vaultID, userID, wr
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
-	return member, err
+	if err != nil {
+		return nil, err
+	}
+	return member, tx.Commit(ctx)
 }
 
 // PendingSpacesForUser lists the spaces where userID is invited but still
@@ -275,12 +317,15 @@ func (db *DB) PendingSpacesForUser(ctx context.Context, userID string) ([]string
 // removed member can't regain access. A non-nil name or description replaces
 // the stored one in the same transaction, since the client re-seals them under
 // the new key. All values are opaque to the server.
-func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members []types.MemberKeyGrant, files []types.FileKeyWrap, name, description *string) error {
+func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, gen int, members []types.MemberKeyGrant, files []types.FileKeyWrap, name, description *string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockKeyGeneration(ctx, tx, vaultID, gen, true); err != nil {
+		return err
+	}
 
 	// Anti-lockout: the re-key MUST provide a fresh grant for every current
 	// member who has a published key, and a fresh wrap for every shared file.
@@ -381,7 +426,7 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE shared_vaults
-		SET updated_at = NOW(), needs_rotation = false,
+		SET updated_at = NOW(), needs_rotation = false, key_generation = key_generation + 1,
 		    name = COALESCE($2, name), description = COALESCE($3, description)
 		WHERE id = $1`, vaultID, name, description); err != nil {
 		return err
@@ -502,12 +547,15 @@ func (db *DB) IsSharedVaultOwner(ctx context.Context, vaultID, userID string) (b
 // key rotation). Also mirrors the file id into shared_vaults.file_ids so the
 // existing metadata listing stays in sync. Caller must already be authorized as
 // an editor/admin member of the vault (enforced at the handler).
-func (db *DB) AddSharedVaultFile(ctx context.Context, vaultID, fileID, addedBy, wrappedCEK, wrappedName string) error {
+func (db *DB) AddSharedVaultFile(ctx context.Context, vaultID, fileID, addedBy, wrappedCEK, wrappedName string, gen int) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockKeyGeneration(ctx, tx, vaultID, gen, false); err != nil {
+		return err
+	}
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, wrapped_name, added_by)
@@ -678,7 +726,7 @@ func (db *DB) SharedVaultBatchState(ctx context.Context, vaultID string, ids []s
 // AddSharedVaultFiles registers many files in a space in one transaction. The
 // caller passes only ids not already present; the array mirror is extended with
 // a single array_cat of the ids it does not yet hold.
-func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, files []types.SharedVaultAddFileRequest) (int, error) {
+func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, gen int, files []types.SharedVaultAddFileRequest) (int, error) {
 	if len(files) == 0 {
 		return 0, nil
 	}
@@ -694,6 +742,9 @@ func (db *DB) AddSharedVaultFiles(ctx context.Context, vaultID, addedBy string, 
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockKeyGeneration(ctx, tx, vaultID, gen, false); err != nil {
+		return 0, err
+	}
 
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, wrapped_name, added_by)

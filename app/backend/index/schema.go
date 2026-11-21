@@ -738,6 +738,11 @@ ALTER TABLE shared_vault_files ADD COLUMN IF NOT EXISTS wrapped_name TEXT NOT NU
 -- files are refused so nothing is wrapped under a key the removed member may hold.
 ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS needs_rotation BOOLEAN NOT NULL DEFAULT false;
 
+-- Bumped by every key rotation. Writes that wrap or seal the space key name the
+-- generation they used, so a device holding a key rotated away elsewhere is
+-- refused instead of storing something no current member can open.
+ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS key_generation INTEGER NOT NULL DEFAULT 1;
+
 -- Public folder share links. Mirrors single-file shares (shares table) but for a
 -- whole folder: one random folder-share key (kept only in the URL #fragment,
 -- never sent here) wraps each contained file's CEK. Anyone with the link + key
