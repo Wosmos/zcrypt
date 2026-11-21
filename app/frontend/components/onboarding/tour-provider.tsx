@@ -50,6 +50,39 @@ export function useAutoTour(name: TourName, ready: boolean, delayMs = 700) {
   }, [name, ready, delayMs, startOnce, close]);
 }
 
+/** An app dialog (Radix sets data-state) as opposed to the tour's own card. */
+const OPEN_DIALOG = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
+const TOUR_Z = 10000;
+/** Under the app's dialogs (z-50), so one opened mid-tour (the vault unlock
+ *  prompt, say) shows above the tour instead of under it. */
+const TOUR_Z_UNDER_DIALOG = 40;
+
+/** Whether an app dialog is open, watched only while `watch` is on. */
+export function useDialogOpen(watch: boolean): boolean {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!watch) return;
+    let frame = 0;
+    const check = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setOpen(document.querySelector(OPEN_DIALOG) !== null));
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-state"],
+    });
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [watch]);
+  return watch && open;
+}
+
 function TourController({ children }: { children: ReactNode }) {
   const t = useTranslations("ui.tour.steps");
   const tRef = useRef(t);
@@ -124,6 +157,7 @@ function TourController({ children }: { children: ReactNode }) {
     [startOnce, close, replay, isActive],
   );
   const reduce = useReducedMotion();
+  const dialogOpen = useDialogOpen(isNextStepVisible);
 
   return (
     <TourContext.Provider value={api}>
@@ -143,7 +177,7 @@ function TourController({ children }: { children: ReactNode }) {
           disableConsoleLogs
           noInViewScroll={false}
           scrollToTop={false}
-          overlayZIndex={10000}
+          overlayZIndex={dialogOpen ? TOUR_Z_UNDER_DIALOG : TOUR_Z}
         >
           {null}
         </NextStep>
