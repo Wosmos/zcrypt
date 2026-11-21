@@ -58,6 +58,7 @@
     },
     "invites": {
       "errorGeneric": "Échec de l’ajout du membre",
+      "errorRotating": "La clé de ce Space est en cours de changement après un départ. Réessaie dans un instant.",
       "errorNoKey": "Cet espace n’a pas de clé que vous puissiez partager (il date d’avant le partage chiffré).",
       "adminOwnerOnly": "Seul le propriétaire peut accorder le rôle d’administrateur.",
       "adding": "Ajout...",

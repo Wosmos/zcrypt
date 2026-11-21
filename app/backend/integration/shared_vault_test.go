@@ -934,6 +934,24 @@ func TestSharedVaultRevocation(t *testing.T) {
 		assert.False(t, needs, "the admin's rotation clears the flag")
 	})
 
+	t.Run("a keyed invite waits for the rotation; a bad key is refused", func(t *testing.T) {
+		id := ts.createSpace(owner, "InviteGate", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-member@example.com", "viewer"), http.StatusCreated)
+		m := ts.memberByEmail(owner, id, "rv-member@example.com")
+		requireStatus(t, ts.DELETE("/api/shared-vaults/"+id+"/members/"+m.UserID, owner), http.StatusOK)
+
+		st, code := codeOf(ts.invite(owner, id, "rv-admin@example.com", "viewer"))
+		assert.Equal(t, http.StatusConflict, st)
+		assert.Equal(t, "key_rotating", code)
+
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", rotateBody(id, ""), owner), http.StatusOK)
+		st, _ = codeOf(ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
+			"email": "rv-admin@example.com", "role": "viewer", "wrapped_space_key": "not base64!",
+		}, owner))
+		assert.Equal(t, http.StatusBadRequest, st)
+		requireStatus(t, ts.invite(owner, id, "rv-admin@example.com", "viewer"), http.StatusCreated)
+	})
+
 	t.Run("rotation must re-wrap every shared file", func(t *testing.T) {
 		id := ts.createSpace(owner, "RotateFiles", 0)
 		f := ts.uploadReadyFile(owner, "w.bin", 40)

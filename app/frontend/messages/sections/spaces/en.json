@@ -58,6 +58,7 @@
     },
     "invites": {
       "errorGeneric": "Failed to add member",
+      "errorRotating": "This Space's key is being changed after someone left. Try again in a moment.",
       "errorNoKey": "This space has no key you can share (it predates encrypted sharing).",
       "adminOwnerOnly": "Only the owner can grant admin.",
       "adding": "Adding...",

@@ -234,6 +234,9 @@ func TestSpaceEventsReachTheRightPeopleOnTheRightChannels(t *testing.T) {
 	})
 
 	t.Run("removing a member tells them, and refreshes the remaining members", func(t *testing.T) {
+		// The earlier leave left the Space waiting for a re-key, which refuses a keyed invite.
+		_, err := ts.db.Pool().Exec(context.Background(), `UPDATE shared_vaults SET needs_rotation = false WHERE id = $1`, space)
+		require.NoError(t, err)
 		requireStatus(t, ts.inviteSpace(owner, space, "ev-member@example.com", "viewer", true), http.StatusCreated)
 		before := countSSE(rig.tap(adminID), "spaceMembersChanged")
 		requireStatus(t, ts.DELETE("/api/shared-vaults/"+space+"/members/"+memberID, owner), http.StatusOK)

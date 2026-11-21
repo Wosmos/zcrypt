@@ -25,6 +25,7 @@ describe("inviteErrorMessage", () => {
     ["self_invite", "That's you."],
     ["already_member", "Already a member."],
     ["already_invited", "Already invited."],
+    ["key_rotating", "This Space's key is being changed after someone left. Try again in a moment."],
     ["forbidden", "Only the owner or an admin can invite."],
     ["invalid_role", "Failed to add member"],
     ["", "Failed to add member"],

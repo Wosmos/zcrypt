@@ -58,6 +58,7 @@
     },
     "invites": {
       "errorGeneric": "Mitglied konnte nicht hinzugefügt werden",
+      "errorRotating": "Der Schlüssel dieses Space wird gerade geändert, weil jemand gegangen ist. Versuch es gleich noch einmal.",
       "errorNoKey": "Dieser Space hat keinen Schlüssel, den du teilen kannst (er stammt aus der Zeit vor verschlüsselter Freigabe).",
       "adminOwnerOnly": "Nur der Besitzer kann Admin-Rechte vergeben.",
       "adding": "Wird hinzugefügt...",

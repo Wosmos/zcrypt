@@ -73,6 +73,22 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		writeCodedError(w, http.StatusBadRequest, "invalid_request", "wrapped key is too long")
 		return
 	}
+	if req.WrappedSpaceKey != "" {
+		if _, err := base64.StdEncoding.DecodeString(req.WrappedSpaceKey); err != nil {
+			writeCodedError(w, http.StatusBadRequest, "invalid_request", "wrapped_space_key must be base64")
+			return
+		}
+		// A key sealed now is the one a removed member may still hold.
+		rotating, err := s.db.SharedVaultNeedsRotation(ctx, vaultID)
+		if err != nil {
+			internalError(w, "invite: rotation", err)
+			return
+		}
+		if rotating {
+			writeCodedError(w, http.StatusConflict, "key_rotating", "the space key is being rotated; try again in a moment")
+			return
+		}
+	}
 
 	me, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {

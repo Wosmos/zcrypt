@@ -58,6 +58,7 @@
     },
     "invites": {
       "errorGeneric": "添加成员失败",
+      "errorRotating": "有人离开后，这个 Space 的密钥正在更换。请稍后再试。",
       "errorNoKey": "此空间没有可共享的密钥（它早于加密共享功能）。",
       "adminOwnerOnly": "只有所有者可以授予管理员权限。",
       "adding": "正在添加...",

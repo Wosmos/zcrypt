@@ -40,6 +40,7 @@ const INVITE_ERRORS: Record<string, string> = {
   already_member: "invites.errorAlreadyMember",
   already_invited: "invites.errorAlreadyInvited",
   forbidden: "invites.errorForbidden",
+  key_rotating: "invites.errorRotating",
 };
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
