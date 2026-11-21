@@ -242,21 +242,22 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   };
 }
 
+/** Cache tag for the release data; the release workflow clears it on publish. */
+export const RELEASE_CACHE_TAG = "github-release";
+
 /**
  * Fetch the latest release's download data.
  *
- * Next's data cache holds the response for five minutes (`next.revalidate`):
- * unauthenticated GitHub API calls are capped at 60/hour per IP, so that is
- * about 12 calls an hour, and Next no longer caches `fetch` by default. The
- * cache outlives deploys, so a long window kept the old version label on the
- * site for up to an hour after a release. Nothing is memoised in module scope: a
- * process-lifetime copy outlived that revalidation and kept serving the
- * previous release long after a new one shipped.
+ * Cached until the next release: the release workflow calls
+ * app/hooks/release (route.web.tsx) once the release is published, which drops
+ * this tag. The one-day revalidate is only a safety net for a missed hook.
+ * Nothing is memoised in module scope: a process-lifetime copy would outlive
+ * that and keep serving the previous release.
  */
 export function getLatestRelease(): Promise<ReleaseData> {
   return fetch(LATEST_RELEASE_API, {
     headers: { Accept: "application/vnd.github+json" },
-    next: { revalidate: 300 },
+    next: { revalidate: 86_400, tags: [RELEASE_CACHE_TAG] },
   })
     .then((res) => {
       if (!res.ok) throw new Error(`GitHub API ${res.status}`);

@@ -1948,7 +1948,7 @@
       "p87": "المكوّن",
       "p88": "أين يعمل",
       "p89": "<strong>الواجهة الأمامية</strong>",
-      "p90": "Vercel (Next.js)",
+      "p90": "Cloudflare Workers (Next.js)",
       "p91": "<strong>الخادم الخلفي</strong>",
       "p92": "صورة Docker من نوع distroless على آلة Linux افتراضية سحابية (محايدة تجاه المزوّد)",
       "p93": "<strong>قاعدة البيانات</strong>",

@@ -11,8 +11,8 @@ import { LOCALE_INIT_SCRIPT } from "@/lib/i18n";
 import { KeyboardAvoider } from "@/components/system/keyboard-avoider";
 import { ExternalLinkHandler } from "@/components/providers/external-link-handler";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
-import { Analytics } from "@vercel/analytics/react";
 import { SITE_URL } from "@/lib/site";
+import { WebAnalytics } from "@/components/system/web-analytics";
 
 const satoshi = localFont({
   src: [
@@ -252,7 +252,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {children}
               <ToastContainer />
               <LocaleSuggestion />
-              <Analytics />
+              <WebAnalytics />
             </QueryProvider>
           </ThemeProvider>
         </I18nProvider>

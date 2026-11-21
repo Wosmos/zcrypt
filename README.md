@@ -124,7 +124,7 @@ Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that imple
 
 | Client | Status | Notes |
 | ------ | ------ | ----- |
-| **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane, with direct browser-to-Telegram uploads and a per-file and monthly web transfer cap; its prompts open the desktop app through `zcrypt://open` or point to the download. |
+| **Web** (Next.js 16) | Production | The flagship. Deployed on Cloudflare Workers. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane, with direct browser-to-Telegram uploads and a per-file and monthly web transfer cap; its prompts open the desktop app through `zcrypt://open` or point to the download. |
 | **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater, single instance (a `zcrypt://open` link from the browser focuses the running window). Installers are currently unsigned (see [Install the desktop app](#install-the-desktop-app)). |
 | **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Sideloaded APK from the [releases page](https://github.com/Wosmos/zcrypt/releases), signed with a permanent release key since v0.1.7, so updates install in place. Copies installed before v0.1.7 need one uninstall and reinstall. Not on the Play Store yet. |
 
@@ -213,7 +213,7 @@ iOS compiles but is not yet built in CI. It is in development.
 | Database | PostgreSQL on Neon (serverless) |
 | Encryption | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF-SHA256, X25519 (sharing), bcrypt, TOTP |
 | Compression | zstd (WebCrypto/WASM in the browser; native in the Rust core) |
-| Deploy | Web on Vercel (deployed by CI after the tests pass), backend in Docker on Railway today with a self-hosted kit behind a Cloudflare Tunnel ready (see [`deploy/server`](deploy/server/README.md)), DB on Neon |
+| Deploy | Web on Cloudflare Workers via vinext (deployed by CI after the tests pass), backend in Docker on Railway today with a self-hosted kit behind a Cloudflare Tunnel ready (see [`deploy/server`](deploy/server/README.md)), DB on Neon |
 
 ## Install the desktop app
 

@@ -47,7 +47,7 @@
         "l11": "Reseñas y comentarios: tu texto, valoración y nombre para mostrar. Una reseña solo se muestra públicamente si lo permites y es aprobada.",
         "l12": "Interruptor de hombre muerto, si lo configuras: el correo y nombre de un contacto, tu mensaje y un tiempo de espera. Se almacenan sin cifrar y nuestro servidor los envía por correo a tu contacto si dejas de registrar tu presencia.",
         "h5": "Lo que no recopilamos",
-        "l13": "No usamos rastreadores publicitarios ni de marketing. No usamos Google Analytics, Sentry, PostHog ni herramientas similares. El sitio web usa Vercel Web Analytics para estadísticas agregadas de visitas a páginas."
+        "l13": "No usamos rastreadores publicitarios ni de marketing. No usamos Google Analytics, Sentry, PostHog ni herramientas similares. El sitio web usa Cloudflare Web Analytics para estadísticas agregadas de visitas a páginas."
       },
       "s4": {
         "t": "Tus cuentas de almacenamiento, y las nuestras",
@@ -60,7 +60,7 @@
         "t": "Quién más trata datos",
         "p1": "Estos servicios tratan datos en nuestro nombre. Enumeramos solo los que existen hoy.",
         "l1": "<strong>Neon</strong>: nuestra base de datos PostgreSQL (AWS, us-east-1). Contiene todo lo descrito en las secciones anteriores, pero ningún contenido de archivos.",
-        "l2": "<strong>Vercel</strong>: aloja el sitio web y la app web, y proporciona Web Analytics.",
+        "l2": "<strong>Cloudflare</strong>: aloja el sitio web y la app web, y proporciona Web Analytics.",
         "l3": "<strong>Nuestro servidor backend</strong>, al que se llega a través de <strong>Cloudflare</strong>. Cloudflare ve el tráfico hacia nuestra API y nos indica tu país, que usamos solo para sugerir un idioma y no almacenamos. El alojamiento del servidor puede cambiar con el tiempo.",
         "l4": "<strong>Resend</strong>: envía nuestros correos: verificación, enlaces mágicos de inicio de sesión, restablecimientos de contraseña, avisos de nuevo dispositivo, avisos de eliminación de cuenta y mensajes del interruptor de hombre muerto. Ven la dirección del destinatario y el mensaje.",
         "l5": "<strong>Google y GitHub</strong>, solo si eliges iniciar sesión con ellos.",

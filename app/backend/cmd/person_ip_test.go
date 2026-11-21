@@ -35,3 +35,29 @@ func TestPersonIPTrustsForwardedHeaderOnlyWithProxySecret(t *testing.T) {
 		})
 	}
 }
+
+func TestPersonIPReadsWorkerVisitorHeaderOnlyWithProxySecret(t *testing.T) {
+	cases := []struct {
+		name string
+		sent string
+		want string
+	}{
+		{"matching secret", "s3cret", "192.0.2.44"},
+		{"wrong secret", "nope", "203.0.113.9"},
+		{"no secret sent", "", "203.0.113.9"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Server{cfg: &config.Config{ProxySecret: "s3cret", ClientIPHeader: "X-Real-IP"}}
+			r := httptest.NewRequest("GET", "/", nil)
+			r.Header.Set("X-Real-IP", "203.0.113.9")
+			r.Header.Set("X-Zcrypt-Visitor-IP", "192.0.2.44")
+			if tc.sent != "" {
+				r.Header.Set("X-Zcrypt-Proxy-Secret", tc.sent)
+			}
+			if got := s.personIP(r); got != tc.want {
+				t.Fatalf("personIP = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}

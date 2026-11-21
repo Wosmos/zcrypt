@@ -131,7 +131,7 @@ describe("getLatestRelease", () => {
         headers: { Accept: "application/vnd.github+json" },
         // Unauthenticated GitHub allows 60 calls/hour per IP and Next no longer
         // caches fetch by default; without this every /download view spends one.
-        next: { revalidate: 300 },
+        next: { revalidate: 86_400, tags: ["github-release"] },
       },
     );
   });

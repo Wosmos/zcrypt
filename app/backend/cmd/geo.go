@@ -29,11 +29,19 @@ func (s *Server) HandleGeoCountry(w http.ResponseWriter, r *http.Request) {
 // so the person's address is taken from the header Vercel adds. That header
 // only steers the location, never rate limits or audit addresses.
 func (s *Server) visitorLocation(r *http.Request) types.GeoLocation {
+	if s.viaOwnProxy(r) {
+		if loc := proxiedLocation(r); loc.Country != "" {
+			return loc
+		}
+	}
 	if loc := edgeLocation(r); loc.Country != "" {
 		return loc
 	}
 	ip := s.clientIP(r)
 	if fwd := firstForwarded(r.Header.Get("X-Vercel-Forwarded-For")); fwd != "" {
+		ip = fwd
+	}
+	if fwd := s.proxiedVisitorIP(r); fwd != "" {
 		ip = fwd
 	}
 	p := s.geo.Lookup(ip)
@@ -79,6 +87,20 @@ func edgeLocation(r *http.Request) types.GeoLocation {
 		Country: visitorCountry(r),
 		Region:  geoHeader(r, maxRegionRunes, "X-Vercel-IP-Country-Region", "CF-Region-Code", "CF-Region"),
 		City:    geoHeader(r, maxCityRunes, "X-Vercel-IP-City", "CF-IPCity"),
+	}
+}
+
+// proxiedLocation is the location the site's Cloudflare Worker copied from
+// Cloudflare's headers for the person; the caller checks the proxy secret.
+func proxiedLocation(r *http.Request) types.GeoLocation {
+	c := strings.ToUpper(strings.TrimSpace(r.Header.Get(hdrVisitorCountry)))
+	if !isCountryCode(c) {
+		return types.GeoLocation{}
+	}
+	return types.GeoLocation{
+		Country: c,
+		Region:  geoHeader(r, maxRegionRunes, hdrVisitorRegion),
+		City:    geoHeader(r, maxCityRunes, hdrVisitorCity),
 	}
 }
 

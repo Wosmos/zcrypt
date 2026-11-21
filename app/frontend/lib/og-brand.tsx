@@ -1,11 +1,8 @@
 import { ImageResponse } from "next/og";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { MARK_SVG_BASE64 } from "@/lib/og-brand-mark";
 import { SITE_DOMAIN } from "@/lib/site";
 
-const MARK_DATA_URI = `data:image/svg+xml;base64,${readFileSync(
-  join(process.cwd(), "public/brand/zcrypt-mark-dark-bg.svg"),
-).toString("base64")}`;
+const MARK_DATA_URI = `data:image/svg+xml;base64,${MARK_SVG_BASE64}`;
 
 export const OG_SIZE = { width: 1200, height: 630 };
 export const OG_ALT = "zcrypt. Private Encrypted Cloud Storage";

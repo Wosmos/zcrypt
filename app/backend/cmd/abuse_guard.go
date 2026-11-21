@@ -51,6 +51,9 @@ func (s *Server) StartNetGuard(ctx context.Context) {
 // address. Without it, the header is read when the direct caller is on a
 // cloud network, which a server on another cloud can forge.
 func (s *Server) personIP(r *http.Request) string {
+	if ip := s.proxiedVisitorIP(r); ip != "" {
+		return ip
+	}
 	ip := s.clientIP(r)
 	trusted := s.viaOwnProxy(r)
 	if s.cfg.ProxySecret == "" {
@@ -62,6 +65,25 @@ func (s *Server) personIP(r *http.Request) string {
 		}
 	}
 	return ip
+}
+
+// The site's Cloudflare Worker names the person behind a relayed request in
+// these headers (it copies them from Cloudflare's own CF-Connecting-IP and
+// location headers). They are read only next to the proxy secret.
+const (
+	hdrVisitorIP      = "X-Zcrypt-Visitor-IP"
+	hdrVisitorCountry = "X-Zcrypt-Visitor-Country"
+	hdrVisitorRegion  = "X-Zcrypt-Visitor-Region"
+	hdrVisitorCity    = "X-Zcrypt-Visitor-City"
+)
+
+// proxiedVisitorIP is the person's address from the Worker, or "" when the
+// request did not come through it.
+func (s *Server) proxiedVisitorIP(r *http.Request) string {
+	if !s.viaOwnProxy(r) {
+		return ""
+	}
+	return firstForwarded(r.Header.Get(hdrVisitorIP))
 }
 
 func (s *Server) viaOwnProxy(r *http.Request) bool {

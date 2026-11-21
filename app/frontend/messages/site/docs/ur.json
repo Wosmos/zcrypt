@@ -1948,7 +1948,7 @@
       "p87": "جزو",
       "p88": "یہ کہاں چلتا ہے",
       "p89": "<strong>فرنٹ اینڈ</strong>",
-      "p90": "Vercel (Next.js)",
+      "p90": "Cloudflare Workers (Next.js)",
       "p91": "<strong>بیک اینڈ</strong>",
       "p92": "کلاؤڈ Linux VM پر Distroless Docker امیج (فراہم کنندہ سے آزاد)",
       "p93": "<strong>ڈیٹا بیس</strong>",

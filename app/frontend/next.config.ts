@@ -33,11 +33,11 @@ const HF_LFS_HOSTS =
   "https://hf-hub-lfs-us-east-1.s3-accelerate.amazonaws.com https://hf-hub-lfs-us-east-1.s3.us-east-1.amazonaws.com";
 const cspValue = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org ${HF_LFS_HOSTS} ${PLATFORM_DOWNLOAD_HOSTS} https://va.vercel-scripts.com https://vitals.vercel-insights.com`
+  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org ${HF_LFS_HOSTS} ${PLATFORM_DOWNLOAD_HOSTS} https://cloudflareinsights.com`
     .replace(/\s+/g, " ")
     .trim(),
   "media-src 'self' blob:",
