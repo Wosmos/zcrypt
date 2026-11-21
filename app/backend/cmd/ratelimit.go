@@ -56,6 +56,16 @@ func (rl *rateLimiter) exceeded(key string) bool {
 	return len(rl.liveLocked(key, now)) >= rl.limit
 }
 
+// count is how many attempts key has in the current window.
+func (rl *rateLimiter) count(key string) int {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	rl.sweepLocked(now)
+	return len(rl.liveLocked(key, now))
+}
+
 // record counts one attempt against key.
 func (rl *rateLimiter) record(key string) {
 	rl.mu.Lock()

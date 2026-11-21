@@ -1113,6 +1113,12 @@
       "bodyMonthly": "Il ne reste que {remaining} du quota du mois. Remise à zéro le {date}. Les envois directs vers votre propre stockage ne l'utilisent pas.",
       "bodyMonthlyNoDate": "Il ne reste que {remaining} du quota du mois. Les envois directs vers votre propre stockage ne l'utilisent pas.",
       "seeUsage": "Voir l'utilisation"
+    },
+    "humanCheck": {
+      "title": "Vérification rapide",
+      "body": "Vous avez créé beaucoup de liens en peu de temps. Confirmez que vous êtes une personne et votre lien sera créé.",
+      "checking": "Vérification…",
+      "cancel": "Annuler"
     }
   }
 }

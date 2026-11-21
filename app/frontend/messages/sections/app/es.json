@@ -1113,6 +1113,12 @@
       "bodyMonthly": "Solo quedan {remaining} del cupo de este mes. Se restablece el {date}. Las subidas directas a tu propio almacenamiento no lo gastan.",
       "bodyMonthlyNoDate": "Solo quedan {remaining} del cupo de este mes. Las subidas directas a tu propio almacenamiento no lo gastan.",
       "seeUsage": "Ver el uso"
+    },
+    "humanCheck": {
+      "title": "Comprobación rápida",
+      "body": "Has creado muchos enlaces en poco tiempo. Confirma que eres una persona y se creará tu enlace.",
+      "checking": "Comprobando…",
+      "cancel": "Cancelar"
     }
   }
 }

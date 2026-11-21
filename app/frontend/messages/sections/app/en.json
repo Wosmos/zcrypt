@@ -1113,6 +1113,12 @@
       "bodyMonthly": "Only {remaining} of this month's allowance is left. It resets on {date}. Uploads straight to your own storage don't use it.",
       "bodyMonthlyNoDate": "Only {remaining} of this month's allowance is left. Uploads straight to your own storage don't use it.",
       "seeUsage": "See usage"
+    },
+    "humanCheck": {
+      "title": "Quick check",
+      "body": "You've made a lot of links in a short time. Confirm you're a person and your link will be made.",
+      "checking": "Checking…",
+      "cancel": "Cancel"
     }
   }
 }

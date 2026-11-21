@@ -26,6 +26,9 @@ import (
 func (s *Server) HandleCreateFolderShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
+	if s.challengeIfBusy(w, r) {
+		return
+	}
 
 	var req types.CreateFolderShareRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

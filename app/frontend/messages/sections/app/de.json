@@ -1113,6 +1113,12 @@
       "bodyMonthly": "Von deinem Monatskontingent sind nur noch {remaining} übrig. Es wird am {date} zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
       "bodyMonthlyNoDate": "Von deinem Monatskontingent sind nur noch {remaining} übrig. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
       "seeUsage": "Nutzung ansehen"
+    },
+    "humanCheck": {
+      "title": "Kurze Prüfung",
+      "body": "Du hast in kurzer Zeit viele Links erstellt. Bestätige, dass du ein Mensch bist, dann wird dein Link erstellt.",
+      "checking": "Wird geprüft…",
+      "cancel": "Abbrechen"
     }
   }
 }

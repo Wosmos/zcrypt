@@ -223,3 +223,81 @@ func TestAppSignupsAreCappedPerDay(t *testing.T) {
 	code, _ = signUp("web1", "web/0.2.3", accountTestPassword)
 	assert.Equal(t, http.StatusCreated, code, "the website has Turnstile instead")
 }
+
+func TestManyLinksNeedTheStepUpCheck(t *testing.T) {
+	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": r.Form.Get("response") == "good"})
+	}))
+	defer verify.Close()
+	ts := setupTestServerWith(t, func(c *config.Config) { c.TurnstileSecret = "test-secret" })
+	ts.srv.SetTurnstileURLForTest(verify.URL)
+	ctx := context.Background()
+
+	share := func(token, fileID string, headers map[string]string) (int, map[string]interface{}) {
+		data, _ := json.Marshal(map[string]string{"file_id": fileID, "wrapped_cek": "dGVzdA=="})
+		req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/shares", bytes.NewReader(data))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-Forwarded-For", uniqueTestIP())
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		out := map[string]interface{}{}
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		return resp.StatusCode, out
+	}
+	newAccount := func(name string) (string, string) {
+		email := uniqueEmail(name)
+		app := asClient("android/0.2.3")
+		code, _ := ts.postWith("/api/auth/register", map[string]interface{}{
+			"email": email, "username": name + fmt.Sprint(time.Now().UnixNano()%1e6), "password": accountTestPassword, "force": true,
+		}, app)
+		require.Equal(t, http.StatusCreated, code)
+		code, pair := ts.postWith("/api/auth/login", map[string]string{"email": email, "password": accountTestPassword}, app)
+		require.Equal(t, http.StatusOK, code)
+		token, _ := pair["access_token"].(string)
+		user, err := ts.db.GetUserByEmail(ctx, email)
+		require.NoError(t, err)
+		return token, ts.insertFile(ctx, user.ID, "a.txt")
+	}
+
+	t.Run("a new account on the website", func(t *testing.T) {
+		token, fileID := newAccount("stepweb")
+		web := asClient("web/0.2.3")
+		for i := range stepUpPerNewAccountForTest {
+			code, _ := share(token, fileID, web)
+			require.Equal(t, http.StatusOK, code, "link %d needs no check", i+1)
+		}
+		code, body := share(token, fileID, web)
+		require.Equal(t, http.StatusPreconditionRequired, code)
+		assert.Equal(t, "challenge_required", body["code"])
+
+		code, _ = share(token, fileID, map[string]string{"X-Zcrypt-Client": "web/0.2.3", "X-Turnstile-Token": "bad"})
+		assert.Equal(t, http.StatusPreconditionRequired, code, "a failed check doesn't pass")
+
+		code, _ = share(token, fileID, map[string]string{"X-Zcrypt-Client": "web/0.2.3", "X-Turnstile-Token": "good"})
+		require.Equal(t, http.StatusOK, code)
+		code, _ = share(token, fileID, web)
+		assert.Equal(t, http.StatusOK, code, "a passed check clears the account for a while")
+	})
+
+	t.Run("a new account in the app", func(t *testing.T) {
+		token, fileID := newAccount("stepapp")
+		app := asClient("desktop-linux/0.2.3")
+		for range stepUpPerNewAccountForTest {
+			code, _ := share(token, fileID, app)
+			require.Equal(t, http.StatusOK, code)
+		}
+		code, body := share(token, fileID, app)
+		assert.Equal(t, http.StatusTooManyRequests, code)
+		assert.Equal(t, "share_limit", body["code"])
+	})
+}
+
+// stepUpPerNewAccountForTest mirrors cmd.stepUpPerNewAccount.
+const stepUpPerNewAccountForTest = 5

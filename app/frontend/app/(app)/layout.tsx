@@ -7,6 +7,7 @@ import { AppScope } from "@/components/providers/app-scope";
 import { AppTransfers } from "@/components/transfer/app-transfers";
 import { LowAllowanceNotice } from "@/components/dashboard/low-allowance-notice";
 import { WebTransferLimitDialog } from "@/components/upload/web-transfer-limit-dialog";
+import { HumanCheckDialog } from "@/components/system/human-check-dialog";
 import { FileEventsBridge } from "@/components/providers/file-events-bridge";
 import { BackgroundAlerts } from "@/components/providers/background-alerts";
 import { SpaceAddsStrip, SpaceAddsGuard } from "@/components/share/space-adds-strip";
@@ -68,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <AppTransfers />
               <MiniPlayer />
               <WebTransferLimitDialog />
+              <HumanCheckDialog />
               <FileEventsBridge />
               <BackgroundAlerts />
               <ReviewPrompt />

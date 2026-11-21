@@ -1113,6 +1113,12 @@
       "bodyMonthly": "本月的额度只剩 {remaining}。将于 {date} 重置。直接上传到你自己的存储不占用额度。",
       "bodyMonthlyNoDate": "本月的额度只剩 {remaining}。直接上传到你自己的存储不占用额度。",
       "seeUsage": "查看用量"
+    },
+    "humanCheck": {
+      "title": "快速验证",
+      "body": "你在短时间内创建了很多链接。确认你是真人后，链接就会创建。",
+      "checking": "正在验证…",
+      "cancel": "取消"
     }
   }
 }

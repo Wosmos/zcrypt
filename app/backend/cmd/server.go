@@ -61,6 +61,9 @@ type Server struct {
 	// appSignupLimiter caps accounts created per person per day by requests
 	// marked as the desktop or Android app, which skip Turnstile.
 	appSignupLimiter *rateLimiter
+	// stepUp counts public links made per account and network for the
+	// step-up Turnstile check (step_up.go).
+	stepUp stepUpState
 	// Failed-login limiter keyed on (email, IP): counts only failures, so a
 	// stranger's bad guesses cannot lock the owner out from their own IP.
 	loginFailLimiter *rateLimiter
@@ -221,6 +224,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		pushLimiter:           newPushLimiter(defaultPushLimits(), time.Hour),
 		authLimiter:           newRateLimiter(5, 5*time.Minute),
 		appSignupLimiter:      newRateLimiter(appSignupsPerDay, 24*time.Hour),
+		stepUp:                newStepUpState(),
 		loginFailLimiter:      newRateLimiter(3, 15*time.Minute),
 		emailSendLimiter:      newRateLimiter(3, 15*time.Minute),
 		userLimiter:           newRateLimiter(600, time.Minute),

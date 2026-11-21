@@ -24,6 +24,9 @@ import (
 func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
+	if s.challengeIfBusy(w, r) {
+		return
+	}
 
 	var req struct {
 		FileID       string `json:"file_id"`

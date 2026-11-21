@@ -50,6 +50,7 @@ import {
   ApiError,
 } from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
+import { useHumanCheck } from "@/store/human-check";
 import { API_BASE } from "@/lib/config";
 import { fetchIdleBody, readJsonControl, withControlTimeout } from "@/lib/transport";
 import { retryTransient } from "@/lib/retry";
@@ -67,6 +68,18 @@ function chunkFromResponse(
     sha256: res.headers.get("X-Chunk-SHA256") || "",
     compressed: res.headers.get("X-Chunk-Compressed") === "true",
   };
+}
+
+const HUMAN_CHECK_HEADER = "X-Turnstile-Token";
+
+/** Runs the step-up check when the server asks for one; undefined when it can't run or is closed. */
+async function humanCheckToken(res: Response): Promise<string | undefined> {
+  const body = (await res
+    .clone()
+    .json()
+    .catch(() => null)) as { code?: string } | null;
+  if (body?.code !== "challenge_required") return undefined;
+  return useHumanCheck.getState().ask();
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -112,6 +125,11 @@ async function requestResponse(
       headers["Authorization"] = `Bearer ${newToken}`;
       res = await send(headers);
     }
+  }
+
+  if (res.status === 428 && !headers[HUMAN_CHECK_HEADER]) {
+    const token = await humanCheckToken(res);
+    if (token) res = await send({ ...headers, [HUMAN_CHECK_HEADER]: token });
   }
 
   // Retry on 5xx server errors with backoff
