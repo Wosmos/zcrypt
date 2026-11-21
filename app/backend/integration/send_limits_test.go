@@ -410,3 +410,25 @@ func TestSendCancelByAnotherSignedInUserIsRefused(t *testing.T) {
 	requireStatus(t, ts.DELETE("/api/send/"+sid, ownerTok), http.StatusNoContent)
 	assert.Equal(t, 0, ts.countScalar(`SELECT count(*) FROM send_transfers WHERE id = $1`, sid))
 }
+
+func TestSendCompleteRepeatedAnswersWithTheSameToken(t *testing.T) {
+	ts := setupTestServer(t)
+	ts.srv.InjectGlobalTestAdapter("mock:acct", newKeepAdapter())
+
+	status, body := ts.sendInitFrom(uniqueTestIP(), "", 64, 1, false)
+	require.Equal(t, http.StatusOK, status)
+	sid := body["session_id"].(string)
+	ts.sendUploadChunk(sid, 0, bytes.Repeat([]byte{3}, 64))
+
+	read := func() string {
+		raw := requireStatus(t, ts.POST("/api/send/"+sid+"/complete", map[string]interface{}{}, ""), http.StatusOK)
+		var out struct {
+			Token string `json:"token"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &out))
+		return out.Token
+	}
+	first := read()
+	require.NotEmpty(t, first)
+	assert.Equal(t, first, read(), "a retry after a lost reply gets the same token")
+}

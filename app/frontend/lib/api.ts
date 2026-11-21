@@ -1968,22 +1968,31 @@ export async function sendChunkUpload(
   );
 }
 
+/** Finish a send. Network failures and 5xx retry; the server answers a
+ *  repeat of a finished send with the same token, so a lost reply is safe. */
 export async function sendComplete(
   sessionId: string,
   signal?: AbortSignal,
 ): Promise<{ token: string }> {
-  const res = await withControlTimeout(
-    (s) =>
-      fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-        signal: s,
-      }),
-    signal,
+  return retryTransient(
+    async () => {
+      const res = await withControlTimeout(
+        (s) =>
+          fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+            signal: s,
+          }),
+        signal,
+      );
+      if (!res.ok) {
+        throw new ApiError(await parseErrorJson(res, "Failed to complete send"), res.status);
+      }
+      return (await res.json()) as { token: string };
+    },
+    { signal },
   );
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to complete send"));
-  return res.json();
 }
 
 /** Abandon an unfinished send so the server drops its stored chunks. Best effort: the session expires anyway. */

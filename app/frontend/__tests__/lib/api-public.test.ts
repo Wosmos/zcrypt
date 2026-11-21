@@ -240,6 +240,21 @@ describe("anonymous send", () => {
     await expect(api.sendComplete("s")).rejects.toThrow("already completed");
   });
 
+  it("sendComplete retries a 502 and returns the token instead of failing the send", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock
+        .mockResolvedValueOnce(mk(502, { json: { error: "bad gateway" } }))
+        .mockResolvedValueOnce(mk(200, { json: { token: "T" } }));
+      const done = api.sendComplete("s");
+      await vi.runAllTimersAsync();
+      expect(await done).toEqual({ token: "T" });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("getSendInfo / getSendMeta return the parsed body on success", async () => {
     fetchMock.mockResolvedValueOnce(mk(200, { json: { token: "T", file_count: 2 } }));
     expect(await api.getSendInfo("T")).toEqual({ token: "T", file_count: 2 });
@@ -301,7 +316,7 @@ describe("error-fallback + remaining branches", () => {
 
   it("uses the hardcoded fallback message when an error body isn't JSON", async () => {
     // Each of these hits the `body.error || "<default>"` fallback (json rejects).
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    fetchMock.mockResolvedValueOnce(mk(400, { jsonThrows: true }));
     await expect(api.sendComplete("s")).rejects.toThrow("Failed to complete send");
 
     fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));

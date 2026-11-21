@@ -399,6 +399,11 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"send session not found"}`, http.StatusNotFound)
 		return
 	}
+	// A retry after a lost reply: the send is already done, so answer the same.
+	if transfer.Status == types.StatusComplete {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"token": transfer.Token})
+		return
+	}
 	if transfer.Status != types.StatusUploading {
 		http.Error(w, `{"error":"send session is not active"}`, http.StatusBadRequest)
 		return
