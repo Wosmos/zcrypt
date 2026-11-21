@@ -200,3 +200,26 @@ func TestCloudNetworksFlagMode(t *testing.T) {
 		`SELECT COUNT(*) FROM audit_events WHERE event_type = 'network_blocked' AND metadata->>'refused' = 'false'`).Scan(&n))
 	assert.GreaterOrEqual(t, n, 1, "and records it")
 }
+
+func TestAppSignupsAreCappedPerDay(t *testing.T) {
+	ts := setupTestServer(t)
+	ip := uniqueTestIP()
+	signUp := func(name, marker, password string) (int, map[string]interface{}) {
+		return ts.postWith("/api/auth/register", map[string]interface{}{
+			"email": uniqueEmail(name), "username": name + fmt.Sprint(time.Now().UnixNano()%1e6), "password": password, "force": true,
+		}, map[string]string{"X-Forwarded-For": ip, "X-Zcrypt-Client": marker})
+	}
+
+	// Five requests in all: the general auth limit (5 per 5 min) stays out of the way.
+	for i := range 3 {
+		code, _ := signUp(fmt.Sprintf("app%d", i), "android/0.2.3", accountTestPassword)
+		require.Equal(t, http.StatusCreated, code, "sign-up %d", i+1)
+	}
+
+	code, body := signUp("app4", "desktop-windows/0.2.3", accountTestPassword)
+	assert.Equal(t, http.StatusTooManyRequests, code)
+	assert.Equal(t, "app_signup_limit", body["code"])
+
+	code, _ = signUp("web1", "web/0.2.3", accountTestPassword)
+	assert.Equal(t, http.StatusCreated, code, "the website has Turnstile instead")
+}

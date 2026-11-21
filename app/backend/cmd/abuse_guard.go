@@ -105,6 +105,12 @@ func (s *Server) cloudNetworkRefused(r *http.Request) bool {
 	return refused
 }
 
+// appSignupsPerDay is how many accounts requests marked as the desktop or
+// Android app may create per person per day. The apps have no Turnstile
+// widget and the marker is a plain header, so this cap is what stops a script
+// that claims to be the app from mass-creating accounts.
+const appSignupsPerDay = 3
+
 // refuseBot checks the Turnstile token a web form sent. It applies only when a
 // Turnstile secret is configured and the request is not from the desktop or
 // Android app, which have no Turnstile widget. Reports whether it answered.

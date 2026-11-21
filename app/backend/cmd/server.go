@@ -58,6 +58,9 @@ type Server struct {
 
 	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
 	authLimiter *rateLimiter
+	// appSignupLimiter caps accounts created per person per day by requests
+	// marked as the desktop or Android app, which skip Turnstile.
+	appSignupLimiter *rateLimiter
 	// Failed-login limiter keyed on (email, IP): counts only failures, so a
 	// stranger's bad guesses cannot lock the owner out from their own IP.
 	loginFailLimiter *rateLimiter
@@ -217,6 +220,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		adapterErrors:         make(map[string]map[string]string),
 		pushLimiter:           newPushLimiter(defaultPushLimits(), time.Hour),
 		authLimiter:           newRateLimiter(5, 5*time.Minute),
+		appSignupLimiter:      newRateLimiter(appSignupsPerDay, 24*time.Hour),
 		loginFailLimiter:      newRateLimiter(3, 15*time.Minute),
 		emailSendLimiter:      newRateLimiter(3, 15*time.Minute),
 		userLimiter:           newRateLimiter(600, time.Minute),

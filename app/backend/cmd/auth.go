@@ -174,6 +174,17 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	if s.refuseBot(w, r, req.TurnstileToken) {
 		return
 	}
+	appSignupKey := ""
+	if isNativeClient(r) && !s.devMode {
+		appSignupKey = s.personIP(r)
+		if s.appSignupLimiter.exceeded(appSignupKey) {
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{
+				"error": "Too many accounts were created from this network today. Try again tomorrow, or sign up on the website.",
+				"code":  "app_signup_limit",
+			})
+			return
+		}
+	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	req.Username = strings.TrimSpace(req.Username)
@@ -237,6 +248,9 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		log.Printf("register: create user failed: %v", err)
 		http.Error(w, `{"error":"registration failed, please try again"}`, http.StatusInternalServerError)
 		return
+	}
+	if appSignupKey != "" {
+		s.appSignupLimiter.record(appSignupKey)
 	}
 	s.recordSignupLocation(ctx, r, user.ID)
 
