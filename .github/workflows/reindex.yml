@@ -1,6 +1,7 @@
 name: Reindex Nudge
 
-# After a marketing/content deploy, submit the sitemap to every IndexNow engine
+# After each website deploy (deploy-web.yml calls this once the Worker is
+# live), submit the sitemap to every IndexNow engine
 # (Bing, Yandex, Seznam, Naver). Fails when none of them accepts it. Google has
 # no instant-reindex API; it reads the sitemap from Search Console. See
 # scripts/reindex-search-engines.sh.
@@ -9,12 +10,7 @@ name: Reindex Nudge
 # get a phone push with the result.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "app/frontend/app/**"
-      - "app/frontend/public/**"
-      - "app/frontend/lib/data.ts"
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -23,9 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - name: Wait for the website deploy to land
-        run: sleep 60
 
       - name: Ping search engines
         env:

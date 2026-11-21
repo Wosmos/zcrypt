@@ -53,8 +53,8 @@ curl https://api.zcrypt.cloud/api/health
 
 ## 5. Point the site at it
 
-1. In Vercel, open **Project → Settings → Environment Variables** and set `NEXT_PUBLIC_API_URL=https://api.zcrypt.cloud` for Production. Then redeploy.
-2. The desktop and Android apps call `www.zcrypt.cloud/api`, which Vercel forwards to `NEXT_PUBLIC_API_URL`, so the redeploy repoints them too. No app release is needed.
+1. Set the repository variable: `gh variable set NEXT_PUBLIC_API_URL --body https://api.zcrypt.cloud`, then redeploy the website: `gh workflow run deploy-web.yml --ref main`.
+2. The desktop and Android apps call `www.zcrypt.cloud/api`, which the website's Cloudflare Worker forwards to `NEXT_PUBLIC_API_URL`, so the redeploy repoints them too. No app release is needed.
 3. Sign-in with GitHub or Google: change each OAuth app's callback URL to the new backend host: `https://api.zcrypt.cloud/api/auth/oauth/github/callback` and `https://api.zcrypt.cloud/api/auth/oauth/google/callback`.
 
 ## Deploying an update
@@ -76,5 +76,5 @@ docker compose restart backend
 1. CI publishes `ghcr.io/<owner>/zcrypt-backend:latest` on every backend push (`backend-image.yml`); make that GHCR package public once.
 2. `railway login` on the new account, then fill `deploy/railway.env` from `deploy/railway.env.example` (copy DATABASE_URL, MASTER_KEY, ZCRYPT_JWT_SECRET unchanged).
 3. Run `bash scripts/railway-flip.sh`: it creates the project and service from the image, sets variables, adds a domain on port 8080 and waits for `/api/health`.
-4. It prints the follow-ups (Vercel `NEXT_PUBLIC_API_URL` + `vercel redeploy https://zcrypt.cloud`, `gh variable set BACKEND_HEALTH_URL`, `gh secret set RAILWAY_TOKEN`); `--apply` runs the Vercel and variable steps for you.
+4. It prints the follow-ups (`gh variable set NEXT_PUBLIC_API_URL`, `gh workflow run deploy-web.yml`, `gh variable set BACKEND_HEALTH_URL`, `gh secret set RAILWAY_TOKEN`); `--apply` runs all but the last for you.
 5. Update the OAuth callback URLs only if you use the Railway host directly; web and desktop go through www.zcrypt.cloud and need nothing else.

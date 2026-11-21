@@ -74,7 +74,7 @@ Verified locally on the Worker build (`vite preview`, workerd):
 ## Open questions / follow-ups
 
 - **Privacy policy (s5.l3)** says Cloudflare's country is "not stored". The backend stores sign-up and session location since the admin overhaul. This was already inaccurate on Vercel. Fix the wording before or with the cutover.
-- `scripts/railway-flip.sh` still calls the `vercel` CLI to repoint `NEXT_PUBLIC_API_URL`. On Workers that is a GitHub variable change plus a redeploy.
+- `scripts/railway-flip.sh` repoints `NEXT_PUBLIC_API_URL` with `gh variable set` and redeploys through `deploy-web.yml`, which CI also calls on main and which runs the reindex nudge once the Worker is live.
 - `.github/workflows/reindex.yml` waits a blind 60s for the deploy. Chain it on the deploy job instead.
 - vinext gaps that don't affect this app today: no build-time image optimization (images are already unoptimized), fonts load at runtime, and partial `cacheComponents` support (the app doesn't use `"use cache"`).
 - The build publishes `.map` files for `/_next/static`. The repo is public, so this is harmless, but it can be turned off.

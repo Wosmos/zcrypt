@@ -30,7 +30,7 @@ done
 
 for c in railway curl jq; do command -v "$c" >/dev/null || die "$c not found in PATH"; done
 if [ "$APPLY" = 1 ]; then
-  for c in vercel gh; do command -v "$c" >/dev/null || die "--apply needs the $c CLI"; done
+  command -v gh >/dev/null || die "--apply needs the gh CLI"
 fi
 [ -f "$ENV_FILE" ] || die "$ENV_FILE not found. Copy deploy/railway.env.example and fill it in."
 
@@ -97,20 +97,16 @@ API_URL="https://$DOMAIN"
 cat <<MSG
 
 Follow-ups (run in order):
-  cd app/frontend
-  vercel env rm NEXT_PUBLIC_API_URL production --yes
-  printf '%s' '$API_URL' | vercel env add NEXT_PUBLIC_API_URL production
-  vercel redeploy "${SITE_URL:-https://zcrypt.cloud}"   # rebuilds the live production deployment; never 'vercel --prod' (uploads the local tree)
+  gh variable set NEXT_PUBLIC_API_URL --body '$API_URL'
+  gh workflow run deploy-web.yml --ref main   # rebuilds the website Worker with the new backend origin
   gh variable set BACKEND_HEALTH_URL --body '$HEALTH'
   gh secret set RAILWAY_TOKEN        # project token: Railway dashboard > Project > Settings > Tokens
 MSG
 
 if [ "$APPLY" = 1 ]; then
-  log "applying Vercel and GitHub follow-ups"
-  cd "$ROOT/app/frontend"
-  vercel env rm NEXT_PUBLIC_API_URL production --yes || log "no existing NEXT_PUBLIC_API_URL to remove"
-  printf '%s' "$API_URL" | vercel env add NEXT_PUBLIC_API_URL production
-  vercel redeploy "${SITE_URL:-https://zcrypt.cloud}"   # rebuilds the live production deployment; never 'vercel --prod' (uploads the local tree)
+  log "applying the GitHub follow-ups"
+  gh variable set NEXT_PUBLIC_API_URL --body "$API_URL"
+  gh workflow run deploy-web.yml --ref main
   gh variable set BACKEND_HEALTH_URL --body "$HEALTH"
   log "done. RAILWAY_TOKEN must still be set by hand: gh secret set RAILWAY_TOKEN"
 fi
