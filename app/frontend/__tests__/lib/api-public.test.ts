@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { CONTROL_TIMEOUT_MS } from "@/lib/transport";
 
 // Coverage for the api client's raw-fetch surface (public share / anonymous send
 // / pad / clipboard content / plans) which bypasses the request() core, plus the
@@ -233,6 +234,41 @@ describe("anonymous send", () => {
     expect(await api.getFileLocators("f1")).toEqual(body);
     expect(url()).toContain("/api/files/f1/locators");
     expect(init().cache).toBe("no-store");
+  });
+
+  it("public control calls give up after the control timeout instead of hanging", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementationOnce(
+        (_u: string, init: RequestInit) =>
+          new Promise((_, reject) =>
+            init.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            ),
+          ),
+      );
+      const pending = api.getShareInfo("T");
+      const settled = expect(pending).rejects.toBeTruthy();
+      await vi.advanceTimersByTimeAsync(CONTROL_TIMEOUT_MS + 1);
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sendInit stops when its caller cancels", async () => {
+    const ctl = new AbortController();
+    fetchMock.mockImplementationOnce(
+      (_u: string, init: RequestInit) =>
+        new Promise((_, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          ),
+        ),
+    );
+    const pending = api.sendInit({} as never, ctl.signal);
+    ctl.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("sendComplete surfaces the error body on failure", async () => {

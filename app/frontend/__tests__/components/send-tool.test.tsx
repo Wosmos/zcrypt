@@ -73,6 +73,17 @@ describe("send tool upload", () => {
     expect(await screen.findByRole("button", { name: /Encrypt|Send|Create/i })).toBeInTheDocument();
   });
 
+  it("cancelling while the send is being set up drops the new session on the server", async () => {
+    let made!: (v: { session_id: string; token: string }) => void;
+    api.sendInit.mockImplementationOnce(() => new Promise((r) => (made = r)));
+    await start(10);
+    await waitFor(() => expect(api.sendInit).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    await act(async () => made({ session_id: "late", token: "t" }));
+    await waitFor(() => expect(api.sendCancel).toHaveBeenCalledWith("late"));
+    expect(calls).toHaveLength(0);
+  });
+
   it("a finished send is not cancelled on the server", async () => {
     await start(10);
     await waitFor(() => expect(calls.length).toBe(3));

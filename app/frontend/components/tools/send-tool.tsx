@@ -93,18 +93,25 @@ export function SendTool() {
       // The filename rides sealed under the same link key as the bytes, the
       // server never learns what was sent, only that something was.
       const nameKey = await keyFromBytes(keyBytes);
-      const session = await sendInit({
-        filename: await sealText(selectedFile.name, nameKey),
-        original_size: selectedFile.size,
-        sha256: await sealText(fileHash, nameKey),
-        salt: toBase64(salt),
-        chunk_count: chunkCount,
-        burn_after_read: burnAfterRead,
-        expires_hours: expiryHours,
-      });
+      const session = await sendInit(
+        {
+          filename: await sealText(selectedFile.name, nameKey),
+          original_size: selectedFile.size,
+          sha256: await sealText(fileHash, nameKey),
+          salt: toBase64(salt),
+          chunk_count: chunkCount,
+          burn_after_read: burnAfterRead,
+          expires_hours: expiryHours,
+        },
+        ctl.signal,
+      );
 
+      // Cancelled while the session was being made: drop it on the server too.
+      if (ctl.signal.aborted) {
+        void sendCancel(session.session_id);
+        return;
+      }
       openSessionRef.current = session.session_id;
-      if (ctl.signal.aborted) return;
 
       const { getDeviceProfile } = await import("@/lib/device-profile");
       const depth = Math.min(getDeviceProfile().workers * 3, 12);

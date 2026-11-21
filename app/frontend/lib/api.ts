@@ -1632,8 +1632,13 @@ export function adminGetAuditLog(params: AdminListParams): Promise<AdminAuditRes
 // ─── Plans API ───
 
 /** Public, no auth required. Fetches plan configs for landing/pricing pages. */
+/** A public control call: same as fetch, cut off after CONTROL_TIMEOUT_MS. */
+function timedFetch(url: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
+  return withControlTimeout((s) => fetch(url, { ...init, signal: s }), signal);
+}
+
 export async function getPlans(): Promise<PlanConfigs> {
-  const res = await fetch(`${API_BASE}/api/plans`);
+  const res = await timedFetch(`${API_BASE}/api/plans`);
   if (!res.ok) throw new Error("Failed to fetch plans");
   return res.json();
 }
@@ -1686,7 +1691,7 @@ export function revokeShare(shareId: string): Promise<{ success: boolean }> {
 // ─── Public Share Access (no auth) ───
 
 export async function getShareInfo(token: string): Promise<ShareInfo> {
-  const res = await fetch(`${API_BASE}/api/share/${token}`);
+  const res = await timedFetch(`${API_BASE}/api/share/${token}`);
   if (!res.ok) throw new Error("Share not found");
   return res.json();
 }
@@ -1845,7 +1850,7 @@ export async function getFolderShareInfo(
 ): Promise<FolderShareInfo> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
-  const res = await fetch(`${API_BASE}/api/folder-share/${token}`, { headers });
+  const res = await timedFetch(`${API_BASE}/api/folder-share/${token}`, { headers });
   if (!res.ok) throw new Error("Folder link not found");
   return res.json();
 }
@@ -1913,12 +1918,19 @@ export class SendInitError extends ApiError {
   }
 }
 
-export async function sendInit(data: SendInitRequest): Promise<SendInitResponse> {
-  const res = await fetch(`${API_BASE}/api/send/init`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
+export async function sendInit(
+  data: SendInitRequest,
+  signal?: AbortSignal,
+): Promise<SendInitResponse> {
+  const res = await timedFetch(
+    `${API_BASE}/api/send/init`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    signal,
+  );
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}) as unknown)) as {
       error?: string;
@@ -2008,7 +2020,7 @@ export async function sendCancel(sessionId: string): Promise<void> {
 }
 
 export async function getSendInfo(token: string): Promise<SendInfo> {
-  const res = await fetch(`${API_BASE}/api/send/${token}`);
+  const res = await timedFetch(`${API_BASE}/api/send/${token}`);
   if (!res.ok) throw new Error("Transfer not found");
   return res.json();
 }
@@ -2038,7 +2050,7 @@ export async function getSendChunk(
 // ─── Pad (anonymous encrypted text sharing) ─────────────────────────────────
 
 export async function createPad(data: PadCreateRequest): Promise<{ token: string }> {
-  const res = await fetch(`${API_BASE}/api/pad`, {
+  const res = await timedFetch(`${API_BASE}/api/pad`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -2048,13 +2060,13 @@ export async function createPad(data: PadCreateRequest): Promise<{ token: string
 }
 
 export async function getPadInfo(token: string): Promise<PadInfo> {
-  const res = await fetch(`${API_BASE}/api/pad/${token}`);
+  const res = await timedFetch(`${API_BASE}/api/pad/${token}`);
   if (!res.ok) throw new Error("Pad not found");
   return res.json();
 }
 
 export async function getPadContent(token: string): Promise<ArrayBuffer> {
-  const res = await fetch(`${API_BASE}/api/pad/${token}/content`);
+  const res = await timedFetch(`${API_BASE}/api/pad/${token}/content`);
   if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get pad content"));
   return res.arrayBuffer();
 }

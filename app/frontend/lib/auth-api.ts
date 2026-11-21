@@ -3,6 +3,7 @@ import { isTauri } from "@/lib/tauri";
 import { useAuthStore } from "@/store/auth";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
+import { withControlTimeout } from "@/lib/transport";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
 // types→lib inversion): re-exported here so its existing consumers keep
@@ -24,12 +25,15 @@ async function plantSessionCookie(
   refresh_token: string,
 ): Promise<{ access_token: string; refresh_token: string } | null> {
   try {
-    const res = await fetch("/api/auth/refresh", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token }),
-    });
+    const res = await withControlTimeout((signal) =>
+      fetch("/api/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token }),
+        signal,
+      }),
+    );
     return res.ok ? await res.json() : null;
   } catch {
     return null;
