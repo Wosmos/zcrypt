@@ -2960,6 +2960,27 @@ describe("useUploadStore", () => {
       expect(store.getResumableUploadIds()).toContain(id);
     });
 
+    it("keeps offering an upload whose auto-resumes each store a chunk", async () => {
+      (uploadChunk as Mock).mockImplementation(async (_sid: string, index: number) => {
+        if (index === 1) throw new ApiError("bad gateway", 502);
+        return { success: true };
+      });
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("big.bin", SMALL_PROFILE.chunkSize * 2)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      const store = useUploadStore.getState();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 2; i++) {
+        store.resumeUpload(id, "pw", true);
+        await flush(60);
+        expect(getItem(id)?.status).toBe("failed");
+      }
+      vi.advanceTimersByTime(120_000);
+      expect(store.getResumableUploadIds()).toContain(id);
+    });
+
     it("excludes done uploads (no resumable session)", async () => {
       useUploadStore.getState().startUpload([makeFile("a.txt", 10, "0123456789")], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();

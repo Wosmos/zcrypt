@@ -9,7 +9,7 @@ import {
  * Per-item budget for automatic resumes, shared by uploads and downloads: a
  * failed transfer is retried on its own at most `max` times, each after a
  * growing backoff, so a stuck item cannot loop on every focus or timer tick.
- * A manual retry or a finished transfer resets it.
+ * A manual retry, a stored or decrypted chunk, or a finished transfer resets it.
  */
 export interface AutoResumeBudget {
   /** True when an attempt remains and its backoff has passed. */

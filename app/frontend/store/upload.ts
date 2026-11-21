@@ -1274,6 +1274,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             }
 
             uploadedChunks++;
+            // A stored chunk is progress: the auto-resume tries start over.
+            autoBudget.reset(id);
             totalEncryptedSize += result.encryptedSize;
             totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
 

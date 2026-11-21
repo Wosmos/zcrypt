@@ -39,7 +39,7 @@ import { WebTransferLimitError } from "@/lib/web-transfer-limit";
 import { showWebTransferLimit } from "@/lib/web-transfer-guard";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
 import { isTransientError } from "@/lib/retry";
-import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
+import { FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
 
 export { canStreamToDisk };
 
@@ -353,11 +353,14 @@ function runSingleDownload(id: string): Promise<void> {
   const p = (async () => {
     try {
       updateProgress(id, DownloadStatus.Downloading, undefined, "Starting...");
+      const startedAt = useDownloadStore.getState().queue.find((i) => i.id === id)?.progress ?? 0;
       await downloadAndDecryptFile(session.fileId, session.passphrase, {
         onProgress: (info) => {
           // A stale draining run (after pause/resume replaced it) must not paint
           // the row; and a paused row must not be flipped back to "downloading".
           if (!isCurrentRun() || pausedIds.has(id)) return;
+          // Moving past where this run started is progress: the auto-resume tries start over.
+          if (info.percent > startedAt) autoBudget.reset(id);
           updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage);
         },
         signal: abort.signal,
@@ -395,9 +398,10 @@ function runSingleDownload(id: string): Promise<void> {
         return;
       }
       const msg = err instanceof Error ? err.message : tr("toasts.downloadFailed");
-      // Keep the session so Retry continues from what's already decrypted.
+      // Keep the session so Retry continues from what's already decrypted, for
+      // FAILED_BUFFER_GRACE_MS even once the automatic tries are used up.
       session.transient = isTransientError(err);
-      if (!session.transient || autoBudget.attempts(id) >= AUTO_RESUME_MAX_ATTEMPTS) {
+      if (!session.transient) {
         dropChunkBuffers(session);
       } else {
         clearTimeout(session.graceTimer);
