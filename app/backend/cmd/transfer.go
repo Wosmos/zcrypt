@@ -45,8 +45,10 @@ const (
 	transferIdleFor = 10 * time.Minute
 	transferMaxFor  = 6 * time.Hour
 	// transferAckWait is how long the room stays open after "done" for the
-	// receiver's "ack"; an older receiver never sends one.
-	transferAckWait        = 20 * time.Second
+	// receiver's "ack"; an older receiver never sends one. It outlasts the
+	// sender's own wait (TRANSFER_ACK_WAIT_MS, 30s), so a slow receiver reaches
+	// the sender as "no confirmation", never as a dropped connection.
+	transferAckWait        = 45 * time.Second
 	errTooManyTransferRoom = "too many active rooms"
 )
 

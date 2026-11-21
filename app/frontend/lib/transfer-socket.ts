@@ -1,6 +1,7 @@
 import { IDLE_TIMEOUT_MS, StalledError } from "@/lib/transport";
 
-/** Longest a sender waits for the receiver's ack once the last byte is sent. */
+/** Longest a sender waits for the receiver's ack once the last byte is sent.
+ *  The server keeps the room open longer (transferAckWait, 45s). */
 export const TRANSFER_ACK_WAIT_MS = 30_000;
 
 /** Largest file the receiving page holds in memory before saving it. */
