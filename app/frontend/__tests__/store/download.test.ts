@@ -1295,6 +1295,21 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.stage).toBe("Starting…"); // prior stage preserved
     });
 
+    it("shows the allowance dialog, not raw JSON, when the engine refuses on the allowance", async () => {
+      const { useWebTransferNotice } = await import("@/store/web-transfer-notice");
+      tauriMocks.sidecarDownload.mockRejectedValue(new Error('api: api 403: {"error":"x","code":"relay_daily_exceeded","limit_bytes":100,"used_bytes":100,"resets_at":"2026-11-23T00:00:00Z","needed_bytes":40}'));
+      useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).not.toContain("{");
+      expect(useWebTransferNotice.getState().notice).toMatchObject({
+        code: "relay_daily_exceeded",
+        neededBytes: 40,
+      });
+    });
+
     it("reports a network/DNS failure with the actionable hint", async () => {
       tauriMocks.sidecarDownload.mockRejectedValue(new Error("dns error: failed to lookup address"));
       useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
@@ -1442,6 +1457,19 @@ describe("useDownloadStore", () => {
       await flush();
       expect(getItem(id)?.progress).toBe(75);
       expect(getItem(id)?.stage).toBe("Downloading (2/2)");
+    });
+
+    it("shows the allowance dialog when the engine refuses the ZIP on the allowance", async () => {
+      const { useWebTransferNotice } = await import("@/store/web-transfer-notice");
+      useWebTransferNotice.setState({ notice: null });
+      tauriMocks.sidecarBulkDownloadZip.mockRejectedValue(new Error('api: api 403: {"error":"x","code":"relay_allowance_exceeded","limit_bytes":100,"used_bytes":100}'));
+      useDownloadStore.getState().startDesktopBulkZipDownload(files, "pw", "user-1");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).not.toContain("{");
+      expect(useWebTransferNotice.getState().notice).toMatchObject({ code: "relay_allowance_exceeded" });
     });
 
     it("reports a network/DNS failure with the actionable hint", async () => {

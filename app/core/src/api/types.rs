@@ -190,7 +190,7 @@ pub struct ChunkDownload {
 }
 
 /// Per-chunk locator for byos-direct downloads (GET /api/files/{id}/locators).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct ChunkLocator {
     pub index: i64,
     pub platform: String,

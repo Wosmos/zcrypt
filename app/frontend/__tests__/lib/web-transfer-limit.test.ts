@@ -7,10 +7,29 @@ import {
   allowanceResetAt,
   formatResetDate,
   webTransferLimitFrom,
+  webTransferLimitFromCore,
   webTransferLimitMessage,
 } from "@/lib/web-transfer-limit";
 
 const GIB = 1024 ** 3;
+
+describe("webTransferLimitFromCore", () => {
+  it("reads a refusal the app engine passed up as text, and nothing else", () => {
+    const err = webTransferLimitFromCore(new Error('api: api 403: {"error":"x","code":"relay_daily_exceeded","limit_bytes":100,"used_bytes":100,"resets_at":"2026-11-23T00:00:00Z","needed_bytes":40}'));
+    expect(err?.limit).toEqual({
+      code: "relay_daily_exceeded",
+      limitBytes: 100,
+      usedBytes: 100,
+      resetsAt: "2026-11-23T00:00:00Z",
+      neededBytes: 40,
+    });
+    expect(err?.status).toBe(403);
+    expect(webTransferLimitFromCore('api: api 403: {"error":"x","code":"relay_daily_exceeded","limit_bytes":100,"used_bytes":100,"resets_at":"2026-11-23T00:00:00Z","needed_bytes":40}')?.code).toBe("relay_daily_exceeded");
+    expect(webTransferLimitFromCore(new Error('api: api 403: {"error":"no","code":"forbidden"}'))).toBeNull();
+    expect(webTransferLimitFromCore(new Error("dns error"))).toBeNull();
+    expect(webTransferLimitFromCore(42)).toBeNull();
+  });
+});
 
 describe("allowanceResetAt", () => {
   it("reads when a refused allowance starts over, and nothing otherwise", () => {

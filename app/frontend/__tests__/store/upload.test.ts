@@ -2278,6 +2278,20 @@ describe("useUploadStore", () => {
       expect(useUploadStore.getState().queue).toHaveLength(0);
     });
 
+    it("shows the allowance dialog, not raw JSON, when the engine refuses an upload", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (sidecarUpload as Mock).mockRejectedValue(new Error('api: api 403: {"error":"x","code":"relay_daily_exceeded","limit_bytes":100,"used_bytes":100,"resets_at":"2026-11-23T00:00:00Z","needed_bytes":40}'));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      const item = useUploadStore.getState().queue[0];
+      expect(item.status).toBe("failed");
+      expect(item.error).not.toContain("{");
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "relay_daily_exceeded", neededBytes: 40 }),
+      );
+    });
+
     it("queues each picked path, streams it to the platform, and marks it done", async () => {
       const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin", "/tmp/b.bin"]);

@@ -71,6 +71,7 @@ import {
   WebTransferLimitError,
   allowanceResetAt,
   isAllowanceCode,
+  webTransferLimitFromCore,
   type WebTransferLimit,
 } from "@/lib/web-transfer-limit";
 import { probeTelegram } from "@/lib/telegram-reach";
@@ -402,6 +403,17 @@ interface ItemMeta {
 }
 const itemMeta = new Map<string, ItemMeta>();
 const autoBudget = createAutoResumeBudget();
+
+/** A desktop or Android engine failure as the row shows it. An allowance
+ *  refusal opens the same dialog as on the web. */
+function desktopUploadError(err: unknown): string {
+  const limit = webTransferLimitFromCore(err);
+  if (limit) {
+    showWebTransferLimit(limit.limit);
+    return limit.message;
+  }
+  return err instanceof Error ? err.message : tr("toasts.uploadFailed");
+}
 function patchMeta(id: string, patch: Partial<ItemMeta>): ItemMeta {
   const m = itemMeta.get(id) ?? {};
   Object.assign(m, patch);
@@ -1909,7 +1921,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           updateStatus(id, UploadStatus.Done, 100, "Done");
           void meta.onRefresh?.();
         } catch (err) {
-          setError(id, err instanceof Error ? err.message : tr("toasts.uploadFailed"));
+          setError(id, desktopUploadError(err));
         } finally {
           unlistenRetry();
         }
@@ -2137,8 +2149,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
             releaseSharedFile(filePath);
             updateStatus(id, UploadStatus.Done, 100, "Done");
           } catch (err) {
-            const msg = err instanceof Error ? err.message : tr("toasts.uploadFailed");
-            setError(id, msg);
+            setError(id, desktopUploadError(err));
           } finally {
             sem.release();
           }

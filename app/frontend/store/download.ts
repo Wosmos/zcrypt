@@ -35,7 +35,7 @@ import {
 
 import { createFrameBatch } from "@/lib/frame-batch";
 import { applyEngineWait } from "@/store/transfer-wait";
-import { WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { WebTransferLimitError, webTransferLimitFromCore } from "@/lib/web-transfer-limit";
 import { showWebTransferLimit } from "@/lib/web-transfer-guard";
 import { createAutoResumeBudget } from "@/lib/auto-resume";
 import { isTransientError } from "@/lib/retry";
@@ -601,12 +601,19 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
             msg,
           );
         const recovered = recoverWrongFolderPassword(fileId, msg);
+        const limit = webTransferLimitFromCore(err);
         setStatusNow(id, {
           status: DownloadStatus.Failed,
-          error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
+          error: limit
+            ? limit.message
+            : isNetwork
+              ? "Can't reach zcrypt's servers (network/DNS)"
+              : msg,
           stage: "Failed",
         });
-        if (isNetwork) {
+        if (limit) {
+          showWebTransferLimit(limit.limit);
+        } else if (isNetwork) {
           toast.error(tr("toasts.unreachable"));
         } else if (recovered) {
           toast.error(tr("toasts.wrongFolderPassword", { name: filename }));
@@ -779,12 +786,19 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
             if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
           }
         }
+        const limit = webTransferLimitFromCore(err);
         setStatusNow(id, {
           status: DownloadStatus.Failed,
-          error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
+          error: limit
+            ? limit.message
+            : isNetwork
+              ? "Can't reach zcrypt's servers (network/DNS)"
+              : msg,
           stage: "Failed",
         });
-        if (isNetwork) {
+        if (limit) {
+          showWebTransferLimit(limit.limit);
+        } else if (isNetwork) {
           toast.error(tr("toasts.unreachable"));
         } else if (recovered) {
           toast.error(tr("toasts.zipWrongPassword"));

@@ -125,6 +125,53 @@ pub(super) fn chunk_source(
     (loc, adapter)
 }
 
+/// Bytes of the file that can only come through the server relay: chunks with
+/// no direct source on this device and no platform link (GitHub and Hugging
+/// Face chunks have one). A chunk this device has no locator for counts at the
+/// file's average chunk size.
+fn server_only_bytes(sources: &DirectSources, chunk_count: i64, encrypted_size: i64) -> i64 {
+    let avg = if chunk_count > 0 {
+        encrypted_size / chunk_count
+    } else {
+        0
+    };
+    (0..chunk_count)
+        .map(|idx| match chunk_source(sources, idx) {
+            (_, Some(_)) => 0,
+            (Some(l), None) if matches!(l.platform.as_str(), "github" | "huggingface") => 0,
+            (Some(l), None) => l.size,
+            (None, _) => avg,
+        })
+        .sum()
+}
+
+/// Stops a download that cannot fit the transfer allowance before it starts,
+/// with the server's own refusal, instead of failing partway. A failed quota
+/// lookup lets it start: the server still checks every chunk.
+async fn check_allowance_upfront(ctx: &EngineContext, need: i64) -> Result<(), EngineError> {
+    if need <= 0 {
+        return Ok(());
+    }
+    let Ok(q) = ctx.client.get_quota().await else {
+        return Ok(());
+    };
+    match q.refusal(need) {
+        None => Ok(()),
+        Some(r) => Err(EngineError::Api(crate::api::ApiError::Status {
+            status: 403,
+            body: serde_json::json!({
+                "error": "not enough transfer allowance left for this download",
+                "code": r.code,
+                "limit_bytes": r.limit_bytes,
+                "used_bytes": r.used_bytes,
+                "resets_at": r.resets_at,
+                "needed_bytes": need,
+            })
+            .to_string(),
+        })),
+    }
+}
+
 /// Chunks in a row whose platform link fails before links stop for the file.
 const LINK_FAILURES_BEFORE_OFF: u32 = 2;
 
@@ -417,6 +464,11 @@ pub async fn run(
         sources,
     } = open_file(ctx, file_id, passphrase, user_id, space_key, None, &emit).await?;
     let total = meta.chunk_count as u32;
+    check_allowance_upfront(
+        ctx,
+        server_only_bytes(&sources, meta.chunk_count, meta.encrypted_size),
+    )
+    .await?;
     let gate = Gate::live(
         ctx,
         Some(Gate::waiting_progress(
@@ -694,6 +746,64 @@ mod transfer_tests {
         drop(l);
         let err = reqwest::get(format!("http://{addr}")).await.unwrap_err();
         assert!(is_unreachable(&AdapterError::from(err)));
+    }
+
+    fn sources_with(locs: Vec<(i64, &str, i64)>, owned: &[&str]) -> DirectSources {
+        let locs = locs
+            .into_iter()
+            .map(|(idx, platform, size)| {
+                (
+                    idx,
+                    ChunkLocator {
+                        index: idx,
+                        platform: platform.into(),
+                        size,
+                        ..ChunkLocator::default()
+                    },
+                )
+            })
+            .collect();
+        let adapters = owned
+            .iter()
+            .map(|p| {
+                (
+                    p.to_string(),
+                    Arc::new(Direct(vec![])) as Arc<dyn PlatformAdapter>,
+                )
+            })
+            .collect();
+        (locs, adapters)
+    }
+
+    #[test]
+    fn only_chunks_with_no_direct_route_or_link_count_as_server_only() {
+        let s = sources_with(
+            vec![
+                (0, "telegram", 10),
+                (1, "huggingface", 20),
+                (2, "github", 30),
+                (3, "telegram", 40),
+            ],
+            &[],
+        );
+        assert_eq!(
+            server_only_bytes(&s, 4, 400),
+            50,
+            "the two pool Telegram chunks"
+        );
+        let owned = sources_with(vec![(0, "telegram", 10)], &["telegram"]);
+        assert_eq!(
+            server_only_bytes(&owned, 1, 10),
+            0,
+            "own Telegram goes direct"
+        );
+        let unknown = sources_with(vec![], &[]);
+        assert_eq!(
+            server_only_bytes(&unknown, 4, 400),
+            400,
+            "no locators: average size each"
+        );
+        assert_eq!(server_only_bytes(&unknown, 0, 0), 0);
     }
 
     /// A server whose /link answers with `link(base)`; counts link, blob and

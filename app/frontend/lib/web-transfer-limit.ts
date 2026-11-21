@@ -135,6 +135,7 @@ export function webTransferLimitFrom(body: string, status: number): WebTransferL
     limit_bytes?: unknown;
     used_bytes?: unknown;
     resets_at?: unknown;
+    needed_bytes?: unknown;
   } | null;
   try {
     data = JSON.parse(body);
@@ -145,7 +146,20 @@ export function webTransferLimitFrom(body: string, status: number): WebTransferL
   const limitBytes = Number(data.limit_bytes) || 0;
   const resetsAt = typeof data.resets_at === "string" ? data.resets_at : undefined;
   const usedBytes = typeof data.used_bytes === "number" ? data.used_bytes : undefined;
-  return new WebTransferLimitError(data.code, { limitBytes, usedBytes, resetsAt }, status);
+  const neededBytes = typeof data.needed_bytes === "number" ? data.needed_bytes : undefined;
+  return new WebTransferLimitError(
+    data.code,
+    { limitBytes, usedBytes, resetsAt, neededBytes },
+    status,
+  );
+}
+
+/** A refusal the desktop or Android engine passed up as text, ending in
+ *  "api 403: {json}". Returns null for any other error. */
+export function webTransferLimitFromCore(err: unknown): WebTransferLimitError | null {
+  const text = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  const m = /api (\d{3}): (\{[\s\S]*\})\s*$/.exec(text);
+  return m ? webTransferLimitFrom(m[2], Number(m[1])) : null;
 }
 
 /** The `tools` message key for someone downloading another person's link when
