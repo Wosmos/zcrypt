@@ -160,7 +160,7 @@
       "addFiles": "Dateien hinzufügen",
       "settings": "Einstellungen",
       "rotationBanner": "Ein Mitglied wurde entfernt. Der Space-Schlüssel muss rotiert werden, um jede behaltene Kopie auszusperren.",
-      "rotationAsk": "Bitte den Besitzer, ihn zu rotieren; bis dahin ist das Hinzufügen von Dateien pausiert.",
+      "rotationAsk": "Er wird automatisch rotiert, sobald der Besitzer oder ein Admin zcrypt das nächste Mal öffnet; bis dahin ist das Hinzufügen von Dateien pausiert.",
       "rotateKey": "Schlüssel rotieren",
       "unlockToFinish": "Entsperre deinen Tresor, um das Hinzufügen der Dateien abzuschließen.",
       "addingProgress": "{done} von {total, plural, one {# Datei} other {# Dateien}} werden hinzugefügt…",

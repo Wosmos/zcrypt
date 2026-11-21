@@ -160,7 +160,7 @@
       "addFiles": "Añadir archivos",
       "settings": "Ajustes",
       "rotationBanner": "Se eliminó a un miembro. Hay que rotar la clave del espacio para dejar fuera cualquier copia que conservara.",
-      "rotationAsk": "Pide al propietario que lo rote; añadir archivos queda en pausa hasta entonces.",
+      "rotationAsk": "Se rota automáticamente la próxima vez que el propietario o un administrador abra zcrypt; añadir archivos queda en pausa hasta entonces.",
       "rotateKey": "Rotar clave",
       "unlockToFinish": "Desbloquea tu bóveda para terminar de añadir archivos.",
       "addingProgress": "Añadiendo {done} de {total, plural, one {# archivo} other {# archivos}}…",

@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   loadKey: vi.fn(),
   fetchQuery: vi.fn(),
   getVault: vi.fn(),
+  reload: vi.fn(async (..._a: unknown[]) => ({})),
 }));
 
 vi.mock("@/lib/api", () => ({ completeSharedVaultMember: h.complete, getSharedVault: h.getVault }));
@@ -22,7 +23,12 @@ vi.mock("@/lib/query-client", () => ({
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState: () => ({ user: h.user }) } }));
 vi.mock("@/store/keys", () => ({ useKeysStore: { getState: () => ({ ready: h.ready }) } }));
 vi.mock("@/lib/spaces", () => ({
-  loadSpaceKey: h.loadKey,
+  loadSpaceKeyEntry: async (...a: unknown[]) => {
+    const key = await h.loadKey(...a);
+    return key ? { key, gen: 3 } : null;
+  },
+  isStaleSpaceKey: (e: unknown) => (e as { code?: string })?.code === "stale_space_key",
+  reloadSpace: h.reload,
   spacePerms: (v: { owner_id: string; role?: string }, id?: string) => ({
     manage: v.owner_id === id || v.role === "admin",
   }),
@@ -58,12 +64,30 @@ beforeEach(() => {
 });
 
 describe("handOffPendingKeys", () => {
+  it("reloads the Space instead of backing off when the key was rotated elsewhere", async () => {
+    h.complete.mockRejectedValueOnce(Object.assign(new Error("stale"), { code: "stale_space_key" }));
+    const d = detail([member({ user_id: "u2" }), member({ user_id: "u3" })]);
+    expect(await handOffPendingKeys(d)).toBe(0);
+    expect(h.reload).toHaveBeenCalledWith("s1");
+    expect(h.complete).toHaveBeenCalledTimes(1);
+    expect(await handOffPendingKeys(d)).toBe(2);
+  });
+
+  it("stays quiet when that reload fails too", async () => {
+    h.complete.mockRejectedValueOnce(Object.assign(new Error("stale"), { code: "stale_space_key" }));
+    h.reload.mockRejectedValueOnce(new Error("offline"));
+    expect(await handOffPendingKeys(detail([member({})]))).toBe(0);
+    await Promise.resolve();
+    expect(h.reload).toHaveBeenCalledTimes(1);
+  });
+
   it("seals the Space key to a pending member's public key and posts it", async () => {
     const done = await handOffPendingKeys(detail([member({})]));
     expect(done).toBe(1);
     expect(h.complete).toHaveBeenCalledTimes(1);
     const [vaultId, userId, wrapped] = h.complete.mock.calls[0] as [string, string, string];
     expect([vaultId, userId, wrapped]).toEqual(["s1", "u2", "SEALED"]);
+    expect(h.complete.mock.calls[0][3]).toBe(3);
     const [sealedTo, sealedKey] = h.seal.mock.calls[0] as [Uint8Array, Uint8Array];
     expect(Array.from(sealedTo)).toEqual(Array.from(invitee.publicKey));
     expect(Array.from(sealedKey)).toEqual(Array(32).fill(7));
@@ -172,7 +196,7 @@ describe("handOffForSpace", () => {
       expect.objectContaining({ queryKey: ["space", "s1"], staleTime: 0 }),
     );
     expect(h.getVault).toHaveBeenCalledWith("s1");
-    expect(h.complete).toHaveBeenCalledWith("s1", "u2", "SEALED");
+    expect(h.complete).toHaveBeenCalledWith("s1", "u2", "SEALED", 3);
   });
 
   it("swallows a failed fetch and hands nothing over", async () => {

@@ -575,6 +575,8 @@ export interface SharedVault {
   size_limit_bytes: number;
   /** True after a member removal until the key is rotated; new files are refused. */
   needs_rotation?: boolean;
+  /** Bumped by every key rotation; writes under the space key echo it. */
+  key_generation?: number;
   /** Card stats from the list endpoint. */
   member_count?: number;
   file_count?: number;

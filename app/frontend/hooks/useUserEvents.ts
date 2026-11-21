@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { subscribeEvents } from "@/lib/event-stream";
 import { handOffForSpace } from "@/lib/space-handoff";
+import { rotateForSpace } from "@/lib/space-rotation";
 import { SPACE_SYNC_TYPES, syncSpaceEvent } from "@/lib/space-sync";
 import { deliverUserEvent, NOTICE_TYPES, parseUserEvent } from "@/lib/user-events";
 
@@ -18,7 +19,12 @@ export function useUserEvents(): void {
 
   useEffect(() => {
     const navigate = (url: string) => router.push(url);
-    const types = new Set<string>([...NOTICE_TYPES, ...SPACE_SYNC_TYPES, "spaceKeyNeeded"]);
+    const types = new Set<string>([
+      ...NOTICE_TYPES,
+      ...SPACE_SYNC_TYPES,
+      "spaceKeyNeeded",
+      "spaceRotationNeeded",
+    ]);
     const notices = new Set<string>(NOTICE_TYPES);
     const listeners = Object.fromEntries(
       [...types].map((type) => [
@@ -28,6 +34,10 @@ export function useUserEvents(): void {
           if (!event) return;
           if (type === "spaceKeyNeeded") {
             if (event.data.space_id) void handOffForSpace(event.data.space_id);
+            return;
+          }
+          if (type === "spaceRotationNeeded") {
+            if (event.data.space_id) void rotateForSpace(event.data.space_id);
             return;
           }
           if (notices.has(type)) void deliverUserEvent(event, navigate);

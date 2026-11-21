@@ -160,7 +160,7 @@
       "addFiles": "Add files",
       "settings": "Settings",
       "rotationBanner": "A member was removed. The space key must be rotated to lock out any copy they kept.",
-      "rotationAsk": "Ask the owner to rotate it; adding files is paused until then.",
+      "rotationAsk": "It's rotated automatically the next time the owner or an admin opens zcrypt; adding files is paused until then.",
       "rotateKey": "Rotate key",
       "unlockToFinish": "Unlock your vault to finish adding files.",
       "addingProgress": "Adding {done} of {total, plural, one {# file} other {# files}}…",

@@ -4,7 +4,13 @@ import { checkPeerKey, pinPeerKey } from "@/lib/key-pins";
 import { sealTo } from "@/lib/keys";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import { loadSpaceKey, spacePerms } from "@/lib/spaces";
+import {
+  isStaleSpaceKey,
+  loadSpaceKeyEntry,
+  reloadSpace,
+  spacePerms,
+  type SpaceKey,
+} from "@/lib/spaces";
 import { useAuthStore } from "@/store/auth";
 import { useKeysStore } from "@/store/keys";
 import type { SharedVaultDetail, SharedVaultMember } from "@/types";
@@ -22,12 +28,12 @@ function waitingForKey(member: SharedVaultMember): boolean {
   return member.status === "pending" && !!member.public_key;
 }
 
-async function handOne(detail: SharedVaultDetail, spaceKey: Uint8Array, m: SharedVaultMember) {
+async function handOne(detail: SharedVaultDetail, { key, gen }: SpaceKey, m: SharedVaultMember) {
   const publicKey = m.public_key!;
   const { status } = await checkPeerKey(m.user_id, publicKey);
   if (status === "changed") return false;
-  const wrapped = await sealTo(fromBase64(publicKey), spaceKey);
-  await completeSharedVaultMember(detail.id, m.user_id, wrapped);
+  const wrapped = await sealTo(fromBase64(publicKey), key);
+  await completeSharedVaultMember(detail.id, m.user_id, wrapped, gen);
   await pinPeerKey(m.user_id, publicKey);
   return true;
 }
@@ -46,7 +52,7 @@ export async function handOffPendingKeys(detail: SharedVaultDetail): Promise<num
   if (waiting.length === 0) return 0;
   let done = 0;
   try {
-    const spaceKey = await loadSpaceKey(detail);
+    const spaceKey = await loadSpaceKeyEntry(detail);
     if (!spaceKey) return 0;
     for (const m of waiting) {
       const id = `${detail.id}:${m.user_id}`;
@@ -57,7 +63,12 @@ export async function handOffPendingKeys(detail: SharedVaultDetail): Promise<num
       try {
         if (await handOne(detail, spaceKey, m)) done++;
         failedAt.delete(id);
-      } catch {
+      } catch (err) {
+        if (isStaleSpaceKey(err)) {
+          // Rotated elsewhere: the reload brings the new key and runs this again.
+          void reloadSpace(detail.id).catch(() => {});
+          break;
+        }
         // includes a 409 key_rotating; retried after the backoff
         failedAt.set(id, Date.now());
       } finally {

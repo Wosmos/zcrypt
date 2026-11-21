@@ -6,8 +6,10 @@ import type { ReactNode } from "react";
 const h = vi.hoisted(() => ({
   detail: {} as Record<string, unknown>,
   handOff: vi.fn(async () => 0),
+  rotate: vi.fn(async () => true),
   ready: true,
 }));
+vi.mock("@/lib/space-rotation", () => ({ rotateIfNeeded: h.rotate }));
 
 vi.mock("@/lib/api", () => ({ getSharedVault: async () => h.detail }));
 vi.mock("@/lib/space-handoff", () => ({ handOffPendingKeys: h.handOff }));
@@ -28,8 +30,18 @@ function wrapper({ children }: { children: ReactNode }) {
 
 beforeEach(() => {
   h.handOff.mockClear();
+  h.rotate.mockClear();
   h.ready = true;
   h.detail = { id: "s1", owner_id: "u1", role: "admin", members: [], files: [] };
+});
+
+describe("useSpaceDetail re-key", () => {
+  it("re-keys a flagged Space instead of handing keys over", async () => {
+    h.detail = { ...h.detail, needs_rotation: true };
+    renderHook(() => useSpaceDetail("s1"), { wrapper });
+    await waitFor(() => expect(h.rotate).toHaveBeenCalledTimes(1));
+    expect(h.handOff).not.toHaveBeenCalled();
+  });
 });
 
 describe("useSpaceDetail key hand-off", () => {

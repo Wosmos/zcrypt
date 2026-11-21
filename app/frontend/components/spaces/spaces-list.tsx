@@ -7,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listSharedVaults } from "@/lib/api";
+import { rotateForSpace } from "@/lib/space-rotation";
+import { spacePerms } from "@/lib/spaces";
+import { useKeysStore } from "@/store/keys";
 import { qk } from "@/lib/query-keys";
 import { useAuthStore } from "@/store/auth";
 import { useSpaceMeta } from "@/hooks/useSpaceMeta";
@@ -60,6 +63,14 @@ export function SpacesList() {
   const vaultsQuery = useQuery({ queryKey: qk.spaces, queryFn: listSharedVaults });
   const vaults = useMemo(() => vaultsQuery.data ?? [], [vaultsQuery.data]);
   const loading = vaultsQuery.isPending;
+  const keysReady = useKeysStore((s) => s.ready);
+
+  useEffect(() => {
+    if (!keysReady) return;
+    for (const v of vaults) {
+      if (v.needs_rotation && spacePerms(v, user?.id).rotate) void rotateForSpace(v.id);
+    }
+  }, [vaults, keysReady, user?.id]);
 
   useAutoTour("spaces", !loading);
 

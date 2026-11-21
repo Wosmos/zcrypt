@@ -540,7 +540,7 @@ describe("shareSpace", () => {
     vi.mocked(addSharedVaultMember).mockResolvedValue({} as never);
 
     const spaceKey = generateSpaceKey();
-    await shareSpace("v", spaceKey, "bob@example.com", "editor");
+    await shareSpace("v", { key: spaceKey, gen: 0 }, "bob@example.com", "editor");
 
     expect(addSharedVaultMember).toHaveBeenCalledTimes(1);
     const [vaultId, email, role, wrapped] = vi.mocked(addSharedVaultMember).mock.calls[0];
@@ -558,7 +558,7 @@ describe("shareSpace by lookup result", () => {
   it("invites without a key when the account has none yet (no_key)", async () => {
     vi.mocked(lookupUserKey).mockRejectedValue(new ApiError("no key", 404, 0, "", "no_key"));
     vi.mocked(addSharedVaultMember).mockResolvedValue({ status: "pending" });
-    const out = await shareSpace("v", generateSpaceKey(), "bob@example.com", "viewer");
+    const out = await shareSpace("v", { key: generateSpaceKey(), gen: 0 }, "bob@example.com", "viewer");
     expect(out).toEqual({ status: "pending" });
     expect(vi.mocked(addSharedVaultMember)).toHaveBeenCalledWith("v", "bob@example.com", "viewer");
   });
@@ -566,7 +566,7 @@ describe("shareSpace by lookup result", () => {
   it.each(["not_found", "rate_limited"])("stops on a %s lookup without inviting", async (code) => {
     vi.mocked(addSharedVaultMember).mockClear();
     vi.mocked(lookupUserKey).mockRejectedValue(new ApiError("x", code === "rate_limited" ? 429 : 404, 0, "", code));
-    const err = await shareSpace("v", generateSpaceKey(), "bob@example.com", "viewer").catch((e) => e);
+    const err = await shareSpace("v", { key: generateSpaceKey(), gen: 0 }, "bob@example.com", "viewer").catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe(code);
     expect(addSharedVaultMember).not.toHaveBeenCalled();
@@ -579,7 +579,7 @@ describe("spacePerms / canManageMember", () => {
   it("grades rights strictly: viewer < editor < admin < owner", () => {
     expect(spacePerms(v("viewer"), "u")).toEqual({ label: "Viewer", editFiles: false, manage: false, rotate: false, owner: false });
     expect(spacePerms(v("editor"), "u")).toEqual({ label: "Editor", editFiles: true, manage: false, rotate: false, owner: false });
-    expect(spacePerms(v("admin"), "u")).toEqual({ label: "Admin", editFiles: true, manage: true, rotate: false, owner: false });
+    expect(spacePerms(v("admin"), "u")).toEqual({ label: "Admin", editFiles: true, manage: true, rotate: true, owner: false });
     expect(spacePerms(v("admin"), "o")).toEqual({ label: "Owner", editFiles: true, manage: true, rotate: true, owner: true });
   });
 

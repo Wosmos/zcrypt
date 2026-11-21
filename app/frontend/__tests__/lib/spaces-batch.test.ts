@@ -102,12 +102,12 @@ describe("peer key verification", () => {
     });
     vi.mocked(addSharedVaultMember).mockResolvedValue({ user_id: "bob" } as never);
 
-    const err = await shareSpace("v1", generateSpaceKey(), "bob@x.io", "viewer").catch((e) => e);
+    const err = await shareSpace("v1", { key: generateSpaceKey(), gen: 0 }, "bob@x.io", "viewer").catch((e) => e);
     expect(err).toBeInstanceOf(KeyChangedError);
     expect((err as KeyChangedError).peerUserId).toBe("bob");
     expect(addSharedVaultMember).not.toHaveBeenCalled();
 
-    await shareSpace("v1", generateSpaceKey(), "bob@x.io", "viewer", {
+    await shareSpace("v1", { key: generateSpaceKey(), gen: 0 }, "bob@x.io", "viewer", {
       acceptChangedKeys: ["bob"],
     });
     expect(addSharedVaultMember).toHaveBeenCalledTimes(1);
@@ -120,7 +120,7 @@ describe("peer key verification", () => {
     vi.mocked(lookupUserKey).mockResolvedValue({ user_id: "amy", public_key: k, fingerprint: "" });
     vi.mocked(addSharedVaultMember).mockResolvedValue({ user_id: "amy" } as never);
     expect((await memberKeyStatus({ user_id: "amy", public_key: k })).status).toBe("new");
-    await shareSpace("v1", generateSpaceKey(), "amy@x.io", "editor");
+    await shareSpace("v1", { key: generateSpaceKey(), gen: 0 }, "amy@x.io", "editor");
     expect((await memberKeyStatus({ user_id: "amy", public_key: k })).status).toBe("verified");
   });
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/http-error";
 import type { InviteResult } from "@/lib/api";
-import { loadSpaceKey, shareSpace } from "@/lib/spaces";
+import { inviteToSpace, loadSpaceKey } from "@/lib/spaces";
 import { withKeyConfirm, KeyChangeDeclinedError } from "@/components/spaces/key-change";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,12 +69,11 @@ export async function inviteMember(
   email: string,
   role: SpaceRole,
 ): Promise<InviteResult> {
-  const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) {
+  if (!(await loadSpaceKey(vault))) {
     throw new NoSpaceKeyError();
   }
   return withKeyConfirm(email, (acceptChangedKeys) =>
-    shareSpace(vault.id, spaceKey, email, role, { acceptChangedKeys }),
+    inviteToSpace(vault, email, role, { acceptChangedKeys }),
   );
 }
 

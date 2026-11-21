@@ -160,7 +160,7 @@
       "addFiles": "Ajouter des fichiers",
       "settings": "Paramètres",
       "rotationBanner": "Un membre a été retiré. La clé de l’espace doit être renouvelée pour bloquer toute copie conservée.",
-      "rotationAsk": "Demandez au propriétaire de l’effectuer ; l’ajout de fichiers est suspendu d’ici là.",
+      "rotationAsk": "Elle est renouvelée automatiquement la prochaine fois que le propriétaire ou un administrateur ouvre zcrypt ; l’ajout de fichiers est suspendu d’ici là.",
       "rotateKey": "Renouveler la clé",
       "unlockToFinish": "Déverrouillez votre coffre pour terminer l’ajout des fichiers.",
       "addingProgress": "Ajout de {done} sur {total, plural, one {# fichier} other {# fichiers}}…",

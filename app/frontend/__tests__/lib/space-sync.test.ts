@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { openSpaceId, syncSpaceEvent } from "@/lib/space-sync";
 import type { UserEvent } from "@/lib/user-events";
+import { useSpacesStore } from "@/store/spaces";
 
 const ev = (type: string): UserEvent => ({ type, data: { space_id: "s1" }, url: "/spaces" });
 const navigate = vi.fn();
@@ -29,6 +30,18 @@ describe("openSpaceId", () => {
 });
 
 describe("syncSpaceEvent", () => {
+  it("drops the cached Space key and refetches when the key was rotated elsewhere", () => {
+    useSpacesStore.getState().setSpaceKey("s1", new Uint8Array(32), 1);
+    useSpacesStore.getState().setSpaceKey("s2", new Uint8Array(32), 1);
+    queryClient.setQueryData(qk.space("s1"), { id: "s1" });
+    syncSpaceEvent(ev("spaceKeyRotated"), { pathname: "/spaces/s1", search: "" }, navigate);
+    expect(useSpacesStore.getState().spaceKeys.s1).toBeUndefined();
+    expect(useSpacesStore.getState().spaceKeyGens.s1).toBeUndefined();
+    expect(useSpacesStore.getState().spaceKeys.s2).toBeDefined();
+    expect(queryClient.getQueryState(qk.space("s1"))?.isInvalidated).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it.each(["spaceMembersChanged", "memberLeft", "memberJoined", "roleChanged"])(
     "refetches the open Space and the list on %s",
     async (type) => {

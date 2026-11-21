@@ -160,7 +160,7 @@
       "addFiles": "添加文件",
       "settings": "设置",
       "rotationBanner": "有成员被移除。必须轮换空间密钥，才能让其保留的任何副本失效。",
-      "rotationAsk": "请让所有者进行轮换；在此之前暂停添加文件。",
+      "rotationAsk": "所有者或管理员下次打开 zcrypt 时会自动轮换；在此之前暂停添加文件。",
       "rotateKey": "轮换密钥",
       "unlockToFinish": "解锁你的保险库以完成文件添加。",
       "addingProgress": "正在添加 {done}/{total, plural, other {# 个文件}}…",

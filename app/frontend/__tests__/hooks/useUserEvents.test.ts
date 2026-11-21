@@ -8,8 +8,10 @@ const h = vi.hoisted(() => ({
   push: vi.fn(),
   sync: vi.fn(),
   handOff: vi.fn(async () => {}),
+  rotate: vi.fn(async () => {}),
 }));
 vi.mock("@/lib/space-handoff", () => ({ handOffForSpace: h.handOff }));
+vi.mock("@/lib/space-rotation", () => ({ rotateForSpace: h.rotate }));
 vi.mock("@/lib/space-sync", async () => {
   const real = await vi.importActual<typeof import("@/lib/space-sync")>("@/lib/space-sync");
   return { ...real, syncSpaceEvent: h.sync };
@@ -37,7 +39,7 @@ describe("useUserEvents", () => {
       [
         "filesAdded", "inviteReceived", "invitePending", "linkViewed", "memberJoined",
         "memberLeft", "memberRemoved", "newSignIn", "roleChanged", "spaceDeleted",
-        "spaceKeyNeeded", "spaceMembersChanged",
+        "spaceKeyNeeded", "spaceMembersChanged", "spaceRotationNeeded", "spaceKeyRotated",
       ].sort(),
     );
     h.handlers.memberLeft({ data: '{"type":"memberLeft","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);
@@ -65,6 +67,16 @@ describe("useUserEvents", () => {
     h.handlers.spaceKeyNeeded({ data: '{"type":"spaceKeyNeeded","data":{"space_id":"s1","user_id":"u2"},"url":"/spaces"}' } as MessageEvent);
     expect(h.handOff).toHaveBeenCalledWith("s1");
     expect(h.deliver).not.toHaveBeenCalled();
+  });
+
+  it("re-keys the Space on a rotation-needed signal, silently", () => {
+    renderHook(() => useUserEvents());
+    h.handlers.spaceRotationNeeded({ data: '{"type":"spaceRotationNeeded","data":{"space_id":"s1"},"url":"/spaces"}' } as MessageEvent);
+    expect(h.rotate).toHaveBeenCalledWith("s1");
+    h.handlers.spaceRotationNeeded({ data: '{"type":"spaceRotationNeeded","data":{},"url":""}' } as MessageEvent);
+    expect(h.rotate).toHaveBeenCalledTimes(1);
+    expect(h.deliver).not.toHaveBeenCalled();
+    expect(h.sync).not.toHaveBeenCalled();
   });
 
   it("ignores a key-needed signal that carries no Space id", () => {

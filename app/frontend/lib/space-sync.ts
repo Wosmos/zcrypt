@@ -2,6 +2,7 @@ import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { resolveSpaceId } from "@/lib/space-routes";
 import type { UserEvent } from "@/lib/user-events";
+import { useSpacesStore } from "@/store/spaces";
 
 /** Events that change a Space's members, role, files or existence. */
 export const SPACE_SYNC_TYPES = [
@@ -13,6 +14,7 @@ export const SPACE_SYNC_TYPES = [
   "spaceDeleted",
   "filesAdded",
   "inviteReceived",
+  "spaceKeyRotated",
 ] as const;
 
 /** The Space open in the address bar, or "" when none is. */
@@ -35,6 +37,7 @@ export function syncSpaceEvent(
 ): void {
   const id = event.data.space_id;
   if (!id) return;
+  if (event.type === "spaceKeyRotated") useSpacesStore.getState().dropSpaceKey(id);
   void queryClient.invalidateQueries({ queryKey: qk.spaces });
   if (!GONE.has(event.type)) {
     void queryClient.invalidateQueries({ queryKey: qk.space(id) });

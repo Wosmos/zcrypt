@@ -2322,12 +2322,15 @@ export function addSharedVaultMember(
   email: string,
   role: string,
   wrappedSpaceKey?: string,
+  keyGeneration?: number,
 ): Promise<InviteResult> {
   return request<InviteResult>(`/api/shared-vaults/${vaultId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(
-      wrappedSpaceKey ? { email, role, wrapped_space_key: wrappedSpaceKey } : { email, role },
+      wrappedSpaceKey
+        ? { email, role, wrapped_space_key: wrappedSpaceKey, key_generation: keyGeneration }
+        : { email, role },
     ),
   });
 }
@@ -2337,11 +2340,12 @@ export function completeSharedVaultMember(
   vaultId: string,
   userId: string,
   wrappedSpaceKey: string,
+  keyGeneration?: number,
 ): Promise<SharedVaultMember> {
   return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members/${userId}/key`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ wrapped_space_key: wrappedSpaceKey }),
+    body: JSON.stringify({ wrapped_space_key: wrappedSpaceKey, key_generation: keyGeneration }),
   });
 }
 
@@ -2398,11 +2402,17 @@ export function addFileToSpace(
   fileId: string,
   wrappedCek: string,
   wrappedName: string,
+  keyGeneration?: number,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file_id: fileId, wrapped_cek: wrappedCek, wrapped_name: wrappedName }),
+    body: JSON.stringify({
+      file_id: fileId,
+      wrapped_cek: wrappedCek,
+      wrapped_name: wrappedName,
+      key_generation: keyGeneration,
+    }),
   });
 }
 
@@ -2423,11 +2433,12 @@ export interface SpaceBatchResult {
 export function addFilesToSpaceBatch(
   vaultId: string,
   files: SpaceBatchFile[],
+  keyGeneration?: number,
 ): Promise<SpaceBatchResult> {
   return request<SpaceBatchResult>(`/api/shared-vaults/${vaultId}/files/batch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ files }),
+    body: JSON.stringify({ files, key_generation: keyGeneration }),
   });
 }
 
@@ -2441,18 +2452,19 @@ export function removeFileFromSpace(
   });
 }
 
-/** Rotate a space's key (admin only): new key sealed to each remaining member,
+/** Rotate a space's key (owner or admin): new key sealed to each remaining member,
  *  every file's CEK re-wrapped under it. All values are opaque to the server. */
 export function rotateSpace(
   vaultId: string,
   members: { user_id: string; wrapped_space_key: string }[],
   files: { file_id: string; wrapped_cek: string; wrapped_name: string }[],
   meta?: { name: string; description: string },
+  keyGeneration?: number,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/rotate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(meta ? { members, files, ...meta } : { members, files }),
+    body: JSON.stringify({ members, files, ...meta, key_generation: keyGeneration }),
   });
 }
 

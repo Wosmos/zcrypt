@@ -6,7 +6,7 @@ const { api, spaces, nav, adds, toast, files } = vi.hoisted(() => ({
   api: { listFolders: vi.fn() },
   spaces: {
     createSpace: vi.fn(),
-    shareSpace: vi.fn(),
+    inviteToSpace: vi.fn(),
     loadSpaceKey: vi.fn(),
     warmSpaceKeys: vi.fn(),
   },
@@ -54,7 +54,7 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/spaces", async (orig) => ({
   ...(await orig<typeof import("@/lib/spaces")>()),
   createSpace: spaces.createSpace,
-  shareSpace: spaces.shareSpace,
+  inviteToSpace: spaces.inviteToSpace,
   loadSpaceKey: spaces.loadSpaceKey,
   warmSpaceKeys: spaces.warmSpaceKeys,
 }));
@@ -89,7 +89,7 @@ beforeEach(() => {
   api.listFolders.mockResolvedValue([]);
   spaces.createSpace.mockResolvedValue(vault);
   spaces.loadSpaceKey.mockResolvedValue(new Uint8Array(32));
-  spaces.shareSpace.mockResolvedValue({ user_id: "peer", role: "viewer" });
+  spaces.inviteToSpace.mockResolvedValue({ user_id: "peer", role: "viewer" });
 });
 afterEach(cleanup);
 
@@ -122,7 +122,7 @@ describe("SpaceNew", () => {
   });
 
   it("confirms a changed peer key and retries the invite with that peer approved", async () => {
-    spaces.shareSpace
+    spaces.inviteToSpace
       .mockRejectedValueOnce(new KeyChangedError("peer-1", "NEW-FP", "OLD-FP"))
       .mockResolvedValueOnce({ user_id: "peer-1", role: "editor" });
 
@@ -146,9 +146,9 @@ describe("SpaceNew", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Trust the new key" }));
 
-    await waitFor(() => expect(spaces.shareSpace).toHaveBeenCalledTimes(2));
-    expect(spaces.shareSpace.mock.calls[0][4]).toEqual({ acceptChangedKeys: [] });
-    expect(spaces.shareSpace.mock.calls[1][4]).toEqual({ acceptChangedKeys: ["peer-1"] });
+    await waitFor(() => expect(spaces.inviteToSpace).toHaveBeenCalledTimes(2));
+    expect(spaces.inviteToSpace.mock.calls[0][3]).toEqual({ acceptChangedKeys: [] });
+    expect(spaces.inviteToSpace.mock.calls[1][3]).toEqual({ acceptChangedKeys: ["peer-1"] });
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Invited 1 person"));
   });
 
@@ -158,11 +158,11 @@ describe("SpaceNew", () => {
     fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "bob" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Enter a valid email.")).toBeInTheDocument();
-    expect(spaces.shareSpace).not.toHaveBeenCalled();
+    expect(spaces.inviteToSpace).not.toHaveBeenCalled();
   });
 
   it("does not retry when the changed key is declined", async () => {
-    spaces.shareSpace.mockRejectedValue(new KeyChangedError("peer-1", "NEW-FP", "OLD-FP"));
+    spaces.inviteToSpace.mockRejectedValue(new KeyChangedError("peer-1", "NEW-FP", "OLD-FP"));
     renderWithQuery(
       <>
         <SpaceNew />
@@ -180,6 +180,6 @@ describe("SpaceNew", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     await waitFor(() => expect(toast.warning).toHaveBeenCalled());
-    expect(spaces.shareSpace).toHaveBeenCalledTimes(1);
+    expect(spaces.inviteToSpace).toHaveBeenCalledTimes(1);
   });
 });
