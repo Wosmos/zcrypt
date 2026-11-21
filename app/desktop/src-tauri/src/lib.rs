@@ -1162,7 +1162,8 @@ pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
             return RunOutcome::Retry;
         };
         let profile = profiles::detect();
-        let cancel = photo_backup::begin_pass();
+        let pass = photo_backup::begin_pass();
+        let cancel = pass.token();
         rt.block_on(photo_backup::run(
             &db,
             base_url,

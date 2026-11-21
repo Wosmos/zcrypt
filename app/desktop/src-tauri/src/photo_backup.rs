@@ -65,21 +65,44 @@ pub enum RunOutcome {
     Stop = 2,
 }
 
-static CURRENT_PASS: std::sync::Mutex<Option<CancelToken>> = std::sync::Mutex::new(None);
+static PASSES: std::sync::Mutex<Vec<(u64, CancelToken)>> = std::sync::Mutex::new(Vec::new());
+static NEXT_PASS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// Registers the cancel token of the run that is starting, so the Android job
-/// can stop it when WorkManager stops the worker.
+/// A run's cancel token, registered for `stop_pass` until the run drops it.
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-pub fn begin_pass() -> CancelToken {
-    let token = CancelToken::new();
-    *CURRENT_PASS.lock().unwrap() = Some(token.clone());
-    token
+pub struct Pass {
+    id: u64,
+    token: CancelToken,
 }
 
-/// Cancels the run in flight, if any.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+impl Pass {
+    pub fn token(&self) -> CancelToken {
+        self.token.clone()
+    }
+}
+
+impl Drop for Pass {
+    fn drop(&mut self) {
+        PASSES.lock().unwrap().retain(|(id, _)| *id != self.id);
+    }
+}
+
+/// Registers the cancel token of a run that is starting, so the Android job
+/// can stop it when WorkManager stops the worker. Every run in flight stays
+/// registered, so a second worker never hides the first from `stop_pass`.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn begin_pass() -> Pass {
+    let id = NEXT_PASS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let token = CancelToken::new();
+    PASSES.lock().unwrap().push((id, token.clone()));
+    Pass { id, token }
+}
+
+/// Cancels every run in flight.
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub fn stop_pass() {
-    if let Some(token) = CURRENT_PASS.lock().unwrap().take() {
+    for (_, token) in PASSES.lock().unwrap().drain(..) {
         token.cancel();
     }
 }
@@ -1051,11 +1074,22 @@ mod tests {
     }
 
     #[test]
-    fn stopping_trips_the_registered_pass_once() {
-        let token = begin_pass();
+    fn stopping_trips_every_registered_pass_once() {
+        let first = begin_pass();
+        let second = begin_pass();
+        assert!(!first.token().is_cancelled());
+        stop_pass();
+        assert!(first.token().is_cancelled(), "a second worker must not hide the first");
+        assert!(second.token().is_cancelled());
+        stop_pass();
+    }
+
+    #[test]
+    fn a_finished_pass_is_no_longer_stopped() {
+        let done = begin_pass();
+        let token = done.token();
+        drop(done);
+        stop_pass();
         assert!(!token.is_cancelled());
-        stop_pass();
-        assert!(token.is_cancelled());
-        stop_pass();
     }
 }
