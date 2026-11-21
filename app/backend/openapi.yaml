@@ -7,7 +7,7 @@ info:
     vaults, Send, pads, notes, clipboard, snapshots, integrity, sync/offline, the
     dead-man's switch, and decoy mode. See app/backend/cmd/server.go
     (RegisterRoutes) for the authoritative list.
-  version: 0.2.0
+  version: 0.3.0
 
 servers:
   - url: http://localhost:8080
@@ -128,6 +128,11 @@ components:
         limit_bytes: { type: integer }
         used_bytes: { type: integer }
         resets_at: { type: string, format: date-time }
+    CodedError:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
 
 security:
   - bearerAuth: []
@@ -1013,3 +1018,310 @@ paths:
       responses:
         "200":
           description: Default quota updated
+
+  /api/shares:
+    get:
+      tags: [Shares]
+      summary: List the caller's file links
+      responses:
+        "200":
+          description: Links
+    post:
+      tags: [Shares]
+      summary: Create a public link to a file
+      description: The file key is wrapped under a link key that stays in the URL fragment.
+      responses:
+        "201":
+          description: Link created
+        "428":
+          description: >
+            A burst of public links: send a Cloudflare Turnstile token in
+            `X-Turnstile-Token` and repeat (`challenge_required`). Only when
+            Turnstile is configured.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodedError" }
+        "429":
+          description: The same burst from the desktop or Android app (`share_limit`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodedError" }
+
+  /api/shares/{id}:
+    delete:
+      tags: [Shares]
+      summary: Revoke a file link
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Revoked
+
+  /api/share/{token}:
+    get:
+      tags: [Shares]
+      summary: Public link info (no account)
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Link info
+        "404":
+          description: Unknown, revoked or expired
+
+  /api/share/{token}/meta:
+    get:
+      tags: [Shares]
+      summary: Public link file metadata (sealed name, sizes, wrapped key)
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Metadata
+
+  /api/share/{token}/chunks/{idx}:
+    get:
+      tags: [Shares]
+      summary: Download one encrypted chunk of a public link
+      description: Charged to the owner's transfer allowance.
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Encrypted chunk (X-Chunk-SHA256, X-Chunk-Compressed)
+        "403":
+          description: The owner's transfer allowance is used up (`used_bytes` and `limit_bytes` are omitted)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
+
+  /api/share/{token}/complete:
+    post:
+      tags: [Shares]
+      summary: Count one finished download of a file link
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Counted
+
+  /api/folder-shares:
+    get:
+      tags: [Folder shares]
+      summary: List the caller's folder links
+      responses:
+        "200":
+          description: Links
+    post:
+      tags: [Folder shares]
+      summary: Create a public link to a folder
+      responses:
+        "201":
+          description: Link created
+        "428":
+          description: >
+            A burst of public links: send a Cloudflare Turnstile token in
+            `X-Turnstile-Token` and repeat (`challenge_required`). Only when
+            Turnstile is configured.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodedError" }
+        "429":
+          description: The same burst from the desktop or Android app (`share_limit`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodedError" }
+
+  /api/folder-shares/{id}:
+    delete:
+      tags: [Folder shares]
+      summary: Revoke a folder link
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Revoked
+
+  /api/folder-share/{token}:
+    get:
+      tags: [Folder shares]
+      summary: Public folder link listing (password-protected links need X-Folder-Password)
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Folder and files
+
+  /api/folder-share/{token}/files/{fid}/meta:
+    get:
+      tags: [Folder shares]
+      summary: Metadata of one file in a folder link
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: fid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Metadata
+
+  /api/folder-share/{token}/files/{fid}/chunks/{idx}:
+    get:
+      tags: [Folder shares]
+      summary: Download one encrypted chunk of a file in a folder link
+      description: Charged to the owner's transfer allowance.
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: fid, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Encrypted chunk (X-Chunk-SHA256, X-Chunk-Compressed)
+        "403":
+          description: The owner's transfer allowance is used up (`used_bytes` and `limit_bytes` are omitted)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
+
+  /api/folder-share/{token}/files/{fid}/complete:
+    post:
+      tags: [Folder shares]
+      summary: Count one finished file download from a folder link
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: fid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Counted
+
+  /api/send/init:
+    post:
+      tags: [Send]
+      summary: Start a Send (account optional)
+      security: []
+      responses:
+        "200":
+          description: Session created (session_id, token)
+        "429":
+          description: >
+            Daily Send allowance used up. `login_required` is true when signing
+            in raises it.
+
+  /api/send/{sid}/chunk/{idx}:
+    put:
+      tags: [Send]
+      summary: Upload one encrypted chunk of a Send
+      security: []
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Chunk stored
+        "413":
+          description: More bytes than declared (`relay_chunk_exceeds_declared`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
+
+  /api/send/{sid}/complete:
+    post:
+      tags: [Send]
+      summary: Finish a Send
+      description: Idempotent. A repeat of a finished Send answers with the same token.
+      security: []
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Finished (token)
+        "400":
+          description: Chunks missing, or the session was cancelled
+
+  /api/send/{sid}:
+    delete:
+      tags: [Send]
+      summary: Cancel an unfinished Send and delete its stored chunks
+      security: []
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Cancelled
+        "404":
+          description: Unknown session
+        "409":
+          description: Already finished
+
+  /api/send/{token}:
+    get:
+      tags: [Send]
+      summary: Public Send info
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Send info
+
+  /api/send/{token}/meta:
+    get:
+      tags: [Send]
+      summary: Public Send file metadata
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Metadata
+
+  /api/send/{token}/chunks/{idx}:
+    get:
+      tags: [Send]
+      summary: Download one encrypted chunk of a Send
+      description: A signed-in sender's Send is charged to their transfer allowance.
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Encrypted chunk (X-Chunk-SHA256, X-Chunk-Compressed)
+        "403":
+          description: The owner's transfer allowance is used up (`used_bytes` and `limit_bytes` are omitted)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayRefusal" }
+
+  /api/shared-vaults/{id}/rotate:
+    post:
+      tags: [Spaces]
+      summary: Re-key a Space (owner or admin)
+      description: >
+        A new Space key sealed to every member and every file key re-wrapped
+        under it. `key_generation` is the generation the client rotated from;
+        the Space's generation goes up by one.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Rotated
+        "409":
+          description: >
+            `stale_space_key` (another device rotated first: reload the Space
+            and retry) or the rotation does not cover every member and file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodedError" }
