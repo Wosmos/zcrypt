@@ -99,6 +99,36 @@ function zipQueueItem(id: string, count: number, totalSize: number, stage: strin
  *  purge any still-queued progress write for this id: otherwise a throttled
  *  frame already scheduled from the last onProgress tick lands afterward and
  *  stomps the terminal status back to "downloading". */
+// A DNS/connect failure means zcrypt's servers couldn't be reached at all,
+// common on filtered networks.
+const UNREACHABLE =
+  /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i;
+
+/**
+ * Marks a desktop or Android engine failure on its row. An allowance refusal
+ * opens the allowance dialog ("limit"); an unreachable server gets the
+ * check-your-network hint ("network"). Otherwise returns null and the caller
+ * shows its own message.
+ */
+function failDesktopRow(id: string, err: unknown, msg: string): "limit" | "network" | null {
+  const limit = webTransferLimitFromCore(err);
+  const isNetwork = !limit && UNREACHABLE.test(msg);
+  setStatusNow(id, {
+    status: DownloadStatus.Failed,
+    error: limit ? limit.message : isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
+    stage: "Failed",
+  });
+  if (limit) {
+    showWebTransferLimit(limit.limit);
+    return "limit";
+  }
+  if (isNetwork) {
+    toast.error(tr("toasts.unreachable"));
+    return "network";
+  }
+  return null;
+}
+
 function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: DownloadStatus }) {
   progressBatch.drop(id);
   useDownloadStore.setState((state) => ({
@@ -593,34 +623,19 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         void notify({ type: "downloadDone", name: filename });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        // A DNS/connect failure means we couldn't even reach zcrypt's servers,
-        // common on filtered/censored networks. Give the actionable hint (check
-        // connection / try a VPN) instead of a raw reqwest dump.
-        const isNetwork =
-          /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
-            msg,
-          );
         const recovered = recoverWrongFolderPassword(fileId, msg);
-        const limit = webTransferLimitFromCore(err);
-        setStatusNow(id, {
-          status: DownloadStatus.Failed,
-          error: limit
-            ? limit.message
-            : isNetwork
-              ? "Can't reach zcrypt's servers (network/DNS)"
-              : msg,
-          stage: "Failed",
-        });
-        if (limit) {
-          showWebTransferLimit(limit.limit);
-        } else if (isNetwork) {
-          toast.error(tr("toasts.unreachable"));
-        } else if (recovered) {
-          toast.error(tr("toasts.wrongFolderPassword", { name: filename }));
-        } else {
-          toast.error(tr("toasts.downloadFailedMsg", { msg }));
+        const shown = failDesktopRow(id, err, msg);
+        if (!shown) {
+          toast.error(
+            recovered
+              ? tr("toasts.wrongFolderPassword", { name: filename })
+              : tr("toasts.downloadFailedMsg", { msg }),
+          );
         }
-        notifications.downloadFailed(filename, isNetwork ? tr("toasts.unreachable") : msg);
+        notifications.downloadFailed(
+          filename,
+          shown === "network" ? tr("toasts.unreachable") : msg,
+        );
       } finally {
         unlisten();
       }
@@ -776,34 +791,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         notifyZipDone(files.length, 0);
       } catch (err) {
         const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
-        const isNetwork =
-          /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
-            msg,
-          );
         let recovered = false;
         if (looksLikeWrongKey(msg)) {
           for (const f of files) {
             if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
           }
         }
-        const limit = webTransferLimitFromCore(err);
-        setStatusNow(id, {
-          status: DownloadStatus.Failed,
-          error: limit
-            ? limit.message
-            : isNetwork
-              ? "Can't reach zcrypt's servers (network/DNS)"
-              : msg,
-          stage: "Failed",
-        });
-        if (limit) {
-          showWebTransferLimit(limit.limit);
-        } else if (isNetwork) {
-          toast.error(tr("toasts.unreachable"));
-        } else if (recovered) {
-          toast.error(tr("toasts.zipWrongPassword"));
-        } else {
-          toast.error(tr("toasts.zipFailedMsg", { msg }));
+        if (!failDesktopRow(id, err, msg)) {
+          toast.error(
+            recovered ? tr("toasts.zipWrongPassword") : tr("toasts.zipFailedMsg", { msg }),
+          );
         }
       } finally {
         unlisten();
