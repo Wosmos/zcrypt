@@ -246,3 +246,35 @@ func TestSoftDeleteAppearsInChangeFeed(t *testing.T) {
 	}
 	assert.True(t, sawDeleted, "soft-deleted file must appear as deleted in /api/changes")
 }
+
+func TestByosDirectSessionRelayingAFileOverTheCapIsRefused(t *testing.T) {
+	t.Setenv("ZCRYPT_RELAY_MAX_FILE_BYTES", "100")
+	ts := setupTestServer(t)
+	email := "byos-cap@example.com"
+	token := ts.registerAndLogin(email, "SecurePass@123!")
+	ts.givePersonalToken(email, "github", "octocat")
+
+	initFor := func(size int) string {
+		var init struct {
+			SessionID string `json:"session_id"`
+		}
+		require.NoError(t, json.Unmarshal(requireStatus(t, ts.POST("/api/upload/init", map[string]interface{}{
+			"encrypted_name": "cap.bin", "original_size": size, "sha256": hex64, "salt": validSalt,
+			"chunk_count": 1, "platform": "github", "mode": "byos-direct",
+		}, token), http.StatusOK), &init))
+		return init.SessionID
+	}
+
+	resp := ts.PUT("/api/upload/"+initFor(400)+"/chunk/0", relayChunk(400), token)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+	var body struct {
+		Code string `json:"code"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+	assert.Equal(t, "relay_file_too_large", body.Code)
+
+	small := ts.PUT("/api/upload/"+initFor(40)+"/chunk/0", relayChunk(40), token)
+	defer small.Body.Close()
+	assert.NotEqual(t, http.StatusRequestEntityTooLarge, small.StatusCode, "a file under the cap may still relay")
+}

@@ -83,6 +83,14 @@ func (s *Server) chunkFitsDeclaredSize(w http.ResponseWriter, r *http.Request, s
 	if IsAdmin(r) {
 		return true
 	}
+	// A session that started direct skipped the relay admission at init, so the
+	// per-file cap is checked here for whatever it sends through the server.
+	if session.Mode != types.UploadModeRelay {
+		if limit := relayMaxFileBytes(); limit > 0 && session.OriginalSize > limit {
+			writeRelayFileTooLarge(w, limit)
+			return false
+		}
+	}
 	// The session's reservation already covers its declared bytes; only the
 	// part of this chunk beyond it needs fresh headroom.
 	over := n - max(session.RelayReserve-received, 0)
