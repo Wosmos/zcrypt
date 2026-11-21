@@ -50,6 +50,9 @@ async function resolveDirectSource(fileId: string): Promise<DirectSource | null>
   return locators.size > 0 ? { target, locators } : null;
 }
 
+/** Chunks in a row whose platform link fails before links stop for the file. */
+export const LINK_FAILURES_BEFORE_OFF = 2;
+
 /** Options for a chunk source that may hold its transfer instead of failing. */
 export interface ChunkSourceOptions {
   /**
@@ -71,11 +74,16 @@ export interface ChunkSourceOptions {
  * Telegram for DIRECT_UNREACHABLE_FOR_MS, a slow body does not. When a
  * `waitKey` is given, going through the server needs room in the transfer
  * allowance for the rest of the file, else the transfer waits for Telegram.
- * The direct sources are resolved once, on the first chunk.
+ * The direct sources are resolved once, on the first chunk that gets an answer.
  */
 export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {}) {
   let source: Promise<DirectSource | null> | undefined;
-  const direct = () => (source ??= resolveDirectSource(fileId).catch(() => null));
+  // A failed lookup is not kept, so the next chunk asks again.
+  const direct = () =>
+    (source ??= resolveDirectSource(fileId).catch(() => {
+      source = undefined;
+      return null;
+    }));
   const fetched = new Set<number>();
 
   // A chunk with no Telegram route and no working platform link comes through
@@ -101,24 +109,32 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
   };
 
   // GitHub and Hugging Face chunks are read from a short-lived platform link the
-  // server mints, so their bytes skip the server and the allowance. The first
-  // chunk without a working link turns links off for the rest of the file:
-  // it is the same platform and network, so the rest would fail the same way.
-  let linksOff = false;
+  // server mints, so their bytes skip the server and the allowance. A chunk
+  // with no link (409, e.g. a Hugging Face chunk still awaiting its commit) or
+  // whose bytes don't match goes through the server on its own. A failed read
+  // is retried once with a fresh link; LINK_FAILURES_BEFORE_OFF chunks in a row
+  // failing turn links off for the rest of the file, since this network then
+  // can't reach the platform.
+  let linkFailures = 0;
+  const fetchLinked = async (index: number, signal?: AbortSignal) => {
+    const link = await getChunkLink(fileId, index, signal);
+    if (!link) return null;
+    const data = await downloadLinkedChunk(link.url, signal);
+    if (link.sha256 && (await sha256Hex(new Uint8Array(data))) !== link.sha256) return null;
+    return { data, sha256: link.sha256, compressed: link.compressed };
+  };
   const viaLink = async (index: number, signal?: AbortSignal): Promise<ChunkPayload | null> => {
-    if (linksOff) return null;
-    try {
-      const link = await getChunkLink(fileId, index, signal);
-      if (link) {
-        const data = await downloadLinkedChunk(link.url, signal);
-        if (!link.sha256 || (await sha256Hex(new Uint8Array(data))) === link.sha256) {
-          return { data, sha256: link.sha256, compressed: link.compressed };
-        }
+    if (linkFailures >= LINK_FAILURES_BEFORE_OFF) return null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const payload = await fetchLinked(index, signal);
+        if (payload) linkFailures = 0;
+        return payload;
+      } catch (err) {
+        if (isAbortError(err)) throw err;
       }
-    } catch (err) {
-      if (isAbortError(err)) throw err;
     }
-    linksOff = true;
+    linkFailures++;
     return null;
   };
 

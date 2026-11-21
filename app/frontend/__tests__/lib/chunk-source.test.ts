@@ -28,7 +28,7 @@ vi.mock("@/lib/telegram-download", async (importOriginal) => ({
   downloadTelegramChunk: m.downloadTelegramChunk,
 }));
 
-import { createChunkSource, resetDirectDownloadState } from "@/lib/chunk-source";
+import { createChunkSource, LINK_FAILURES_BEFORE_OFF, resetDirectDownloadState } from "@/lib/chunk-source";
 import { TelegramUnreachableError } from "@/lib/telegram-download";
 import { sha256Hex } from "@/lib/crypto";
 import { DIRECT_UNREACHABLE_FOR_MS, StalledError } from "@/lib/transport";
@@ -130,6 +130,15 @@ describe("createChunkSource", () => {
     expect(out).toBe(relayChunk);
     expect(m.getFileLocators).not.toHaveBeenCalled();
     expect(m.downloadTelegramChunk).not.toHaveBeenCalled();
+  });
+
+  it("asks for the locators again on the next chunk after a failed lookup", async () => {
+    m.getFileLocators.mockRejectedValueOnce(new Error("502"));
+    const fetchChunk = createChunkSource("f");
+    expect(await fetchChunk(0)).toBe(relayChunk);
+    const second = await fetchChunk(1);
+    expect(new Uint8Array(second.data)).toEqual(PLAIN);
+    expect(m.getFileLocators).toHaveBeenCalledTimes(2);
   });
 
   it("relays when the locators cannot be fetched (not the owner, server down)", async () => {
@@ -331,13 +340,52 @@ describe("platform links (GitHub / Hugging Face)", () => {
     expect(m.relayShortfall).not.toHaveBeenCalled();
   });
 
-  it("falls back to the server when the linked bytes don't match, and stops asking for links", async () => {
-    m.getChunkLink.mockResolvedValue(link("other"));
+  it("sends only the chunk whose linked bytes don't match through the server", async () => {
+    m.getChunkLink.mockResolvedValueOnce(link("other"));
     const fetchChunk = createChunkSource("f");
 
     expect(await fetchChunk(0)).toBe(relayChunk);
-    expect(await fetchChunk(1)).toBe(relayChunk);
-    expect(m.getChunkLink).toHaveBeenCalledTimes(1);
+    expect(new Uint8Array((await fetchChunk(1)).data)).toEqual(PLAIN);
+    expect(m.getFileChunk).toHaveBeenCalledTimes(1);
+  });
+
+  it("a chunk with no link yet (409) does not stop the next chunk using its link", async () => {
+    m.getChunkLink.mockResolvedValueOnce(null);
+    const fetchChunk = createChunkSource("f");
+
+    expect(await fetchChunk(0)).toBe(relayChunk);
+    expect(new Uint8Array((await fetchChunk(1)).data)).toEqual(PLAIN);
+  });
+
+  it("retries a failed read once with a fresh link", async () => {
+    m.downloadLinkedChunk.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const out = await createChunkSource("f")(0);
+
+    expect(new Uint8Array(out.data)).toEqual(PLAIN);
+    expect(m.getChunkLink).toHaveBeenCalledTimes(2);
+    expect(m.getFileChunk).not.toHaveBeenCalled();
+  });
+
+  it(`turns links off after ${LINK_FAILURES_BEFORE_OFF} chunks in a row fail, and a success resets the count`, async () => {
+    m.getFileLocators.mockResolvedValue({
+      file_id: "f",
+      chunks: [0, 1, 2, 3, 4].map((i) => loc(i, { platform: "huggingface" })),
+    });
+    const fail = new TypeError("Failed to fetch");
+    m.downloadLinkedChunk
+      .mockRejectedValueOnce(fail)
+      .mockRejectedValueOnce(fail)
+      .mockImplementationOnce(async () => PLAIN.slice().buffer)
+      .mockRejectedValue(fail);
+    const fetchChunk = createChunkSource("f");
+
+    expect(await fetchChunk(0)).toBe(relayChunk);
+    expect(new Uint8Array((await fetchChunk(1)).data)).toEqual(PLAIN);
+    expect(await fetchChunk(2)).toBe(relayChunk);
+    expect(await fetchChunk(3)).toBe(relayChunk);
+    const asked = m.getChunkLink.mock.calls.length;
+    expect(await fetchChunk(4)).toBe(relayChunk);
+    expect(m.getChunkLink).toHaveBeenCalledTimes(asked);
   });
 
   it("falls back to the server when the link can't be fetched, checking the rest fits first", async () => {
