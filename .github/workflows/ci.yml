@@ -509,16 +509,9 @@ jobs:
           echo "::error::After 15 minutes production is still not serving $GITHUB_SHA. Railway's GitHub deploy did not fire, or the build failed. Check the Railway dashboard. Do NOT ignore this, it is the exact failure that left production a week stale."
           exit 1
 
-  # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
-  # Previously: `bun run build` (a generic Next.js build) then plain `vercel
-  # --prod`. Without `--prebuilt`, `vercel deploy` ignores any local build and
-  # uploads source for Vercel to build AGAIN on its own infrastructure, so
-  # that local build was pure wasted compute, not just a duplicate of the
-  # `frontend` job's build, but of literally nothing (its output was never
-  # used). Switched to Vercel's own documented CI flow: `pull` fetches the
-  # project's environment/settings, `build` runs Vercel's real build (the one
-  # that actually produces the deployed artifact), `deploy --prebuilt` ships
-  # that output directly instead of triggering yet another remote rebuild.
+  # ── Deploy: frontend → Cloudflare Workers ────────────────────────────────────
+  # Builds the Worker with vinext, then wrangler ships that build as-is
+  # (--skip-build), so nothing is built twice.
   frontend-deploy:
     name: Deploy Frontend (Cloudflare)
     needs: [changes, frontend]

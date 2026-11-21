@@ -154,7 +154,7 @@ const nextConfig: NextConfig = {
       // production it makes www.zcrypt.cloud/api/* a STABLE front for the
       // backend: native desktop/Android builds bake this hostname (which we
       // own) instead of a Railway-generated one, so when the backend moves the
-      // fix is a Vercel env change + redeploy, never a rebuild of shipped
+      // fix is a NEXT_PUBLIC_API_URL change + redeploy, never a rebuild of shipped
       // apps. (The web app itself keeps calling NEXT_PUBLIC_API_URL directly;
       // WebSocket upgrades are not proxied by rewrites, so the web transfer
       // tool also stays on the direct origin.)

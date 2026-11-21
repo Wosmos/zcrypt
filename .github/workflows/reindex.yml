@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Wait for Vercel deploy to land
+      - name: Wait for the website deploy to land
         run: sleep 60
 
       - name: Ping search engines
