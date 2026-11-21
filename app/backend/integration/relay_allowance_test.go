@@ -96,6 +96,27 @@ func TestRelayReservationShrinksAsChunksArrive(t *testing.T) {
 	assert.Zero(t, q.RelayReservedBytes, "received bytes move from reserved to used, never counted twice")
 }
 
+func TestRelayReservationOfAnIdleUploadStopsCounting(t *testing.T) {
+	t.Setenv("ZCRYPT_RELAY_DAILY_BYTES", "1000")
+	ts := setupTestServer(t)
+	tag := relayTag()
+	email := "relay-idle-" + tag + "@example.com"
+	token := ts.registerAndLogin(email, newTestPassword())
+	ts.enableMockStorage(email)
+
+	var init struct {
+		SessionID string `json:"session_id"`
+	}
+	require.NoError(t, json.Unmarshal(requireStatus(t, ts.relayInit(token, 800, "idle-"+tag), http.StatusOK), &init))
+	relayRefusalOf(t, ts.relayInit(token, 400, "idle-"+tag+"-2"), http.StatusForbidden)
+
+	_, err := ts.db.Pool().Exec(context.Background(),
+		`UPDATE upload_sessions SET last_active_at = NOW() - INTERVAL '25 hours' WHERE id = $1`, init.SessionID)
+	require.NoError(t, err)
+	assert.Zero(t, ts.relayQuotaOf(token).RelayReservedBytes, "a day without a stored chunk frees the reservation")
+	requireStatus(t, ts.relayInit(token, 400, "idle-"+tag+"-3"), http.StatusOK)
+}
+
 func TestRelayDeclareSmallSendBigIsRefused(t *testing.T) {
 	ts := setupTestServer(t)
 	tag := relayTag()

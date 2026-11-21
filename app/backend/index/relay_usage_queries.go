@@ -87,6 +87,10 @@ type relayQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
+// relayReserveIdle is how long an upload session's reservation holds allowance
+// after it last stored a chunk.
+const relayReserveIdle = `INTERVAL '24 hours'`
+
 const relayTotalsSQL = `
 SELECT
   COALESCE((SELECT SUM(up_bytes + down_bytes) FROM relay_usage WHERE user_id = $1 AND day = ` + relayToday + `), 0)::bigint,
@@ -94,7 +98,8 @@ SELECT
   (COALESCE((SELECT SUM(GREATEST(us.relay_reserve - COALESCE(c.recv, 0), 0))
                FROM upload_sessions us
                LEFT JOIN LATERAL (SELECT SUM(size) AS recv FROM chunks WHERE file_id = us.file_id) c ON TRUE
-              WHERE us.user_id = $1 AND us.status = 'active' AND us.expires_at > NOW() AND us.relay_reserve > 0), 0)
+              WHERE us.user_id = $1 AND us.status = 'active' AND us.expires_at > NOW() AND us.relay_reserve > 0
+                AND us.last_active_at > NOW() - ` + relayReserveIdle + `), 0)
  + COALESCE((SELECT SUM(GREATEST(st.original_size - COALESCE(c.recv, 0), 0))
                FROM send_transfers st
                LEFT JOIN LATERAL (SELECT SUM(size) AS recv FROM send_chunks WHERE transfer_id = st.id) c ON TRUE

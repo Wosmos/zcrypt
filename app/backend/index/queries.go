@@ -1105,7 +1105,7 @@ func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]ty
 func (db *DB) IncrementSessionChunks(ctx context.Context, sessionID string) (int, error) {
 	var uploaded int
 	err := db.pool.QueryRow(ctx,
-		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1,
+		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1, last_active_at = NOW(),
 		        expires_at = GREATEST(expires_at, NOW() + INTERVAL '7 days')
 		 WHERE id = $1 RETURNING uploaded_chunks`,
 		sessionID,

@@ -326,6 +326,10 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 
 -- to send through the server (0 for presigned and byos-direct sessions). The
 -- unsent remainder counts against the user's daily and monthly windows.
 ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS relay_reserve BIGINT NOT NULL DEFAULT 0;
+-- When the session last stored a chunk. Its relay_reserve only holds allowance
+-- while it is this recent, so an abandoned upload stops blocking new ones after
+-- a day instead of for the 7 days it stays resumable.
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 -- Cross-device sync feed. Every mutation to a user's files (added / updated /
 -- deleted / moved / renamed) stamps the file with a per-user monotonic revision
