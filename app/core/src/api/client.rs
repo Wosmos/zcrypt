@@ -281,6 +281,10 @@ impl Client {
         &self.up
     }
 
+    pub(super) fn download_http(&self) -> &reqwest::Client {
+        &self.down
+    }
+
     pub fn with_rotate_hook(mut self, hook: RotateHook) -> Self {
         self.on_rotate = Some(hook);
         self

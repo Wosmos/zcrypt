@@ -4,7 +4,7 @@
 //! (re-checking every few seconds, or at once on `retry_now`) and continues
 //! direct. The server enforces the allowance; this only decides what to try.
 
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -80,6 +80,8 @@ pub(crate) struct Gate {
     pub notify: Option<Notify>,
     /// Bytes of the transfer still to move, for the "does the rest fit" check.
     pub remaining: Arc<AtomicI64>,
+    /// Chunks in a row whose platform link failed (see `download::via_link`).
+    pub link_failures: Arc<AtomicU32>,
 }
 
 impl Gate {
@@ -89,6 +91,7 @@ impl Gate {
             cancel: ctx.cancel.clone(),
             notify,
             remaining: Arc::new(AtomicI64::new(remaining)),
+            link_failures: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -254,6 +257,7 @@ pub(crate) mod fake {
             cancel: CancelToken::new(),
             notify,
             remaining: Arc::new(AtomicI64::new(0)),
+            link_failures: Arc::new(AtomicU32::new(0)),
         }
     }
 }

@@ -125,6 +125,43 @@ pub(super) fn chunk_source(
     (loc, adapter)
 }
 
+/// Chunks in a row whose platform link fails before links stop for the file.
+const LINK_FAILURES_BEFORE_OFF: u32 = 2;
+
+/// A GitHub or Hugging Face chunk read from a short-lived platform link the
+/// server mints, so its bytes skip the server and the allowance. Mirrors the
+/// web's `viaLink` (lib/chunk-source.ts): a chunk with no link (409) or bad
+/// bytes goes through the server on its own; a failed read retries once with a
+/// fresh link; LINK_FAILURES_BEFORE_OFF chunks in a row failing turn links off
+/// for the rest of the file.
+async fn via_link(
+    client: &Arc<Client>,
+    gate: &Gate,
+    file_id: &str,
+    idx: i64,
+) -> Result<Option<(Vec<u8>, bool, String)>, EngineError> {
+    if gate.link_failures.load(Ordering::Relaxed) >= LINK_FAILURES_BEFORE_OFF {
+        return Ok(None);
+    }
+    for _ in 0..2 {
+        let link = match or_cancel(&gate.cancel, client.get_chunk_link(file_id, idx)).await? {
+            Ok(Some(link)) => link,
+            Ok(None) => return Ok(None),
+            Err(_) => continue,
+        };
+        match or_cancel(&gate.cancel, client.download_linked_chunk(&link.url)).await? {
+            Ok(data) if link.sha256.is_empty() || crypto::sha256_hex(&data) == link.sha256 => {
+                gate.link_failures.store(0, Ordering::Relaxed);
+                return Ok(Some((data, link.compressed, link.sha256)));
+            }
+            Ok(_) => return Ok(None),
+            Err(_) => continue,
+        }
+    }
+    gate.link_failures.fetch_add(1, Ordering::Relaxed);
+    Ok(None)
+}
+
 fn is_unreachable(e: &AdapterError) -> bool {
     matches!(e, AdapterError::Http(h) if h.is_connect())
 }
@@ -218,6 +255,11 @@ async fn fetch_chunk(
         }
         if let Some(o) = out {
             return Ok(o);
+        }
+        if direct.is_none() {
+            if let Some(o) = via_link(client, gate, file_id, idx).await? {
+                return Ok(o);
+            }
         }
 
         if let Some((loc, _)) = &direct {
@@ -654,9 +696,116 @@ mod transfer_tests {
         assert!(is_unreachable(&AdapterError::from(err)));
     }
 
+    /// A server whose /link answers with `link(base)`; counts link, blob and
+    /// relay requests apart.
+    async fn link_server(
+        link: impl Fn(&str) -> Reply + Send + Sync + 'static,
+        blob: impl Fn() -> Reply + Send + Sync + 'static,
+    ) -> (String, [Arc<std::sync::atomic::AtomicUsize>; 3]) {
+        use std::sync::atomic::AtomicUsize;
+        let counts = [
+            Arc::new(AtomicUsize::new(0)),
+            Arc::new(AtomicUsize::new(0)),
+            Arc::new(AtomicUsize::new(0)),
+        ];
+        let base_cell = Arc::new(std::sync::Mutex::new(String::new()));
+        let (c, b) = (counts.clone(), base_cell.clone());
+        let (base, _) = serve(move |_, req| {
+            if req.path.ends_with("/link") {
+                c[0].fetch_add(1, Ordering::SeqCst);
+                link(&b.lock().unwrap())
+            } else if req.path == "/blob" {
+                c[1].fetch_add(1, Ordering::SeqCst);
+                blob()
+            } else {
+                c[2].fetch_add(1, Ordering::SeqCst);
+                Reply::with_header(200, "X-Chunk-SHA256", "", "relayed")
+            }
+        })
+        .await;
+        *base_cell.lock().unwrap() = base.clone();
+        (base, counts)
+    }
+
+    fn link_json(base: &str, body: &[u8]) -> Reply {
+        Reply::with_header(
+            200,
+            "Content-Type",
+            "application/json",
+            &format!(
+                r#"{{"url":"{base}/blob","sha256":"{}","compressed":true}}"#,
+                crypto::sha256_hex(body)
+            ),
+        )
+    }
+
+    #[tokio::test]
+    async fn a_chunk_with_a_platform_link_is_read_from_it_not_the_relay() {
+        let (base, [links, blobs, relays]) =
+            link_server(|b| link_json(b, b"linked"), || Reply::status(200, "linked")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let g = gate(FakeEnv::new(true, true), None);
+        let (data, compressed, _) = fetch_chunk(&client, &g, None, None, "f", 0).await.unwrap();
+        assert_eq!(data, b"linked");
+        assert!(compressed);
+        assert_eq!(
+            (
+                links.load(Ordering::SeqCst),
+                blobs.load(Ordering::SeqCst),
+                relays.load(Ordering::SeqCst)
+            ),
+            (1, 1, 0)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_chunk_with_no_link_goes_through_the_relay_without_turning_links_off() {
+        let (base, [_, _, relays]) =
+            link_server(|_| Reply::status(409, "{}"), || Reply::status(500, "")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let g = gate(FakeEnv::new(true, true), None);
+        let (data, _, _) = fetch_chunk(&client, &g, None, None, "f", 0).await.unwrap();
+        assert_eq!(data, b"relayed");
+        assert_eq!(relays.load(Ordering::SeqCst), 1);
+        assert_eq!(g.link_failures.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn links_turn_off_after_two_chunks_in_a_row_fail() {
+        let (base, [links, blobs, _]) =
+            link_server(|b| link_json(b, b"x"), || Reply::status(403, "expired")).await;
+        let client = Arc::new(Client::new(&base, "t", "r"));
+        let g = gate(FakeEnv::new(true, true), None);
+        for idx in 0..2 {
+            let (data, _, _) = fetch_chunk(&client, &g, None, None, "f", idx)
+                .await
+                .unwrap();
+            assert_eq!(data, b"relayed");
+        }
+        assert_eq!(
+            blobs.load(Ordering::SeqCst),
+            4,
+            "each chunk retries its read once"
+        );
+        let asked = links.load(Ordering::SeqCst);
+        fetch_chunk(&client, &g, None, None, "f", 2).await.unwrap();
+        assert_eq!(
+            links.load(Ordering::SeqCst),
+            asked,
+            "no more links for this file"
+        );
+    }
+
     #[tokio::test]
     async fn a_relay_404_is_tried_once() {
-        let (base, hits) = serve(|_, _| Reply::status(404, "gone")).await;
+        let (base, hits) = serve(|_, req| {
+            if req.path.ends_with("/link") {
+                Reply::status(409, "{}")
+            } else {
+                Reply::status(404, "gone")
+            }
+        })
+        .await;
         let client = Arc::new(Client::new(&base, "t", "r"));
         let r = fetch_chunk(
             &client,
@@ -668,7 +817,11 @@ mod transfer_tests {
         )
         .await;
         assert!(r.is_err());
-        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            2,
+            "the link ask, then one relay try"
+        );
     }
 
     #[tokio::test]
