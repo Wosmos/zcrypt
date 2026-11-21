@@ -349,6 +349,11 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `ZCRYPT_RELAY_MAX_FILE_BYTES` | Largest file in bytes a web upload may send through the server (default 2147483648, 2 GiB); larger relay uploads are refused with `relay_file_too_large`. Direct uploads to a user's own storage and admins are never limited; `0` means unlimited |
 | `ZCRYPT_RELAY_MONTHLY_BYTES` | Per-user allowance in bytes for relay uploads plus API downloads in the current UTC calendar month (default 21474836480, 20 GiB); once used up, new relay uploads are refused with `relay_allowance_exceeded`. Downloads are never blocked but still count. Admins are exempt; `0` means unlimited |
 | `ZCRYPT_RELAY_ALERT_DAILY_BYTES` | Flags a user as a heavy web-transfer user in the admin console when their relayed bytes for today plus yesterday (UTC days, an approximation of the last 24h) pass this (default 10737418240, 10 GiB); `0` turns the flag off |
+| `ZCRYPT_RELAY_DAILY_BYTES` | Per-user web-transfer allowance in bytes per UTC day (default 5368709120, 5 GiB). Admins are exempt; `0` means unlimited |
+| `ZCRYPT_TRANSFER_IP_DAILY_BYTES` | Device Transfer bytes one sending network may relay through the server per UTC day (default 5368709120, 5 GiB) |
+| `ZCRYPT_VERIFY_INTERVAL` | How often stored chunks are checked on their platform, as a Go duration (default `6h`); `off` disables it |
+| `ZCRYPT_PROXY_SECRET` | Shared secret the web front end's `/api` proxy sends as `X-Zcrypt-Proxy-Secret`; only next to it does the backend trust the visitor address and location headers. Set the same value on the proxy |
+| `ZCRYPT_COOKIE_DOMAIN` | Cookie domain for the refresh cookie, e.g. `.zcrypt.cloud` when the API is on a subdomain |
 | `ZCRYPT_DB_MAX_CONNS` | Ceiling of the PostgreSQL connection pool (default 25); non-positive or invalid values use the default |
 | `MAINTENANCE_SECRET` | Enables the maintenance-mode switch used by the database rotation scripts (impossible to enable when unset) |
 | `METRICS_TOKEN` | Enables Prometheus metrics at `GET /api/internal/metrics` for callers sending it as a bearer token (the endpoint 404s when unset) |
@@ -361,6 +366,10 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `NEXT_PUBLIC_SITE_URL` | Public site URL used for canonical links and metadata (default `https://zcrypt.cloud`) |
 | `NEXT_PUBLIC_GITHUB_REPO` | GitHub repository the site links to and reads releases from, as `owner/name` or a full URL (default `https://github.com/Wosmos/zcrypt`) |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Contact and support address shown on the site |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key for the bot check (pairs with the backend's `TURNSTILE_SECRET_KEY`) |
+| `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` | Cloudflare Web Analytics token; empty turns analytics off |
+| `ZCRYPT_PROXY_SECRET` | Server-side (a Worker secret): sent with `/api` requests so the backend trusts the visitor headers. Same value as the backend's |
+| `RELEASE_HOOK_SECRET` | Server-side (a Worker secret): Bearer token the release workflow sends to `/hooks/release` to clear cached release data |
 
 ## Project structure
 

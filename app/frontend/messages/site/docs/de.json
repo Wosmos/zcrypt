@@ -501,7 +501,7 @@
       "title": "Speicher verbinden",
       "description": "zcrypt verkauft dir keinen Speicher: Du bringst ein Konto mit, das du schon hast. Verbinde ein Backend einmal, und deine verschlüsselten Dateien liegen dort, unter deiner Kontrolle.",
       "tgTitle": "Telegram im Browser",
-      "tgP1": "Wenn du aus der Web-App in dein eigenes Telegram hochlädst, sendet der Browser jeden verschlüsselten Chunk mit deinem Bot-Token direkt an Telegram. Nichts läuft über den Server von zcrypt, diese Uploads zählen also weder für deine Web-Transfers noch für das 2-GB-Dateilimit. Schlägt ein direkter Upload fehl, sendet zcrypt ihn ersatzweise über den Server, und diese Bytes zählen dann.",
+      "tgP1": "Wenn du aus der Web-App in dein eigenes Telegram hochlädst, sendet der Browser jeden verschlüsselten Chunk mit deinem Bot-Token direkt an Telegram. Nichts läuft über den Server von zcrypt, diese Uploads zählen also weder für deine Web-Transfers noch für das 2-GB-Dateilimit. Erreicht dein Netzwerk Telegram nicht, sendet zcrypt den Upload nur dann über den Server, wenn er in dein Kontingent passt, und diese Bytes zählen dann. Andernfalls wartet der Upload und läuft von selbst weiter, sobald Telegram antwortet.",
       "tgP2": "Telegram ist in manchen Ländern und Netzwerken gesperrt. Kann der Browser es nicht erreichen, weist ein Banner darauf hin. Schalte ein VPN ein, dann laufen Uploads wieder direkt. Ohne VPN funktionieren sie weiterhin, laufen aber über den Server und zählen für deine Web-Transfers."
     },
     "contributing": {
@@ -650,7 +650,7 @@
       "title": "Desktop-App",
       "description": "Ein nativer Desktop-Build von zcrypt für alle, die lieber ein echtes App-Fenster als einen Browser-Tab haben: mit Dateiverwaltung auf Betriebssystemebene und exakt derselben clientseitigen Verschlüsselung.",
       "directTitle": "Direkte Uploads und die App öffnen",
-      "directP1": "Die Desktop-App lädt direkt von deinem Computer in deinen eigenen Speicher hoch. Nichts läuft über den Server von zcrypt, deshalb gibt es weder ein Dateigrößenlimit noch ein monatliches Web-Transfer-Kontingent. Speicher, den du im Web verbunden hast, wird automatisch übernommen: Die App kopiert diese Tokens einmal pro Sitzung in den Schlüsselbund deines Computers, du verbindest also nie etwas doppelt.",
+      "directP1": "Die Desktop-App lädt direkt von deinem Computer in deinen eigenen Speicher hoch, wann immer dein Netzwerk ihn erreicht. Diese Uploads haben also kein Dateigrößenlimit und zählen nicht für dein Web-Transfer-Kontingent. Blockiert dein Netzwerk deinen Speicher (zum Beispiel Telegram), sendet die App die Übertragung nur dann über den Server von zcrypt, wenn sie in dein Kontingent passt, und wartet sonst, bis der Speicher antwortet. Speicher, den du im Web verbunden hast, wird automatisch übernommen: Die App kopiert diese Tokens einmal pro Sitzung in den Schlüsselbund deines Computers, du verbindest also nie etwas doppelt.",
       "directP2": "Im Browser startet <strong>Desktop-App öffnen</strong> die App über den Link <code>zcrypt://open</code> oder holt sie in den Vordergrund, falls sie schon läuft. Es läuft immer nur eine Kopie, ein erneutes Öffnen fokussiert also nur das Fenster. Der Browser kann keine Dateien an die App übergeben: Ziehe sie in das App-Fenster. Öffnet sich nichts, öffnet sich stattdessen die Download-Seite in einem neuen Tab.",
       "winWarnTitle": "Windows meldet möglicherweise, dass es deinen PC geschützt hat",
       "winWarnBody": "Wenn Windows meldet, dass es deinen PC geschützt hat, klicke auf <b>Weitere Informationen</b> und dann auf <b>Trotzdem ausführen</b>. Das erscheint, weil die App noch nicht codesigniert ist."
@@ -1622,7 +1622,11 @@
       "limR8": "Maximale Größe des PostgreSQL-Verbindungspools. Standard 25.",
       "limR9": "GitHub-<code>owner/name</code>, aus dem Download-Links und Update-Prüfungen Releases lesen. Standard <code>Wosmos/zcrypt</code>.",
       "limR10": "Frontend. Das GitHub-Repository, auf das die Seite verlinkt und aus dem sie Releases liest, als <code>owner/name</code> oder vollständige URL. Standard ist das zcrypt-Repository.",
-      "limR11": "Frontend. Die Kontakt- und Support-Adresse, die auf der Seite angezeigt wird."
+      "limR11": "Frontend. Die Kontakt- und Support-Adresse, die auf der Seite angezeigt wird.",
+      "limR12": "Web-Transfers pro Nutzer und UTC-Tag, in Bytes. Standard 5368709120 (5 GiB). Admins sind ausgenommen. <code>0</code> bedeutet unbegrenzt.",
+      "limR13": "Bytes, die ein sendendes Netzwerk pro UTC-Tag per Geräteübertragung über den Server schicken darf. Standard 5368709120 (5 GiB).",
+      "limR14": "Wie oft gespeicherte Chunks auf ihrer Plattform geprüft werden, als Go-Dauer wie <code>6h</code>. Standard 6h. <code>off</code> schaltet die Prüfung ab.",
+      "limR15": "Gemeinsames Geheimnis, das der <code>/api</code>-Proxy deines Web-Frontends mitschickt. Nur zusammen damit vertraut der Server den Headern für Besucheradresse und Standort. Setze denselben Wert am Proxy."
     },
     "send": {
       "toc": {
@@ -2193,9 +2197,9 @@
       "title": "Fehlerbehebung",
       "description": "Die Handvoll Probleme, auf die Leute am häufigsten stoßen, und wie du sie behebst. Die meisten haben eine einfache Ursache: den falschen Schlüssel, einen vorübergehenden Netzwerkaussetzer oder ein Plattformlimit, das seine Arbeit tut.",
       "wlTitle": "Übertragungslimits im Web und Telegram",
-      "wlP1": "Der Speicher ist nicht begrenzt. Begrenzt ist, was über den Server von zcrypt läuft: Es gibt ein tägliches und ein monatliches Übertragungskontingent sowie eine Größengrenze pro Datei. Unter Einstellungen, Speicher, Nutzung & Limits siehst du deine Werte. Alles, was direkt zwischen deinem Gerät und deinem eigenen Speicher läuft, zählt nicht, und die Desktop- und Android-App übertragen immer direkt.",
+      "wlP1": "Der Speicher ist nicht begrenzt. Begrenzt ist, was über den Server von zcrypt läuft: Es gibt ein tägliches und ein monatliches Übertragungskontingent sowie eine Größengrenze pro Datei. Unter Einstellungen, Speicher, Nutzung & Limits siehst du deine Werte. Alles, was direkt zwischen deinem Gerät und deinem eigenen Speicher läuft, zählt nicht. Web-App, Desktop- und Android-App übertragen direkt, wann immer dein Netzwerk deinen Speicher erreicht.",
       "wlL1": "<strong>Zu groß für den Browser.</strong> Eine Datei über der Größengrenze kann nicht über den Server laufen. Schick sie an Hugging Face oder dein eigenes Telegram, die der Browser direkt erreicht, oder nimm die Desktop-App.",
-      "wlL2": "<strong>Nicht mehr genug Kontingent übrig.</strong> Uploads und Downloads über den Server zählen, ebenso Downloads deiner Freigabelinks durch andere. Eine Übertragung, die nicht mehr passt, stoppt vor dem Start und sagt, wann das Kontingent zurückgesetzt wird: das tägliche um Mitternacht UTC, das monatliche am 1. Bis dahin nimm die Desktop-App, die nicht zählt.",
+      "wlL2": "<strong>Nicht mehr genug Kontingent übrig.</strong> Uploads und Downloads über den Server zählen, ebenso Downloads deiner Freigabelinks durch andere. Eine Übertragung, die nicht mehr passt, stoppt vor dem Start und sagt, wann das Kontingent zurückgesetzt wird: das tägliche um Mitternacht UTC, das monatliche am 1. Eine Übertragung, der unterwegs das Kontingent ausgeht, wartet und läuft von selbst weiter, wenn es zurückgesetzt wird, oder früher, wenn sie deinen eigenen Speicher direkt erreicht.",
       "wlL3": "<strong>Telegram scheint blockiert zu sein.</strong> Dein Netzwerk oder Land blockiert Telegram. Passt der Rest der Übertragung in dein Kontingent, läuft er stattdessen über den Server. Wenn nicht, pausiert sie, bittet dich, ein VPN einzuschalten, und läuft von selbst weiter, sobald Telegram antwortet. <strong>Erneut versuchen</strong> prüft sofort.",
       "wlP2": "Führt <strong>Desktop-App öffnen</strong> zur Download-Seite, obwohl die App installiert ist, öffne die App einmal selbst und versuche es erneut. Ältere Versionen der App lassen sich nicht aus dem Browser öffnen, aktualisiere sie also, falls es dann noch nicht klappt. Du kannst die App jederzeit selbst öffnen und die Datei dort hineinziehen."
     },

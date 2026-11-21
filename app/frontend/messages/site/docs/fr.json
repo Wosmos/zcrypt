@@ -501,7 +501,7 @@
       "title": "Connecter votre stockage",
       "description": "zcrypt ne vous vend pas de stockage : vous apportez un compte que vous possédez déjà. Connectez un backend une fois et vos fichiers chiffrés y vivent, sous votre contrôle.",
       "tgTitle": "Telegram depuis le navigateur",
-      "tgP1": "Quand vous envoyez depuis l'application web vers votre propre Telegram, le navigateur envoie chaque bloc chiffré directement à Telegram avec le jeton de votre bot. Rien ne passe par le serveur de zcrypt : ces envois ne comptent donc ni dans vos transferts web ni dans la limite de 2 Go par fichier. Si un envoi direct échoue, zcrypt l'envoie par le serveur, et ces octets comptent alors.",
+      "tgP1": "Quand tu envoies depuis l’app web vers ton propre Telegram, le navigateur envoie chaque bloc chiffré directement à Telegram avec le jeton de ton bot. Rien ne passe par le serveur de zcrypt, donc ces envois ne comptent ni dans tes transferts web ni dans la limite de 2 Go par fichier. Si ton réseau ne joint pas Telegram, zcrypt fait passer l’envoi par le serveur seulement s’il tient dans ton quota, et ces octets comptent. Sinon, l’envoi attend et reprend tout seul dès que Telegram répond.",
       "tgP2": "Telegram est bloqué dans certains pays et sur certains réseaux. Quand le navigateur ne peut pas l'atteindre, une bannière vous le signale. Activez un VPN et les envois repassent en direct. Sans VPN, ils fonctionnent toujours, mais passent par le serveur et comptent dans vos transferts web."
     },
     "contributing": {
@@ -650,7 +650,7 @@
       "title": "Application de bureau",
       "description": "Une version de bureau native de zcrypt pour ceux qui préfèrent une vraie fenêtre d’application à un onglet de navigateur : avec la gestion de fichiers au niveau du système et exactement le même chiffrement côté client.",
       "directTitle": "Envois directs et ouverture de l'application",
-      "directP1": "L'application de bureau envoie directement de votre ordinateur vers votre propre stockage. Rien ne passe par le serveur de zcrypt : il n'y a donc ni limite de taille de fichier ni quota mensuel de transferts web. Le stockage que vous avez connecté sur le web est repris automatiquement : l'application copie ces jetons dans le trousseau de votre ordinateur une fois par session, vous ne connectez donc jamais rien deux fois.",
+      "directP1": "L’app de bureau envoie directement depuis ton ordinateur vers ton propre stockage dès que ton réseau peut le joindre : ces envois n’ont donc pas de limite de taille et ne comptent pas dans ton quota de transferts web. Si ton réseau bloque ton stockage (Telegram, par exemple), l’app fait passer le transfert par le serveur de zcrypt seulement s’il tient dans ton quota, sinon elle attend que le stockage réponde. Le stockage connecté sur le web est repris automatiquement : l’app copie ces jetons dans le trousseau de ton ordinateur une fois par session, tu ne connectes donc jamais rien deux fois.",
       "directP2": "Depuis le navigateur, <strong>Ouvrir l'application de bureau</strong> utilise le lien <code>zcrypt://open</code> pour lancer l'application ou la mettre au premier plan si elle tourne déjà. Une seule copie s'exécute à la fois : la rouvrir ne fait que donner le focus à la fenêtre. Le navigateur ne peut pas transmettre de fichiers à l'application : déposez-les dans sa fenêtre. Si rien ne s'ouvre, la page de téléchargement s'ouvre dans un nouvel onglet à la place.",
       "winWarnTitle": "Windows peut indiquer qu'il a protégé votre ordinateur",
       "winWarnBody": "Si Windows indique qu'il a protégé votre ordinateur, cliquez sur <b>Informations complémentaires</b>, puis sur <b>Exécuter quand même</b>. Ce message apparaît parce que l'appli n'est pas encore signée."
@@ -1622,7 +1622,11 @@
       "limR8": "Taille maximale du pool de connexions PostgreSQL. Par défaut 25.",
       "limR9": "<code>owner/name</code> GitHub d'où les liens de téléchargement et les vérifications de mise à jour lisent les versions. Par défaut <code>Wosmos/zcrypt</code>.",
       "limR10": "Frontend. Le dépôt GitHub vers lequel le site pointe et dont il lit les versions, sous la forme <code>owner/name</code> ou d'une URL complète. Par défaut, le dépôt zcrypt.",
-      "limR11": "Frontend. L'adresse de contact et d'assistance affichée sur le site."
+      "limR11": "Frontend. L'adresse de contact et d'assistance affichée sur le site.",
+      "limR12": "Transferts web par utilisateur et par jour UTC, en octets. Par défaut 5368709120 (5 Gio). Les admins sont exemptés. <code>0</code> signifie illimité.",
+      "limR13": "Octets qu’un réseau émetteur peut faire passer par le serveur via le Transfert entre appareils par jour UTC. Par défaut 5368709120 (5 Gio).",
+      "limR14": "Fréquence de vérification des blocs stockés sur leur plateforme, en durée Go comme <code>6h</code>. Par défaut 6h. <code>off</code> désactive la vérification.",
+      "limR15": "Secret partagé envoyé par le proxy <code>/api</code> de ton front web. Ce n’est qu’avec lui que le serveur fait confiance aux en-têtes d’adresse et de localisation du visiteur. Mets la même valeur sur le proxy."
     },
     "send": {
       "toc": {
@@ -2193,9 +2197,9 @@
       "title": "Dépannage",
       "description": "La poignée de problèmes les plus fréquents, et comment les résoudre. La plupart ont une cause simple : la mauvaise clé, un petit accroc réseau passager, ou une limite de plateforme qui fait son travail.",
       "wlTitle": "Limites de transfert web et Telegram",
-      "wlP1": "Le stockage n'est pas plafonné. Ce qui passe par le serveur de zcrypt l'est : il y a un quota de transfert quotidien et un mensuel, plus une taille maximale par fichier. Réglages, Stockage, Utilisation et limites affiche tes chiffres. Tout ce qui va directement de ton appareil à ton propre stockage ne compte pas, et les apps de bureau et Android passent toujours en direct.",
+      "wlP1": "Le stockage n’est pas plafonné. Ce qui passe par le serveur de zcrypt l’est : il y a un quota de transfert quotidien et un mensuel, plus une taille maximale par fichier. Réglages, Stockage, Utilisation et limites affiche tes chiffres. Ce qui va directement entre ton appareil et ton propre stockage ne compte pas. Le web et les apps de bureau et Android passent en direct dès que ton réseau peut joindre ton stockage.",
       "wlL1": "<strong>Trop gros pour le navigateur.</strong> Un fichier au-delà de la taille maximale ne peut pas passer par le serveur. Envoie-le sur Hugging Face ou ton propre Telegram, que le navigateur atteint directement, ou utilise l'app de bureau.",
-      "wlL2": "<strong>Il ne reste pas assez de quota.</strong> Les envois et téléchargements via le serveur comptent, tout comme les téléchargements de tes liens de partage. Un transfert qui ne tient pas dans ce qui reste s'arrête avant de commencer et indique quand le quota repart : celui du jour à minuit UTC, celui du mois le 1er. D'ici là, utilise l'app de bureau, qui ne compte pas.",
+      "wlL2": "<strong>Plus assez de quota.</strong> Les envois et téléchargements par le serveur comptent, tout comme les téléchargements de tes liens de partage. Un transfert qui ne tient pas dans ce qui reste s’arrête avant de commencer et indique quand le quota repart : celui du jour à minuit UTC, celui du mois le 1er. Un transfert qui manque de quota en cours de route attend et reprend tout seul quand le quota repart, ou plus tôt s’il peut joindre directement ton propre stockage.",
       "wlL3": "<strong>Telegram semble bloqué.</strong> Ton réseau ou ton pays bloque Telegram. Si le reste du transfert tient dans ton quota, il passe par le serveur. Sinon, il se met en pause, te demande d'activer un VPN, puis reprend tout seul dès que Telegram répond. <strong>Réessayer</strong> vérifie tout de suite.",
       "wlP2": "Si <strong>Ouvrir l'application de bureau</strong> vous mène à la page de téléchargement alors que l'application est installée, ouvrez l'application vous-même une fois puis réessayez. Les anciennes versions de l'application ne peuvent pas être ouvertes depuis le navigateur : mettez-la à jour si cela ne fonctionne toujours pas. Vous pouvez toujours ouvrir l'application vous-même et y déposer le fichier."
     },
