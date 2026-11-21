@@ -1079,7 +1079,10 @@ mod tests {
         let second = begin_pass();
         assert!(!first.token().is_cancelled());
         stop_pass();
-        assert!(first.token().is_cancelled(), "a second worker must not hide the first");
+        assert!(
+            first.token().is_cancelled(),
+            "a second worker must not hide the first"
+        );
         assert!(second.token().is_cancelled());
         stop_pass();
     }
