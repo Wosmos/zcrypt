@@ -2,14 +2,15 @@ import { defineConfig } from "vite";
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { kvDataAdapter } from "@vinext/cloudflare/cache/kv-data-adapter";
-import { workersCacheCdnAdapter } from "@vinext/cloudflare/cache/workers-cache-cdn-adapter";
+import { staticAssetsAdapter } from "@vinext/cloudflare/cache/static-assets-adapter";
 
-// Pages are cached at the edge (Workers Cache, free, no storage binding); the
-// few revalidated fetches (releases, reviews, download stats) live in KV.
+// Pages are rendered at build time and served from Workers Static Assets, so a
+// visit costs ~6 ms of Worker CPU instead of a full render (free plan: 10 ms).
 export default defineConfig({
   plugins: [
     vinext({
-      cache: { data: kvDataAdapter(), cdn: workersCacheCdnAdapter() },
+      prerender: true,
+      cache: { data: kvDataAdapter(), cdn: staticAssetsAdapter() },
       react: { compiler: true },
     }),
     cloudflare({
