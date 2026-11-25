@@ -128,9 +128,11 @@ func (s *Server) discardUpload(ctx context.Context, userID string, session *type
 	return nil
 }
 
-func writeSharedStorageFull(w http.ResponseWriter, used, quota, needed int64) {
+func writeSharedStorageFull(w http.ResponseWriter, userID string, used, quota, needed int64) {
+	log.Printf("upload: refused for user %s: storage cap (used %d + needed %d > %d)", logSafe(userID), used, needed, quota) // #nosec G706 -- control chars stripped via logSafe
 	writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
 		"error":        "shared storage is full",
+		"code":         types.ErrCodeSharedStorageFull,
 		"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
 		"used_bytes":   used,
 		"quota_bytes":  quota,
@@ -277,6 +279,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	var directUpload bool
 	var relaySession bool
 	var quota int64
+	var sharedOnly bool
 
 	if mode == types.UploadModeBYOSDirect {
 		if req.Platform == "" || !byosPlatforms[req.Platform] {
@@ -324,15 +327,19 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// finish.
 		// The file insert below re-checks under a lock, so concurrent inits
 		// cannot share the same headroom.
-		if quota = s.uploadQuota(ctx, userID, s.isOwnAdapterKey(userID, key)); quota > 0 {
-			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
+		if quota, sharedOnly = s.uploadQuota(ctx, userID, s.isOwnAdapterKey(userID, key)); quota > 0 {
+			usedFn := s.db.GetUserStorageUsed
+			if sharedOnly {
+				usedFn = s.db.GetUserSharedStorageUsed
+			}
+			used, uErr := usedFn(ctx, userID)
 			if uErr != nil {
 				log.Printf("upload: storage usage lookup failed: %v", uErr)
 				http.Error(w, `{"error":"could not verify your storage usage"}`, http.StatusInternalServerError)
 				return
 			}
 			if used+req.OriginalSize > quota {
-				writeSharedStorageFull(w, used, quota, req.OriginalSize)
+				writeSharedStorageFull(w, userID, used, quota, req.OriginalSize)
 				return
 			}
 		}
@@ -387,13 +394,13 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	insert := s.db.InsertFile
 	if quota > 0 {
 		insert = func(ctx context.Context, userID string, f *types.FileMetadata) error {
-			return s.db.InsertFileWithinQuota(ctx, userID, f, quota)
+			return s.db.InsertFileWithinQuota(ctx, userID, f, quota, sharedOnly)
 		}
 	}
 	if err := insert(ctx, userID, fileMeta); err != nil {
 		var full *index.QuotaExceededError
 		if errors.As(err, &full) {
-			writeSharedStorageFull(w, full.Used, quota, req.OriginalSize)
+			writeSharedStorageFull(w, userID, full.Used, quota, req.OriginalSize)
 			return
 		}
 		log.Printf("upload: create file record failed for user %s: %v", userID, err)

@@ -45,10 +45,18 @@ func (e *QuotaExceededError) Error() string {
 	return fmt.Sprintf("storage quota exceeded (%d bytes used)", e.Used)
 }
 
+// sharedFilesOnly narrows a files query to files not stored on one of the
+// user's own connected accounts, which the shared-pool cap must not count.
+const sharedFilesOnly = ` AND NOT EXISTS (
+	SELECT 1 FROM chunks c
+	JOIN platform_tokens t ON t.user_id = files.user_id AND t.platform = c.platform AND t.username = c.account AND NOT t.is_global
+	WHERE c.file_id = files.id)`
+
 // InsertFileWithinQuota inserts f only if the user's usage plus f.OriginalSize
-// stays within quota. A per-user advisory lock serialises the check and the
-// insert, so concurrent inits cannot each pass against the same headroom.
-func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types.FileMetadata, quota int64) error {
+// stays within quota; sharedOnly counts only files on the shared pool. A
+// per-user advisory lock serialises the check and the insert, so concurrent
+// inits cannot each pass against the same headroom.
+func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types.FileMetadata, quota int64, sharedOnly bool) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -58,11 +66,12 @@ func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('quota:' || $1, 0))`, userID); err != nil {
 		return fmt.Errorf("lock quota: %w", err)
 	}
+	q := `SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`
+	if sharedOnly {
+		q += sharedFilesOnly
+	}
 	var used int64
-	if err := tx.QueryRow(ctx,
-		`SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`,
-		userID,
-	).Scan(&used); err != nil {
+	if err := tx.QueryRow(ctx, q, userID).Scan(&used); err != nil {
 		return fmt.Errorf("storage used: %w", err)
 	}
 	if used+f.OriginalSize > quota {

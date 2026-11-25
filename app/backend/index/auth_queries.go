@@ -305,6 +305,17 @@ func (db *DB) GetUserStorageUsed(ctx context.Context, userID string) (int64, err
 	return used, err
 }
 
+// GetUserSharedStorageUsed is GetUserStorageUsed limited to files on the
+// shared pool, the usage the shared cap applies to.
+func (db *DB) GetUserSharedStorageUsed(ctx context.Context, userID string) (int64, error) {
+	var used int64
+	err := db.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`+sharedFilesOnly,
+		userID,
+	).Scan(&used)
+	return used, err
+}
+
 // UserHasPersonalTokens returns true if the user has any non-global platform tokens.
 func (db *DB) UserHasPersonalTokens(ctx context.Context, userID string) (bool, error) {
 	var exists bool

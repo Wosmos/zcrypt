@@ -79,10 +79,12 @@ func writeRelayRefusal(w http.ResponseWriter, ex *index.ErrRelayWindowExceeded, 
 		body["used_bytes"] = ex.Used
 		body["limit_bytes"] = ex.Limit
 	}
+	log.Printf("relay: refused: %s (used %d of %d)", body["code"], ex.Used, ex.Limit)
 	writeJSON(w, http.StatusForbidden, body)
 }
 
 func writeRelayFileTooLarge(w http.ResponseWriter, limit int64) {
+	log.Printf("relay: refused: %s (limit %d)", types.ErrCodeRelayFileTooLarge, limit)
 	writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
 		"error":       "this file is too large to upload through the web",
 		"code":        types.ErrCodeRelayFileTooLarge,

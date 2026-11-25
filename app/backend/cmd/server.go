@@ -568,21 +568,22 @@ func (s *Server) isOwnAdapterKey(userID, key string) bool {
 }
 
 // uploadQuota is the storage cap for an upload that lands on the user's own
-// account (own) or on the shared pool. An admin-set quota always applies; own
-// storage is otherwise unlimited; the shared pool carries the shared cap even
-// for users who also have storage of their own connected.
-func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) int64 {
+// account (own) or on the shared pool, and whether it counts only shared-pool
+// files. An admin-set quota always applies to everything; own storage is
+// otherwise unlimited; the shared cap counts only what sits on the shared pool,
+// so files on the user's own accounts never use it up.
+func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) (quota int64, sharedOnly bool) {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return sharedStorageQuotaBytes()
+		return sharedStorageQuotaBytes(), true
 	}
 	if user.StorageQuota != nil {
-		return *user.StorageQuota
+		return *user.StorageQuota, false
 	}
 	if own {
-		return 0
+		return 0, false
 	}
-	return sharedStorageQuotaBytes()
+	return sharedStorageQuotaBytes(), true
 }
 
 // resolveAdapterForUser finds the right adapter for a platform:account key.
