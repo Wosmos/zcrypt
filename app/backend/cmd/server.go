@@ -310,6 +310,12 @@ func (s *Server) signalDeletion() {
 // cached before the failed tokens are retried.
 const adapterRetryTTL = 60 * time.Second
 
+// failedAdapter marks a token whose adapter could not be built, carrying why.
+type failedAdapter struct {
+	adapters.PlatformAdapter
+	reason string
+}
+
 // getUserAdapters returns all adapters for a user (own tokens + global tokens).
 // Results are cached per userID. A map built with ≥1 failed adapter (e.g. the
 // platform is unreachable from this server) is still cached, the working
@@ -336,27 +342,46 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 	own := make(map[string]bool)
 	failures := make(map[string]string) // platform → short reason
 
-	for _, tok := range tokens {
-		// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
-		kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
-		if err != nil {
-			log.Printf("warn: derive KEK for token %s: %v", tok.ID, err)
+	// Each adapter checks its token with the platform, so build them in
+	// parallel: a cold load costs the slowest platform, not the sum. Results
+	// merge in token order, as the sequential loop did.
+	built := make([]adapters.PlatformAdapter, len(tokens))
+	var wg sync.WaitGroup
+	for i, tok := range tokens {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
+			kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
+			if err != nil {
+				log.Printf("warn: derive KEK for token %s: %v", tok.ID, err)
+				return
+			}
+			plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
+			if err != nil {
+				log.Printf("warn: decrypt token %s: %v", tok.ID, err)
+				return
+			}
+			adapter, err := createAdapter(tok.Platform, plaintext)
+			if err != nil {
+				log.Printf("warn: create adapter for %s/%s: %v", tok.Platform, tok.Username, err)
+				built[i] = failedAdapter{reason: shortAdapterError(err)}
+				return
+			}
+			built[i] = adapter
+		}()
+	}
+	wg.Wait()
+
+	for i, tok := range tokens {
+		adapter := built[i]
+		if adapter == nil {
 			continue
 		}
-
-		plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
-		if err != nil {
-			log.Printf("warn: decrypt token %s: %v", tok.ID, err)
+		if f, ok := adapter.(failedAdapter); ok {
+			failures[tok.Platform] = f.reason
 			continue
 		}
-
-		adapter, err := createAdapter(tok.Platform, plaintext)
-		if err != nil {
-			log.Printf("warn: create adapter for %s/%s: %v", tok.Platform, tok.Username, err)
-			failures[tok.Platform] = shortAdapterError(err)
-			continue
-		}
-
 		username := getAdapterUsername(adapter)
 		key := tok.Platform + ":" + username
 		userAdapters[key] = adapter
