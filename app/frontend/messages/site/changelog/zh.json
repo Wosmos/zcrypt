@@ -34,7 +34,11 @@
         "libraries": "桌面和 Android 应用使用了更新后的加密和压缩库。",
         "botCheck": "机器人检查保护网站的注册和登录，应用每天从同一网络能创建的新账户数量也有限制。",
         "cloudNetworks": "zcrypt 可以拒绝来自云和数据中心网络的登录，大多数自动化滥用都来自这些网络。",
-        "nextjs": "网站使用 Next.js 16.4.6，修复了一个已报告的信息泄露问题。"
+        "nextjs": "网站使用 Next.js 16.4.6，修复了一个已报告的信息泄露问题。",
+        "trashNames": "回收站重新显示每个文件的名称，而不只是大小。",
+        "storageFullMessage": "因存储已满而被拒绝的上传，现在会直接说明原因和解决办法，而不是只显示“无法发送”。",
+        "sharedCapOwnFiles": "存放在你自己连接的存储上的文件，不再计入共享存储的上限。",
+        "bareDomainSignIn": "从 zcrypt.cloud 或 www.zcrypt.cloud 开始，都可以用 Google 或 GitHub 登录。"
       }
     },
     "v0_2_2": {

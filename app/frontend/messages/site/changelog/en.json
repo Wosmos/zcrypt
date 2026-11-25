@@ -34,7 +34,11 @@
         "libraries": "The desktop and Android apps use updated encryption and compression libraries.",
         "botCheck": "A bot check protects sign-up and sign-in on the website, and the number of new accounts the apps can create from one network each day is limited.",
         "cloudNetworks": "zcrypt can refuse sign-ins from cloud and data-center networks, where most automated abuse comes from.",
-        "nextjs": "The website runs Next.js 16.4.6, which fixes a reported information leak."
+        "nextjs": "The website runs Next.js 16.4.6, which fixes a reported information leak.",
+        "trashNames": "Trash shows each file's name again instead of only its size.",
+        "storageFullMessage": "An upload refused because storage is full now says so and how to fix it, instead of a plain \"Couldn't send\".",
+        "sharedCapOwnFiles": "Files on your own connected storage no longer count toward the shared storage limit.",
+        "bareDomainSignIn": "Signing in with Google or GitHub works when you start on zcrypt.cloud as well as www.zcrypt.cloud."
       }
     },
     "v0_2_2": {

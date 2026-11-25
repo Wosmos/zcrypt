@@ -34,7 +34,11 @@
         "libraries": "Les apps de bureau et Android utilisent des bibliothèques de chiffrement et de compression mises à jour.",
         "botCheck": "Une vérification anti-robots protège l’inscription et la connexion sur le site, et le nombre de comptes que les apps peuvent créer depuis un même réseau chaque jour est limité.",
         "cloudNetworks": "zcrypt peut refuser les connexions depuis les réseaux cloud et de centres de données, d’où vient l’essentiel des abus automatisés.",
-        "nextjs": "Le site utilise Next.js 16.4.6, qui corrige une fuite d’informations signalée."
+        "nextjs": "Le site utilise Next.js 16.4.6, qui corrige une fuite d’informations signalée.",
+        "trashNames": "La corbeille affiche de nouveau le nom de chaque fichier, et pas seulement sa taille.",
+        "storageFullMessage": "Un envoi refusé parce que le stockage est plein l'indique maintenant, avec la marche à suivre, au lieu d'un simple « Envoi impossible ».",
+        "sharedCapOwnFiles": "Les fichiers sur ton propre stockage connecté ne comptent plus dans la limite du stockage partagé.",
+        "bareDomainSignIn": "La connexion avec Google ou GitHub fonctionne aussi quand tu commences sur zcrypt.cloud, pas seulement sur www.zcrypt.cloud."
       }
     },
     "v0_2_2": {

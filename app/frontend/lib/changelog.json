@@ -42,7 +42,11 @@
           "androidLocation",
           "tourUnlock",
           "uploadsNoHang",
-          "previews"
+          "previews",
+          "trashNames",
+          "storageFullMessage",
+          "sharedCapOwnFiles",
+          "bareDomainSignIn"
         ]
       },
       {

@@ -34,7 +34,11 @@
         "libraries": "Die Desktop- und Android-Apps nutzen aktualisierte Bibliotheken für Verschlüsselung und Komprimierung.",
         "botCheck": "Eine Bot-Prüfung schützt Registrierung und Anmeldung auf der Website, und die Zahl neuer Konten, die die Apps pro Netzwerk und Tag anlegen können, ist begrenzt.",
         "cloudNetworks": "zcrypt kann Anmeldungen aus Cloud- und Rechenzentrumsnetzen ablehnen, aus denen der meiste automatisierte Missbrauch kommt.",
-        "nextjs": "Die Website läuft mit Next.js 16.4.6, das ein gemeldetes Informationsleck behebt."
+        "nextjs": "Die Website läuft mit Next.js 16.4.6, das ein gemeldetes Informationsleck behebt.",
+        "trashNames": "Der Papierkorb zeigt wieder den Namen jeder Datei statt nur ihrer Größe.",
+        "storageFullMessage": "Wird ein Upload abgelehnt, weil der Speicher voll ist, steht jetzt genau das da und wie du es behebst, statt nur „Senden fehlgeschlagen“.",
+        "sharedCapOwnFiles": "Dateien auf deinem eigenen verbundenen Speicher zählen nicht mehr zum Limit des geteilten Speichers.",
+        "bareDomainSignIn": "Die Anmeldung mit Google oder GitHub funktioniert jetzt auch, wenn du auf zcrypt.cloud statt www.zcrypt.cloud beginnst."
       }
     },
     "v0_2_2": {

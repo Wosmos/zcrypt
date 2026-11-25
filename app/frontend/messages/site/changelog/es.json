@@ -34,7 +34,11 @@
         "libraries": "Las apps de escritorio y Android usan bibliotecas de cifrado y compresión actualizadas.",
         "botCheck": "Una comprobación anti-bots protege el registro y el inicio de sesión en la web, y se limita cuántas cuentas nuevas pueden crear las apps desde una misma red al día.",
         "cloudNetworks": "zcrypt puede rechazar inicios de sesión desde redes de nube y centros de datos, de donde viene la mayor parte del abuso automatizado.",
-        "nextjs": "La web usa Next.js 16.4.6, que corrige una fuga de información notificada."
+        "nextjs": "La web usa Next.js 16.4.6, que corrige una fuga de información notificada.",
+        "trashNames": "La papelera vuelve a mostrar el nombre de cada archivo y no solo su tamaño.",
+        "storageFullMessage": "Si una subida se rechaza porque el almacenamiento está lleno, ahora lo dice y explica cómo solucionarlo, en lugar de un simple «No se pudo enviar».",
+        "sharedCapOwnFiles": "Los archivos en tu propio almacenamiento conectado ya no cuentan para el límite del almacenamiento compartido.",
+        "bareDomainSignIn": "Iniciar sesión con Google o GitHub funciona tanto si empiezas en zcrypt.cloud como en www.zcrypt.cloud."
       }
     },
     "v0_2_2": {

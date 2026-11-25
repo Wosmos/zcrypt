@@ -1,6 +1,6 @@
 # Moving the website from Vercel to Cloudflare Workers
 
-The web app moves to a Cloudflare Worker. The backend stays on Railway for now. Branch: `feat/cloudflare`.
+The web app runs on a Cloudflare Worker (live since 2026-11-25). The backend stays on Railway for now.
 
 ```
 Before:  browser ─► Vercel (Next.js)  ─► /api rewrite ─► Railway (Go)
@@ -66,6 +66,19 @@ Verified locally on the Worker build (`vite preview`, workerd):
 5. After a quiet week: delete the Vercel project and the `VERCEL_*` secrets, and drop `.vercel` from `.gitignore`.
 
 **Rollback:** point `www.zcrypt.cloud` back at Vercel. The backend accepts both header sets.
+
+## Live setup (since 2026-11-25)
+
+| Name | Points at | Notes |
+|---|---|---|
+| `zcrypt.cloud`, `www.zcrypt.cloud` | Worker `zcrypt-web` (Workers custom domains) | Both serve the site; no redirect between them |
+| `backend.zcrypt.cloud` | Railway, CNAME `5il35dh3.up.railway.app` plus `_railway-verify.backend` TXT | DNS only (grey cloud), so Railway sees real client IPs and renews its own certificate |
+
+- The site calls `NEXT_PUBLIC_API_URL=https://backend.zcrypt.cloud`. The apps still call `https://www.zcrypt.cloud/api`, which the Worker forwards with the proxy secret.
+- `BACKEND_URL` and `FRONTEND_URL` on Railway stay `https://www.zcrypt.cloud`, so the Google and GitHub callbacks did not change. The `oauth_state` cookie is scoped to `zcrypt.cloud`, so a sign-in started on either host completes.
+- Zone settings: **HTTP/3 off and ECH off.** With either on, Chrome on some networks (seen in Pakistan) got `ERR_QUIC_PROTOCOL_ERROR` or `ERR_CONNECTION_RESET` while `curl` worked. Don't turn them back on without testing from such a network. Also: Always Use HTTPS on, minimum TLS 1.2, SSL Full (strict).
+- `api.zcrypt.cloud` is held by an orphaned Railway domain record from a failed add; only Railway support can release it. A Cloudflare proxy in front of Railway is not an option on the free plan: changing the Host header needs Enterprise.
+- Email: SPF `v=spf1 -all` on the apex (mail goes out through Resend on `send.zcrypt.cloud`) and DMARC `p=quarantine`.
 
 ## Open questions / follow-ups
 
