@@ -596,7 +596,9 @@ func (s *Server) isOwnAdapterKey(userID, key string) bool {
 // account (own) or on the shared pool, and whether it counts only shared-pool
 // files. An admin-set quota always applies to everything; own storage is
 // otherwise unlimited; the shared cap counts only what sits on the shared pool,
-// so files on the user's own accounts never use it up.
+// so files on the user's own accounts never use it up. Admins run the shared
+// pool on their own tokens, so it is not capped for them, as the transfer
+// allowance isn't.
 func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) (quota int64, sharedOnly bool) {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
@@ -605,7 +607,7 @@ func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) (quot
 	if user.StorageQuota != nil {
 		return *user.StorageQuota, false
 	}
-	if own {
+	if own || user.Role == types.RoleAdmin {
 		return 0, false
 	}
 	return sharedStorageQuotaBytes(), true

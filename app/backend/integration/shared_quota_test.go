@@ -5,6 +5,7 @@ package integration_test
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -55,4 +56,31 @@ func TestSharedQuotaIgnoresOwnStorage(t *testing.T) {
 	over := &types.FileMetadata{ID: uuid.NewString(), OriginalName: "o", OriginalSize: 600, SHA256: "aa", Salt: []byte{0}, IV: []byte{}, Status: types.StatusUploading}
 	var full *index.QuotaExceededError
 	require.True(t, errors.As(ts.db.InsertFileWithinQuota(ctx, user.ID, over, 1000, false), &full))
+}
+
+// Admins run the shared pool on their own tokens, so its cap doesn't apply to
+// them, while a regular user on the same pool is refused.
+func TestSharedQuotaSkipsAdmins(t *testing.T) {
+	t.Setenv("ZCRYPT_SHARED_QUOTA_BYTES", "100")
+	ts := setupTestServer(t)
+	ctx := context.Background()
+	suffix := uuid.NewString()[:8]
+	userEmail, adminEmail := "capuser-"+suffix+"@example.com", "capadmin-"+suffix+"@example.com"
+	userToken := ts.registerAndLogin(userEmail, "SecurePass@123!")
+	adminToken := ts.registerAndLogin(adminEmail, "SecurePass@123!")
+	_, err := ts.db.Pool().Exec(ctx, `UPDATE users SET role = 'admin' WHERE email = $1`, adminEmail)
+	require.NoError(t, err)
+	ts.enableMockStorage(userEmail)
+	ts.enableMockStorage(adminEmail)
+
+	initBody := map[string]interface{}{
+		"encrypted_name": "big.bin",
+		"original_size":  1000,
+		"sha256":         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"salt":           validSalt,
+		"chunk_count":    1,
+	}
+	body := requireStatus(t, ts.POST("/api/upload/init", initBody, userToken), http.StatusRequestEntityTooLarge)
+	require.Contains(t, string(body), types.ErrCodeSharedStorageFull)
+	requireStatus(t, ts.POST("/api/upload/init", initBody, adminToken), http.StatusOK)
 }
