@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouteToken } from "@/hooks/useRouteToken";
 import { useTranslations } from "next-intl";
 import { getShareInfo, getShareFileMeta, getShareChunk, completeShareDownload } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ function openShareName(raw: string | undefined, key: string | null): Promise<str
 
 export default function SharePage() {
   const t = useTranslations("tools");
-  const { token } = useParams<{ token: string }>();
+  const token = useRouteToken();
   const [info, setInfo] = useState<ShareInfo | null>(null);
   const [sharePassword, setSharePassword] = useState("");
   const [retryable, setRetryable] = useState(false);

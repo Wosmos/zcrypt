@@ -510,11 +510,19 @@ jobs:
           exit 1
 
   # ── Deploy: frontend → Cloudflare Workers ────────────────────────────────────
-  # Builds the Worker with vinext, then wrangler ships that build as-is
-  # (--skip-build), so nothing is built twice.
+  # main goes live; staging uploads a preview version (see deploy-web.yml).
+  # Waits for the e2e run so a failing build never ships.
   frontend-deploy:
     name: Deploy Frontend (Cloudflare)
-    needs: [changes, frontend]
-    if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [changes, frontend, frontend-e2e]
+    if: >-
+      !cancelled()
+      && needs.changes.outputs.frontend == 'true'
+      && github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+      && needs.frontend.result == 'success'
+      && needs.frontend-e2e.result != 'failure'
     uses: ./.github/workflows/deploy-web.yml
+    with:
+      promote: ${{ github.ref == 'refs/heads/main' }}
     secrets: inherit

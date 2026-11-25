@@ -63,7 +63,7 @@ describe("AdminOverviewContent", () => {
     expect(screen.getByRole("link", { name: /Unknown/ })).toHaveAttribute("href", "/admin/users?country=unknown");
     expect(screen.getByText("2 bug reports open over a week").closest("a")).toHaveAttribute("href", "/admin/reports");
     expect(screen.getByText("Upload stalls")).toBeInTheDocument();
-    expect(screen.getByText("User Login").closest("a")).toHaveAttribute("href", "/admin/users/u1");
+    expect(screen.getByText("User Login").closest("a")).toHaveAttribute("href", "/admin/users/_?id=u1");
     expect(hook.fetchAdminOverview).toHaveBeenCalledWith(30);
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouteToken } from "@/hooks/useRouteToken";
 import { useTranslations } from "next-intl";
 import { getPadInfo, getPadContent } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ type PageState = "loading" | "ready" | "decrypting" | "viewing" | "error";
 export default function PadViewPage() {
   const t = useTranslations("tools");
   const formatExpiry = useShortExpiry();
-  const { token } = useParams<{ token: string }>();
+  const token = useRouteToken();
   const [info, setInfo] = useState<PadInfo | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
   const [errorMsg, setErrorMsg] = useState("");

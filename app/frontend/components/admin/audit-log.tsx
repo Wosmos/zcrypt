@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import { useTranslations } from "next-intl";
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -210,7 +211,7 @@ function AuditDrawer({ event, onClose }: { event: AuditRow | null; onClose: () =
                   <dd className="mt-0.5 font-medium text-[var(--color-text-secondary)]">
                     {event.user_id && event.username ? (
                       <Link
-                        href={`/admin/users/${event.user_id}`}
+                        href={adminUserHref(event.user_id)}
                         className="underline-offset-2 hover:underline"
                       >
                         {event.username}
@@ -366,7 +367,7 @@ export function AuditLog() {
             cell: (e) =>
               e.user_id && e.username ? (
                 <Link
-                  href={`/admin/users/${e.user_id}`}
+                  href={adminUserHref(e.user_id)}
                   className="truncate text-sm text-[var(--color-text-secondary)] underline-offset-2 hover:text-[var(--color-accent)] hover:underline"
                 >
                   {e.username}

@@ -1327,28 +1327,11 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
 
-      # The download page caches the release until this runs (one-day safety
-      # refresh otherwise). Both steps are best-effort: the release is already
-      # out, and the next refresh picks it up anyway.
-      - name: Refresh the website's release data
-        continue-on-error: true
-        env:
-          RELEASE_HOOK_SECRET: ${{ secrets.RELEASE_HOOK_SECRET }}
-          SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://www.zcrypt.cloud' }}
-        run: |
-          if [ -z "$RELEASE_HOOK_SECRET" ]; then echo "::warning::RELEASE_HOOK_SECRET unset; the download page refreshes within a day"; exit 0; fi
-          curl -fsS --retry 3 --retry-all-errors -X POST \
-            -H "Authorization: Bearer $RELEASE_HOOK_SECRET" "$SITE_URL/hooks/release"
-
-      - name: Purge the download page from Cloudflare's cache
-        continue-on-error: true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PURGE_TOKEN }}
-          ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://www.zcrypt.cloud' }}
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$ZONE_ID" ]; then echo "::warning::Cloudflare purge secrets unset"; exit 0; fi
-          curl -fsS --retry 3 --retry-all-errors -X POST \
-            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-            --data "{\"files\":[\"$SITE_URL/download\"]}"
+  # The website is prerendered, so the download page shows a new release only
+  # after a redeploy.
+  refresh-website:
+    name: Redeploy the website with the new release
+    needs: publish-release
+    if: startsWith(github.ref, 'refs/tags/v') && needs.publish-release.result == 'success'
+    uses: ./.github/workflows/deploy-web.yml
+    secrets: inherit

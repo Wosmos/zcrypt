@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ComponentType, type ReactNode } from "react";
@@ -487,7 +488,7 @@ export function AdminOverviewContent() {
                   <li key={e.id}>
                     {e.user_id && e.username ? (
                       <Link
-                        href={`/admin/users/${e.user_id}`}
+                        href={adminUserHref(e.user_id)}
                         className={cn(
                           cls,
                           "transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",

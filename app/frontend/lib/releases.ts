@@ -242,22 +242,17 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   };
 }
 
-/** Cache tag for the release data; the release workflow clears it on publish. */
-export const RELEASE_CACHE_TAG = "github-release";
-
 /**
  * Fetch the latest release's download data.
  *
- * Cached until the next release: the release workflow calls
- * app/hooks/release (route.web.tsx) once the release is published, which drops
- * this tag. The one-day revalidate is only a safety net for a missed hook.
- * Nothing is memoised in module scope: a process-lifetime copy would outlive
- * that and keep serving the previous release.
+ Pages are prerendered, so this runs at build time: the release workflow
+ * redeploys the website once a release is published, and a daily deploy
+ * catches anything missed. Nothing is memoised in module scope.
  */
 export function getLatestRelease(): Promise<ReleaseData> {
   return fetch(LATEST_RELEASE_API, {
     headers: { Accept: "application/vnd.github+json" },
-    next: { revalidate: 86_400, tags: [RELEASE_CACHE_TAG] },
+    next: { revalidate: 86_400 },
   })
     .then((res) => {
       if (!res.ok) throw new Error(`GitHub API ${res.status}`);

@@ -1,11 +1,9 @@
-import { SPACE_EXPORT_ID } from "@/lib/space-routes";
+import { ROUTE_SHELL_PARAMS } from "@/lib/route-shell";
 
-// output:export (desktop) needs at least one param; the desktop app reaches
-// every Space through this path with the id in `?id=` (see lib/space-routes).
-// The web build has no layout here, so it stays dynamic instead of storing an
-// ISR page per id.
+// Every Space is served by the one prerendered `/spaces/_` page; the id rides
+// in `?id=` (see lib/route-shell).
 export function generateStaticParams() {
-  return [{ id: SPACE_EXPORT_ID }];
+  return ROUTE_SHELL_PARAMS;
 }
 
 export default function SpaceLayout({ children }: { children: React.ReactNode }) {

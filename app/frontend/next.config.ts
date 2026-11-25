@@ -167,6 +167,32 @@ const nextConfig: NextConfig = {
       }
       return rules;
     },
+    // Every id is served by its route's one prerendered `/_` page (lib/route-shell).
+    async redirects() {
+      const noId = [{ type: "query" as const, key: "id" }];
+      return [
+        // Share links keep their #key fragment across the redirect.
+        ...["s", "f", "send", "pad"].map((base) => ({
+          source: `/${base}/:token((?!_$)[^/]+)`,
+          missing: noId,
+          destination: `/${base}/_?id=:token`,
+          permanent: false,
+        })),
+        ...["", "/add", "/settings"].map((sub) => ({
+          // Not the shell id `_` itself, nor the /spaces/new page.
+          source: sub ? `/spaces/:id([^/_][^/]*|_[^/]+)${sub}` : "/spaces/:id((?!new$|_$)[^/]+)",
+          missing: noId,
+          destination: `/spaces/_${sub}?id=:id`,
+          permanent: false,
+        })),
+        {
+          source: "/admin/users/:id((?!_$)[^/]+)",
+          missing: noId,
+          destination: "/admin/users/_?id=:id",
+          permanent: false,
+        },
+      ];
+    },
   }),
 };
 

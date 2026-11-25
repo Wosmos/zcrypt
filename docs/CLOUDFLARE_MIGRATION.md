@@ -12,7 +12,9 @@ After:   browser ─► Cloudflare Worker (vinext build of the same app) ─► 
 - **Same source, two builds.** [vinext](https://github.com/cloudflare/vinext) is Cloudflare's Vite reimplementation of the Next.js API. It builds `app/frontend` into a Worker: `bun run build:vinext`, output in `.cloudflare/output`.
 - **`next build` still matters.** It produces the desktop/Android static export (`NEXT_OUTPUT_EXPORT=1`), and CI runs it next to the Worker build.
 - **Config files:**
-  - `vite.config.ts`: vinext, the React Compiler, and the caches. Pages use Workers Cache (Cloudflare's free edge cache, no storage binding). The few revalidated fetches (GitHub releases, public reviews, download stats) use one KV namespace.
+  - `vite.config.ts`: vinext, the React Compiler, and `prerender: true` with the Static Assets cache. Every page, including one `/_` page per dynamic route (`lib/route-shell.ts`), is rendered at build time and served from Workers Static Assets.
+  - Why: the free plan allows 10 ms of CPU per request. A render took 20–300 ms; a stored page takes about 6 ms (median, measured on the preview).
+  - Dynamic routes: links carry the id in `?id=` (`/spaces/_?id=…`). Share links (`/s/<token>#key`) and older links redirect there; browsers keep the `#key` fragment across the redirect.
   - `cloudflare.config.ts`: the Worker (`zcrypt-web`), the `nodejs_compat` flag, static assets, and the KV binding `VINEXT_KV_CACHE`. No R2 and no Durable Objects, so R2 stays free for file storage.
   - `public/_headers`: headers for static files: the install scripts as text, and immutable `/_next/static`.
 - **Kept from `next.config.ts`:** `headers()` (CSP, HSTS and the rest), `rewrites()` (`/api/*` and `/dl/*` to the backend), `pageExtensions` (`.web.tsx` and `.dev.tsx`), and `env`.
@@ -35,13 +37,12 @@ Verified locally on the Worker build (`vite preview`, workerd):
 - the `/api` proxy, security headers, sign-in, vault unlock, and an HF download through a direct link;
 - the full Playwright suite: 33 passed, 1 skipped on purpose.
 
-## Release data: cached until the next release
+## Data baked in at build
 
-`/download` shows the latest GitHub release.
+`/download` (latest release), the changelog, reviews and download counts are read when the site is built.
 
-- **Cached data:** the release fetch is kept until a release clears it (`lib/releases.ts`, tag `github-release`), with a one-day refresh as a safety net.
-- **What clears it:** when `device.yml` publishes a release, it calls `POST /hooks/release` (`app/hooks/release/route.web.tsx`, Bearer `RELEASE_HOOK_SECRET`). That clears the cached data and `/download`. It then purges `/download` from Cloudflare's cache by URL.
-- **Load:** at 10k visits a day this is about 1 GitHub call and about 15 page renders a day. The old 5-minute refresh meant up to 288 calls and about 4,000 renders.
+- `device.yml` redeploys the website once a release is published.
+- `deploy-web.yml` also runs daily at 03:17 UTC.
 
 ## What I need from you
 
@@ -53,13 +54,8 @@ Verified locally on the Worker build (`vite preview`, workerd):
    - turn on **Rules → Managed Transforms → "Add visitor location headers"**. Without it, the Worker gets the country but not the region and city.
 3. **Worker secret:** `ZCRYPT_PROXY_SECRET`, declared in `cloudflare.config.ts` and set as a secret on the Worker and on Railway with the same value. Without it, the backend sees every native-app call as coming from Cloudflare's address: rate limits and the abuse guard collapse onto one IP, and geo is wrong.
 4. **GitHub repository variables,** baked into the bundle at build: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` (from Web Analytics → add site).
-5. **KV:** the first deploy creates the `VINEXT_KV_CACHE` namespace. Free plan: 100k reads and 1k writes a day. With releases cached until the next release, the reviews (every 5 min) and download stats (hourly) write about 300 times a day.
-6. **Release hook:**
-   - `RELEASE_HOOK_SECRET`, with the same value as a Worker secret and as a GitHub secret.
-   - `CLOUDFLARE_PURGE_TOKEN`, an API token with Zone → Cache Purge on `zcrypt.cloud`.
-   - `CLOUDFLARE_ZONE_ID`.
-   - Without them, a release still shows within a day.
-7. **Plan: free or $5.** The free plan allows 10 ms of CPU per request. A cache miss renders a full React page, which may take longer and return error 1102. Measure the CPU per render on the `workers.dev` preview first; if it's over 10 ms, Workers Paid ($5/month) is needed.
+5. **KV:** the first deploy creates the `VINEXT_KV_CACHE` namespace (free plan: 100k reads and 1k writes a day).
+6. **Plan:** free. Pages are prerendered (see above), so a request stays near the 10 ms limit. Watch the CPU time in Workers & Pages → zcrypt-web → Metrics; Workers Logs and Traces are on (`observability` in `cloudflare.config.ts`).
 
 ## Cutover, in order
 

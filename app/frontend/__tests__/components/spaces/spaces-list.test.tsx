@@ -121,6 +121,6 @@ describe("SpacesList", () => {
     const options = screen.getAllByRole("option");
     options[0].focus();
     fireEvent.keyDown(options[0], { key: "Enter" });
-    expect(nav.push).toHaveBeenCalledWith("/spaces/a");
+    expect(nav.push).toHaveBeenCalledWith("/spaces/_?id=a");
   });
 });

@@ -106,7 +106,7 @@ describe("SpaceNew", () => {
     fireEvent.click(options[0]);
     fireEvent.click(screen.getByRole("button", { name: "Create Space" }));
 
-    await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/spaces/new-id"));
+    await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/spaces/_?id=new-id"));
     expect(spaces.createSpace).toHaveBeenCalledWith("Atlas", "", [], 0);
     expect(adds.enqueue).toHaveBeenCalledTimes(1);
     const [v, ids, name] = adds.enqueue.mock.calls[0];
@@ -142,7 +142,7 @@ describe("SpaceNew", () => {
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("OLD-FP")).toBeInTheDocument();
     expect(within(dialog).getByText("NEW-FP")).toBeInTheDocument();
-    expect(nav.push).toHaveBeenCalledWith("/spaces/new-id");
+    expect(nav.push).toHaveBeenCalledWith("/spaces/_?id=new-id");
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Trust the new key" }));
 

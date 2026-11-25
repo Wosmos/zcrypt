@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -161,7 +162,7 @@ export function Reviews() {
                   label: t("openUser"),
                   icon: Eye,
                   separatorBefore: true,
-                  onSelect: () => router.push(`/admin/users/${r.user_id}`),
+                  onSelect: () => router.push(adminUserHref(r.user_id)),
                 },
               ]
             : []),

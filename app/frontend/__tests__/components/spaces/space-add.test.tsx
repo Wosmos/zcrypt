@@ -31,6 +31,7 @@ vi.mock("@/components/spaces/use-vault-ready", () => ({
 vi.mock("@/lib/api", () => api);
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "s1" }),
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: nav.push }),
 }));
 vi.mock("next/link", () => ({
@@ -141,7 +142,7 @@ describe("SpaceAdd", () => {
       expect(v.id).toBe("s1");
       expect([...ids].sort()).toEqual(["f1", "f2"]);
       expect(name).toBe("Atlas");
-      await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/spaces/s1"));
+      await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/spaces/_?id=s1"));
     } finally {
       vi.useRealTimers();
     }

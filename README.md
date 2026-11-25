@@ -369,7 +369,6 @@ The backend logs the exact URIs at startup and serves them (no secrets) at `GET 
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key for the bot check (pairs with the backend's `TURNSTILE_SECRET_KEY`) |
 | `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` | Cloudflare Web Analytics token; empty turns analytics off |
 | `ZCRYPT_PROXY_SECRET` | Server-side (a Worker secret): sent with `/api` requests so the backend trusts the visitor headers. Same value as the backend's |
-| `RELEASE_HOOK_SECRET` | Server-side (a Worker secret): Bearer token the release workflow sends to `/hooks/release` to clear cached release data |
 
 ## Project structure
 

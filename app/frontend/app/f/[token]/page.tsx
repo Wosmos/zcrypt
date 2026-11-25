@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouteToken } from "@/hooks/useRouteToken";
 import { useTranslations } from "next-intl";
 import { linkAllowanceKey } from "@/lib/web-transfer-limit";
 import {
@@ -85,7 +85,7 @@ const ZIP_FILE_CONCURRENCY = 3;
 
 export default function FolderSharePage() {
   const t = useTranslations("tools");
-  const { token } = useParams<{ token: string }>();
+  const token = useRouteToken();
   const [state, setState] = useState<PageState>("loading");
   const [info, setInfo] = useState<FolderShareInfo | null>(null);
   const [folderKey, setFolderKey] = useState<string | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useParams } from "next/navigation";
+import { useRouteToken } from "@/hooks/useRouteToken";
 import { useTranslations } from "next-intl";
 import { linkAllowanceKey } from "@/lib/web-transfer-limit";
 import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
@@ -35,7 +35,7 @@ const noopSubscribe = () => () => {};
 export default function SendDownloadPage() {
   const t = useTranslations("tools");
   const formatExpiry = useShortExpiry();
-  const { token } = useParams<{ token: string }>();
+  const token = useRouteToken();
   const [info, setInfo] = useState<SendInfo | null>(null);
   const encryptionKey = useSyncExternalStore(noopSubscribe, keyFromFragment, () => null);
 

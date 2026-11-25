@@ -34,7 +34,10 @@ vi.mock("next-intl", async () => {
     },
   };
 });
-vi.mock("next/navigation", () => ({ useParams: () => ({ token: "tok" }) }));
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ token: "tok" }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/lib/api", () => api);
 vi.mock("@/lib/share-link", () => ({
   keyFromFragment: () => "AAAA",
