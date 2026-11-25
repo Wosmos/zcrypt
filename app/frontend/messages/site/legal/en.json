@@ -61,7 +61,7 @@
         "p1": "These services process data on our behalf. We list only the ones that exist today.",
         "l1": "<strong>Neon</strong>: our PostgreSQL database (AWS, us-east-1). Holds everything in the sections above, but no file contents.",
         "l2": "<strong>Cloudflare</strong>: hosts the website and web app, and provides Web Analytics.",
-        "l3": "<strong>Our backend server</strong>, reached through <strong>Cloudflare</strong>. Cloudflare sees traffic to our API and tells us the approximate location of each request (country, region and city). We use it to suggest a language and store it as your approximate location, as described above. The server host may change over time.",
+        "l3": "<strong>Our backend server</strong>. The website talks to it directly; the desktop and Android apps reach it through <strong>Cloudflare</strong>, which tells us the approximate location of each request (country, region and city). Otherwise we look the address up in DB-IP's free location database on our own server. We use the location to suggest a language and store it as your approximate location, as described above. The server host may change over time.",
         "l4": "<strong>Resend</strong>: sends our emails: verification, magic sign-in links, password resets, new-device notices, account deletion notices and dead-man switch messages. They see the recipient address and message.",
         "l5": "<strong>Google and GitHub</strong>, only if you choose to sign in with them.",
         "l6": "<strong>GitHub, GitLab, Hugging Face and Telegram</strong>, as storage platforms (above).",

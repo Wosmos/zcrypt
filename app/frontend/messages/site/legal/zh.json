@@ -61,7 +61,7 @@
         "p1": "这些服务代表我们处理数据。我们只列出目前实际存在的服务。",
         "l1": "<strong>Neon</strong>：我们的 PostgreSQL 数据库（AWS，us-east-1）。保存上述各节中的所有内容，但不包含文件内容。",
         "l2": "<strong>Cloudflare</strong>：托管网站和网页应用，并提供 Web Analytics。",
-        "l3": "<strong>我们的后端服务器</strong>，通过 <strong>Cloudflare</strong> 访问。Cloudflare 能看到发往我们 API 的流量，并告诉我们每个请求的大致位置（国家、地区和城市）。我们用它来推荐语言，并按上文所述将其保存为你的大致位置。服务器托管方可能随时间变化。",
+        "l3": "<strong>我们的后端服务器</strong>。网站直接与它通信；桌面和 Android 应用则经由 <strong>Cloudflare</strong> 访问，Cloudflare 会告诉我们每个请求的大致位置（国家、地区和城市）。其他情况下，我们在自己服务器上的 DB-IP 免费位置数据库中查询该地址。我们用位置来推荐语言，并按上文所述将其保存为你的大致位置。服务器托管方可能会随时间变化。",
         "l4": "<strong>Resend</strong>：发送我们的邮件：验证邮件、魔法登录链接、密码重置、新设备通知、账户删除通知和死人开关消息。它们能看到收件人地址和邮件内容。",
         "l5": "<strong>Google 和 GitHub</strong>，仅当你选择使用它们登录时。",
         "l6": "<strong>GitHub、GitLab、Hugging Face 和 Telegram</strong>，作为存储平台（见上文）。",
