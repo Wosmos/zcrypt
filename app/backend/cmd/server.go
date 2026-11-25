@@ -364,7 +364,7 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 			}
 			adapter, err := createAdapter(tok.Platform, plaintext)
 			if err != nil {
-				log.Printf("warn: create adapter for %s/%s: %v", tok.Platform, tok.Username, err)
+				log.Printf("warn: create adapter for %s/%s: %v", logSafe(tok.Platform), logSafe(tok.Username), err) // #nosec G706 -- control chars stripped via logSafe
 				built[i] = failedAdapter{reason: shortAdapterError(err)}
 				return
 			}
