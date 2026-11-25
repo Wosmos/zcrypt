@@ -147,8 +147,8 @@ export function errorLabel(
   if (/folder/i.test(e) && /password|locked|unlock/i.test(e)) return { key: "errors.unlockFolder" };
   if (/wrong|password|passphrase|decrypt|key mismatch/i.test(e)) return { key: "errors.wrongKey" };
   if (/integrity|corrupt|hash/i.test(e)) return { key: "errors.damaged" };
+  if (/quota|storage (?:is )?full|insufficient/i.test(e)) return { key: "errors.storageFull" };
   if (/\b413\b|too large|too big/i.test(e)) return { key: "errors.tooBigUpload" };
-  if (/quota|storage full|insufficient/i.test(e)) return { key: "errors.storageFull" };
   if (NETWORK.test(e)) {
     const values = { percent: Math.round(percent) };
     return { key: direction === "upload" ? "errors.dropped" : "errors.droppedDownload", values };

@@ -85,6 +85,8 @@ describe("errorLabel", () => {
     ["Integrity check failed for a.jpg", "errors.damaged"],
     ["HTTP 413", "errors.tooBigUpload"],
     ["quota exceeded", "errors.storageFull"],
+    ["shared storage is full", "errors.storageFull"],
+    ["HTTP 413: shared storage is full", "errors.storageFull"],
     ["Upload failed", "errors.sendFailed"],
   ];
   for (const [raw, key] of cases) {
