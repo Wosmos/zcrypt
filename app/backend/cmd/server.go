@@ -354,12 +354,12 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 			// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
 			kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
 			if err != nil {
-				log.Printf("warn: derive KEK for token %s: %v", tok.ID, err)
+				log.Printf("warn: derive KEK for token %s: %v", logSafe(tok.ID), err) // #nosec G706 -- control chars stripped via logSafe
 				return
 			}
 			plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
 			if err != nil {
-				log.Printf("warn: decrypt token %s: %v", tok.ID, err)
+				log.Printf("warn: decrypt token %s: %v", logSafe(tok.ID), err) // #nosec G706 -- control chars stripped via logSafe
 				return
 			}
 			adapter, err := createAdapter(tok.Platform, plaintext)

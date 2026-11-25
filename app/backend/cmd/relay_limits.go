@@ -79,7 +79,7 @@ func writeRelayRefusal(w http.ResponseWriter, ex *index.ErrRelayWindowExceeded, 
 		body["used_bytes"] = ex.Used
 		body["limit_bytes"] = ex.Limit
 	}
-	log.Printf("relay: refused: %s (used %d of %d)", body["code"], ex.Used, ex.Limit)
+	log.Printf("relay: refused: daily=%t (used %d of %d)", ex.Daily, ex.Used, ex.Limit)
 	writeJSON(w, http.StatusForbidden, body)
 }
 

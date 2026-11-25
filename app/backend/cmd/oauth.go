@@ -148,7 +148,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// Clear state cookie, both the domain-wide one and any host-only one an
 	// older start left behind.
 	for _, domain := range []string{"", s.cfg.RefreshCookieDomain()} {
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ //nolint:gosec // HttpOnly+Lax; Secure follows the request scheme so local http dev works
 			Name:     oauthStateCookie,
 			Value:    "",
 			Path:     "/",
