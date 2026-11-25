@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { eventTag } from "@/lib/notify";
+import { NOTICE_TYPES } from "@/lib/user-events";
 
 type Listener = (event: Record<string, unknown>) => void;
 const listeners: Record<string, Listener> = {};
 const shown: Array<{ title: string; options: Record<string, unknown> }> = [];
 const opened: string[] = [];
+let windows: Array<{ visibilityState: string; url: string }> = [];
 
 beforeAll(() => {
   const self = {
@@ -21,7 +24,7 @@ beforeAll(() => {
     },
     clients: {
       claim: async () => {},
-      matchAll: async () => [],
+      matchAll: async () => windows,
       openWindow: async (url: string) => {
         opened.push(url);
       },
@@ -47,7 +50,38 @@ describe("service worker push", () => {
     const last = shown.at(-1);
     expect(last?.title).toBe("Neue Anmeldung bei deinem zcrypt-Konto");
     expect(last?.options.body).toContain("Chrome on Mac");
-    expect(last?.options.tag).toBe("zcrypt-push-newSignIn");
+    expect(last?.options.tag).toBe("zcrypt-sign-in");
+  });
+
+  it("shows nothing while a visible window exists, because that window got a toast", async () => {
+    const before = shown.length;
+    windows = [{ visibilityState: "visible", url: "https://example.com/dashboard" }];
+    await push({ type: "memberLeft", lang: "en", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.length).toBe(before);
+    windows = [{ visibilityState: "hidden", url: "https://example.com/dashboard" }];
+    await push({ type: "memberLeft", lang: "en", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.length).toBe(before + 1);
+    windows = [];
+  });
+
+  it("words each Space event and tags it like the live event so they replace each other", async () => {
+    await push({ type: "memberLeft", lang: "de", data: { space_id: "s1", user_id: "u9", username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif hat einen deiner Spaces verlassen");
+    expect(shown.at(-1)?.options.tag).toBe("zcrypt-memberLeft-s1-u9");
+    expect(shown.at(-1)?.options.renotify).toBe(false);
+    await push({ type: "invitePending", lang: "en", data: { username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif invited you to a Space");
+    expect(shown.at(-1)?.options.body).toBe("Unlock your vault to join.");
+  });
+
+  it("names who added you when the invite carries a username, and keeps the plain copy without one", async () => {
+    await push({ type: "inviteReceived", lang: "en", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif added you to a Space");
+    expect(shown.at(-1)?.options.body).toBe("Open zcrypt to see what was shared with you.");
+    await push({ type: "inviteReceived", lang: "de", data: { space_id: "s1", username: "Wasif" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("Wasif hat dich zu einem Space hinzugefügt");
+    await push({ type: "inviteReceived", lang: "en", data: { space_id: "s1" }, url: "/spaces" });
+    expect(shown.at(-1)?.title).toBe("You were added to a Space");
   });
 
   it("falls back to English and ignores unknown events or junk", async () => {
@@ -80,5 +114,16 @@ describe("service worker push", () => {
     await pending;
     expect(close).toHaveBeenCalled();
     expect(opened.at(-1)).toBe("/spaces");
+  });
+});
+
+describe("push tags match lib/notify eventTag", () => {
+  it.each(NOTICE_TYPES)("%s uses the same tag as its live event", async (type) => {
+    windows = [];
+    const data = { space_id: "s1", user_id: "u9", username: "W", device: "D" };
+    const before = shown.length;
+    await push({ type, lang: "en", data, url: "/spaces" });
+    expect(shown.length).toBe(before + 1);
+    expect(shown.at(-1)?.options.tag).toBe(eventTag(type, data));
   });
 });

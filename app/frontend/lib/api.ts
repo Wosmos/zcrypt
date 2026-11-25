@@ -42,26 +42,53 @@ import type {
 import { useAuthStore } from "@/store/auth";
 import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
 import { authedFetch, shouldRefreshOn401, tryRefreshToken } from "@/lib/auth-fetch";
-import { throwResponseError, parseErrorJson, ApiError } from "@/lib/http-error";
+import {
+  apiErrorFrom,
+  throwResponseError,
+  parseErrorJson,
+  parseErrorBody,
+  ApiError,
+} from "@/lib/http-error";
 import { reportConnectivityFailure } from "@/store/connectivity";
+import { useHumanCheck } from "@/store/human-check";
 import { API_BASE } from "@/lib/config";
+import { fetchIdleBody, readJsonControl, withControlTimeout } from "@/lib/transport";
+import { retryTransient } from "@/lib/retry";
+import { xhrPut } from "@/lib/upload-session";
+import { webTransferLimitFrom } from "@/lib/web-transfer-limit";
 import type { PlatformCredentials } from "@/lib/platform-credentials";
 
 /** Build the chunk-download return payload from a response (body + chunk headers). */
-async function readChunkResponse(
+function chunkFromResponse(
   res: Response,
-): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
+  data: ArrayBuffer,
+): { data: ArrayBuffer; sha256: string; compressed: boolean } {
   return {
-    data: await res.arrayBuffer(),
+    data,
     sha256: res.headers.get("X-Chunk-SHA256") || "",
     compressed: res.headers.get("X-Chunk-Compressed") === "true",
   };
 }
 
+const HUMAN_CHECK_HEADER = "X-Turnstile-Token";
+
+/** Runs the step-up check when the server asks for one; undefined when it can't run or is closed. */
+async function humanCheckToken(res: Response): Promise<string | undefined> {
+  const body = (await res
+    .clone()
+    .json()
+    .catch(() => null)) as { code?: string } | null;
+  if (body?.code !== "challenge_required") return undefined;
+  return useHumanCheck.getState().ask();
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await requestResponse(path, options);
-  return res.json() as Promise<T>;
+  return readJsonControl<T>(res, options?.signal ?? undefined);
 }
+
+/** The authenticated JSON request core, exported for tests. */
+export { request as apiRequest };
 
 async function requestResponse(
   path: string,
@@ -77,29 +104,18 @@ async function requestResponse(
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  // Timeout: use the caller's signal if it supplied one, else bound the fetch
-  // ourselves at 30s. The timer is created unconditionally (and always cleared
-  // below), when a caller signal is in play the controller's own signal is
-  // simply never wired to the fetch, so its abort is inert.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
-  const signal = options?.signal ?? controller.signal;
+  const send = (h: Record<string, string>) =>
+    withControlTimeout(
+      (signal) => fetch(`${API_BASE}${path}`, { ...options, headers: h, signal }),
+      options?.signal ?? undefined,
+    );
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-      signal,
-    });
+    res = await send(headers);
   } catch (err) {
     reportConnectivityFailure();
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error("Request timed out");
-    }
     throw err;
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   // On 401, try refreshing the token and retry once
@@ -107,11 +123,13 @@ async function requestResponse(
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers,
-      });
+      res = await send(headers);
     }
+  }
+
+  if (res.status === 428 && !headers[HUMAN_CHECK_HEADER]) {
+    const token = await humanCheckToken(res);
+    if (token) res = await send({ ...headers, [HUMAN_CHECK_HEADER]: token });
   }
 
   // Retry on 5xx server errors with backoff
@@ -332,17 +350,31 @@ export async function putFileThumb(fileId: string, sealed: Uint8Array): Promise<
   });
 }
 
-/** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
-// A chunk download is a bare fetch (not the `request()` wrapper), so it must
-// carry its own timeout. Without one, a stalled fetch, e.g. a chunk still
-// syncing from staging to the git platform, or an unresponsive server, hangs
-// forever. Because foreground decrypts (viewer/preview/prefetch) go through
-// here and register in the decrypt cache's in-flight set, one hung fetch pins
-// `isForegroundDecryptActive()` true and starves the whole thumbnail queue
-// (perpetual shimmer). Generous, since chunks can be ~17MB on slow links; the
-// timeout covers the body read too, so it catches a mid-download stall.
-const CHUNK_TIMEOUT_MS = 90_000;
+/** Where one stored chunk lives, for a download straight from the user's own storage. */
+export interface ChunkLocator {
+  index: number;
+  platform: string;
+  account: string;
+  repo: string;
+  /** Telegram: "msgId:fileId" per part, joined by commas. */
+  remote_path: string;
+  size: number;
+  /** SHA-256 of the stored (encrypted) chunk bytes. */
+  sha256: string;
+  compressed: boolean;
+}
 
+/** GET /api/files/{id}/locators. Owner only; anyone else gets an ApiError. */
+export function getFileLocators(
+  fileId: string,
+): Promise<{ file_id: string; chunks: ChunkLocator[] }> {
+  return request(`/api/files/${fileId}/locators`, { cache: "no-store" });
+}
+
+/** Download a single encrypted chunk. Returns raw bytes + metadata headers.
+ *  Fails only after the idle limit with no bytes moving, never for taking long;
+ *  the caller's cancel/pause stays an AbortError. authedFetch refreshes a stale
+ *  access token on a 401, so a download outliving the token keeps going. */
 export async function getFileChunk(
   fileId: string,
   index: number,
@@ -352,44 +384,63 @@ export async function getFileChunk(
   sha256: string;
   compressed: boolean;
 }> {
-  // The stall watchdog always runs, caller signal or not: the caller's
-  // cancel/pause is forwarded into our own controller so either one aborts the
-  // fetch. Keep the timer alive through the body read so a stall mid-download
-  // aborts too.
-  const controller = new AbortController();
-  const onCallerAbort = () => controller.abort();
-  if (signal?.aborted) controller.abort();
-  else signal?.addEventListener("abort", onCallerAbort, { once: true });
-  const timeoutId = setTimeout(() => controller.abort(), CHUNK_TIMEOUT_MS);
-  const useSignal = controller.signal;
+  const { res, body } = await fetchIdleBody(
+    (s) => authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { signal: s }),
+    throwChunkError,
+    { signal },
+  );
+  return chunkFromResponse(res, body);
+}
 
-  try {
-    // authedFetch attaches the access token AND refreshes it on a 401, then
-    // retries, so a download that outlives the ~15-min access-token lifetime
-    // (a long/big transfer, a resume that skips the meta call, or just a tab
-    // left open) keeps going instead of every chunk failing with a 401. A bare
-    // fetch here (no refresh) was why downloads failed "pretty much every time"
-    // once the token went stale; this matches the upload path.
-    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, {
-      signal: useSignal,
+export interface ChunkLink {
+  url: string;
+  expires_at: string;
+  size: number;
+  sha256: string;
+  compressed: boolean;
+}
+
+/** A short-lived GitHub / Hugging Face URL for one chunk, so the browser reads it
+ *  from the platform instead of through the server. null when the chunk has no
+ *  direct link (the server answers 409); the caller then uses getFileChunk. */
+export async function getChunkLink(
+  fileId: string,
+  index: number,
+  signal?: AbortSignal,
+): Promise<ChunkLink | null> {
+  return withControlTimeout(async (s) => {
+    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}/link`, {
+      signal: s,
+      cache: "no-store",
     });
+    if (res.status === 409) return null;
+    if (!res.ok) throw apiErrorFrom(res, await res.text());
+    return (await res.json()) as ChunkLink;
+  }, signal);
+}
 
-    if (!res.ok) await throwResponseError(res);
+/** Read a chunk from a platform link: no cookies, no referrer, idle-timed like the relay. */
+export async function downloadLinkedChunk(url: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const { body } = await fetchIdleBody(
+    (s) =>
+      fetch(url, {
+        signal: s,
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+        cache: "no-store",
+      }),
+    async (res) => {
+      throw apiErrorFrom(res, "");
+    },
+    { signal },
+  );
+  return body;
+}
 
-    return readChunkResponse(res);
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      // Our own timeout fired → surface a retryable "timed out". The caller's
-      // cancel/pause must instead stay an AbortError so the pipeline treats it
-      // as a stop (not a transient failure), re-throw it unchanged.
-      if (signal?.aborted) throw err;
-      throw new Error(`chunk ${index} download timed out`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-    signal?.removeEventListener("abort", onCallerAbort);
-  }
+/** A refused chunk read, as the friendly allowance error when that is why. */
+async function throwChunkError(res: Response): Promise<never> {
+  const body = await res.text();
+  throw webTransferLimitFrom(body, res.status) ?? apiErrorFrom(res, body);
 }
 
 /** With a limit, the newest `limit` files. Without one, the whole library,
@@ -401,7 +452,7 @@ export async function listFiles(limit?: number): Promise<FileMetadata[]> {
   do {
     const qs: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
     const res = await requestResponse(`/api/files${qs}`);
-    files.push(...((await res.json()) as FileMetadata[]));
+    files.push(...(await readJsonControl<FileMetadata[]>(res)));
     cursor = res.headers.get("X-Next-Cursor");
   } while (cursor);
   return files;
@@ -507,7 +558,8 @@ export function getAnalyticsFileTypes(
 export interface IncompleteUpload {
   session_id: string;
   file_id: string;
-  filename: string;
+  filename: string; // '' for sealed sessions: the name is in encrypted_name
+  encrypted_name?: string;
   original_size: number;
   platform: string;
   account: string;
@@ -1580,8 +1632,13 @@ export function adminGetAuditLog(params: AdminListParams): Promise<AdminAuditRes
 // ─── Plans API ───
 
 /** Public, no auth required. Fetches plan configs for landing/pricing pages. */
+/** A public control call: same as fetch, cut off after CONTROL_TIMEOUT_MS. */
+function timedFetch(url: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
+  return withControlTimeout((s) => fetch(url, { ...init, signal: s }), signal);
+}
+
 export async function getPlans(): Promise<PlanConfigs> {
-  const res = await fetch(`${API_BASE}/api/plans`);
+  const res = await timedFetch(`${API_BASE}/api/plans`);
   if (!res.ok) throw new Error("Failed to fetch plans");
   return res.json();
 }
@@ -1634,7 +1691,7 @@ export function revokeShare(shareId: string): Promise<{ success: boolean }> {
 // ─── Public Share Access (no auth) ───
 
 export async function getShareInfo(token: string): Promise<ShareInfo> {
-  const res = await fetch(`${API_BASE}/api/share/${token}`);
+  const res = await timedFetch(`${API_BASE}/api/share/${token}`);
   if (!res.ok) throw new Error("Share not found");
   return res.json();
 }
@@ -1642,13 +1699,14 @@ export async function getShareInfo(token: string): Promise<ShareInfo> {
 export async function getShareFileMeta(
   token: string,
   password?: string,
+  signal?: AbortSignal,
 ): Promise<FileMetaResponse> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
-  const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
-  if (!res.ok) {
-    throw new ApiError(await parseErrorJson(res, "Failed to get file metadata"), res.status);
-  }
+  const res = await linkFetch(
+    `${API_BASE}/api/share/${token}/meta`,
+    publicLinkHeaders(password),
+    {},
+    signal,
+  );
   return res.json();
 }
 
@@ -1659,18 +1717,28 @@ function publicLinkHeaders(password?: string, ticket?: string): Record<string, s
   return headers;
 }
 
-async function postLinkComplete(url: string, ticket: string, password?: string): Promise<void> {
-  const res = await shareFetchRetry(
+async function postLinkComplete(
+  url: string,
+  ticket: string,
+  password?: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await linkFetch(
     url,
     { ...publicLinkHeaders(password), "Content-Type": "application/json" },
     { method: "POST", body: JSON.stringify({ ticket }) },
+    signal,
   );
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to confirm download"));
 }
 
 /** Confirm a finished public-link download so it counts once against max_downloads. */
-export function completeShareDownload(token: string, ticket: string, password?: string) {
-  return postLinkComplete(`${API_BASE}/api/share/${token}/complete`, ticket, password);
+export function completeShareDownload(
+  token: string,
+  ticket: string,
+  password?: string,
+  signal?: AbortSignal,
+) {
+  return postLinkComplete(`${API_BASE}/api/share/${token}/complete`, ticket, password, signal);
 }
 
 export async function getShareChunk(
@@ -1678,15 +1746,19 @@ export async function getShareChunk(
   index: number,
   password?: string,
   ticket?: string,
+  signal?: AbortSignal,
 ): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
 }> {
   const headers = publicLinkHeaders(password, ticket);
-  const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
-  if (!res.ok) throw new ApiError("Failed to download chunk", res.status);
-  return readChunkResponse(res);
+  const { res, body } = await fetchIdleBody(
+    (s) => fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers, signal: s }),
+    throwResponseError,
+    { signal },
+  );
+  return chunkFromResponse(res, body);
 }
 
 // ─── Folder Shares (public folder links) ───
@@ -1745,44 +1817,29 @@ export function revokeFolderShare(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folder-shares/${id}`, { method: "DELETE" });
 }
 
-const shareSleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /**
- * Fetch a public share endpoint with retries. Downloading a folder fires many
- * requests concurrently, so a transient rate-limit (429) must not fail an
- * otherwise-healthy file:
- *   - 429      → wait (honoring Retry-After) and retry, up to a few times.
- *   - network  → short backoff, retried a couple times.
- *   - other    → returned as-is (a real 4xx/5xx like a missing chunk fails fast,
- *                so the caller can skip it immediately).
+ * Fetch a public link endpoint (no auth) under the shared transfer rule: a
+ * control-call time limit per attempt, then the one retry helper (network
+ * failure, 408, 429 with Retry-After, 5xx). Anything else, like a 403 or 404,
+ * throws an ApiError at once so the caller can skip it.
  */
-async function shareFetchRetry(
+async function linkFetch(
   url: string,
   headers: Record<string, string>,
   init: RequestInit = {},
+  signal?: AbortSignal,
 ): Promise<Response> {
-  const RL_MAX = 5; // rate-limit retries
-  const ERR_MAX = 2; // transient network retries
-  let rl = 0;
-  let err = 0;
-  for (;;) {
-    let res: Response;
-    try {
-      res = await fetch(url, { ...init, headers });
-    } catch (e) {
-      if (err++ >= ERR_MAX) throw e;
-      await shareSleep(Math.min(4000, 400 * 2 ** err));
-      continue;
-    }
-    if (res.status === 429 && rl < RL_MAX) {
-      rl++;
-      const ra = Number(res.headers.get("Retry-After"));
-      await res.arrayBuffer().catch(() => {}); // drain so the connection frees
-      await shareSleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : Math.min(8000, 500 * 2 ** rl));
-      continue;
-    }
-    return res;
-  }
+  return retryTransient(
+    async () => {
+      const res = await withControlTimeout(
+        (s) => fetch(url, { ...init, headers, signal: s }),
+        signal,
+      );
+      if (!res.ok) await throwResponseError(res);
+      return res;
+    },
+    { signal },
+  );
 }
 
 // Public folder-link access (no auth, rate-limited). The optional password
@@ -1793,7 +1850,7 @@ export async function getFolderShareInfo(
 ): Promise<FolderShareInfo> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
-  const res = await fetch(`${API_BASE}/api/folder-share/${token}`, { headers });
+  const res = await timedFetch(`${API_BASE}/api/folder-share/${token}`, { headers });
   if (!res.ok) throw new Error("Folder link not found");
   return res.json();
 }
@@ -1802,14 +1859,14 @@ export async function getFolderShareFileMeta(
   token: string,
   fileId: string,
   password?: string,
+  signal?: AbortSignal,
 ): Promise<FileMetaResponse> {
-  const headers: Record<string, string> = {};
-  if (password) headers["X-Share-Password"] = password;
-  const res = await shareFetchRetry(
+  const res = await linkFetch(
     `${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`,
-    headers,
+    publicLinkHeaders(password),
+    {},
+    signal,
   );
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
   return res.json();
 }
 
@@ -1819,11 +1876,13 @@ export function completeFolderShareDownload(
   fileId: string,
   ticket: string,
   password?: string,
+  signal?: AbortSignal,
 ) {
   return postLinkComplete(
     `${API_BASE}/api/folder-share/${token}/files/${fileId}/complete`,
     ticket,
     password,
+    signal,
   );
 }
 
@@ -1833,35 +1892,45 @@ export async function getFolderShareChunk(
   index: number,
   password?: string,
   ticket?: string,
+  signal?: AbortSignal,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
   const headers = publicLinkHeaders(password, ticket);
-  const res = await shareFetchRetry(
-    `${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`,
-    headers,
+  const { res, body } = await fetchIdleBody(
+    (s) =>
+      fetch(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, {
+        headers,
+        signal: s,
+      }),
+    throwResponseError,
+    { signal },
   );
-  if (!res.ok) throw new Error("Failed to download chunk");
-  return readChunkResponse(res);
+  return chunkFromResponse(res, body);
 }
 
 // ─── Anonymous Send API (no auth) ───
 
 export class SendInitError extends ApiError {
-  code?: string;
   loginRequired?: boolean;
   constructor(message: string, status: number, code?: string, loginRequired?: boolean) {
-    super(message, status);
+    super(message, status, 0, "", code ?? "");
     this.name = "SendInitError";
-    this.code = code;
     this.loginRequired = loginRequired;
   }
 }
 
-export async function sendInit(data: SendInitRequest): Promise<SendInitResponse> {
-  const res = await fetch(`${API_BASE}/api/send/init`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
+export async function sendInit(
+  data: SendInitRequest,
+  signal?: AbortSignal,
+): Promise<SendInitResponse> {
+  const res = await timedFetch(
+    `${API_BASE}/api/send/init`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    signal,
+  );
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}) as unknown)) as {
       error?: string;
@@ -1877,65 +1946,111 @@ export async function sendInit(data: SendInitRequest): Promise<SendInitResponse>
   return res.json();
 }
 
+/** Upload one send chunk over XHR (per-chunk progress, 60s stall watchdog), retried
+ *  by the shared helper. `signal` aborts the in-flight PUT and any backoff. */
 export async function sendChunkUpload(
   sessionId: string,
   idx: number,
   chunk: Uint8Array,
   sha256: string,
   compressed: boolean,
+  opts: { signal?: AbortSignal; onProgress?: (sentBytes: number) => void } = {},
 ): Promise<void> {
-  const headers: Record<string, string> = {
-    "X-Chunk-SHA256": sha256,
-  };
+  const headers: Record<string, string> = { "X-Chunk-SHA256": sha256 };
   if (compressed) headers["X-Chunk-Compressed"] = "true";
 
-  const res = await fetch(`${API_BASE}/api/send/${sessionId}/chunk/${idx}`, {
-    method: "PUT",
-    headers,
-    body: chunk as unknown as BodyInit,
-  });
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to upload chunk"));
+  await retryTransient(
+    async () => {
+      const res = await xhrPut(
+        `${API_BASE}/api/send/${sessionId}/chunk/${idx}`,
+        headers,
+        chunk,
+        opts.onProgress,
+        opts.signal,
+      );
+      if (res.status < 200 || res.status >= 300) {
+        throw new ApiError(
+          parseErrorBody(res.body) || "Failed to upload chunk",
+          res.status,
+          res.retryAfter,
+        );
+      }
+    },
+    { signal: opts.signal },
+  );
 }
 
-export async function sendComplete(sessionId: string): Promise<{ token: string }> {
-  const res = await fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  });
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to complete send"));
-  return res.json();
+/** Finish a send. Network failures and 5xx retry; the server answers a
+ *  repeat of a finished send with the same token, so a lost reply is safe. */
+export async function sendComplete(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<{ token: string }> {
+  return retryTransient(
+    async () => {
+      const res = await withControlTimeout(
+        (s) =>
+          fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+            signal: s,
+          }),
+        signal,
+      );
+      if (!res.ok) {
+        throw new ApiError(await parseErrorJson(res, "Failed to complete send"), res.status);
+      }
+      return (await res.json()) as { token: string };
+    },
+    { signal },
+  );
+}
+
+/** Abandon an unfinished send so the server drops its stored chunks. Best effort: the session expires anyway. */
+export async function sendCancel(sessionId: string): Promise<void> {
+  try {
+    await withControlTimeout(
+      (s) => fetch(`${API_BASE}/api/send/${sessionId}`, { method: "DELETE", signal: s }),
+      undefined,
+    );
+  } catch {
+    // The half-uploaded session expires on its own.
+  }
 }
 
 export async function getSendInfo(token: string): Promise<SendInfo> {
-  const res = await fetch(`${API_BASE}/api/send/${token}`);
+  const res = await timedFetch(`${API_BASE}/api/send/${token}`);
   if (!res.ok) throw new Error("Transfer not found");
   return res.json();
 }
 
-export async function getSendMeta(token: string): Promise<SendMeta> {
-  const res = await fetch(`${API_BASE}/api/send/${token}/meta`);
-  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get transfer metadata"));
+export async function getSendMeta(token: string, signal?: AbortSignal): Promise<SendMeta> {
+  const res = await linkFetch(`${API_BASE}/api/send/${token}/meta`, {}, {}, signal);
   return res.json();
 }
 
 export async function getSendChunk(
   token: string,
   idx: number,
+  signal?: AbortSignal,
 ): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
 }> {
-  const res = await fetch(`${API_BASE}/api/send/${token}/chunks/${idx}`);
-  if (!res.ok) throw new Error("Failed to download chunk");
-  return readChunkResponse(res);
+  const { res, body } = await fetchIdleBody(
+    (s) => fetch(`${API_BASE}/api/send/${token}/chunks/${idx}`, { signal: s }),
+    throwResponseError,
+    { signal },
+  );
+  return chunkFromResponse(res, body);
 }
 
 // ─── Pad (anonymous encrypted text sharing) ─────────────────────────────────
 
 export async function createPad(data: PadCreateRequest): Promise<{ token: string }> {
-  const res = await fetch(`${API_BASE}/api/pad`, {
+  const res = await timedFetch(`${API_BASE}/api/pad`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -1945,13 +2060,13 @@ export async function createPad(data: PadCreateRequest): Promise<{ token: string
 }
 
 export async function getPadInfo(token: string): Promise<PadInfo> {
-  const res = await fetch(`${API_BASE}/api/pad/${token}`);
+  const res = await timedFetch(`${API_BASE}/api/pad/${token}`);
   if (!res.ok) throw new Error("Pad not found");
   return res.json();
 }
 
 export async function getPadContent(token: string): Promise<ArrayBuffer> {
-  const res = await fetch(`${API_BASE}/api/pad/${token}/content`);
+  const res = await timedFetch(`${API_BASE}/api/pad/${token}/content`);
   if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get pad content"));
   return res.arrayBuffer();
 }
@@ -1975,12 +2090,10 @@ export function listClipboard(): Promise<ClipboardItem[]> {
 export async function getClipboardContent(
   id: string,
 ): Promise<{ data: ArrayBuffer; contentType: string }> {
-  const { accessToken } = useAuthStore.getState();
-  const headers: Record<string, string> = {};
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`${API_BASE}/api/clipboard/${id}`, { headers });
-  if (!res.ok) throw new Error("Failed to get clipboard content");
+  const res = await withControlTimeout((signal) =>
+    authedFetch(`${API_BASE}/api/clipboard/${id}`, { signal }),
+  );
+  if (!res.ok) await throwResponseError(res);
   return {
     data: await res.arrayBuffer(),
     contentType: res.headers.get("X-Content-Type") || "text",
@@ -2220,21 +2333,46 @@ export function getSharedVault(id: string): Promise<SharedVaultDetail> {
   return request<SharedVaultDetail>(`/api/shared-vaults/${id}`);
 }
 
+/** The invite answer: the active member when a key came with it, else a pending marker. */
+export type InviteResult = SharedVaultMember | { status: "pending" };
+
+/** Invite by email. With a sealed space key the member is active at once; without
+ *  one the invite is pending until an owner or admin hands the key over. */
 export function addSharedVaultMember(
   vaultId: string,
   email: string,
   role: string,
   wrappedSpaceKey?: string,
-): Promise<SharedVaultMember> {
-  return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members`, {
+  keyGeneration?: number,
+): Promise<InviteResult> {
+  return request<InviteResult>(`/api/shared-vaults/${vaultId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role, wrapped_space_key: wrappedSpaceKey ?? "" }),
+    body: JSON.stringify(
+      wrappedSpaceKey
+        ? { email, role, wrapped_space_key: wrappedSpaceKey, key_generation: keyGeneration }
+        : { email, role },
+    ),
+  });
+}
+
+/** Finish a pending member: the owner or an admin sends the space key sealed to their public key. */
+export function completeSharedVaultMember(
+  vaultId: string,
+  userId: string,
+  wrappedSpaceKey: string,
+  keyGeneration?: number,
+): Promise<SharedVaultMember> {
+  return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members/${userId}/key`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wrapped_space_key: wrappedSpaceKey, key_generation: keyGeneration }),
   });
 }
 
 /** Resolve a user's PUBLIC key by email/username (to seal a space key before
- *  inviting). Rejects (404) if no such user or they have no published key. */
+ *  inviting). Rejects with an ApiError whose code says why: no_key (an account
+ *  that has not unlocked its vault yet), not_found, or rate_limited. */
 export function lookupUserKey(identifier: string): Promise<PublicKeyRecord> {
   return request<PublicKeyRecord>(`/api/keys/lookup?identifier=${encodeURIComponent(identifier)}`);
 }
@@ -2285,11 +2423,17 @@ export function addFileToSpace(
   fileId: string,
   wrappedCek: string,
   wrappedName: string,
+  keyGeneration?: number,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file_id: fileId, wrapped_cek: wrappedCek, wrapped_name: wrappedName }),
+    body: JSON.stringify({
+      file_id: fileId,
+      wrapped_cek: wrappedCek,
+      wrapped_name: wrappedName,
+      key_generation: keyGeneration,
+    }),
   });
 }
 
@@ -2310,11 +2454,12 @@ export interface SpaceBatchResult {
 export function addFilesToSpaceBatch(
   vaultId: string,
   files: SpaceBatchFile[],
+  keyGeneration?: number,
 ): Promise<SpaceBatchResult> {
   return request<SpaceBatchResult>(`/api/shared-vaults/${vaultId}/files/batch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ files }),
+    body: JSON.stringify({ files, key_generation: keyGeneration }),
   });
 }
 
@@ -2328,18 +2473,19 @@ export function removeFileFromSpace(
   });
 }
 
-/** Rotate a space's key (admin only): new key sealed to each remaining member,
+/** Rotate a space's key (owner or admin): new key sealed to each remaining member,
  *  every file's CEK re-wrapped under it. All values are opaque to the server. */
 export function rotateSpace(
   vaultId: string,
   members: { user_id: string; wrapped_space_key: string }[],
   files: { file_id: string; wrapped_cek: string; wrapped_name: string }[],
   meta?: { name: string; description: string },
+  keyGeneration?: number,
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/rotate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(meta ? { members, files, ...meta } : { members, files }),
+    body: JSON.stringify({ members, files, ...meta, key_generation: keyGeneration }),
   });
 }
 

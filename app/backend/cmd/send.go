@@ -150,12 +150,22 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dailyLimit := sendAnonDailyBytes()
+	var relay *index.RelayLimits
 	if claims := GetUserClaims(r); claims != nil && !claims.Decoy {
 		transfer.UserID = claims.Sub
 		dailyLimit = sendUserDailyBytes()
+		if !IsAdmin(r) {
+			l := relayLimits()
+			relay = &l
+		}
 	}
 
-	if err := s.db.CreateSendTransferCapped(ctx, transfer, dailyLimit); err != nil {
+	if err := s.db.CreateSendTransferCapped(ctx, transfer, dailyLimit, relay); err != nil {
+		var exceeded *index.ErrRelayWindowExceeded
+		if errors.As(err, &exceeded) {
+			writeRelayRefusal(w, exceeded, false)
+			return
+		}
 		if errors.Is(err, index.ErrSendDailyCap) {
 			msg := "daily send limit reached"
 			if transfer.UserID == "" {
@@ -367,6 +377,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
 	}
+	s.recordRelay(ctx, transfer.UserID, int64(len(data)), 0)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -386,6 +397,11 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 	transfer, err := s.db.GetSendTransferByID(ctx, sessionID)
 	if err != nil {
 		http.Error(w, `{"error":"send session not found"}`, http.StatusNotFound)
+		return
+	}
+	// A retry after a lost reply: the send is already done, so answer the same.
+	if transfer.Status == types.StatusComplete {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"token": transfer.Token})
 		return
 	}
 	if transfer.Status != types.StatusUploading {
@@ -433,6 +449,43 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": transfer.Token,
 	})
+}
+
+// HandleSendCancel abandons a send that has not completed: its stored chunks
+// are queued for platform deletion and the transfer row is removed. Like chunk
+// upload and complete it is authorised by the secret session id returned at
+// init; a signed-in caller must also be the sender when the send has an owner.
+// A finished send is not cancellable here.
+// DELETE /api/send/{sid}
+func (s *Server) HandleSendCancel(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	transfer, err := s.db.GetSendTransferByID(ctx, r.PathValue("sid"))
+	if err != nil {
+		http.Error(w, `{"error":"send session not found"}`, http.StatusNotFound)
+		return
+	}
+	if claims := GetUserClaims(r); claims != nil && transfer.UserID != "" && claims.Sub != transfer.UserID {
+		http.Error(w, `{"error":"not your send"}`, http.StatusForbidden)
+		return
+	}
+	if transfer.Status != types.StatusUploading {
+		http.Error(w, `{"error":"send session is not active"}`, http.StatusConflict)
+		return
+	}
+	queued, err := s.db.CancelSendTransfer(ctx, transfer.ID)
+	if errors.Is(err, index.ErrSendNotUploading) {
+		http.Error(w, `{"error":"send session is not active"}`, http.StatusConflict)
+		return
+	}
+	if err != nil {
+		log.Printf("send: cancel transfer: %v", err)
+		http.Error(w, `{"error":"failed to cancel"}`, http.StatusInternalServerError)
+		return
+	}
+	if queued > 0 {
+		s.signalDeletion()
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // HandleGetSendInfo returns public info about a send transfer.
@@ -537,6 +590,10 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
+	// A signed-in sender's allowance pays for every download of their send.
+	if transfer.UserID != "" && !s.relayDownloadAllowed(w, r, transfer.UserID, s.userIsAdmin(ctx, transfer.UserID), true, chunk.Size) {
+		return
+	}
 
 	// Resolve the adapter that actually stored this chunk (pinned to its
 	// platform:account). Picking a random global adapter here can land on a
@@ -557,8 +614,7 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 
 	data, err := adapter.Download(ctx, ref)
 	if err != nil {
-		log.Printf("send: download chunk %d: %v", chunkIndex, err)
-		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+		s.writeChunkFetchError(ctx, w, adapter, "", &ref, err, "send")
 		return
 	}
 
@@ -567,7 +623,11 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 	if chunk.Compressed {
 		w.Header().Set("X-Chunk-Compressed", "true")
 	}
-	if _, err := w.Write(data); err != nil {
+	n, err := w.Write(data)
+	if n > 0 {
+		s.recordRelay(ctx, transfer.UserID, 0, int64(n))
+	}
+	if err != nil {
 		return
 	}
 	s.burnIfFullyServed(ctx, transfer, chunkIndex)

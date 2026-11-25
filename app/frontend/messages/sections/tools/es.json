@@ -86,6 +86,8 @@
       "info": "Los archivos se cifran en el dispositivo emisor con una clave que nunca toca el servidor. Viaja solo en el código QR o el enlace que compartes, o en la clave de emparejamiento que lees en voz alta. El servidor retransmite texto cifrado y no puede leer el archivo ni su nombre, pero sí ve que hubo una transferencia y su tamaño aproximado.",
       "connFailed": "Falló la conexión",
       "connLost": "Se perdió la conexión",
+      "dailyLimit": "Esta red ya usó su cupo diario de Transferencia entre dispositivos. Vuelve a intentarlo mañana o desde otra red.",
+      "tooLarge": "Este archivo supera lo que permite la Transferencia entre dispositivos (10 GB).",
       "confirmCode": "Ambas pantallas deben mostrar el mismo código de confirmación",
       "sendFailed": "Falló la transferencia",
       "error": "Error de transferencia",
@@ -111,7 +113,12 @@
       "receiving": "Recibiendo {n}/{total}",
       "receivedOk": "{name} recibido y guardado",
       "receiveAnother": "Recibir otro",
-      "connFailedTitle": "Falló la conexión"
+      "connFailedTitle": "Falló la conexión",
+      "tooLarge": "Este archivo es demasiado grande para recibirlo en el navegador (límite {max}). Usa la app de escritorio de zcrypt.",
+      "confirming": "Esperando la confirmación del otro dispositivo...",
+      "noConfirm": "El otro dispositivo no confirmó que recibió el archivo completo.",
+      "peerCancelled": "El otro dispositivo canceló la transferencia.",
+      "stalled": "La transferencia se detuvo: nada se movió durante 60 segundos."
     },
     "snapshots": {
       "take": "Crear instantánea",
@@ -220,6 +227,7 @@
       "incompleteTitle": "Enlace incompleto",
       "incompleteBody": "A este enlace le falta la clave de cifrado. Asegúrate de haber copiado la URL completa, incluida la parte <code>#key=...</code>.",
       "previewImage": "Vista previa de imagen disponible",
+      "sizeUpTo": "Hasta {size}",
       "previewVideo": "Vista previa de vídeo disponible",
       "previewAudio": "Vista previa de audio disponible",
       "save": "Guardar",
@@ -311,7 +319,9 @@
         "decrypting": "Descifrando...",
         "decrypted": "Descifrado",
         "footer": "Con tecnología de <b>zcrypt</b> · Uso compartido de texto cifrado de conocimiento cero"
-      }
+      },
+      "ownerDailyUsed": "Quien compartió esto ha agotado su cuota de transferencia de hoy. Se renueva a medianoche UTC, así que inténtalo de nuevo entonces.",
+      "ownerMonthlyUsed": "Quien compartió esto ha agotado su cuota de transferencia de este mes. Inténtalo de nuevo el mes que viene o pídele otra copia."
     },
     "demo": {
       "banner": "Modo demo: todos los datos son simulados. Subir, descargar y eliminar están desactivados.",

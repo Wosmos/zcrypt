@@ -138,9 +138,9 @@ describe("UserTable", () => {
     renderTable([user({})]);
     const t = screen.getByRole("table");
     const link = within(t).getByRole("link");
-    expect(link).toHaveAttribute("href", "/admin/users/u1");
+    expect(link).toHaveAttribute("href", "/admin/users/_?id=u1");
     fireEvent.click(within(link.closest("tr")!).getByText("3"));
-    expect(push).toHaveBeenCalledWith("/admin/users/u1");
+    expect(push).toHaveBeenCalledWith("/admin/users/_?id=u1");
   });
 
   it("offers the user actions in a menu and confirms a delete by name", async () => {

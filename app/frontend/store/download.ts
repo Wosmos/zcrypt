@@ -7,9 +7,17 @@ import {
   downloadAndDecryptFile,
   DownloadPausedError,
   type DiskWritable,
+  type DownloadOptions,
   type DownloadResumeState,
 } from "@/lib/download-session";
-import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
+import {
+  createZipRun,
+  downloadAsZip,
+  ZipPausedError,
+  zipRefusal,
+  type BulkDownloadFile,
+  type ZipRun,
+} from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
@@ -18,38 +26,28 @@ import { genId } from "@/lib/id";
 import { desktopAppAction } from "@/lib/open-desktop-app";
 import { DownloadStatus } from "@/types";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
+import {
+  STREAM_TO_DISK_MIN_BYTES,
+  ZIP_IN_MEMORY_MAX_BYTES,
+  getSaveFilePicker,
+  canStreamToDisk,
+} from "@/lib/disk-save";
+
 import { createFrameBatch } from "@/lib/frame-batch";
+import { applyEngineWait } from "@/store/transfer-wait";
+import { WebTransferLimitError, webTransferLimitFromCore } from "@/lib/web-transfer-limit";
+import { showWebTransferLimit } from "@/lib/web-transfer-guard";
+import { createAutoResumeBudget } from "@/lib/auto-resume";
+import { isTransientError } from "@/lib/retry";
+import { FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
+
+export { canStreamToDisk };
 
 function notifyZipDone(count: number, failed: number) {
   void notify({ type: "transferDone", kind: "download", count, failed, folder: "" });
 }
 
-// Files at/above this size stream to disk (a Save-As prompt) instead of being
-// assembled in memory: the only way to download something too big to hold in a
-// browser tab. Smaller files keep the silent, no-prompt download, and a browser
-// that cannot stream to disk is refused files of this size.
-const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024; // 1 GB
-
-// A ZIP that cannot stream to disk is assembled in tab memory; above this it
-// is refused rather than crashing the tab.
-export const ZIP_IN_MEMORY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
-
-// showSaveFilePicker isn't in the default TS DOM lib: declare the bit we use.
-interface SaveFilePickerOptions {
-  suggestedName?: string;
-}
-type ShowSaveFilePicker = (
-  options?: SaveFilePickerOptions,
-) => Promise<{ createWritable(): Promise<DiskWritable> }>;
-function getSaveFilePicker(): ShowSaveFilePicker | undefined {
-  if (typeof window === "undefined") return undefined;
-  return (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
-}
-
-/** Whether this browser can stream a download straight to disk. */
-export function canStreamToDisk(): boolean {
-  return getSaveFilePicker() !== undefined;
-}
+export { ZIP_IN_MEMORY_MAX_BYTES };
 
 export interface DownloadItem {
   id: string;
@@ -101,6 +99,36 @@ function zipQueueItem(id: string, count: number, totalSize: number, stage: strin
  *  purge any still-queued progress write for this id: otherwise a throttled
  *  frame already scheduled from the last onProgress tick lands afterward and
  *  stomps the terminal status back to "downloading". */
+// A DNS/connect failure means zcrypt's servers couldn't be reached at all,
+// common on filtered networks.
+const UNREACHABLE =
+  /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i;
+
+/**
+ * Marks a desktop or Android engine failure on its row. An allowance refusal
+ * opens the allowance dialog ("limit"); an unreachable server gets the
+ * check-your-network hint ("network"). Otherwise returns null and the caller
+ * shows its own message.
+ */
+function failDesktopRow(id: string, err: unknown, msg: string): "limit" | "network" | null {
+  const limit = webTransferLimitFromCore(err);
+  const isNetwork = !limit && UNREACHABLE.test(msg);
+  setStatusNow(id, {
+    status: DownloadStatus.Failed,
+    error: limit ? limit.message : isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
+    stage: "Failed",
+  });
+  if (limit) {
+    showWebTransferLimit(limit.limit);
+    return "limit";
+  }
+  if (isNetwork) {
+    toast.error(tr("toasts.unreachable"));
+    return "network";
+  }
+  return null;
+}
+
 function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: DownloadStatus }) {
   progressBatch.drop(id);
   useDownloadStore.setState((state) => ({
@@ -112,6 +140,9 @@ function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: Downl
  * Optional per-file password resolver, threaded through to the decrypt pipeline.
  */
 export type DownloadPasswordResolver = (fileId: string) => Promise<string> | string;
+
+/** Supplies the file key directly (shared-space files), bypassing passphrases. */
+export type ResolveKey = NonNullable<DownloadOptions["resolveKey"]>;
 
 function protectedFolderOf(fileId: string): string | null {
   const file = getFilesData().find((f) => f.id === fileId);
@@ -145,16 +176,35 @@ interface SingleSession {
   fileSize: number;
   passphrase: string;
   resolvePassword?: DownloadPasswordResolver;
+  resolveKey?: ResolveKey;
   resume: DownloadResumeState;
   abort: AbortController;
   runToken: symbol;
   runPromise?: Promise<void>;
+  /** Whether the last failure was transient (worth an automatic resume). */
+  transient?: boolean;
+  /** Frees the decrypted chunks of a failed in-memory session after a grace. */
+  graceTimer?: ReturnType<typeof setTimeout>;
+  /** The furthest percent any run reached; going past it is progress. */
+  reached: number;
 }
 const sessions = new Map<string, SingleSession>();
 // Ids the user has paused: the pipeline's `pausing()` reads this to preserve
 // state (keep the disk writable open) instead of discarding on abort.
 const pausedIds = new Set<string>();
 const cancelledIds = new Set<string>();
+const autoBudget = createAutoResumeBudget();
+
+// A failed in-memory session keeps its decrypted chunks so a retry continues
+// from them. Held indefinitely they pin the whole file in tab memory, so they
+// are freed once the failure is final, or after a grace for a transient one.
+// Resume metadata (meta, key, disk writable and write high-water mark) stays.
+function dropChunkBuffers(session: SingleSession) {
+  clearTimeout(session.graceTimer);
+  session.graceTimer = undefined;
+  session.resume.decryptedChunks = undefined;
+  session.resume.done = undefined;
+}
 
 // A ZIP download has no resume pipeline; it keeps just an abort controller and
 // its params so a retry can restart it.
@@ -163,11 +213,78 @@ interface ZipSession {
   passphrase: string;
   resolvePassword?: DownloadPasswordResolver;
   abort: AbortController;
+  /** A browser run's open archive, kept across a pause. Absent for the desktop core path, which cannot pause. */
+  run?: ZipRun;
+  /** The settling run, so a resume starts only after the paused one let go. */
+  runPromise?: Promise<void>;
   /** Present only for a desktop-originated session, lets retry re-invoke the
    *  core path instead of the browser one. */
   userId?: string;
 }
 const zipSessions = new Map<string, ZipSession>();
+
+const zipPausedIds = new Set<string>();
+
+async function runBrowserZip(id: string): Promise<void> {
+  const session = zipSessions.get(id);
+  if (!session?.run) return;
+  const { files, passphrase, resolvePassword, run } = session;
+  const controller = session.abort;
+  try {
+    updateProgress(id, DownloadStatus.Downloading, 0, "Starting ZIP...");
+    const report = await downloadAsZip(files, passphrase, {
+      onProgress: (info) => {
+        if (zipPausedIds.has(id)) return;
+        updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage);
+      },
+      signal: controller.signal,
+      resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
+      run,
+      pausing: () => zipPausedIds.has(id),
+      waitKey: `dl:${id}`,
+    });
+
+    updateProgress(id, DownloadStatus.Done, 100, "Done");
+    zipSessions.delete(id);
+    notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
+    notifyZipDone(report.added, report.failed.length);
+    if (report.failed.length === 0) {
+      toast.success(tr("toasts.zipDone", { count: files.length }), {
+        sound: { event: "done", area: "transfers" },
+      });
+      return;
+    }
+    for (const f of report.failed) {
+      if (looksLikeWrongKey(f.error)) recoverWrongFolderPassword(f.fileId, f.error);
+    }
+    const names = report.failed.map((f) => f.filename).join(", ");
+    toast.warning(
+      tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
+      { sound: { event: "headsUp", area: "transfers" } },
+    );
+  } catch (err) {
+    if (err instanceof ZipPausedError) return;
+    if (err instanceof DOMException && err.name === "AbortError") {
+      zipSessions.delete(id);
+      zipPausedIds.delete(id);
+      updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
+      return;
+    }
+    const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
+    let recovered = false;
+    if (looksLikeWrongKey(msg)) {
+      for (const f of files) {
+        if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
+      }
+    }
+    setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
+    if (recovered) {
+      toast.error(tr("toasts.zipWrongPassword"));
+    } else {
+      toast.error(tr("toasts.zipFailedMsg", { msg }));
+    }
+  }
+}
 
 interface DownloadStore {
   queue: DownloadItem[];
@@ -177,6 +294,7 @@ interface DownloadStore {
     fileSize: number,
     passphrase: string,
     resolvePassword?: DownloadPasswordResolver,
+    options?: { resolveKey?: ResolveKey },
   ) => void;
   /** Desktop-only: download through the in-process Rust core. The core streams
    *  chunks straight to a native-picked path on disk (bounded memory) and pulls
@@ -228,17 +346,6 @@ interface DownloadStore {
   clearCompleted: () => void;
 }
 
-// A download that FAILED for a transient reason (network drop / suspended tab)
-// is safe to auto-resume; one that failed on a crypto/auth problem is NOT, it
-// would just re-fail (and re-toast) on every tab focus. Unknown → assume
-// transient (network is the overwhelmingly common interruption cause).
-function isTransientDownloadFailure(error?: string): boolean {
-  if (!error) return true;
-  const status = /\b(4\d\d)\b/.exec(error);
-  if (status && status[1] !== "408" && status[1] !== "429") return false;
-  return !/integrity|corrupt|hash|password|passphrase|decrypt|wrong key/i.test(error);
-}
-
 function updateProgress(id: string, status: DownloadStatus, progress?: number, stage?: string) {
   if (
     status === DownloadStatus.Done ||
@@ -271,6 +378,8 @@ function runSingleDownload(id: string): Promise<void> {
   const runToken = Symbol("dlRun");
   session.abort = abort;
   session.runToken = runToken;
+  clearTimeout(session.graceTimer);
+  session.graceTimer = undefined;
   const isCurrentRun = () => sessions.get(id)?.runToken === runToken;
 
   const p = (async () => {
@@ -281,16 +390,24 @@ function runSingleDownload(id: string): Promise<void> {
           // A stale draining run (after pause/resume replaced it) must not paint
           // the row; and a paused row must not be flipped back to "downloading".
           if (!isCurrentRun() || pausedIds.has(id)) return;
+          // Getting further than any run before is progress: the auto-resume tries start over.
+          if (info.percent > session.reached) {
+            session.reached = info.percent;
+            autoBudget.reset(id);
+          }
           updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage);
         },
         signal: abort.signal,
         resolvePassword: session.resolvePassword ?? resolveFilePasswordGlobal,
+        resolveKey: session.resolveKey,
         resume: session.resume,
         pausing: () => pausedIds.has(id),
+        waitKey: `dl:${id}`,
       });
 
       if (!isCurrentRun()) return;
       updateProgress(id, DownloadStatus.Done, 100, "Done");
+      autoBudget.reset(id);
       sessions.delete(id);
       pausedIds.delete(id);
       toast.success(tr("toasts.downloaded", { name: session.filename }), {
@@ -315,10 +432,24 @@ function runSingleDownload(id: string): Promise<void> {
         return;
       }
       const msg = err instanceof Error ? err.message : tr("toasts.downloadFailed");
-      // Keep the session so Retry continues from what's already decrypted.
+      // Keep the session so Retry continues from what's already decrypted, for
+      // FAILED_BUFFER_GRACE_MS even once the automatic tries are used up.
+      session.transient = isTransientError(err);
+      if (!session.transient) {
+        dropChunkBuffers(session);
+      } else {
+        clearTimeout(session.graceTimer);
+        session.graceTimer = setTimeout(() => {
+          const live = sessions.get(id);
+          const item = useDownloadStore.getState().queue.find((i) => i.id === id);
+          if (live === session && item?.status === DownloadStatus.Failed) dropChunkBuffers(session);
+        }, FAILED_BUFFER_GRACE_MS);
+      }
       const recovered = recoverWrongFolderPassword(session.fileId, msg);
       setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
-      if (recovered) {
+      if (err instanceof WebTransferLimitError) {
+        showWebTransferLimit(err.limit);
+      } else if (recovered) {
         toast.error(tr("toasts.wrongFolderPassword", { name: session.filename }));
       } else {
         toast.error(tr("toasts.downloadFailedMsg", { msg }));
@@ -334,26 +465,46 @@ function runSingleDownload(id: string): Promise<void> {
   return p;
 }
 
+/** Whether this file already has a transfer queued, running or paused. */
+function hasActiveDownload(queue: DownloadItem[], fileId: string): boolean {
+  return queue.some(
+    (i) =>
+      i.fileId === fileId &&
+      (i.status === DownloadStatus.Downloading ||
+        i.status === DownloadStatus.Queued ||
+        i.status === DownloadStatus.Paused),
+  );
+}
+
+function queuedDownload(
+  id: string,
+  fileId: string,
+  filename: string,
+  fileSize: number,
+  stage: string,
+): DownloadItem {
+  return {
+    id,
+    fileId,
+    filename,
+    fileSize,
+    status: DownloadStatus.Queued,
+    progress: 0,
+    stage,
+    startedAt: Date.now(),
+  };
+}
+
 export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
 
-  startDownload: (fileId, filename, fileSize, passphrase, resolvePassword) => {
+  startDownload: (fileId, filename, fileSize, passphrase, resolvePassword, options) => {
+    if (hasActiveDownload(get().queue, fileId)) return;
+
     const id = genId("dl");
 
     set((state) => ({
-      queue: [
-        ...state.queue,
-        {
-          id,
-          fileId,
-          filename,
-          fileSize,
-          status: DownloadStatus.Queued,
-          progress: 0,
-          stage: "Queued",
-          startedAt: Date.now(),
-        },
-      ],
+      queue: [...state.queue, queuedDownload(id, fileId, filename, fileSize, "Queued")],
     }));
 
     void (async () => {
@@ -403,9 +554,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         fileSize,
         passphrase,
         resolvePassword,
+        resolveKey: options?.resolveKey,
         resume,
         abort: new AbortController(),
         runToken: Symbol("dlRun"),
+        reached: 0,
       });
       await runSingleDownload(id);
     })();
@@ -414,29 +567,13 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   startDesktopDownload: (fileId, filename, fileSize, passphrase, userId, resolvePassword) => {
     // Dedup: never run two transfers for the same file at once (the racing
     // duplicate downloads that clobbered one temp file and froze the app).
-    const alreadyActive = get().queue.some(
-      (i) =>
-        i.fileId === fileId &&
-        (i.status === DownloadStatus.Downloading ||
-          i.status === DownloadStatus.Queued ||
-          i.status === DownloadStatus.Paused),
-    );
-    if (alreadyActive) return;
+    if (hasActiveDownload(get().queue, fileId)) return;
 
     const id = genId("dl");
     set((state) => ({
       queue: [
         ...state.queue,
-        {
-          id,
-          fileId,
-          filename,
-          fileSize,
-          status: DownloadStatus.Queued,
-          progress: 0,
-          stage: "Choose where to save…",
-          startedAt: Date.now(),
-        },
+        queuedDownload(id, fileId, filename, fileSize, "Choose where to save…"),
       ],
     }));
 
@@ -468,6 +605,8 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       // we match on that (unlike upload, which can only match on file name).
       const unlisten = await subscribeProgress((p) => {
         if (p.file_id !== fileId) return;
+        applyEngineWait(`dl:${id}`, p);
+        if (p.stage === "waiting") return;
         const percent =
           p.bytes_total > 0 ? Math.round((p.bytes_done / p.bytes_total) * 100) : undefined;
         updateProgress(id, DownloadStatus.Downloading, percent, p.stage);
@@ -484,27 +623,19 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         void notify({ type: "downloadDone", name: filename });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        // A DNS/connect failure means we couldn't even reach zcrypt's servers,
-        // common on filtered/censored networks. Give the actionable hint (check
-        // connection / try a VPN) instead of a raw reqwest dump.
-        const isNetwork =
-          /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
-            msg,
-          );
         const recovered = recoverWrongFolderPassword(fileId, msg);
-        setStatusNow(id, {
-          status: DownloadStatus.Failed,
-          error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
-          stage: "Failed",
-        });
-        if (isNetwork) {
-          toast.error(tr("toasts.unreachable"));
-        } else if (recovered) {
-          toast.error(tr("toasts.wrongFolderPassword", { name: filename }));
-        } else {
-          toast.error(tr("toasts.downloadFailedMsg", { msg }));
+        const shown = failDesktopRow(id, err, msg);
+        if (!shown) {
+          toast.error(
+            recovered
+              ? tr("toasts.wrongFolderPassword", { name: filename })
+              : tr("toasts.downloadFailedMsg", { msg }),
+          );
         }
-        notifications.downloadFailed(filename, isNetwork ? tr("toasts.unreachable") : msg);
+        notifications.downloadFailed(
+          filename,
+          shown === "network" ? tr("toasts.unreachable") : msg,
+        );
       } finally {
         unlisten();
       }
@@ -562,54 +693,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         return;
       }
 
-      try {
-        updateProgress(id, DownloadStatus.Downloading, 0, "Starting ZIP...");
-        const report = await downloadAsZip(files, passphrase, {
-          onProgress: (info) =>
-            updateProgress(id, DownloadStatus.Downloading, info.percent, info.stage),
-          signal: controller.signal,
-          resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
-          saveToDisk,
-        });
-
-        updateProgress(id, DownloadStatus.Done, 100, "Done");
+      const session = zipSessions.get(id);
+      if (!session) return;
+      session.run = createZipRun(saveToDisk);
+      if (controller.signal.aborted) {
         zipSessions.delete(id);
-        notifications.downloadComplete(tr("toasts.zipFilesLabel", { count: report.added }));
-        notifyZipDone(report.added, report.failed.length);
-        if (report.failed.length === 0) {
-          toast.success(tr("toasts.zipDone", { count: files.length }), {
-            sound: { event: "done", area: "transfers" },
-          });
-          return;
-        }
-        for (const f of report.failed) {
-          if (looksLikeWrongKey(f.error)) recoverWrongFolderPassword(f.fileId, f.error);
-        }
-        const names = report.failed.map((f) => f.filename).join(", ");
-        toast.warning(
-          tr("toasts.zipPartial", { failed: report.failed.length, total: files.length, names }),
-          { sound: { event: "headsUp", area: "transfers" } },
-        );
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          zipSessions.delete(id);
-          updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
-          return;
-        }
-        const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
-        let recovered = false;
-        if (looksLikeWrongKey(msg)) {
-          for (const f of files) {
-            if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
-          }
-        }
-        setStatusNow(id, { status: DownloadStatus.Failed, error: msg, stage: "Failed" });
-        if (recovered) {
-          toast.error(tr("toasts.zipWrongPassword"));
-        } else {
-          toast.error(tr("toasts.zipFailedMsg", { msg }));
-        }
+        updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
+        return;
       }
+      session.runPromise = runBrowserZip(id);
     })();
   },
 
@@ -654,7 +746,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       const fileIds = new Set(files.map((f) => f.fileId));
       const order = files.map((f) => f.fileId);
       const unlisten = await subscribeProgress((p) => {
-        if (!fileIds.has(p.file_id) || p.chunks_total <= 0) return;
+        if (!fileIds.has(p.file_id)) return;
+        applyEngineWait(`dl:${id}`, p);
+        if (p.stage === "waiting" || p.chunks_total <= 0) return;
         const idx = order.indexOf(p.file_id);
         // Belt-and-braces: `order` and `fileIds` are built from the same `files`
         // array and the guard above already required a `fileIds` hit, so indexOf
@@ -697,27 +791,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         notifyZipDone(files.length, 0);
       } catch (err) {
         const msg = err instanceof Error ? err.message : tr("toasts.zipFailed");
-        const isNetwork =
-          /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
-            msg,
-          );
         let recovered = false;
         if (looksLikeWrongKey(msg)) {
           for (const f of files) {
             if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
           }
         }
-        setStatusNow(id, {
-          status: DownloadStatus.Failed,
-          error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
-          stage: "Failed",
-        });
-        if (isNetwork) {
-          toast.error(tr("toasts.unreachable"));
-        } else if (recovered) {
-          toast.error(tr("toasts.zipWrongPassword"));
-        } else {
-          toast.error(tr("toasts.zipFailedMsg", { msg }));
+        if (!failDesktopRow(id, err, msg)) {
+          toast.error(
+            recovered ? tr("toasts.zipWrongPassword") : tr("toasts.zipFailedMsg", { msg }),
+          );
         }
       } finally {
         unlisten();
@@ -739,7 +822,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       item.status === DownloadStatus.Paused
     )
       return;
-    if (!sessions.has(id)) return; // ZIP downloads aren't pausable
+    const zip = zipSessions.get(id);
+    if (zip) {
+      if (!zip.run) return; // the desktop core path cannot pause
+      zipPausedIds.add(id);
+      zip.abort.abort();
+      updateProgress(id, DownloadStatus.Paused, item.progress, "Paused");
+      return;
+    }
+    if (!sessions.has(id)) return;
     pausedIds.add(id);
     sessions.get(id)!.abort.abort();
     updateProgress(id, DownloadStatus.Paused, item.progress, "Paused");
@@ -749,9 +840,30 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   // settle (its aborted fetches reject promptly), then run again, the pipeline
   // continues from the resume state on the same open disk writable.
   resumeDownload: (id, passphrase, resolvePassword) => {
+    const zip = zipSessions.get(id);
+    if (zip?.run && zipPausedIds.has(id)) {
+      zipPausedIds.delete(id);
+      zip.passphrase = passphrase;
+      if (resolvePassword) zip.resolvePassword = resolvePassword;
+      zip.abort = new AbortController();
+      set((state) => ({
+        queue: state.queue.map((i) =>
+          i.id === id
+            ? { ...i, status: DownloadStatus.Downloading, stage: "Resuming…", error: undefined }
+            : i,
+        ),
+      }));
+      const prior = zip.runPromise;
+      relaunchAfterPrior(prior, () => {
+        zip.runPromise = runBrowserZip(id);
+        return zip.runPromise;
+      });
+      return;
+    }
     const session = sessions.get(id);
     if (!session) return;
     pausedIds.delete(id);
+    autoBudget.reset(id);
     session.passphrase = passphrase;
     if (resolvePassword) session.resolvePassword = resolvePassword;
     set((state) => ({
@@ -777,7 +889,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     for (const item of failed) {
       const session = sessions.get(item.id);
       if (!session) continue; // ZIP or discarded session, nothing to resume from
-      if (!isTransientDownloadFailure(item.error)) continue; // permanent. Don't loop
+      if (session.transient === false) continue; // permanent. Don't loop
+      if (!autoBudget.due(item.id)) continue; // backing off, or out of attempts
+      autoBudget.spend(item.id);
       pausedIds.delete(item.id);
       set((state) => ({
         queue: state.queue.map((i) =>
@@ -803,7 +917,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       return;
     }
     session?.abort.abort();
-    zipSessions.get(id)?.abort.abort();
+    const zip = zipSessions.get(id);
+    if (zip && zipPausedIds.delete(id)) {
+      zipSessions.delete(id);
+      void zip.run?.saveToDisk?.abort?.().catch(() => {});
+      zip.run?.zip.terminate();
+      updateProgress(id, DownloadStatus.Cancelled, undefined, "Cancelled");
+      return;
+    }
+    zip?.abort.abort();
     if (!session && !zipSessions.has(id)) {
       const item = get().queue.find((i) => i.id === id);
       if (item?.status === DownloadStatus.Queued) {
@@ -821,6 +943,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     if (session) {
       // Single download: continue from what's already decrypted, don't restart.
       pausedIds.delete(id);
+      autoBudget.reset(id);
       session.passphrase = passphrase;
       if (resolvePassword) session.resolvePassword = resolvePassword;
       set((state) => ({
@@ -871,11 +994,17 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       if (disk?.abort) {
         void disk.abort().catch(() => {});
       }
+      clearTimeout(session.graceTimer);
       sessions.delete(id);
     }
+    autoBudget.reset(id);
     const zip = zipSessions.get(id);
     if (zip) {
       zip.abort.abort();
+      if (zipPausedIds.delete(id)) {
+        void zip.run?.saveToDisk?.abort?.().catch(() => {});
+        zip.run?.zip.terminate();
+      }
       zipSessions.delete(id);
     }
 

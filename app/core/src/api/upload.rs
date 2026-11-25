@@ -1,7 +1,9 @@
 //! Upload-side control-plane calls: port of `sidecar/api/upload.go` plus the
 //! byos-direct additions (repo registration, direct confirm).
 
-use super::client::{ApiError, Client};
+use bytes::Bytes;
+
+use super::client::{status_error, ApiError, Client};
 use super::types::*;
 use crate::types::RepoInfo;
 
@@ -16,28 +18,34 @@ impl Client {
     }
 
     /// PUT /api/upload/{sid}/chunk/{idx}, the server-relay path. Body is the
-    /// encrypted chunk; integrity travels in headers.
+    /// encrypted chunk; integrity travels in headers. Fails only when no bytes
+    /// move for the idle limit, not when a slow link takes long.
     pub async fn upload_chunk(
         &self,
         session_id: &str,
         idx: i64,
-        data: Vec<u8>,
+        data: Bytes,
         sha256: &str,
         compressed: bool,
     ) -> Result<(), ApiError> {
-        let resp = self
-            .send(|http, base| {
-                http.put(format!("{base}/api/upload/{session_id}/chunk/{idx}"))
-                    .header("X-Chunk-SHA256", sha256)
-                    .header(
-                        "X-Chunk-Compressed",
-                        if compressed { "true" } else { "false" },
-                    )
-                    .header("Content-Type", "application/octet-stream")
-                    .body(data.clone())
-            })
-            .await?;
-        ok_or_status(resp).await
+        let idle = self.idle();
+        idle.guard(async {
+            let resp = self
+                .send_upload(|http, base| {
+                    http.put(format!("{base}/api/upload/{session_id}/chunk/{idx}"))
+                        .header("X-Chunk-SHA256", sha256)
+                        .header(
+                            "X-Chunk-Compressed",
+                            if compressed { "true" } else { "false" },
+                        )
+                        .header("Content-Type", "application/octet-stream")
+                        .header("Content-Length", data.len())
+                        .body(idle.body(data.clone()))
+                })
+                .await?;
+            ok_or_status(resp).await
+        })
+        .await
     }
 
     /// GET /api/upload/{sid}/status: chunk indices the backend already has, so
@@ -74,21 +82,22 @@ impl Client {
         &self,
         url: &str,
         headers: &std::collections::HashMap<String, String>,
-        data: Vec<u8>,
+        data: Bytes,
     ) -> Result<(), ApiError> {
-        let http = reqwest::Client::new();
-        let mut req = http.put(url).body(data);
-        for (k, v) in headers {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
-        if !resp.status().is_success() {
-            return Err(ApiError::Status {
-                status: resp.status().as_u16(),
-                body: resp.text().await.unwrap_or_default(),
-            });
-        }
-        Ok(())
+        let idle = self.idle();
+        idle.guard(async {
+            let mut req = self
+                .upload_http()
+                .put(url)
+                .header("Content-Length", data.len())
+                .body(idle.body(data));
+            for (k, v) in headers {
+                req = req.header(k, v);
+            }
+            let resp = req.send().await?;
+            ok_or_status(resp).await
+        })
+        .await
     }
 
     /// POST /api/upload/{sid}/confirm/{idx}: metadata-only record of a chunk
@@ -188,12 +197,8 @@ impl Client {
                     .query(&[("platform", platform.clone())])
             })
             .await?;
-        let status = resp.status();
-        if !status.is_success() {
-            return Err(ApiError::Status {
-                status: status.as_u16(),
-                body: resp.text().await.unwrap_or_default(),
-            });
+        if !resp.status().is_success() {
+            return Err(status_error(resp).await);
         }
         let text = resp.text().await?;
         if let Ok(list) = serde_json::from_str::<Vec<RepoInfo>>(&text) {
@@ -206,12 +211,8 @@ impl Client {
 }
 
 pub(super) async fn ok_or_status(resp: reqwest::Response) -> Result<(), ApiError> {
-    let status = resp.status();
-    if status.is_success() {
+    if resp.status().is_success() {
         return Ok(());
     }
-    Err(ApiError::Status {
-        status: status.as_u16(),
-        body: resp.text().await.unwrap_or_default(),
-    })
+    Err(status_error(resp).await)
 }

@@ -1,6 +1,8 @@
 mod backup_agent;
+mod backup_notify;
 mod paths;
 mod photo_backup;
+mod secrets;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -25,8 +27,6 @@ use zcrypt_core::profiles;
 use zcrypt_core::types::{Progress, ProgressFn};
 use zeroize::Zeroize;
 
-/// OS keychain service name for all zcrypt desktop secrets.
-const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
 /// Keychain key under which the vault passphrase is cached.
 const KEYCHAIN_VAULT_PASSPHRASE: &str = "vault.passphrase";
 /// Prefix of the per-platform credential keys (`platform.<id>.token`).
@@ -85,6 +85,8 @@ struct EngineState {
     saves: paths::SaveApprovals,
     /// Wakes the folder-backup loop (see backup_agent) after a change.
     backup_nudge: StdMutex<Option<mpsc::UnboundedSender<backup_agent::Nudge>>>,
+    /// Stops the backup pass in flight (sign-out, end of session, folder removed).
+    backup_control: backup_agent::PassControl,
     /// Watches the backed-up folders; dropping it stops watching.
     backup_watcher: StdMutex<Option<notify::RecommendedWatcher>>,
     /// Folders the user picked in the native dialog for backup. Only these can
@@ -105,6 +107,7 @@ impl Default for EngineState {
             last_activity: StdMutex::new(Instant::now()),
             saves: paths::SaveApprovals::default(),
             backup_nudge: StdMutex::new(None),
+            backup_control: backup_agent::PassControl::default(),
             backup_watcher: StdMutex::new(None),
             backup_picks: StdMutex::new(std::collections::HashSet::new()),
         }
@@ -245,19 +248,28 @@ fn keychain_key_allowed(key: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-fn keychain_entry(key: &str) -> Result<keyring::Entry, String> {
-    if !keychain_key_allowed(key) {
-        return Err("keychain: key not permitted".to_string());
+fn permitted_key(key: &str) -> Result<&str, String> {
+    if keychain_key_allowed(key) {
+        Ok(key)
+    } else {
+        Err("keychain: key not permitted".to_string())
     }
-    keyring::Entry::new(KEYCHAIN_SERVICE, key).map_err(|e| format!("keychain: {}", e))
 }
 
 /// Read a keychain secret, returning None for a missing/unreadable entry.
 fn keychain_read(key: &str) -> Option<String> {
-    keyring::Entry::new(KEYCHAIN_SERVICE, key)
-        .ok()?
-        .get_password()
-        .ok()
+    off_worker(|| secrets::get(key).ok().flatten())
+}
+
+/// Runs a blocking keychain call without stalling a tokio worker (the first
+/// read on macOS can wait on the password prompt).
+fn off_worker<T>(f: impl FnOnce() -> T) -> T {
+    match tokio::runtime::Handle::try_current() {
+        Ok(h) if h.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => {
+            tokio::task::block_in_place(f)
+        }
+        _ => f(),
+    }
 }
 
 /// CredProvider backed by the OS keychain: the user's own platform tokens are
@@ -502,6 +514,14 @@ fn cancel_transfer(state: tauri::State<'_, EngineState>, transfer_id: String) ->
     state.request_cancel(&transfer_id)
 }
 
+/// "Try again" on a waiting transfer: forgets the cached reachability answer
+/// and wakes every transfer paused on `telegram_blocked` / `allowance_used_up`
+/// to re-check at once.
+#[tauri::command]
+fn transfer_retry_now() {
+    zcrypt_core::reach::retry_now();
+}
+
 /// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
 /// verify → decrypt → decompress → return the plaintext bytes (no disk write).
 /// Returns a raw byte IPC response (not base64) so large previews don't inflate
@@ -514,13 +534,18 @@ async fn decrypt_to_memory(
     file_id: String,
     passphrase: String,
     user_id: String,
+    transfer_id: Option<String>,
 ) -> Result<tauri::ipc::Response, String> {
     state.touch_activity();
-    let ctx = state.context(&app).await?;
-    let bytes = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id, None)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(tauri::ipc::Response::new(bytes))
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
+    let res = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id, None).await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    Ok(tauri::ipc::Response::new(res.map_err(|e| e.to_string())?))
 }
 
 /// Download a shared-space file via the in-process core, works for the owner
@@ -570,14 +595,19 @@ async fn decrypt_space_to_memory(
     state: tauri::State<'_, EngineState>,
     file_id: String,
     space_key_b64: String,
+    transfer_id: Option<String>,
 ) -> Result<tauri::ipc::Response, String> {
     state.touch_activity(); // see download_space_file
-    let ctx = state.context(&app).await?;
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
     let space_key = base64_decode(&space_key_b64)?;
-    let bytes = engines::decrypt_to_memory(&ctx, &file_id, "", "", Some(space_key))
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(tauri::ipc::Response::new(bytes))
+    let res = engines::decrypt_to_memory(&ctx, &file_id, "", "", Some(space_key)).await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    Ok(tauri::ipc::Response::new(res.map_err(|e| e.to_string())?))
 }
 
 fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
@@ -634,29 +664,20 @@ const SESSION_REFRESH: &str = "auth.refresh";
 /// restart without the window ever opening.
 fn save_session(access: &str, refresh: &str) {
     for (key, value) in [(SESSION_ACCESS, access), (SESSION_REFRESH, refresh)] {
-        if let Err(e) =
-            keyring::Entry::new(KEYCHAIN_SERVICE, key).and_then(|entry| entry.set_password(value))
-        {
+        if let Err(e) = secrets::set(key, value) {
             eprintln!("keychain: save {key}: {e}");
         }
     }
 }
 
 fn stored_session() -> Option<(String, String)> {
-    let read = |key| {
-        keyring::Entry::new(KEYCHAIN_SERVICE, key)
-            .and_then(|e| e.get_password())
-            .ok()
-            .filter(|v| !v.is_empty())
-    };
+    let read = |key| keychain_read(key).filter(|v| !v.is_empty());
     Some((read(SESSION_ACCESS)?, read(SESSION_REFRESH)?))
 }
 
 fn forget_session() {
     for key in [SESSION_ACCESS, SESSION_REFRESH] {
-        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, key) {
-            let _ = entry.delete_credential();
-        }
+        let _ = secrets::delete(key);
     }
 }
 
@@ -686,15 +707,19 @@ fn resume_in_background(app: &tauri::AppHandle) {
 }
 
 /// Build the API client (persisting rotated tokens back to the OS keychain)
-/// and (re)start the background sync worker.
+/// and (re)start the background sync worker. Returns the pair the engine
+/// holds, which is newer than the webview's when the engine rotated while the
+/// window was closed; the webview adopts it.
 #[tauri::command]
 async fn start_sync(
     app: tauri::AppHandle,
     base_url: String,
     access_token: String,
     refresh_token: String,
-) -> Result<(), String> {
-    start_engine(app, base_url, access_token, refresh_token).await
+) -> Result<serde_json::Value, String> {
+    let client = start_engine(app, base_url, access_token, refresh_token).await?;
+    let (access, refresh) = client.tokens().await;
+    Ok(serde_json::json!({ "access_token": access, "refresh_token": refresh }))
 }
 
 /// Signing out: stops sync and backups, drops the client and forgets the
@@ -716,6 +741,7 @@ async fn end_session(state: tauri::State<'_, EngineState>) -> Result<(), String>
     if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
         let _ = cancel.send(true);
     }
+    state.backup_control.stop();
     *state.backup_watcher.lock().unwrap() = None;
     *state.backup_nudge.lock().unwrap() = None;
     *state.client.write().await = None;
@@ -729,7 +755,7 @@ async fn start_engine(
     base_url: String,
     access_token: String,
     refresh_token: String,
-) -> Result<(), String> {
+) -> Result<Arc<Client>, String> {
     if !api_origin_allowed(&base_url) {
         return Err("base_url is not the zcrypt API origin".to_string());
     }
@@ -740,12 +766,11 @@ async fn start_engine(
     let existing = state.client.read().await.clone();
     let client = match existing {
         Some(c) if c.base_url == base_url.trim_end_matches('/') => {
-            if c.tokens().await != (access_token.clone(), refresh_token.clone()) {
-                c.set_tokens(&access_token, &refresh_token).await;
+            if c.offer_tokens(&access_token, &refresh_token).await {
                 save_session(&access_token, &refresh_token);
             }
             if state.sync_cancel.lock().unwrap().is_some() {
-                return Ok(());
+                return Ok(c);
             }
             c
         }
@@ -760,10 +785,18 @@ async fn start_engine(
                     serde_json::json!({ "access_token": access, "refresh_token": refresh }),
                 );
             });
-            save_session(&access_token, &refresh_token);
-            let c = Arc::new(
-                Client::new(&base_url, &access_token, &refresh_token).with_rotate_hook(rotate_hook),
-            );
+            // The keychain holds the engine's last rotation, which can be newer
+            // than the pair the window saved before it closed.
+            let (access, refresh) = tauri::async_runtime::spawn_blocking(stored_session)
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| (access_token.clone(), refresh_token.clone()));
+            let c =
+                Arc::new(Client::new(&base_url, &access, &refresh).with_rotate_hook(rotate_hook));
+            c.offer_tokens(&access_token, &refresh_token).await;
+            let (access, refresh) = c.tokens().await;
+            save_session(&access, &refresh);
             *state.client.write().await = Some(c.clone());
             c
         }
@@ -793,6 +826,7 @@ async fn start_engine(
         // Sync only replays what local_upload already sealed; it derives no keys.
         vault_passphrase: None,
     };
+    let client = ctx.client.clone();
     let backup_ctx = ctx.clone();
     let backup_cancel = cancel_rx.clone();
     tauri::async_runtime::spawn(async move {
@@ -806,13 +840,14 @@ async fn start_engine(
         tauri::async_runtime::spawn(backup_agent::run_loop(
             app.clone(),
             backup_ctx,
+            state.backup_control.clone(),
             nudge_rx,
             backup_cancel,
         ));
     }
     #[cfg(mobile)]
     let _ = (backup_ctx, backup_cancel);
-    Ok(())
+    Ok(client)
 }
 
 /// Rotate the session through the engine and return the new pair. The webview
@@ -832,6 +867,7 @@ async fn stop_sync(state: tauri::State<'_, EngineState>) -> Result<(), String> {
     if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
         let _ = cancel.send(true);
     }
+    state.backup_control.stop();
     Ok(())
 }
 
@@ -1020,13 +1056,13 @@ async fn check_published_key(client: &Client, key: &str) -> Result<(), String> {
 
 const PHOTO_BACKUP_ANDROID_ONLY: &str = "Photo backup is only in the Android app.";
 
-/// Android: backs up the phone's photo and video folders from now on, in the
+/// Android: backs up the albums the person chose from now on, in the
 /// background job, sealed to the account's published key.
 #[tauri::command]
 async fn photo_backup_enable(
     state: tauri::State<'_, EngineState>,
     public_key: String,
-) -> Result<Vec<backup_agent::BackupFolderView>, String> {
+) -> Result<photo_backup::PhotoStatus, String> {
     if !cfg!(target_os = "android") {
         return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
     }
@@ -1042,6 +1078,36 @@ async fn photo_backup_enable(
         Path::new(photo_backup::SHARED_STORAGE),
     )
     .await
+}
+
+/// Android: the photo backup choices and how many photos are backed up.
+#[tauri::command]
+async fn photo_backup_options(
+    state: tauri::State<'_, EngineState>,
+) -> Result<photo_backup::PhotoStatus, String> {
+    if !cfg!(target_os = "android") {
+        return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
+    }
+    let (_, user_id) = backup_client(&state).await?;
+    let db = state.db()?;
+    Ok(photo_backup::status(
+        &db,
+        &user_id,
+        Path::new(photo_backup::SHARED_STORAGE),
+    ))
+}
+
+/// Android: saves which albums to back up, photos / videos / both, and the
+/// Wi-Fi and charging choices.
+#[tauri::command]
+async fn photo_backup_set_options(
+    state: tauri::State<'_, EngineState>,
+    options: photo_backup::PhotoOptions,
+) -> Result<(), String> {
+    if !cfg!(target_os = "android") {
+        return Err(PHOTO_BACKUP_ANDROID_ONLY.into());
+    }
+    options.save(&*state.db()?)
 }
 
 /// Android: stops backing up photos. Files already in the vault stay.
@@ -1062,17 +1128,22 @@ async fn photo_backup_disable(state: tauri::State<'_, EngineState>) -> Result<()
     Ok(())
 }
 
-/// Entry point for android/PhotoBackupWorker.kt: one backup run over the photo
-/// folders, with the app open or not. Returns a [`photo_backup::RunOutcome`].
+/// Entry point for android/PhotoBackupWorker.kt: one backup run over the
+/// chosen albums, with the app open or not. `source` is the worker's
+/// `MediaStoreSource`. Returns a [`photo_backup::RunOutcome`].
 #[cfg(any(target_os = "android", test))]
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     data_dir: jni::objects::JString,
+    media_source: jni::objects::JObject,
 ) -> jni::sys::jint {
     use photo_backup::RunOutcome;
     let Ok(dir) = env.get_string(&data_dir).map(String::from) else {
+        return RunOutcome::Retry as i32;
+    };
+    let Ok(source) = photo_backup::JniMediaSource::new(&env, &media_source) else {
         return RunOutcome::Retry as i32;
     };
     let Some(base_url) = option_env!("ZCRYPT_API_URL").filter(|u| !u.is_empty()) else {
@@ -1091,22 +1162,50 @@ pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_runPass(
             return RunOutcome::Retry;
         };
         let profile = profiles::detect();
+        let pass = photo_backup::begin_pass();
+        let cancel = pass.token();
         rt.block_on(photo_backup::run(
             &db,
             base_url,
             Path::new(photo_backup::SHARED_STORAGE),
+            &source,
             |client| EngineContext {
                 client,
                 db: db.clone(),
                 profile,
                 progress: Arc::new(|_| {}),
                 creds: keychain_creds(),
-                cancel: CancelToken::new(),
+                cancel: cancel.clone(),
                 vault_passphrase: None,
             },
         ))
     });
     outcome.unwrap_or(RunOutcome::Retry) as i32
+}
+
+/// Entry point for PhotoBackupWorker: the notification the last run left, as
+/// "title\nbody", or null when there is nothing to tell the person.
+#[cfg(any(target_os = "android", test))]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_takeSummary(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+) -> jni::sys::jstring {
+    match backup_notify::take_pending().and_then(|m| env.new_string(m).ok()) {
+        Some(s) => s.into_raw(),
+        None => std::ptr::null_mut(),
+    }
+}
+
+/// Entry point for PhotoBackupWorker.onStopped: WorkManager stopped the worker
+/// (constraints lost, time limit, replaced), so the run in flight stops now.
+#[cfg(any(target_os = "android", test))]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_app_zcrypt_desktop_NativeBackup_cancel(
+    _env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+) {
+    photo_backup::stop_pass();
 }
 
 /// Stops backing up a folder on this device. Files already in the vault stay.
@@ -1119,6 +1218,7 @@ async fn backup_remove_folder(
     let db = state.db()?;
     db.remove_backup_root(&id, &user_id)
         .map_err(|e| e.to_string())?;
+    state.backup_control.stop();
     let ctx = EngineContext {
         client,
         db,
@@ -1159,6 +1259,17 @@ async fn backup_set_schedule(
     schedule.save(&db)?;
     nudge_backup(&state, backup_agent::Nudge::Reschedule);
     Ok(())
+}
+
+/// Saves which backup notifications the person wants and their texts, so
+/// passes that run with no window open follow them.
+#[tauri::command]
+async fn set_backup_notifications(
+    state: tauri::State<'_, EngineState>,
+    prefs: backup_notify::NotifyPrefs,
+) -> Result<(), String> {
+    let db = state.db()?;
+    prefs.save(&db)
 }
 
 /// Watch a folder: every newly-created file is encrypted into the local ledger
@@ -1296,7 +1407,7 @@ async fn backup_when_stable(app: &tauri::AppHandle, path: &Path) {
             return; // engine not connected yet → skip
         };
         match engines::local_upload(&ctx, path, &pass).await {
-            Ok(_) => return notify_backup(app, path),
+            Ok(_) => return note_watched_backup(app, path),
             Err(engines::EngineError::Io(e)) if e.kind() == std::io::ErrorKind::Interrupted => {
                 continue;
             }
@@ -1313,49 +1424,84 @@ async fn stop_folder_watch(state: tauri::State<'_, EngineState>) -> Result<(), S
     Ok(())
 }
 
-/// Post a local "Backed up <file>" OS notification (all platforms).
-fn notify_backup(app: &tauri::AppHandle, path: &Path) {
-    use tauri_plugin_notification::NotificationExt;
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+static WATCH_BATCH: std::sync::Mutex<Option<backup_notify::PassSummary>> =
+    std::sync::Mutex::new(None);
+const WATCH_BATCH_QUIET: Duration = Duration::from_secs(10);
+
+/// Counts a watched file and, once uploads go quiet, posts one summary for the
+/// batch instead of one notification per file.
+fn note_watched_backup(app: &tauri::AppHandle, path: &Path) {
+    let folder = path
+        .parent()
+        .map(|p| backup_agent::folder_name(&p.to_string_lossy()))
         .unwrap_or_default();
-    let _ = app
-        .notification()
-        .builder()
-        .title("zcrypt backup")
-        .body(format!("Backed up {}", name))
-        .show();
+    let first = {
+        let mut batch = WATCH_BATCH.lock().unwrap();
+        let first = batch.is_none();
+        batch.get_or_insert_with(Default::default).add(
+            &folder,
+            &zcrypt_core::engines::backup::BackupReport {
+                uploaded: 1,
+                ..Default::default()
+            },
+        );
+        first
+    };
+    if !first {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(WATCH_BATCH_QUIET).await;
+        let summary = WATCH_BATCH.lock().unwrap().take();
+        let (Some(summary), Ok(db)) = (summary, app.state::<EngineState>().db()) else {
+            return;
+        };
+        backup_notify::deliver(
+            &db,
+            &backup_notify::OsSink(app.clone()),
+            &summary,
+            backup_notify::Subject::Folders,
+        );
+    });
 }
 
 // ---------------------------------------------------------------------------
 // OS keychain
 // ---------------------------------------------------------------------------
 
+async fn keychain_blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| format!("keychain: {e}"))?
+}
+
 #[tauri::command]
 async fn keychain_set(key: String, value: String) -> Result<(), String> {
-    let res = keychain_entry(&key)?
-        .set_password(&value)
-        .map_err(|e| format!("keychain set: {}", e));
+    permitted_key(&key)?;
+    let res = keychain_blocking(move || {
+        secrets::set(&key, &value).map_err(|e| format!("keychain set: {}", e))
+    })
+    .await;
     invalidate_creds();
     res
 }
 
 #[tauri::command]
 async fn keychain_get(key: String) -> Result<Option<String>, String> {
-    match keychain_entry(&key)?.get_password() {
-        Ok(value) => Ok(Some(value)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("keychain get: {}", e)),
-    }
+    permitted_key(&key)?;
+    keychain_blocking(move || secrets::get(&key).map_err(|e| format!("keychain get: {}", e))).await
 }
 
 #[tauri::command]
 async fn keychain_delete(key: String) -> Result<(), String> {
-    let res = match keychain_entry(&key)?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(format!("keychain delete: {}", e)),
-    };
+    permitted_key(&key)?;
+    let res = keychain_blocking(move || {
+        secrets::delete(&key).map_err(|e| format!("keychain delete: {}", e))
+    })
+    .await;
     invalidate_creds();
     res
 }
@@ -1894,8 +2040,11 @@ pub fn run() {
             backup_run_now,
             backup_get_schedule,
             backup_set_schedule,
+            set_backup_notifications,
             photo_backup_enable,
             photo_backup_disable,
+            photo_backup_options,
+            photo_backup_set_options,
             pick_backup_folder,
             install_channel,
             local_upload,
@@ -1905,6 +2054,7 @@ pub fn run() {
             decrypt_to_memory,
             bulk_download_zip,
             cancel_transfer,
+            transfer_retry_now,
             file_sizes,
             download_space_file,
             decrypt_space_to_memory,
@@ -1933,6 +2083,7 @@ pub fn run() {
             biometric_authenticate,
         ])
         .setup(|app| {
+            zcrypt_core::api::set_app_version(&app.package_info().version.to_string());
             if cfg!(target_os = "android") {
                 if let Ok(dir) = app.path().app_data_dir() {
                     zcrypt_core::localdb::set_data_dir(dir);
@@ -2297,5 +2448,25 @@ mod install_channel_tests {
     fn channel_names_match_the_frontend() {
         assert_eq!(InstallChannel::Store.as_str(), "store");
         assert_eq!(InstallChannel::Direct.as_str(), "direct");
+    }
+}
+
+#[cfg(test)]
+mod transfer_retry_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn retry_now_wakes_a_sleeping_transfer() {
+        let reach = zcrypt_core::reach::shared();
+        let before = reach.generation();
+        transfer_retry_now();
+        assert!(reach.generation() > before);
+        reach
+            .sleep_or_wake(
+                std::time::Duration::from_secs(30),
+                before,
+                &CancelToken::new(),
+            )
+            .await;
     }
 }

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Transfer allowance: a daily window (`ZCRYPT_RELAY_DAILY_BYTES`, default 5 GiB) next to the monthly one, upload reservations under a per-user advisory lock, enforcement on every server-relayed download, `relay_daily_exceeded`, quota fields for both windows and their reset times, and Usage & limits meters with a low-allowance warning.
+- Transfers wait instead of relaying past the allowance: web, desktop and Android hold an upload or download while Telegram is unreachable and the rest does not fit, with one shared reachability probe, a Try again wake signal and a waiting stage on every transfer row.
+- Downloads read own-Telegram chunks straight from Telegram (sha256-checked) and GitHub / Hugging Face chunks from short-lived platform links (`GET /api/files/{id}/chunks/{idx}/link`), on the web and in the Rust engine.
+- Android photo backup by album from the media library, with photo/video choice, Wi-Fi only, while charging, a content-change trigger and a six-hourly catch-up; one summary notification per backup pass on desktop and Android.
+- Spaces: pending invites for accounts without a published key and an owner/admin key hand-off; events for invites, joins, leaves, removals, role changes, deletion and new files over SSE and web push; `key_generation` on every Space.
+- Step-up Turnstile check after a burst of public links (428 `challenge_required`, `X-Turnstile-Token`); apps get 429 `share_limit`.
+- Cloudflare Workers hosting for the website (vinext): Workers Cache for pages, KV for revalidated fetches, a signed `/hooks/release` that drops cached release data, Cloudflare Web Analytics, and visitor address and location passed to the backend only next to `ZCRYPT_PROXY_SECRET`.
+- Paused and resumed bulk ZIP downloads; cancelling a Send deletes its staged chunks (`DELETE /api/send/{sid}`).
+
+### Changed
+
+- A Space is re-keyed by any owner or admin device after a member with the key leaves or is removed; writes sealed under an older key generation get 409 `stale_space_key` and the client reloads its grant and retries.
+- Transfers fail only after 60 s with no bytes moving, on every route and in the engine; control calls have a 30 s limit.
+- Device Transfer reports done only on the receiver's ack; the server keeps the room open 45 s for it.
+- An upload's allowance reservation stops counting 24 h after its last stored chunk.
+- Auto-resume starts its tries over whenever a transfer makes progress; a failed download keeps its decrypted chunks for the grace period.
+
+### Fixed
+
+- `POST /api/send/{sid}/complete` is idempotent and retried, so a lost reply no longer deletes a finished upload.
+- A direct-link failure affects only that chunk; links turn off after two chunks in a row fail; a failed locator lookup is retried.
+- Allowance refusals from the desktop and Android engine show the allowance dialog instead of raw JSON, and app downloads that cannot fit are refused before they start.
+- The welcome tour drops under app dialogs, so it no longer covers the vault unlock prompt.
+- Android photo backups keep GPS EXIF (`ACCESS_MEDIA_LOCATION`); a second backup worker no longer hides the first from cancel.
+
+### Security
+
+- Sessions are bound to the client kind that created them; Turnstile on web sign-up, sign-in, sign-in links and password reset; app-marked sign-ups capped at 3 per network per day.
+- Optional block or flag of sign-ins from cloud and data-center networks (`ZCRYPT_CLOUD_NETWORKS`).
+- Invites sealed with the Space key are refused while it waits for a re-key; Space invites and key lookups are rate-limited.
+- Next.js 16.4.6 (GHSA-mfr8-8qww-v76h).
+
 ## [0.2.2] - 2026-11-12
 
 ### Added

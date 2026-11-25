@@ -86,6 +86,8 @@
       "info": "Dateien werden auf dem sendenden Gerät mit einem Schlüssel verschlüsselt, der nie den Server berührt. Er wandert nur im QR-Code oder Link, den du teilst, oder im Kopplungsschlüssel, den du vorliest. Der Server leitet Chiffretext weiter und kann weder Datei noch Namen lesen, sieht aber, dass eine Übertragung stattfand und ungefähr wie groß sie ist.",
       "connFailed": "Verbindung fehlgeschlagen",
       "connLost": "Verbindung verloren",
+      "dailyLimit": "Dieses Netzwerk hat sein tägliches Kontingent für Geräteübertragungen aufgebraucht. Versuch es morgen wieder oder aus einem anderen Netzwerk.",
+      "tooLarge": "Diese Datei ist größer, als die Geräteübertragung erlaubt (10 GB).",
       "confirmCode": "Beide Bildschirme müssen denselben Bestätigungscode anzeigen",
       "sendFailed": "Übertragung fehlgeschlagen",
       "error": "Übertragungsfehler",
@@ -111,7 +113,12 @@
       "receiving": "Empfange {n}/{total}",
       "receivedOk": "{name} empfangen und gespeichert",
       "receiveAnother": "Weitere empfangen",
-      "connFailedTitle": "Verbindung fehlgeschlagen"
+      "connFailedTitle": "Verbindung fehlgeschlagen",
+      "tooLarge": "Diese Datei ist zu groß für den Empfang im Browser (Limit {max}). Nutze die zcrypt-Desktop-App.",
+      "confirming": "Warte auf die Bestätigung des anderen Geräts...",
+      "noConfirm": "Das andere Gerät hat den Empfang der ganzen Datei nicht bestätigt.",
+      "peerCancelled": "Das andere Gerät hat die Übertragung abgebrochen.",
+      "stalled": "Übertragung hängt: 60 Sekunden lang hat sich nichts bewegt."
     },
     "snapshots": {
       "take": "Snapshot erstellen",
@@ -220,6 +227,7 @@
       "incompleteTitle": "Unvollständiger Link",
       "incompleteBody": "Diesem Link fehlt der Verschlüsselungsschlüssel. Stelle sicher, dass du die vollständige URL einschließlich des Teils <code>#key=...</code> kopiert hast.",
       "previewImage": "Bildvorschau verfügbar",
+      "sizeUpTo": "Bis zu {size}",
       "previewVideo": "Videovorschau verfügbar",
       "previewAudio": "Audiovorschau verfügbar",
       "save": "Speichern",
@@ -311,7 +319,9 @@
         "decrypting": "Wird entschlüsselt...",
         "decrypted": "Entschlüsselt",
         "footer": "Bereitgestellt von <b>zcrypt</b> · Zero-Knowledge-verschlüsseltes Teilen von Text"
-      }
+      },
+      "ownerDailyUsed": "Die Person, die das geteilt hat, hat ihr Übertragungskontingent für heute aufgebraucht. Es wird um Mitternacht UTC zurückgesetzt, versuch es dann erneut.",
+      "ownerMonthlyUsed": "Die Person, die das geteilt hat, hat ihr Übertragungskontingent für diesen Monat aufgebraucht. Versuch es nächsten Monat erneut oder bitte sie um eine andere Kopie."
     },
     "demo": {
       "banner": "Demo-Modus, alle Daten sind simuliert. Hochladen, Herunterladen und Löschen sind deaktiviert.",

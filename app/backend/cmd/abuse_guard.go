@@ -1,0 +1,192 @@
+package cmd
+
+import (
+	"context"
+	"crypto/subtle"
+	"encoding/json"
+	"io"
+	"log"
+	"net/http"
+	"net/netip"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/netguard"
+	"github.com/zcrypt/zcrypt/types"
+)
+
+// TurnstileVerifyURL is Cloudflare's server-side check for a Turnstile token.
+const TurnstileVerifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+
+func newNetGuard(cfg *config.Config) *netguard.Guard {
+	var allow []netip.Prefix
+	for _, c := range cfg.NetworkAllow {
+		p, err := netip.ParsePrefix(c)
+		if err != nil {
+			if a, aerr := netip.ParseAddr(c); aerr == nil {
+				p = netip.PrefixFrom(a, a.BitLen())
+			} else {
+				log.Printf("netguard: ignoring ZCRYPT_NETWORK_ALLOW entry %q: %v", logSafe(c), err) // #nosec G706 -- control chars stripped via logSafe
+				continue
+			}
+		}
+		allow = append(allow, p.Masked())
+	}
+	on := cfg.CloudNetworkMode == config.CloudNetworksBlock || cfg.CloudNetworkMode == config.CloudNetworksFlag
+	return netguard.New(on, allow, netguard.DefaultSources)
+}
+
+// StartNetGuard loads the cloud network lists and keeps them fresh.
+func (s *Server) StartNetGuard(ctx context.Context) {
+	s.netGuard.Start(ctx)
+}
+
+// personIP is the address of the person behind a request. The site's /api
+// proxy (Vercel, which the desktop and Android apps go through) reaches us
+// from its own cloud address and names the person in X-Vercel-Forwarded-For.
+// With ZCRYPT_PROXY_SECRET set, the header is read only when the request
+// carries the same X-Zcrypt-Proxy-Secret, so no other caller can claim an
+// address. Without it, the header is read when the direct caller is on a
+// cloud network, which a server on another cloud can forge.
+func (s *Server) personIP(r *http.Request) string {
+	if ip := s.proxiedVisitorIP(r); ip != "" {
+		return ip
+	}
+	ip := s.clientIP(r)
+	trusted := s.viaOwnProxy(r)
+	if s.cfg.ProxySecret == "" {
+		trusted = s.netGuard.Blocked(ip)
+	}
+	if trusted {
+		if fwd := firstForwarded(r.Header.Get("X-Vercel-Forwarded-For")); fwd != "" {
+			return fwd
+		}
+	}
+	return ip
+}
+
+// The site's Cloudflare Worker names the person behind a relayed request in
+// these headers (it copies them from Cloudflare's own CF-Connecting-IP and
+// location headers). They are read only next to the proxy secret.
+const (
+	hdrVisitorIP      = "X-Zcrypt-Visitor-IP"
+	hdrVisitorCountry = "X-Zcrypt-Visitor-Country"
+	hdrVisitorRegion  = "X-Zcrypt-Visitor-Region"
+	hdrVisitorCity    = "X-Zcrypt-Visitor-City"
+)
+
+// proxiedVisitorIP is the person's address from the Worker, or "" when the
+// request did not come through it.
+func (s *Server) proxiedVisitorIP(r *http.Request) string {
+	if !s.viaOwnProxy(r) {
+		return ""
+	}
+	return firstForwarded(r.Header.Get(hdrVisitorIP))
+}
+
+func (s *Server) viaOwnProxy(r *http.Request) bool {
+	want := s.cfg.ProxySecret
+	if want == "" {
+		return false
+	}
+	got := r.Header.Get("X-Zcrypt-Proxy-Secret")
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
+// refuseCloudNetwork answers 403 when the person is on a cloud or data-center
+// network and the mode is "block": sign-in is for people, not servers. In
+// "flag" mode the request goes on and only the audit entry remains. Reports
+// whether it answered.
+func (s *Server) refuseCloudNetwork(w http.ResponseWriter, r *http.Request) bool {
+	if !s.cloudNetworkRefused(r) {
+		return false
+	}
+	writeJSON(w, http.StatusForbidden, map[string]string{
+		"error": "zcrypt can't be used from cloud servers, data centers or VPNs that run on them. Turn off the VPN or proxy and try again.",
+		"code":  "network_blocked",
+	})
+	return true
+}
+
+// cloudNetworkRefused records a request from a cloud network and reports
+// whether it must be refused (mode "block") rather than only flagged.
+func (s *Server) cloudNetworkRefused(r *http.Request) bool {
+	ip := s.personIP(r)
+	if !s.netGuard.Blocked(ip) {
+		return false
+	}
+	refused := s.cfg.CloudNetworkMode != config.CloudNetworksFlag
+	s.audit(r, nil, types.AuditNetworkBlocked, map[string]interface{}{
+		"path":    r.URL.Path,
+		"client":  clientPlatform(clientMarker(r)),
+		"ip":      anonIP(ip),
+		"refused": refused,
+	})
+	return refused
+}
+
+// appSignupsPerDay is how many accounts requests marked as the desktop or
+// Android app may create per person per day. The apps have no Turnstile
+// widget and the marker is a plain header, so this cap is what stops a script
+// that claims to be the app from mass-creating accounts.
+const appSignupsPerDay = 3
+
+// refuseBot checks the Turnstile token a web form sent. It applies only when a
+// Turnstile secret is configured and the request is not from the desktop or
+// Android app, which have no Turnstile widget. Reports whether it answered.
+func (s *Server) refuseBot(w http.ResponseWriter, r *http.Request, token string) bool {
+	if s.cfg.TurnstileSecret == "" || isNativeClient(r) {
+		return false
+	}
+	ok, err := s.verifyTurnstile(r.Context(), token, s.personIP(r))
+	if err != nil {
+		// Cloudflare unreachable: let the person in rather than lock everyone
+		// out; rate limits and the cloud network block still apply.
+		log.Printf("turnstile: verify failed, allowing: %v", err)
+		return false
+	}
+	if ok {
+		return false
+	}
+	writeJSON(w, http.StatusBadRequest, map[string]string{
+		"error": "The check that you're a person didn't pass. Try again.",
+		"code":  "bot_check_failed",
+	})
+	return true
+}
+
+func (s *Server) verifyTurnstile(ctx context.Context, token, ip string) (bool, error) {
+	token = strings.TrimSpace(token)
+	if token == "" || len(token) > 2048 {
+		return false, nil
+	}
+	form := url.Values{"secret": {s.cfg.TurnstileSecret}, "response": {token}}
+	if ip != "" {
+		form.Set("remoteip", ip)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	verifyURL := s.turnstileURL
+	if verifyURL == "" {
+		verifyURL = TurnstileVerifyURL
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, verifyURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = res.Body.Close() }()
+	var out struct {
+		Success bool `json:"success"`
+	}
+	if err := json.NewDecoder(io.LimitReader(res.Body, 64<<10)).Decode(&out); err != nil {
+		return false, err
+	}
+	return out.Success, nil
+}

@@ -57,12 +57,21 @@
       "dismiss": "Dismiss"
     },
     "invites": {
-      "errorNoSharing": "Can't invite this address yet. Check the spelling. If it's right, they need a zcrypt account and must unlock their vault once before you can invite them.",
       "errorGeneric": "Failed to add member",
+      "errorRotating": "This Space's key is being changed after someone left. Try again in a moment.",
       "errorNoKey": "This space has no key you can share (it predates encrypted sharing).",
       "adminOwnerOnly": "Only the owner can grant admin.",
       "adding": "Adding...",
-      "placeholder": "Email or username"
+      "placeholder": "Email address",
+      "errorNotFound": "No zcrypt account uses this email.",
+      "errorRateLimited": "Too many lookups. Try again in a few minutes.",
+      "errorInvalidEmail": "Enter a valid email.",
+      "errorSelf": "That's you.",
+      "errorAlreadyMember": "Already a member.",
+      "errorAlreadyInvited": "Already invited.",
+      "errorForbidden": "Only the owner or an admin can invite.",
+      "pendingNote": "Invited. They'll join once they unlock their vault.",
+      "invitedAs": "Invited {email} as {role}"
     },
     "keyChange": {
       "declined": "Cancelled: the person's changed encryption key was not approved.",
@@ -152,7 +161,7 @@
       "addFiles": "Add files",
       "settings": "Settings",
       "rotationBanner": "A member was removed. The space key must be rotated to lock out any copy they kept.",
-      "rotationAsk": "Ask the owner to rotate it; adding files is paused until then.",
+      "rotationAsk": "It's rotated automatically the next time the owner or an admin opens zcrypt; adding files is paused until then.",
       "rotateKey": "Rotate key",
       "unlockToFinish": "Unlock your vault to finish adding files.",
       "addingProgress": "Adding {done} of {total, plural, one {# file} other {# files}}…",
@@ -254,7 +263,8 @@
       "typeAria": "Type the space name to confirm",
       "rotateConfirmTitle": "Rotate this Space's key?",
       "rotateConfirmDesc": "Every file is re-encrypted with a new key and shared again with the current members. This can take a while in a large Space.",
-      "rotateConfirm": "Rotate key"
+      "rotateConfirm": "Rotate key",
+      "pending": "Pending"
     },
     "share": {
       "title": "Share File",

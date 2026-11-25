@@ -11,6 +11,9 @@ import {
   revalidateRestored,
 } from "@/lib/query-client";
 import { cachedUserId } from "@/store/auth";
+import { installClientMarker } from "@/lib/client-marker";
+
+installClientMarker();
 
 // A reload paints the last-known lists straight from IndexedDB, then refetches
 // whatever is stale. The buster is the cached user id, so a snapshot never
@@ -20,7 +23,6 @@ const persistOptions = {
   maxAge: PERSIST_MAX_AGE,
   buster: persistBuster(cachedUserId),
   dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
-  onSuccess: revalidateRestored,
 };
 
 // Devtools are dev-only and dynamically imported so they never reach the prod
@@ -37,7 +39,11 @@ const ReactQueryDevtools =
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions}
+      onSuccess={revalidateRestored}
+    >
       {children}
       {ReactQueryDevtools && (
         <Suspense fallback={null}>

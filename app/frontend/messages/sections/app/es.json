@@ -164,7 +164,9 @@
         "choose": "Elige dónde guardar",
         "paused": "En pausa",
         "offline": "Esperando wifi",
-        "stopped": "Detenido"
+        "stopped": "Detenido",
+        "waitingTelegram": "Telegram está bloqueado en esta red. Activa una VPN y continúa solo.",
+        "waitingAllowance": "Se acabó el cupo de transferencia. Activa una VPN para enviar directo a Telegram y continúa solo."
       },
       "time": {
         "fewSeconds": "unos segundos",
@@ -201,9 +203,11 @@
         "saved": "{count} guardados en {folder}.",
         "savedSomeFailed": "{count} guardados en {folder}. {failed} no se pudieron enviar.",
         "allFailed": "{failed} no se pudieron enviar.",
+        "allDownloadsFailed": "{failed} no se pudieron descargar.",
         "downloaded": "{count} descargados.",
         "downloadedSomeFailed": "{count} descargados. {failed} no se pudieron descargar.",
-        "needsApp": "{count, plural, one {# archivo necesita} other {# archivos necesitan}} la app de escritorio."
+        "needsApp": "{count, plural, one {# archivo necesita} other {# archivos necesitan}} la app de escritorio.",
+        "blocked": "{count, plural, one {# archivo espera} other {# archivos esperan}} a Telegram. Activa una VPN y continúan solos."
       },
       "legend": {
         "done": "Listos",
@@ -228,9 +232,11 @@
       "orb": "Transferencias, quedan {left}. Toca para abrir, mantén pulsado para pausar o reanudar.",
       "needsApp": {
         "tooBig": "Demasiado grande para el navegador",
-        "allowance": "Sin transferencias web este mes",
-        "action": "Usar la app"
-      }
+        "allowance": "Por encima del cupo de transferencia del mes",
+        "action": "Usar la app",
+        "daily": "Por encima del cupo de transferencia de hoy"
+      },
+      "tryAgain": "Reintentar"
     },
     "tokens": {
       "expired": "Caducado",
@@ -911,6 +917,9 @@
     "toasts": {
       "restartUpload": "No se pudo continuar la subida anterior de «{name}», se reinicia en {platform}.",
       "directResumeElsewhere": "«{name}» se estaba subiendo directamente a tu propio {platform} y no se puede terminar en este navegador. Quítalo y vuelve a subirlo.",
+      "reconnectTelegram": "Vuelve a conectar Telegram para terminar de subir \"{name}\".",
+      "reconnectTelegramAction": "Abrir ajustes de almacenamiento",
+      "downloadInterrupted": "Detenido por la recarga: {names}. Una descarga no puede continuar tras recargar la página, así que empiézala de nuevo.",
       "andMore": "y {count} más",
       "tooBig": "{names} {count, plural, one {supera el límite de} other {superan el límite de}} {limit} por archivo.",
       "uploaded": "{name} subido",
@@ -934,12 +943,16 @@
       "zipWrongPassword": "Contraseña de carpeta incorrecta en este ZIP. Reintenta para volver a introducirla.",
       "zipFilesLabel": "{count, plural, one {# archivo (ZIP)} other {# archivos (ZIP)}}",
       "webFileTooLarge": "Los archivos de más de {limit} no se pueden subir desde el navegador. Los archivos grandes van en la app de escritorio: es más rápida, sigue trabajando en segundo plano y no tiene límite de tamaño.",
-      "webAllowanceUsed": "Has usado tus {limit} de transferencias web de este mes. Se restablece el {date}. La app de escritorio no tiene límite.",
-      "webAllowanceUsedNoDate": "Has usado tus {limit} de transferencias web de este mes. La app de escritorio no tiene límite.",
+      "webAllowanceUsed": "Has usado tu cupo de transferencia de {limit} de este mes. Se restablece el {date}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "webAllowanceUsedNoDate": "Has usado tu cupo de transferencia de {limit} de este mes. Lo que va directo a tu propio almacenamiento no cuenta.",
       "getDesktopApp": "Descargar la app de escritorio",
       "openDesktopApp": "Abrir la app de escritorio",
       "desktopAppMissing": "No se pudo abrir la app de escritorio. ¿Aún no la tienes?",
-      "downloadDesktopApp": "Descargar la app de escritorio"
+      "downloadDesktopApp": "Descargar la app de escritorio",
+      "webDailyUsed": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "webDailyUsedNoTime": "Has usado tu cupo de transferencia de hoy, {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "webDailyShort": "Esto necesita {needed} a través de nuestro servidor, pero solo quedan {left} de los {limit} de hoy. Se restablece a las {time}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta.",
+      "webAllowanceShort": "Esto necesita {needed} a través de nuestro servidor, pero solo quedan {left} de los {limit} de este mes. Se restablece el {date}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta."
     },
     "l10n": {
       "justNow": "ahora mismo",
@@ -1033,22 +1046,50 @@
       "newSignIn": "Nuevo inicio de sesión en tu cuenta",
       "newSignInBody": "{device}. ¿No fuiste tú? Ciérrala en Ajustes.",
       "inviteReceived": "Te invitaron a {space}",
+      "inviteReceivedBy": "{name} te añadió a {space}",
       "inviteReceivedBody": "Abre zcrypt para aceptar o rechazar.",
       "linkViewed": "Alguien abrió tu enlace",
       "storageFull": "Tu almacenamiento está lleno",
       "storageFullBody": "Las nuevas subidas esperan hasta que liberes espacio o conectes tu propia cuenta.",
       "view": "Ver",
       "retry": "Reintentar",
-      "open": "Abrir"
+      "open": "Abrir",
+      "invitePending": "{name} te invitó a un Space",
+      "invitePendingBody": "Desbloquea tu bóveda para unirte.",
+      "memberJoined": "{name} se unió a {space}",
+      "memberLeft": "{name} salió de {space}",
+      "memberRemoved": "Te quitaron de {space}",
+      "roleChanged": "Tu rol en {space} ahora es {role}",
+      "spaceDeleted": "Se eliminó {space}",
+      "filesAdded": "{name} añadió {count, plural, one {# archivo} other {# archivos}} a {space}",
+      "someone": "Alguien",
+      "aSpace": "un Space",
+      "backupTitle": "Copia de seguridad de zcrypt",
+      "backupFilesOne": "{n} archivo respaldado",
+      "backupFilesOther": "{n} archivos respaldados",
+      "backupFromOne": "{n} archivo respaldado de {folder}",
+      "backupFromOther": "{n} archivos respaldados de {folder}",
+      "backupPhotosOne": "{n} foto respaldada",
+      "backupPhotosOther": "{n} fotos respaldadas",
+      "backupSignedOut": "Copia detenida: inicia sesión de nuevo",
+      "backupOffline": "Copia en pausa: sin conexión",
+      "backupFailedOne": "La copia no pudo subir {n} archivo",
+      "backupFailedOther": "La copia no pudo subir {n} archivos",
+      "role": {
+        "owner": "Propietario",
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Lector"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Demasiado grande para el navegador",
       "tooBigManyTitle": "{count} archivos son demasiado grandes para el navegador",
       "tooBigBody": "{name} ocupa {size}. Las subidas desde el navegador tienen un tope de {limit} porque pasan por nuestros servidores. La app de escritorio envía los archivos directamente a tu almacenamiento, sin límite de tamaño.",
       "capBody": "Las subidas desde el navegador tienen un tope de {limit} porque pasan por nuestros servidores. La app de escritorio envía los archivos directamente a tu almacenamiento, sin límite de tamaño.",
-      "allowanceTitle": "Has usado las transferencias web de este mes",
-      "allowanceBody": "{used} de {limit}. Se restablece el {date}. La app de escritorio no tiene límite.",
-      "allowanceBodyNoDate": "{used} de {limit}. La app de escritorio no tiene límite.",
+      "allowanceTitle": "Has usado el cupo de transferencia de este mes",
+      "allowanceBody": "{used} de {limit}. Se restablece el {date}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "allowanceBodyNoDate": "{used} de {limit}. Lo que va directo a tu propio almacenamiento no cuenta.",
       "hint": "Abre la app y suelta {count, plural, one {el archivo} other {los archivos}} allí.",
       "more": "y {count} más",
       "open": "Abrir la app de escritorio",
@@ -1056,7 +1097,28 @@
       "get": "Descargar la app de escritorio",
       "missing": "¿No aparece? Descarga la app de escritorio",
       "missingNote": "No se abrió nada, así que puede que la app aún no esté en este dispositivo.",
-      "notNow": "Ahora no"
+      "notNow": "Ahora no",
+      "dailyTitle": "Has usado el cupo de transferencia de hoy",
+      "dailyBody": "Hoy {used} de {limit}. Se restablece a las {time}. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "dailyBodyNoTime": "Hoy {used} de {limit}. Se restablece a medianoche UTC. Lo que va directo a tu propio almacenamiento no cuenta.",
+      "dailyShortTitle": "No queda suficiente de hoy",
+      "allowanceShortTitle": "No queda suficiente de este mes",
+      "dailyShortBody": "Esto necesita {needed} a través de nuestro servidor y quedan {left} de los {limit} de hoy. Se restablece a las {time}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta.",
+      "allowanceShortBody": "Esto necesita {needed} a través de nuestro servidor y quedan {left} de los {limit} de este mes. Se restablece el {date}. La app de escritorio descarga directamente de tu almacenamiento, así que no cuenta."
+    },
+    "lowAllowance": {
+      "title": "Tu cupo de transferencia se está acabando",
+      "bodyDaily": "Solo quedan {remaining} del cupo de hoy. Se restablece a las {time}. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "bodyDailyNoTime": "Solo quedan {remaining} del cupo de hoy. Se restablece a medianoche UTC. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "bodyMonthly": "Solo quedan {remaining} del cupo de este mes. Se restablece el {date}. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "bodyMonthlyNoDate": "Solo quedan {remaining} del cupo de este mes. Las subidas directas a tu propio almacenamiento no lo gastan.",
+      "seeUsage": "Ver el uso"
+    },
+    "humanCheck": {
+      "title": "Comprobación rápida",
+      "body": "Has creado muchos enlaces en poco tiempo. Confirma que eres una persona y se creará tu enlace.",
+      "checking": "Comprobando…",
+      "cancel": "Cancelar"
     }
   }
 }

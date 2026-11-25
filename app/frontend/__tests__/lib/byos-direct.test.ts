@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformStatus, RepoInfo } from "@/types";
+import { PausedError } from "@/lib/transport";
+import { TelegramApiError } from "@/lib/telegram-direct";
 
 const m = vi.hoisted(() => ({
   getPlatformCredentials: vi.fn(),
@@ -107,6 +109,15 @@ describe("resolveWebDirect", () => {
     expect(await d.resolveWebDirect("telegram")).toBeNull();
   });
 
+  it("goes direct again once Telegram answered after an earlier fallback", async () => {
+    const d = await load();
+    d.disableWebDirect();
+    expect(await d.resolveWebDirect("telegram")).toBeNull();
+    d.enableWebDirect();
+    expect(d.isWebDirectDisabled()).toBe(false);
+    expect(await d.resolveWebDirect("telegram")).toEqual(TARGET);
+  });
+
   it("refetches the token after sign-out cleared it", async () => {
     const d = await load();
     await d.resolveWebDirect("telegram");
@@ -125,6 +136,45 @@ describe("resolveWebDirect", () => {
     finish(CREDS);
     expect(await pending).toEqual(TARGET);
     expect(d.cachedPlatformCredentials("telegram")).toBeUndefined();
+  });
+});
+
+describe("directPossible", () => {
+  it("is true for Telegram or Auto with an owned Telegram and a loadable token, whatever the network does", async () => {
+    const d = await load();
+    m.probeTelegram.mockResolvedValue("blocked");
+    expect(await d.directPossible("telegram")).toBe(true);
+    expect(await d.directPossible(undefined)).toBe(true);
+    expect(m.probeTelegram).not.toHaveBeenCalled();
+  });
+
+  it("is false for another platform without asking for the platform status", async () => {
+    const d = await load();
+    expect(await d.directPossible("github")).toBe(false);
+    expect(m.ensurePlatformStatus).not.toHaveBeenCalled();
+  });
+
+  it("is false when the only Telegram is shared", async () => {
+    const d = await load();
+    m.ensurePlatformStatus.mockResolvedValue([{ ...OWN_TELEGRAM, is_global: true }]);
+    expect(await d.directPossible("telegram")).toBe(false);
+    expect(m.getPlatformCredentials).not.toHaveBeenCalled();
+  });
+
+  it("is false when the token cannot be fetched", async () => {
+    const d = await load();
+    m.getPlatformCredentials.mockRejectedValue(new Error("404"));
+    expect(await d.directPossible("telegram")).toBe(false);
+  });
+});
+
+describe("ReconnectTelegramError", () => {
+  it("is a named Error carrying its message", async () => {
+    const d = await load();
+    const err = new d.ReconnectTelegramError("reconnect please");
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe("ReconnectTelegramError");
+    expect(err.message).toBe("reconnect please");
   });
 });
 
@@ -217,18 +267,51 @@ describe("pushDirectChunk", () => {
     });
   });
 
-  it("tries the whole push twice, half a second apart", async () => {
+  it("tries the whole push twice when a failure is transient", async () => {
     vi.useFakeTimers();
     const d = await load();
-    m.uploadTelegramChunk.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce("6:G");
+    m.uploadTelegramChunk
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce("6:G");
     const pending = d.pushDirectChunk(TARGET as never, data);
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(await pending).toBe("6:G");
 
-    m.uploadTelegramChunk.mockRejectedValue(new Error("still down"));
+    m.uploadTelegramChunk.mockRejectedValue(new TypeError("still down"));
     const failing = d.pushDirectChunk(TARGET as never, data).catch((e: unknown) => e);
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(((await failing) as Error).message).toBe("still down");
+  });
+
+  it("does not push again after a refusal that retrying cannot fix", async () => {
+    const d = await load();
+    m.uploadTelegramChunk.mockRejectedValue(new TelegramApiError("chat not found", 400, 0));
+    await expect(d.pushDirectChunk(TARGET as never, data)).rejects.toThrow("chat not found");
+    expect(m.uploadTelegramChunk).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks shouldStop before pushing again", async () => {
+    vi.useFakeTimers();
+    const d = await load();
+    let stop = false;
+    m.uploadTelegramChunk.mockImplementation(async () => {
+      stop = true;
+      throw new TypeError("offline");
+    });
+    const pending = d.pushDirectChunk(TARGET as never, data, { shouldStop: () => stop });
+    const settled = pending.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await settled).toMatchObject({ name: "PausedError" });
+    expect(m.uploadTelegramChunk).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes a pushed chunk's messages on request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const d = await load();
+    await d.discardDirectChunk(TARGET as never, "8:F1,9:F2");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
   });
 
   it("fails a first chunk fast when Telegram never answers", async () => {
@@ -242,9 +325,9 @@ describe("pushDirectChunk", () => {
 
   it("never retries a pause", async () => {
     const d = await load();
-    m.uploadTelegramChunk.mockRejectedValue(new Error("Upload paused"));
+    m.uploadTelegramChunk.mockRejectedValue(new PausedError());
     await expect(d.pushDirectChunk(TARGET as never, data)).rejects.toThrow("Upload paused");
     expect(m.uploadTelegramChunk).toHaveBeenCalledTimes(1);
-    expect(d.isDirectUnreachable(new Error("Upload paused"))).toBe(false);
+    expect(d.isDirectUnreachable(new PausedError())).toBe(false);
   });
 });

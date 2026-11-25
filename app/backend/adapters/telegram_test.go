@@ -187,8 +187,8 @@ func TestTelegramDownloadToSurfacesAFailedPart(t *testing.T) {
 
 	var buf strings.Builder
 	_, err := tg.DownloadTo(context.Background(), types.ChunkRef{RemotePath: "1:A"}, &buf)
-	if err == nil || !strings.Contains(err.Error(), "download returned 404") {
-		t.Fatalf("expected a 404 error, got %v", err)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound on a 404 download, got %v", err)
 	}
 	if _, err := tg.Download(context.Background(), types.ChunkRef{RemotePath: "bad"}); err == nil {
 		t.Fatal("expected a parse error for a malformed part ref")

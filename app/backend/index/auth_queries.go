@@ -305,6 +305,17 @@ func (db *DB) GetUserStorageUsed(ctx context.Context, userID string) (int64, err
 	return used, err
 }
 
+// GetUserSharedStorageUsed is GetUserStorageUsed limited to files on the
+// shared pool, the usage the shared cap applies to.
+func (db *DB) GetUserSharedStorageUsed(ctx context.Context, userID string) (int64, error) {
+	var used int64
+	err := db.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`+sharedFilesOnly,
+		userID,
+	).Scan(&used)
+	return used, err
+}
+
 // UserHasPersonalTokens returns true if the user has any non-global platform tokens.
 func (db *DB) UserHasPersonalTokens(ctx context.Context, userID string) (bool, error) {
 	var exists bool
@@ -342,15 +353,15 @@ func (db *DB) SetSystemSetting(ctx context.Context, key, value string) error {
 // insertSessionRowSQL stores a refresh token and, in the same statement,
 // records it as the user's latest sign-in place and time.
 const insertSessionRowSQL = `WITH ins AS (
-	INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at, decoy, country, region, city)
-	 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()), $9, $10, $11, $12)
+	INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent, session_id, session_started_at, decoy, country, region, city, client)
+	 VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, $1::uuid), COALESCE($8, NOW()), $9, $10, $11, $12, $13)
 	 RETURNING user_id)
-	UPDATE users SET last_seen_at = NOW(), last_ip_prefix = $5, last_user_agent = $6,
+	UPDATE users SET last_seen_at = NOW(), last_ip_prefix = $5, last_user_agent = $6, last_client = $13,
 	       last_country = $10, last_region = $11, last_city = $12
 	 WHERE id = (SELECT user_id FROM ins)`
 
 func refreshTokenArgs(rt *types.RefreshToken) []any {
-	return []any{rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt), rt.Decoy, rt.Country, rt.Region, rt.City}
+	return []any{rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent, rt.SessionID, nullTime(rt.SessionStartedAt), rt.Decoy, rt.Country, rt.Region, rt.City, rt.Client}
 }
 
 // InsertRefreshToken stores a refresh token hash with client binding.
@@ -402,12 +413,12 @@ func (db *DB) GetRefreshTokenByHash(ctx context.Context, hash string) (*types.Re
 	row := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, token_hash, expires_at, created_at,
 		        COALESCE(ip, ''), COALESCE(user_agent, ''),
-		        COALESCE(session_id, id)::text, session_started_at, decoy, country, region, city
+		        COALESCE(session_id, id)::text, session_started_at, decoy, country, region, city, client
 		 FROM refresh_tokens WHERE token_hash = $1`, hash,
 	)
 	rt := &types.RefreshToken{}
 	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent,
-		&rt.SessionID, &rt.SessionStartedAt, &rt.Decoy, &rt.Country, &rt.Region, &rt.City)
+		&rt.SessionID, &rt.SessionStartedAt, &rt.Decoy, &rt.Country, &rt.Region, &rt.City, &rt.Client)
 	if err != nil {
 		return nil, fmt.Errorf("get refresh token: %w", err)
 	}

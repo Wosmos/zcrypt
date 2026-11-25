@@ -109,7 +109,7 @@ describe("DurabilityAlert with DurabilityAlert", () => {
     await waitFor(() => {
       expect(screen.getAllByText("alice").length).toBeGreaterThan(0);
     });
-    expect(screen.getByText("alice@example.com").closest("a")).toHaveAttribute("href", "/admin/users/u1");
+    expect(screen.getByText("alice@example.com").closest("a")).toHaveAttribute("href", "/admin/users/_?id=u1");
     expect(screen.getByText("2 stuck chunks", { selector: "span" })).toBeInTheDocument();
   });
 

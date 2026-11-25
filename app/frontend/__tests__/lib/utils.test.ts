@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  currentYear,
+  formatSizeBand,
   cn,
   formatBytes,
   formatDate,
@@ -50,6 +52,19 @@ describe("chunk", () => {
 
   it("returns a single row when size exceeds the item count", () => {
     expect(chunk([1, 2], 5)).toEqual([[1, 2]]);
+  });
+});
+
+describe("formatSizeBand", () => {
+  it("shows a public 1-2-5 band as the round decimal number it is", () => {
+    expect(formatSizeBand(50_000_000)).toBe("50 MB");
+    expect(formatSizeBand(2_000)).toBe("2 KB");
+    expect(formatSizeBand(5_000_000_000)).toBe("5 GB");
+  });
+
+  it("handles empty and tiny sizes", () => {
+    expect(formatSizeBand(0)).toBe("0 B");
+    expect(formatSizeBand(1)).toBe("1 B");
   });
 });
 
@@ -290,5 +305,17 @@ describe("midTrunc", () => {
   });
   it("respects custom start/end lengths", () => {
     expect(midTrunc("abcdefghijklmnop.txt", 3, 2)).toBe("abc…op.txt");
+  });
+});
+
+describe("currentYear", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reads the clock when called, not when the module loaded", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2031-06-01T00:00:00Z"));
+    expect(currentYear()).toBe(2031);
   });
 });

@@ -144,9 +144,10 @@ export const queryPersister: Persister = {
 };
 
 // Restored lists paint instantly but may predate changes made elsewhere while
-// the tab was closed. The never-stale classes are marked stale once, so each
-// refetches the first time it is active again.
-const RESTORE_REVALIDATE = new Set(["files", "folders", "analytics"]);
+// the tab was closed. They are marked stale once, so each refetches the first
+// time it is active again. Quota carries the transfer allowance, which other
+// devices and share downloads spend.
+const RESTORE_REVALIDATE = new Set(["files", "folders", "analytics", "quota"]);
 
 export function revalidateRestored(): Promise<void> {
   return queryClient.invalidateQueries({

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { registerWithBreachCheck, login as loginApi } from "@/lib/auth-api";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
-import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthStatusCard, emphasizeEmail } from "@/components/auth/auth-status-card";
 import { AuthLink } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
@@ -17,6 +17,7 @@ import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { useFriendlyError } from "@/hooks/useConnectivity";
 import { authScene } from "@/components/auth/auth-scene";
+import { useTurnstile } from "@/components/auth/turnstile";
 import { User, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 
 export default function RegisterPage() {
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const t = useTranslations("auth");
   const tr = useTranslations("auth.register");
   const friendlyError = useFriendlyError();
+  const turnstile = useTurnstile();
   const { setUser, setTokens } = useAuthStore();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -40,7 +42,14 @@ export default function RegisterPage() {
     setLoading(true);
     authScene.sealing();
     try {
-      const res = await registerWithBreachCheck(email, username, password, force);
+      const res = await registerWithBreachCheck(
+        email,
+        username,
+        password,
+        force,
+        await turnstile.getToken(),
+      );
+      turnstile.reset();
 
       if (res.requires === "force" && res.warning && !force) {
         setBreachWarning({ message: res.warning, count: res.breach_count ?? 0 });
@@ -53,7 +62,7 @@ export default function RegisterPage() {
       authScene.done();
 
       if (res.user?.email_verified) {
-        const loginRes = await loginApi(email, password);
+        const loginRes = await loginApi(email, password, await turnstile.getToken());
         if (loginRes.access_token && loginRes.refresh_token) {
           setTokens(loginRes.access_token, loginRes.refresh_token);
           if (loginRes.user) {
@@ -73,6 +82,7 @@ export default function RegisterPage() {
       authScene.failed();
       toast.error(friendlyError(err, tr("failed")));
     } finally {
+      turnstile.reset();
       setLoading(false);
     }
   };
@@ -127,7 +137,7 @@ export default function RegisterPage() {
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           {tr.rich("verifySent", {
             email,
-            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+            b: emphasizeEmail,
           })}
         </p>
       </AuthStatusCard>
@@ -200,6 +210,8 @@ export default function RegisterPage() {
             {tr("createAccount")}
           </SubmitButton>
         </form>
+
+        {turnstile.widget}
 
         <OAuthButtons />
       </div>

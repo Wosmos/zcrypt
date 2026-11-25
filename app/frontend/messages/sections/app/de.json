@@ -164,7 +164,9 @@
         "choose": "Speicherort wählen",
         "paused": "Pausiert",
         "offline": "Wartet auf WLAN",
-        "stopped": "Gestoppt"
+        "stopped": "Gestoppt",
+        "waitingTelegram": "Telegram ist in diesem Netzwerk gesperrt. Schalte ein VPN ein, dann geht es von selbst weiter.",
+        "waitingAllowance": "Das Übertragungskontingent ist aufgebraucht. Schalte ein VPN ein, um direkt an Telegram zu senden, dann geht es von selbst weiter."
       },
       "time": {
         "fewSeconds": "ein paar Sekunden",
@@ -201,9 +203,11 @@
         "saved": "{count} in {folder} gespeichert.",
         "savedSomeFailed": "{count} in {folder} gespeichert. {failed} konnten nicht gesendet werden.",
         "allFailed": "{failed} konnten nicht gesendet werden.",
+        "allDownloadsFailed": "{failed} konnten nicht geladen werden.",
         "downloaded": "{count} heruntergeladen.",
         "downloadedSomeFailed": "{count} heruntergeladen. {failed} konnten nicht geladen werden.",
-        "needsApp": "{count, plural, one {# Datei braucht} other {# Dateien brauchen}} die Desktop-App."
+        "needsApp": "{count, plural, one {# Datei braucht} other {# Dateien brauchen}} die Desktop-App.",
+        "blocked": "{count, plural, one {# Datei wartet} other {# Dateien warten}} auf Telegram. Schalte ein VPN ein, dann geht es von selbst weiter."
       },
       "legend": {
         "done": "Fertig",
@@ -228,9 +232,11 @@
       "orb": "Übertragungen, noch {left}. Tippen zum Öffnen, gedrückt halten zum Pausieren oder Fortsetzen.",
       "needsApp": {
         "tooBig": "Zu groß für den Browser",
-        "allowance": "Web-Übertragungen für diesen Monat aufgebraucht",
-        "action": "App nutzen"
-      }
+        "allowance": "Über dem Übertragungskontingent des Monats",
+        "action": "App nutzen",
+        "daily": "Über dem heutigen Übertragungskontingent"
+      },
+      "tryAgain": "Erneut versuchen"
     },
     "tokens": {
       "expired": "Abgelaufen",
@@ -911,6 +917,9 @@
     "toasts": {
       "restartUpload": "Der vorherige Upload von „{name}“ konnte nicht fortgesetzt werden, Neustart auf {platform}.",
       "directResumeElsewhere": "„{name}“ wurde direkt in dein eigenes {platform} hochgeladen und kann in diesem Browser nicht abgeschlossen werden. Entferne es und lade es erneut hoch.",
+      "reconnectTelegram": "Verbinde Telegram erneut, um \"{name}\" fertig hochzuladen.",
+      "reconnectTelegramAction": "Speichereinstellungen öffnen",
+      "downloadInterrupted": "Durch das Neuladen abgebrochen: {names}. Ein Download kann nach dem Neuladen nicht fortgesetzt werden, starte ihn bitte neu.",
       "andMore": "und {count} weitere",
       "tooBig": "{names} {count, plural, one {überschreitet das Limit von} other {überschreiten das Limit von}} {limit} pro Datei.",
       "uploaded": "{name} hochgeladen",
@@ -934,12 +943,16 @@
       "zipWrongPassword": "Falsches Ordnerpasswort in diesem ZIP. Versuche es erneut, um es neu einzugeben.",
       "zipFilesLabel": "{count, plural, one {# Datei (ZIP)} other {# Dateien (ZIP)}}",
       "webFileTooLarge": "Dateien über {limit} können nicht im Browser hochgeladen werden. Große Dateien gehören in die Desktop-App: Sie ist schneller, arbeitet im Hintergrund weiter und hat keine Größenbeschränkung.",
-      "webAllowanceUsed": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Es wird am {date} zurückgesetzt. Die Desktop-App hat kein Limit.",
-      "webAllowanceUsedNoDate": "Du hast dein Kontingent von {limit} für Web-Übertragungen in diesem Monat aufgebraucht. Die Desktop-App hat kein Limit.",
+      "webAllowanceUsed": "Du hast dein Übertragungskontingent von {limit} für diesen Monat aufgebraucht. Es wird am {date} zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "webAllowanceUsedNoDate": "Du hast dein Übertragungskontingent von {limit} für diesen Monat aufgebraucht. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
       "getDesktopApp": "Desktop-App holen",
       "openDesktopApp": "Desktop-App öffnen",
       "desktopAppMissing": "Die Desktop-App ließ sich nicht öffnen. Noch nicht installiert?",
-      "downloadDesktopApp": "Desktop-App herunterladen"
+      "downloadDesktopApp": "Desktop-App herunterladen",
+      "webDailyUsed": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um {time} zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "webDailyUsedNoTime": "Du hast dein heutiges Übertragungskontingent von {limit} aufgebraucht. Es wird um Mitternacht UTC zurückgesetzt. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "webDailyShort": "Dafür werden {needed} über unseren Server gebraucht, aber von den {limit} für heute sind nur noch {left} übrig. Sie werden um {time} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht.",
+      "webAllowanceShort": "Dafür werden {needed} über unseren Server gebraucht, aber von den {limit} für diesen Monat sind nur noch {left} übrig. Sie werden am {date} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht."
     },
     "l10n": {
       "justNow": "gerade eben",
@@ -1033,22 +1046,50 @@
       "newSignIn": "Neue Anmeldung bei deinem Konto",
       "newSignInBody": "{device}. Nicht du? Melde es in den Einstellungen ab.",
       "inviteReceived": "Du wurdest zu {space} eingeladen",
+      "inviteReceivedBy": "{name} hat dich zu {space} hinzugefügt",
       "inviteReceivedBody": "Öffne zcrypt, um anzunehmen oder abzulehnen.",
       "linkViewed": "Jemand hat deinen Link geöffnet",
       "storageFull": "Dein Speicher ist voll",
       "storageFullBody": "Neue Uploads warten, bis du Platz schaffst oder dein eigenes Konto verbindest.",
       "view": "Ansehen",
       "retry": "Erneut versuchen",
-      "open": "Öffnen"
+      "open": "Öffnen",
+      "invitePending": "{name} hat dich zu einem Space eingeladen",
+      "invitePendingBody": "Entsperre deinen Tresor, um beizutreten.",
+      "memberJoined": "{name} ist {space} beigetreten",
+      "memberLeft": "{name} hat {space} verlassen",
+      "memberRemoved": "Du wurdest aus {space} entfernt",
+      "roleChanged": "Deine Rolle in {space} ist jetzt {role}",
+      "spaceDeleted": "{space} wurde gelöscht",
+      "filesAdded": "{name} hat {count, plural, one {# Datei} other {# Dateien}} zu {space} hinzugefügt",
+      "someone": "Jemand",
+      "aSpace": "einem Space",
+      "backupTitle": "zcrypt-Backup",
+      "backupFilesOne": "{n} Datei gesichert",
+      "backupFilesOther": "{n} Dateien gesichert",
+      "backupFromOne": "{n} Datei aus {folder} gesichert",
+      "backupFromOther": "{n} Dateien aus {folder} gesichert",
+      "backupPhotosOne": "{n} Foto gesichert",
+      "backupPhotosOther": "{n} Fotos gesichert",
+      "backupSignedOut": "Backup gestoppt: bitte erneut anmelden",
+      "backupOffline": "Backup pausiert: keine Verbindung",
+      "backupFailedOne": "Backup konnte {n} Datei nicht hochladen",
+      "backupFailedOther": "Backup konnte {n} Dateien nicht hochladen",
+      "role": {
+        "owner": "Inhaber",
+        "admin": "Admin",
+        "editor": "Bearbeiter",
+        "viewer": "Betrachter"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Zu groß für den Browser",
       "tooBigManyTitle": "{count} Dateien sind zu groß für den Browser",
       "tooBigBody": "{name} ist {size} groß. Uploads im Browser sind auf {limit} begrenzt, weil sie über unsere Server laufen. Die Desktop-App schickt Dateien direkt in deinen Speicher, ohne Größenlimit.",
       "capBody": "Uploads im Browser sind auf {limit} begrenzt, weil sie über unsere Server laufen. Die Desktop-App schickt Dateien direkt in deinen Speicher, ohne Größenlimit.",
-      "allowanceTitle": "Deine Web-Übertragungen für diesen Monat sind aufgebraucht",
-      "allowanceBody": "{used} von {limit}. Am {date} geht es wieder von vorn los. Die Desktop-App hat kein Limit.",
-      "allowanceBodyNoDate": "{used} von {limit}. Die Desktop-App hat kein Limit.",
+      "allowanceTitle": "Dein Übertragungskontingent für diesen Monat ist aufgebraucht",
+      "allowanceBody": "{used} von {limit}. Am {date} geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "allowanceBodyNoDate": "{used} von {limit}. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
       "hint": "Öffne die App und zieh {count, plural, one {die Datei} other {die Dateien}} dort hinein.",
       "more": "und {count} weitere",
       "open": "Desktop-App öffnen",
@@ -1056,7 +1097,28 @@
       "get": "Desktop-App holen",
       "missing": "Nichts passiert? Desktop-App holen",
       "missingNote": "Es hat sich nichts geöffnet, die App ist auf diesem Gerät wohl noch nicht installiert.",
-      "notNow": "Nicht jetzt"
+      "notNow": "Nicht jetzt",
+      "dailyTitle": "Dein heutiges Übertragungskontingent ist aufgebraucht",
+      "dailyBody": "Heute {used} von {limit}. Um {time} geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "dailyBodyNoTime": "Heute {used} von {limit}. Um Mitternacht UTC geht es wieder von vorn los. Was direkt in deinen eigenen Speicher geht, zählt nicht mit.",
+      "dailyShortTitle": "Für heute ist nicht mehr genug übrig",
+      "allowanceShortTitle": "Für diesen Monat ist nicht mehr genug übrig",
+      "dailyShortBody": "Dafür werden {needed} über unseren Server gebraucht, von den {limit} für heute sind noch {left} übrig. Sie werden um {time} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht.",
+      "allowanceShortBody": "Dafür werden {needed} über unseren Server gebraucht, von den {limit} für diesen Monat sind noch {left} übrig. Sie werden am {date} zurückgesetzt. Die Desktop-App lädt direkt aus deinem Speicher, das zählt nicht."
+    },
+    "lowAllowance": {
+      "title": "Dein Übertragungskontingent wird knapp",
+      "bodyDaily": "Von deinem Tageskontingent sind nur noch {remaining} übrig. Es wird um {time} zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "bodyDailyNoTime": "Von deinem Tageskontingent sind nur noch {remaining} übrig. Es wird um Mitternacht UTC zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "bodyMonthly": "Von deinem Monatskontingent sind nur noch {remaining} übrig. Es wird am {date} zurückgesetzt. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "bodyMonthlyNoDate": "Von deinem Monatskontingent sind nur noch {remaining} übrig. Uploads direkt in deinen eigenen Speicher verbrauchen es nicht.",
+      "seeUsage": "Nutzung ansehen"
+    },
+    "humanCheck": {
+      "title": "Kurze Prüfung",
+      "body": "Du hast in kurzer Zeit viele Links erstellt. Bestätige, dass du ein Mensch bist, dann wird dein Link erstellt.",
+      "checking": "Wird geprüft…",
+      "cancel": "Abbrechen"
     }
   }
 }

@@ -4,7 +4,7 @@ import type { QuotaInfo } from "@/types";
 const h = vi.hoisted(() => ({
   tauri: false,
   quota: null as Partial<QuotaInfo> | null,
-  resolveWebDirect: vi.fn(),
+  directPossible: vi.fn(),
   show: vi.fn(),
 }));
 
@@ -14,7 +14,7 @@ vi.mock("@/lib/tauri", () => ({
   },
 }));
 vi.mock("@/store/quota", () => ({ getQuotaData: () => h.quota }));
-vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: h.resolveWebDirect }));
+vi.mock("@/lib/byos-direct", () => ({ directPossible: h.directPossible }));
 vi.mock("@/store/web-transfer-notice", () => ({
   useWebTransferNotice: { getState: () => ({ show: h.show }) },
 }));
@@ -27,7 +27,7 @@ const LIMIT = 2000;
 beforeEach(() => {
   h.tauri = false;
   h.quota = { relay_max_file_bytes: LIMIT };
-  h.resolveWebDirect.mockReset().mockResolvedValue(null);
+  h.directPossible.mockReset().mockResolvedValue(false);
   h.show.mockReset();
 });
 
@@ -38,18 +38,18 @@ describe("webFileLimitFor", () => {
     expect(err?.code).toBe(WebTransferLimitCode.FileTooLarge);
     expect(err?.info.limitBytes).toBe(LIMIT);
     expect(err?.status).toBe(413);
-    expect(h.resolveWebDirect).toHaveBeenCalledWith(undefined);
+    expect(h.directPossible).toHaveBeenCalledWith(undefined);
   });
 
-  it("lets a file go through that would upload straight to the user's own Telegram", async () => {
-    h.resolveWebDirect.mockResolvedValue({ platform: "telegram" });
+  it("lets a file go through that could upload straight to the user's own Telegram, even while it is unreachable", async () => {
+    h.directPossible.mockResolvedValue(true);
     expect(await webFileLimitFor(LIMIT + 1, "telegram")).toBeNull();
-    expect(h.resolveWebDirect).toHaveBeenCalledWith("telegram");
+    expect(h.directPossible).toHaveBeenCalledWith("telegram");
   });
 
   it("allows files at or under the limit without asking about direct uploads", async () => {
     expect(await webFileLimitFor(LIMIT, undefined)).toBeNull();
-    expect(h.resolveWebDirect).not.toHaveBeenCalled();
+    expect(h.directPossible).not.toHaveBeenCalled();
   });
 
   it("does nothing when there is no limit or the quota has not loaded", async () => {
@@ -59,18 +59,18 @@ describe("webFileLimitFor", () => {
     expect(await webFileLimitFor(LIMIT * 10, undefined)).toBeNull();
     h.quota = null;
     expect(await webFileLimitFor(LIMIT * 10, undefined)).toBeNull();
-    expect(h.resolveWebDirect).not.toHaveBeenCalled();
+    expect(h.directPossible).not.toHaveBeenCalled();
   });
 
   it("never holds back HuggingFace, which the browser uploads to directly", async () => {
     expect(await webFileLimitFor(LIMIT + 1, "huggingface")).toBeNull();
-    expect(h.resolveWebDirect).not.toHaveBeenCalled();
+    expect(h.directPossible).not.toHaveBeenCalled();
   });
 
   it("never holds back the desktop app", async () => {
     h.tauri = true;
     expect(await webFileLimitFor(LIMIT + 1, undefined)).toBeNull();
-    expect(h.resolveWebDirect).not.toHaveBeenCalled();
+    expect(h.directPossible).not.toHaveBeenCalled();
   });
 });
 

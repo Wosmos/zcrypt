@@ -30,6 +30,22 @@ describe("throwResponseError", () => {
     await expect(throwResponseError(res)).rejects.toThrow("quota exceeded");
   });
 
+  it("carries the server's machine-readable reason", async () => {
+    const res = {
+      status: 410,
+      text: async () => '{"error":"gone","reason":"chunk_missing"}',
+    } as unknown as Response;
+    await expect(throwResponseError(res)).rejects.toMatchObject({
+      status: 410,
+      reason: "chunk_missing",
+    });
+  });
+
+  it("has an empty reason when the body has none", async () => {
+    const res = { status: 500, text: async () => "boom" } as unknown as Response;
+    await expect(throwResponseError(res)).rejects.toMatchObject({ reason: "" });
+  });
+
   it("throws with the raw body for a non-JSON response", async () => {
     const res = { text: async () => "upstream timeout" } as unknown as Response;
     await expect(throwResponseError(res)).rejects.toThrow("upstream timeout");
@@ -51,5 +67,14 @@ describe("isNetworkFailure", () => {
     expect(isNetworkFailure(new ApiError("Wrong password", 401))).toBe(false);
     expect(isNetworkFailure("Failed to fetch")).toBe(false);
     expect(isNetworkFailure(null)).toBe(false);
+  });
+});
+
+describe("ApiError code", () => {
+  it("carries the server's machine-readable code, empty when absent", async () => {
+    const coded = { status: 404, text: async () => '{"code":"no_key","user_id":"u1"}' } as unknown as Response;
+    await expect(throwResponseError(coded)).rejects.toMatchObject({ status: 404, code: "no_key" });
+    const plain = { status: 500, text: async () => "boom" } as unknown as Response;
+    await expect(throwResponseError(plain)).rejects.toMatchObject({ code: "" });
   });
 });

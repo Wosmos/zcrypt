@@ -136,68 +136,6 @@ func (s *Server) HandleGetSharedVault(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(detail)
 }
 
-// HandleAddSharedVaultMember adds a member to a shared vault.
-// POST /api/shared-vaults/{id}/members
-func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID := GetUserID(r)
-	vaultID := r.PathValue("id")
-
-	actor := s.spaceActorRank(ctx, vaultID, userID)
-	if actor < spaceRoleAdmin {
-		http.Error(w, `{"error":"only the owner or an admin can add members"}`, http.StatusForbidden)
-		return
-	}
-
-	var req types.SharedVaultAddMemberRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
-		return
-	}
-
-	if req.Email == "" {
-		http.Error(w, `{"error":"email is required"}`, http.StatusBadRequest)
-		return
-	}
-	if req.Role == "" {
-		req.Role = types.SpaceRoleViewer
-	}
-	if !validSpaceRole(req.Role) {
-		http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
-		return
-	}
-	if actor < spaceRoleOwner {
-		if req.Role == types.SpaceRoleAdmin {
-			http.Error(w, `{"error":"only the owner can grant the admin role"}`, http.StatusForbidden)
-			return
-		}
-		existing, err := s.db.SharedVaultMemberRoleByEmail(ctx, vaultID, req.Email)
-		if err != nil {
-			http.Error(w, `{"error":"failed to add member"}`, http.StatusInternalServerError)
-			return
-		}
-		if existing == types.SpaceRoleAdmin {
-			http.Error(w, `{"error":"only the owner can change an admin"}`, http.StatusForbidden)
-			return
-		}
-	}
-
-	member, err := s.db.AddSharedVaultMember(ctx, vaultID, req.Email, req.Role, req.WrappedSpaceKey)
-	if err != nil {
-		log.Printf("shared-vaults: add member: %v", err)
-		http.Error(w, `{"error":"failed to add member (user may not exist)"}`, http.StatusBadRequest)
-		return
-	}
-
-	if member.UserID != userID {
-		s.pushToUser(member.UserID, pushMessage{Type: "inviteReceived", URL: "/spaces"})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(member)
-}
-
 // HandleAddSharedVaultFile shares a file into a space. The caller must be an
 // editor/admin member AND own the file (they hold the vault key needed to
 // re-wrap the file CEK under the space key). The server stores only the opaque
@@ -261,11 +199,16 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK, req.WrappedName); err != nil {
+	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK, req.WrappedName, req.KeyGeneration); err != nil {
+		if errors.Is(err, index.ErrStaleSpaceKey) {
+			staleSpaceKey(w)
+			return
+		}
 		log.Printf("shared-vaults: add file: %v", err)
 		http.Error(w, `{"error":"failed to add file"}`, http.StatusInternalServerError)
 		return
 	}
+	s.spaceFilesAdded(vaultID, userID, 1)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -404,13 +347,18 @@ func (s *Server) HandleAddSharedVaultFiles(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	added, err := s.db.AddSharedVaultFiles(ctx, vaultID, userID, toAdd)
+	added, err := s.db.AddSharedVaultFiles(ctx, vaultID, userID, req.KeyGeneration, toAdd)
 	if err != nil {
+		if errors.Is(err, index.ErrStaleSpaceKey) {
+			staleSpaceKey(w)
+			return
+		}
 		log.Printf("shared-vaults: batch add files: %v", err)
 		http.Error(w, `{"error":"failed to add files"}`, http.StatusInternalServerError)
 		return
 	}
 	result.Added = added
+	s.spaceFilesAdded(vaultID, userID, added)
 
 	writeJSON(w, http.StatusCreated, result)
 }
@@ -463,6 +411,7 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 		}
 	}
 
+	prior, _ := s.db.SharedVaultMemberStatus(ctx, vaultID, memberUID)
 	removed, err := s.db.RemoveSharedVaultMember(ctx, vaultID, memberUID)
 	if err != nil {
 		log.Printf("shared-vaults: remove member: %v", err)
@@ -473,13 +422,20 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 		http.Error(w, `{"error":"member not found or cannot be removed"}`, http.StatusNotFound)
 		return
 	}
+	s.spaceMemberGone(ctx, vaultID, memberUID, memberUID == userID, prior == "active")
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// staleSpaceKey refuses a write made with a space key a rotation has replaced;
+// the client drops its cached key, reloads its grant and tries again.
+func staleSpaceKey(w http.ResponseWriter) {
+	writeCodedError(w, http.StatusConflict, "stale_space_key", "the space key changed on another device")
+}
+
 // HandleRotateSharedVault re-keys a space after a membership change. The caller
-// (owner) generates a new space key client-side, seals it to every remaining
+// (owner or admin, who already hold the key) generates a new space key client-side, seals it to every remaining
 // member, and re-wraps every shared file's CEK under it; this endpoint just
 // stores the opaque results atomically. This is what makes member removal a
 // true revocation: a removed member gets no new grant and the re-wrapped files
@@ -490,8 +446,8 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
-	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleOwner {
-		http.Error(w, `{"error":"only the vault owner can rotate the space key"}`, http.StatusForbidden)
+	if s.spaceActorRank(ctx, vaultID, userID) < spaceRoleAdmin {
+		http.Error(w, `{"error":"only the owner or an admin can rotate the space key"}`, http.StatusForbidden)
 		return
 	}
 
@@ -518,7 +474,11 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 		req.Description = &d
 	}
 
-	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.Members, req.Files, req.Name, req.Description); err != nil {
+	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.KeyGeneration, req.Members, req.Files, req.Name, req.Description); err != nil {
+		if errors.Is(err, index.ErrStaleSpaceKey) {
+			staleSpaceKey(w)
+			return
+		}
 		if errors.Is(err, index.ErrRotationIncomplete) {
 			http.Error(w, `{"error":"rotation must cover every member and file"}`, http.StatusConflict)
 			return
@@ -527,6 +487,7 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 		http.Error(w, `{"error":"failed to rotate space key"}`, http.StatusInternalServerError)
 		return
 	}
+	s.spaceKeyRotated(ctx, vaultID, userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -544,11 +505,13 @@ func (s *Server) HandleDeleteSharedVault(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	former, _, _ := s.db.SharedVaultAudience(ctx, vaultID)
 	if err := s.db.DeleteSharedVault(ctx, userID, vaultID); err != nil {
 		log.Printf("shared-vaults: delete: %v", err)
 		http.Error(w, `{"error":"failed to delete vault"}`, http.StatusInternalServerError)
 		return
 	}
+	s.spaceDeleted(vaultID, userID, former)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -644,6 +607,7 @@ func (s *Server) HandleUpdateSharedVaultMemberRole(w http.ResponseWriter, r *htt
 		http.Error(w, `{"error":"member not found or cannot be changed"}`, http.StatusNotFound)
 		return
 	}
+	s.spaceRoleChanged(ctx, vaultID, memberUID, req.Role)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})

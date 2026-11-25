@@ -1,8 +1,8 @@
-import { test, expect, request, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { test, expect, request, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { execFileSync } from "child_process";
 import { createHash, randomBytes } from "crypto";
 import fs from "fs";
-import { loginUser, registerUser, testEmail } from "./helpers";
+import { loginUser, registerUser, skipTourIfShown, testEmail, testUsername } from "./helpers";
 
 // End-to-end smoke of the core product on the isolated stack. Storage is an
 // in-memory mock platform that the backend exposes only in an integration-tagged
@@ -75,17 +75,6 @@ function promoteToAdmin(adminEmail: string): boolean {
   }
 }
 
-async function skipTourIfShown(p: Page) {
-  const skip = p.getByRole("button", { name: "Skip tour" });
-  try {
-    await skip.waitFor({ state: "visible", timeout: 1_500 });
-    await skip.click();
-    await skip.waitFor({ state: "hidden" });
-  } catch {
-    return;
-  }
-}
-
 async function freshContext(browser: Browser): Promise<BrowserContext> {
   return browser.newContext({ acceptDownloads: true });
 }
@@ -121,22 +110,14 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
   }
 }
 
-async function dragOnto(page: Page, source: Locator, target: Locator) {
-  const from = (await source.boundingBox())!;
-  const to = (await target.boundingBox())!;
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2 + 12, { steps: 4 });
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
-  await page.mouse.move(to.x + to.width / 2 + 2, to.y + to.height / 2 + 2, { steps: 3 });
-  await page.mouse.up();
-}
-
 async function adminPage(browser: Browser): Promise<Page | null> {
   const adminEmail = testEmail("smoke-admin");
   const ctx = await freshContext(browser);
   const p = await ctx.newPage();
-  await registerUser(p, adminEmail, PASSWORD);
+  const reg = await p.request.post(`${API_URL}/api/auth/register`, {
+    data: { email: adminEmail, password: PASSWORD, username: testUsername("smokeadmin") },
+  });
+  expect(reg.ok(), `admin register: ${reg.status()}`).toBeTruthy();
   if (!promoteToAdmin(adminEmail)) {
     await ctx.close();
     return null;
@@ -156,6 +137,8 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     const res = await probe.post(`${API_URL}/api/dev/mock-storage`);
     await probe.dispose();
     // 401 means the route exists (auth required); 404/405 means a build without it.
+    // CI always starts that build, so there a missing route is a failure, not a skip.
+    if (process.env.CI) expect(res.status(), "backend has no mock storage").toBe(401);
     test.skip(res.status() !== 401, "backend has no mock storage (needs -tags=integration and DEV_MODE=true)");
 
     const context = await browser.newContext({ acceptDownloads: true });
@@ -226,9 +209,14 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await expect(folder).toBeVisible();
     await uploadViaUI(page, dragFiles);
 
+    // Native drag and drop. A drag that a slow runner drops before the folder
+    // registers it is tried again; the check is that the file left the root.
     for (const f of dragFiles) {
-      await dragOnto(page, page.getByText(f.name, { exact: true }).first(), folder);
-      await expect(page.getByText(f.name, { exact: true })).toHaveCount(0, { timeout: 10_000 });
+      const item = page.getByText(f.name, { exact: true });
+      await expect(async () => {
+        if (await item.count()) await item.first().dragTo(folder);
+        await expect(item).toHaveCount(0, { timeout: 3_000 });
+      }).toPass({ timeout: 30_000 });
     }
 
     await folder.click();
@@ -392,6 +380,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     await expect(page.getByText("Bug report sent. Thank you.").first()).toBeVisible({ timeout: 10_000 });
 
     const admin = await adminPage(browser);
+    if (process.env.CI) expect(admin, "psql could not promote an admin").not.toBeNull();
     if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
     try {
       await admin!.goto("/admin/reports");
@@ -421,6 +410,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
     expect(JSON.stringify(pending)).not.toContain(quote);
 
     const admin = await adminPage(browser);
+    if (process.env.CI) expect(admin, "psql could not promote an admin").not.toBeNull();
     if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
     try {
       await admin!.goto("/admin/reviews");

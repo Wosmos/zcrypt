@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { cn, formatBytes } from "@/lib/utils";
-import { Role } from "@/types";
 import { usePreferencesStore } from "@/store/preferences";
 import {
   Settings,
@@ -46,6 +45,7 @@ import { fetchAdminOverview } from "@/hooks/useAdminGuardedFetch";
 import { listSharedVaults } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { showsAdmin } from "@/lib/build-target";
 
 // Warm a page's data on hover/focus of its nav link, so the click lands on a
 // cache hit. prefetchQuery is a no-op for anything still fresh.
@@ -53,11 +53,15 @@ const prefetchers: Record<string, () => Promise<unknown>> = {
   "/dashboard": prefetchVault,
   "/analytics": prefetchAnalytics,
   "/spaces": () => queryClient.prefetchQuery({ queryKey: qk.spaces, queryFn: listSharedVaults }),
-  "/admin": () =>
-    queryClient.prefetchQuery({
-      queryKey: qk.adminOverview(30),
-      queryFn: () => fetchAdminOverview(30),
-    }),
+  ...(process.env.NEXT_PUBLIC_NATIVE_BUILD !== "1"
+    ? {
+        "/admin": () =>
+          queryClient.prefetchQuery({
+            queryKey: qk.adminOverview(30),
+            queryFn: () => fetchAdminOverview(30),
+          }),
+      }
+    : {}),
 };
 
 const TOUR_NAV: Record<string, string> = {
@@ -155,7 +159,7 @@ export function Sidebar() {
   const vault = useVaultLockContext();
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
 
-  const isAdmin = user?.role === Role.Admin;
+  const isAdmin = showsAdmin(user?.role);
   const secondaryLinks = useMemo(() => {
     const items: (
       | typeof settingsLink

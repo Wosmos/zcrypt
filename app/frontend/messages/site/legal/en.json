@@ -34,7 +34,7 @@
         "l2": "An optional display name and profile picture, stored as an inline image.",
         "l3": "If you turn on two-factor sign-in: the authenticator secret and hashed backup codes. If you sign in with Google or GitHub: the provider's account ID.",
         "l4": "Sessions: for each signed-in device, a hashed refresh token, a shortened IP address (the last part removed: /24 for IPv4, /48 for IPv6) and the browser's user agent. You can see these and sign devices out in Settings.",
-        "l4b": "Approximate location: from the IP address of your requests we work out a country, region and city, and store it with your account (where you signed up and where you last signed in). We use it for security, to spot unusual sign-ins, and for aggregate country statistics. The lookup runs on our own server against a bundled copy of a free database, so your IP address is never sent to anyone else for this. The IP kept with each session stays shortened, as above.",
+        "l4b": "Approximate location: we work out a country, region and city for your requests and store it with your account (where you signed up and where you last signed in). It comes from the location Cloudflare, our network provider, attaches to each request, or, when there is none, from a lookup on our own server against a bundled copy of a free database, for which your IP address is not sent anywhere else. We use it for security, to spot unusual sign-ins, and for aggregate country statistics. The IP kept with each session stays shortened, as above.",
         "h2": "Files and sharing",
         "l5": "Per file: encrypted size, chunk count, timestamps, which folder it is in, the sealed name and the wrapped key that unlocks it. Per chunk: where the encrypted piece is stored.",
         "l6": "Spaces: who is a member and their role. Share links: view counts, expiry and an optional bcrypt-hashed password.",
@@ -47,7 +47,7 @@
         "l11": "Reviews and feedback: your text, rating and display name. A review is only shown publicly if you allow it and it is approved.",
         "l12": "Dead-man switch, if you set one up: a contact's email and name, your message and a timeout. These are stored unencrypted and emailed to your contact by our server if you stop checking in.",
         "h5": "Not collected",
-        "l13": "We do not run advertising or marketing trackers. We do not use Google Analytics, Sentry, PostHog or similar tools. The website uses Vercel Web Analytics for aggregate page-view statistics."
+        "l13": "We do not run advertising or marketing trackers. We do not use Google Analytics, Sentry, PostHog or similar tools. The website uses Cloudflare Web Analytics for aggregate page-view statistics."
       },
       "s4": {
         "t": "Your storage accounts, and ours",
@@ -60,8 +60,8 @@
         "t": "Who else handles data",
         "p1": "These services process data on our behalf. We list only the ones that exist today.",
         "l1": "<strong>Neon</strong>: our PostgreSQL database (AWS, us-east-1). Holds everything in the sections above, but no file contents.",
-        "l2": "<strong>Vercel</strong>: hosts the website and web app, and provides Web Analytics.",
-        "l3": "<strong>Our backend server</strong>, reached through <strong>Cloudflare</strong>. Cloudflare sees traffic to our API and tells us your country, which we use only to suggest a language and do not store. The server host may change over time.",
+        "l2": "<strong>Cloudflare</strong>: hosts the website and web app, and provides Web Analytics.",
+        "l3": "<strong>Our backend server</strong>. The website talks to it directly; the desktop and Android apps reach it through <strong>Cloudflare</strong>, which tells us the approximate location of each request (country, region and city). Otherwise we look the address up in DB-IP's free location database on our own server. We use the location to suggest a language and store it as your approximate location, as described above. The server host may change over time.",
         "l4": "<strong>Resend</strong>: sends our emails: verification, magic sign-in links, password resets, new-device notices, account deletion notices and dead-man switch messages. They see the recipient address and message.",
         "l5": "<strong>Google and GitHub</strong>, only if you choose to sign in with them.",
         "l6": "<strong>GitHub, GitLab, Hugging Face and Telegram</strong>, as storage platforms (above).",

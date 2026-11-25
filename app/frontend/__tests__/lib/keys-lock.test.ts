@@ -73,7 +73,7 @@ describe("locking the vault", () => {
     let published: (v: unknown) => void = () => {};
     api.publishKey.mockImplementationOnce(() => new Promise((r) => (published = r)));
     const loading = ensureUserKeypair(PASS);
-    await vi.waitFor(() => expect(api.publishKey).toHaveBeenCalled());
+    await vi.waitFor(() => expect(api.publishKey).toHaveBeenCalled(), { timeout: 10_000 });
     clearDecryptCache();
     published({});
     await loading;

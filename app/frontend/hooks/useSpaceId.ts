@@ -1,14 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { resolveSpaceId } from "@/lib/space-routes";
-
-const noop = () => () => {};
-const currentSearch = () => window.location.search;
 
 export function useSpaceId(): string {
   const { id } = useParams<{ id: string }>();
-  const search = useSyncExternalStore(noop, currentSearch, () => "");
-  return resolveSpaceId(id, search);
+  const search = useSearchParams();
+  return resolveSpaceId(id, search.toString());
 }

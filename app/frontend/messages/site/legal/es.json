@@ -34,7 +34,7 @@
         "l2": "Un nombre para mostrar y una foto de perfil opcionales, almacenada como imagen incrustada.",
         "l3": "Si activas el inicio de sesión en dos pasos: el secreto del autenticador y los códigos de respaldo con hash. Si inicias sesión con Google o GitHub: el ID de cuenta del proveedor.",
         "l4": "Sesiones: por cada dispositivo con sesión iniciada, un token de actualización con hash, una dirección IP acortada (se elimina la última parte: /24 para IPv4, /48 para IPv6) y el agente de usuario del navegador. Puedes verlas y cerrar sesión en dispositivos desde Ajustes.",
-        "l4b": "Ubicación aproximada: a partir de la dirección IP de tus solicitudes deducimos un país, una región y una ciudad, y las guardamos con tu cuenta (dónde te registraste y dónde iniciaste sesión por última vez). La usamos para la seguridad, para detectar inicios de sesión inusuales y para estadísticas agregadas por país. La consulta se hace en nuestro propio servidor con una copia incluida de una base de datos gratuita, así que tu dirección IP no se envía a nadie más para esto. La IP que se guarda con cada sesión sigue acortada, como se indica arriba.",
+        "l4b": "Ubicación aproximada: calculamos un país, una región y una ciudad para tus solicitudes y los guardamos con tu cuenta (dónde te registraste y dónde iniciaste sesión por última vez). Proceden de la ubicación que Cloudflare, nuestro proveedor de red, añade a cada solicitud o, si no la hay, de una consulta en nuestro propio servidor contra una copia incluida de una base de datos gratuita, para la que tu dirección IP no se envía a ningún otro sitio. La usamos por seguridad, para detectar inicios de sesión inusuales, y para estadísticas agregadas por país. La IP guardada con cada sesión sigue acortada, como se indica arriba.",
         "h2": "Archivos y uso compartido",
         "l5": "Por archivo: tamaño cifrado, número de fragmentos, marcas de tiempo, en qué carpeta está, el nombre sellado y la clave envuelta que lo desbloquea. Por fragmento: dónde se almacena la pieza cifrada.",
         "l6": "Spaces: quién es miembro y su rol. Enlaces compartidos: número de vistas, vencimiento y una contraseña opcional con hash bcrypt.",
@@ -47,7 +47,7 @@
         "l11": "Reseñas y comentarios: tu texto, valoración y nombre para mostrar. Una reseña solo se muestra públicamente si lo permites y es aprobada.",
         "l12": "Interruptor de hombre muerto, si lo configuras: el correo y nombre de un contacto, tu mensaje y un tiempo de espera. Se almacenan sin cifrar y nuestro servidor los envía por correo a tu contacto si dejas de registrar tu presencia.",
         "h5": "Lo que no recopilamos",
-        "l13": "No usamos rastreadores publicitarios ni de marketing. No usamos Google Analytics, Sentry, PostHog ni herramientas similares. El sitio web usa Vercel Web Analytics para estadísticas agregadas de visitas a páginas."
+        "l13": "No usamos rastreadores publicitarios ni de marketing. No usamos Google Analytics, Sentry, PostHog ni herramientas similares. El sitio web usa Cloudflare Web Analytics para estadísticas agregadas de visitas a páginas."
       },
       "s4": {
         "t": "Tus cuentas de almacenamiento, y las nuestras",
@@ -60,8 +60,8 @@
         "t": "Quién más trata datos",
         "p1": "Estos servicios tratan datos en nuestro nombre. Enumeramos solo los que existen hoy.",
         "l1": "<strong>Neon</strong>: nuestra base de datos PostgreSQL (AWS, us-east-1). Contiene todo lo descrito en las secciones anteriores, pero ningún contenido de archivos.",
-        "l2": "<strong>Vercel</strong>: aloja el sitio web y la app web, y proporciona Web Analytics.",
-        "l3": "<strong>Nuestro servidor backend</strong>, al que se llega a través de <strong>Cloudflare</strong>. Cloudflare ve el tráfico hacia nuestra API y nos indica tu país, que usamos solo para sugerir un idioma y no almacenamos. El alojamiento del servidor puede cambiar con el tiempo.",
+        "l2": "<strong>Cloudflare</strong>: aloja el sitio web y la app web, y proporciona Web Analytics.",
+        "l3": "<strong>Nuestro servidor</strong>. El sitio web se comunica con él directamente; las apps de escritorio y Android llegan a él a través de <strong>Cloudflare</strong>, que nos indica la ubicación aproximada de cada solicitud (país, región y ciudad). En los demás casos buscamos la dirección en la base de datos de ubicación gratuita de DB-IP, en nuestro propio servidor. Usamos la ubicación para sugerir un idioma y la guardamos como tu ubicación aproximada, como se describe arriba. El proveedor del servidor puede cambiar con el tiempo.",
         "l4": "<strong>Resend</strong>: envía nuestros correos: verificación, enlaces mágicos de inicio de sesión, restablecimientos de contraseña, avisos de nuevo dispositivo, avisos de eliminación de cuenta y mensajes del interruptor de hombre muerto. Ven la dirección del destinatario y el mensaje.",
         "l5": "<strong>Google y GitHub</strong>, solo si eliges iniciar sesión con ellos.",
         "l6": "<strong>GitHub, GitLab, Hugging Face y Telegram</strong>, como plataformas de almacenamiento (arriba).",

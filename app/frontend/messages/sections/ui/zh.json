@@ -332,7 +332,9 @@
         "maintenance": "维护中",
         "down": "服务器无法访问",
         "offline": "你已离线"
-      }
+      },
+      "networkBlocked": "无法从云服务器、数据中心或运行在其上的 VPN 使用 zcrypt。请关闭 VPN 或代理后重试。",
+      "botCheckFailed": "人机验证没有完成。请稍等片刻后重试。"
     },
     "banner": {
       "dismiss": "关闭"

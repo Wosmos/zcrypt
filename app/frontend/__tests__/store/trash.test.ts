@@ -7,9 +7,22 @@ import { useTrashQuery, setTrashData, invalidateTrash } from "@/store/trash";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { listTrash } from "@/lib/api";
+import { usePassphraseStore } from "@/store/passphrase";
 
 vi.mock("@/lib/api", () => ({
   listTrash: vi.fn(),
+}));
+
+const fileNames = vi.hoisted(() => ({
+  ensureFileNames: vi.fn(async () => {}),
+  resolveFileNames: vi.fn((files: { encrypted_name?: string }[]) =>
+    files.map((f) => (f.encrypted_name ? { ...f, original_name: `opened:${f.encrypted_name}` } : f)),
+  ),
+}));
+vi.mock("@/lib/file-names", () => ({
+  ...fileNames,
+  subscribeNames: () => () => {},
+  getNamesEpoch: () => 0,
 }));
 
 const file1: FileMetadata = {
@@ -55,6 +68,31 @@ describe("store/trash", () => {
       expect(result.current.data).toEqual([file1]);
       expect(listTrash).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("shows a sealed file's opened name, as the vault does", async () => {
+    usePassphraseStore.setState({ cachedPassphrase: "pw" });
+    const sealed = { ...file1, original_name: "", encrypted_name: "enc1:abc" };
+    (listTrash as ReturnType<typeof vi.fn>).mockResolvedValue([sealed]);
+    const { result } = renderHook(() => useTrashQuery(), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].original_name).toBe("opened:enc1:abc");
+    expect(fileNames.ensureFileNames).toHaveBeenCalledWith([sealed]);
+    usePassphraseStore.setState({ cachedPassphrase: null });
+  });
+
+  it("opens names that were loaded while locked once the vault unlocks", async () => {
+    usePassphraseStore.setState({ cachedPassphrase: null });
+    const sealed = { ...file1, original_name: "", encrypted_name: "enc1:late" };
+    (listTrash as ReturnType<typeof vi.fn>).mockResolvedValue([sealed]);
+    const { result } = renderHook(() => useTrashQuery(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fileNames.ensureFileNames).not.toHaveBeenCalled();
+
+    usePassphraseStore.setState({ cachedPassphrase: "pw" });
+    await waitFor(() => expect(fileNames.ensureFileNames).toHaveBeenCalledWith([sealed]));
+    usePassphraseStore.setState({ cachedPassphrase: null });
   });
 
   describe("setTrashData", () => {

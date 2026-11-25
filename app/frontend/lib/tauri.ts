@@ -147,12 +147,14 @@ export async function localUpload(
 /**
  * Start the background sync worker in the core. The refresh token is
  * required: without it, sync dies silently once the access token expires.
+ * Resolves to the pair the engine holds, newer than the one passed in when the
+ * engine rotated while the window was closed.
  */
 export async function startSync(
   baseUrl: string,
   accessToken: string,
   refreshToken: string,
-): Promise<void> {
+): Promise<{ access_token: string; refresh_token: string }> {
   return tauriInvoke("start_sync", { baseUrl, accessToken, refreshToken });
 }
 
@@ -253,11 +255,13 @@ export async function sidecarDecryptToMemory(
   fileId: string,
   passphrase: string,
   userId: string,
+  transferId?: string,
 ): Promise<ArrayBuffer> {
   return tauriInvoke<ArrayBuffer>("decrypt_to_memory", {
     fileId,
     passphrase,
     userId,
+    transferId,
   });
 }
 
@@ -287,11 +291,13 @@ export async function sidecarDownloadSpace(
 export async function sidecarDecryptSpaceToMemory(
   fileId: string,
   spaceKeyBytes: Uint8Array,
+  transferId?: string,
 ): Promise<ArrayBuffer> {
   const { toBase64 } = await import("@/lib/crypto");
   return tauriInvoke<ArrayBuffer>("decrypt_space_to_memory", {
     fileId,
     spaceKeyB64: toBase64(spaceKeyBytes),
+    transferId,
   });
 }
 
@@ -473,10 +479,19 @@ export async function subscribeProgress(
   });
 }
 
+/** Wake every waiting engine transfer to look again now: the "Try again" button on desktop and Android. */
+export async function transferRetryNow(): Promise<void> {
+  if (!isTauri) return;
+  await tauriInvoke("transfer_retry_now");
+}
+
 export interface SidecarProgress {
   file_id: string;
   file_name: string;
+  /** "waiting" while the engine holds a transfer; `waiting` then says why. */
   stage: string;
+  /** Why a "waiting" transfer is held: "telegram_blocked" or "allowance_used_up". */
+  waiting?: "telegram_blocked" | "allowance_used_up" | null;
   chunks_done: number;
   chunks_total: number;
   bytes_done: number;
@@ -568,9 +583,33 @@ export interface BackupSchedule {
   time: string;
 }
 
-/** Android: back up the phone's photo and video folders, sealed to `publicKey`. */
-export async function photoBackupEnable(publicKey: string): Promise<BackupFolder[]> {
+/** Android photo backup choices, kept on the device so the background job can read them. */
+export interface PhotoOptions {
+  /** Album ids switched on; null until chosen, which means the Camera albums. */
+  albums: string[] | null;
+  kinds: "photos" | "videos" | "both";
+  wifi_only: boolean;
+  charging_only: boolean;
+}
+
+export interface PhotoStatus extends PhotoOptions {
+  /** Photos and videos backed up so far. */
+  files: number;
+}
+
+/** Android: back up the chosen albums from now on, sealed to `publicKey`. */
+export async function photoBackupEnable(publicKey: string): Promise<PhotoStatus> {
   return tauriInvoke("photo_backup_enable", { publicKey });
+}
+
+/** Android: the saved choices and how many files are backed up. */
+export async function photoBackupOptions(): Promise<PhotoStatus> {
+  return tauriInvoke("photo_backup_options");
+}
+
+/** Android: saves the album, photo/video and Wi-Fi/charging choices. */
+export async function photoBackupSetOptions(options: PhotoOptions): Promise<void> {
+  return tauriInvoke("photo_backup_set_options", { options });
 }
 
 /** Android: stop backing up photos. Files already in the vault stay. */

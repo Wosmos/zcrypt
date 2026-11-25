@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -111,16 +112,26 @@ func TestGithubListChunksTruncatedErrors(t *testing.T) {
 	}
 }
 
-func TestGithubListChunksEmptyRepo404(t *testing.T) {
+func TestGithubListChunksEmptyRepo409(t *testing.T) {
 	g := newGithubFake("alice", func(r *http.Request) (*http.Response, error) {
-		return jsonResp(404, `{"message":"Not Found"}`, nil), nil
+		return jsonResp(409, `{"message":"Git Repository is empty."}`, nil), nil
 	})
 	refs, err := g.ListChunks(context.Background(), "alice/repo")
 	if err != nil {
-		t.Fatalf("empty repo (404) should be nil error, got %v", err)
+		t.Fatalf("empty repo (409) should be nil error, got %v", err)
 	}
 	if refs != nil {
 		t.Errorf("expected nil refs, got %v", refs)
+	}
+}
+
+func TestGithubListChunksMissingRepoIsDistinguishable(t *testing.T) {
+	g := newGithubFake("alice", func(_ *http.Request) (*http.Response, error) {
+		return jsonResp(404, `{"message":"Not Found"}`, nil), nil
+	})
+	_, err := g.ListChunks(context.Background(), "alice/repo")
+	if !errors.Is(err, ErrRepoNotFound) {
+		t.Fatalf("expected ErrRepoNotFound, got %v", err)
 	}
 }
 
@@ -147,7 +158,7 @@ func TestGithubDeleteSuccess(t *testing.T) {
 }
 
 func TestGithubDelete404Idempotent(t *testing.T) {
-	g := newGithubFake("alice", func(r *http.Request) (*http.Response, error) {
+	g := newGithubFake("alice", func(_ *http.Request) (*http.Response, error) {
 		return jsonResp(404, `{"message":"Not Found"}`, nil), nil
 	})
 	err := g.Delete(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "02/a.bin"})
@@ -225,11 +236,7 @@ func TestGithubUploadNonRetryableError(t *testing.T) {
 }
 
 func TestGithubDownload(t *testing.T) {
-	// Download uses http.DefaultClient against raw.githubusercontent.com; swap its
-	// transport for the duration of the test so nothing hits the network.
-	orig := http.DefaultClient.Transport
-	defer func() { http.DefaultClient.Transport = orig }()
-	http.DefaultClient.Transport = rtFunc(func(r *http.Request) (*http.Response, error) {
+	raw := &http.Client{Transport: rtFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Host != "raw.githubusercontent.com" {
 			t.Fatalf("unexpected host %s", r.URL.Host)
 		}
@@ -237,9 +244,9 @@ func TestGithubDownload(t *testing.T) {
 			t.Errorf("missing token auth header")
 		}
 		return jsonResp(200, "rawcontent", nil), nil
-	})
+	})}
 
-	g := &GithubAdapter{owner: "alice", token: "t"}
+	g := &GithubAdapter{owner: "alice", token: "t", raw: raw}
 	data, err := g.Download(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "02/x.bin"})
 	if err != nil {
 		t.Fatalf("Download: %v", err)
@@ -250,12 +257,10 @@ func TestGithubDownload(t *testing.T) {
 }
 
 func TestGithubDownloadErrorStatus(t *testing.T) {
-	orig := http.DefaultClient.Transport
-	defer func() { http.DefaultClient.Transport = orig }()
-	http.DefaultClient.Transport = rtFunc(func(r *http.Request) (*http.Response, error) {
+	raw := &http.Client{Transport: rtFunc(func(_ *http.Request) (*http.Response, error) {
 		return jsonResp(404, "nope", nil), nil
-	})
-	g := &GithubAdapter{owner: "alice", token: "t"}
+	})}
+	g := &GithubAdapter{owner: "alice", token: "t", raw: raw}
 	if _, err := g.Download(context.Background(), types.ChunkRef{Repo: "alice/repo", RemotePath: "x"}); err == nil {
 		t.Fatal("expected download error on 404")
 	}

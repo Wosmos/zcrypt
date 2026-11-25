@@ -157,8 +157,8 @@ describe("WebTransferLimitDialog", () => {
       { name: "a.bin", size: 10 },
     );
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent("You've used this month's web transfers");
-    expect(dialog).toHaveTextContent("2.9 MB of 2.9 MB. It resets on December 1. The desktop app has no limit.");
+    expect(dialog).toHaveTextContent("You've used this month's transfer allowance");
+    expect(dialog).toHaveTextContent("2.9 MB of 2.9 MB. It resets on December 1. Anything that goes straight to your own storage doesn't count.");
   });
 
   it("closes on Escape", () => {

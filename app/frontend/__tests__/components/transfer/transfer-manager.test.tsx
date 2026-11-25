@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 vi.mock("@/hooks/useFolderProtection", () => ({ resolveFilePasswordGlobal: vi.fn() }));
+const tryAgain = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/transfer-wait", () => ({ tryAgainNow: tryAgain }));
 vi.mock("@/store/toast", () => ({ toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() } }));
 
+import { AUTO_RESUME_TICK_MS } from "@/lib/transport";
 import { TransferManager } from "@/components/transfer/transfer-manager";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore, type DownloadItem } from "@/store/download";
@@ -16,6 +19,7 @@ import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
 import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
 import { useWebTransferNotice } from "@/store/web-transfer-notice";
+import { useTransferWait } from "@/store/transfer-wait";
 import type { UploadItem } from "@/types";
 
 const MB = 1024 * 1024;
@@ -177,6 +181,32 @@ describe("TransferManager panel", () => {
     expect(document.querySelector("[data-batch-block]")).toHaveTextContent("10 files → My Vault");
   });
 
+  it("a held transfer says Telegram is blocked, offers Try again and keeps Cancel", () => {
+    seed([up("a", { status: "uploading", stage: "Uploading chunk 1/2", bytesProcessed: 1, totalBytes: 2 })], [down("d")]);
+    act(() => useTransferWait.getState().set("up:a", "telegram_blocked"));
+    render(<TransferManager />);
+    const row = document.querySelector('[data-transfer-row="up:a"]') as HTMLElement;
+    expect(row).toHaveAttribute("data-state", "queued");
+    expect(within(row).getByText("Telegram is blocked on this network. Turn on a VPN and it continues by itself.")).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: "Try again" }));
+    expect(tryAgain).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(row).getByRole("button", { name: "Cancel upload" }));
+    expect(actions.removeFromQueue).toHaveBeenCalledWith("a");
+    const other = document.querySelector('[data-transfer-row="dl:d"]') as HTMLElement;
+    expect(within(other).queryByRole("button", { name: "Try again" })).toBeNull();
+    act(() => useTransferWait.getState().clearAll());
+  });
+
+  it("a held download shows the allowance message and clears when the wait ends", () => {
+    seed([], [down("d")]);
+    act(() => useTransferWait.getState().set("dl:d", "allowance_used_up"));
+    render(<TransferManager />);
+    expect(screen.getByText(/Transfer allowance used up/)).toBeInTheDocument();
+    act(() => useTransferWait.getState().clear("dl:d"));
+    expect(screen.queryByText(/Transfer allowance used up/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
   it("puts failed rows first with a visible retry and a cause", () => {
     seed([
       up("ok", { status: "uploading", stage: "Uploading chunk 1/1", bytesProcessed: 1, totalBytes: 2, startedAt: 9 }),
@@ -222,7 +252,7 @@ describe("TransferManager panel", () => {
       }),
     ]);
     render(<TransferManager />);
-    expect(screen.getByText("Over this month's web transfers")).toBeInTheDocument();
+    expect(screen.getByText("Over this month's transfer allowance")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry failed" })).toBeNull();
     expect(header()).toHaveTextContent("0/1 · done");
     expect(header().querySelector("[data-header-sub]")).toHaveTextContent(
@@ -436,9 +466,55 @@ describe("TransferManager panel", () => {
       window.dispatchEvent(new Event("online"));
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass");
+    expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass", true);
     expect(actions.resumeUpload).not.toHaveBeenCalledWith("b", expect.anything());
     expect(dlActions.autoResumeInterrupted).toHaveBeenCalled();
+  });
+
+  it("also retries on a timer while the page is visible, not only on focus or reconnect", () => {
+    vi.useFakeTimers();
+    actions.getResumableUploadIds.mockImplementation(() => ["a"]);
+    seed([up("a", { status: "failed", error: "x" })]);
+    render(<TransferManager />);
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS);
+    });
+    expect(actions.resumeUpload).toHaveBeenCalledWith("a", "pass", true);
+    expect(dlActions.autoResumeInterrupted).toHaveBeenCalled();
+  });
+
+  it("does not poll while the page is hidden or offline", () => {
+    vi.useFakeTimers();
+    actions.getResumableUploadIds.mockImplementation(() => ["a"]);
+    seed([up("a", { status: "failed", error: "x" })]);
+    render(<TransferManager />);
+    const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS * 2);
+    });
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
+    hidden.mockRestore();
+
+    const offline = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS * 2);
+    });
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
+    offline.mockRestore();
+  });
+
+  it("stops polling once it unmounts", () => {
+    vi.useFakeTimers();
+    actions.getResumableUploadIds.mockImplementation(() => ["a"]);
+    seed([up("a", { status: "failed", error: "x" })]);
+    const { unmount } = render(<TransferManager />);
+    unmount();
+    act(() => {
+      vi.advanceTimersByTime(AUTO_RESUME_TICK_MS * 3);
+    });
+    expect(actions.resumeUpload).not.toHaveBeenCalled();
   });
 });
 

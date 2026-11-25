@@ -83,7 +83,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.11"
+          go-version: "1.27.4"
 
       - name: Download dependencies
         working-directory: app/backend
@@ -146,7 +146,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.11"
+          go-version: "1.27.4"
 
       - name: Download dependencies
         working-directory: app/backend
@@ -209,9 +209,13 @@ jobs:
         working-directory: app/frontend
         run: bun run build
 
-      - name: Vercel cost guard (no per-URL ISR, page weight)
+      # The website ships as a Cloudflare Worker built by vinext; `next build`
+      # above still guards the native static export and the e2e suite.
+      - name: Build the Worker (vinext)
         working-directory: app/frontend
-        run: node ../../scripts/check-vercel-cost.mjs
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: bun run build:vinext
 
   # ── Hardening: new-code-only checks, diff-scoped ─────────────────────────────
   # Fails only on problems the change introduces: oxlint warnings and copy-paste
@@ -287,7 +291,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.11"
+          go-version: "1.27.4"
 
       - name: Diff base
         id: base
@@ -302,14 +306,14 @@ jobs:
 
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.12.2
+          version: v2.15.0
           working-directory: app/backend
           args: --new-from-rev=${{ steps.base.outputs.rev }}
 
   # ── Frontend: E2E tests (Playwright) ─────────────────────────────────────────
   # Runs on main branch pushes only: too slow for every PR
   frontend-e2e:
-    name: Playwright E2E
+    name: Playwright E2E (${{ matrix.target }})
     needs: [changes, frontend, backend]
     # always() so this still runs when `backend` is skipped (frontend-only change);
     # GitHub otherwise skips any job whose `needs` includes a skipped job. We start
@@ -318,11 +322,17 @@ jobs:
     if: |
       always() &&
       needs.changes.outputs.frontend == 'true' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'pull_request' ||
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/staging') &&
       needs.frontend.result == 'success' &&
       needs.backend.result != 'failure'
     runs-on: ubuntu-24.04
+    # The same suite against the Next.js build and the Cloudflare Worker (vinext).
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [next, worker]
     services:
       postgres:
         image: postgres:16-alpine
@@ -342,7 +352,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.11"
+          go-version: "1.27.4"
 
       - uses: oven-sh/setup-bun@v2
 
@@ -360,17 +370,30 @@ jobs:
           # Disable per-IP rate limiting so the serial E2E suite can register and
           # log in many users from a single IP without being throttled.
           DEV_MODE: "true"
+          # Small transfer allowance so the allowance specs can reach it quickly.
+          ZCRYPT_RELAY_MAX_FILE_BYTES: "12582912"
+          ZCRYPT_RELAY_DAILY_BYTES: "104857600"
+          ZCRYPT_RELAY_MONTHLY_BYTES: "209715200"
         run: go run -tags=integration . &
 
       - name: Install frontend dependencies
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
-      - name: Start frontend
+      # The production build users get, not the dev server.
+      - name: Build and start frontend
         working-directory: app/frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8080
-        run: bun run dev &
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          if [ "${{ matrix.target }}" = worker ]; then
+            bun run build:vinext
+            bunx vite preview --port 3000 &
+          else
+            bun run build
+            bun run start -- -p 3000 &
+          fi
 
       - name: Install Playwright browsers
         working-directory: tests/e2e
@@ -380,20 +403,24 @@ jobs:
 
       - name: Wait for services
         run: |
-          npx wait-on http://localhost:8080/api/health http://localhost:3000 --timeout 60000
+          npx wait-on http://localhost:8080/api/health http://localhost:3000 --timeout 120000
 
       - name: Run E2E tests
         working-directory: tests/e2e
         env:
           E2E_BASE_URL: http://localhost:3000
           E2E_API_URL: http://localhost:8080
+          E2E_DATABASE_URL: postgres://zcrypt:testpassword@localhost:5432/zcrypt_test
+          E2E_PSQL: psql
+          E2E_RELAY_MAX_FILE_BYTES: "12582912"
+          E2E_RELAY_DAILY_BYTES: "104857600"
         run: bun x playwright test --reporter=list,html
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.target }}
           path: tests/e2e/playwright-report/
           retention-days: 14
 
@@ -482,53 +509,20 @@ jobs:
           echo "::error::After 15 minutes production is still not serving $GITHUB_SHA. Railway's GitHub deploy did not fire, or the build failed. Check the Railway dashboard. Do NOT ignore this, it is the exact failure that left production a week stale."
           exit 1
 
-  # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
-  # Previously: `bun run build` (a generic Next.js build) then plain `vercel
-  # --prod`. Without `--prebuilt`, `vercel deploy` ignores any local build and
-  # uploads source for Vercel to build AGAIN on its own infrastructure, so
-  # that local build was pure wasted compute, not just a duplicate of the
-  # `frontend` job's build, but of literally nothing (its output was never
-  # used). Switched to Vercel's own documented CI flow: `pull` fetches the
-  # project's environment/settings, `build` runs Vercel's real build (the one
-  # that actually produces the deployed artifact), `deploy --prebuilt` ships
-  # that output directly instead of triggering yet another remote rebuild.
+  # ── Deploy: frontend → Cloudflare Workers ────────────────────────────────────
+  # main goes live; staging uploads a preview version (see deploy-web.yml).
+  # Waits for the e2e run so a failing build never ships.
   frontend-deploy:
-    name: Deploy Frontend (Vercel)
-    needs: [changes, frontend]
-    if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      # Vercel's build detects bun.lock and installs deps with bun, so bun
-      # must be on the runner or `vercel build` fails with `spawn bun ENOENT`.
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Pull Vercel project settings
-        working-directory: app/frontend
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build via Vercel
-        working-directory: app/frontend
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      # --archive=tgz uploads the build as ONE tarball instead of thousands of
-      # individual files. The free plan caps uploads at 5000 files per 24h, and
-      # a Next.js output blows through that in a few deploys a day, the failure
-      # surfaces as a wall of "Upload aborted" with the real cause
-      # ("api-upload-free") buried in the middle.
-      - name: Deploy prebuilt output to Vercel
-        working-directory: app/frontend
-        run: vercel deploy --prebuilt --prod --archive=tgz --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    name: Deploy Frontend (Cloudflare)
+    needs: [changes, frontend, frontend-e2e]
+    if: >-
+      !cancelled()
+      && needs.changes.outputs.frontend == 'true'
+      && github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+      && needs.frontend.result == 'success'
+      && needs.frontend-e2e.result != 'failure'
+    uses: ./.github/workflows/deploy-web.yml
+    with:
+      promote: ${{ github.ref == 'refs/heads/main' }}
+    secrets: inherit

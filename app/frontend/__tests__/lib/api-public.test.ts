@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { CONTROL_TIMEOUT_MS } from "@/lib/transport";
 
 // Coverage for the api client's raw-fetch surface (public share / anonymous send
 // / pad / clipboard content / plans) which bypasses the request() core, plus the
@@ -28,6 +29,7 @@ vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken: vi.fn(), authedFetch }));
 
 import * as api from "@/lib/api";
+import { WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 /** Response stand-in. jsonThrows simulates a non-JSON error body. */
 function mk(
@@ -95,8 +97,8 @@ describe("public share access", () => {
     expect(out.sha256).toBe("h");
     expect(out.compressed).toBe(true);
 
-    fetchMock.mockResolvedValueOnce(mk(500, {}));
-    await expect(api.getShareChunk("tok", 3)).rejects.toThrow("Failed to download chunk");
+    fetchMock.mockResolvedValueOnce(mk(404, {}));
+    await expect(api.getShareChunk("tok", 3)).rejects.toMatchObject({ name: "ApiError", status: 404 });
 
     fetchMock.mockResolvedValueOnce(mk(403, {}));
     await expect(api.getShareChunk("tok", 3)).rejects.toMatchObject({ status: 403 });
@@ -164,8 +166,8 @@ describe("folder-share public access", () => {
     await expect(api.getFolderShareFileMeta("tok", "f1")).rejects.toThrow("bad password");
 
     // Error body that isn't valid JSON exercises the .catch(() => ({})) fallback.
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
-    await expect(api.getFolderShareFileMeta("tok", "f1")).rejects.toThrow("Failed to get file metadata");
+    fetchMock.mockResolvedValueOnce(mk(404, { jsonThrows: true }));
+    await expect(api.getFolderShareFileMeta("tok", "f1")).rejects.toMatchObject({ status: 404 });
   });
 
   it("getFolderShareChunk returns bytes + parsed headers (with optional password), and defaults on absent headers", async () => {
@@ -184,8 +186,8 @@ describe("folder-share public access", () => {
     expect(defaulted.sha256).toBe("");
     expect(defaulted.compressed).toBe(false);
 
-    fetchMock.mockResolvedValueOnce(mk(500, {}));
-    await expect(api.getFolderShareChunk("tok", "f1", 3)).rejects.toThrow("Failed to download chunk");
+    fetchMock.mockResolvedValueOnce(mk(404, {}));
+    await expect(api.getFolderShareChunk("tok", "f1", 3)).rejects.toMatchObject({ name: "ApiError", status: 404 });
   });
 });
 
@@ -200,21 +202,6 @@ describe("anonymous send", () => {
     await expect(api.sendInit({} as never)).rejects.toThrow("too big");
   });
 
-  it("sendChunkUpload sets the compressed header only when compressed", async () => {
-    fetchMock.mockResolvedValueOnce(mk(200, {}));
-    await api.sendChunkUpload("s", 0, new Uint8Array([1]), "sha", true);
-    expect(init().method).toBe("PUT");
-    expect(init().headers!["X-Chunk-Compressed"]).toBe("true");
-    expect(init().headers!["X-Chunk-SHA256"]).toBe("sha");
-
-    fetchMock.mockResolvedValueOnce(mk(200, {}));
-    await api.sendChunkUpload("s", 1, new Uint8Array([1]), "sha", false);
-    expect(init(1).headers!["X-Chunk-Compressed"]).toBeUndefined();
-
-    fetchMock.mockResolvedValueOnce(mk(413, { json: { error: "chunk too large" } }));
-    await expect(api.sendChunkUpload("s", 2, new Uint8Array([1]), "sha", false)).rejects.toThrow("chunk too large");
-  });
-
   it("sendComplete returns the token; getSendInfo/Meta/Chunk read the transfer", async () => {
     fetchMock.mockResolvedValueOnce(mk(200, { json: { token: "T" } }));
     expect(await api.sendComplete("s")).toEqual({ token: "T" });
@@ -223,8 +210,8 @@ describe("anonymous send", () => {
     await expect(api.getSendInfo("T")).rejects.toThrow("Transfer not found");
 
     // Error body that isn't valid JSON exercises the .catch(() => ({})) fallback.
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
-    await expect(api.getSendMeta("T")).rejects.toThrow("Failed to get transfer metadata");
+    fetchMock.mockResolvedValueOnce(mk(404, { jsonThrows: true }));
+    await expect(api.getSendMeta("T")).rejects.toMatchObject({ status: 404 });
 
     fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([7]).buffer, hdr: { "X-Chunk-SHA256": "z" } }));
     const chunk = await api.getSendChunk("T", 0);
@@ -232,9 +219,76 @@ describe("anonymous send", () => {
     expect(chunk.compressed).toBe(false);
   });
 
+  it("sendCancel issues a DELETE for the session and swallows a failure", async () => {
+    await api.sendCancel("sess1");
+    expect(url()).toContain("/api/send/sess1");
+    expect(init().method).toBe("DELETE");
+
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    await expect(api.sendCancel("sess1")).resolves.toBeUndefined();
+  });
+
+  it("getFileLocators reads the owner-only locator list uncached", async () => {
+    const body = { file_id: "f1", chunks: [] };
+    fetchMock.mockResolvedValueOnce(mk(200, { json: body }));
+    expect(await api.getFileLocators("f1")).toEqual(body);
+    expect(url()).toContain("/api/files/f1/locators");
+    expect(init().cache).toBe("no-store");
+  });
+
+  it("public control calls give up after the control timeout instead of hanging", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementationOnce(
+        (_u: string, init: RequestInit) =>
+          new Promise((_, reject) =>
+            init.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            ),
+          ),
+      );
+      const pending = api.getShareInfo("T");
+      const settled = expect(pending).rejects.toBeTruthy();
+      await vi.advanceTimersByTimeAsync(CONTROL_TIMEOUT_MS + 1);
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sendInit stops when its caller cancels", async () => {
+    const ctl = new AbortController();
+    fetchMock.mockImplementationOnce(
+      (_u: string, init: RequestInit) =>
+        new Promise((_, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          ),
+        ),
+    );
+    const pending = api.sendInit({} as never, ctl.signal);
+    ctl.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   it("sendComplete surfaces the error body on failure", async () => {
     fetchMock.mockResolvedValueOnce(mk(409, { json: { error: "already completed" } }));
     await expect(api.sendComplete("s")).rejects.toThrow("already completed");
+  });
+
+  it("sendComplete retries a 502 and returns the token instead of failing the send", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock
+        .mockResolvedValueOnce(mk(502, { json: { error: "bad gateway" } }))
+        .mockResolvedValueOnce(mk(200, { json: { token: "T" } }));
+      const done = api.sendComplete("s");
+      await vi.runAllTimersAsync();
+      expect(await done).toEqual({ token: "T" });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("getSendInfo / getSendMeta return the parsed body on success", async () => {
@@ -277,7 +331,7 @@ describe("pad + clipboard + plans", () => {
     expect(out.contentType).toBe("text/plain");
 
     fetchMock.mockResolvedValueOnce(mk(404, {}));
-    await expect(api.getClipboardContent("cid")).rejects.toThrow("Failed to get clipboard content");
+    await expect(api.getClipboardContent("cid")).rejects.toMatchObject({ status: 404 });
   });
 
   it("getPlans fetches the public plans and throws on failure", async () => {
@@ -291,14 +345,14 @@ describe("pad + clipboard + plans", () => {
 });
 
 describe("error-fallback + remaining branches", () => {
-  it("getSendChunk throws a fixed message on a non-OK response", async () => {
-    fetchMock.mockResolvedValueOnce(mk(500, {}));
-    await expect(api.getSendChunk("T", 0)).rejects.toThrow("Failed to download chunk");
+  it("getSendChunk throws an ApiError with the status on a non-OK response", async () => {
+    fetchMock.mockResolvedValueOnce(mk(404, {}));
+    await expect(api.getSendChunk("T", 0)).rejects.toMatchObject({ name: "ApiError", status: 404 });
   });
 
   it("uses the hardcoded fallback message when an error body isn't JSON", async () => {
     // Each of these hits the `body.error || "<default>"` fallback (json rejects).
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    fetchMock.mockResolvedValueOnce(mk(400, { jsonThrows: true }));
     await expect(api.sendComplete("s")).rejects.toThrow("Failed to complete send");
 
     fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
@@ -308,13 +362,7 @@ describe("error-fallback + remaining branches", () => {
     await expect(api.getPadContent("P")).rejects.toThrow("Failed to get pad content");
 
     fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
-    await expect(api.getShareFileMeta("t")).rejects.toThrow("Failed to get file metadata");
-
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
     await expect(api.sendInit({} as never)).rejects.toThrow("Failed to start send");
-
-    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
-    await expect(api.sendChunkUpload("s", 0, new Uint8Array([1]), "sha", false)).rejects.toThrow("Failed to upload chunk");
   });
 
   it("getClipboardContent works without a token and defaults contentType to 'text'", async () => {
@@ -349,6 +397,23 @@ describe("error-fallback + remaining branches", () => {
     // Error JSON without an `error` field -> raw-body fallback (line 183).
     fetchMock.mockResolvedValueOnce(mk(404, { json: { message: "gone" } }));
     await expect(api.getFileChunk("f", 1)).rejects.toThrow('{"message":"gone"}');
+  });
+
+  it("getFileChunk turns an allowance refusal into the friendly limit error", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mk(403, {
+        json: {
+          code: "relay_daily_exceeded",
+          limit_bytes: 60 * 1024 * 1024,
+          used_bytes: 60 * 1024 * 1024,
+          resets_at: "2026-11-20T00:00:00Z",
+        },
+      }),
+    );
+    const err = await api.getFileChunk("f", 1).catch((e) => e);
+    expect(err).toBeInstanceOf(WebTransferLimitError);
+    expect(err.code).toBe("relay_daily_exceeded");
+    expect(err.info.resetsAt).toBe("2026-11-20T00:00:00Z");
   });
 
   it("listFiles (no limit) and listFolders (with parentId) hit both optional-param sides", async () => {

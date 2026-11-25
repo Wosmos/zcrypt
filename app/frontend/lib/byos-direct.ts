@@ -9,7 +9,10 @@ import {
   rememberPlatformCredentials,
   type PlatformCredentials,
 } from "@/lib/platform-credentials";
+import { isTransientError, retryTransient } from "@/lib/retry";
+import { PausedError } from "@/lib/transport";
 import {
+  deleteTelegramChunk,
   isTelegramTransportError,
   randomHex,
   uploadTelegramChunk,
@@ -80,6 +83,11 @@ export function disableWebDirect(): void {
   webDirectOff = true;
 }
 
+/** Choose direct uploads again: Telegram answered, so the earlier fallback no longer applies. */
+export function enableWebDirect(): void {
+  webDirectOff = false;
+}
+
 /** Whether direct uploads were switched off for this page session. */
 export function isWebDirectDisabled(): boolean {
   return webDirectOff;
@@ -126,6 +134,27 @@ export async function resolveWebDirect(platform?: string): Promise<DirectTarget 
   if (!ownsTelegram(await ensurePlatformStatus())) return null;
   if ((await probeTelegram()) !== "ok") return null;
   return toTarget(await loadCredentials(Platform.Telegram));
+}
+
+/**
+ * Whether a file for `platform` could go straight to the user's own Telegram
+ * were the network not in the way: the platform is Telegram or Auto, the user
+ * connected their own Telegram, and its token can be fetched. Says nothing
+ * about reachability, so an upload that this is true for but resolveWebDirect
+ * turned down is waiting on the network, not on anything the user can fix here.
+ */
+export async function directPossible(platform?: string): Promise<boolean> {
+  if (platform && platform !== Platform.Telegram) return false;
+  if (!ownsTelegram(await ensurePlatformStatus())) return false;
+  return toTarget(await loadCredentials(Platform.Telegram)) !== null;
+}
+
+/** A resumed upload's earlier chunks went to the user's own Telegram, and its credentials are not available now. */
+export class ReconnectTelegramError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReconnectTelegramError";
+  }
 }
 
 /**
@@ -188,35 +217,42 @@ export interface DirectPushOptions {
   probe?: boolean;
   onProgress?: (sent: number) => void;
   signal?: AbortSignal;
+  /** Pause check, consulted before the push is tried again. */
+  shouldStop?: () => boolean;
 }
 
 /**
  * Push one encrypted chunk to the user's own Telegram and return its locator.
- * Like the desktop, the whole push is tried twice (500 ms apart) on top of the
- * per-document retries. A first chunk fails fast on a transport error instead,
- * so the caller can fall back to the relay without a long wait.
+ * Like the desktop, the whole push is tried twice on top of the per-document
+ * retries; a failed push has already deleted its sent parts, so the retry
+ * leaves no duplicate in the chat. A first chunk fails fast on a transport
+ * error instead, so the caller can fall back to the relay without a long wait.
  */
-export async function pushDirectChunk(
+export function pushDirectChunk(
   target: DirectTarget,
   data: Uint8Array,
   opts: DirectPushOptions = {},
 ): Promise<string> {
-  let lastErr: unknown;
-  for (let n = 0; n < 2; n++) {
-    if (n > 0) await new Promise((r) => setTimeout(r, 500));
-    try {
-      return await uploadTelegramChunk(target.telegram, data, {
+  return retryTransient(
+    () =>
+      uploadTelegramChunk(target.telegram, data, {
         onProgress: opts.onProgress,
         signal: opts.signal,
         failFastOnTransport: opts.probe,
-      });
-    } catch (err) {
-      if (isDirectUnreachable(err) && opts.probe) throw err;
-      if (err instanceof Error && err.message === "Upload paused") throw err;
-      lastErr = err;
-    }
-  }
-  throw lastErr;
+      }),
+    {
+      signal: opts.signal,
+      shouldStop: opts.shouldStop,
+      maxRetries: 1,
+      stopError: () => new PausedError(),
+      retryIf: (err) => !(opts.probe && isDirectUnreachable(err)) && isTransientError(err),
+    },
+  );
+}
+
+/** Delete a pushed chunk's messages after the server definitively refused to record it. */
+export function discardDirectChunk(target: DirectTarget, remotePath: string): Promise<void> {
+  return deleteTelegramChunk(target.telegram, remotePath);
 }
 
 /** Whether a direct push failed because Telegram never answered this browser (network or CORS). */

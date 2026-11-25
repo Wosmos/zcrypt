@@ -12,8 +12,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
+)
+
+// Cloud network modes (Config.CloudNetworkMode).
+const (
+	CloudNetworksBlock = "block"
+	CloudNetworksFlag  = "flag"
+	CloudNetworksOff   = "off"
 )
 
 // DefaultGeoIPDB is where the container image puts the location database.
@@ -104,9 +112,26 @@ type Config struct {
 	// GeoIPDB is the path of the DB-IP Lite city database used to place
 	// sessions on the map. A missing file only leaves locations empty.
 	GeoIPDB string `json:"geoip_db,omitempty"`
+	// CloudNetworkMode decides what happens to sign-in, sign-up and session
+	// refresh from cloud and data-center networks (netguard): "block" (the
+	// default) refuses them, "flag" lets them in and records each one in the
+	// audit log, "off" ignores them. ZCRYPT_CLOUD_NETWORKS sets it;
+	// ZCRYPT_BLOCK_CLOUD_NETWORKS=0 is kept as another way to say "off".
+	CloudNetworkMode string `json:"cloud_network_mode,omitempty"`
+	// NetworkAllow lists CIDRs that always pass the cloud network block
+	// (ZCRYPT_NETWORK_ALLOW, comma separated).
+	NetworkAllow []string `json:"network_allow,omitempty"`
+	// TurnstileSecret enables the Cloudflare Turnstile bot check on the web
+	// sign-up, sign-in, sign-in link and password reset forms.
+	TurnstileSecret string `json:"-"`
 	// Port is the HTTP listen port: ZCRYPT_PORT, then legacy zcrypt_PORT, then
 	// PORT (set by cloud hosts), then DefaultPort. Environment only.
 	Port string `json:"-"`
+	// VerifyInterval is how often the background durability check lists each
+	// user's repos to find chunks missing on their platform
+	// (ZCRYPT_VERIFY_INTERVAL, a Go duration such as "6h"; 0 or "off"
+	// disables it).
+	VerifyInterval time.Duration `json:"-"`
 	// From environment only, never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
@@ -117,12 +142,19 @@ type Config struct {
 	// MetricsToken is the bearer token GET /api/internal/metrics requires.
 	// Empty (default) disables the endpoint.
 	MetricsToken string `json:"-"`
+	// ProxySecret is the shared secret the site's /api proxy sends in
+	// X-Zcrypt-Proxy-Secret. Without it, forwarded-for headers are ignored.
+	ProxySecret string `json:"-"`
 }
+
+// DefaultVerifyInterval is the background durability check period.
+const DefaultVerifyInterval = 6 * time.Hour
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
 		DefaultPlatform: types.PlatformGitHub,
+		VerifyInterval:  DefaultVerifyInterval,
 		Thresholds: map[string]int64{
 			types.PlatformGitHub: 850 * 1024 * 1024,  // 850MB
 			types.PlatformGitLab: 9000 * 1024 * 1024, // 9GB
@@ -222,6 +254,9 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("METRICS_TOKEN"); v != "" {
 		c.MetricsToken = v
 	}
+	if v := os.Getenv("ZCRYPT_PROXY_SECRET"); v != "" {
+		c.ProxySecret = v
+	}
 	if v := os.Getenv("ZCRYPT_CLIENT_IP_HEADER"); v != "" {
 		c.ClientIPHeader = v
 	} else if c.ClientIPHeader == "" && os.Getenv("RAILWAY_ENVIRONMENT_NAME") != "" {
@@ -234,6 +269,30 @@ func (c *Config) applyEnvOverrides() {
 		c.GeoIPDB = v
 	} else if c.GeoIPDB == "" {
 		c.GeoIPDB = DefaultGeoIPDB
+	}
+	c.CloudNetworkMode = CloudNetworksBlock
+	switch v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_CLOUD_NETWORKS"))); v {
+	case CloudNetworksBlock, CloudNetworksFlag, CloudNetworksOff:
+		c.CloudNetworkMode = v
+	}
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_BLOCK_CLOUD_NETWORKS"))); v == "0" || v == "false" || v == "off" || v == "no" {
+		c.CloudNetworkMode = CloudNetworksOff
+	}
+	if v := os.Getenv("ZCRYPT_NETWORK_ALLOW"); v != "" {
+		c.NetworkAllow = nil
+		for _, p := range strings.Split(v, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				c.NetworkAllow = append(c.NetworkAllow, p)
+			}
+		}
+	}
+	c.TurnstileSecret = strings.TrimSpace(os.Getenv("TURNSTILE_SECRET_KEY"))
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("ZCRYPT_VERIFY_INTERVAL"))); v != "" {
+		if v == "off" || v == "false" || v == "disabled" {
+			c.VerifyInterval = 0
+		} else if d, err := time.ParseDuration(v); err == nil && d >= 0 {
+			c.VerifyInterval = d
+		}
 	}
 	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {

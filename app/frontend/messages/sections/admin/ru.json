@@ -408,7 +408,9 @@
         "admin_review_status": "Отзыв отмодерирован",
         "admin_send_platform_change": "Платформа отправки изменена",
         "admin_role_change_denied": "Смена роли отклонена",
-        "admin_user_delete_denied": "Удаление пользователя отклонено"
+        "admin_user_delete_denied": "Удаление пользователя отклонено",
+        "session_client_changed": "Сменилось приложение, сеанс завершён",
+        "network_blocked": "Заблокировано: облачная сеть"
       },
       "colEvent": "Событие",
       "deletedAccount": "удалённый аккаунт",

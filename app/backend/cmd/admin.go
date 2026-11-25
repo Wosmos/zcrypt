@@ -172,7 +172,7 @@ func (s *Server) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range users {
-		users[i].LastDevice = deviceLabel(users[i].LastUserAgent)
+		users[i].LastDevice = lastDevice(users[i].LastClient, users[i].LastUserAgent)
 		markHeavyRelay(&users[i])
 	}
 	writeJSON(w, http.StatusOK, pageBody("users", users, total, page))
@@ -995,7 +995,7 @@ func (s *Server) HandleAdminGetUser(w http.ResponseWriter, r *http.Request) {
 		internalError(w, "AdminGetUser", err)
 		return
 	}
-	user.LastDevice = deviceLabel(user.LastUserAgent)
+	user.LastDevice = lastDevice(user.LastClient, user.LastUserAgent)
 	markHeavyRelay(user)
 
 	usedBytes, err := s.db.GetUserStorageUsed(ctx, userID)

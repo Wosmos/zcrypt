@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import {
   cachedDecrypt,
+  isBackgroundOnly,
   isForegroundDecryptActive,
   onDecryptCacheClear,
   onDecryptFolderClear,
@@ -13,6 +14,8 @@ import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { runDecryptPipeline } from "@/hooks/useFileDecryptor";
 import { loadServerThumb, publishThumb } from "@/lib/server-thumbs";
+import { isRetryableStatus } from "@/lib/http-error";
+import { isAbortError } from "@/lib/transport";
 
 // A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
 // background grid preview is allowed to pull. Files above this just show their
@@ -31,26 +34,27 @@ const MAX_CONCURRENT = 3;
 // while generation continues in the background; the real thumbnail swaps in the
 // moment it lands. A CACHED tile never shimmers, it renders instantly.
 const SHIMMER_MAX_MS = 2000;
+// Upper bound on one file's fetch + decrypt, a safety net behind the idle rule.
+const DECRYPT_SAFETY_NET_MS = 10 * 60_000;
 
 // ── In-memory mirror of IndexedDB ────────────────────────────────────
 const memCache = new Map<string, string>();
-// Files whose thumbnail generation failed, with a bounded RETRY schedule rather
-// than a permanent blacklist. This matters most right after an upload: the
-// file's chunks may still be syncing to the storage platform when the thumbnail
-// first tries to fetch them, so the first attempt fails, a permanent blacklist
-// then left the file iconless until a full page reload. With retry, the shimmer
-// simply resolves into the real thumbnail once the chunk lands (a few seconds),
-// no reload needed; a genuinely un-thumbnailable file gives up after MAX_ATTEMPTS.
-const MAX_THUMB_ATTEMPTS = 2;
-// `hard` marks a TERMINAL failure that reflects unrecoverable data (the chunk
-// fetch/decrypt kept failing across every retry, e.g. the file's bytes are
-// genuinely gone from the storage platform), as opposed to an immediate
-// permanent give-up that isn't data loss at all (a locked protected folder, or
-// a file whose bytes are fine but can't be rasterized. See markThumbFailed).
-// Only `hard` should ever surface as the "preview unavailable" UI state; a
-// locked folder or an unsupported format both just fall back to the plain
-// type icon, same as any other non-thumbnailable file.
-const failed = new Map<string, { attempts: number; nextRetryAt: number; hard: boolean }>();
+// Why a file has no preview. Only `lost` (the server confirmed the file's data
+// is gone, or the file is marked damaged) ever shows "preview unavailable".
+//  - transient: fetch/decrypt failed for a reason that can pass (chunk still
+//    syncing, offline, platform blip, timeout). Retried with backoff, up to
+//    MAX_TRANSIENT_ATTEMPTS, never shown as unavailable.
+//  - gaveup: transient retries ran out. The type icon stays until the browser
+//    comes back online or the user retries.
+//  - locked: protected folder not unlocked yet. Cleared when it is unlocked.
+//  - permanent: bytes are fine but cannot become a preview (undecodable format,
+//    corrupt or too large for the viewer).
+//  - lost: confirmed data loss.
+type FailKind = "transient" | "gaveup" | "locked" | "permanent" | "lost";
+const MAX_TRANSIENT_ATTEMPTS = 10;
+const BACKOFF_BASE_MS = 3_000;
+const BACKOFF_CAP_MS = 60_000;
+const failed = new Map<string, { attempts: number; nextRetryAt: number; kind: FailKind }>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // When each file's FIRST generation attempt started, so the shimmer can be
 // time-boxed to SHIMMER_MAX_MS instead of running until success/permanent-fail.
@@ -92,19 +96,14 @@ function getIdVersion(id: string): string {
   return `${version}:${idVersion.get(id) ?? 0}`;
 }
 
-/** Given up after MAX_THUMB_ATTEMPTS: show the type icon, stop retrying. */
+/** Not going to be retried automatically: show the type icon. */
 function isPermanentlyFailed(id: string): boolean {
   const f = failed.get(id);
-  return !!f && f.attempts >= MAX_THUMB_ATTEMPTS;
+  return !!f && f.kind !== "transient";
 }
-/** Terminal AND unrecoverable: every fetch/decrypt attempt failed (not a locked
- *  folder, not just an unsupported format): the file's bytes are presumed
- *  gone from the storage platform. Bounded by construction: once this is true,
- *  `canGenerateNow` below already refuses further attempts, so a hard-failed
- *  tile never resumes shimmering. */
+/** Confirmed data loss: the only failure that surfaces as "preview unavailable". */
 function isHardFailed(id: string): boolean {
-  const f = failed.get(id);
-  return !!f && f.hard;
+  return failed.get(id)?.kind === "lost";
 }
 /** Is this tile still inside its shimmer window: not yet started (about to
  *  dispatch), or started less than SHIMMER_MAX_MS ago. */
@@ -112,54 +111,86 @@ function withinShimmerGrace(id: string): boolean {
   const startedAt = genStartedAt.get(id);
   return startedAt === undefined || Date.now() - startedAt < SHIMMER_MAX_MS;
 }
-/** May a (re)generation run now, never tried, or a prior failure's backoff has
- *  elapsed and attempts remain. */
+/** May a (re)generation run now: never tried, or a transient failure's backoff
+ *  has elapsed. */
 function canGenerateNow(id: string): boolean {
   const f = failed.get(id);
   if (!f) return true;
-  if (f.attempts >= MAX_THUMB_ATTEMPTS) return false;
-  return Date.now() >= f.nextRetryAt;
+  return f.kind === "transient" && Date.now() >= f.nextRetryAt;
 }
-/** Record a failed attempt. `permanent` (render/decode/locked) gives up
- *  immediately → type icon: NEITHER case is data loss (a locked folder is
- *  just not unlocked yet; a render/decode failure means the bytes are fine but
- *  the format can't be rasterized), so neither is ever marked `hard`. A
- *  transient failure (fetch/decrypt/timeout) gets a bounded backoff and
- *  schedules a wake-up so mounted cards retry once it elapses (effects only
- *  re-fire on state change, so without this notify the retry would wait for an
- *  unrelated re-render). Once MAX attempts is reached this way, EVERY attempt
- *  to actually fetch/decrypt the file's bytes failed: that's the signal for a
- *  genuinely unavailable (not merely un-generated-yet) thumbnail. */
-function markThumbFailed(id: string, permanent: boolean): void {
-  if (permanent) {
-    failed.set(id, { attempts: MAX_THUMB_ATTEMPTS, nextRetryAt: 0, hard: false });
+
+function isOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+/** Record a failed attempt. A transient failure backs off (3s doubling to 60s)
+ *  and schedules a wake-up so a mounted card retries once it elapses; while the
+ *  browser is offline it waits for the `online` event instead of burning
+ *  attempts. Every other kind stops retrying. */
+function markThumbFailed(id: string, kind: FailKind): void {
+  const prev = failed.get(id);
+  const stale = retryTimers.get(id);
+  if (stale) {
+    clearTimeout(stale);
+    retryTimers.delete(id);
+  }
+  if (kind !== "transient") {
+    failed.set(id, { attempts: prev?.attempts ?? 0, nextRetryAt: 0, kind });
     return;
   }
-  const attempts = (failed.get(id)?.attempts ?? 0) + 1;
-  const backoff = Math.min(30_000, 3_000 * 2 ** (attempts - 1)); // 3s, 6s, 12s (cap 30s)
-  failed.set(id, {
-    attempts,
-    nextRetryAt: Date.now() + backoff,
-    hard: attempts >= MAX_THUMB_ATTEMPTS,
-  });
-  // Unreachable in practice: while a retry timer is pending, `nextRetryAt` is in
-  // the future so no hook will start another attempt for this id, and the timer
-  // deletes itself before the attempt it schedules can fail again. Kept as a
-  // belt-and-braces guard against ever stacking two timers for one file.
-  /* v8 ignore start */
-  const existing = retryTimers.get(id);
-  if (existing) clearTimeout(existing);
-  /* v8 ignore stop */
-  if (attempts < MAX_THUMB_ATTEMPTS) {
-    retryTimers.set(
-      id,
-      setTimeout(() => {
-        retryTimers.delete(id);
-        notify(id);
-      }, backoff + 50),
-    );
+  if (isOffline()) {
+    failed.set(id, {
+      attempts: prev?.attempts ?? 0,
+      nextRetryAt: Number.POSITIVE_INFINITY,
+      kind,
+    });
+    return;
+  }
+  const attempts = (prev?.kind === "transient" ? prev.attempts : 0) + 1;
+  if (attempts > MAX_TRANSIENT_ATTEMPTS) {
+    failed.set(id, { attempts, nextRetryAt: 0, kind: "gaveup" });
+    return;
+  }
+  const backoff = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** (attempts - 1));
+  failed.set(id, { attempts, nextRetryAt: Date.now() + backoff, kind });
+  retryTimers.set(
+    id,
+    setTimeout(() => {
+      retryTimers.delete(id);
+      notify(id);
+    }, backoff + 50),
+  );
+}
+
+/** What a failed fetch/decrypt means for the tile. */
+function classifyFailure(err: unknown): FailKind {
+  if (err instanceof Error && err.message === "locked") return "locked";
+  const e = err as { status?: unknown; reason?: unknown; name?: unknown } | null;
+  if (e?.status === 410 || e?.reason === "chunk_missing") return "lost";
+  if (
+    e?.name === "IntegrityError" ||
+    e?.name === "ChunkDecryptError" ||
+    e?.name === "IncorrectPassphraseError" ||
+    e?.name === "WrongPasswordError"
+  ) {
+    return "permanent";
+  }
+  if (typeof e?.status === "number" && !isRetryableStatus(e.status)) return "permanent";
+  return "transient";
+}
+
+/** The browser is back online: every tile waiting on the network tries again. */
+function retryAfterReconnect(): void {
+  for (const [id, f] of [...failed]) {
+    if (f.kind !== "transient" && f.kind !== "gaveup") continue;
+    failed.delete(id);
+    const t = retryTimers.get(id);
+    if (t) clearTimeout(t);
+    retryTimers.delete(id);
+    notify(id);
   }
 }
+if (typeof window !== "undefined") window.addEventListener("online", retryAfterReconnect);
 
 // Lazy generation context: set once on unlock via primeThumbnails(). Each
 // file's hook then generates its own thumbnail the first time it renders,
@@ -263,6 +294,15 @@ function canvasLooksBlank(ctx: CanvasRenderingContext2D, w: number, h: number): 
   }
 }
 
+// A browser that cannot encode WebP (Safari historically) answers toDataURL with
+// a PNG, which for a photo is too big to store. Re-encode that as JPEG.
+const PNG_FALLBACK_MAX_CHARS = 78_000;
+function encodePreview(canvas: HTMLCanvasElement, quality: number): string {
+  const url = canvas.toDataURL("image/webp", quality);
+  if (url.startsWith("data:image/webp") || url.length <= PNG_FALLBACK_MAX_CHARS) return url;
+  return canvas.toDataURL("image/jpeg", 0.7);
+}
+
 async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
@@ -291,7 +331,7 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
         reject(new Error("blank render"));
         return;
       }
-      resolve(canvas.toDataURL("image/webp", 0.55));
+      resolve(encodePreview(canvas, 0.55));
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -352,7 +392,7 @@ async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): P
         return;
       }
       settled = true;
-      const dataUrl = canvas.toDataURL("image/webp", 0.6);
+      const dataUrl = encodePreview(canvas, 0.6);
       cleanup();
       resolve(dataUrl);
     };
@@ -396,10 +436,31 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
+/** Reject with an AbortError as soon as `signal` aborts, leaving `p` to finish
+ *  on its own (its result is ignored). */
+function abortable<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException("Cancelled", "AbortError"));
+    /* v8 ignore start -- acquireSlot returns with no await after its own aborted check, so no cancel can land in between */
+    if (signal.aborted) {
+      p.catch(() => {});
+      onAbort();
+      return;
+    }
+    /* v8 ignore stop */
+    signal.addEventListener("abort", onAbort, { once: true });
+    p.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
+}
+
 // ── Batch loader: fetches all image thumbs when passphrase is available ──
 const inflight = new Set<string>();
 let activeCount = 0;
 const queue: { fileId: string; run: () => void }[] = [];
+// One controller per file whose generation is running or queued, and how many
+// mounted cards want it. The last card unmounting cancels the work.
+const controllers = new Map<string, AbortController>();
+const mounted = new Map<string, number>();
 
 // Files whose card is confirmed scrolled OFF-SCREEN (via the IntersectionObserver
 // wired up by useThumbnail's `cardRef`). A file never reported (no observer
@@ -430,43 +491,50 @@ function releaseSlot() {
   next.run();
 }
 
-/** Resolve once no foreground decrypt (file open / preview / neighbour
- *  prefetch) is in flight. Thumbnails are background polish: while the user is
- *  waiting on a real file, queued thumbnail starts hold back instead of
- *  competing for network + CPU. Simple 500ms poll; thumbnails already running
- *  just finish (they're bounded by their own timeouts). */
-async function waitForForegroundIdle(): Promise<void> {
-  // Yield to foreground decrypts, but never indefinitely. If foreground work
-  // stays "active" past this cap (a decrypt hung on some path we don't guard),
-  // proceed anyway rather than starve every thumbnail into a perpetual spinner.
-  // getFileChunk now carries its own timeout, so this is belt-and-suspenders.
-  const MAX_WAIT_MS = 60_000;
+// A thumbnail yields to a foreground decrypt (file open / preview / neighbour
+// prefetch) for a bounded time, once: an on-screen tile waits briefly, an
+// off-screen one a little longer. Past that it proceeds, so a long foreground
+// decrypt can never starve the grid.
+const FOREGROUND_WAIT_VISIBLE_MS = 5_000;
+const FOREGROUND_WAIT_OFFSCREEN_MS = 20_000;
+const FOREGROUND_POLL_MS = 500;
+
+async function waitForForegroundIdle(fileId: string, signal: AbortSignal): Promise<void> {
+  const maxWait = offscreen.has(fileId) ? FOREGROUND_WAIT_OFFSCREEN_MS : FOREGROUND_WAIT_VISIBLE_MS;
   const start = Date.now();
-  while (isForegroundDecryptActive()) {
-    if (Date.now() - start >= MAX_WAIT_MS) return;
-    await new Promise((r) => setTimeout(r, 500));
+  while (isForegroundDecryptActive() && !signal.aborted) {
+    if (Date.now() - start >= maxWait) return;
+    await new Promise((r) => setTimeout(r, FOREGROUND_POLL_MS));
   }
 }
 
-async function acquireSlot(fileId: string): Promise<void> {
-  await waitForForegroundIdle();
+async function acquireSlot(fileId: string, signal: AbortSignal): Promise<void> {
+  await waitForForegroundIdle(fileId, signal);
+  if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
   if (activeCount < MAX_CONCURRENT) {
     activeCount++;
     return;
   }
-  await new Promise<void>((resolve) => {
-    queue.push({
+  await new Promise<void>((resolve, reject) => {
+    const entry = {
       fileId,
       run: () => {
+        signal.removeEventListener("abort", onAbort);
         activeCount++;
         resolve();
       },
-    });
+    };
+    const onAbort = () => {
+      const idx = queue.indexOf(entry);
+      /* v8 ignore start -- run() removes this listener when it takes the entry off the queue */
+      if (idx === -1) return;
+      /* v8 ignore stop */
+      queue.splice(idx, 1);
+      reject(new DOMException("Cancelled", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    queue.push(entry);
   });
-  // A foreground decrypt may have started while this item sat in the queue:
-  // re-check before letting it run. It holds its slot while waiting, which
-  // conveniently pauses the rest of the queue too.
-  await waitForForegroundIdle();
 }
 
 /**
@@ -483,6 +551,7 @@ async function decryptFileToBlob(
   fileId: string,
   passphrase: string,
   resolvePassword?: ThumbnailPasswordResolver,
+  signal?: AbortSignal,
 ): Promise<Blob> {
   const filePassphrase = resolvePassword ? resolvePassword(fileId) : passphrase;
   if (filePassphrase == null) {
@@ -501,7 +570,7 @@ async function decryptFileToBlob(
   return cachedDecrypt(
     fileId,
     file.folder_id ?? null,
-    () => runDecryptPipeline(file, filePassphrase),
+    () => runDecryptPipeline(file, filePassphrase, undefined, signal),
     { background: true },
   );
 }
@@ -563,8 +632,25 @@ async function fetchAndCacheThumbnail(
   // `loading` flag stuck true forever (the perpetual-shimmer bug). releaseSlot
   // is paired only when a slot was actually taken.
   let slotHeld = false;
+  const ctl = new AbortController();
+  controllers.set(fileId, ctl);
+  // The decrypt may be shared with a foreground caller that joined it; only a
+  // background-only run is cancelled with the tile.
+  const pipelineCtl = new AbortController();
+  ctl.signal.addEventListener("abort", () => {
+    if (isBackgroundOnly(fileId)) pipelineCtl.abort();
+  });
+  let timedOut = false;
+  const safetyNet = setTimeout(() => {
+    timedOut = true;
+    ctl.abort();
+  }, DECRYPT_SAFETY_NET_MS);
   const target = previewTarget(fileId, passphrase, resolvePassword);
   try {
+    if (resolvePassword && resolvePassword(fileId) == null) {
+      markThumbFailed(fileId, "locked");
+      return null;
+    }
     // A preview another device already sealed and stored: a few KB instead of
     // the whole original, and it skips the download queue.
     if (target) {
@@ -575,25 +661,24 @@ async function fetchAndCacheThumbnail(
         return stored;
       }
     }
-    await acquireSlot(fileId);
+    await acquireSlot(fileId, ctl.signal);
     slotHeld = true;
     const video = isVideoFile(filename);
 
-    // STAGE 1, fetch + decrypt. Failures here (a chunk still syncing to the
-    // platform right after upload, a network blip, a slow-link timeout) are
-    // TRANSIENT: mark with a bounded backoff so the shimmer resolves into the
-    // real thumbnail on a retry a few seconds later, no page reload needed. A
-    // locked protected folder is the one permanent case (don't re-poll it).
+    // STAGE 1, fetch + decrypt. Fetches are bounded by the idle rule (no bytes
+    // for 60s), so there is no flat deadline here beyond a generous safety net.
+    // A failure is judged by type: only confirmed loss is terminal; a chunk
+    // still syncing, a network blip, offline or a timeout back off and retry.
     let blob: Blob;
     try {
-      blob = await withTimeout(
-        decryptFileToBlob(fileId, passphrase, resolvePassword),
-        30_000,
-        "thumbnail decrypt",
+      blob = await abortable(
+        decryptFileToBlob(fileId, passphrase, resolvePassword, pipelineCtl.signal),
+        ctl.signal,
       );
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      markThumbFailed(fileId, /* permanent */ msg === "locked");
+      if (timedOut) markThumbFailed(fileId, "transient");
+      else if (ctl.signal.aborted || isAbortError(e)) cancelBookkeeping(fileId);
+      else markThumbFailed(fileId, classifyFailure(e));
       return null;
     }
 
@@ -607,23 +692,47 @@ async function fetchAndCacheThumbnail(
         ? await generateVideoThumbnail(blob, 400, 400)
         : await withTimeout(generateThumbnail(blob, 300, 300), 15_000, "thumbnail render");
     } catch {
-      markThumbFailed(fileId, /* permanent */ true);
+      markThumbFailed(fileId, "permanent");
       return null;
     }
     if (ctxPassphrase === null) return null;
     keepThumbnail(fileId, dataUrl);
     if (target) void publishThumb(fileId, target.folderId, dataUrl, target.password);
     return dataUrl;
-  } catch {
-    // acquireSlot (or something unexpected) threw. Treat as transient so a
-    // retry can still succeed once the queue frees up.
-    markThumbFailed(fileId, /* permanent */ false);
+  } catch (e) {
+    // acquireSlot (or something unexpected) threw. A cancelled run just stops;
+    // anything else is transient so a retry can still succeed.
+    if (ctl.signal.aborted || isAbortError(e)) {
+      if (timedOut) markThumbFailed(fileId, "transient");
+      else cancelBookkeeping(fileId);
+    } else markThumbFailed(fileId, "transient");
     return null;
   } finally {
+    clearTimeout(safetyNet);
+    /* v8 ignore start -- the inflight guard allows one run per file, so its controller is always the stored one */
+    if (controllers.get(fileId) === ctl) controllers.delete(fileId);
+    /* v8 ignore stop */
     inflight.delete(fileId);
     if (slotHeld) releaseSlot();
     notify(fileId); // always: clears `loading`, and reflects the cached/failed result
   }
+}
+
+/** A cancelled run is not a failure: forget its shimmer clock so a later mount starts fresh. */
+function cancelBookkeeping(fileId: string): void {
+  genStartedAt.delete(fileId);
+  const gt = graceTimers.get(fileId);
+  if (gt) {
+    clearTimeout(gt);
+    graceTimers.delete(fileId);
+  }
+}
+
+/** The last card showing this file went away: stop its queued or running work. */
+function releaseThumbnailWork(fileId: string): void {
+  setThumbnailVisibility(fileId, false);
+  controllers.get(fileId)?.abort();
+  offscreen.delete(fileId);
 }
 
 /**
@@ -681,6 +790,11 @@ async function publishWhenListed(fileId: string, dataUrl: string): Promise<void>
 export function primeThumbnails(passphrase: string, resolvePassword?: ThumbnailPasswordResolver) {
   ctxPassphrase = passphrase;
   ctxResolver = resolvePassword;
+  for (const [id, f] of [...failed]) {
+    if (f.kind === "locked" && (resolvePassword ? resolvePassword(id) : passphrase) != null) {
+      failed.delete(id);
+    }
+  }
   if (!hydrated && typeof window !== "undefined") void hydrate();
   notify(); // wake already-mounted hooks so they start generating
 }
@@ -779,9 +893,11 @@ function readThumbState(
   fileId: string,
   filename: string,
   size: number | undefined,
+  health: string | undefined,
   version: string,
 ): ThumbState {
   void version;
+  const damaged = health === "damaged";
   const thumbnailUrl = memCache.get(fileId) ?? null;
   const thumbable = isImageFile(filename) || isVideoFile(filename);
   const withinSize = size === undefined || size < MAX_FILE_SIZE;
@@ -792,7 +908,13 @@ function readThumbState(
     // Whether a (re)generation should run now: flips false→true when a failed
     // attempt's backoff elapses and its retry timer notifies.
     shouldGenerate:
-      hydrated && ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId),
+      hydrated &&
+      ctxReady &&
+      thumbable &&
+      withinSize &&
+      !damaged &&
+      !thumbnailUrl &&
+      canGenerateNow(fileId),
     // Shimmer ONLY while a not-yet-cached preview is imminent, and never
     // open-ended: within its SHIMMER_MAX_MS grace window (startedAt undefined →
     // about to dispatch). Past the window a still-generating tile shows its type
@@ -803,11 +925,12 @@ function readThumbState(
       thumbable &&
       withinSize &&
       ctxReady &&
+      !damaged &&
       !thumbnailUrl &&
       !isPermanentlyFailed(fileId) &&
       withinShimmerGrace(fileId),
     // Only a thumbable, in-size file can ever have been attempted at all.
-    unavailable: thumbable && withinSize && !thumbnailUrl && isHardFailed(fileId),
+    unavailable: thumbable && withinSize && !thumbnailUrl && (damaged || isHardFailed(fileId)),
   };
 }
 
@@ -815,17 +938,15 @@ export function useThumbnail(
   fileId: string,
   filename: string,
   size?: number,
+  health?: string,
 ): {
   thumbnailUrl: string | null;
   loading: boolean;
   /** True while a thumbnail is expected but not ready yet, show a loader. */
   pending: boolean;
-  /** Terminal: every fetch/decrypt attempt failed (the file's bytes are
-   *  presumed permanently gone from the storage platform: NOT a locked
-   *  folder, NOT just an unsupported preview format). Bounded by construction
-   *  (generation has already stopped retrying by the time this is true) so
-   *  the card can swap in a distinct "preview unavailable" affordance instead
-   *  of silently reading the same as any other non-thumbnailable file. */
+  /** Confirmed data loss: the server answered 410 (chunk_missing) or the file
+   *  is marked damaged. Never set by a network failure, a chunk still syncing,
+   *  a timeout, a locked folder or an unsupported format. */
   unavailable: boolean;
   /** Attach to the card's root element (`<div ref={cardRef}>`) so the
    *  background queue can tell an on-screen tile from an off-screen one and
@@ -857,12 +978,22 @@ export function useThumbnail(
     },
     [fileId],
   );
-  // On unmount (or fileId change), drop this file's visibility bookkeeping so
-  // the offscreen set can't grow unbounded across a long session.
+  // On unmount (or fileId change) the last card for a file cancels its queued
+  // or running work, so a new folder's tiles never wait behind the old one's,
+  // and drops its visibility bookkeeping so the offscreen set can't grow.
   useEffect(() => {
+    mounted.set(fileId, (mounted.get(fileId) ?? 0) + 1);
     return () => {
       observerRef.current?.disconnect();
-      setThumbnailVisibility(fileId, true);
+      /* v8 ignore start -- the effect above always registered this card, so the count exists */
+      const left = (mounted.get(fileId) ?? 1) - 1;
+      /* v8 ignore stop */
+      if (left > 0) {
+        mounted.set(fileId, left);
+        return;
+      }
+      mounted.delete(fileId);
+      releaseThumbnailWork(fileId);
     };
   }, [fileId]);
 
@@ -870,6 +1001,7 @@ export function useThumbnail(
     fileId,
     filename,
     size,
+    health,
     storeVersion,
   );
 

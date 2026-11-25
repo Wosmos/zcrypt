@@ -189,7 +189,7 @@ export function ExplorerEntryDispatch({
  *  name, type, icon (custom or by extension) and thumbnail state. */
 export function useFileEntryView(file: FileMetadata) {
   const displayName = useExplorerFileName(file);
-  const thumb = useThumbnail(file.id, displayName, file.original_size);
+  const thumb = useThumbnail(file.id, displayName, file.original_size, file.health);
   const typeInfo = getFileTypeInfo(displayName);
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
   return {

@@ -14,7 +14,8 @@
  */
 
 import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
-import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
+import { getFileMeta, type FileMetaResponse } from "@/lib/api";
+import { createChunkSource } from "@/lib/chunk-source";
 import {
   resolveFileKey,
   fromBase64,
@@ -28,6 +29,7 @@ import { OrderedWriter } from "@/lib/ordered-writer";
 import { retryTransient } from "@/lib/retry";
 import { decryptChunkInPool } from "@/lib/decrypt-chunk";
 import { saveBlob } from "@/lib/utils";
+import { STREAM_TO_DISK_MIN_BYTES } from "@/lib/disk-save";
 import type { DownloadPasswordResolver } from "@/store/download";
 
 /** The subset of FileSystemWritableFileStream we use, structural so this module
@@ -142,6 +144,8 @@ export interface DownloadOptions {
    * AbortError). Omitted ⇒ every abort is a cancel (legacy behavior).
    */
   pausing?: () => boolean;
+  /** The transfer's row key (`dl:<id>`): lets a blocked Telegram or a used-up allowance hold the download instead of failing it. */
+  waitKey?: string;
 }
 
 /**
@@ -179,6 +183,12 @@ export async function downloadAndDecryptFile(
   });
   const meta = resume.meta ?? (await getFileMeta(fileId));
   resume.meta = meta;
+
+  // The size the caller passed can be unknown (a shared-space row carries none);
+  // the real one stops a file too big for tab memory from being assembled there.
+  if (!saveToDisk && meta.original_size >= STREAM_TO_DISK_MIN_BYTES) {
+    throw new Error("Too large to download in this browser");
+  }
 
   if (signal?.aborted) throw stopError();
 
@@ -282,14 +292,22 @@ export async function downloadAndDecryptFile(
   // mark. Seeded from writtenCount so a resumed run continues the count.
   let decryptedCount = alreadyDone;
 
+  // One chunk exhausting its retries fails the whole session: this aborts the
+  // other fetchers and any writer waits instead of leaving them to spin behind
+  // the missing chunk. A caller pause/cancel still wins (see below).
+  const failCtl = new AbortController();
+  const runSignal = signal ? AbortSignal.any([signal, failCtl.signal]) : failCtl.signal;
+  let failure: { reason: unknown } | undefined;
+  const fetchChunk = createChunkSource(fileId, { waitKey: options?.waitKey });
+
   try {
     // No entry guard here: the only caller is the fetcher loop below, which
     // already checks the signal immediately before every call (and the whole
     // pipeline is gated on it up front). The post-fetch check is the one that
     // matters: it catches a cancel that landed while this chunk was in flight.
     const processChunk = async (index: number) => {
-      const { data, compressed } = await retryTransient(() => getFileChunk(fileId, index, signal), {
-        signal,
+      const { data, compressed } = await retryTransient(() => fetchChunk(index, runSignal), {
+        signal: runSignal,
       });
 
       if (signal?.aborted) throw stopError();
@@ -298,7 +316,7 @@ export async function downloadAndDecryptFile(
       // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
       const plain = await decryptChunkInPool(pool, index, data, keyBytes, compressed);
       if (writer) {
-        await writer.put(index, plain, signal); // streamed to disk in order + hashed
+        await writer.put(index, plain, runSignal); // streamed to disk in order + hashed
       } else {
         assertSet(decryptedChunks, "decryptedChunks")[index] = plain;
         assertSet(done, "done").add(index);
@@ -335,8 +353,17 @@ export async function downloadAndDecryptFile(
         (async () => {
           while (queue.length > 0) {
             if (signal?.aborted) throw stopError();
+            if (failCtl.signal.aborted) return;
             const idx = queue.shift()!;
-            await processChunk(idx);
+            try {
+              await processChunk(idx);
+            } catch (err) {
+              if (!signal?.aborted && !failure) {
+                failure = { reason: err };
+                failCtl.abort();
+              }
+              throw err;
+            }
           }
         })(),
       );
@@ -350,10 +377,13 @@ export async function downloadAndDecryptFile(
     // stop reason from the signal here yields DownloadPausedError while pausing,
     // so a pause stays a pause (and a real cancel stays a cancel).
     if (signal?.aborted) throw stopError();
+    if (failure) throw failure.reason;
     const rejection = settled.find((r) => r.status === "rejected") as
       | PromiseRejectedResult
       | undefined;
+    /* v8 ignore start -- every rejection sets `failure` or aborts, both handled above; kept as a backstop */
     if (rejection) throw rejection.reason;
+    /* v8 ignore stop */
 
     // Every chunk is in hand. Verify integrity. Streaming has been hashing in
     // write-order as chunks landed; in-memory hashes the full array now. No
@@ -415,9 +445,12 @@ export async function downloadAndDecryptFile(
           }
         }
       }
-      const blob = new Blob(assertSet(decryptedChunks, "decryptedChunks") as BlobPart[], {
-        type: "application/octet-stream",
-      });
+      const parts = assertSet(decryptedChunks, "decryptedChunks");
+      const blob = new Blob(parts as BlobPart[], { type: "application/octet-stream" });
+      parts.length = 0;
+      decryptedChunks = undefined;
+      resume.decryptedChunks = undefined;
+      resume.done = undefined;
       saveBlob(saveName || "download", blob);
     }
 

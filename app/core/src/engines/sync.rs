@@ -16,7 +16,9 @@ use crate::localdb::{LocalChunk, LocalFile};
 use crate::reppool::{self, RepoStore};
 use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage, SyncStatus, UploadMode};
 
-use super::{EngineContext, EngineError};
+use super::gate::{self, Gate};
+use super::{retry_transient, EngineContext, EngineError};
+use crate::reach::{self, TELEGRAM_ORIGIN};
 
 /// File ids currently being synced. Guards against the 1s `sync_once` loop and
 /// an explicit `sync_file_by_id` call (from `upload()`, right after a file is
@@ -56,10 +58,84 @@ impl Drop for SyncGuard {
     }
 }
 
+/// Files the relay refused for allowance, held back so the 1s loop does not
+/// hammer the server until the hold lapses.
+fn allowance_holds() -> &'static Mutex<std::collections::HashMap<String, std::time::Instant>> {
+    static M: OnceLock<Mutex<std::collections::HashMap<String, std::time::Instant>>> =
+        OnceLock::new();
+    M.get_or_init(Default::default)
+}
+
+const ALLOWANCE_HOLD: std::time::Duration = std::time::Duration::from_secs(120);
+
+fn on_hold(file_id: &str) -> bool {
+    allowance_holds()
+        .lock()
+        .unwrap()
+        .get(file_id)
+        .is_some_and(|until| *until > std::time::Instant::now())
+}
+
+/// Decides whether a file may be pushed now. A Telegram file is pushed direct
+/// while Telegram answers. If it does not: a file with no session yet moves to
+/// the relay when it fits the allowance (sessions are bound to their plane and
+/// pushed chunks are gone from staging, so a file mid-way cannot switch);
+/// otherwise the file waits. `wait` is true for a foreground caller, which
+/// blocks until Telegram is back; the background loop reports waiting and
+/// skips the file for this pass. `Ok(false)` means skip.
+async fn sync_gate(
+    ctx: &EngineContext,
+    gate: &Gate,
+    f: &mut LocalFile,
+    wait: bool,
+) -> Result<bool, EngineError> {
+    if f.mode != UploadMode::ByosDirect.as_str()
+        || f.platform != crate::types::Platform::Telegram.as_str()
+        || gate.env.reachable(TELEGRAM_ORIGIN).await
+    {
+        return Ok(true);
+    }
+    if f.sync_status == SyncStatus::Pending.as_str()
+        && gate.env.fits(f.original_size, f.original_size).await
+    {
+        ctx.db
+            .set_file_plane(&f.id, UploadMode::Relay.as_str(), "")?;
+        f.mode = UploadMode::Relay.as_str().into();
+        f.platform.clear();
+        return Ok(true);
+    }
+    if !wait {
+        if let Some(notify) = &gate.notify {
+            notify(gate::WAIT_TELEGRAM_BLOCKED);
+        }
+        return Ok(false);
+    }
+    gate.wait_reachable(gate::WAIT_TELEGRAM_BLOCKED, TELEGRAM_ORIGIN)
+        .await?;
+    Ok(true)
+}
+
+fn file_gate(ctx: &EngineContext, f: &LocalFile) -> Gate {
+    Gate::live(
+        ctx,
+        Some(Gate::waiting_progress(
+            ctx,
+            f.backend_file_id.clone(),
+            f.original_name.clone(),
+            f.original_size,
+        )),
+        f.original_size,
+    )
+}
+
 /// One pass over every pending file (called by the 1s loop). Errors are
 /// recorded per file/chunk in the ledger, never bubbled, the loop must
 /// survive offline periods.
 pub async fn sync_once(ctx: &EngineContext) {
+    sync_pass(ctx, &|f| file_gate(ctx, f)).await
+}
+
+async fn sync_pass(ctx: &EngineContext, make_gate: &(dyn Fn(&LocalFile) -> Gate + Sync)) {
     let Ok(user_id) = ctx.client.user_id().await else {
         return;
     };
@@ -70,11 +146,18 @@ pub async fn sync_once(ctx: &EngineContext) {
             return;
         }
     };
-    for f in files {
+    for mut f in files {
+        if on_hold(&f.id) {
+            continue;
+        }
         let Some(guard) = SyncGuard::acquire(&f.id) else {
             continue; // already being synced by another pass, skip this tick
         };
         let file_id = f.id.clone();
+        match sync_gate(ctx, &make_gate(&f), &mut f, false).await {
+            Ok(true) => {}
+            _ => continue,
+        }
         if let Err(e) = sync_file(ctx, f, None).await {
             // The backend collapsed a rare concurrent double-invocation (two
             // local rows for identical in-flight content. See
@@ -91,10 +174,25 @@ pub async fn sync_once(ctx: &EngineContext) {
                 let _ = ctx.db.reset_file_for_retry(&file_id);
                 eprintln!("sync: {file_id} lost its session to a concurrent pass, retrying fresh");
             } else {
+                record_failure(ctx, &file_id, &e);
                 eprintln!("sync: {e}");
             }
         }
         drop(guard);
+    }
+}
+
+/// A failed pass that left the row in an in-flight state (the failure came
+/// before any ledger error was written) would be retried every tick forever.
+/// Put it on the ledger's backoff schedule instead, which ends in 'failed'.
+fn record_failure(ctx: &EngineContext, file_id: &str, e: &EngineError) {
+    let Ok(Some(row)) = ctx.db.get_file_by_id(file_id) else {
+        return;
+    };
+    let errored = row.sync_status == SyncStatus::Error.as_str()
+        || row.sync_status == SyncStatus::Failed.as_str();
+    if !errored {
+        let _ = ctx.db.update_file_sync_error(file_id, &e.to_string());
     }
 }
 
@@ -155,12 +253,18 @@ pub async fn sync_file_by_id(
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
             continue;
         };
-        let result = sync_file(ctx, f, platform).await;
+        let mut f = f;
+        let proceed = sync_gate(ctx, &file_gate(ctx, &f), &mut f, true).await;
+        let result = match proceed {
+            Ok(_) => sync_file(ctx, f, platform).await,
+            Err(e) => Err(e),
+        };
         drop(guard);
         match result {
             // Not necessarily terminal (e.g. nothing left to push this pass):
             // loop re-reads the ledger; if it's synced now, we return Ok above.
             Ok(()) => continue,
+            Err(e @ (EngineError::Cancelled | EngineError::Blocked(_))) => return Err(e),
             Err(e) => {
                 // A concurrent pass (see find_active_sibling's TOCTOU note)
                 // finished this content's shared backend session before us.
@@ -186,6 +290,34 @@ pub async fn sync_file_by_id(
             }
         }
     }
+}
+
+/// The relay refused this file for allowance: not a failure. A file with no
+/// session goes back to the user's own Telegram when they hold a token (it
+/// resumes direct once Telegram answers); either way it is held off the 1s loop.
+fn hold_for_allowance(ctx: &EngineContext, f: &LocalFile) {
+    if f.session_id.is_empty() {
+        if let (_, Some(p)) = super::choose_plane(&ctx.creds) {
+            let _ = ctx
+                .db
+                .set_file_plane(&f.id, UploadMode::ByosDirect.as_str(), p.as_str());
+        }
+    }
+    allowance_holds()
+        .lock()
+        .unwrap()
+        .insert(f.id.clone(), std::time::Instant::now() + ALLOWANCE_HOLD);
+    (ctx.progress)(Progress {
+        file_id: f.backend_file_id.clone(),
+        file_name: f.original_name.clone(),
+        stage: Stage::Waiting,
+        chunks_done: 0,
+        chunks_total: 0,
+        bytes_done: 0,
+        bytes_total: f.original_size,
+        speed: 0.0,
+        waiting: Some(gate::WAIT_ALLOWANCE_USED_UP.into()),
+    });
 }
 
 async fn sync_file(
@@ -215,6 +347,10 @@ async fn sync_file(
                 f.backend_file_id = backend_id;
                 f.direct_upload = direct;
                 f.sync_status = SyncStatus::InitDone.to_string();
+            }
+            Err(e) if gate::is_allowance_refusal(&e) => {
+                hold_for_allowance(ctx, &f);
+                return Ok(());
             }
             Err(e) => {
                 let _ = ctx
@@ -313,6 +449,7 @@ async fn sync_file(
                         bytes_done: (n as i64) * (f_size / f_count.max(1)),
                         bytes_total: f_size,
                         speed: 0.0,
+                        waiting: None,
                     });
                 }
                 Err(e) => {
@@ -325,6 +462,14 @@ async fn sync_file(
     while join.join_next().await.is_some() {}
 
     if let Some(e) = first_err.lock().unwrap().take() {
+        if gate::is_direct_unreachable(&e) {
+            reach::shared().mark_blocked(TELEGRAM_ORIGIN);
+            return Ok(());
+        }
+        if gate::is_allowance_refusal(&e) {
+            hold_for_allowance(ctx, &f);
+            return Ok(());
+        }
         let _ = ctx
             .db
             .update_file_sync_error(&f.id, &format!("chunk push: {e}"));
@@ -344,6 +489,7 @@ async fn sync_file(
         bytes_done: f.original_size,
         bytes_total: f.original_size,
         speed: 0.0,
+        waiting: None,
     });
     let (enc, comp) = ctx.db.get_chunk_totals(&f.id)?;
     ctx.client.complete_upload(&f.session_id, enc, comp).await?;
@@ -471,44 +617,60 @@ async fn push_chunk(
     f: &LocalFile,
     chunk: &LocalChunk,
 ) -> Result<(), EngineError> {
-    let data = tokio::fs::read(&chunk.staging_path).await?;
+    let data = bytes::Bytes::from(tokio::fs::read(&chunk.staging_path).await?);
 
     let remote_path = if f.direct_upload {
         // Presigned direct path (HuggingFace LFS): presign → external PUT → confirm.
-        let presign = ctx
-            .client
-            .presign_chunk(&f.session_id, chunk.idx, &chunk.sha256, data.len() as i64)
-            .await?;
-        if !presign.already_exists {
+        let presign = retry_transient(&ctx.cancel, 4, || async {
             ctx.client
-                .direct_upload_to_url(&presign.upload_url, &presign.upload_headers, data)
-                .await?;
-        }
-        ctx.client
-            .confirm_chunk(
-                &f.session_id,
-                chunk.idx,
-                &ConfirmChunkRequest {
-                    sha256: chunk.sha256.clone(),
-                    size: chunk.encrypted_size,
-                    remote_path: presign.remote_path.clone(),
-                    compressed: chunk.compressed,
-                    ..Default::default()
-                },
-            )
+                .presign_chunk(&f.session_id, chunk.idx, &chunk.sha256, data.len() as i64)
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
+        if !presign.already_exists {
+            retry_transient(&ctx.cancel, 4, || async {
+                ctx.client
+                    .direct_upload_to_url(
+                        &presign.upload_url,
+                        &presign.upload_headers,
+                        data.clone(),
+                    )
+                    .await
+                    .map_err(EngineError::from)
+            })
             .await?;
+        }
+        super::confirm_chunk(
+            ctx,
+            &f.session_id,
+            chunk.idx,
+            &ConfirmChunkRequest {
+                sha256: chunk.sha256.clone(),
+                size: chunk.encrypted_size,
+                remote_path: presign.remote_path.clone(),
+                compressed: chunk.compressed,
+                ..Default::default()
+            },
+            None,
+        )
+        .await?;
         presign.remote_path
     } else {
         // Relay path: the server stages + pushes to the platform.
-        ctx.client
-            .upload_chunk(
-                &f.session_id,
-                chunk.idx,
-                data,
-                &chunk.sha256,
-                chunk.compressed,
-            )
-            .await?;
+        retry_transient(&ctx.cancel, 4, || async {
+            ctx.client
+                .upload_chunk(
+                    &f.session_id,
+                    chunk.idx,
+                    data.clone(),
+                    &chunk.sha256,
+                    chunk.compressed,
+                )
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
         String::new()
     };
 
@@ -563,7 +725,7 @@ async fn push_chunk_byos_with_repo(
     let adapter = adapters::shared_adapter(&f.platform, &creds.token, &creds.account)
         .ok_or_else(|| EngineError::Other(format!("no adapter for {}", f.platform)))?;
 
-    let data = tokio::fs::read(&chunk.staging_path).await?;
+    let data = bytes::Bytes::from(tokio::fs::read(&chunk.staging_path).await?);
     let cref = ChunkRef {
         platform: f.platform.clone(),
         account: creds.account.clone(),
@@ -572,60 +734,42 @@ async fn push_chunk_byos_with_repo(
         compressed: chunk.compressed,
         ..ChunkRef::default()
     };
-    // Push to the user's OWN platform, retrying a transient failure a couple of
-    // times before giving up. Mirrors the download direct-path's 2-attempt
-    // resilience, a blip reaching e.g. Telegram shouldn't fail the chunk on the
-    // first try. The sync loop already retries the whole file on a later pass, so
-    // this only tightens the retry loop; it adds no new at-least-once risk.
-    // NOTE: this is intra-plane (byos) resilience only. A true byos-direct ->
-    // relay fallback needs a BACKEND change first: a byos-direct session has no
+    // Push to the user's OWN platform, retrying transient failures only. NOTE:
+    // this is intra-plane (byos) resilience only. A true byos-direct -> relay
+    // fallback needs a BACKEND change first: a byos-direct session has no
     // server repo (RepoURL empty) and uses the user's personal token, so the
     // relay HandleChunkUpload path can't currently complete its chunks.
-    let mut uploaded = None;
-    let mut last_err: Option<EngineError> = None;
-    for n in 0..2u32 {
-        let obj = Chunk {
-            r#ref: cref.clone(),
-            data: data.clone(),
-        };
-        match adapter.upload(&repo.url, obj).await {
-            Ok(u) => {
-                uploaded = Some(u);
-                break;
-            }
-            Err(e) => {
-                last_err = Some(EngineError::Other(format!(
-                    "upload chunk {}: {e}",
-                    chunk.idx
-                )))
-            }
-        }
-        if n + 1 < 2 {
-            tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
-        }
-    }
-    let uploaded = uploaded.ok_or_else(|| {
-        last_err.unwrap_or_else(|| {
-            EngineError::Other(format!("upload chunk {}: no attempts", chunk.idx))
-        })
-    })?;
+    let uploaded = retry_transient(&ctx.cancel, 4, || async {
+        adapter
+            .upload(
+                &repo.url,
+                Chunk {
+                    r#ref: cref.clone(),
+                    data: data.clone(),
+                },
+            )
+            .await
+            .map_err(EngineError::from)
+    })
+    .await?;
 
-    ctx.client
-        .confirm_chunk(
-            &f.session_id,
-            chunk.idx,
-            &ConfirmChunkRequest {
-                sha256: chunk.sha256.clone(),
-                size: chunk.encrypted_size,
-                remote_path: uploaded.remote_path.clone(),
-                compressed: chunk.compressed,
-                platform: f.platform.clone(),
-                account: creds.account.clone(),
-                repo_id: repo.id.clone(),
-                committed: true,
-            },
-        )
-        .await?;
+    super::confirm_chunk(
+        ctx,
+        &f.session_id,
+        chunk.idx,
+        &ConfirmChunkRequest {
+            sha256: chunk.sha256.clone(),
+            size: chunk.encrypted_size,
+            remote_path: uploaded.remote_path.clone(),
+            compressed: chunk.compressed,
+            platform: f.platform.clone(),
+            account: creds.account.clone(),
+            repo_id: repo.id.clone(),
+            committed: true,
+        },
+        Some((adapter.as_ref(), &uploaded)),
+    )
+    .await?;
 
     ctx.db
         .update_chunk_synced(&chunk.id, &uploaded.remote_path)?;
@@ -704,6 +848,192 @@ mod identity_tests {
         };
         let err = init_remote_session(&ctx, &legacy, None).await.unwrap_err();
         assert!(err.to_string().contains("not sealed"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn token_for(sub: &str) -> String {
+        use base64::Engine as _;
+        let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        format!(
+            "{}.{}.sig",
+            b.encode("{}"),
+            b.encode(format!(r#"{{"sub":"{sub}"}}"#))
+        )
+    }
+
+    #[tokio::test]
+    async fn a_pass_that_fails_before_any_chunk_goes_on_the_backoff_schedule() {
+        let dir = std::env::temp_dir().join(format!("zcrypt-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = Arc::new(LocalDb::open_at(&dir.join("db.sqlite")).unwrap());
+        db.insert_file(&LocalFile {
+            id: "f1".into(),
+            original_name: "a".into(),
+            salt: vec![1; 32],
+            chunk_count: 1,
+            user_id: "u1".into(),
+            mode: UploadMode::ByosDirect.as_str().into(),
+            platform: "telegram".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        db.update_file_sync_state(
+            "f1",
+            SyncStatus::Uploading.as_str(),
+            "s1",
+            "b1",
+            "telegram",
+            "",
+            false,
+        )
+        .unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(
+                "http://127.0.0.1:0",
+                &token_for("u1"),
+                "r",
+            )),
+            db: db.clone(),
+            profile: profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+
+        sync_pass(&ctx, &|_| {
+            gate::fake::gate(gate::fake::FakeEnv::new(true, true), None)
+        })
+        .await;
+        let row = db.get_file_by_id("f1").unwrap().unwrap();
+        assert_eq!(row.sync_status, SyncStatus::Error.as_str());
+        assert!(!row.error_msg.is_empty());
+
+        sync_pass(&ctx, &|_| {
+            gate::fake::gate(gate::fake::FakeEnv::new(true, true), None)
+        })
+        .await;
+        let again = db.get_file_by_id("f1").unwrap().unwrap();
+        assert_eq!(again.sync_status, SyncStatus::Error.as_str());
+        assert_eq!(db.get_pending_files("u1").unwrap().len(), 0);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn pending_telegram_file(
+        dir: &std::path::Path,
+        base: &str,
+    ) -> (EngineContext, Arc<LocalDb>, String) {
+        let id = uuid::Uuid::new_v4().to_string();
+        let db = Arc::new(LocalDb::open_at(&dir.join("db.sqlite")).unwrap());
+        db.insert_file(&LocalFile {
+            id: id.clone(),
+            original_name: "a".into(),
+            original_size: 10,
+            salt: vec![1; 32],
+            chunk_count: 1,
+            user_id: "u1".into(),
+            encrypted_name: "enc".into(),
+            sync_status: SyncStatus::Pending.to_string(),
+            sha256_scheme: crate::crypto::CONTENT_MAC_SCHEME.into(),
+            mode: UploadMode::ByosDirect.as_str().into(),
+            platform: "telegram".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(base, &token_for("u1"), "r")),
+            db: db.clone(),
+            profile: profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+        (ctx, db, id)
+    }
+
+    #[tokio::test]
+    async fn a_blocked_telegram_file_over_the_allowance_is_skipped_not_failed() {
+        let (base, hits) =
+            crate::testutil::serve(|_, _| crate::testutil::Reply::status(500, "x")).await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (ctx, db, id) = pending_telegram_file(&dir, &base);
+        let seen = Arc::new(Mutex::new(Vec::<&'static str>::new()));
+        let s = seen.clone();
+        sync_pass(&ctx, &|_| {
+            gate::fake::gate(
+                gate::fake::FakeEnv::new(false, false),
+                Some(Arc::new({
+                    let s = s.clone();
+                    move |r| s.lock().unwrap().push(r)
+                })),
+            )
+        })
+        .await;
+        let row = db.get_file_by_id(&id).unwrap().unwrap();
+        assert_eq!(row.sync_status, SyncStatus::Pending.as_str());
+        assert!(row.error_msg.is_empty(), "{}", row.error_msg);
+        assert_eq!(row.sync_status, SyncStatus::Pending.as_str());
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(seen.lock().unwrap().contains(&"telegram_blocked"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn a_blocked_telegram_file_that_fits_moves_to_the_relay() {
+        let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+        let b = bodies.clone();
+        let (base, _) = crate::testutil::serve(move |_, req| {
+            b.lock()
+                .unwrap()
+                .push(String::from_utf8_lossy(&req.body).into());
+            crate::testutil::Reply::status(500, "x")
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (ctx, db, id) = pending_telegram_file(&dir, &base);
+        sync_pass(&ctx, &|_| {
+            gate::fake::gate(gate::fake::FakeEnv::new(false, true), None)
+        })
+        .await;
+        let row = db.get_file_by_id(&id).unwrap().unwrap();
+        assert_eq!(row.mode, UploadMode::Relay.as_str());
+        let b = bodies.lock().unwrap();
+        assert!(!b.is_empty() && !b[0].contains("byos-direct"), "{b:?}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn a_relay_refusal_on_init_is_held_not_failed() {
+        let (base, hits) = crate::testutil::serve(|_, _| {
+            crate::testutil::Reply::status(403, r#"{"error":"x","code":"relay_daily_exceeded"}"#)
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (mut ctx, db, id) = pending_telegram_file(&dir, &base);
+        db.set_file_plane(&id, "relay", "").unwrap();
+        ctx.creds = Arc::new(|p| {
+            (p == "telegram").then(|| crate::engines::PlatformCreds {
+                token: "t".into(),
+                account: "a".into(),
+            })
+        });
+        let g = || gate::fake::gate(gate::fake::FakeEnv::new(true, true), None);
+        sync_pass(&ctx, &|_| g()).await;
+        let row = db.get_file_by_id(&id).unwrap().unwrap();
+        assert!(row.error_msg.is_empty(), "{}", row.error_msg);
+        assert_eq!(row.sync_status, SyncStatus::Pending.as_str());
+        assert_eq!(row.mode, UploadMode::ByosDirect.as_str());
+        let first = hits.load(std::sync::atomic::Ordering::SeqCst);
+        sync_pass(&ctx, &|_| g()).await;
+        assert_eq!(
+            hits.load(std::sync::atomic::Ordering::SeqCst),
+            first,
+            "held off the server"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 }

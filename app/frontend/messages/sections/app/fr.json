@@ -164,7 +164,9 @@
         "choose": "Choisissez où enregistrer",
         "paused": "En pause",
         "offline": "En attente du Wi-Fi",
-        "stopped": "Arrêté"
+        "stopped": "Arrêté",
+        "waitingTelegram": "Telegram est bloqué sur ce réseau. Activez un VPN et le transfert reprend tout seul.",
+        "waitingAllowance": "Le quota de transfert est épuisé. Activez un VPN pour envoyer directement vers Telegram et le transfert reprend tout seul."
       },
       "time": {
         "fewSeconds": "quelques secondes",
@@ -201,9 +203,11 @@
         "saved": "{count} enregistrés dans {folder}.",
         "savedSomeFailed": "{count} enregistrés dans {folder}. {failed} n'ont pas pu être envoyés.",
         "allFailed": "{failed} n'ont pas pu être envoyés.",
+        "allDownloadsFailed": "{failed} n'ont pas pu être téléchargés.",
         "downloaded": "{count} téléchargés.",
         "downloadedSomeFailed": "{count} téléchargés. {failed} n'ont pas pu être téléchargés.",
-        "needsApp": "{count, plural, one {# fichier nécessite} other {# fichiers nécessitent}} l'application de bureau."
+        "needsApp": "{count, plural, one {# fichier nécessite} other {# fichiers nécessitent}} l'application de bureau.",
+        "blocked": "{count, plural, one {# fichier attend} other {# fichiers attendent}} Telegram. Activez un VPN et ils reprennent tout seuls."
       },
       "legend": {
         "done": "Terminés",
@@ -228,9 +232,11 @@
       "orb": "Transferts, encore {left}. Touchez pour ouvrir, maintenez pour mettre en pause ou reprendre.",
       "needsApp": {
         "tooBig": "Trop volumineux pour le navigateur",
-        "allowance": "Transferts web du mois épuisés",
-        "action": "Utiliser l'app"
-      }
+        "allowance": "Quota de transfert du mois dépassé",
+        "action": "Utiliser l'app",
+        "daily": "Quota de transfert du jour dépassé"
+      },
+      "tryAgain": "Réessayer"
     },
     "tokens": {
       "expired": "Expiré",
@@ -911,6 +917,9 @@
     "toasts": {
       "restartUpload": "Impossible de poursuivre l'envoi précédent de « {name} », reprise depuis le début sur {platform}.",
       "directResumeElsewhere": "« {name} » était envoyé directement vers votre propre {platform} et ne peut pas être terminé dans ce navigateur. Retirez-le et envoyez-le à nouveau.",
+      "reconnectTelegram": "Reconnectez Telegram pour terminer l'envoi de \"{name}\".",
+      "reconnectTelegramAction": "Ouvrir les réglages de stockage",
+      "downloadInterrupted": "Interrompu par le rechargement : {names}. Un téléchargement ne peut pas reprendre après un rechargement, relancez-le.",
       "andMore": "et {count} autres",
       "tooBig": "{names} {count, plural, one {dépasse la limite de} other {dépassent la limite de}} {limit} par fichier.",
       "uploaded": "{name} envoyé",
@@ -934,12 +943,16 @@
       "zipWrongPassword": "Mot de passe de dossier incorrect dans ce ZIP. Réessayez pour le saisir à nouveau.",
       "zipFilesLabel": "{count, plural, one {# fichier (ZIP)} other {# fichiers (ZIP)}}",
       "webFileTooLarge": "Les fichiers de plus de {limit} ne peuvent pas être envoyés depuis le navigateur. Les gros fichiers ont leur place dans l'application de bureau : elle est plus rapide, continue en arrière-plan et n'a aucune limite de taille.",
-      "webAllowanceUsed": "Vous avez utilisé vos {limit} de transferts web ce mois-ci. Remise à zéro le {date}. L'application de bureau n'a aucune limite.",
-      "webAllowanceUsedNoDate": "Vous avez utilisé vos {limit} de transferts web ce mois-ci. L'application de bureau n'a aucune limite.",
+      "webAllowanceUsed": "Vous avez utilisé votre quota de transfert de {limit} ce mois-ci. Remise à zéro le {date}. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "webAllowanceUsedNoDate": "Vous avez utilisé votre quota de transfert de {limit} ce mois-ci. Ce qui part directement vers votre propre stockage n'est pas compté.",
       "getDesktopApp": "Obtenir l'application de bureau",
       "openDesktopApp": "Ouvrir l'application de bureau",
       "desktopAppMissing": "Impossible d'ouvrir l'application de bureau. Vous ne l'avez pas encore ?",
-      "downloadDesktopApp": "Télécharger l'application de bureau"
+      "downloadDesktopApp": "Télécharger l'application de bureau",
+      "webDailyUsed": "Vous avez utilisé votre quota de transfert du jour, {limit}. Remise à zéro à {time}. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "webDailyUsedNoTime": "Vous avez utilisé votre quota de transfert du jour, {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "webDailyShort": "Il faut {needed} via notre serveur, mais il ne reste que {left} sur les {limit} d'aujourd'hui. Le quota repart à {time}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas.",
+      "webAllowanceShort": "Il faut {needed} via notre serveur, mais il ne reste que {left} sur les {limit} de ce mois. Le quota repart le {date}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas."
     },
     "l10n": {
       "justNow": "à l'instant",
@@ -1033,22 +1046,50 @@
       "newSignIn": "Nouvelle connexion à votre compte",
       "newSignInBody": "{device}. Ce n'est pas vous ? Déconnectez-la dans les Réglages.",
       "inviteReceived": "Vous êtes invité dans {space}",
+      "inviteReceivedBy": "{name} vous a ajouté à {space}",
       "inviteReceivedBody": "Ouvrez zcrypt pour accepter ou refuser.",
       "linkViewed": "Quelqu'un a ouvert votre lien",
       "storageFull": "Votre stockage est plein",
       "storageFullBody": "Les nouveaux envois attendent que vous libériez de l'espace ou connectiez votre propre compte.",
       "view": "Voir",
       "retry": "Réessayer",
-      "open": "Ouvrir"
+      "open": "Ouvrir",
+      "invitePending": "{name} vous a invité dans un Space",
+      "invitePendingBody": "Déverrouillez votre coffre pour le rejoindre.",
+      "memberJoined": "{name} a rejoint {space}",
+      "memberLeft": "{name} a quitté {space}",
+      "memberRemoved": "Vous avez été retiré de {space}",
+      "roleChanged": "Votre rôle dans {space} est maintenant {role}",
+      "spaceDeleted": "{space} a été supprimé",
+      "filesAdded": "{name} a ajouté {count, plural, one {# fichier} other {# fichiers}} à {space}",
+      "someone": "Quelqu'un",
+      "aSpace": "un Space",
+      "backupTitle": "Sauvegarde zcrypt",
+      "backupFilesOne": "{n} fichier sauvegardé",
+      "backupFilesOther": "{n} fichiers sauvegardés",
+      "backupFromOne": "{n} fichier sauvegardé depuis {folder}",
+      "backupFromOther": "{n} fichiers sauvegardés depuis {folder}",
+      "backupPhotosOne": "{n} photo sauvegardée",
+      "backupPhotosOther": "{n} photos sauvegardées",
+      "backupSignedOut": "Sauvegarde arrêtée : reconnectez-vous",
+      "backupOffline": "Sauvegarde en pause : pas de connexion",
+      "backupFailedOne": "La sauvegarde n'a pas pu envoyer {n} fichier",
+      "backupFailedOther": "La sauvegarde n'a pas pu envoyer {n} fichiers",
+      "role": {
+        "owner": "Propriétaire",
+        "admin": "Admin",
+        "editor": "Éditeur",
+        "viewer": "Lecteur"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Trop volumineux pour le navigateur",
       "tooBigManyTitle": "{count} fichiers sont trop volumineux pour le navigateur",
       "tooBigBody": "{name} fait {size}. Les envois depuis le navigateur sont limités à {limit}, car ils passent par nos serveurs. L'application de bureau envoie les fichiers directement vers votre stockage, sans limite de taille.",
       "capBody": "Les envois depuis le navigateur sont limités à {limit}, car ils passent par nos serveurs. L'application de bureau envoie les fichiers directement vers votre stockage, sans limite de taille.",
-      "allowanceTitle": "Vous avez utilisé vos transferts web du mois",
-      "allowanceBody": "{used} sur {limit}. Remise à zéro le {date}. L'application de bureau n'a aucune limite.",
-      "allowanceBodyNoDate": "{used} sur {limit}. L'application de bureau n'a aucune limite.",
+      "allowanceTitle": "Vous avez utilisé le quota de transfert du mois",
+      "allowanceBody": "{used} sur {limit}. Remise à zéro le {date}. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "allowanceBodyNoDate": "{used} sur {limit}. Ce qui part directement vers votre propre stockage n'est pas compté.",
       "hint": "Ouvrez l'application, puis déposez-y {count, plural, one {le fichier} other {les fichiers}}.",
       "more": "et {count} de plus",
       "open": "Ouvrir l'application de bureau",
@@ -1056,7 +1097,28 @@
       "get": "Obtenir l'application de bureau",
       "missing": "Rien ne s'affiche ? Obtenir l'application de bureau",
       "missingNote": "Rien ne s'est ouvert : l'application n'est peut-être pas encore installée sur cet appareil.",
-      "notNow": "Pas maintenant"
+      "notNow": "Pas maintenant",
+      "dailyTitle": "Vous avez utilisé le quota de transfert du jour",
+      "dailyBody": "Aujourd'hui {used} sur {limit}. Remise à zéro à {time}. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "dailyBodyNoTime": "Aujourd'hui {used} sur {limit}. Remise à zéro à minuit UTC. Ce qui part directement vers votre propre stockage n'est pas compté.",
+      "dailyShortTitle": "Il ne reste pas assez pour aujourd'hui",
+      "allowanceShortTitle": "Il ne reste pas assez pour ce mois",
+      "dailyShortBody": "Il faut {needed} via notre serveur, et il reste {left} sur les {limit} d'aujourd'hui. Le quota repart à {time}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas.",
+      "allowanceShortBody": "Il faut {needed} via notre serveur, et il reste {left} sur les {limit} de ce mois. Le quota repart le {date}. L'app de bureau télécharge directement depuis ton stockage, donc ça ne compte pas."
+    },
+    "lowAllowance": {
+      "title": "Votre quota de transfert est presque épuisé",
+      "bodyDaily": "Il ne reste que {remaining} du quota du jour. Remise à zéro à {time}. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "bodyDailyNoTime": "Il ne reste que {remaining} du quota du jour. Remise à zéro à minuit UTC. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "bodyMonthly": "Il ne reste que {remaining} du quota du mois. Remise à zéro le {date}. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "bodyMonthlyNoDate": "Il ne reste que {remaining} du quota du mois. Les envois directs vers votre propre stockage ne l'utilisent pas.",
+      "seeUsage": "Voir l'utilisation"
+    },
+    "humanCheck": {
+      "title": "Vérification rapide",
+      "body": "Vous avez créé beaucoup de liens en peu de temps. Confirmez que vous êtes une personne et votre lien sera créé.",
+      "checking": "Vérification…",
+      "cancel": "Annuler"
     }
   }
 }

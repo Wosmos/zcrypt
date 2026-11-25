@@ -153,6 +153,11 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+// writeCodedError writes {"error": msg, "code": code}; clients localize by code.
+func writeCodedError(w http.ResponseWriter, status int, code, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg, "code": code})
+}
+
 // MaxBodyMiddleware limits the request body size for JSON endpoints.
 // This prevents attackers from sending enormous payloads to exhaust memory.
 func MaxBodyMiddleware(maxBytes int64, next http.HandlerFunc) http.HandlerFunc {

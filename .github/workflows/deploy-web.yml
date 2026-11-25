@@ -1,0 +1,94 @@
+name: Deploy Website
+
+# Builds the website as a Cloudflare Worker (vinext, pages prerendered) and
+# deploys it.
+# - main: CI calls this after the checks pass; the new version goes live.
+# - staging: CI calls this with promote=false; the version is uploaded but not
+#   live, and its preview URL is printed in the job summary.
+# - Releases: device.yml calls this once a release is published, so the
+#   download page shows it.
+# - Daily: prerendered pages hold the reviews and download counts as of the
+#   build, so a nightly deploy refreshes them.
+# - By hand: after changing a NEXT_PUBLIC_* repository variable, since those
+#   are baked in at build time.
+on:
+  workflow_call:
+    inputs:
+      promote:
+        description: Make the new version live
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      promote:
+        description: Make the new version live
+        type: boolean
+        default: true
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Frontend (Cloudflare)
+    if: >-
+      github.ref == 'refs/heads/main'
+      || github.ref == 'refs/heads/staging'
+      || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-web-${{ github.ref == 'refs/heads/staging' && 'staging' || 'live' }}
+      cancel-in-progress: false
+    env:
+      PROMOTE: ${{ github.ref != 'refs/heads/staging' && (inputs.promote == null || inputs.promote) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build the Worker (vinext)
+        working-directory: app/frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_CF_ANALYTICS_TOKEN: ${{ vars.NEXT_PUBLIC_CF_ANALYTICS_TOKEN }}
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          if [[ -z "$NEXT_PUBLIC_API_URL" ]]; then
+            echo "::error::NEXT_PUBLIC_API_URL repository variable is unset."
+            exit 1
+          fi
+          bun run build:vinext
+
+      # ZCRYPT_PROXY_SECRET is a Worker secret set once in Cloudflare, never here.
+      - name: Deploy to Cloudflare Workers
+        working-directory: app/frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          set -o pipefail
+          flags=(--skip-build)
+          [[ "$PROMOTE" == "true" ]] || flags+=(--no-promote)
+          bun run deploy:vinext -- "${flags[@]}" 2>&1 | tee deploy.log
+          url="$(grep -oE 'https://[a-z0-9-]+\.zcrypt\.workers\.dev' deploy.log | tail -1 || true)"
+          {
+            echo "### Website deploy"
+            echo "- Live: $PROMOTE"
+            if [[ -n "$url" ]]; then echo "- URL: $url"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  reindex:
+    needs: deploy
+    if: needs.deploy.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'schedule'
+    uses: ./.github/workflows/reindex.yml
+    secrets: inherit

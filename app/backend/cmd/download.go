@@ -45,6 +45,33 @@ func (s *Server) authorizeFileRead(ctx context.Context, userID, fileID string) (
 	return f, grant.OwnerID, grant.WrappedCEK, true
 }
 
+// readStagedOrRefresh serves a chunk the sync worker has not pushed yet from
+// the staging dir. When the file is gone it re-reads the chunk row once: the
+// worker may have pushed it and removed staging between the caller's read and
+// now, in which case the refreshed row (with its remote path) is returned for a
+// platform fetch. A chunk that is nowhere yet answers a retryable 503
+// (done=true).
+func (s *Server) readStagedOrRefresh(ctx context.Context, w http.ResponseWriter, chunk *types.ChunkRef, logPrefix string) (data []byte, cur *types.ChunkRef, done bool) {
+	stagingDir, err := config.StagingDir()
+	if err != nil {
+		http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+		return nil, chunk, true
+	}
+	data, err = os.ReadFile(filepath.Join(stagingDir, filepath.Base(chunk.ChunkID)+".enc")) //nolint:gosec // base name of a database UUID
+	if err == nil {
+		return data, chunk, false
+	}
+	if fresh, ferr := s.db.GetChunkByID(ctx, chunk.ChunkID); ferr == nil && fresh.RemotePath != "" {
+		return nil, fresh, false
+	}
+	log.Printf("%s: read staging file failed: %v", logPrefix, err)
+	writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+		"error":  "chunk is not available on storage yet",
+		"reason": "chunk_pending",
+	})
+	return nil, chunk, true
+}
+
 // writeChunkFetchError answers a failed platform download. A 404 alone is not
 // proof of loss: GitHub and GitLab answer 404 for a private repo the token can
 // no longer read. So a committed chunk is only marked damaged, with a 410 that
@@ -253,23 +280,20 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
+	if !s.relayDownloadAllowed(w, r, userID, IsAdmin(r), false, chunk.Size) {
+		return
+	}
 
 	var data []byte
 
 	if chunk.RemotePath == "" {
-		// Chunk not yet synced to git platform, serve from staging dir
-		stagingDir, err := config.StagingDir()
-		if err != nil {
-			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+		var done bool
+		data, chunk, done = s.readStagedOrRefresh(ctx, w, chunk, "download")
+		if done {
 			return
 		}
-		data, err = os.ReadFile(filepath.Join(stagingDir, chunk.ChunkID+".enc"))
-		if err != nil {
-			log.Printf("download: read staging file failed: %v", err)
-			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
-			return
-		}
-	} else {
+	}
+	if data == nil {
 		// Chunk synced: try the local ciphertext cache first. Chunks are
 		// immutable (a re-upload mints a new chunk id), so a hit never goes
 		// stale, and it serves even when the platform is unreachable.
@@ -378,4 +402,68 @@ func relayStreamedChunk(ctx context.Context, w http.ResponseWriter, streamer ada
 		w.Header().Del(h)
 	}
 	return err
+}
+
+// directLinkAllowed reports whether a chunk on platform may be handed to the
+// reader as a platform link. A GitHub link names the account and repo, so it
+// goes only to the owner and only for their own token, never the shared pool's.
+// A Hugging Face link names no account, so the owner and space members get it.
+func (s *Server) directLinkAllowed(userID, ownerID, platform, account string) bool {
+	switch platform {
+	case types.PlatformGitHub:
+		return userID == ownerID && s.isOwnAdapterKey(ownerID, platform+":"+account)
+	case types.PlatformHuggingFace:
+		return true
+	}
+	return false
+}
+
+// HandleGetChunkLink returns a short-lived platform URL for one chunk, so the
+// browser fetches it straight from GitHub or Hugging Face instead of through
+// this server. Nothing is charged to the transfer allowance: no bytes pass here.
+// 409 means no link for this chunk; the client then uses the relay route.
+// GET /api/files/{id}/chunks/{idx}/link
+func (s *Server) HandleGetChunkLink(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	chunkIndex, err := strconv.Atoi(r.PathValue("idx"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid chunk index")
+		return
+	}
+	file, ownerID, _, ok := s.authorizeFileRead(ctx, userID, r.PathValue("id"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "file not found")
+		return
+	}
+	if chunkIndex < 0 || chunkIndex >= file.ChunkCount {
+		writeError(w, http.StatusBadRequest, "chunk index out of range")
+		return
+	}
+	chunk, err := s.db.GetChunkByIndex(ctx, file.ID, chunkIndex, ownerID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "chunk not found")
+		return
+	}
+	// Resolving first also loads the owner's adapters, which the ownership check reads.
+	adapter := s.resolveAdapterForUser(ctx, ownerID, chunk.Platform, chunk.Account)
+	dd, ok := adapter.(adapters.DirectDownloader)
+	if !ok || chunk.RemotePath == "" || !s.directLinkAllowed(userID, ownerID, chunk.Platform, chunk.Account) {
+		writeCodedError(w, http.StatusConflict, "no_direct_link", "this chunk has no direct link")
+		return
+	}
+	link, expires, err := dd.DownloadURL(ctx, *chunk)
+	if err != nil {
+		log.Printf("chunk link: file %s chunk %d: %v", logSafe(file.ID), chunkIndex, err) // #nosec G706 -- control chars stripped via logSafe
+		writeCodedError(w, http.StatusConflict, "no_direct_link", "this chunk has no direct link")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"url":        link,
+		"expires_at": expires.UTC(),
+		"size":       chunk.Size,
+		"sha256":     chunk.SHA256,
+		"compressed": chunk.Compressed,
+	})
 }

@@ -1,50 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { setupAuthenticatedUser, storageAvailable } from "./helpers";
-import path from "path";
-import fs from "fs";
-import os from "os";
+import { createHash } from "crypto";
+import { connectMockStorage, setupAuthenticatedUser } from "./helpers";
 
 // The backend requires the salt to be exactly 32 bytes, base64-encoded.
 const VALID_SALT_B64 = Buffer.alloc(32, 7).toString("base64");
 
 test.describe("Upload & Download Pipeline", () => {
-  test("upload a text file and see it in the file list", async ({ page }) => {
-    const { token } = await setupAuthenticatedUser(page);
-
-    // The upload pipeline needs a configured storage platform; skip when none
-    // is available (e.g. a plain CI backend with no git-platform adapter).
-    test.skip(!(await storageAvailable(page, token)), "no storage platform configured");
-
-    await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/dashboard/);
-
-    // Create a temp file
-    const tmpFile = path.join(os.tmpdir(), `zcrypt-e2e-${Date.now()}.txt`);
-    fs.writeFileSync(tmpFile, "Hello from E2E test! This is test content.");
-
-    try {
-      const fileInput = page.locator('input[type="file"]').first();
-      await fileInput.setInputFiles(tmpFile);
-
-      // Handle passphrase prompt if shown
-      const passphraseInput = page.locator('input[placeholder*="assphrase"], input[name="passphrase"]');
-      if (await passphraseInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await passphraseInput.fill("e2e-test-passphrase");
-        await page.locator('button:has-text("Upload"), button[type="submit"]').first().click();
-      }
-
-      // Wait for upload to appear in the file list
-      await expect(
-        page.locator(`text=${path.basename(tmpFile)}`)
-      ).toBeVisible({ timeout: 30_000 });
-    } finally {
-      fs.unlinkSync(tmpFile);
-    }
-  });
-
   test("API upload init → chunk → complete flow works", async ({ page }) => {
     const { token } = await setupAuthenticatedUser(page);
-    test.skip(!(await storageAvailable(page, token)), "no storage platform configured");
+    await connectMockStorage(page, token);
     const apiUrl = process.env.E2E_API_URL || "http://localhost:8080";
 
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
@@ -53,7 +17,7 @@ test.describe("Upload & Download Pipeline", () => {
     const initRes = await page.request.post(`${apiUrl}/api/upload/init`, {
       headers,
       data: {
-        filename: "api-e2e-test.txt",
+        encrypted_name: Buffer.from("sealed-name-e2e").toString("base64"),
         original_size: 42,
         sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         salt: VALID_SALT_B64,
@@ -61,18 +25,21 @@ test.describe("Upload & Download Pipeline", () => {
       },
     });
     expect(initRes.ok()).toBeTruthy();
-    const { session_id } = await initRes.json();
+    const { session_id, file_id } = await initRes.json();
     expect(session_id).toBeTruthy();
+    expect(file_id).toBeTruthy();
 
     // 2. Upload chunk
+    const chunk = Buffer.from("fake encrypted chunk content for e2e test");
     const chunkRes = await page.request.put(
       `${apiUrl}/api/upload/${session_id}/chunk/0`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/octet-stream",
+          "X-Chunk-SHA256": createHash("sha256").update(chunk).digest("hex"),
         },
-        data: Buffer.from("fake encrypted chunk content for e2e test"),
+        data: chunk,
       }
     );
     expect(chunkRes.ok()).toBeTruthy();
@@ -89,7 +56,7 @@ test.describe("Upload & Download Pipeline", () => {
     expect(listRes.ok()).toBeTruthy();
     const files = await listRes.json();
     expect(Array.isArray(files)).toBeTruthy();
-    expect(files.some((f: { original_name: string }) => f.original_name === "api-e2e-test.txt")).toBeTruthy();
+    expect(files.some((f: { id: string }) => f.id === file_id)).toBeTruthy();
   });
 
   test("file list returns an array", async ({ page }) => {
@@ -109,26 +76,34 @@ test.describe("Upload & Download Pipeline", () => {
 
     const { token: tokenA } = await setupAuthenticatedUser(page);
     const { token: tokenB } = await setupAuthenticatedUser(page);
-    test.skip(!(await storageAvailable(page, tokenA)), "no storage platform configured");
+    await connectMockStorage(page, tokenA);
 
     // User A creates a file
     const initRes = await page.request.post(`${apiUrl}/api/upload/init`, {
       headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
       data: {
-        filename: "secret.txt",
+        encrypted_name: Buffer.from("sealed-name-e2e").toString("base64"),
         original_size: 10,
         sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         salt: VALID_SALT_B64,
         chunk_count: 1,
       },
     });
-    const { file_id } = await initRes.json();
+    expect(initRes.ok(), `init failed: ${initRes.status()}`).toBeTruthy();
+    const { file_id, session_id } = await initRes.json();
+    expect(file_id).toBeTruthy();
 
     // User B tries to delete it
     const deleteRes = await page.request.delete(`${apiUrl}/api/files/${file_id}`, {
       headers: { Authorization: `Bearer ${tokenB}` },
     });
-    expect([403, 404]).toContain(deleteRes.status());
+    // The delete is scoped to the caller, so it may answer 200 with nothing done;
+    // what matters is that user A's file is untouched.
+    expect(deleteRes.status()).toBeLessThan(500);
+    const status = await page.request.get(`${apiUrl}/api/upload/${session_id}/status`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(status.ok(), `owner lost the upload: ${status.status()}`).toBeTruthy();
   });
 });
 

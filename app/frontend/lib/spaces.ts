@@ -17,8 +17,11 @@ import {
   rotateSpace,
   updateSharedVault,
   getFileMetas,
+  getSharedVault,
   addFilesToSpaceBatch,
   type SpaceBatchFile,
+  type InviteResult,
+  type PublicKeyRecord,
 } from "@/lib/api";
 import { runPool } from "@/lib/pool";
 import { checkPeerKey, pinPeerKey, KeyChangedError, type PeerKeyStatus } from "@/lib/key-pins";
@@ -33,13 +36,16 @@ import {
   unwrapKey,
   toArrayBuffer,
 } from "@/lib/crypto";
-import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
+import type { DownloadOptions } from "@/lib/download-session";
+import { useDownloadStore } from "@/store/download";
 import { isTauri, sidecarDownloadSpace, pickSaveLocation, subscribeProgress } from "@/lib/tauri";
 import { ApiError } from "@/lib/http-error";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
 import { onDecryptCacheClear } from "@/lib/decrypt-cache";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { SpaceRole, type SharedVault, type SharedVaultMember, type SharedVaultFile } from "@/types";
 import { tr } from "@/store/translate";
 
@@ -65,19 +71,67 @@ export async function createSpace(
     wrapped_space_key: wrapped,
     size_limit_bytes: sizeLimitBytes,
   });
-  useSpacesStore.getState().setSpaceKey(vault.id, spaceKey);
+  useSpacesStore.getState().setSpaceKey(vault.id, spaceKey, vault.key_generation);
   return vault;
 }
 
-/** Recover + cache a space's key from the caller's own grant. Returns null for
- *  legacy metadata-only vaults that carry no grant for us. */
-export async function loadSpaceKey(vault: SharedVault): Promise<Uint8Array | null> {
-  const cached = useSpacesStore.getState().spaceKeys[vault.id];
-  if (cached) return cached;
+export interface SpaceKey {
+  key: Uint8Array;
+  /** Key generation the key belongs to; 0 when the server didn't say. */
+  gen: number;
+}
+
+/** Recover + cache a space's key from the caller's own grant. The cache is
+ *  reused unless the vault shows a newer key generation (rotated on another
+ *  device). Returns null for legacy vaults that carry no grant for us. */
+export async function loadSpaceKeyEntry(vault: SharedVault): Promise<SpaceKey | null> {
+  const { spaceKeys, spaceKeyGens } = useSpacesStore.getState();
+  const cached = spaceKeys[vault.id];
+  const gen = vault.key_generation ?? 0;
+  const cachedGen = spaceKeyGens[vault.id] ?? 0;
+  if (cached && cachedGen >= gen) return { key: cached, gen: cachedGen };
   if (!vault.wrapped_space_key) return null;
   const key = await openSealed(vault.wrapped_space_key);
-  useSpacesStore.getState().setSpaceKey(vault.id, key);
-  return key;
+  useSpacesStore.getState().setSpaceKey(vault.id, key, gen);
+  return { key, gen };
+}
+
+export async function loadSpaceKey(vault: SharedVault): Promise<Uint8Array | null> {
+  return (await loadSpaceKeyEntry(vault))?.key ?? null;
+}
+
+/** The server refused a write made with a key another device rotated away. */
+export function isStaleSpaceKey(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 409 && err.code === "stale_space_key";
+}
+
+/** Drop the cached key and fetch the Space again, with the caller's new grant. */
+export async function reloadSpace(vaultId: string): Promise<SharedVault> {
+  useSpacesStore.getState().dropSpaceKey(vaultId);
+  return queryClient.fetchQuery({
+    queryKey: qk.space(vaultId),
+    queryFn: () => getSharedVault(vaultId),
+    staleTime: 0,
+  });
+}
+
+/** Run a write under the space key. When another device rotated the key in
+ *  the meantime, reload the Space and run it once more with the new key. */
+async function withCurrentSpaceKey<T>(
+  vault: SharedVault,
+  write: (vault: SharedVault, entry: SpaceKey) => Promise<T>,
+): Promise<T> {
+  const entry = await loadSpaceKeyEntry(vault);
+  if (!entry) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  try {
+    return await write(vault, entry);
+  } catch (err) {
+    if (!isStaleSpaceKey(err)) throw err;
+  }
+  const fresh = await reloadSpace(vault.id);
+  const next = await loadSpaceKeyEntry(fresh);
+  if (!next) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  return write(fresh, next);
 }
 
 /** Derive a shared file's key from its space-wrapped CEK: unwrap the CEK with
@@ -186,8 +240,7 @@ export async function shareFileIntoSpace(
   fileId: string,
   name = "",
 ): Promise<void> {
-  const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  if (!(await loadSpaceKey(vault))) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) throw new Error(tr("l10n.err.unlockShareFiles"));
 
@@ -195,9 +248,11 @@ export async function shareFileIntoSpace(
   // The file key under the OWNER's protection (CEK for envelope files, or the
   // derived key for legacy files): whatever decrypts this file's chunks.
   const fileKey = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
-  const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
-  const wrappedName = await sealName(spaceKey, name);
-  await addFileToSpace(vault.id, fileId, toBase64(rewrapped), wrappedName);
+  await withCurrentSpaceKey(vault, async (v, { key, gen }) => {
+    const rewrapped = await wrapKey(toArrayBuffer(key), new Uint8Array(fileKey));
+    const wrappedName = await sealName(key, name);
+    await addFileToSpace(v.id, fileId, toBase64(rewrapped), wrappedName, gen);
+  });
 }
 
 async function plainFileName(
@@ -244,42 +299,84 @@ export interface ShareFilesResult {
   failed: { fileId: string; error: string }[];
 }
 
+interface ShareFilesOpts {
+  onProgress?: (done: number, total: number) => void;
+  signal?: AbortSignal;
+  acceptChangedKeys?: string[];
+  onChunk?: () => void;
+}
+
 /** Share many files into a space: bulk metas, 6-wide key preparation, and
  *  batched submission (chunks of min(100, plan limit)). Preparation and
- *  submission overlap, so files appear in the space while later ones prepare. */
+ *  submission overlap, so files appear in the space while later ones prepare.
+ *  Chunks refused because another device rotated the key meanwhile are
+ *  prepared again under the new key. */
 export async function shareFilesIntoSpace(
   vault: SharedVault,
   fileIds: string[],
-  opts: {
-    onProgress?: (done: number, total: number) => void;
-    signal?: AbortSignal;
-    acceptChangedKeys?: string[];
-    onChunk?: () => void;
-  } = {},
+  opts: ShareFilesOpts = {},
 ): Promise<ShareFilesResult> {
-  const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  const entry = await loadSpaceKeyEntry(vault);
+  if (!entry) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) throw new Error(tr("l10n.err.unlockShareFiles"));
 
   const ids = [...new Set(fileIds)];
+  const metas = await getFileMetas(ids);
+  const ctx: BatchContext = {
+    passphrase,
+    metaById: new Map(metas.map((m) => [m.id, m])),
+    nameKey: await userNameKey().catch(() => null),
+  };
+  const result: ShareFilesResult = { added: [], skipped: [], failed: [] };
+  const stale = await shareBatchOnce(vault, entry, ids, ctx, opts, result);
+  if (stale.length === 0 || opts.signal?.aborted) return result;
+
+  const fresh = await reloadSpace(vault.id);
+  const next = await loadSpaceKeyEntry(fresh);
+  if (!next) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  const again = await shareBatchOnce(
+    fresh,
+    next,
+    stale,
+    ctx,
+    { ...opts, onProgress: undefined },
+    result,
+  );
+  for (const id of again) result.failed.push({ fileId: id, error: tr("l10n.err.addFilesFailed") });
+  opts.onProgress?.(ids.length, ids.length);
+  return result;
+}
+
+interface BatchContext {
+  passphrase: string;
+  metaById: Map<string, Awaited<ReturnType<typeof getFileMetas>>[number]>;
+  nameKey: CryptoKey | null;
+}
+
+/** One pass of shareFilesIntoSpace under one key. Returns the ids of chunks
+ *  the server refused as made with a stale key; everything else lands in result. */
+async function shareBatchOnce(
+  vault: SharedVault,
+  { key: spaceKey, gen }: SpaceKey,
+  ids: string[],
+  { passphrase, metaById, nameKey }: BatchContext,
+  opts: ShareFilesOpts,
+  result: ShareFilesResult,
+): Promise<string[]> {
   const total = ids.length;
   const limit = getQuotaData()?.max_space_batch_files ?? 0;
   const chunkSize = limit > 0 ? Math.min(BATCH_CHUNK, limit) : BATCH_CHUNK;
-  const result: ShareFilesResult = { added: [], skipped: [], failed: [] };
+  const stale: string[] = [];
   let done = 0;
   const report = () => opts.onProgress?.(done, total);
-
-  const metas = await getFileMetas(ids);
-  const metaById = new Map(metas.map((m) => [m.id, m]));
-  const nameKey = await userNameKey().catch(() => null);
 
   let buffer: SpaceBatchFile[] = [];
   let submitting: Promise<void> = Promise.resolve();
   const submit = (chunk: SpaceBatchFile[]) => {
     submitting = submitting.then(async () => {
       try {
-        const res = await addFilesToSpaceBatch(vault.id, chunk);
+        const res = await addFilesToSpaceBatch(vault.id, chunk, gen);
         const skipped = new Set(res.skipped ?? []);
         const rejected = new Map((res.rejected ?? []).map((r) => [r.file_id, r.reason]));
         for (const f of chunk) {
@@ -290,8 +387,12 @@ export async function shareFilesIntoSpace(
         }
         opts.onChunk?.();
       } catch (err) {
-        const error = err instanceof Error ? err.message : tr("l10n.err.addFilesFailed");
-        for (const f of chunk) result.failed.push({ fileId: f.file_id, error });
+        if (isStaleSpaceKey(err)) {
+          stale.push(...chunk.map((f) => f.file_id));
+        } else {
+          const error = err instanceof Error ? err.message : tr("l10n.err.addFilesFailed");
+          for (const f of chunk) result.failed.push({ fileId: f.file_id, error });
+        }
       }
       report();
     });
@@ -322,7 +423,7 @@ export async function shareFilesIntoSpace(
   });
   if (buffer.length > 0 && !opts.signal?.aborted) submit(buffer);
   await submitting;
-  return result;
+  return stale;
 }
 
 /** Unshare a file from a space (editor/admin only). */
@@ -333,13 +434,15 @@ export async function unshareFileFromSpace(vaultId: string, fileId: string): Pro
 /** Download + decrypt a file from a space, using the space-wrapped CEK (from the
  *  vault detail) rather than the vault passphrase: works for owner and members
  *  alike. Desktop routes through the in-process core (byos-direct bytes, native
- *  save dialog); the browser path is unchanged. */
+ *  save dialog). The browser hands the file to the download store, so it gets the
+ *  same queue, progress row, pause, auto-resume and stream-to-disk as any other
+ *  download. `fileSize` (0 when unknown) picks stream-to-disk at 1 GB. */
 export async function downloadSpaceFile(
   vault: SharedVault,
   fileId: string,
   spaceWrappedCek: string,
   filename: string,
-  options?: DownloadOptions,
+  options?: DownloadOptions & { fileSize?: number },
 ): Promise<void> {
   const keyBytes = await spaceFileKey(vault, spaceWrappedCek);
 
@@ -365,10 +468,15 @@ export async function downloadSpaceFile(
     return;
   }
 
-  await downloadAndDecryptFile(fileId, "", { ...options, resolveKey: async () => keyBytes });
+  useDownloadStore
+    .getState()
+    .startDownload(fileId, filename, options?.fileSize ?? 0, "", undefined, {
+      resolveKey: async () => keyBytes,
+    });
 }
 
-/** Rotate a space's key so a removed member loses access for good. Generates a
+/** Rotate a space's key so a removed member loses access for good. The owner
+ *  or an admin can run it. Generates a
  *  fresh space key, seals it to every REMAINING member's public key, and
  *  re-wraps every shared file's CEK under it. Call this AFTER removing the
  *  member. Requires the space to be unlocked (needs the old key to re-wrap).
@@ -380,8 +488,9 @@ export async function rotateSpaceKey(
   files: SharedVaultFile[],
   opts?: SealOptions,
 ): Promise<void> {
-  const oldKey = await loadSpaceKey(vault);
-  if (!oldKey) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  const entry = await loadSpaceKeyEntry(vault);
+  if (!entry) throw new Error(tr("l10n.err.spaceKeyUnavailable"));
+  const { key: oldKey, gen } = entry;
   const newKey = generateSpaceKey();
 
   const memberGrants: { user_id: string; wrapped_space_key: string }[] = [];
@@ -424,30 +533,59 @@ export async function rotateSpaceKey(
     });
   }
 
-  await rotateSpace(vault.id, memberGrants, fileWraps, {
-    name: await sealSpaceText(newKey, await openSpaceText(oldKey, vault.name ?? "")),
-    description: await sealSpaceText(newKey, await openSpaceText(oldKey, vault.description ?? "")),
-  });
-  useSpacesStore.getState().setSpaceKey(vault.id, newKey);
+  await rotateSpace(
+    vault.id,
+    memberGrants,
+    fileWraps,
+    {
+      name: await sealSpaceText(newKey, await openSpaceText(oldKey, vault.name ?? "")),
+      description: await sealSpaceText(
+        newKey,
+        await openSpaceText(oldKey, vault.description ?? ""),
+      ),
+    },
+    gen,
+  );
+  useSpacesStore.getState().setSpaceKey(vault.id, newKey, gen > 0 ? gen + 1 : 0);
   for (const p of toPin) await pinPeerKey(p.userId, p.publicKey);
 }
 
-/** Share a space with another user by email: look up their public key, seal the
- *  space key to it, and add/re-grant them as a member. Throws if the target has
- *  no published key (they haven't set up sharing yet). */
+/** Invite someone by email. When they have published a key the space key is
+ *  sealed to it and they are active at once; an account that has not unlocked
+ *  its vault yet (lookup code no_key) is invited without a key and stays
+ *  pending until an owner or admin device hands the key over. Other lookup and
+ *  invite failures reach the caller as the server's ApiError with its code. */
 export async function shareSpace(
   vaultId: string,
-  spaceKey: Uint8Array,
+  { key: spaceKey, gen }: SpaceKey,
   email: string,
   role: SpaceRole,
   opts?: SealOptions,
-): Promise<SharedVaultMember> {
-  const recipient = await lookupUserKey(email);
+): Promise<InviteResult> {
+  let recipient: PublicKeyRecord;
+  try {
+    recipient = await lookupUserKey(email);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "no_key") {
+      return addSharedVaultMember(vaultId, email, role);
+    }
+    throw err;
+  }
   await guardPeerKey(recipient.user_id, recipient.public_key, opts);
   const wrapped = await sealTo(fromBase64(recipient.public_key), spaceKey);
-  const member = await addSharedVaultMember(vaultId, email, role, wrapped);
+  const member = await addSharedVaultMember(vaultId, email, role, wrapped, gen);
   await pinPeerKey(recipient.user_id, recipient.public_key);
   return member;
+}
+
+/** Invite by email under the Space's current key (see shareSpace). */
+export function inviteToSpace(
+  vault: SharedVault,
+  email: string,
+  role: SpaceRole,
+  opts?: SealOptions,
+): Promise<InviteResult> {
+  return withCurrentSpaceKey(vault, (v, entry) => shareSpace(v.id, entry, email, role, opts));
 }
 
 export { SpaceRole };
@@ -458,7 +596,7 @@ export interface SpacePerms {
   editFiles: boolean;
   /** Invite, remove, re-role members; rename. */
   manage: boolean;
-  /** Only the owner: rotate the space key. */
+  /** Owner or admin: rotate the space key. */
   rotate: boolean;
   /** Only the owner: grant admin, act on admins, delete the space. */
   owner: boolean;
@@ -477,7 +615,7 @@ export function spacePerms(
     label: owner ? "Owner" : admin ? "Admin" : editor ? "Editor" : "Viewer",
     editFiles: editor,
     manage: admin,
-    rotate: owner,
+    rotate: admin,
     owner,
   };
 }

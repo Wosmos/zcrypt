@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
-import { getMe, refreshToken as refreshTokenApi } from "@/lib/auth-api";
+import { getMe } from "@/lib/auth-api";
+import { tryRefreshToken } from "@/lib/auth-fetch";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri } from "@/lib/tauri";
 
@@ -14,7 +15,7 @@ import { isTauri } from "@/lib/tauri";
 export function GuestGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { accessToken, refreshTokenValue, setUser, setTokens } = useAuthStore();
+  const { accessToken, refreshTokenValue, setUser } = useAuthStore();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -55,14 +56,16 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
       // Try refresh token: desktop requires an actual value; web always
       // attempts it (the httpOnly cookie carries the session, not this
       // in-memory value).
+      // The shared refresh: on desktop it rotates through the engine, which
+      // holds the same session, instead of spending its refresh token here.
       if (refreshTokenValue || !isTauri) {
         try {
-          const data = await refreshTokenApi(refreshTokenValue);
-          setTokens(data.access_token, data.refresh_token);
-          const me = await getMe(data.access_token);
-          setUser(me);
-          router.replace("/dashboard");
-          return;
+          const fresh = await tryRefreshToken();
+          if (fresh) {
+            setUser(await getMe(fresh));
+            router.replace("/dashboard");
+            return;
+          }
         } catch {
           // Refresh failed, user is not authenticated
         }
@@ -73,7 +76,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
     }
 
     void check();
-  }, [accessToken, refreshTokenValue, router, setUser, setTokens, pathname]);
+  }, [accessToken, refreshTokenValue, router, setUser, pathname]);
 
   if (!checked) {
     return (

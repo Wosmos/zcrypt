@@ -1,52 +1,65 @@
 /**
- * Shared transient-failure retry for chunk transfers (uploads + all download
- * paths). Keeps retry behavior identical everywhere: retry network errors,
- * stalls, timeouts, rate-limits and 5xx with exponential backoff + jitter;
- * never retry an abort (cancellation) or a non-transient 4xx (which should
- * surface immediately, not loop).
+ * The one retry helper for every transfer path (uploads, downloads, shares,
+ * viewer). One classifier decides what is transient, by error type and HTTP
+ * status and never by message text: network failures, stalls and timeouts,
+ * 408, 429 (honoring Retry-After) and 5xx retry with exponential backoff and
+ * jitter; an abort, a pause or any other 4xx surfaces immediately.
  */
 
-import { ApiError, isNetworkFailure, isRetryableStatus } from "@/lib/http-error";
+import { isRetryableStatus } from "@/lib/http-error";
+import {
+  MAX_RETRIES,
+  StalledError,
+  backoffMs,
+  isAbortError,
+  isPauseError,
+  retryAfterMs,
+  sleep,
+} from "@/lib/transport";
 
-/** True for errors worth retrying: transport blips and server-side 5xx. An HTTP
- *  error is judged by its status alone, so a 410 (data gone) never loops and a
- *  5xx with a wordy body still retries. */
+/** True for failures worth retrying. An HTTP error is judged by its status
+ *  alone, so a 410 (data gone) never loops and a 5xx with any body retries. */
 export function isTransientError(err: unknown): boolean {
-  if (err instanceof DOMException && err.name === "AbortError") return false;
-  if (err instanceof ApiError) return isRetryableStatus(err.status);
-  if (isNetworkFailure(err)) return true;
-  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  return (
-    msg.includes("network request failed") ||
-    msg.includes("timed out") ||
-    msg.includes("timeout") ||
-    msg.includes("stalled") ||
-    msg.includes("too many requests") ||
-    msg.includes("slow down") ||
-    msg.includes("temporarily") ||
-    msg.includes("unavailable") ||
-    /\b5\d\d\b/.test(msg)
-  );
+  if (isAbortError(err) || isPauseError(err)) return false;
+  if (err instanceof StalledError) return true;
+  const status = (err as { status?: unknown } | null)?.status;
+  if (typeof status === "number") return isRetryableStatus(status) || retryAfterMs(err) > 0;
+  return err instanceof TypeError;
 }
 
-export async function retryTransient<T>(
-  fn: () => Promise<T>,
-  opts?: { signal?: AbortSignal; maxRetries?: number },
-): Promise<T> {
-  const maxRetries = opts?.maxRetries ?? 5;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (opts?.signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+export interface RetryOptions {
+  /** Cancellation: its abort ends the loop, including a backoff sleep. */
+  signal?: AbortSignal;
+  /** Pause check, consulted before every attempt and after every backoff. */
+  shouldStop?: () => boolean;
+  maxRetries?: number;
+  /** Overrides the transient classifier for this call. */
+  retryIf?: (err: unknown) => boolean;
+  /** What to throw when stopped; defaults to an AbortError. */
+  stopError?: () => Error;
+}
+
+export async function retryTransient<T>(fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
+  const maxRetries = opts.maxRetries ?? MAX_RETRIES;
+  const stopped = () => opts.signal?.aborted === true || opts.shouldStop?.() === true;
+  const stop = (err?: unknown): Error => {
+    if (opts.stopError) return opts.stopError();
+    return err instanceof Error && (isAbortError(err) || isPauseError(err))
+      ? err
+      : new DOMException("Cancelled", "AbortError");
+  };
+  for (let attempt = 0; ; attempt++) {
+    if (stopped()) throw stop();
     try {
       return await fn();
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      if (isTransientError(err) && attempt < maxRetries) {
-        const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
-        await new Promise((r) => setTimeout(r, backoff));
-        continue;
+      if (isAbortError(err) || isPauseError(err) || stopped()) throw stop(err);
+      if (!(opts.retryIf ?? isTransientError)(err) || attempt >= maxRetries) throw err;
+      try {
+        await sleep(Math.max(backoffMs(attempt), retryAfterMs(err)), opts.signal);
+      } catch {
+        throw stop();
       }
-      throw err;
     }
   }
-  throw new Error("Max retries exceeded");
 }

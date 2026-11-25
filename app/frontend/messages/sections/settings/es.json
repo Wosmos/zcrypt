@@ -537,16 +537,6 @@
       "pushDesc": "Los nuevos inicios de sesión, las invitaciones a Spaces y los enlaces compartidos abiertos llegan a este navegador aunque zcrypt no esté abierto.",
       "pushFailed": "No se pudieron activar los avisos en este navegador. Inténtalo de nuevo."
     },
-    "webTransfers": {
-      "title": "Transferencias web este mes",
-      "description": "Los archivos que subes o descargas en el navegador cuentan para un límite mensual. Las subidas que van directo a tu propio Telegram no cuentan.",
-      "usage": "{used} de {limit}",
-      "resets": "Se restablece el {date}",
-      "desktopHint": "La app de escritorio no tiene límite.",
-      "getDesktop": "Descargar la app de escritorio",
-      "openDesktop": "Abrir la app de escritorio",
-      "usedUp": "Usados los {limit} de este mes"
-    },
     "recoveryKit": {
       "label": "Kit de recuperación",
       "footnote": "Nunca vemos tu frase de contraseña, así que no podemos restablecerla. Un kit de recuperación es la única forma de volver a entrar si la olvidas.",
@@ -641,7 +631,7 @@
     },
     "photoBackup": {
       "label": "Copia de fotos",
-      "footnote": "Las fotos y vídeos de las carpetas Cámara, Imágenes y Películas se copian solos, incluso con zcrypt cerrado y tu bóveda bloqueada. No se borra nada de tu teléfono ni de tu bóveda.",
+      "footnote": "Los álbumes que actives se copian solos, incluso con zcrypt cerrado y tu bóveda bloqueada. No se borra nada de tu teléfono ni de tu bóveda.",
       "title": "Copiar fotos y vídeos",
       "on": "Activada",
       "off": "Desactivada",
@@ -652,27 +642,65 @@
       "needsAccess": "zcrypt necesita acceso a tus fotos para copiarlas.",
       "turnedOff": "La copia de fotos está desactivada",
       "turnOffFailed": "No se pudo desactivar la copia de fotos. Inténtalo de nuevo.",
-      "networkTitle": "Copiar con",
-      "wifi": "Solo Wi-Fi",
-      "mobile": "Solo datos móviles",
-      "any": "Wi-Fi o datos móviles",
-      "wifiDesc": "Espera al Wi-Fi, nunca usa datos móviles",
-      "mobileDesc": "Solo usa datos móviles, nunca Wi-Fi",
-      "anyDesc": "Usa la conexión que tengas",
-      "scheduleTitle": "Cuándo copiar",
-      "instant": "Al llegar fotos nuevas",
-      "nightly": "Cada noche",
-      "instantDesc": "Cada 15 minutos aproximadamente, según permita Android",
-      "nightlyDesc": "Hacia las {time}, cuando esté la red que elegiste",
-      "timeLabel": "Hora de la copia",
-      "partialTitle": "Solo algunas fotos",
-      "partialDesc": "Solo las que elegiste",
+      "wifiDesc": "Nunca usa datos móviles",
+      "partialTitle": "Solo se permiten algunas fotos",
+      "partialDesc": "zcrypt solo ve las fotos que elegiste.",
       "noAccessTitle": "Sin acceso a fotos",
       "noAccessDesc": "Permite el acceso para que tus fotos se copien",
-      "allowAll": "Permitir todas",
+      "allowAll": "Permitir todas las fotos",
       "runNowTitle": "Copiar ahora",
       "runNow": "Iniciar",
-      "runNowStarted": "Se copiará en cuanto esté la red que elegiste"
+      "runNowStarted": "Se copiará en cuanto el teléfono cumpla las opciones de arriba",
+      "albumsLabel": "Álbumes",
+      "albumsEmpty": "Aún no hay fotos ni vídeos.",
+      "albumCount": "{count, plural, one {# elemento} other {# elementos}}",
+      "kindsTitle": "Qué copiar",
+      "kindsDesc": "Vale para todos los álbumes activados",
+      "kindsPhotos": "Fotos",
+      "kindsVideos": "Vídeos",
+      "kindsBoth": "Fotos y vídeos",
+      "wifiTitle": "Solo Wi-Fi",
+      "chargingTitle": "Mientras carga",
+      "chargingDesc": "Espera a que el teléfono esté enchufado",
+      "runNowDesc": "Empieza cuando el teléfono cumpla las opciones de arriba",
+      "saveFailed": "No se pudo guardar. Inténtalo de nuevo."
+    },
+    "usageLimits": {
+      "title": "Uso y límites",
+      "description": "Qué limita zcrypt, qué no y cómo vas. Es igual en la web, el escritorio y Android.",
+      "storage": {
+        "title": "Almacenamiento",
+        "own": "Los archivos que guardas en tu propio Telegram, GitHub, GitLab o Hugging Face están en tu espacio. zcrypt no los limita.",
+        "shared": "Almacenamiento compartido de zcrypt",
+        "sharedUsage": "{used} de {quota}"
+      },
+      "allowance": {
+        "title": "Cupo de transferencia",
+        "intro": "Piénsalo como un límite de uso. El almacenamiento no tiene tope, pero lo que pasa por nuestro servidor sí.",
+        "none": "Sin límites en esta cuenta.",
+        "today": "Hoy",
+        "month": "Este mes",
+        "usage": "{used} de {limit}",
+        "usedUp": "Los {limit} usados",
+        "resetsAt": "Se restablece a las {time}",
+        "resetsOn": "Se restablece el {date}",
+        "perFile": "Archivo más grande por nuestro servidor",
+        "noFileCap": "Sin tope",
+        "reserved": "Reservado para subidas en curso",
+        "remaining": "Disponible ahora"
+      },
+      "counts": {
+        "title": "Qué cuenta",
+        "yesTitle": "Cuenta para tu cupo",
+        "yesTransfers": "Subidas y descargas que pasan por nuestro servidor, en cualquier app.",
+        "yesShares": "Personas que descargan tus enlaces compartidos. Cuentan para ti, el propietario.",
+        "noTitle": "No cuenta",
+        "noDirect": "Todo lo que va directo entre tu dispositivo y tu propio Telegram, GitHub, GitLab o Hugging Face. Es gratis en todas las apps: web, escritorio y Android."
+      },
+      "blocked": {
+        "title": "Cuando Telegram está bloqueado",
+        "body": "Cada app prueba primero tu propio Telegram de forma directa. Si tu red lo bloquea, usamos nuestro servidor solo mientras el resto de la transferencia quepa en tu cupo. Si no cabe, la transferencia se pausa y te pide activar una VPN; después continúa sola."
+      }
     }
   }
 }

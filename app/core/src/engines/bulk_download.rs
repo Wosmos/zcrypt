@@ -49,6 +49,14 @@ pub async fn run(
     result
 }
 
+/// Entries of 4 GiB and over need ZIP64 headers; the writer must be told up
+/// front because the size is not yet known when the local header is written.
+fn entry_options(size: u64) -> SimpleFileOptions {
+    SimpleFileOptions::default()
+        .compression_method(CompressionMethod::Deflated)
+        .large_file(size >= u32::MAX as u64)
+}
+
 async fn run_inner(
     ctx: &EngineContext,
     files: &[BulkFile],
@@ -58,7 +66,6 @@ async fn run_inner(
 ) -> Result<(), EngineError> {
     let zip_file = std::fs::File::create(save_path)?;
     let mut zip = ZipWriter::new(std::io::BufWriter::new(zip_file));
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
     let mut used_names: HashSet<String> = HashSet::new();
 
     for f in files {
@@ -74,7 +81,8 @@ async fn run_inner(
         }
 
         let entry_name = dedupe_name(&safe_entry_name(&f.filename), &mut used_names);
-        zip.start_file(&entry_name, options)
+        let size = std::fs::metadata(&temp_path)?.len();
+        zip.start_file(&entry_name, entry_options(size))
             .map_err(|e| EngineError::Other(format!("zip start_file {entry_name}: {e}")))?;
         let copy_result: std::io::Result<()> = (|| {
             let mut temp = std::fs::File::open(&temp_path)?;
@@ -133,6 +141,21 @@ mod tests {
         assert_eq!(safe_entry_name(".."), "file");
         assert_eq!(safe_entry_name("dir/"), "file");
         assert_eq!(safe_entry_name("ok.txt"), "ok.txt");
+    }
+
+    fn archive_len(size: u64) -> usize {
+        let mut zip = ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        zip.start_file("a.bin", entry_options(size)).unwrap();
+        std::io::Write::write_all(&mut zip, b"x").unwrap();
+        zip.finish().unwrap().into_inner().len()
+    }
+
+    #[test]
+    fn entries_of_4_gib_and_over_get_zip64_headers() {
+        let small = archive_len(1024);
+        assert_eq!(archive_len(u32::MAX as u64 - 1), small);
+        assert!(archive_len(u32::MAX as u64) > small);
+        assert!(archive_len(6 * 1024 * 1024 * 1024) > small);
     }
 
     use std::io::Read as _;
@@ -197,14 +220,13 @@ mod tests {
 
         let zip_file = std::fs::File::create(&zip_path).unwrap();
         let mut zip = ZipWriter::new(std::io::BufWriter::new(zip_file));
-        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         let entries: &[(&str, &[u8])] = &[
             ("a.txt", b"hello zcrypt bulk download"),
             ("nested/b.bin", &[0u8, 1, 2, 3, 255, 254, 253]),
         ];
         for (name, data) in entries {
-            zip.start_file(*name, options).unwrap();
+            zip.start_file(*name, entry_options(1)).unwrap();
             std::io::Write::write_all(&mut zip, data).unwrap();
         }
         zip.finish().unwrap();

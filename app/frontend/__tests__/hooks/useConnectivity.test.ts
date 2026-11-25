@@ -114,4 +114,13 @@ describe("useFriendlyError", () => {
     expect(result.current(new Error(""), "fallback")).toBe("fallback");
     expect(result.current("nope", "fallback")).toBe("fallback");
   });
+
+  it("explains the cloud network block and the bot check in the reader's language", () => {
+    const { result } = renderHook(() => useFriendlyError());
+    const coded = (code: string) => Object.assign(new Error("server text"), { code });
+    expect(result.current(coded("network_blocked"), "fallback")).toMatch(/cloud servers/);
+    expect(result.current(coded("bot_check_failed"), "fallback")).toMatch(/person/);
+    expect(result.current(coded("other"), "fallback")).toBe("server text");
+    expect(result.current(null, "fallback")).toBe("fallback");
+  });
 });

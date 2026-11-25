@@ -52,6 +52,18 @@ describe("authRequest core", () => {
     await expect(authApi.register("e", "u", "p")).rejects.toThrow("email already used");
   });
 
+  it("carries the server's error code on the error", async () => {
+    fetchMock.mockResolvedValueOnce(resp(403, { error: "no", code: "network_blocked" }));
+    await expect(authApi.login("e", "p")).rejects.toMatchObject({ status: 403, code: "network_blocked" });
+    fetchMock.mockResolvedValueOnce(resp(400, { error: "no", code: 7 }));
+    await expect(authApi.login("e", "p")).rejects.toMatchObject({ code: undefined });
+  });
+
+  it("sends the bot check token when there is one", async () => {
+    await authApi.login("e", "p", "tok");
+    expect(JSON.parse(callInit().body as string)).toEqual({ email: "e", password: "p", turnstile_token: "tok" });
+  });
+
   it("throws the raw body when the error response isn't JSON", async () => {
     fetchMock.mockResolvedValueOnce(resp(500, "upstream exploded"));
     await expect(authApi.login("e", "p")).rejects.toThrow("upstream exploded");

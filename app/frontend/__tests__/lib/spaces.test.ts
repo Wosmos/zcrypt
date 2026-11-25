@@ -20,8 +20,9 @@ vi.mock("@/lib/api", () => ({
   getMyKey: vi.fn(),
   publishKey: vi.fn(),
 }));
-vi.mock("@/lib/download-session", () => ({
-  downloadAndDecryptFile: vi.fn(),
+const startDownload = vi.hoisted(() => vi.fn());
+vi.mock("@/store/download", () => ({
+  useDownloadStore: { getState: () => ({ startDownload }) },
 }));
 
 const tauriMocks = vi.hoisted(() => {
@@ -59,7 +60,6 @@ import {
   getUserPublicKey,
   rotateSpace,
 } from "@/lib/api";
-import { downloadAndDecryptFile } from "@/lib/download-session";
 import {
   createSpace,
   loadSpaceKey,
@@ -270,23 +270,40 @@ describe("downloadSpaceFile", () => {
     const cek = generateCEK();
     const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), cek));
 
-    await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin");
+    await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin", {
+      fileSize: 5_000,
+    });
 
-    expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
-    const [fileId, pass, opts] = vi.mocked(downloadAndDecryptFile).mock.calls[0];
+    // The browser path goes through the download store, so it gets the queue,
+    // progress row, pause/auto-resume and stream-to-disk like any other download.
+    expect(startDownload).toHaveBeenCalledTimes(1);
+    const [fileId, name, size, pass, resolvePassword, opts] = startDownload.mock.calls[0];
     expect(fileId).toBe("file-9");
+    expect(name).toBe("file-9.bin");
+    expect(size).toBe(5_000);
     expect(pass).toBe(""); // no passphrase is used on the space path
+    expect(resolvePassword).toBeUndefined();
 
     // The injected resolveKey must yield the file's CEK from the space envelope.
     const resolved = await opts!.resolveKey!({} as never);
     expect(new Uint8Array(resolved)).toEqual(cek);
   });
 
+  it("treats the size as unknown (0) when the caller gives no options", async () => {
+    const spaceKey = generateSpaceKey();
+    useSpacesStore.getState().setSpaceKey("v", spaceKey);
+    const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), generateCEK()));
+
+    await downloadSpaceFile(vault("v"), "file-1", spaceWrappedCek, "file-1.bin");
+
+    expect(startDownload.mock.calls[0].slice(0, 4)).toEqual(["file-1", "file-1.bin", 0, ""]);
+  });
+
   it("throws when the space's key isn't available", async () => {
     await expect(
       downloadSpaceFile(vault("locked"), "file-9", "irrelevant", "file-9.bin")
     ).rejects.toThrow("This space's key isn't available");
-    expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+    expect(startDownload).not.toHaveBeenCalled();
   });
 
   describe("on desktop (Tauri)", () => {
@@ -523,7 +540,7 @@ describe("shareSpace", () => {
     vi.mocked(addSharedVaultMember).mockResolvedValue({} as never);
 
     const spaceKey = generateSpaceKey();
-    await shareSpace("v", spaceKey, "bob@example.com", "editor");
+    await shareSpace("v", { key: spaceKey, gen: 0 }, "bob@example.com", "editor");
 
     expect(addSharedVaultMember).toHaveBeenCalledTimes(1);
     const [vaultId, email, role, wrapped] = vi.mocked(addSharedVaultMember).mock.calls[0];
@@ -537,13 +554,32 @@ describe("shareSpace", () => {
   });
 });
 
+describe("shareSpace by lookup result", () => {
+  it("invites without a key when the account has none yet (no_key)", async () => {
+    vi.mocked(lookupUserKey).mockRejectedValue(new ApiError("no key", 404, 0, "", "no_key"));
+    vi.mocked(addSharedVaultMember).mockResolvedValue({ status: "pending" });
+    const out = await shareSpace("v", { key: generateSpaceKey(), gen: 0 }, "bob@example.com", "viewer");
+    expect(out).toEqual({ status: "pending" });
+    expect(vi.mocked(addSharedVaultMember)).toHaveBeenCalledWith("v", "bob@example.com", "viewer");
+  });
+
+  it.each(["not_found", "rate_limited"])("stops on a %s lookup without inviting", async (code) => {
+    vi.mocked(addSharedVaultMember).mockClear();
+    vi.mocked(lookupUserKey).mockRejectedValue(new ApiError("x", code === "rate_limited" ? 429 : 404, 0, "", code));
+    const err = await shareSpace("v", { key: generateSpaceKey(), gen: 0 }, "bob@example.com", "viewer").catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.code).toBe(code);
+    expect(addSharedVaultMember).not.toHaveBeenCalled();
+  });
+});
+
 describe("spacePerms / canManageMember", () => {
   const v = (role: "viewer" | "editor" | "admin") => ({ owner_id: "o", role });
 
   it("grades rights strictly: viewer < editor < admin < owner", () => {
     expect(spacePerms(v("viewer"), "u")).toEqual({ label: "Viewer", editFiles: false, manage: false, rotate: false, owner: false });
     expect(spacePerms(v("editor"), "u")).toEqual({ label: "Editor", editFiles: true, manage: false, rotate: false, owner: false });
-    expect(spacePerms(v("admin"), "u")).toEqual({ label: "Admin", editFiles: true, manage: true, rotate: false, owner: false });
+    expect(spacePerms(v("admin"), "u")).toEqual({ label: "Admin", editFiles: true, manage: true, rotate: true, owner: false });
     expect(spacePerms(v("admin"), "o")).toEqual({ label: "Owner", editFiles: true, manage: true, rotate: true, owner: true });
   });
 

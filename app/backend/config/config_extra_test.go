@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ func clearAllEnv(t *testing.T) {
 		"ZCRYPT_TRUSTED_PROXY_COUNT", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
 		"GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET",
 		"ZCRYPT_CLIENT_IP_HEADER", "RAILWAY_ENVIRONMENT_NAME", "ZCRYPT_GEOIP_DB",
-		"ZCRYPT_PORT", "zcrypt_PORT", "PORT",
+		"ZCRYPT_PORT", "zcrypt_PORT", "PORT", "ZCRYPT_VERIFY_INTERVAL",
 	} {
 		t.Setenv(k, "")
 	}
@@ -448,4 +449,23 @@ func TestCookieDomainFromEnv(t *testing.T) {
 	cfg := &Config{}
 	cfg.applyEnvOverrides()
 	assert.Equal(t, "example.org", cfg.CookieDomain)
+}
+
+func TestVerifyIntervalEnv(t *testing.T) {
+	clearAllEnv(t)
+	cfg := DefaultConfig()
+	cfg.applyEnvOverrides()
+	assert.Equal(t, DefaultVerifyInterval, cfg.VerifyInterval)
+
+	for env, want := range map[string]time.Duration{"2h": 2 * time.Hour, "0": 0, "off": 0, "90m": 90 * time.Minute} {
+		t.Setenv("ZCRYPT_VERIFY_INTERVAL", env)
+		cfg = DefaultConfig()
+		cfg.applyEnvOverrides()
+		assert.Equal(t, want, cfg.VerifyInterval, env)
+	}
+
+	t.Setenv("ZCRYPT_VERIFY_INTERVAL", "soon")
+	cfg = DefaultConfig()
+	cfg.applyEnvOverrides()
+	assert.Equal(t, DefaultVerifyInterval, cfg.VerifyInterval, "an unparsable value keeps the default")
 }

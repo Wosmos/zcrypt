@@ -31,6 +31,8 @@ vi.mock("@/lib/open-desktop-app", () => ({ desktopAppAction: () => desktopAction
 vi.mock("@/lib/bulk-download", () => ({
   downloadAsZip: vi.fn(),
   zipRefusal: vi.fn(() => null),
+  createZipRun: vi.fn((saveToDisk?: unknown) => ({ saveToDisk, zip: { terminate: vi.fn() } })),
+  ZipPausedError: class ZipPausedError extends Error {},
 }));
 const tauriMocks = vi.hoisted(() => ({
   sidecarDownload: vi.fn(),
@@ -53,14 +55,19 @@ vi.mock("@/lib/notify", () => ({
 import { useDownloadStore, canStreamToDisk } from "@/store/download";
 import { downloadAndDecryptFile, DownloadPausedError, type DownloadOptions } from "@/lib/download-session";
 const FakeDownloadPausedError = DownloadPausedError;
-import { downloadAsZip, zipRefusal, type BulkDownloadFile } from "@/lib/bulk-download";
+import { createZipRun, downloadAsZip, zipRefusal, ZipPausedError, type BulkDownloadFile } from "@/lib/bulk-download";
 import { toast } from "@/store/toast";
+import { ApiError } from "@/lib/http-error";
+import { AUTO_RESUME_MAX_ATTEMPTS, FAILED_BUFFER_GRACE_MS } from "@/lib/transport";
 import { notifications } from "@/store/notifications";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { useTransferWait } from "@/store/transfer-wait";
+import { useWebTransferNotice } from "@/store/web-transfer-notice";
+import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
 import type { FileMetadata } from "@/types";
 
 const ONE_GB = 1024 * 1024 * 1024;
@@ -143,6 +150,21 @@ describe("useDownloadStore", () => {
       expect(lastCallOptions().saveToDisk).toBeUndefined();
       expect(getItem(id)?.status).toBe("done");
       expect(toast.success).toHaveBeenCalledWith("small.txt downloaded", expect.anything());
+    });
+
+    it("lets the download hold on its own row key when Telegram is blocked or the allowance is used up", async () => {
+      stubPicker();
+      useDownloadStore.getState().startDownload("f1", "small.txt", ONE_GB - 1, "pw");
+      const id = firstId();
+      await flush();
+      expect(lastCallOptions().waitKey).toBe(`dl:${id}`);
+    });
+
+    it("passes a space file's key resolver through to the pipeline", async () => {
+      const resolveKey = vi.fn(async () => new ArrayBuffer(32));
+      useDownloadStore.getState().startDownload("f1", "s.txt", 10, "", undefined, { resolveKey });
+      await flush();
+      expect(lastCallOptions().resolveKey).toBe(resolveKey);
     });
 
     it("passes a persistent resume object and a pausing() callback into the pipeline", async () => {
@@ -496,16 +518,6 @@ describe("useDownloadStore", () => {
       );
     });
 
-    it("pause is a no-op for a ZIP download (not pausable)", async () => {
-      (downloadAsZip as Mock).mockImplementation(() => new Promise(() => {}));
-      useDownloadStore.getState().startBulkZipDownload([{ fileId: "f1", filename: "a", fileSize: 1 }], "pw");
-      const id = firstId();
-      await flush();
-      useDownloadStore.getState().pauseDownload(id);
-      await flush();
-      expect(getItem(id)?.status).toBe("downloading"); // unchanged
-    });
-
     it("pause is a no-op for an unknown id", () => {
       expect(() => useDownloadStore.getState().pauseDownload("nope")).not.toThrow();
     });
@@ -710,7 +722,7 @@ describe("useDownloadStore", () => {
       (downloadAndDecryptFile as Mock)
         .mockImplementationOnce((_id, _pp, opts: DownloadOptions) => {
           firstResume = opts.resume;
-          return Promise.reject(new Error("network blip")); // interruption
+          return Promise.reject(new TypeError("network blip")); // interruption
         })
         .mockResolvedValueOnce(undefined);
 
@@ -746,12 +758,14 @@ describe("useDownloadStore", () => {
     });
 
     it.each([
-      ["404 chunk not found", false],
-      ["410 gone", false],
-      ["429 too many requests", true],
-      ["408 request timeout", true],
-    ])("auto-resume decision for %j is resume=%s", async (message, resumes) => {
-      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new Error(message));
+      [404, false],
+      [410, false],
+      [403, false],
+      [429, true],
+      [408, true],
+      [502, true],
+    ])("auto-resume decision for HTTP %i is resume=%s", async (status, resumes) => {
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new ApiError("failed", status));
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
       const id = firstId();
       await flush();
@@ -778,7 +792,7 @@ describe("useDownloadStore", () => {
     });
 
     it("does nothing while offline", async () => {
-      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new Error("network blip"));
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new TypeError("network blip"));
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
       const id = firstId();
       await flush();
@@ -794,7 +808,7 @@ describe("useDownloadStore", () => {
 
     it("treats a failure with no recorded error message as transient (resumes it)", async () => {
       (downloadAndDecryptFile as Mock)
-        .mockRejectedValueOnce(new Error("blip"))
+        .mockRejectedValueOnce(new TypeError("blip"))
         .mockResolvedValueOnce(undefined);
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
       const id = firstId();
@@ -813,7 +827,7 @@ describe("useDownloadStore", () => {
 
     it("resumes the right row and leaves an unrelated one untouched", async () => {
       (downloadAndDecryptFile as Mock)
-        .mockRejectedValueOnce(new Error("blip"))
+        .mockRejectedValueOnce(new TypeError("blip"))
         .mockResolvedValueOnce(undefined);
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
       const id = firstId();
@@ -837,7 +851,7 @@ describe("useDownloadStore", () => {
     });
 
     it("skips ZIP downloads (no resume pipeline / no single session)", async () => {
-      (downloadAsZip as Mock).mockRejectedValueOnce(new Error("network blip"));
+      (downloadAsZip as Mock).mockRejectedValueOnce(new TypeError("network blip"));
       useDownloadStore.getState().startBulkZipDownload([{ fileId: "f1", filename: "a", fileSize: 1 }], "pw");
       const id = firstId();
       await flush();
@@ -1016,7 +1030,7 @@ describe("useDownloadStore", () => {
       (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) => {
         // Simulate the pipeline having opened the writable into resume state.
         opts.resume!.saveToDisk = writable;
-        return Promise.reject(new Error("network blip"));
+        return Promise.reject(new TypeError("network blip"));
       });
       useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
       const id = firstId();
@@ -1031,7 +1045,7 @@ describe("useDownloadStore", () => {
 
     it("removeFromQueue on an in-memory (no disk writable) download just aborts, no disk cleanup", async () => {
       (downloadAndDecryptFile as Mock).mockImplementation(
-        () => new Promise((_res, rej) => setTimeout(() => rej(new Error("network blip")), 5)),
+        () => new Promise((_res, rej) => setTimeout(() => rej(new TypeError("network blip")), 5)),
       );
       useDownloadStore.getState().startDownload("f1", "small.txt", 10, "pw");
       const id = firstId();
@@ -1047,7 +1061,7 @@ describe("useDownloadStore", () => {
       writable.abort.mockRejectedValue(new Error("already closed"));
       (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) => {
         opts.resume!.saveToDisk = writable;
-        return Promise.reject(new Error("network blip"));
+        return Promise.reject(new TypeError("network blip"));
       });
       useDownloadStore.getState().startDownload("f1", "big.bin", ONE_GB, "pw");
       const id = firstId();
@@ -1109,6 +1123,19 @@ describe("useDownloadStore", () => {
       useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
       await flush();
       expect(useDownloadStore.getState().queue).toHaveLength(1);
+    });
+
+    it("cannot be paused: there is no web session to abort, so the row keeps downloading", async () => {
+      tauriMocks.pickSaveLocation.mockResolvedValue("/save/path");
+      tauriMocks.sidecarDownload.mockImplementation(() => new Promise(() => {}));
+      useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
+      await flush();
+      const id = firstId();
+
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      expect(getItem(id)?.status).toBe("downloading");
     });
 
     it("is deduped against a 'paused' transfer of the same file", async () => {
@@ -1218,6 +1245,26 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.stage).toBe("Downloading");
     });
 
+    it("marks the row waiting while the engine reports a blocked Telegram, and clears it when it moves again", async () => {
+      let progressCb: ((p: Record<string, unknown>) => void) | undefined;
+      tauriMocks.subscribeProgress.mockImplementation(async (cb: typeof progressCb) => {
+        progressCb = cb;
+        return vi.fn();
+      });
+      tauriMocks.sidecarDownload.mockImplementation(() => new Promise(() => {}));
+      useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
+      const id = firstId();
+      await flush();
+
+      progressCb!({ file_id: "f1", stage: "waiting", waiting: "telegram_blocked", bytes_done: 0, bytes_total: 10 });
+      expect(useTransferWait.getState().waits[`dl:${id}`]).toBe("telegram_blocked");
+      progressCb!({ file_id: "other", stage: "waiting", waiting: "telegram_blocked", bytes_done: 0, bytes_total: 10 });
+      expect(Object.keys(useTransferWait.getState().waits)).toEqual([`dl:${id}`]);
+      progressCb!({ file_id: "f1", stage: "Downloading", bytes_done: 5, bytes_total: 10 });
+      expect(useTransferWait.getState().waits).toEqual({});
+      await flush();
+    });
+
     it("keeps the previous stage when a progress payload arrives with no stage", async () => {
       // `stage` is typed as a string, but the payload crosses an IPC boundary
       // (the Rust core emits zcrypt://progress), so a partial event really can
@@ -1246,6 +1293,21 @@ describe("useDownloadStore", () => {
       await flush();
       expect(getItem(id)?.progress).toBe(25); // percent still applied
       expect(getItem(id)?.stage).toBe("Starting…"); // prior stage preserved
+    });
+
+    it("shows the allowance dialog, not raw JSON, when the engine refuses on the allowance", async () => {
+      const { useWebTransferNotice } = await import("@/store/web-transfer-notice");
+      tauriMocks.sidecarDownload.mockRejectedValue(new Error('api: api 403: {"error":"x","code":"relay_daily_exceeded","limit_bytes":100,"used_bytes":100,"resets_at":"2026-11-23T00:00:00Z","needed_bytes":40}'));
+      useDownloadStore.getState().startDesktopDownload("f1", "a.bin", 10, "pw", "user-1");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).not.toContain("{");
+      expect(useWebTransferNotice.getState().notice).toMatchObject({
+        code: "relay_daily_exceeded",
+        neededBytes: 40,
+      });
     });
 
     it("reports a network/DNS failure with the actionable hint", async () => {
@@ -1397,6 +1459,19 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.stage).toBe("Downloading (2/2)");
     });
 
+    it("shows the allowance dialog when the engine refuses the ZIP on the allowance", async () => {
+      const { useWebTransferNotice } = await import("@/store/web-transfer-notice");
+      useWebTransferNotice.setState({ notice: null });
+      tauriMocks.sidecarBulkDownloadZip.mockRejectedValue(new Error('api: api 403: {"error":"x","code":"relay_allowance_exceeded","limit_bytes":100,"used_bytes":100}'));
+      useDownloadStore.getState().startDesktopBulkZipDownload(files, "pw", "user-1");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).not.toContain("{");
+      expect(useWebTransferNotice.getState().notice).toMatchObject({ code: "relay_allowance_exceeded" });
+    });
+
     it("reports a network/DNS failure with the actionable hint", async () => {
       tauriMocks.sidecarBulkDownloadZip.mockRejectedValue(
         new Error("connection refused")
@@ -1469,6 +1544,19 @@ describe("useDownloadStore", () => {
       );
     });
 
+    it("cannot be paused: the core has no pause, so the row keeps downloading", async () => {
+      tauriMocks.sidecarBulkDownloadZip.mockImplementation(() => new Promise(() => {}));
+      useDownloadStore.getState().startDesktopBulkZipDownload(files, "pw", "user-1");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("downloading");
+
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      expect(getItem(id)?.status).toBe("downloading");
+    });
+
     it("unsubscribes progress once the batch settles", async () => {
       const unlisten = vi.fn();
       tauriMocks.subscribeProgress.mockResolvedValue(unlisten);
@@ -1507,6 +1595,49 @@ describe("useDownloadStore", () => {
       expect(item.status).toBe("downloading");
       expect(item.progress).toBe(33);
       expect(item.stage).toBe("Zipping");
+    });
+
+    it("pauses a ZIP, keeps its run, and resume continues the same run", async () => {
+      const runs: unknown[] = [];
+      let n = 0;
+      (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) => {
+        runs.push(opts.run);
+        if (n++ > 0) return Promise.resolve({ added: 2, failed: [] });
+        return new Promise((_res, rej) => {
+          opts.signal.addEventListener("abort", () => rej(opts.pausing() ? new ZipPausedError() : new DOMException("c", "AbortError")));
+        });
+      });
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("paused");
+      useDownloadStore.getState().resumeDownload(id, "pw");
+      await flush();
+      expect(getItem(id)?.status).toBe("done");
+      expect(downloadAsZip).toHaveBeenCalledTimes(2);
+      expect(runs[0]).toBeDefined();
+      expect(runs[1]).toBe(runs[0]);
+    });
+
+    it("cancelling a paused ZIP aborts its disk file and lands cancelled", async () => {
+      const abort = vi.fn(async () => {});
+      (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) =>
+        new Promise((_res, rej) => {
+          opts.signal.addEventListener("abort", () => rej(new ZipPausedError()));
+        }),
+      );
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      const run = (downloadAsZip as Mock).mock.calls[0][2].run as { saveToDisk?: unknown };
+      run.saveToDisk = { abort };
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      useDownloadStore.getState().cancelDownload(id);
+      expect(abort).toHaveBeenCalledTimes(1);
+      expect(getItem(id)?.status).toBe("cancelled");
     });
 
     it("cancels cleanly when aborted mid-zip", async () => {
@@ -1585,6 +1716,147 @@ describe("useDownloadStore", () => {
       expect(useFolderPasswordStore.getState().get("folder-2")).toBeNull();
     });
 
+    /** A ZIP run that stays open until paused or cancelled, exposing the options it was started with. */
+    function hangingZip() {
+      const seen: { opts?: Parameters<typeof downloadAsZip>[2] }[] = [];
+      (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) => {
+        seen.push({ opts });
+        return new Promise((_res, rej) => {
+          opts.signal.addEventListener("abort", () =>
+            rej(opts.pausing() ? new ZipPausedError() : new DOMException("c", "AbortError")),
+          );
+        });
+      });
+      return seen;
+    }
+
+    it("ignores a progress tick that arrives from a ZIP run already paused", async () => {
+      const seen = hangingZip();
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      seen[0].opts!.onProgress!({ percent: 77, stage: "Late tick" } as never);
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(getItem(id)?.stage).toBe("Paused");
+      expect(getItem(id)?.progress).not.toBe(77);
+    });
+
+    it("resume hands the new password resolver to the ZIP run and leaves the other rows alone", async () => {
+      const seen = hangingZip();
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      const other = { id: "other", fileId: "f9", filename: "z.bin", fileSize: 1, status: "failed" as const, progress: 5, stage: "Failed", startedAt: 0 };
+      useDownloadStore.setState((st) => ({ queue: [...st.queue, other] }));
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      const resolver = vi.fn(async () => "folder-pw");
+      useDownloadStore.getState().resumeDownload(id, "pw2", resolver);
+      await flush();
+
+      expect(seen).toHaveLength(2);
+      expect(seen[1].opts!.resolvePassword).toBe(resolver);
+      expect(getItem(id)?.status).toBe("downloading");
+      expect(getItem("other")).toEqual(other);
+    });
+
+    it("does not start a ZIP whose row was removed while the Save-As picker was open", async () => {
+      let pick!: (h: unknown) => void;
+      vi.stubGlobal("showSaveFilePicker", vi.fn(() => new Promise((r) => (pick = r))));
+      const big: BulkDownloadFile[] = [
+        { fileId: "f1", filename: "a.bin", fileSize: ONE_GB },
+        { fileId: "f2", filename: "b.bin", fileSize: ONE_GB },
+      ];
+      useDownloadStore.getState().startBulkZipDownload(big, "pw");
+      const id = firstId();
+      await flush();
+
+      useDownloadStore.getState().removeFromQueue(id);
+      pick({ createWritable: async () => makeDiskWritable() });
+      await flush();
+
+      expect(createZipRun).not.toHaveBeenCalled();
+      expect(downloadAsZip).not.toHaveBeenCalled();
+      expect(getItem(id)).toBeUndefined();
+    });
+
+    it("lands cancelled, without starting, when the cancel arrives as the ZIP run is being prepared", async () => {
+      (createZipRun as Mock).mockImplementationOnce(() => {
+        useDownloadStore.getState().cancelDownload(firstId());
+        return { saveToDisk: undefined, zip: { terminate: vi.fn() } };
+      });
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("cancelled");
+      expect(downloadAsZip).not.toHaveBeenCalled();
+    });
+
+    it("does not rerun a ZIP whose row was removed right after resume", async () => {
+      hangingZip();
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      useDownloadStore.getState().resumeDownload(id, "pw");
+      useDownloadStore.getState().removeFromQueue(id);
+      await flush();
+
+      expect(downloadAsZip).toHaveBeenCalledTimes(1);
+      expect(getItem(id)).toBeUndefined();
+    });
+
+    it("cancelling a paused ZIP still lands cancelled and frees its writer when closing the disk file fails", async () => {
+      hangingZip();
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      const run = (createZipRun as Mock).mock.results[0].value as { saveToDisk?: unknown; zip: { terminate: Mock } };
+      const abort = vi.fn(async () => {
+        throw new Error("locked");
+      });
+      run.saveToDisk = { abort };
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      useDownloadStore.getState().cancelDownload(id);
+      await flush();
+
+      expect(abort).toHaveBeenCalledTimes(1);
+      expect(run.zip.terminate).toHaveBeenCalledTimes(1);
+      expect(getItem(id)?.status).toBe("cancelled");
+    });
+
+    it("removing a paused ZIP aborts its disk file, frees its writer and drops the row", async () => {
+      hangingZip();
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+      const run = (createZipRun as Mock).mock.results[0].value as { saveToDisk?: unknown; zip: { terminate: Mock } };
+      const abort = vi.fn(async () => {
+        throw new Error("locked");
+      });
+      run.saveToDisk = { abort };
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+
+      useDownloadStore.getState().removeFromQueue(id);
+      await flush();
+
+      expect(abort).toHaveBeenCalledTimes(1);
+      expect(run.zip.terminate).toHaveBeenCalledTimes(1);
+      expect(getItem(id)).toBeUndefined();
+    });
+
     describe("large selections", () => {
       const big: BulkDownloadFile[] = [
         { fileId: "f1", filename: "a.bin", fileSize: ONE_GB },
@@ -1598,7 +1870,7 @@ describe("useDownloadStore", () => {
         const id = firstId();
         await flush();
         expect(picker).toHaveBeenCalledWith({ suggestedName: "zcrypt-2-files.zip" });
-        expect((downloadAsZip as Mock).mock.calls[0][2].saveToDisk).toBe(writable);
+        expect((downloadAsZip as Mock).mock.calls[0][2].run.saveToDisk).toBe(writable);
         expect(getItem(id)?.status).toBe("done");
       });
 
@@ -1697,6 +1969,217 @@ describe("useDownloadStore", () => {
       });
       useDownloadStore.getState().clearCompleted();
       expect(useDownloadStore.getState().queue.map((i) => i.id)).toEqual(["3", "4", "5"]);
+    });
+  });
+
+  describe("transfer reliability", () => {
+    it("does not start a second download of a file that is already downloading", async () => {
+      (downloadAndDecryptFile as Mock).mockImplementation(() => new Promise(() => {}));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+
+      expect(useDownloadStore.getState().queue).toHaveLength(1);
+      expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("allows the same file again once the first download has failed", async () => {
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new ApiError("gone", 410)).mockResolvedValue(undefined);
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+
+      expect(useDownloadStore.getState().queue).toHaveLength(2);
+    });
+
+    it("auto-resumes a stuck download only a few times, each after a backoff, then leaves it failed", async () => {
+      (downloadAndDecryptFile as Mock).mockRejectedValue(new TypeError("offline"));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
+
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+      expect(downloadAndDecryptFile).toHaveBeenCalledTimes(2);
+
+      // Right away again (a focus event): the backoff has not passed.
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+      expect(downloadAndDecryptFile).toHaveBeenCalledTimes(2);
+
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 3; i++) {
+        vi.advanceTimersByTime(61_000);
+        useDownloadStore.getState().autoResumeInterrupted();
+        await flush();
+      }
+      expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1 + AUTO_RESUME_MAX_ATTEMPTS);
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
+    it("a manual retry gives a stuck download a fresh auto-resume budget", async () => {
+      (downloadAndDecryptFile as Mock).mockRejectedValue(new TypeError("offline"));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 1; i++) {
+        vi.advanceTimersByTime(61_000);
+        useDownloadStore.getState().autoResumeInterrupted();
+        await flush();
+      }
+      const spent = (downloadAndDecryptFile as Mock).mock.calls.length;
+
+      useDownloadStore.getState().retryDownload(id, "pw");
+      await flush();
+      vi.advanceTimersByTime(61_000);
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+
+      expect((downloadAndDecryptFile as Mock).mock.calls.length).toBe(spent + 2);
+    });
+
+    it("an auto-resume that gets further starts its tries over", async () => {
+      (downloadAndDecryptFile as Mock).mockImplementation(async (_f, _p, opts: DownloadOptions) => {
+        const n = (downloadAndDecryptFile as Mock).mock.calls.length;
+        opts.onProgress?.({ percent: n * 10, stage: "Downloading" } as never);
+        throw new TypeError("offline");
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 3; i++) {
+        vi.advanceTimersByTime(61_000);
+        useDownloadStore.getState().autoResumeInterrupted();
+        await flush();
+      }
+      expect((downloadAndDecryptFile as Mock).mock.calls.length).toBe(AUTO_RESUME_MAX_ATTEMPTS + 4);
+    });
+
+    it("an auto-resume that only repeats earlier progress still spends its tries", async () => {
+      (downloadAndDecryptFile as Mock).mockImplementation(async (_f, _p, opts: DownloadOptions) => {
+        opts.onProgress?.({ percent: 30, stage: "Downloading" } as never);
+        throw new TypeError("offline");
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 3; i++) {
+        vi.advanceTimersByTime(61_000);
+        useDownloadStore.getState().autoResumeInterrupted();
+        await flush();
+      }
+      expect((downloadAndDecryptFile as Mock).mock.calls.length).toBe(AUTO_RESUME_MAX_ATTEMPTS + 1);
+    });
+
+    it("keeps the decrypted chunks for the grace period after the automatic tries run out", async () => {
+      let resume: DownloadOptions["resume"];
+      (downloadAndDecryptFile as Mock).mockImplementation(async (_f, _p, opts: DownloadOptions) => {
+        resume = opts.resume;
+        resume!.decryptedChunks = [new Uint8Array(4)];
+        throw new TypeError("offline");
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 1; i++) {
+        vi.advanceTimersByTime(61_000);
+        useDownloadStore.getState().autoResumeInterrupted();
+        await flush();
+      }
+      expect(resume!.decryptedChunks).toBeDefined();
+      vi.advanceTimersByTime(FAILED_BUFFER_GRACE_MS + 1);
+      expect(resume!.decryptedChunks).toBeUndefined();
+    });
+
+    it("frees the decrypted chunks of a download that failed for good, keeping the resume key", async () => {
+      let resume: DownloadOptions["resume"];
+      (downloadAndDecryptFile as Mock).mockImplementationOnce(async (_f, _p, opts: DownloadOptions) => {
+        resume = opts.resume;
+        resume!.keyBytes = new ArrayBuffer(8);
+        resume!.decryptedChunks = [new Uint8Array(4)];
+        resume!.done = new Set([0]);
+        throw new ApiError("forbidden", 403);
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+
+      expect(resume!.decryptedChunks).toBeUndefined();
+      expect(resume!.done).toBeUndefined();
+      expect(resume!.keyBytes).toBeDefined();
+    });
+
+    it("keeps the chunks of a transient failure for a retry, then frees them after the grace", async () => {
+      let resume: DownloadOptions["resume"];
+      (downloadAndDecryptFile as Mock).mockImplementationOnce(async (_f, _p, opts: DownloadOptions) => {
+        resume = opts.resume;
+        resume!.decryptedChunks = [new Uint8Array(4)];
+        resume!.done = new Set([0]);
+        throw new TypeError("offline");
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      await flush();
+      expect(resume!.decryptedChunks).toBeDefined();
+
+      vi.advanceTimersByTime(FAILED_BUFFER_GRACE_MS + 1);
+      expect(resume!.decryptedChunks).toBeUndefined();
+    });
+
+    it("does not free the chunks when the grace ends on a row that is no longer failed", async () => {
+      let resume: DownloadOptions["resume"];
+      (downloadAndDecryptFile as Mock).mockImplementationOnce(async (_f, _p, opts: DownloadOptions) => {
+        resume = opts.resume;
+        resume!.decryptedChunks = [new Uint8Array(4)];
+        throw new TypeError("offline");
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.setState((st) => ({
+        queue: st.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const } : i)),
+      }));
+
+      vi.advanceTimersByTime(FAILED_BUFFER_GRACE_MS + 1);
+
+      expect(resume!.decryptedChunks).toBeDefined();
+    });
+
+    it("explains a refusal on the transfer allowance in the desktop-app dialog instead of a failure toast", async () => {
+      useWebTransferNotice.getState().close();
+      const limit = new WebTransferLimitError(
+        WebTransferLimitCode.DailyExceeded,
+        { limitBytes: 100, usedBytes: 100, resetsAt: "2026-11-20T00:00:00Z" },
+        403,
+      );
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(limit);
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(useWebTransferNotice.getState().notice).toMatchObject({
+        code: WebTransferLimitCode.DailyExceeded,
+        limitBytes: 100,
+      });
+      expect(toast.error).not.toHaveBeenCalled();
+      useWebTransferNotice.getState().close();
+    });
+
+    it("a retry inside the grace keeps its chunks and cancels the drop", async () => {
+      let resume: DownloadOptions["resume"];
+      (downloadAndDecryptFile as Mock)
+        .mockImplementationOnce(async (_f, _p, opts: DownloadOptions) => {
+          resume = opts.resume;
+          resume!.decryptedChunks = [new Uint8Array(4)];
+          throw new TypeError("offline");
+        })
+        .mockImplementation(() => new Promise(() => {}));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      useDownloadStore.getState().retryDownload(id, "pw");
+      await flush();
+
+      vi.advanceTimersByTime(FAILED_BUFFER_GRACE_MS + 1);
+      expect(resume!.decryptedChunks).toBeDefined();
     });
   });
 });

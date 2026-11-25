@@ -5,7 +5,7 @@ zcrypt is a zero-knowledge encrypted cloud storage system.
 - **Backend:** Go 1.26, stdlib HTTP server, pgxpool (PostgreSQL), AES-256-GCM encryption, zstd compression
 - **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Motion (Framer Motion)
 - **Database:** PostgreSQL (Neon serverless) via pgx/v5
-- **Deploy:** Frontend on Vercel, Backend self-hosted in Docker behind a Cloudflare Tunnel (`deploy/server`, target Oracle Always Free in Ashburn next to the us-east-1 Neon DB), DB on Neon
+- **Deploy:** Frontend on Cloudflare Workers (vinext build of the same Next.js app; `bun run build:vinext`, see docs/CLOUDFLARE_MIGRATION.md), Backend self-hosted in Docker behind a Cloudflare Tunnel (`deploy/server`, target Oracle Always Free in Ashburn next to the us-east-1 Neon DB), DB on Neon
 
 ## Directory Structure
 ```
@@ -77,6 +77,13 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 - **Changelog first.** Before bumping versions or tagging, write the curated entry for the version: groups in `app/frontend/lib/changelog.json`, text in `app/frontend/messages/site/changelog/en.json` plus the other 7 locales, and set its `date`. Only list user-visible changes that are actually in `git log vPREV..HEAD`; every past version is public on GitHub, so be exact. The release workflow refuses a tag without a dated entry.
 - Then bump the version in `app/frontend/package.json`, `app/desktop/src-tauri/tauri.conf.json` and `app/desktop/src-tauri/Cargo.toml` (`scripts/check-versions.sh` checks they match), push, and tag `vX.Y.Z`.
 - The entry feeds `/changelog`, `/changelog/<version>`, the RSS feed, the in-app What's new dialog, the GitHub release notes and the desktop update dialog (`scripts/release-notes.sh`).
+
+## Owner's working rules
+Set by the owner; they apply to every task in this repo. More will be added here.
+- **Uploads and downloads go together.** Any bug, error or optimization work on uploads also checks downloads, and the other way round. Report what was found on both sides.
+- **Web first, then every app.** An optimization asked for without naming a platform is done on the web first. If the same path exists in the desktop (macOS, Windows, Linux) or Android app, apply it there too without being asked.
+- **One logic, many languages.** The same flow is written in TypeScript (with WASM workers), Go and Rust. Keep the underlying algorithm and wire format identical across them (the abstract logic is the source of truth, `docs/CRYPTO_FORMAT.md` for formats), so a change in one is mirrored in the others.
+- **Best practices always.** Use the idiomatic best practice for each language, library, framework, database and DevOps tool involved, not just code that works.
 
 ## Coding Conventions
 - **Backend:** Standard Go conventions. No frameworks: stdlib `net/http` with `HandleFunc`. Error wrapping with `fmt.Errorf("context: %w", err)`. UUID primary keys everywhere.

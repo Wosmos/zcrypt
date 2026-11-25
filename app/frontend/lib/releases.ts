@@ -245,18 +245,14 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
 /**
  * Fetch the latest release's download data.
  *
- * Next's data cache holds the response for five minutes (`next.revalidate`):
- * unauthenticated GitHub API calls are capped at 60/hour per IP, so that is
- * about 12 calls an hour, and Next no longer caches `fetch` by default. The
- * cache outlives deploys, so a long window kept the old version label on the
- * site for up to an hour after a release. Nothing is memoised in module scope: a
- * process-lifetime copy outlived that revalidation and kept serving the
- * previous release long after a new one shipped.
+ Pages are prerendered, so this runs at build time: the release workflow
+ * redeploys the website once a release is published, and a daily deploy
+ * catches anything missed. Nothing is memoised in module scope.
  */
 export function getLatestRelease(): Promise<ReleaseData> {
   return fetch(LATEST_RELEASE_API, {
     headers: { Accept: "application/vnd.github+json" },
-    next: { revalidate: 300 },
+    next: { revalidate: 86_400 },
   })
     .then((res) => {
       if (!res.ok) throw new Error(`GitHub API ${res.status}`);

@@ -164,7 +164,9 @@
         "choose": "Choose where to save",
         "paused": "Paused",
         "offline": "Waiting for Wi-Fi",
-        "stopped": "Stopped"
+        "stopped": "Stopped",
+        "waitingTelegram": "Telegram is blocked on this network. Turn on a VPN and it continues by itself.",
+        "waitingAllowance": "Transfer allowance used up. Turn on a VPN to send straight to Telegram and it continues by itself."
       },
       "time": {
         "fewSeconds": "a few seconds",
@@ -201,9 +203,11 @@
         "saved": "{count} saved to {folder}.",
         "savedSomeFailed": "{count} saved to {folder}. {failed} couldn't be sent.",
         "allFailed": "{failed} couldn't be sent.",
+        "allDownloadsFailed": "{failed} couldn't be downloaded.",
         "downloaded": "{count} downloaded.",
         "downloadedSomeFailed": "{count} downloaded. {failed} couldn't be downloaded.",
-        "needsApp": "{count, plural, one {# file needs} other {# files need}} the desktop app."
+        "needsApp": "{count, plural, one {# file needs} other {# files need}} the desktop app.",
+        "blocked": "{count, plural, one {# file is} other {# files are}} waiting for Telegram. Turn on a VPN and they continue by themselves."
       },
       "legend": {
         "done": "Done",
@@ -228,9 +232,11 @@
       "orb": "Transfers, {left} left. Tap to open, press and hold to pause or resume.",
       "needsApp": {
         "tooBig": "Too big for the browser",
-        "allowance": "Over this month's web transfers",
-        "action": "Use the app"
-      }
+        "allowance": "Over this month's transfer allowance",
+        "action": "Use the app",
+        "daily": "Over today's transfer allowance"
+      },
+      "tryAgain": "Try again"
     },
     "tokens": {
       "expired": "Expired",
@@ -911,6 +917,9 @@
     "toasts": {
       "restartUpload": "Couldn't continue the previous upload of \"{name}\", restarting on {platform}.",
       "directResumeElsewhere": "\"{name}\" was going straight to your own {platform} and can't be finished in this browser. Remove it and upload it again.",
+      "reconnectTelegram": "Reconnect Telegram to finish uploading \"{name}\".",
+      "reconnectTelegramAction": "Open storage settings",
+      "downloadInterrupted": "Stopped by the reload: {names}. A download can't continue after the page reloads, so start it again.",
       "andMore": "and {count} more",
       "tooBig": "{names} {count, plural, one {exceeds the} other {exceed the}} {limit} per-file limit.",
       "uploaded": "{name} uploaded",
@@ -934,12 +943,16 @@
       "zipWrongPassword": "Wrong folder password in this ZIP. Retry to re-enter it.",
       "zipFilesLabel": "{count, plural, one {# file (ZIP)} other {# files (ZIP)}}",
       "webFileTooLarge": "Files over {limit} can't be uploaded from the browser. Big files belong in the desktop app: it's faster, keeps going in the background and has no size limit.",
-      "webAllowanceUsed": "You've used your {limit} of web transfers this month. Resets on {date}. The desktop app has no limit.",
-      "webAllowanceUsedNoDate": "You've used your {limit} of web transfers this month. The desktop app has no limit.",
+      "webAllowanceUsed": "You've used your {limit} transfer allowance for this month. It resets on {date}. Anything that goes straight to your own storage doesn't count.",
+      "webAllowanceUsedNoDate": "You've used your {limit} transfer allowance for this month. Anything that goes straight to your own storage doesn't count.",
       "getDesktopApp": "Get the desktop app",
       "openDesktopApp": "Open the desktop app",
       "desktopAppMissing": "Couldn't open the desktop app. Don't have it yet?",
-      "downloadDesktopApp": "Download the desktop app"
+      "downloadDesktopApp": "Download the desktop app",
+      "webDailyUsed": "You've used today's {limit} transfer allowance. It resets at {time}. Anything that goes straight to your own storage doesn't count.",
+      "webDailyUsedNoTime": "You've used today's {limit} transfer allowance. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count.",
+      "webDailyShort": "This needs {needed} through our server, but only {left} of today's {limit} allowance is left. It resets at {time}. The desktop app downloads straight from your storage, so it doesn't count.",
+      "webAllowanceShort": "This needs {needed} through our server, but only {left} of this month's {limit} allowance is left. It resets on {date}. The desktop app downloads straight from your storage, so it doesn't count."
     },
     "l10n": {
       "justNow": "just now",
@@ -1033,22 +1046,50 @@
       "newSignIn": "New sign-in to your account",
       "newSignInBody": "{device}. Not you? Sign it out in Settings.",
       "inviteReceived": "You were invited to {space}",
+      "inviteReceivedBy": "{name} added you to {space}",
       "inviteReceivedBody": "Open zcrypt to accept or decline.",
       "linkViewed": "Someone opened your link",
       "storageFull": "Your storage is full",
       "storageFullBody": "New uploads wait until you free up space or connect your own account.",
       "view": "View",
       "retry": "Retry",
-      "open": "Open"
+      "open": "Open",
+      "invitePending": "{name} invited you to a Space",
+      "invitePendingBody": "Unlock your vault to join.",
+      "memberJoined": "{name} joined {space}",
+      "memberLeft": "{name} left {space}",
+      "memberRemoved": "You were removed from {space}",
+      "roleChanged": "Your role in {space} is now {role}",
+      "spaceDeleted": "{space} was deleted",
+      "filesAdded": "{name} added {count, plural, one {# file} other {# files}} to {space}",
+      "someone": "Someone",
+      "aSpace": "a Space",
+      "backupTitle": "zcrypt backup",
+      "backupFilesOne": "{n} file backed up",
+      "backupFilesOther": "{n} files backed up",
+      "backupFromOne": "{n} file backed up from {folder}",
+      "backupFromOther": "{n} files backed up from {folder}",
+      "backupPhotosOne": "{n} photo backed up",
+      "backupPhotosOther": "{n} photos backed up",
+      "backupSignedOut": "Backup stopped: sign in again",
+      "backupOffline": "Backup paused: no connection",
+      "backupFailedOne": "Backup couldn't upload {n} file",
+      "backupFailedOther": "Backup couldn't upload {n} files",
+      "role": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Viewer"
+      }
     },
     "webLimit": {
       "tooBigTitle": "Too big for the browser",
       "tooBigManyTitle": "{count} files are too big for the browser",
       "tooBigBody": "{name} is {size}. Browser uploads are capped at {limit} because they pass through our servers. The desktop app sends files straight to your storage, with no size limit.",
       "capBody": "Browser uploads are capped at {limit} because they pass through our servers. The desktop app sends files straight to your storage, with no size limit.",
-      "allowanceTitle": "You've used this month's web transfers",
-      "allowanceBody": "{used} of {limit}. It resets on {date}. The desktop app has no limit.",
-      "allowanceBodyNoDate": "{used} of {limit}. The desktop app has no limit.",
+      "allowanceTitle": "You've used this month's transfer allowance",
+      "allowanceBody": "{used} of {limit}. It resets on {date}. Anything that goes straight to your own storage doesn't count.",
+      "allowanceBodyNoDate": "{used} of {limit}. Anything that goes straight to your own storage doesn't count.",
       "hint": "Open the app, then drop {count, plural, one {the file} other {the files}} there.",
       "more": "and {count} more",
       "open": "Open the desktop app",
@@ -1056,7 +1097,28 @@
       "get": "Get the desktop app",
       "missing": "Don't see it? Get the desktop app",
       "missingNote": "Nothing opened, so the app may not be on this device yet.",
-      "notNow": "Not now"
+      "notNow": "Not now",
+      "dailyTitle": "You've used today's transfer allowance",
+      "dailyBody": "{used} of {limit} today. It resets at {time}. Anything that goes straight to your own storage doesn't count.",
+      "dailyBodyNoTime": "{used} of {limit} today. It resets at midnight UTC. Anything that goes straight to your own storage doesn't count.",
+      "dailyShortTitle": "Not enough of today's allowance left",
+      "allowanceShortTitle": "Not enough of this month's allowance left",
+      "dailyShortBody": "This needs {needed} through our server, and {left} of today's {limit} is left. It resets at {time}. The desktop app downloads straight from your storage, so it doesn't count.",
+      "allowanceShortBody": "This needs {needed} through our server, and {left} of this month's {limit} is left. It resets on {date}. The desktop app downloads straight from your storage, so it doesn't count."
+    },
+    "lowAllowance": {
+      "title": "Your transfer allowance is running low",
+      "bodyDaily": "Only {remaining} of today's allowance is left. It resets at {time}. Uploads straight to your own storage don't use it.",
+      "bodyDailyNoTime": "Only {remaining} of today's allowance is left. It resets at midnight UTC. Uploads straight to your own storage don't use it.",
+      "bodyMonthly": "Only {remaining} of this month's allowance is left. It resets on {date}. Uploads straight to your own storage don't use it.",
+      "bodyMonthlyNoDate": "Only {remaining} of this month's allowance is left. Uploads straight to your own storage don't use it.",
+      "seeUsage": "See usage"
+    },
+    "humanCheck": {
+      "title": "Quick check",
+      "body": "You've made a lot of links in a short time. Confirm you're a person and your link will be made.",
+      "checking": "Checking…",
+      "cancel": "Cancel"
     }
   }
 }

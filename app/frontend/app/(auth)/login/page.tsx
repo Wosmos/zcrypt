@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { login, requestMagicLink, getMe } from "@/lib/auth-api";
 import { OAuthButtons, DESKTOP_OAUTH_SESSION_KEY } from "@/components/auth/oauth-buttons";
-import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthStatusCard, emphasizeEmail } from "@/components/auth/auth-status-card";
 import { AuthLink, AUTH_LINK_CLASS, AUTH_LINK_COLORS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
@@ -17,6 +17,15 @@ import { isTauri, subscribeOAuthCallback } from "@/lib/tauri";
 import { useFriendlyError } from "@/hooks/useConnectivity";
 import { authScene } from "@/components/auth/auth-scene";
 import { API_BASE } from "@/lib/config";
+import { useTurnstile } from "@/components/auth/turnstile";
+
+/** Keeps the 2FA hand-off token for the code step and reports whether a sign-in
+ *  still needs it. */
+function needsSecondFactor(res: { requires_2fa?: boolean; temp_token?: string }): boolean {
+  if (!res.requires_2fa || !res.temp_token) return false;
+  sessionStorage.setItem("zcrypt-temp-token", res.temp_token);
+  return true;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,6 +40,7 @@ export default function LoginPage() {
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [approvalCode, setApprovalCode] = useState("");
   const friendlyError = useFriendlyError();
+  const turnstile = useTurnstile();
 
   // Desktop OAuth: poll backend for tokens after user completes login in browser
   useEffect(() => {
@@ -75,8 +85,7 @@ export default function LoginPage() {
             toast.error(data.error);
             return;
           }
-          if (data.requires_2fa && data.temp_token) {
-            sessionStorage.setItem("zcrypt-temp-token", data.temp_token);
+          if (needsSecondFactor(data)) {
             router.replace("/2fa-verify");
             return;
           }
@@ -134,20 +143,15 @@ export default function LoginPage() {
     setLoading(true);
     authScene.sealing();
     try {
-      const res = await login(email, password);
-
-      if (res.requires_2fa && res.temp_token) {
+      const res = await login(email, password, await turnstile.getToken());
+      if (needsSecondFactor(res)) {
         authScene.idle();
-        sessionStorage.setItem("zcrypt-temp-token", res.temp_token);
         router.push("/2fa-verify");
         return;
       }
-
       if (res.access_token && res.refresh_token) {
         setTokens(res.access_token, res.refresh_token);
-        if (res.user) {
-          setUser(res.user);
-        }
+        if (res.user) setUser(res.user);
         authScene.done();
         router.push("/dashboard");
       }
@@ -155,6 +159,7 @@ export default function LoginPage() {
       authScene.failed();
       toast.error(friendlyError(err, tl("failed")));
     } finally {
+      turnstile.reset();
       setLoading(false);
     }
   };
@@ -167,12 +172,13 @@ export default function LoginPage() {
     }
     setMagicLinkLoading(true);
     try {
-      await requestMagicLink(email.trim());
+      await requestMagicLink(email.trim(), await turnstile.getToken());
       setMagicLinkSent(true);
       toast.success(tl("linkSent"));
     } catch (err) {
       toast.error(friendlyError(err, tl("linkFailed")));
     } finally {
+      turnstile.reset();
       setMagicLinkLoading(false);
     }
   };
@@ -209,7 +215,7 @@ export default function LoginPage() {
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           {tl.rich("sentTo", {
             email,
-            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+            b: emphasizeEmail,
           })}
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-2">{tl("spam")}</p>
@@ -291,6 +297,8 @@ export default function LoginPage() {
           )}
           {mode === "password" ? tl("useMagic") : tl("usePassword")}
         </button>
+
+        {turnstile.widget}
 
         <OAuthButtons />
       </div>

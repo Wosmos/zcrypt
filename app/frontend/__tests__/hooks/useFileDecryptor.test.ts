@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
 import { hmac } from "@noble/hashes/hmac.js";
@@ -8,6 +9,9 @@ import { IncorrectPassphraseError } from "@/lib/crypto";
 const {
   getFileMetaMock,
   getFileChunkMock,
+  getFileLocatorsMock,
+  resolveWebDirectMock,
+  downloadTelegramChunkMock,
   resolveFileKeyMock,
   decryptChunkMock,
   sha256HexMock,
@@ -27,6 +31,9 @@ const {
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
   getFileChunkMock: vi.fn(),
+  getFileLocatorsMock: vi.fn(),
+  resolveWebDirectMock: vi.fn(),
+  downloadTelegramChunkMock: vi.fn(),
   resolveFileKeyMock: vi.fn(),
   decryptChunkMock: vi.fn(),
   sha256HexMock: vi.fn(),
@@ -48,6 +55,7 @@ const {
   tauriMock: {
     isTauri: false,
     sidecarDecryptToMemory: vi.fn(),
+    cancelTransfer: vi.fn(async () => true),
     subscribeProgress: vi.fn(),
   },
   // The module registers its shared-pool teardown on the decrypt cache's
@@ -58,6 +66,12 @@ const {
 vi.mock("@/lib/api", () => ({
   getFileMeta: getFileMetaMock,
   getFileChunk: getFileChunkMock,
+  getFileLocators: getFileLocatorsMock,
+}));
+vi.mock("@/lib/byos-direct", () => ({ resolveWebDirect: resolveWebDirectMock }));
+vi.mock("@/lib/telegram-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/telegram-download")>()),
+  downloadTelegramChunk: downloadTelegramChunkMock,
 }));
 
 vi.mock("@/lib/tauri", () => tauriMock);
@@ -124,11 +138,19 @@ import {
   mimeForFilename,
   IntegrityError,
   ChunkDecryptError,
+  VIEWER_MAX_BYTES,
 } from "@/hooks/useFileDecryptor";
+import { resetDirectDownloadState } from "@/lib/chunk-source";
+import { ApiError } from "@/lib/http-error";
 import {
   FolderUnlockCancelled,
   type UseFolderProtection,
 } from "@/hooks/useFolderProtection";
+
+/** The real SHA-256 the viewer must compute over these plaintext chunks. */
+function sha(parts: string[]): string {
+  return createHash("sha256").update(parts.join("")).digest("hex");
+}
 
 function makeFile(overrides: Partial<FileMetadata> = {}): FileMetadata {
   return {
@@ -212,7 +234,7 @@ describe("mimeForFilename", () => {
 describe("runDecryptPipeline", () => {
   it("fans out chunk fetch+decrypt in parallel and reassembles a typed Blob", async () => {
     const file = makeFile({ chunk_count: 3, original_name: "video.mp4" });
-    const meta = makeMeta({ chunk_count: 3, sha256: "matched-hash" });
+    const meta = makeMeta({ chunk_count: 3, sha256: sha(["chunk-0", "chunk-1", "chunk-2"]) });
     getFileMetaMock.mockResolvedValue(meta);
     getFileChunkMock.mockImplementation(async () => ({
       data: new ArrayBuffer(4),
@@ -225,7 +247,6 @@ describe("runDecryptPipeline", () => {
         plaintext: chunkPlaintext(input.chunkIndex),
       })
     );
-    sha256HexMock.mockResolvedValue("matched-hash");
     getDeviceProfileMock.mockReturnValue({ maxConcurrentDownloads: 2 });
 
     const onProgress = vi.fn();
@@ -243,7 +264,7 @@ describe("runDecryptPipeline", () => {
 
   it("verifies legacy (no wrapped_cek) files against chunk 0 on the main thread and reuses it in the pool fan-out", async () => {
     const file = makeFile({ chunk_count: 2 });
-    const meta = makeMeta({ chunk_count: 2, wrapped_cek: undefined, sha256: "h" });
+    const meta = makeMeta({ chunk_count: 2, wrapped_cek: undefined, sha256: sha(["chunk-0", "chunk-1"]) });
     getFileMetaMock.mockResolvedValue(meta);
     getFileChunkMock.mockResolvedValue({
       data: new ArrayBuffer(4),
@@ -257,7 +278,6 @@ describe("runDecryptPipeline", () => {
         plaintext: chunkPlaintext(input.chunkIndex),
       })
     );
-    sha256HexMock.mockResolvedValue("h");
 
     await runDecryptPipeline(file, "pw");
 
@@ -306,14 +326,49 @@ describe("runDecryptPipeline", () => {
     expect(getFileChunkMock.mock.calls.map((c) => c[1])).toEqual([0, 1]);
   });
 
+  it("hands chunk fetches a signal that follows the caller's cancel, and surfaces it as an AbortError", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1 }));
+    let seen: AbortSignal | undefined;
+    getFileChunkMock.mockImplementation(
+      (_id: string, _index: number, sig?: AbortSignal) =>
+        new Promise((_, reject) => {
+          seen = sig;
+          sig?.addEventListener("abort", () => reject(new DOMException("x", "AbortError")));
+        }),
+    );
+    const ctl = new AbortController();
+
+    const pending = runDecryptPipeline(makeFile(), "pw", undefined, ctl.signal);
+    await vi.waitFor(() => expect(seen).toBeDefined());
+    expect(seen!.aborted).toBe(false);
+    ctl.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(seen!.aborted).toBe(true);
+    expect(processMock).not.toHaveBeenCalled();
+  });
+
+  it("throws an AbortError when the caller cancels while the last chunk is still being decrypted", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+    const ctl = new AbortController();
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockImplementation(async (input: { chunkIndex: number }) => {
+      ctl.abort();
+      return { chunkIndex: input.chunkIndex, plaintext: chunkPlaintext(input.chunkIndex) };
+    });
+
+    await expect(runDecryptPipeline(makeFile(), "pw", undefined, ctl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
   it("reuses one lazily created worker pool across decrypts and drops it on a lock", async () => {
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
     getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
     processMock.mockImplementation(async (input: { chunkIndex: number }) => ({
       chunkIndex: input.chunkIndex,
       plaintext: chunkPlaintext(input.chunkIndex),
     }));
-    sha256HexMock.mockResolvedValue("h");
 
     expect(workerPoolCtorMock).not.toHaveBeenCalled();
     await runDecryptPipeline(makeFile(), "pw");
@@ -442,9 +497,8 @@ describe("runDecryptPipeline", () => {
 
   it("handles a zero-chunk file without fanning out any fetchers", async () => {
     const file = makeFile({ chunk_count: 0, original_size: 0 });
-    const meta = makeMeta({ chunk_count: 0, sha256: "empty-hash" });
+    const meta = makeMeta({ chunk_count: 0, sha256: sha([]) });
     getFileMetaMock.mockResolvedValue(meta);
-    sha256HexMock.mockResolvedValue("empty-hash");
 
     const blob = await runDecryptPipeline(file, "pw");
 
@@ -470,6 +524,7 @@ describe("runDecryptPipeline on desktop", () => {
   afterEach(async () => {
     tauriMock.isTauri = false;
     tauriMock.sidecarDecryptToMemory.mockReset();
+    tauriMock.cancelTransfer.mockClear();
     tauriMock.subscribeProgress.mockReset();
     vi.resetModules();
   });
@@ -482,7 +537,12 @@ describe("runDecryptPipeline on desktop", () => {
 
     expect(blob.size).toBe(5);
     expect(blob.type).toBe("video/mp4");
-    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "user-1");
+    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith(
+      "file-1",
+      "pw",
+      "user-1",
+      expect.stringMatching(/^preview-/),
+    );
     // The whole browser pipeline is skipped, no meta fetch, no chunk fetch.
     expect(getFileMetaMock).not.toHaveBeenCalled();
     expect(getFileChunkMock).not.toHaveBeenCalled();
@@ -520,7 +580,72 @@ describe("runDecryptPipeline on desktop", () => {
 
     await run(makeFile(), "pw");
 
-    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "");
+    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith(
+      "file-1",
+      "pw",
+      "",
+      expect.stringMatching(/^preview-/),
+    );
+  });
+
+  it("cancels the core's decrypt by its transfer id when the caller aborts", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    let finish: (b: Uint8Array) => void = () => {};
+    tauriMock.sidecarDecryptToMemory.mockImplementation(
+      () => new Promise<Uint8Array>((resolve) => (finish = resolve)),
+    );
+    const ctl = new AbortController();
+
+    const p = run(makeFile(), "pw", undefined, ctl.signal);
+    await vi.waitFor(() => expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalled());
+    const id = tauriMock.sidecarDecryptToMemory.mock.calls[0][3];
+    expect(tauriMock.cancelTransfer).not.toHaveBeenCalled();
+
+    ctl.abort();
+    expect(tauriMock.cancelTransfer).toHaveBeenCalledExactlyOnceWith(id);
+    finish(new Uint8Array([1]));
+    await p.catch(() => {});
+  });
+
+  it("ignores a failure to cancel the core and still finishes the decrypt", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    let finish: (b: Uint8Array) => void = () => {};
+    tauriMock.sidecarDecryptToMemory.mockImplementation(
+      () => new Promise<Uint8Array>((resolve) => (finish = resolve)),
+    );
+    tauriMock.cancelTransfer.mockRejectedValueOnce(new Error("already finished"));
+    const ctl = new AbortController();
+
+    const p = run(makeFile(), "pw", undefined, ctl.signal);
+    await vi.waitFor(() => expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalled());
+    ctl.abort();
+    await flushMicrotasks();
+    finish(new Uint8Array([7]));
+
+    await expect(p).resolves.toBeInstanceOf(Blob);
+    expect(tauriMock.cancelTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces an abort as an AbortError, not the core's cancelled message", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    const ctl = new AbortController();
+    tauriMock.sidecarDecryptToMemory.mockImplementation(async () => {
+      ctl.abort();
+      throw new Error("cancelled");
+    });
+    await expect(run(makeFile(), "pw", undefined, ctl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
+  it("does not start the core when the signal is already aborted", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    const ctl = new AbortController();
+    ctl.abort();
+    await expect(run(makeFile(), "pw", undefined, ctl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(tauriMock.sidecarDecryptToMemory).not.toHaveBeenCalled();
   });
 
   it("does not subscribe at all when the caller wants no progress", async () => {
@@ -542,13 +667,12 @@ describe("runDecryptPipeline on desktop", () => {
     // Tauri rejects with the Rust error as a bare string.
     tauriMock.sidecarDecryptToMemory.mockRejectedValue(reason);
 
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
     getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
     processMock.mockImplementation(async (input: { chunkIndex: number }) => ({
       chunkIndex: input.chunkIndex,
       plaintext: chunkPlaintext(input.chunkIndex),
     }));
-    sha256HexMock.mockResolvedValue("h");
 
     const blob = await run(makeFile(), "pw", vi.fn());
 
@@ -668,14 +792,13 @@ describe("prefetchFileDecrypt", () => {
     isWarmOrInflightMock.mockReturnValue(false);
     resolveFilePasswordGlobalMock.mockResolvedValue("pw");
     const file = makeFile({ chunk_count: 1, folder_id: "f1" });
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
     getFileChunkMock.mockResolvedValue({
       data: new ArrayBuffer(4),
       sha256: "x",
       compressed: false,
     });
     processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
-    sha256HexMock.mockResolvedValue("h");
 
     prefetchFileDecrypt(file);
     await flushMicrotasks();
@@ -685,21 +808,20 @@ describe("prefetchFileDecrypt", () => {
       "f1",
       expect.any(Function)
     );
-    expect(getFileMetaMock).toHaveBeenCalledWith("file-1");
+    await vi.waitFor(() => expect(getFileMetaMock).toHaveBeenCalledWith("file-1"));
   });
 
   it("passes null for a file with no folder (vault root)", async () => {
     isWarmOrInflightMock.mockReturnValue(false);
     resolveFilePasswordGlobalMock.mockResolvedValue("pw");
     const file = makeFile({ chunk_count: 1, folder_id: undefined });
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
     getFileChunkMock.mockResolvedValue({
       data: new ArrayBuffer(4),
       sha256: "x",
       compressed: false,
     });
     processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
-    sha256HexMock.mockResolvedValue("h");
 
     prefetchFileDecrypt(file);
     await flushMicrotasks();
@@ -770,20 +892,44 @@ describe("useFileDecryptor", () => {
   it("decrypts a file end-to-end through cachedDecrypt", async () => {
     const folderProtection = makeFolderProtection();
     const file = makeFile({ chunk_count: 1 });
-    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
     getFileChunkMock.mockResolvedValue({
       data: new ArrayBuffer(4),
       sha256: "x",
       compressed: false,
     });
     processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
-    sha256HexMock.mockResolvedValue("h");
 
     const { result } = renderHook(() => useFileDecryptor(folderProtection));
     const blob = await result.current.decryptToBlob(file);
 
     expect(blob).toBeInstanceOf(Blob);
     expect(folderProtection.passwordForFile).toHaveBeenCalledWith(file);
+  });
+
+  it("starts its own decrypt when it joined a run that another caller's cancel ended", async () => {
+    const folderProtection = makeFolderProtection();
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
+    cachedDecryptMock.mockRejectedValueOnce(new DOMException("Cancelled", "AbortError"));
+
+    const { result } = renderHook(() => useFileDecryptor(folderProtection));
+    const blob = await result.current.decryptToBlob(makeFile(), undefined, new AbortController().signal);
+
+    expect(await blob.text()).toBe("chunk-0");
+    expect(cachedDecryptMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not start another decrypt when its own cancel ended the run", async () => {
+    const folderProtection = makeFolderProtection();
+    const ctl = new AbortController();
+    ctl.abort();
+    cachedDecryptMock.mockRejectedValue(new DOMException("Cancelled", "AbortError"));
+
+    const { result } = renderHook(() => useFileDecryptor(folderProtection));
+    await expect(result.current.decryptToBlob(makeFile(), undefined, ctl.signal)).rejects.toThrow();
+    expect(cachedDecryptMock).toHaveBeenCalledTimes(1);
   });
 
   it("maps a wrong-key failure to WrongPasswordError carrying the folder id when the file is protected", async () => {
@@ -891,5 +1037,112 @@ describe("useFileDecryptor", () => {
     const { result } = renderHook(() => useFileDecryptor(folderProtection));
     result.current.prefetch(makeFile({ id: "hook-prefetch-1" }));
     expect(isWarmOrInflightMock).toHaveBeenCalledWith("hook-prefetch-1");
+  });
+});
+
+describe("runDecryptPipeline chunk transfer", () => {
+  const ok = { data: new ArrayBuffer(4), sha256: "x", compressed: false };
+  const plain = async (input: { chunkIndex: number }) => ({
+    chunkIndex: input.chunkIndex,
+    plaintext: chunkPlaintext(input.chunkIndex),
+  });
+
+  beforeEach(() => {
+    resetDirectDownloadState();
+    resolveWebDirectMock.mockResolvedValue(null);
+    processMock.mockImplementation(plain);
+    getDeviceProfileMock.mockReturnValue({ maxConcurrentDownloads: 2 });
+  });
+
+  it("retries a 503 chunk and then succeeds instead of failing the preview", async () => {
+    vi.useFakeTimers();
+    try {
+      getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+      getFileChunkMock.mockRejectedValueOnce(new ApiError("busy", 503)).mockResolvedValue(ok);
+      const p = runDecryptPipeline(makeFile(), "pw");
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(await (await p).text()).toBe("chunk-0");
+      expect(getFileChunkMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry a 403", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1 }));
+    getFileChunkMock.mockRejectedValue(new ApiError("forbidden", 403));
+    await expect(runDecryptPipeline(makeFile(), "pw")).rejects.toMatchObject({ status: 403 });
+    expect(getFileChunkMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews a file on the user's own Telegram straight from Telegram", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+    resolveWebDirectMock.mockResolvedValue({
+      platform: "telegram",
+      account: "bot",
+      telegram: { botToken: "t", chatId: "c" },
+    });
+    getFileLocatorsMock.mockResolvedValue({
+      file_id: "file-1",
+      chunks: [
+        { index: 0, platform: "telegram", account: "bot", remote_path: "0:F", sha256: "", compressed: false },
+      ],
+    });
+    downloadTelegramChunkMock.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+    const blob = await runDecryptPipeline(makeFile(), "pw");
+
+    expect(await blob.text()).toBe("chunk-0");
+    expect(downloadTelegramChunkMock).toHaveBeenCalledTimes(1);
+    expect(getFileChunkMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the server relay when Telegram direct fails", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: sha(["chunk-0"]) }));
+    resolveWebDirectMock.mockResolvedValue({
+      platform: "telegram",
+      account: "bot",
+      telegram: { botToken: "t", chatId: "c" },
+    });
+    getFileLocatorsMock.mockResolvedValue({
+      file_id: "file-1",
+      chunks: [
+        { index: 0, platform: "telegram", account: "bot", remote_path: "0:F", sha256: "", compressed: false },
+      ],
+    });
+    downloadTelegramChunkMock.mockRejectedValue(new Error("boom"));
+    getFileChunkMock.mockResolvedValue(ok);
+
+    const blob = await runDecryptPipeline(makeFile(), "pw");
+
+    expect(await blob.text()).toBe("chunk-0");
+    expect(getFileChunkMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to hold a file over the preview cap in memory, whatever the list said", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ original_size: VIEWER_MAX_BYTES + 1 }));
+    await expect(runDecryptPipeline(makeFile({ original_size: 10 }), "pw")).rejects.toThrow(
+      /too large to preview/,
+    );
+    expect(getFileChunkMock).not.toHaveBeenCalled();
+  });
+
+  it("a chunk that fails for good stops the other fetches and is the error thrown", async () => {
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 4 }));
+    const signals: AbortSignal[] = [];
+    getFileChunkMock.mockImplementation((_id: string, i: number, signal: AbortSignal) => {
+      signals.push(signal);
+      if (i === 0) return Promise.reject(new ApiError("forbidden", 403));
+      return new Promise((_r, reject) =>
+        signal.addEventListener("abort", () => reject(new DOMException("x", "AbortError"))),
+      );
+    });
+    getDeviceProfileMock.mockReturnValue({ maxConcurrentDownloads: 2 });
+
+    await expect(runDecryptPipeline(makeFile({ chunk_count: 4 }), "pw")).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(signals.every((s) => s.aborted)).toBe(true);
+    expect(getFileChunkMock).toHaveBeenCalledTimes(2);
   });
 });

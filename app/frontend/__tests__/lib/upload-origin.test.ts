@@ -8,7 +8,10 @@ vi.mock("@/lib/tauri", () => ({
   },
 }));
 
-import { startedOnThisDevice } from "@/lib/upload-origin";
+const known = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/lib/file-names", () => ({ peekName: (enc: string) => known.get(enc) }));
+
+import { resolveUploadNames, startedOnThisDevice } from "@/lib/upload-origin";
 import { rememberUploadPath } from "@/lib/desktop-paths";
 
 const upload = { session_id: "s1", filename: "a.jpg" } as IncompleteUpload;
@@ -38,5 +41,27 @@ describe("startedOnThisDevice", () => {
     expect(startedOnThisDevice(upload)).toBe(false);
     rememberUploadPath("/home/me/a.jpg");
     expect(startedOnThisDevice(upload)).toBe(true);
+  });
+});
+
+describe("resolveUploadNames", () => {
+  const sealed = { session_id: "s3", filename: "", encrypted_name: "ct" } as IncompleteUpload;
+
+  beforeEach(() => known.clear());
+
+  it("fills a sealed session's name from the decrypted name maps", () => {
+    known.set("ct", "holiday.mp4");
+    expect(resolveUploadNames([sealed], true)[0].filename).toBe("holiday.mp4");
+  });
+
+  it("reads as locked while the vault is locked, and blank while still decrypting", () => {
+    known.set("ct", "holiday.mp4");
+    expect(resolveUploadNames([sealed], false)[0].filename).toBe("[locked]");
+    known.clear();
+    expect(resolveUploadNames([sealed], true)[0].filename).toBe("");
+  });
+
+  it("leaves a legacy plaintext session untouched", () => {
+    expect(resolveUploadNames([upload], true)[0]).toBe(upload);
   });
 });

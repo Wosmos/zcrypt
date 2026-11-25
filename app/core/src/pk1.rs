@@ -7,7 +7,7 @@
 //! `app/frontend/lib/keys.ts`, and `tests/conformance.rs` checks both against
 //! `app/backend/crypto/testvectors/pk1_vectors.json`.
 
-use aes_gcm::aead::{Aead, KeyInit, OsRng};
+use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
 use hkdf::Hkdf;
@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 use x25519_dalek::{PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
-use crate::crypto::{decrypt_chunk, hmac_sha256_hex, CryptoError, IV_SIZE, KEY_SIZE};
+use crate::crypto::{decrypt_chunk, fill_random, hmac_sha256_hex, CryptoError, IV_SIZE, KEY_SIZE};
 
 /// Prefix of a `wrapped_cek` or name sealed to the account public key.
 pub const PK1_PREFIX: &str = "pk1:";
@@ -44,7 +44,7 @@ fn seal_with(
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|_| CryptoError::BadKey(key.len()))?;
     key.zeroize();
     let ct = cipher
-        .encrypt(Nonce::from_slice(&iv), data)
+        .encrypt(&Nonce::from(iv), data)
         .map_err(|_| CryptoError::AuthFailed)?;
     let mut out = Vec::with_capacity(PUBLIC_KEY_SIZE + IV_SIZE + ct.len());
     out.extend_from_slice(ephemeral_public.as_bytes());
@@ -57,8 +57,12 @@ fn seal_with(
 /// Layout: `ephemeral_public[32] || IV[12] || ciphertext || tag[16]`.
 pub fn seal_to(recipient: &[u8; PUBLIC_KEY_SIZE], data: &[u8]) -> Result<Vec<u8>, CryptoError> {
     let mut iv = [0u8; IV_SIZE];
-    aes_gcm::aead::rand_core::RngCore::fill_bytes(&mut OsRng, &mut iv);
-    seal_with(StaticSecret::random_from_rng(OsRng), iv, recipient, data)
+    fill_random(&mut iv);
+    let mut ephemeral = [0u8; 32];
+    fill_random(&mut ephemeral);
+    let secret = StaticSecret::from(ephemeral);
+    ephemeral.zeroize();
+    seal_with(secret, iv, recipient, data)
 }
 
 /// Opens a [`seal_to`] blob with the recipient's private key.

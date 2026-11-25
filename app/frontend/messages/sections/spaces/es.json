@@ -57,12 +57,21 @@
       "dismiss": "Descartar"
     },
     "invites": {
-      "errorNoSharing": "Aún no se puede invitar a esta dirección. Revisa cómo está escrita. Si es correcta, la persona necesita una cuenta de zcrypt y desbloquear su bóveda una vez antes de que puedas invitarla.",
       "errorGeneric": "No se pudo añadir al miembro",
+      "errorRotating": "La clave de este Space se está cambiando porque alguien salió. Inténtalo de nuevo en un momento.",
       "errorNoKey": "Este espacio no tiene una clave que puedas compartir (es anterior al uso compartido cifrado).",
       "adminOwnerOnly": "Solo el propietario puede conceder el rol de administrador.",
       "adding": "Añadiendo...",
-      "placeholder": "Correo o nombre de usuario"
+      "placeholder": "Correo electrónico",
+      "errorNotFound": "Ninguna cuenta de zcrypt usa este correo.",
+      "errorRateLimited": "Demasiadas búsquedas. Inténtalo de nuevo en unos minutos.",
+      "errorInvalidEmail": "Introduce un correo válido.",
+      "errorSelf": "Eres tú.",
+      "errorAlreadyMember": "Ya es miembro.",
+      "errorAlreadyInvited": "Ya está invitado.",
+      "errorForbidden": "Solo el propietario o un admin puede invitar.",
+      "pendingNote": "Invitado. Se unirá cuando desbloquee su bóveda.",
+      "invitedAs": "Invitaste a {email} como {role}"
     },
     "keyChange": {
       "declined": "Cancelado: no se aprobó la clave de cifrado modificada de la persona.",
@@ -152,7 +161,7 @@
       "addFiles": "Añadir archivos",
       "settings": "Ajustes",
       "rotationBanner": "Se eliminó a un miembro. Hay que rotar la clave del espacio para dejar fuera cualquier copia que conservara.",
-      "rotationAsk": "Pide al propietario que lo rote; añadir archivos queda en pausa hasta entonces.",
+      "rotationAsk": "Se rota automáticamente la próxima vez que el propietario o un administrador abra zcrypt; añadir archivos queda en pausa hasta entonces.",
       "rotateKey": "Rotar clave",
       "unlockToFinish": "Desbloquea tu bóveda para terminar de añadir archivos.",
       "addingProgress": "Añadiendo {done} de {total, plural, one {# archivo} other {# archivos}}…",
@@ -254,7 +263,8 @@
       "typeAria": "Escribe el nombre del espacio para confirmar",
       "rotateConfirmTitle": "¿Rotar la clave de este Space?",
       "rotateConfirmDesc": "Cada archivo se vuelve a cifrar con una clave nueva y se comparte de nuevo con los miembros actuales. En un Space grande puede tardar.",
-      "rotateConfirm": "Rotar clave"
+      "rotateConfirm": "Rotar clave",
+      "pending": "Pendiente"
     },
     "share": {
       "title": "Compartir archivo",

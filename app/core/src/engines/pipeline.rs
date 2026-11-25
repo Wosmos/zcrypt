@@ -9,7 +9,7 @@ use crate::crypto;
 use super::EngineError;
 
 pub struct ProcessedChunk {
-    pub encrypted: Vec<u8>,
+    pub encrypted: bytes::Bytes,
     pub sha256: String,
     pub compressed: bool,
     pub original_size: usize,
@@ -33,7 +33,7 @@ pub fn process_chunk(
     let encrypted = crypto::encrypt_chunk(cek, &payload)?;
     let sha256 = crypto::sha256_hex(&encrypted);
     Ok(ProcessedChunk {
-        encrypted,
+        encrypted: bytes::Bytes::from(encrypted),
         sha256,
         compressed,
         original_size,

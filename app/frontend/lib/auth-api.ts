@@ -3,6 +3,7 @@ import { isTauri } from "@/lib/tauri";
 import { useAuthStore } from "@/store/auth";
 import { reportConnectivityFailure } from "@/store/connectivity";
 import { API_BASE } from "@/lib/config";
+import { withControlTimeout } from "@/lib/transport";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
 // types→lib inversion): re-exported here so its existing consumers keep
@@ -24,12 +25,15 @@ async function plantSessionCookie(
   refresh_token: string,
 ): Promise<{ access_token: string; refresh_token: string } | null> {
   try {
-    const res = await fetch("/api/auth/refresh", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token }),
-    });
+    const res = await withControlTimeout((signal) =>
+      fetch("/api/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token }),
+        signal,
+      }),
+    );
     return res.ok ? await res.json() : null;
   } catch {
     return null;
@@ -59,16 +63,20 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
       if (res.status >= 500) reportConnectivityFailure();
       const body = await res.text();
       let message: string;
+      let code: string | undefined;
       try {
-        message = JSON.parse(body).error || body;
+        const parsed = JSON.parse(body);
+        message = parsed.error || body;
+        code = typeof parsed.code === "string" ? parsed.code : undefined;
       } catch {
         message = body;
       }
       // Carry the HTTP status on the error so callers can tell a DEFINITIVE auth
       // failure (401/403) from a transient one (5xx/network), the token-refresh
       // path must only log out on the former.
-      const err = new Error(message) as Error & { status?: number };
+      const err = new Error(message) as Error & { status?: number; code?: string };
       err.status = res.status;
+      err.code = code;
       throw err;
     }
 
@@ -109,10 +117,14 @@ export function register(
   });
 }
 
-export function login(email: string, password: string): Promise<LoginResponse> {
+export function login(
+  email: string,
+  password: string,
+  turnstile_token?: string,
+): Promise<LoginResponse> {
   return authRequest("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, turnstile_token }),
   });
 }
 
@@ -137,10 +149,13 @@ export function logout(refresh_token?: string | null, access_token?: string | nu
   });
 }
 
-export function forgotPassword(email: string): Promise<{ success: boolean }> {
+export function forgotPassword(
+  email: string,
+  turnstile_token?: string,
+): Promise<{ success: boolean }> {
   return authRequest("/api/auth/forgot-password", {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, turnstile_token }),
   });
 }
 
@@ -265,10 +280,13 @@ export function changePassword(
 
 // --- Magic Links ---
 
-export function requestMagicLink(email: string): Promise<{ success: boolean; message: string }> {
+export function requestMagicLink(
+  email: string,
+  turnstile_token?: string,
+): Promise<{ success: boolean; message: string }> {
   return authRequest("/api/auth/magic-link", {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, turnstile_token }),
   });
 }
 
@@ -299,10 +317,11 @@ export function registerWithBreachCheck(
   username: string,
   password: string,
   force = false,
+  turnstile_token?: string,
 ): Promise<RegisterResponse> {
   return authRequest("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, username, password, force }),
+    body: JSON.stringify({ email, username, password, force, turnstile_token }),
   });
 }
 

@@ -28,6 +28,12 @@ describe("tauri (outside the Tauri runtime)", () => {
     await expect(mod.getAppVersion()).resolves.toBeNull();
   });
 
+  it("transferRetryNow does nothing outside the app", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.transferRetryNow()).resolves.toBeUndefined();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("isTauri is false", async () => {
     const mod = await import("@/lib/tauri");
     expect(mod.isTauri).toBe(false);
@@ -218,6 +224,13 @@ describe("tauri (inside the Tauri runtime)", () => {
   it("isTauri is true", async () => {
     const mod = await import("@/lib/tauri");
     expect(mod.isTauri).toBe(true);
+  });
+
+  it("transferRetryNow asks the engine to look at its waiting transfers again", async () => {
+    invokeMock.mockResolvedValue(undefined);
+    const mod = await import("@/lib/tauri");
+    await mod.transferRetryNow();
+    expect(invokeMock).toHaveBeenCalledWith("transfer_retry_now", undefined);
   });
 
   it("tauriInvoke delegates to @tauri-apps/api/core invoke()", async () => {
@@ -465,11 +478,12 @@ describe("tauri (inside the Tauri runtime)", () => {
     const bytes = new Uint8Array([1, 2, 3]).buffer;
     invokeMock.mockResolvedValue(bytes);
     const mod = await import("@/lib/tauri");
-    await expect(mod.sidecarDecryptToMemory("f1", "pw", "user1")).resolves.toBe(bytes);
+    await expect(mod.sidecarDecryptToMemory("f1", "pw", "user1", "t1")).resolves.toBe(bytes);
     expect(invokeMock).toHaveBeenCalledWith("decrypt_to_memory", {
       fileId: "f1",
       passphrase: "pw",
       userId: "user1",
+      transferId: "t1",
     });
   });
 
@@ -497,10 +511,11 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     const { toBase64 } = await import("@/lib/crypto");
     const spaceKeyBytes = new Uint8Array([7, 7, 7]);
-    await expect(mod.sidecarDecryptSpaceToMemory("f1", spaceKeyBytes)).resolves.toBe(bytes);
+    await expect(mod.sidecarDecryptSpaceToMemory("f1", spaceKeyBytes, "t2")).resolves.toBe(bytes);
     expect(invokeMock).toHaveBeenCalledWith("decrypt_space_to_memory", {
       fileId: "f1",
       spaceKeyB64: toBase64(spaceKeyBytes),
+      transferId: "t2",
     });
   });
 
@@ -571,6 +586,11 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("end_session", undefined);
     await mod.photoBackupEnable("a2V5");
     expect(invokeMock).toHaveBeenCalledWith("photo_backup_enable", { publicKey: "a2V5" });
+    await mod.photoBackupOptions();
+    expect(invokeMock).toHaveBeenCalledWith("photo_backup_options", undefined);
+    const options = { albums: ["1"], kinds: "photos" as const, wifi_only: true, charging_only: false };
+    await mod.photoBackupSetOptions(options);
+    expect(invokeMock).toHaveBeenCalledWith("photo_backup_set_options", { options });
     await mod.photoBackupDisable();
     expect(invokeMock).toHaveBeenCalledWith("photo_backup_disable", undefined);
     await mod.isAutostartEnabled();

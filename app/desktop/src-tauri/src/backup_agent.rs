@@ -10,14 +10,19 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use base64::Engine;
-use chrono::{Local, NaiveDateTime, NaiveTime, TimeZone};
+use jiff::civil::{DateTime, Time};
+use jiff::tz::TimeZone;
+use jiff::{Timestamp, ZonedDateTime};
 use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tokio::sync::{mpsc, watch};
-use zcrypt_core::engines::EngineContext;
+use zcrypt_core::api::ApiError;
 use zcrypt_core::engines::backup::{self, BackupReport};
+use zcrypt_core::engines::{CancelToken, EngineContext, EngineError};
 use zcrypt_core::localdb::{BackupRoot, LocalDb};
+
+use crate::backup_notify::{OsSink, PassSummary, Subject, deliver};
 
 /// Full pass interval: the safety net for anything a watcher missed.
 pub const RESCAN_EVERY: Duration = Duration::from_secs(10 * 60);
@@ -34,6 +39,24 @@ pub static PASS_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(())
 
 const SCHEDULE_KEY: &str = "backup.schedule";
 const LAST_RUN_KEY: &str = "backup.last_run";
+
+/// Lets sign-out, end of session and removing a folder stop the pass that is
+/// running right now. `stop` cancels the current pass and arms a fresh token,
+/// so the next pass is not born cancelled.
+#[derive(Clone, Default)]
+pub struct PassControl(std::sync::Arc<std::sync::Mutex<CancelToken>>);
+
+impl PassControl {
+    pub fn token(&self) -> CancelToken {
+        self.0.lock().unwrap().clone()
+    }
+
+    pub fn stop(&self) {
+        let mut guard = self.0.lock().unwrap();
+        guard.cancel();
+        *guard = CancelToken::new();
+    }
+}
 
 /// What wakes the backup loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,11 +115,11 @@ impl BackupSchedule {
             .map_err(|e| e.to_string())
     }
 
-    fn at(&self) -> Option<NaiveTime> {
-        NaiveTime::parse_from_str(&self.time, "%H:%M").ok()
+    fn at(&self) -> Option<Time> {
+        Time::strptime("%H:%M", &self.time).ok()
     }
 
-    fn nightly_at(&self) -> Option<NaiveTime> {
+    fn nightly_at(&self) -> Option<Time> {
         (self.mode == ScheduleMode::Nightly)
             .then(|| self.at())
             .flatten()
@@ -105,31 +128,33 @@ impl BackupSchedule {
 
 /// True when the latest daily slot at `at` that is not after `now` came after
 /// the last pass, so a slot missed while the computer slept still runs.
-pub fn nightly_due(now: NaiveDateTime, last_run: Option<NaiveDateTime>, at: NaiveTime) -> bool {
-    let today = now.date().and_time(at);
+pub fn nightly_due(now: DateTime, last_run: Option<DateTime>, at: Time) -> bool {
+    let today = now.date().to_datetime(at);
     let slot = if now >= today {
         today
     } else {
-        today - chrono::Duration::days(1)
+        match today.date().yesterday() {
+            Ok(d) => d.to_datetime(at),
+            Err(_) => return false,
+        }
     };
     last_run.is_none_or(|last| last < slot)
 }
 
-fn last_run(db: &LocalDb) -> Option<NaiveDateTime> {
+fn last_run(db: &LocalDb) -> Option<DateTime> {
     let secs = db
         .setting(LAST_RUN_KEY)
         .ok()
         .flatten()?
         .parse::<i64>()
         .ok()?;
-    Local
-        .timestamp_opt(secs, 0)
-        .single()
-        .map(|t| t.naive_local())
+    Timestamp::from_second(secs)
+        .ok()
+        .map(|t| t.to_zoned_datetime(TimeZone::system()).datetime())
 }
 
 fn mark_run(db: &LocalDb) {
-    let _ = db.set_setting(LAST_RUN_KEY, &Local::now().timestamp().to_string());
+    let _ = db.set_setting(LAST_RUN_KEY, &Timestamp::now().as_second().to_string());
 }
 
 /// A backed-up folder as the settings screen shows it.
@@ -169,14 +194,18 @@ impl BackupEvent {
     }
 }
 
+pub fn folder_name(path: &str) -> String {
+    PathBuf::from(path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
 pub fn view(db: &LocalDb, root: &BackupRoot) -> BackupFolderView {
     let path = PathBuf::from(&root.local_path);
     BackupFolderView {
         id: root.id.clone(),
-        name: path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default(),
+        name: folder_name(&root.local_path),
         available: path.is_dir(),
         files: db.backup_file_count(&root.id).unwrap_or(0),
         last_scan_at: root.last_scan_at.clone(),
@@ -216,22 +245,40 @@ pub fn overlaps(existing: &[BackupRoot], candidate: &std::path::Path) -> bool {
     })
 }
 
-async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext) {
+/// Runs one pass over every folder; false when it was cancelled part way.
+async fn run_all(app: &tauri::AppHandle, ctx: &EngineContext, control: &PassControl) -> bool {
     let Ok(user_id) = ctx.client.user_id().await else {
-        return;
+        return true;
     };
     let Ok(roots) = ctx.db.list_backup_roots(&user_id) else {
-        return;
+        return true;
     };
     let _pass = PASS_LOCK.lock().await;
+    let mut ctx = ctx.clone();
+    ctx.cancel = control.token();
+    let mut summary = PassSummary::default();
     for root in roots {
-        match backup::run_pass(ctx, &root).await {
+        match backup::run_pass(&ctx, &root).await {
             Ok(report) => {
+                let name = folder_name(&root.local_path);
+                summary.add(&name, &report);
                 let _ = app.emit("zcrypt://backup", BackupEvent::of(&root.id, &report));
             }
-            Err(e) => eprintln!("zcrypt backup {}: {e}", root.id),
+            Err(EngineError::Cancelled) => return false,
+            Err(EngineError::Api(ApiError::Unauthorized)) => {
+                summary.signed_out = true;
+                break;
+            }
+            Err(e) => {
+                eprintln!("zcrypt backup {}: {e}", root.id);
+                if e.is_transient() {
+                    summary.add_transient_error();
+                }
+            }
         }
     }
+    deliver(&ctx.db, &OsSink(app.clone()), &summary, Subject::Folders);
+    true
 }
 
 /// Watches every backed-up folder and nudges the loop on any change. The
@@ -261,6 +308,7 @@ pub fn watch_roots(
 pub async fn run_loop(
     app: tauri::AppHandle,
     ctx: EngineContext,
+    control: PassControl,
     mut nudges: mpsc::UnboundedReceiver<Nudge>,
     mut cancel: watch::Receiver<bool>,
 ) {
@@ -269,9 +317,8 @@ pub async fn run_loop(
         let schedule = BackupSchedule::load(&ctx.db);
         let due = schedule
             .nightly_at()
-            .is_some_and(|at| nightly_due(Local::now().naive_local(), last_run(&ctx.db), at));
-        if forced || due {
-            run_all(&app, &ctx).await;
+            .is_some_and(|at| nightly_due(ZonedDateTime::now().datetime(), last_run(&ctx.db), at));
+        if (forced || due) && run_all(&app, &ctx, &control).await {
             mark_run(&ctx.db);
         }
         match next_wake(&schedule, &mut nudges, &mut cancel).await {
@@ -337,13 +384,13 @@ mod tests {
         }
     }
 
-    fn at(s: &str) -> NaiveDateTime {
-        NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").unwrap()
+    fn at(s: &str) -> DateTime {
+        DateTime::strptime("%Y-%m-%d %H:%M", s).unwrap()
     }
 
     #[test]
     fn nightly_runs_once_per_slot_and_catches_up_after_sleep() {
-        let two = NaiveTime::from_hms_opt(2, 0, 0).unwrap();
+        let two = Time::new(2, 0, 0, 0).unwrap();
         assert!(nightly_due(at("2026-11-10 02:00"), None, two));
         assert!(nightly_due(
             at("2026-11-10 02:01"),
@@ -383,7 +430,7 @@ mod tests {
         };
         nightly.save(&db).unwrap();
         assert_eq!(BackupSchedule::load(&db), nightly);
-        assert_eq!(nightly.nightly_at(), NaiveTime::from_hms_opt(23, 30, 0));
+        assert_eq!(nightly.nightly_at(), Time::new(23, 30, 0, 0).ok());
         let bad = BackupSchedule {
             mode: ScheduleMode::Nightly,
             time: "25:00".into(),
@@ -391,6 +438,23 @@ mod tests {
         assert!(bad.save(&db).is_err());
         db.set_setting(SCHEDULE_KEY, "not json").unwrap();
         assert_eq!(BackupSchedule::load(&db), BackupSchedule::default());
+    }
+
+    #[tokio::test]
+    async fn stopping_cancels_the_pass_in_flight_but_not_the_next_one() {
+        let control = PassControl::default();
+        let running = control.token();
+        let waiting = {
+            let t = running.clone();
+            tokio::spawn(async move { t.cancelled().await })
+        };
+        control.stop();
+        tokio::time::timeout(Duration::from_secs(2), waiting)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(running.is_cancelled());
+        assert!(!control.token().is_cancelled());
     }
 
     #[test]

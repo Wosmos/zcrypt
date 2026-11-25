@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/zcrypt/zcrypt/config"
 )
 
 // transferRoom represents a pairing room for real-time file transfer.
@@ -25,19 +26,29 @@ type transferRoom struct {
 	lastActive atomic.Int64
 	done       chan struct{}
 	ip         string
+	// acked closes when the receiver confirms it has the whole file.
+	acked   chan struct{}
+	ackOnce sync.Once
 }
 
 const (
 	maxTransferRooms      = 500
 	maxTransferRoomsPerIP = 5
 	maxTransferRoomBytes  = int64(10) << 30
+	// defaultTransferIPDailyBytes caps what one sender IP may relay per UTC day.
+	defaultTransferIPDailyBytes = int64(5) << 30
 	// transferUnpairedFor is how long a code waits for someone to join it.
 	transferUnpairedFor = 10 * time.Minute
 	// transferIdleFor ends a transfer once nothing has moved for this long; a
 	// transfer that keeps moving runs as long as it needs (up to the byte cap
 	// and transferMaxFor).
-	transferIdleFor        = 10 * time.Minute
-	transferMaxFor         = 6 * time.Hour
+	transferIdleFor = 10 * time.Minute
+	transferMaxFor  = 6 * time.Hour
+	// transferAckWait is how long the room stays open after "done" for the
+	// receiver's "ack"; an older receiver never sends one. It outlasts the
+	// sender's own wait (TRANSFER_ACK_WAIT_MS, 30s), so a slow receiver reaches
+	// the sender as "no confirmation", never as a dropped connection.
+	transferAckWait        = 45 * time.Second
 	errTooManyTransferRoom = "too many active rooms"
 )
 
@@ -45,6 +56,31 @@ const (
 type transferHub struct {
 	mu    sync.RWMutex
 	rooms map[string]*transferRoom
+
+	budgetMu  sync.Mutex
+	budgetDay string
+	budget    map[string]int64
+}
+
+func transferIPDailyBytes() int64 {
+	return config.EnvNonNegativeInt64("ZCRYPT_TRANSFER_IP_DAILY_BYTES", defaultTransferIPDailyBytes)
+}
+
+// charge adds n relayed bytes to the sender IP's UTC-day budget and reports
+// whether it is still within it. Transfer has no account, so the IP is the only
+// identity to bound the bandwidth it can spend.
+func (h *transferHub) charge(ip string, n int64, limit int64) bool {
+	if limit <= 0 {
+		return true
+	}
+	day := time.Now().UTC().Format("2006-01-02")
+	h.budgetMu.Lock()
+	defer h.budgetMu.Unlock()
+	if h.budgetDay != day || h.budget == nil {
+		h.budgetDay, h.budget = day, make(map[string]int64)
+	}
+	h.budget[ip] += n
+	return h.budget[ip] <= limit
 }
 
 func newTransferHub() *transferHub {
@@ -86,6 +122,7 @@ func (h *transferHub) createRoom(ip string) (*transferRoom, error) {
 		code:      code,
 		createdAt: time.Now(),
 		done:      make(chan struct{}),
+		acked:     make(chan struct{}),
 		ip:        ip,
 	}
 	h.rooms[code] = room
@@ -275,6 +312,11 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn,
 		}
 		relayed++
 		relayedBytes += int64(len(msg))
+		if !s.transferHub.charge(ip, int64(len(msg)), transferIPDailyBytes()) {
+			log.Printf("transfer: daily byte cap reached code=%s", room.code)
+			_ = conn.Close(websocket.StatusPolicyViolation, "daily transfer limit reached")
+			return
+		}
 		if relayedBytes > maxTransferRoomBytes {
 			log.Printf("transfer: byte cap reached code=%s relayed=%d", room.code, relayed)
 			_ = conn.Close(websocket.StatusMessageTooBig, "transfer too large")
@@ -285,8 +327,13 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn,
 		var m transferMessage
 		if json.Unmarshal(msg, &m) == nil && m.Type == "done" {
 			log.Printf("transfer: done code=%s relayed=%d", room.code, relayed)
-			// Grace period so receiver processes the done message before we tear down the room
-			time.Sleep(3 * time.Second)
+			// Keep the room open until the receiver confirms it has the file.
+			select {
+			case <-room.acked:
+			case <-room.done:
+			case <-ctx.Done():
+			case <-time.After(transferAckWait):
+			}
 			return
 		}
 	}
@@ -325,13 +372,28 @@ func (s *Server) handleTransferReceiver(ctx context.Context, conn *websocket.Con
 	// (ping/pong/close) while a read is in flight, so without this the closing
 	// handshake never completes: surfacing in the browser as "Close received
 	// after close" and a dropped connection. Draining also lets us notice when
-	// the receiver disconnects.
+	// the receiver disconnects. Its "ack" (whole file received) and "cancel"
+	// messages are passed on to the sender; nothing else is.
 	recvGone := make(chan struct{})
 	go func() {
 		defer close(recvGone)
 		for {
-			if _, _, err := conn.Read(ctx); err != nil {
+			_, msg, err := conn.Read(ctx)
+			if err != nil {
 				return
+			}
+			var m transferMessage
+			if json.Unmarshal(msg, &m) != nil || (m.Type != "ack" && m.Type != "cancel") {
+				continue
+			}
+			room.mu.Lock()
+			sender := room.sender
+			room.mu.Unlock()
+			if sender != nil {
+				_ = sender.Write(ctx, websocket.MessageText, msg)
+			}
+			if m.Type == "ack" {
+				room.ackOnce.Do(func() { close(room.acked) })
 			}
 		}
 	}()

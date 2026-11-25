@@ -408,7 +408,9 @@
         "admin_review_status": "الإشراف على مراجعة",
         "admin_send_platform_change": "تغيير منصة الإرسال",
         "admin_role_change_denied": "رفض تغيير الدور",
-        "admin_user_delete_denied": "رفض حذف مستخدم"
+        "admin_user_delete_denied": "رفض حذف مستخدم",
+        "session_client_changed": "تغيّر التطبيق، انتهت الجلسة",
+        "network_blocked": "محظور: شبكة سحابية"
       },
       "colEvent": "الحدث",
       "deletedAccount": "حساب محذوف",

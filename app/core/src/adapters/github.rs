@@ -7,16 +7,18 @@
 
 use std::time::Duration;
 
-use aes_gcm::aead::rand_core::RngCore;
-use aes_gcm::aead::OsRng;
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine as _;
+use bytes::Bytes;
 use reqwest::Method;
 use serde::Deserialize;
 
 use crate::adapters::{validate_locator, AdapterError, PlatformAdapter};
 use crate::disguise;
+use crate::transport::{
+    backoff, download_client, honor_retry_after, upload_client, Idle, IDLE_TIMEOUT,
+};
 use crate::types::{Chunk, ChunkRef, Platform};
 
 const API: &str = "https://api.github.com";
@@ -27,20 +29,42 @@ pub struct GitHub {
     token: String,
     account: String,
     client: reqwest::Client,
+    dl: reqwest::Client,
+    up: reqwest::Client,
+    idle: Duration,
+    api: String,
+    raw: String,
 }
 
 impl GitHub {
     pub fn new(token: &str, account: &str) -> Self {
-        let client = reqwest::Client::builder()
-            .connect_timeout(super::CONNECT_TIMEOUT)
-            // GitHub rejects requests without a User-Agent (go-github set its own).
-            .user_agent("zcrypt-core")
-            .build()
-            .expect("build reqwest client");
+        Self::with_endpoints(token, account, API, RAW, IDLE_TIMEOUT)
+    }
+
+    pub(crate) fn with_endpoints(
+        token: &str,
+        account: &str,
+        api: &str,
+        raw: &str,
+        idle: Duration,
+    ) -> Self {
+        // GitHub rejects requests without a User-Agent (go-github set its own).
+        let build = |b: reqwest::ClientBuilder| {
+            b.user_agent("zcrypt-core")
+                .build()
+                .expect("build reqwest client")
+        };
         Self {
             token: token.into(),
             account: account.into(),
-            client,
+            client: build(
+                reqwest::Client::builder().connect_timeout(crate::transport::CONNECT_TIMEOUT),
+            ),
+            dl: build(download_client(idle)),
+            up: build(upload_client()),
+            idle,
+            api: api.into(),
+            raw: raw.into(),
         }
     }
 
@@ -50,11 +74,33 @@ impl GitHub {
     }
 
     fn req(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
-        self.client
-            .request(method, url)
+        self.req_on(&self.client, method, url)
             .timeout(super::REQUEST_TIMEOUT)
+    }
+
+    fn req_on(
+        &self,
+        client: &reqwest::Client,
+        method: Method,
+        url: &str,
+    ) -> reqwest::RequestBuilder {
+        client
+            .request(method, url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github+json")
+    }
+
+    /// Size of the blob already committed at `path`, if any.
+    async fn existing_size(&self, url: &str) -> Option<u64> {
+        let resp = self.req(Method::GET, url).send().await.ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        resp.json::<serde_json::Value>()
+            .await
+            .ok()?
+            .get("size")?
+            .as_u64()
     }
 
     /// Extracts owner and repo name from either:
@@ -74,27 +120,16 @@ impl GitHub {
     }
 }
 
-fn contents_url(owner: &str, name: &str, path: &str) -> String {
-    format!("{API}/repos/{owner}/{name}/contents/{path}")
+fn contents_url(api: &str, owner: &str, name: &str, path: &str) -> String {
+    format!("{api}/repos/{owner}/{name}/contents/{path}")
 }
 
-fn raw_url(owner: &str, name: &str, path: &str) -> String {
-    format!("{RAW}/{owner}/{name}/main/{path}")
+fn raw_url(raw: &str, owner: &str, name: &str, path: &str) -> String {
+    format!("{raw}/{owner}/{name}/main/{path}")
 }
 
-fn tree_url(owner: &str, name: &str) -> String {
-    format!("{API}/repos/{owner}/{name}/git/trees/HEAD?recursive=1")
-}
-
-/// Seconds from a `Retry-After` header, when present and numeric.
-fn retry_after_secs(headers: &reqwest::header::HeaderMap) -> Option<u64> {
-    headers
-        .get(reqwest::header::RETRY_AFTER)?
-        .to_str()
-        .ok()?
-        .trim()
-        .parse()
-        .ok()
+fn tree_url(api: &str, owner: &str, name: &str) -> String {
+    format!("{api}/repos/{owner}/{name}/git/trees/HEAD?recursive=1")
 }
 
 /// Map a failed status to the right `AdapterError` (pure, unit-testable).
@@ -122,23 +157,9 @@ fn classify(status: u16, body: String, retry_after: Option<u64>, context: &str) 
 /// Consume a failed response into an `AdapterError`.
 async fn error_from(context: &str, resp: reqwest::Response) -> AdapterError {
     let status = resp.status().as_u16();
-    let retry_after = retry_after_secs(resp.headers());
+    let retry_after = crate::transport::retry_after_secs(resp.headers());
     let body = resp.text().await.unwrap_or_default();
     classify(status, body, retry_after, context)
-}
-
-/// Exponential backoff base capped at 8s: 1, 2, 4, 8, 8, ... for attempt 1, 2,
-/// 3, 4, 5, ... (Go: `1 << min(attempt-1, 3)` seconds).
-fn backoff_base_secs(attempt: u32) -> u64 {
-    1u64 << (attempt - 1).min(3)
-}
-
-/// Random jitter up to 1s. Uses `OsRng` because the crate carries no `rand`
-/// dependency (same approach as `disguise.rs`).
-fn jitter_ms() -> u64 {
-    let mut b = [0u8; 8];
-    OsRng.fill_bytes(&mut b);
-    u64::from_le_bytes(b) % 1000
 }
 
 #[derive(Deserialize)]
@@ -179,7 +200,7 @@ impl PlatformAdapter for GitHub {
 
     async fn create_repo(&self, name: &str) -> Result<String, AdapterError> {
         let resp = self
-            .req(Method::POST, &format!("{API}/user/repos"))
+            .req(Method::POST, &format!("{}/user/repos", self.api))
             .json(&serde_json::json!({
                 "name": name,
                 "private": true,
@@ -208,48 +229,74 @@ impl PlatformAdapter for GitHub {
 
         let (owner, repo_name) = self.parse_repo(repo);
         validate_locator(&self.account, owner, repo_name, &remote_path)?;
-        let url = contents_url(owner, repo_name, &remote_path);
-        let content_b64 = BASE64.encode(&data);
+        let url = contents_url(&self.api, owner, repo_name, &remote_path);
+        let payload = Bytes::from(
+            serde_json::to_vec(&serde_json::json!({
+                "message": disguise::commit_message(),
+                "content": BASE64.encode(&data),
+            }))
+            .map_err(|e| AdapterError::Other(format!("encode upload: {e}")))?,
+        );
 
-        // Retry on 409 (SHA conflict from concurrent commits) with exponential
-        // backoff + jitter. The Contents API creates one commit per PUT, so
-        // concurrent uploads to the same repo race on HEAD SHA. The path is
-        // held STABLE across retries: a 409 is a HEAD-SHA race, not a path
-        // collision: rotating the path would strand a maybe-committed blob
-        // where deletion could never find it (see the Go adapter's comment).
+        // Retry transient failures (network, stall, 429, 5xx) and 409 (SHA
+        // conflict from concurrent commits) with jittered backoff. The Contents
+        // API creates one commit per PUT, so concurrent uploads to the same
+        // repo race on HEAD SHA. The path is held STABLE across retries: a 409
+        // is a HEAD-SHA race, not a path collision, and rotating the path would
+        // strand a maybe-committed blob where deletion could never find it (see
+        // the Go adapter's comment). That same stability makes a retry after a
+        // lost response safe: GitHub then answers 422 "sha wasn't supplied" for
+        // the file it already stored, which counts as success when the stored
+        // size matches.
         let mut last_err: Option<AdapterError> = None;
         for attempt in 0..10u32 {
             if attempt > 0 {
-                let delay = Duration::from_secs(backoff_base_secs(attempt))
-                    + Duration::from_millis(jitter_ms());
-                tokio::time::sleep(delay).await;
+                let retry_after = last_err.as_ref().and_then(AdapterError::retry_after_secs);
+                tokio::time::sleep(honor_retry_after(
+                    backoff(attempt - 1, 1_000, 8_000),
+                    retry_after,
+                ))
+                .await;
             }
 
-            let resp = self
-                .req(Method::PUT, &url)
-                .timeout(super::transfer_deadline(content_b64.len() as u64))
-                .json(&serde_json::json!({
-                    "message": disguise::commit_message(),
-                    "content": &content_b64,
-                }))
-                .send()
-                .await?;
+            let idle = Idle::new(self.idle);
+            let sent = idle
+                .guard(async {
+                    let resp = self
+                        .req_on(&self.up, Method::PUT, &url)
+                        .header("Content-Type", "application/json")
+                        .header("Content-Length", payload.len())
+                        .body(idle.body(payload.clone()))
+                        .send()
+                        .await?;
+                    if resp.status().is_success() {
+                        return Ok(());
+                    }
+                    Err(error_from("upload chunk", resp).await)
+                })
+                .await;
 
-            if resp.status().is_success() {
+            let err = match sent {
+                Ok(()) => {
+                    chunk_ref.platform = PLATFORM.to_string();
+                    chunk_ref.repo = repo.to_string();
+                    chunk_ref.remote_path = remote_path;
+                    return Ok(chunk_ref);
+                }
+                Err(e) => e,
+            };
+            if matches!(&err, AdapterError::Api { status: 422, body, .. } if body.contains("sha"))
+                && self.existing_size(&url).await == Some(data.len() as u64)
+            {
                 chunk_ref.platform = PLATFORM.to_string();
                 chunk_ref.repo = repo.to_string();
                 chunk_ref.remote_path = remote_path;
                 return Ok(chunk_ref);
             }
-
-            let status = resp.status().as_u16();
-            let err = error_from("upload chunk", resp).await;
-            // Retry on 409 Conflict (concurrent commit changed HEAD SHA).
-            if status == 409 {
+            if matches!(&err, AdapterError::Api { status: 409, .. }) || err.is_transient() {
                 last_err = Some(err);
                 continue;
             }
-            // Non-retryable error.
             return Err(err);
         }
 
@@ -262,12 +309,8 @@ impl PlatformAdapter for GitHub {
 
         // raw.githubusercontent.com directly: single request, no size limit,
         // avoids the 2-request Contents API dance (same as the Go adapter).
-        let url = raw_url(owner, repo_name, &r#ref.remote_path);
-        let resp = self
-            .req(Method::GET, &url)
-            .timeout(super::transfer_deadline(r#ref.size.max(0) as u64))
-            .send()
-            .await?;
+        let url = raw_url(&self.raw, owner, repo_name, &r#ref.remote_path);
+        let resp = self.req_on(&self.dl, Method::GET, &url).send().await?;
         if !resp.status().is_success() {
             return Err(error_from("download chunk", resp).await);
         }
@@ -277,7 +320,7 @@ impl PlatformAdapter for GitHub {
     async fn delete(&self, r#ref: &ChunkRef) -> Result<(), AdapterError> {
         let (owner, repo_name) = self.parse_repo(&r#ref.repo);
         validate_locator(&self.account, owner, repo_name, &r#ref.remote_path)?;
-        let url = contents_url(owner, repo_name, &r#ref.remote_path);
+        let url = contents_url(&self.api, owner, repo_name, &r#ref.remote_path);
 
         // Get the file's current SHA first: the Contents API requires it.
         let resp = self.req(Method::GET, &url).send().await?;
@@ -316,7 +359,10 @@ impl PlatformAdapter for GitHub {
     async fn get_repo_size(&self, repo: &str) -> Result<i64, AdapterError> {
         let (owner, repo_name) = self.parse_repo(repo);
         let resp = self
-            .req(Method::GET, &format!("{API}/repos/{owner}/{repo_name}"))
+            .req(
+                Method::GET,
+                &format!("{}/repos/{owner}/{repo_name}", self.api),
+            )
             .send()
             .await?;
         if !resp.status().is_success() {
@@ -340,7 +386,7 @@ impl PlatformAdapter for GitHub {
         // whole tree in one call and each entry's path is the full sharded
         // path, exactly what chunks.remote_path stores.
         let resp = self
-            .req(Method::GET, &tree_url(owner, repo_name))
+            .req(Method::GET, &tree_url(&self.api, owner, repo_name))
             .send()
             .await?;
         // An empty repo (no commits yet) has no tree → nothing stored, not an error.
@@ -405,15 +451,15 @@ mod tests {
     #[test]
     fn urls() {
         assert_eq!(
-            contents_url("o", "r", "ab/cd.bin"),
+            contents_url(API, "o", "r", "ab/cd.bin"),
             "https://api.github.com/repos/o/r/contents/ab/cd.bin"
         );
         assert_eq!(
-            raw_url("o", "r", "ab/cd.bin"),
+            raw_url(RAW, "o", "r", "ab/cd.bin"),
             "https://raw.githubusercontent.com/o/r/main/ab/cd.bin"
         );
         assert_eq!(
-            tree_url("o", "r"),
+            tree_url(API, "o", "r"),
             "https://api.github.com/repos/o/r/git/trees/HEAD?recursive=1"
         );
     }
@@ -454,17 +500,85 @@ mod tests {
             AdapterError::Api { status: 500, .. }
         ));
     }
+}
 
-    #[test]
-    fn backoff_caps_at_8s() {
-        let secs: Vec<u64> = (1..10).map(backoff_base_secs).collect();
-        assert_eq!(secs, vec![1, 2, 4, 8, 8, 8, 8, 8, 8]);
+#[cfg(test)]
+mod transfer_tests {
+    use super::*;
+    use crate::testutil::{serve, Reply};
+    use std::sync::atomic::Ordering;
+    use std::time::Instant;
+
+    fn chunk(len: usize) -> Chunk {
+        Chunk {
+            r#ref: ChunkRef {
+                remote_path: "ab/cdef0123.bin".into(),
+                ..ChunkRef::default()
+            },
+            data: Bytes::from(vec![4u8; len]),
+        }
     }
 
-    #[test]
-    fn jitter_stays_below_one_second() {
-        for _ in 0..64 {
-            assert!(jitter_ms() < 1000);
-        }
+    fn adapter(base: &str) -> GitHub {
+        GitHub::with_endpoints("tok", "acct", base, base, Duration::from_secs(5))
+    }
+
+    const EXISTS: &str = r#"{"message":"Invalid request.\n\n\"sha\" wasn't supplied."}"#;
+
+    #[tokio::test]
+    async fn a_retry_that_finds_its_own_file_already_stored_succeeds() {
+        let (base, _) = serve(|_, req| {
+            if req.method == "PUT" {
+                Reply::status(422, EXISTS)
+            } else {
+                Reply::status(200, r#"{"sha":"x","size":2048}"#)
+            }
+        })
+        .await;
+        let r = adapter(&base).upload("acct/repo", chunk(2048)).await;
+        assert!(r.is_ok(), "{r:?}");
+    }
+
+    #[tokio::test]
+    async fn an_existing_file_of_another_size_is_not_mistaken_for_ours() {
+        let (base, _) = serve(|_, req| {
+            if req.method == "PUT" {
+                Reply::status(422, EXISTS)
+            } else {
+                Reply::status(200, r#"{"sha":"x","size":999}"#)
+            }
+        })
+        .await;
+        let r = adapter(&base).upload("acct/repo", chunk(2048)).await;
+        assert!(
+            matches!(r, Err(AdapterError::Api { status: 422, .. })),
+            "{r:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_403_is_not_retried_but_a_503_is() {
+        let (base, hits) = serve(|_, _| Reply::status(403, "no")).await;
+        assert!(adapter(&base)
+            .upload("acct/repo", chunk(512))
+            .await
+            .is_err());
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+
+        let (base, hits) = serve(|n, _| {
+            if n == 0 {
+                Reply::status(503, "busy")
+            } else {
+                Reply::status(201, "{}")
+            }
+        })
+        .await;
+        let started = Instant::now();
+        adapter(&base)
+            .upload("acct/repo", chunk(512))
+            .await
+            .unwrap();
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        assert!(started.elapsed() < Duration::from_secs(5));
     }
 }

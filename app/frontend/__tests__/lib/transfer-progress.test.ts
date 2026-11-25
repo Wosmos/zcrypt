@@ -85,6 +85,8 @@ describe("errorLabel", () => {
     ["Integrity check failed for a.jpg", "errors.damaged"],
     ["HTTP 413", "errors.tooBigUpload"],
     ["quota exceeded", "errors.storageFull"],
+    ["shared storage is full", "errors.storageFull"],
+    ["HTTP 413: shared storage is full", "errors.storageFull"],
     ["Upload failed", "errors.sendFailed"],
   ];
   for (const [raw, key] of cases) {
@@ -297,6 +299,10 @@ describe("batchSentence", () => {
       values: { count: 4, folder: "Family" },
     });
     expect(batchSentence({ ...base, failed: 2 })).toEqual({ key: "batch.allFailed", values: { failed: 2 } });
+    expect(batchSentence({ ...base, direction: "download", failed: 1 })).toEqual({
+      key: "batch.allDownloadsFailed",
+      values: { failed: 1 },
+    });
     expect(batchSentence({ ...base, direction: "download", done: 2 })).toEqual({
       key: "batch.downloaded",
       values: { count: 2 },
@@ -331,6 +337,12 @@ describe("uploads held back for the desktop app", () => {
       ctx,
     );
     expect(allowance.label).toEqual({ key: "needsApp.allowance" });
+    const daily = describeUpload(
+      up({ status: "failed", limit: { code: "relay_daily_exceeded" } }),
+      ctx,
+    );
+    expect(daily.phase).toBe("needsApp");
+    expect(daily.label).toEqual({ key: "needsApp.daily" });
   });
 
   it("sums the batch up as needing the app when nothing else happened", () => {
@@ -357,5 +369,58 @@ describe("uploads held back for the desktop app", () => {
       key: "batch.allFailed",
       values: { failed: 1 },
     });
+  });
+});
+
+describe("transfers held while Telegram is blocked or the allowance is used up", () => {
+  it("an upload says why it waits, whatever its stage says", () => {
+    const view = describeUpload(
+      up({ status: "uploading", stage: "Uploading", bytesProcessed: 5, totalBytes: 10, waiting: "telegram_blocked" }),
+      ctx,
+    );
+    expect(view.phase).toBe("waiting");
+    expect(view.label).toEqual({ key: "progress.waitingTelegram" });
+  });
+
+  it("an upload held on the allowance has its own sentence", () => {
+    const view = describeUpload(up({ status: "uploading", waiting: "allowance_used_up" }), ctx);
+    expect(view.label).toEqual({ key: "progress.waitingAllowance" });
+  });
+
+  it("a download waits the same way", () => {
+    const view = describeDownload(
+      { status: "downloading", progress: 40, waiting: "telegram_blocked" } as Parameters<typeof describeDownload>[0],
+      ctx,
+    );
+    expect(view).toMatchObject({ phase: "waiting", label: { key: "progress.waitingTelegram" } });
+  });
+
+  it("a finished, failed or paused transfer ignores a stale wait", () => {
+    expect(describeUpload(up({ status: "done", waiting: "telegram_blocked" }), ctx).phase).toBe("saved");
+    expect(describeUpload(up({ status: "failed", error: "x", waiting: "telegram_blocked" }), ctx).phase).toBe("failed");
+    expect(describeUpload(up({ status: "paused", waiting: "telegram_blocked" }), ctx).phase).toBe("paused");
+  });
+
+  it("offline still reads as waiting for Wi-Fi, not for Telegram", () => {
+    expect(
+      describeUpload(up({ status: "uploading", waiting: "telegram_blocked" }), { ...ctx, online: false }).phase,
+    ).toBe("offline");
+  });
+
+  it("the batch sentence asks for a VPN when everything waits on Telegram", () => {
+    const counts: BatchCounts = {
+      direction: "upload",
+      done: 0,
+      failed: 0,
+      active: 0,
+      waiting: 2,
+      paused: 0,
+      blocked: 2,
+      photos: false,
+      folderName: "Family",
+      online: true,
+    };
+    expect(batchSentence(counts)).toEqual({ key: "batch.blocked", values: { count: 2 } });
+    expect(batchSentence({ ...counts, blocked: 0 }).key).toBe("batch.waiting");
   });
 });

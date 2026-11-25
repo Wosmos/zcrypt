@@ -43,3 +43,8 @@ export function AuthStatusCard({ icon: Icon, tone, title, children, action }: Au
     </div>
   );
 }
+
+/** Rich-text tag that shows the address an email went to in full-strength text. */
+export const emphasizeEmail = (chunks: ReactNode) => (
+  <strong className="text-[var(--color-text)]">{chunks}</strong>
+);

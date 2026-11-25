@@ -11,6 +11,7 @@ import (
 	"github.com/zcrypt/zcrypt/config"
 
 	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/netguard"
 	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -190,4 +191,48 @@ func (s *Server) CaptureNewDeviceEmails() func() []string {
 		defer mu.Unlock()
 		return append([]string(nil), devices...)
 	}
+}
+
+// SetCloudNetworksForTest makes the given CIDRs the cloud network list, in
+// place of the providers' published lists.
+func (s *Server) SetCloudNetworksForTest(cidrs string, mode string) {
+	s.cfg.CloudNetworkMode = mode
+	s.netGuard = netguard.New(true, nil, nil)
+	s.netGuard.SetForTest(netguard.ParseSet(cidrs))
+}
+
+// SetTurnstileURLForTest points the Turnstile check at a test server.
+func (s *Server) SetTurnstileURLForTest(url string) {
+	s.turnstileURL = url
+}
+
+// SetSyncChunkMaxDurationForTest overrides the per-chunk safety-net bound and
+// returns a function that restores it.
+//
+// integration build tag only, never in a production binary.
+func SetSyncChunkMaxDurationForTest(d time.Duration) func() {
+	old := syncChunkMaxDuration
+	syncChunkMaxDuration = d
+	return func() { syncChunkMaxDuration = old }
+}
+
+// RunScheduledVerifyOnce runs one scheduled verify sweep over every user with no
+// pauses between them.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) RunScheduledVerifyOnce(ctx context.Context) {
+	s.runScheduledVerify(ctx, 0, 0)
+}
+
+// SetPushSink replaces web push delivery with fn, so a test can assert which
+// push each user would get without a push service.
+func (s *Server) SetPushSink(fn func(userID, typ string, data map[string]string)) {
+	s.pushSink = func(userID string, msg pushMessage) { fn(userID, msg.Type, msg.Data) }
+}
+
+// SetFilesAddedWindow shortens the filesAdded batching window.
+func (s *Server) SetFilesAddedWindow(d time.Duration) {
+	s.filesAdded.mu.Lock()
+	defer s.filesAdded.mu.Unlock()
+	s.filesAdded.window = d
 }

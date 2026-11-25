@@ -20,14 +20,15 @@
   /* Design-system corner scale: one consistent, generously-rounded ramp used
      for every corner in the app (cards, menus, modals, inputs, buttons …).
      Paired with the global squircle so corners read as smooth superellipses,
-     not hard arcs. Bare `--radius` keeps the v3 `rounded` (10px) working. */
-  --radius-sm: 0.5rem; /* 8px */
-  --radius: 0.625rem; /* 10px */
-  --radius-md: 0.75rem; /* 12px */
-  --radius-lg: 0.875rem; /* 14px */
-  --radius-xl: 1.125rem; /* 18px */
-  --radius-2xl: 1.375rem; /* 22px */
-  --radius-3xl: 1.75rem; /* 28px */
+     not hard arcs. Bare `--radius` keeps the v3 `rounded` (10px) working.
+     `--corner-scale` shrinks the ramp where corners fall back to plain arcs. */
+  --radius-sm: calc(0.5rem * var(--corner-scale, 1)); /* 8px */
+  --radius: calc(0.625rem * var(--corner-scale, 1)); /* 10px */
+  --radius-md: calc(0.75rem * var(--corner-scale, 1)); /* 12px */
+  --radius-lg: calc(0.875rem * var(--corner-scale, 1)); /* 14px */
+  --radius-xl: calc(1.125rem * var(--corner-scale, 1)); /* 18px */
+  --radius-2xl: calc(1.375rem * var(--corner-scale, 1)); /* 22px */
+  --radius-3xl: calc(1.75rem * var(--corner-scale, 1)); /* 28px */
 
   /* Radix accordion open/close (used by components/ui/accordion.tsx). */
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -1166,8 +1167,17 @@
    layout tags those engines with data-engine="webkit"; force the knob back to
    `round` there so they get clean, undistorted border-radius corners. Chromium
    (web, Android WebView, Windows WebView2) keeps the true squircle. */
+/* A squircle of radius r bends about as deep into the corner as a plain arc
+   of 0.6r, so wherever corners fall back to arcs the ramp is scaled by 0.6:
+   otherwise a 40px-tall button with an 18px arc reads as a pill. */
 :root[data-engine="webkit"] {
   --squircle-shape: round;
+  --corner-scale: 0.6;
+}
+@supports not (corner-shape: squircle) {
+  :root {
+    --corner-scale: 0.6;
+  }
 }
 /* Touch devices (phones, incl. the Android WebView) fall back to plain rounded
    corners: a superellipse `corner-shape` on every element re-rasterizes on
@@ -1177,6 +1187,7 @@
 @media (pointer: coarse) {
   :root {
     --squircle-shape: round;
+    --corner-scale: 0.6;
   }
 }
 @supports (corner-shape: squircle) {

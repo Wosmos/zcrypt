@@ -38,6 +38,8 @@ export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelec
       </p>
       <div className="flex flex-wrap gap-2">
         <button
+          type="button"
+          aria-pressed={selected === null}
           onClick={() => onSelect(null)}
           className={cn(
             "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 border",
@@ -54,6 +56,8 @@ export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelec
           return (
             <button
               key={platform}
+              type="button"
+              aria-pressed={isSelected}
               onClick={() => onSelect(isSelected ? null : platform)}
               className={cn(
                 "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 border",

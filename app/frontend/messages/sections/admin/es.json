@@ -408,7 +408,9 @@
         "admin_review_status": "Reseña moderada",
         "admin_send_platform_change": "Plataforma de envío cambiada",
         "admin_role_change_denied": "Cambio de rol denegado",
-        "admin_user_delete_denied": "Eliminación de usuario denegada"
+        "admin_user_delete_denied": "Eliminación de usuario denegada",
+        "session_client_changed": "Cambió la app, sesión terminada",
+        "network_blocked": "Bloqueado: red en la nube"
       },
       "colEvent": "Evento",
       "deletedAccount": "una cuenta eliminada",

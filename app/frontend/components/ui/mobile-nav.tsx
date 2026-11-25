@@ -28,7 +28,7 @@ import { useTour } from "@/components/onboarding/tour-provider";
 import { BugReportDialog } from "@/components/feedback/bug-report-dialog";
 import { ReviewDialog } from "@/components/feedback/review-dialog";
 import { VaultIcon, GearIcon, MoreDotsIcon } from "@/components/icons/nav-icons";
-import { Role } from "@/types";
+import { showsAdmin } from "@/lib/build-target";
 
 // Primary tabs: kept to the essentials so the bar stays light. Share, Settings,
 // Tools and Admin live in the "More" sheet instead of crowding the bar.
@@ -60,7 +60,7 @@ export function MobileNav() {
     ? { duration: 0 }
     : ({ type: "spring", stiffness: 520, damping: 38, mass: 0.7 } as const);
 
-  const isAdmin = user?.role === Role.Admin;
+  const isAdmin = showsAdmin(user?.role);
 
   // Everything that isn't a primary tab lives in the More sheet. Share + Settings
   // are always here; Tools/Admin appear when relevant.

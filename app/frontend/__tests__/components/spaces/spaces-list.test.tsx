@@ -7,6 +7,11 @@ const { api, nav, auth } = vi.hoisted(() => ({
   nav: { push: vi.fn() },
   auth: { user: { id: "u1" } },
 }));
+const rot = vi.hoisted(() => ({ rotate: vi.fn(async () => {}), ready: true }));
+vi.mock("@/lib/space-rotation", () => ({ rotateForSpace: rot.rotate }));
+vi.mock("@/store/keys", () => ({
+  useKeysStore: (sel: (s: { ready: boolean }) => unknown) => sel({ ready: rot.ready }),
+}));
 
 vi.mock("@/lib/api", () => api);
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: nav.push }) }));
@@ -65,6 +70,31 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("SpacesList re-keys flagged Spaces", () => {
+  it("re-keys only the flagged Spaces this person may rotate, once keys are loaded", async () => {
+    rot.rotate.mockClear();
+    rot.ready = true;
+    api.listSharedVaults.mockResolvedValue([
+      { ...vault("a", "s1:atlas"), needs_rotation: true },
+      { ...vault("b", "s1:borealis"), needs_rotation: true, owner_id: "other", role: "editor" },
+      vault("c", "s1:calm"),
+    ]);
+    renderWithQuery(<SpacesList />);
+    await waitFor(() => expect(rot.rotate).toHaveBeenCalledWith("a"));
+    expect(rot.rotate).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits while sharing keys are not loaded", async () => {
+    rot.rotate.mockClear();
+    rot.ready = false;
+    api.listSharedVaults.mockResolvedValue([{ ...vault("a", "s1:atlas"), needs_rotation: true }]);
+    renderWithQuery(<SpacesList />);
+    await screen.findByText("ATLAS");
+    expect(rot.rotate).not.toHaveBeenCalled();
+    rot.ready = true;
+  });
+});
+
 describe("SpacesList", () => {
   it("shows decrypted space names from useSpaceMeta, never the sealed string", async () => {
     renderWithQuery(<SpacesList />);
@@ -91,6 +121,6 @@ describe("SpacesList", () => {
     const options = screen.getAllByRole("option");
     options[0].focus();
     fireEvent.keyDown(options[0], { key: "Enter" });
-    expect(nav.push).toHaveBeenCalledWith("/spaces/a");
+    expect(nav.push).toHaveBeenCalledWith("/spaces/_?id=a");
   });
 });

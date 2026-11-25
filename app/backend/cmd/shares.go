@@ -5,15 +5,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/auth"
-	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/index"
 	"golang.org/x/crypto/bcrypt"
 
@@ -27,6 +24,9 @@ import (
 func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
+	if s.challengeIfBusy(w, r) {
+		return
+	}
 
 	var req struct {
 		FileID       string `json:"file_id"`
@@ -187,7 +187,7 @@ func (s *Server) HandleGetShareInfo(w http.ResponseWriter, r *http.Request) {
 
 	reason, valid := validateShare(share)
 	if valid && s.linkViewNotice.allow(share.ID) {
-		s.pushToUser(share.UserID, pushMessage{Type: "linkViewed", URL: "/tools"})
+		s.notifyUser(share.UserID, userEvent{Type: "linkViewed", URL: "/tools"})
 	}
 
 	// Get file info
@@ -362,21 +362,21 @@ func shareFileName(share *types.ShareLink, file *types.FileMetadata) string {
 // same way the owner download does: staging while the chunk is unsynced, then
 // the local ciphertext cache, then the OWNER's storage adapter (write-through).
 func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID string, chunk *types.ChunkRef, logPrefix string, commit func() (bool, error)) {
+	if !s.relayDownloadAllowed(w, r, ownerID, s.userIsAdmin(r.Context(), ownerID), true, chunk.Size) {
+		return
+	}
 	var data []byte
 	if chunk.RemotePath == "" {
-		stagingDir, err := config.StagingDir()
-		if err != nil {
-			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+		var done bool
+		data, chunk, done = s.readStagedOrRefresh(r.Context(), w, chunk, logPrefix)
+		if done {
 			return
 		}
-		name := filepath.Base(chunk.ChunkID) + ".enc"
-		data, err = os.ReadFile(filepath.Clean(filepath.Join(stagingDir, name)))
-		if err != nil {
-			log.Printf("%s: read staging file failed: %v", logPrefix, err)
-			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
-			return
-		}
-	} else if data = readCachedChunk(chunk.ChunkID, chunk.SHA256); data == nil {
+	}
+	if data == nil {
+		data = readCachedChunk(chunk.ChunkID, chunk.SHA256)
+	}
+	if data == nil {
 		adapter := s.resolveAdapterForUser(r.Context(), ownerID, chunk.Platform, chunk.Account)
 		if adapter == nil {
 			if reason := s.adapterError(ownerID, chunk.Platform); reason != "" {

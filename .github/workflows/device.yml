@@ -2,7 +2,7 @@ name: Desktop & Android Build
 
 on:
   push:
-    branches: [main, convert-to-tauri]
+    branches: [main, staging, convert-to-tauri]
     paths:
       - "app/desktop/**"
       # zcrypt-core is compiled into both shells (path dependency).
@@ -98,7 +98,9 @@ jobs:
           rm -rf app/frontend/app/s
           rm -rf "app/frontend/app/pad/[token]"
           rm -rf "app/frontend/app/send/[token]"
-          rm -rf "app/frontend/app/(app)/admin/users/[id]"
+          rm -rf "app/frontend/app/(app)/admin"
+          # The build type-checks unit tests, and some import the pages above.
+          rm -rf app/frontend/__tests__
 
       - name: Build frontend
         working-directory: app/frontend
@@ -141,6 +143,9 @@ jobs:
           <body></body>
           </html>
           HTMLEOF
+
+      - name: Check the app bundle has no admin
+        run: bash scripts/check-native-bundle.sh app/desktop/frontend-dist
 
       - name: Upload frontend-dist artifact
         uses: actions/upload-artifact@v7
@@ -901,6 +906,10 @@ jobs:
             || { echo "::error::android/PhotoBackupWorker.kt declares a different package than $PKG."; exit 1; }
           cp android/PhotoBackupWorker.kt "$(dirname "$DEST")/PhotoBackupWorker.kt"
           echo "PhotoBackupWorker added next to it"
+          grep -qx "package $PKG" android/MediaStoreSource.kt \
+            || { echo "::error::android/MediaStoreSource.kt declares a different package than $PKG."; exit 1; }
+          cp android/MediaStoreSource.kt "$(dirname "$DEST")/MediaStoreSource.kt"
+          echo "MediaStoreSource added next to it"
 
       # "Share to zcrypt": the generated manifest only has the launcher filter,
       # so add SEND / SEND_MULTIPLE for any MIME type to the main activity.
@@ -1016,6 +1025,7 @@ jobs:
                       "READ_MEDIA_IMAGES",
                       "READ_MEDIA_VIDEO",
                       "READ_MEDIA_VISUAL_USER_SELECTED",
+                      "ACCESS_MEDIA_LOCATION",
                       "ACCESS_NETWORK_STATE",
                       "FOREGROUND_SERVICE",
                       "FOREGROUND_SERVICE_DATA_SYNC",
@@ -1316,3 +1326,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+
+  # The website is prerendered, so the download page shows a new release only
+  # after a redeploy.
+  refresh-website:
+    name: Redeploy the website with the new release
+    needs: publish-release
+    if: startsWith(github.ref, 'refs/tags/v') && needs.publish-release.result == 'success'
+    uses: ./.github/workflows/deploy-web.yml
+    secrets: inherit

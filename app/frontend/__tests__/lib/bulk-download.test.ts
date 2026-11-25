@@ -42,11 +42,46 @@ vi.mock("@/lib/zstd", () => ({
   },
 }));
 
+const { poolTerminate, poolCalls } = vi.hoisted(() => ({
+  poolTerminate: vi.fn(),
+  poolCalls: { mainThread: 0 },
+}));
+vi.mock("@/lib/worker-pool", () => ({
+  WorkerPool: class {
+    terminate = poolTerminate;
+  },
+}));
+// The worker does AES-GCM + zstd off the main thread; here it runs inline so the
+// fixtures' real ciphertext can be checked, and the call proves the pool is used.
+vi.mock("@/lib/decrypt-chunk", async () => {
+  const { decryptChunk } = await import("@/lib/crypto");
+  return {
+    decryptChunkInPool: async (
+      _pool: unknown,
+      _index: number,
+      data: ArrayBuffer,
+      key: ArrayBuffer,
+      compressed: boolean,
+    ) => {
+      poolCalls.mainThread++;
+      let plain: Uint8Array;
+      try {
+        plain = await decryptChunk(key, new Uint8Array(data));
+      } catch {
+        throw new Error("Decryption failed, wrong passphrase?");
+      }
+      return compressed ? decompressRef.fn(plain) : plain;
+    },
+  };
+});
+
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));
 
 import {
+  createZipRun,
   downloadAsZip,
+  ZipPausedError,
   zipEntryName,
   zipRefusal,
   ZIP_ENTRY_MAX_BYTES,
@@ -118,6 +153,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   getDeviceProfile.mockReturnValue({ maxConcurrentDownloads: 3 });
   decompressRef.fn = (d) => d;
+  poolCalls.mainThread = 0;
   createObjectURL = vi.fn(() => "blob:mock-url");
   revokeObjectURL = vi.fn();
   vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
@@ -233,17 +269,29 @@ describe("downloadAsZip: success paths", () => {
     expect(contents["c.txt"]).toBe("decompressed-content");
   });
 
-  it("skips decompression gracefully if the shared zstd codec is unavailable", async () => {
-    getZstdCodec.mockResolvedValueOnce(null as unknown as Awaited<ReturnType<typeof getZstdCodec>>);
-    const raw = enc.encode("raw-bytes-no-decompress");
-    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [raw] });
+  it("adds a file with no chunks as an empty zip entry", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [] });
     getFileMeta.mockResolvedValueOnce(f.meta);
-    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: true });
 
-    await downloadAsZip([{ fileId: "id1", filename: "raw.txt", fileSize: raw.length }], "pw");
+    const report = await downloadAsZip([{ fileId: "id1", filename: "empty.txt", fileSize: 0 }], "pw");
 
-    const contents = await capturedZipContents();
-    expect(contents["raw.txt"]).toBe("raw-bytes-no-decompress");
+    expect(getFileChunk).not.toHaveBeenCalled();
+    expect(await capturedZipContents()).toEqual({ "empty.txt": "" });
+    expect(report.added).toBe(1);
+  });
+
+  it("decrypts through the worker pool and frees the pool when done", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("a"), enc.encode("b")] });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk
+      .mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false })
+      .mockResolvedValueOnce({ data: f.encryptedChunks[1], sha256: "", compressed: false });
+
+    await downloadAsZip([{ fileId: "id1", filename: "p.txt", fileSize: 2 }], "pw");
+
+    expect(poolCalls.mainThread).toBe(2);
+    expect(poolTerminate).toHaveBeenCalledTimes(1);
+    expect(await capturedZipContents()).toEqual({ "p.txt": "ab" });
   });
 
   it("verifies an hmac_v1 file against the per-user keyed MAC when signed in", async () => {
@@ -300,6 +348,16 @@ describe("downloadAsZip: failure paths", () => {
     await expect(downloadAsZip([{ fileId: "id1", filename: "bad.txt", fileSize: 1 }], "pw")).rejects.toThrow(
       "Decryption failed for bad.txt, wrong passphrase?"
     );
+  });
+
+  it("keeps the underlying decrypt error as the cause", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")], wrongChunkKey: true });
+    getFileMeta.mockResolvedValueOnce(f.meta);
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    const err = await downloadAsZip([{ fileId: "id1", filename: "bad.txt", fileSize: 1 }], "pw").catch((e) => e);
+    expect((err as Error).cause).toBeInstanceOf(Error);
+    expect(((err as Error).cause as Error).message).toBe("Decryption failed, wrong passphrase?");
   });
 
   it("throws for an hmac_v1 file when not signed in (no user id to key the MAC)", async () => {
@@ -547,6 +605,76 @@ describe("downloadAsZip: folders and disk streaming", () => {
   });
 });
 
+describe("pausing a ZIP", () => {
+  it("stops mid-file without closing the disk, then continues the same archive and refetches only the interrupted file", async () => {
+    const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("first")] });
+    const f2 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("second")] });
+    const byId: Record<string, typeof f1> = { id1: f1, id2: f2 };
+    getFileMeta.mockImplementation(async (id: string) => byId[id].meta);
+    const calls: Record<string, number> = {};
+    let pausing = false;
+    const first = new AbortController();
+    getFileChunk.mockImplementation(async (id: string, idx: number, signal?: AbortSignal) => {
+      calls[id] = (calls[id] ?? 0) + 1;
+      if (id === "id2" && calls[id] === 1) {
+        pausing = true;
+        first.abort();
+        throw new DOMException("x", "AbortError");
+      }
+      void signal;
+      return { data: byId[id].encryptedChunks[idx], sha256: "", compressed: false };
+    });
+    const written: Uint8Array[] = [];
+    const disk = {
+      write: vi.fn(async (d: Uint8Array) => void written.push(d.slice())),
+      close: vi.fn(async () => {}),
+      abort: vi.fn(async () => {}),
+    };
+    const run = createZipRun(disk);
+    const files: BulkDownloadFile[] = [
+      { fileId: "id1", filename: "a.txt", fileSize: 5 },
+      { fileId: "id2", filename: "b.txt", fileSize: 6 },
+    ];
+
+    await expect(
+      downloadAsZip(files, "pw", { run, signal: first.signal, pausing: () => pausing }),
+    ).rejects.toBeInstanceOf(ZipPausedError);
+    expect(disk.close).not.toHaveBeenCalled();
+    expect(disk.abort).not.toHaveBeenCalled();
+    expect(run.report.added).toBe(1);
+    expect(run.next).toBe(1);
+
+    pausing = false;
+    const report = await downloadAsZip(files, "pw", { run, signal: new AbortController().signal, pausing: () => pausing });
+    expect(report.added).toBe(2);
+    expect(calls.id1).toBe(1);
+    expect(calls.id2).toBe(2);
+    expect(disk.close).toHaveBeenCalledTimes(1);
+    const unzipped = unzipSync(concatUint8(written));
+    expect(dec.decode(unzipped["a.txt"])).toBe("first");
+    expect(dec.decode(unzipped["b.txt"])).toBe("second");
+  });
+
+  it("an abort that is not a pause still discards the disk archive", async () => {
+    const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    getFileMeta.mockResolvedValue(f1.meta);
+    const ctl = new AbortController();
+    getFileChunk.mockImplementation(async () => {
+      ctl.abort();
+      throw new DOMException("x", "AbortError");
+    });
+    const disk = { write: vi.fn(async () => {}), close: vi.fn(async () => {}), abort: vi.fn(async () => {}) };
+    await expect(
+      downloadAsZip([{ fileId: "a", filename: "a.txt", fileSize: 1 }], "pw", {
+        run: createZipRun(disk),
+        signal: ctl.signal,
+        pausing: () => false,
+      }),
+    ).rejects.not.toBeInstanceOf(ZipPausedError);
+    expect(disk.abort).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("ZIP size limits", () => {
   const GB = 1024 * 1024 * 1024;
   const many = (n: number, size: number): BulkDownloadFile[] =>
@@ -594,6 +722,36 @@ describe("ZIP size limits", () => {
     expect(getFileMeta).toHaveBeenCalledTimes(1);
     expect(getFileMeta).toHaveBeenCalledWith("s");
     expect(await capturedZipContents()).toEqual({ "s.txt": "small" });
+  });
+
+  it("judges the entry cap by the server's size, not the size the caller passed", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    getFileMeta.mockResolvedValueOnce({ ...f.meta, original_size: ZIP_ENTRY_MAX_BYTES + 1 });
+
+    const report = await downloadAsZip(
+      [{ fileId: "liar", filename: "big.iso", fileSize: 1 }],
+      "pw",
+    ).catch((e) => e);
+
+    expect((report as Error).message).toBe("Over 1 GB, too large for a ZIP");
+    expect(getFileChunk).not.toHaveBeenCalled();
+  });
+
+  it("stops adding files once the server-reported sizes would pass 4 GiB", async () => {
+    const files: BulkDownloadFile[] = [];
+    for (let i = 0; i < 5; i++) {
+      const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode(`f${i}`)] });
+      getFileMeta.mockResolvedValueOnce({ ...f.meta, original_size: 900 * 1024 * 1024 });
+      getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+      files.push({ fileId: `id${i}`, filename: `f${i}.bin`, fileSize: 1 });
+    }
+
+    const report = await downloadAsZip(files, "pw");
+
+    expect(report.added).toBe(4);
+    expect(report.failed).toEqual([
+      expect.objectContaining({ fileId: "id4", error: expect.stringContaining("4 GB") }),
+    ]);
   });
 
   it("fails instead of saving when the ZIP writer reports an error", async () => {

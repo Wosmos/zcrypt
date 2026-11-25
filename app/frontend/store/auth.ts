@@ -9,6 +9,8 @@ import { endSession, isTauri } from "@/lib/tauri";
 import { setPersistUser, wipeQueryCache } from "@/lib/query-client";
 import { broadcastTokens, onTokensFromOtherTabs } from "@/lib/auth-sync";
 import { forgetPlatformCredentials } from "@/lib/platform-credentials";
+import { clearTelegramFilePaths, resetTelegramUnreachable } from "@/lib/telegram-download";
+import { cancelAllTransferWaits } from "@/lib/transfer-wait";
 
 const USER_KEY = "zcrypt-user";
 const ACCESS_KEY = "zcrypt-access-token";
@@ -112,7 +114,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
     const prev = readCachedUser()?.id ?? null;
     // A different account on this device must never see the previous one's
     // cached lists, in memory or on disk.
-    if (user && prev && prev !== user.id) void wipeQueryCache();
+    if (user && prev && prev !== user.id) {
+      void wipeQueryCache();
+      clearTelegramFilePaths();
+      resetTelegramUnreachable();
+    }
     setPersistUser(user?.id ?? null);
     writeCachedUser(user);
     set({ user });
@@ -143,6 +149,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     useSpacesStore.getState().reset(); // drop cached space keys
     clearAvatarCache();
     forgetPlatformCredentials();
+    clearTelegramFilePaths(); // file_paths embed the old user's bot token
+    resetTelegramUnreachable();
+    cancelAllTransferWaits();
     writeCachedUser(null);
     setPersistUser(null);
     void wipeQueryCache(); // every cached list, in memory and the IndexedDB snapshot

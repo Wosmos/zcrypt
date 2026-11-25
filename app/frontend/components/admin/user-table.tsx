@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -261,13 +262,13 @@ export function UserTable({
           title: tu("emptyTitle"),
           description: tu("emptyDesc"),
         }}
-        rowHref={(u) => `/admin/users/${u.id}`}
+        rowHref={(u) => adminUserHref(u.id)}
         rowActions={(u) =>
           actions.actionsFor(u, [
             {
               label: tu("open"),
               icon: Eye,
-              onSelect: () => router.push(`/admin/users/${u.id}`),
+              onSelect: () => router.push(adminUserHref(u.id)),
             },
           ])
         }

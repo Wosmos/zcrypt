@@ -54,4 +54,9 @@ describe("thumb-seal (th1)", () => {
     expect(dataUrlToBytes(url)).toEqual(bytes);
     expect(bytesToDataUrl(bytes, "image/png").startsWith("data:image/png;base64,")).toBe(true);
   });
+
+  it("labels a stored PNG or JPEG preview by its own bytes", () => {
+    expect(bytesToDataUrl(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1])).startsWith("data:image/png;")).toBe(true);
+    expect(bytesToDataUrl(new Uint8Array([0xff, 0xd8, 0xff, 1])).startsWith("data:image/jpeg;")).toBe(true);
+  });
 });

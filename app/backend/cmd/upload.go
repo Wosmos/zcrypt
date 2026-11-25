@@ -69,14 +69,36 @@ func maxEncryptedTotal(size int64, count int) int64 {
 // chunkFitsDeclaredSize refuses a chunk that would push the file's stored
 // ciphertext past what its declared size allows, so a client cannot declare a
 // tiny file to pass the quota check and then upload far more.
-func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWriter, session *types.UploadSession, n int64) bool {
+func (s *Server) chunkFitsDeclaredSize(w http.ResponseWriter, r *http.Request, session *types.UploadSession, n int64) bool {
+	ctx := r.Context()
 	received, err := s.db.GetTotalReceivedChunkSize(ctx, session.FileID)
 	if err != nil {
 		internalError(w, "upload: received size", err)
 		return false
 	}
 	if received+n > maxEncryptedTotal(session.OriginalSize, session.ChunkCount) {
-		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		writeCodedError(w, http.StatusRequestEntityTooLarge, types.ErrCodeRelayChunkExceedsDeclared, index.ErrChunkExceedsDeclaredSize.Error())
+		return false
+	}
+	if IsAdmin(r) {
+		return true
+	}
+	// A session that started direct skipped the relay admission at init, so the
+	// per-file cap is checked here for whatever it sends through the server.
+	if session.Mode != types.UploadModeRelay {
+		if limit := relayMaxFileBytes(); limit > 0 && session.OriginalSize > limit {
+			writeRelayFileTooLarge(w, limit)
+			return false
+		}
+	}
+	// The session's reservation already covers its declared bytes; only the
+	// part of this chunk beyond it needs fresh headroom.
+	over := n - max(session.RelayReserve-received, 0)
+	if over < 0 {
+		over = 0
+	}
+	if ex := s.relayFits(ctx, session.UserID, over); ex != nil {
+		writeRelayRefusal(w, ex, false)
 		return false
 	}
 	return true
@@ -84,7 +106,7 @@ func (s *Server) chunkFitsDeclaredSize(ctx context.Context, w http.ResponseWrite
 
 func writeChunkStoreError(w http.ResponseWriter, msg string, err error) {
 	if errors.Is(err, index.ErrChunkExceedsDeclaredSize) {
-		writeError(w, http.StatusRequestEntityTooLarge, index.ErrChunkExceedsDeclaredSize.Error())
+		writeCodedError(w, http.StatusRequestEntityTooLarge, types.ErrCodeRelayChunkExceedsDeclared, index.ErrChunkExceedsDeclaredSize.Error())
 		return
 	}
 	log.Printf("%s: %v", msg, err)
@@ -106,9 +128,11 @@ func (s *Server) discardUpload(ctx context.Context, userID string, session *type
 	return nil
 }
 
-func writeSharedStorageFull(w http.ResponseWriter, used, quota, needed int64) {
+func writeSharedStorageFull(w http.ResponseWriter, userID string, used, quota, needed int64) {
+	log.Printf("upload: refused for user %s: storage cap (used %d + needed %d > %d)", logSafe(userID), used, needed, quota) // #nosec G706 -- control chars stripped via logSafe
 	writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
 		"error":        "shared storage is full",
+		"code":         types.ErrCodeSharedStorageFull,
 		"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
 		"used_bytes":   used,
 		"quota_bytes":  quota,
@@ -253,7 +277,9 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	var platform, account, repoID, repoURL string
 	var directUpload bool
+	var relaySession bool
 	var quota int64
+	var sharedOnly bool
 
 	if mode == types.UploadModeBYOSDirect {
 		if req.Platform == "" || !byosPlatforms[req.Platform] {
@@ -301,21 +327,28 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// finish.
 		// The file insert below re-checks under a lock, so concurrent inits
 		// cannot share the same headroom.
-		if quota = s.uploadQuota(ctx, userID, s.isOwnAdapterKey(userID, key)); quota > 0 {
-			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
+		if quota, sharedOnly = s.uploadQuota(ctx, userID, s.isOwnAdapterKey(userID, key)); quota > 0 {
+			usedFn := s.db.GetUserStorageUsed
+			if sharedOnly {
+				usedFn = s.db.GetUserSharedStorageUsed
+			}
+			used, uErr := usedFn(ctx, userID)
 			if uErr != nil {
 				log.Printf("upload: storage usage lookup failed: %v", uErr)
 				http.Error(w, `{"error":"could not verify your storage usage"}`, http.StatusInternalServerError)
 				return
 			}
 			if used+req.OriginalSize > quota {
-				writeSharedStorageFull(w, used, quota, req.OriginalSize)
+				writeSharedStorageFull(w, userID, used, quota, req.OriginalSize)
 				return
 			}
 		}
 
-		if _, presigned := selected.(adapters.DirectUploader); !presigned && !s.relayUploadAllowed(w, r, userID, req.OriginalSize) {
-			return
+		if _, presigned := selected.(adapters.DirectUploader); !presigned {
+			if !s.relayUploadAllowed(w, r, userID, req.OriginalSize) {
+				return
+			}
+			relaySession = !IsAdmin(r)
 		}
 
 		repo, err := pool.GetOrCreateRepo(ctx)
@@ -361,13 +394,13 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	insert := s.db.InsertFile
 	if quota > 0 {
 		insert = func(ctx context.Context, userID string, f *types.FileMetadata) error {
-			return s.db.InsertFileWithinQuota(ctx, userID, f, quota)
+			return s.db.InsertFileWithinQuota(ctx, userID, f, quota, sharedOnly)
 		}
 	}
 	if err := insert(ctx, userID, fileMeta); err != nil {
 		var full *index.QuotaExceededError
 		if errors.As(err, &full) {
-			writeSharedStorageFull(w, full.Used, quota, req.OriginalSize)
+			writeSharedStorageFull(w, userID, full.Used, quota, req.OriginalSize)
 			return
 		}
 		log.Printf("upload: create file record failed for user %s: %v", userID, err)
@@ -392,9 +425,23 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		RepoID:        repoID,
 		RepoURL:       repoURL,
 		Mode:          mode,
+		Client:        clientMarker(r),
 	}
 
-	sessionID, err := s.db.CreateUploadSession(ctx, session)
+	var sessionID string
+	if relaySession {
+		sessionID, err = s.db.CreateRelayUploadSession(ctx, session, relayLimits())
+	} else {
+		sessionID, err = s.db.CreateUploadSession(ctx, session)
+	}
+	var exceeded *index.ErrRelayWindowExceeded
+	if errors.As(err, &exceeded) {
+		if _, delErr := s.db.DeleteFile(ctx, userID, fileID); delErr != nil {
+			log.Printf("upload: drop refused file %s: %v", fileID, delErr)
+		}
+		writeRelayRefusal(w, exceeded, false)
+		return
+	}
 	if err != nil {
 		log.Printf("upload: create session failed: %v", err)
 		http.Error(w, `{"error":"failed to start upload"}`, http.StatusInternalServerError)
@@ -486,7 +533,10 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	// Also check by file_id + index (the original idempotency check)
 	existingByIdx, _ := s.db.GetChunkByIndex(ctx, session.FileID, chunkIndex)
-	if existingByIdx != nil {
+	var restore *types.ChunkRef
+	if existingByIdx != nil && !s.chunkBytesPresent(ctx, existingByIdx) {
+		restore = existingByIdx
+	} else if existingByIdx != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"chunk_index": chunkIndex,
@@ -507,7 +557,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"chunk too small"}`, http.StatusBadRequest)
 		return
 	}
-	if !s.chunkFitsDeclaredSize(ctx, w, session, int64(len(data))) {
+	if !s.chunkFitsDeclaredSize(w, r, session, int64(len(data))) {
 		return
 	}
 
@@ -528,8 +578,15 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write chunk data to staging dir (survives server restarts)
 	chunkID := uuid.New().String()
+	if restore != nil {
+		if actualHash != restore.SHA256 {
+			http.Error(w, `{"error":"chunk hash mismatch"}`, http.StatusBadRequest)
+			return
+		}
+		chunkID = restore.ChunkID
+	}
+	// Write chunk data to staging dir (survives server restarts)
 	stagingDir, err := config.StagingDir()
 	if err != nil {
 		log.Printf("upload: staging dir failed: %v", err)
@@ -540,6 +597,15 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	if err := os.WriteFile(stagingPath, data, 0600); err != nil {
 		log.Printf("upload: write staging file failed: %v", err)
 		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if restore != nil {
+		select {
+		case s.syncCh <- struct{}{}:
+		default:
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"chunk_index": chunkIndex, "stored": true})
 		return
 	}
 
@@ -600,6 +666,24 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		"chunk_index": chunkIndex,
 		"stored":      true,
 	})
+}
+
+// chunkBytesPresent reports whether a recorded chunk's bytes exist somewhere:
+// on its platform (remote_path set) or in staging. A chunk with neither was
+// lost, so a duplicate PUT must re-send it instead of being told it is stored.
+// The row is re-read once to absorb the sync worker pushing the chunk and
+// removing staging between the caller's read and now.
+func (s *Server) chunkBytesPresent(ctx context.Context, c *types.ChunkRef) bool {
+	if c.RemotePath != "" {
+		return true
+	}
+	if stagingDir, err := config.StagingDir(); err == nil {
+		if _, err := os.Stat(filepath.Join(stagingDir, filepath.Base(c.ChunkID)+".enc")); err == nil {
+			return true
+		}
+	}
+	fresh, err := s.db.GetChunkByID(ctx, c.ChunkID)
+	return err == nil && fresh.RemotePath != ""
 }
 
 // storeStagedChunk records a relay chunk whose bytes were just staged at
@@ -722,8 +806,6 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	// it must not touch r.
 	bgUserID := userID
 	bgSession := session
-	compressedSize := req.CompressedSize
-	encryptedSize := req.EncryptedSize
 	s.goBackground(func() {
 		bgCtx := context.Background()
 
@@ -750,24 +832,14 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Verify and update sizes. The client-reported sizes are written first;
-		// the server-computed chunk total then overwrites encrypted_size so the
-		// verified value wins (writing them in the other order let the client
-		// value clobber the verified one).
-		s.db.UpdateFileSizes(bgCtx, bgSession.FileID, compressedSize, encryptedSize)
-		actualEncrypted, err := s.db.GetTotalReceivedChunkSize(bgCtx, bgSession.FileID)
-		if err == nil {
-			s.db.UpdateFileOriginalSizeVerified(bgCtx, bgSession.FileID, actualEncrypted)
-		}
-
-		// Update repo usage with the SERVER-computed total, not the client-reported
-		// req.EncryptedSize: a client reporting 0 (or lying) must not keep the
-		// repo pool from rotating at the real platform thresholds.
-		usageBytes := encryptedSize
-		if err == nil {
-			usageBytes = actualEncrypted
-		} else {
-			log.Printf("upload: WARNING falling back to client-reported encrypted size for repo usage (file %s): %v", bgSession.FileID, err)
+		// Sizes come from the server's own chunk records. The client's
+		// compressed_size and encrypted_size estimates are ignored: a resumed
+		// upload only knows the chunks it sent this time, and a wrong value would
+		// skew quota and repo rotation.
+		usageBytes, err := s.db.UpdateFileSizesFromChunks(bgCtx, bgSession.FileID)
+		if err != nil {
+			log.Printf("upload: WARNING file sizes for %s not recomputed: %v", logSafe(bgSession.FileID), err) // #nosec G706 -- control chars stripped via logSafe
+			return
 		}
 		pools, _ := s.getUserPools(bgCtx, bgUserID)
 		key := bgSession.Platform + ":" + bgSession.Account

@@ -332,7 +332,9 @@
         "maintenance": "Wartung läuft",
         "down": "Server nicht erreichbar",
         "offline": "Du bist offline"
-      }
+      },
+      "networkBlocked": "zcrypt kann nicht über Cloud-Server, Rechenzentren oder darauf laufende VPNs genutzt werden. Schalte das VPN oder den Proxy aus und versuche es erneut.",
+      "botCheckFailed": "Die Prüfung, dass du ein Mensch bist, wurde nicht abgeschlossen. Warte kurz und versuche es erneut."
     },
     "banner": {
       "dismiss": "Schließen"

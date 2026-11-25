@@ -86,6 +86,8 @@
       "info": "Files are encrypted on the sending device with a key that never touches the server. It travels only in the QR code or link you share, or in the pairing key you read out. The server relays ciphertext and cannot read the file or its name, but it can see that a transfer happened and roughly how large it is.",
       "connFailed": "Connection failed",
       "connLost": "Connection lost",
+      "dailyLimit": "This network has used its daily Device Transfer allowance. Try again tomorrow, or from another network.",
+      "tooLarge": "This file is larger than Device Transfer allows (10 GB).",
       "confirmCode": "Both screens must show the same confirmation code",
       "sendFailed": "Transfer failed",
       "error": "Transfer error",
@@ -111,7 +113,12 @@
       "receiving": "Receiving {n}/{total}",
       "receivedOk": "{name} received and saved",
       "receiveAnother": "Receive Another",
-      "connFailedTitle": "Connection Failed"
+      "connFailedTitle": "Connection Failed",
+      "tooLarge": "This file is too large to receive in the browser (limit {max}). Use the zcrypt desktop app.",
+      "confirming": "Waiting for the other device to confirm...",
+      "noConfirm": "The other device did not confirm it received the whole file.",
+      "peerCancelled": "The other device cancelled the transfer.",
+      "stalled": "Transfer stalled: nothing moved for 60 seconds."
     },
     "snapshots": {
       "take": "Take snapshot",
@@ -220,6 +227,7 @@
       "incompleteTitle": "Incomplete Link",
       "incompleteBody": "This link is missing the encryption key. Make sure you copied the full URL including the <code>#key=...</code> part.",
       "previewImage": "Image preview available",
+      "sizeUpTo": "Up to {size}",
       "previewVideo": "Video preview available",
       "previewAudio": "Audio preview available",
       "save": "Save",
@@ -311,7 +319,9 @@
         "decrypting": "Decrypting...",
         "decrypted": "Decrypted",
         "footer": "Powered by <b>zcrypt</b> · Zero-knowledge encrypted text sharing"
-      }
+      },
+      "ownerDailyUsed": "The person who shared this has used up today's transfer allowance. It resets at midnight UTC, so try again then.",
+      "ownerMonthlyUsed": "The person who shared this has used up this month's transfer allowance. Try again next month, or ask them for another copy."
     },
     "demo": {
       "banner": "Demo mode, all data is simulated. Uploads, downloads and deletes are disabled.",

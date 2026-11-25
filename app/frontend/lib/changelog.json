@@ -1,5 +1,61 @@
 [
   {
+    "version": "0.3.0",
+    "date": null,
+    "key": "v0_3_0",
+    "groups": [
+      {
+        "kind": "new",
+        "items": [
+          "allowanceMeters",
+          "waitForTelegram",
+          "directDownloads",
+          "photoAlbums",
+          "backupSummary",
+          "pendingInvites",
+          "spaceEvents",
+          "zipPause",
+          "macInstaller"
+        ]
+      },
+      {
+        "kind": "improved",
+        "items": [
+          "spaceRekey",
+          "humanCheck",
+          "sendCancel",
+          "slowLinks",
+          "viewer",
+          "avatars",
+          "transferAck"
+        ]
+      },
+      {
+        "kind": "fixed",
+        "items": [
+          "backupSignIn",
+          "keychainOnce",
+          "macIcon",
+          "corners",
+          "allowanceDialog",
+          "sendFinish",
+          "androidLocation",
+          "tourUnlock",
+          "uploadsNoHang",
+          "previews",
+          "trashNames",
+          "storageFullMessage",
+          "sharedCapOwnFiles",
+          "bareDomainSignIn"
+        ]
+      },
+      {
+        "kind": "security",
+        "items": ["appSessions", "libraries", "botCheck", "cloudNetworks", "nextjs"]
+      }
+    ]
+  },
+  {
     "version": "0.2.2",
     "date": "2026-11-12",
     "key": "v0_2_2",

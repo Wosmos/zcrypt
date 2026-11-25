@@ -35,6 +35,7 @@ const { getState, tryRefreshToken, authedFetch, shouldRefreshOn401 } = vi.hoiste
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken, authedFetch, shouldRefreshOn401 }));
 
+import { StalledError } from "@/lib/transport";
 import {
   getConfig,
   getFileChunk,
@@ -51,6 +52,7 @@ import {
   createSharedVault,
   getSharedVault,
   addSharedVaultMember,
+  completeSharedVaultMember,
   lookupUserKey,
   removeSharedVaultMember,
   deleteSharedVault,
@@ -174,9 +176,9 @@ describe("api request core", () => {
     }
   });
 
-  it("maps an aborted fetch to a timeout error", async () => {
+  it("an abort that is not the timeout stays an AbortError", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
-    await expect(getConfig()).rejects.toThrow("Request timed out");
+    await expect(getConfig()).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("propagates a non-abort network error as-is", async () => {
@@ -295,8 +297,8 @@ describe("getFileChunk (custom download path)", () => {
         }),
     );
     const controller = new AbortController();
-    const assertion = expect(getFileChunk("f", 3, controller.signal)).rejects.toThrow("chunk 3 download timed out");
-    await vi.advanceTimersByTimeAsync(90_000);
+    const assertion = expect(getFileChunk("f", 3, controller.signal)).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(60_000);
     await assertion;
     vi.useRealTimers();
   });
@@ -307,11 +309,6 @@ describe("getFileChunk (custom download path)", () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(getFileChunk("f", 0, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
     expect((fetchMock.mock.calls.at(-1)![1] as RequestInit).signal?.aborted).toBe(true);
-  });
-
-  it("maps an aborted chunk fetch to a chunk-specific timeout error", async () => {
-    fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
-    await expect(getFileChunk("f", 4)).rejects.toThrow("chunk 4 download timed out");
   });
 
   it("refreshes the token on a 401 and retries the chunk (long/stale-token downloads)", async () => {
@@ -328,7 +325,7 @@ describe("getFileChunk (custom download path)", () => {
     expect(new Uint8Array(out.data)).toEqual(new Uint8Array([9]));
   });
 
-  it("aborts a chunk that stalls past the 90s ceiling", async () => {
+  it("aborts a chunk that sends nothing for the 60s idle limit, not before", async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(
       (_url: string, init: RequestInit) =>
@@ -339,11 +336,11 @@ describe("getFileChunk (custom download path)", () => {
         }),
     );
 
-    // The timer stays alive through the body read, so a mid-download stall
-    // aborts too, not just a stalled response head.
     const pending = getFileChunk("f", 7);
-    const assertion = expect(pending).rejects.toThrow("chunk 7 download timed out");
-    await vi.advanceTimersByTimeAsync(90_000);
+    const assertion = expect(pending).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
     vi.useRealTimers();
   });
@@ -375,7 +372,8 @@ describe("shared-space + key API wrappers", () => {
     { name: "getSharedVault", run: () => getSharedVault("v1"), path: "/api/shared-vaults/v1" },
     { name: "createSharedVault", run: () => createSharedVault({ name: "n", description: "d", file_ids: ["a"], wrapped_space_key: "w", size_limit_bytes: 10 }), path: "/api/shared-vaults", method: "POST", body: { name: "n", description: "d", file_ids: ["a"], wrapped_space_key: "w", size_limit_bytes: 10 } },
     { name: "addSharedVaultMember", run: () => addSharedVaultMember("v1", "e@x.com", "editor", "grant"), path: "/api/shared-vaults/v1/members", method: "POST", body: { email: "e@x.com", role: "editor", wrapped_space_key: "grant" } },
-    { name: "addSharedVaultMember (default grant)", run: () => addSharedVaultMember("v1", "e@x.com", "viewer"), path: "/api/shared-vaults/v1/members", method: "POST", body: { email: "e@x.com", role: "viewer", wrapped_space_key: "" } },
+    { name: "addSharedVaultMember (default grant)", run: () => addSharedVaultMember("v1", "e@x.com", "viewer"), path: "/api/shared-vaults/v1/members", method: "POST", body: { email: "e@x.com", role: "viewer" } },
+    { name: "completeSharedVaultMember", run: () => completeSharedVaultMember("v1", "u9", "grant"), path: "/api/shared-vaults/v1/members/u9/key", method: "POST", body: { wrapped_space_key: "grant" } },
     { name: "removeSharedVaultMember", run: () => removeSharedVaultMember("v1", "u9"), path: "/api/shared-vaults/v1/members/u9", method: "DELETE" },
     { name: "updateSharedVault", run: () => updateSharedVault("v1", { name: "N" }), path: "/api/shared-vaults/v1", method: "PATCH", body: { name: "N" } },
     { name: "updateSharedVaultMemberRole", run: () => updateSharedVaultMemberRole("v1", "u9", "editor"), path: "/api/shared-vaults/v1/members/u9", method: "PATCH", body: { role: "editor" } },

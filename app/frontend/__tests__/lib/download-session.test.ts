@@ -66,6 +66,8 @@ const { processMock, terminateMock, WorkerPoolCtor } = vi.hoisted(() => {
 vi.mock("@/lib/worker-pool", () => ({ WorkerPool: WorkerPoolCtor }));
 
 import { downloadAndDecryptFile, type DiskWritable } from "@/lib/download-session";
+import { ApiError } from "@/lib/http-error";
+import { StalledError } from "@/lib/transport";
 
 function chunkBytes(i: number, len = 4): Uint8Array {
   const b = new Uint8Array(len);
@@ -152,6 +154,29 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     expect(anchorCall).toBeTruthy();
     expect((anchorCall!.value as HTMLAnchorElement).download).toBe("report.pdf");
     expect(terminateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("builds the Blob from the decrypted parts and releases the chunk array straight after, so the file is not held twice", async () => {
+    const chunks = [chunkBytes(0), chunkBytes(1)];
+    getFileMeta.mockResolvedValueOnce(baseMeta(2, expectedHash(chunks), { original_name: "r.bin" }));
+    getFileChunk.mockImplementation(async (_id: string, index: number) => ({
+      data: chunks[index].buffer,
+      sha256: "",
+      compressed: false,
+    }));
+    const parts: Uint8Array[] = [];
+    const resume: { decryptedChunks?: Uint8Array[]; done?: Set<number> } = { decryptedChunks: parts };
+    const createObjectURL = vi.fn(() => "blob:mock-url");
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL: vi.fn() });
+
+    await downloadAndDecryptFile("f1", "pw", { resume });
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
+    expect(blob.size).toBe(chunks[0].length + chunks[1].length);
+    expect(parts).toHaveLength(0);
+    expect(resume.decryptedChunks).toBeUndefined();
+    expect(resume.done).toBeUndefined();
   });
 
   it("derives a per-user keyed MAC for an hmac_v1 file on the owner (passphrase) path", async () => {
@@ -271,6 +296,13 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("refuses a file of 1 GB or more with no disk writable even when the caller's size was unknown", async () => {
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, "x", { original_size: 1024 ** 3 }));
+
+    await expect(downloadAndDecryptFile("f1", "pw")).rejects.toThrow(/Too large to download in this browser/);
+    expect(getFileChunk).not.toHaveBeenCalled();
+  });
+
   it("wraps a worker decrypt failure as a wrong-passphrase error", async () => {
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "irrelevant"));
     getFileChunk.mockResolvedValueOnce({ data: chunkBytes(0).buffer, sha256: "", compressed: false });
@@ -293,7 +325,7 @@ describe("downloadAndDecryptFile: in-memory path", () => {
     const hash = expectedHash([chunk]);
     getFileMeta.mockResolvedValueOnce(baseMeta(1, hash));
     getFileChunk
-      .mockRejectedValueOnce(new Error("network request failed"))
+      .mockRejectedValueOnce(new TypeError("network request failed"))
       .mockResolvedValueOnce({ data: chunk.buffer, sha256: "", compressed: false });
 
     const promise = downloadAndDecryptFile("f1", "pw");
@@ -487,6 +519,28 @@ describe("downloadAndDecryptFile, abort/cancel", () => {
     expect(calls).toBe(1);
   });
 
+  it("stops a fetcher at the top of its loop when a cancel lands in the progress callback, before the next chunk is requested", async () => {
+    getDeviceProfile.mockReturnValue({ maxConcurrentDownloads: 1 });
+    getFileMeta.mockResolvedValueOnce(baseMeta(3, "irrelevant-since-aborted"));
+    const controller = new AbortController();
+    getFileChunk.mockImplementation(async (_id: string, index: number) => ({
+      data: chunkBytes(index).buffer,
+      sha256: "",
+      compressed: false,
+    }));
+
+    await expect(
+      downloadAndDecryptFile("f1", "pw", {
+        signal: controller.signal,
+        onProgress: (info) => {
+          if (info.stage.startsWith("Downloading")) controller.abort();
+        },
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(getFileChunk).toHaveBeenCalledTimes(1);
+  });
+
   it("aborts right after key resolution", async () => {
     const controller = new AbortController();
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "x"));
@@ -573,5 +627,52 @@ describe("downloadAndDecryptFile, abort/cancel", () => {
     await expect(downloadAndDecryptFile("f1", "pw", { signal: controller.signal })).rejects.toMatchObject({
       name: "AbortError",
     });
+  });
+});
+
+describe("downloadAndDecryptFile: one chunk failing fails the session", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("streaming: stops the other fetchers and rejects with the chunk's error instead of waiting forever for the missing chunk", async () => {
+    vi.useFakeTimers();
+    getFileMeta.mockResolvedValueOnce(baseMeta(8, "irrelevant"));
+    getFileChunk.mockImplementation(async (_f: string, index: number) => {
+      if (index === 0) throw new ApiError("forbidden", 403);
+      return { data: chunkBytes(index).buffer, sha256: "", compressed: false };
+    });
+    const saveToDisk = fakeDiskWritable();
+
+    const pending = downloadAndDecryptFile("f1", "pw", { saveToDisk });
+    const assertion = expect(pending).rejects.toMatchObject({ status: 403 });
+    await vi.advanceTimersByTimeAsync(2_000);
+    await assertion;
+
+    expect(saveToDisk.written).toHaveLength(0);
+  });
+
+  it("streaming: a stalled chunk that exhausts its retries also fails the whole session", async () => {
+    vi.useFakeTimers();
+    getFileMeta.mockResolvedValueOnce(baseMeta(6, "irrelevant"));
+    getFileChunk.mockImplementation(async (_f: string, index: number) => {
+      if (index === 0) throw new StalledError("chunk 0 stalled");
+      return { data: chunkBytes(index).buffer, sha256: "", compressed: false };
+    });
+
+    const pending = downloadAndDecryptFile("f1", "pw", { saveToDisk: fakeDiskWritable() });
+    const assertion = expect(pending).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(120_000);
+    await assertion;
+  });
+
+  it("a caller pause during the failure still wins as the stop reason", async () => {
+    getFileMeta.mockResolvedValueOnce(baseMeta(4, "irrelevant"));
+    const ctl = new AbortController();
+    getFileChunk.mockImplementation(async () => {
+      ctl.abort();
+      throw new ApiError("forbidden", 403);
+    });
+    await expect(
+      downloadAndDecryptFile("f1", "pw", { signal: ctl.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 });

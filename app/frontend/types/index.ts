@@ -310,6 +310,14 @@ export interface QuotaInfo {
   relay_max_file_bytes?: number;
   /** When the monthly web transfer allowance starts over (ISO 8601). */
   relay_resets_at?: string;
+  /** Bytes moved through the server this UTC day. */
+  relay_day_used_bytes?: number;
+  /** Daily allowance for transfers through the server. 0 = no daily cap. */
+  relay_day_limit_bytes?: number;
+  /** When the daily allowance starts over: the next UTC midnight (ISO 8601). */
+  relay_day_resets_at?: string;
+  /** Bytes promised to uploads in progress, already counted against both windows. */
+  relay_reserved_bytes?: number;
 }
 
 export interface PlatformTokenInfo {
@@ -567,6 +575,8 @@ export interface SharedVault {
   size_limit_bytes: number;
   /** True after a member removal until the key is rotated; new files are refused. */
   needs_rotation?: boolean;
+  /** Bumped by every key rotation; writes under the space key echo it. */
+  key_generation?: number;
   /** Card stats from the list endpoint. */
   member_count?: number;
   file_count?: number;
@@ -588,6 +598,9 @@ export interface SharedVaultMember {
   has_avatar?: boolean;
   avatar_version?: string;
   role: SpaceRole;
+  /** "pending" until the invitee has a key and an owner or admin has handed it over. */
+  status?: "active" | "pending";
+  invited_by?: string;
   joined_at: string;
   /** Space key sealed to THIS member's public key (opaque to the server). */
   wrapped_space_key?: string;

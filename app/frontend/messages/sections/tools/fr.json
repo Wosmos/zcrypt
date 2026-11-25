@@ -86,6 +86,8 @@
       "info": "Les fichiers sont chiffrés sur l’appareil émetteur avec une clé qui ne touche jamais le serveur. Elle ne circule que dans le code QR ou le lien que vous partagez, ou dans la clé d’appairage que vous lisez à voix haute. Le serveur relaie du texte chiffré et ne peut lire ni le fichier ni son nom, mais il voit qu’un transfert a eu lieu et sa taille approximative.",
       "connFailed": "Échec de la connexion",
       "connLost": "Connexion perdue",
+      "dailyLimit": "Ce réseau a utilisé son quota quotidien de Transfert entre appareils. Réessaie demain ou depuis un autre réseau.",
+      "tooLarge": "Ce fichier dépasse la taille permise par le Transfert entre appareils (10 Go).",
       "confirmCode": "Les deux écrans doivent afficher le même code de confirmation",
       "sendFailed": "Échec du transfert",
       "error": "Erreur de transfert",
@@ -111,7 +113,12 @@
       "receiving": "Réception {n}/{total}",
       "receivedOk": "{name} reçu et enregistré",
       "receiveAnother": "Recevoir un autre",
-      "connFailedTitle": "Échec de la connexion"
+      "connFailedTitle": "Échec de la connexion",
+      "tooLarge": "Ce fichier est trop volumineux pour être reçu dans le navigateur (limite {max}). Utilisez l'application de bureau zcrypt.",
+      "confirming": "En attente de la confirmation de l'autre appareil...",
+      "noConfirm": "L'autre appareil n'a pas confirmé avoir reçu le fichier en entier.",
+      "peerCancelled": "L'autre appareil a annulé le transfert.",
+      "stalled": "Transfert bloqué : rien n'a bougé pendant 60 secondes."
     },
     "snapshots": {
       "take": "Prendre un instantané",
@@ -220,6 +227,7 @@
       "incompleteTitle": "Lien incomplet",
       "incompleteBody": "Il manque la clé de chiffrement à ce lien. Vérifiez que vous avez copié l’URL complète, y compris la partie <code>#key=...</code>.",
       "previewImage": "Aperçu de l’image disponible",
+      "sizeUpTo": "Jusqu’à {size}",
       "previewVideo": "Aperçu de la vidéo disponible",
       "previewAudio": "Aperçu audio disponible",
       "save": "Enregistrer",
@@ -311,7 +319,9 @@
         "decrypting": "Déchiffrement...",
         "decrypted": "Déchiffré",
         "footer": "Propulsé par <b>zcrypt</b> · Partage de texte chiffré à connaissance nulle"
-      }
+      },
+      "ownerDailyUsed": "La personne qui a partagé ceci a épuisé son quota de transfert du jour. Il se réinitialise à minuit UTC, réessaie à ce moment-là.",
+      "ownerMonthlyUsed": "La personne qui a partagé ceci a épuisé son quota de transfert du mois. Réessaie le mois prochain ou demande-lui une autre copie."
     },
     "demo": {
       "banner": "Mode démo : toutes les données sont simulées. Le téléversement, le téléchargement et la suppression sont désactivés.",

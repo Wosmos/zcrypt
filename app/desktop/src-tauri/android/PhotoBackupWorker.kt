@@ -4,25 +4,33 @@
 // Photo and video backup that runs with the app closed. Android's WorkManager
 // starts PhotoBackupWorker on the person's schedule and network, even after a
 // reboot, and the worker calls into the Rust shell (NativeBackup.runPass) to
-// back up DCIM, Pictures and Movies, sealed to the account public key
+// back up the albums the person chose from Android's media library
+// (MediaStoreSource.kt), sealed to the account public key
 // (src/photo_backup.rs). The settings live in the app's SharedPreferences so
 // the worker can read them without the app running.
 //
-// Network is strict: "wifi" runs only on Wi-Fi or Ethernet, "mobile" only on
-// mobile data, "any" on either. WorkManager's own constraint narrows the
-// wait, and the worker checks the live connection before it uploads, because
-// Android treats a metered Wi-Fi hotspot like mobile data.
+// Two triggers keep it current. A work request that waits on a MediaStore
+// content change starts a run soon after a new photo lands, and enqueues the
+// next one when it finishes; Android drops such triggers when the app is
+// force-stopped, so a periodic request every six hours catches up after that.
+// "Wi-Fi only" is WorkManager's UNMETERED network constraint and is checked
+// again on the live connection (a metered Wi-Fi hotspot counts as mobile
+// data); "while charging" is the charging constraint.
 package app.zcrypt.desktop
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
@@ -32,7 +40,6 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import org.json.JSONObject
 
@@ -42,24 +49,34 @@ object NativeBackup {
   }
 
   /** One backup run. 0 done, 1 try again later, 2 stop (signed out or turned off). */
-  @JvmStatic external fun runPass(dataDir: String): Int
+  @JvmStatic external fun runPass(dataDir: String, source: MediaStoreSource): Int
+
+  /** Stops the run in flight; called when WorkManager stops the worker. */
+  @JvmStatic external fun cancel()
+
+  /** The result notice the last run left as "title\nbody", or null when there is none. */
+  @JvmStatic external fun takeSummary(): String?
 }
 
 object PhotoBackup {
   private const val PREFS = "zcrypt"
   private const val KEY_SETTINGS = "photo_backup"
-  private const val WORK = "photo-backup"
+  private const val WORK_PERIODIC = "photo-backup"
+  private const val WORK_TRIGGER = "photo-backup-trigger"
   private const val WORK_NOW = "photo-backup-now"
+  const val INPUT_TRIGGER = "trigger"
+  private const val PERIODIC_HOURS = 6L
+  private const val TRIGGER_DELAY_SECONDS = 30L
+  private const val TRIGGER_MAX_DELAY_MINUTES = 10L
 
-  data class Settings(val enabled: Boolean, val mode: String, val time: String, val network: String) {
+  data class Settings(val enabled: Boolean, val wifiOnly: Boolean, val chargingOnly: Boolean) {
     fun toJson(): JSONObject = JSONObject()
       .put("enabled", enabled)
-      .put("mode", mode)
-      .put("time", time)
-      .put("network", network)
+      .put("wifi_only", wifiOnly)
+      .put("charging_only", chargingOnly)
   }
 
-  private val DEFAULT = Settings(false, "instant", "02:00", "wifi")
+  private val DEFAULT = Settings(false, true, false)
 
   fun settings(context: Context): Settings {
     val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_SETTINGS, null)
@@ -68,13 +85,9 @@ object PhotoBackup {
       val o = JSONObject(raw)
       Settings(
         o.optBoolean("enabled", false),
-        if (o.optString("mode") == "nightly") "nightly" else "instant",
-        o.optString("time").takeIf { parseTime(it) != null } ?: DEFAULT.time,
-        when (o.optString("network")) {
-          "mobile" -> "mobile"
-          "any" -> "any"
-          else -> "wifi"
-        },
+        // Earlier versions saved a network choice: only "wifi" meant Wi-Fi only.
+        if (o.has("wifi_only")) o.optBoolean("wifi_only", true) else o.optString("network", "wifi") == "wifi",
+        o.optBoolean("charging_only", false),
       )
     } catch (e: Exception) {
       DEFAULT
@@ -92,29 +105,43 @@ object PhotoBackup {
     apply(context, settings(context).copy(enabled = false))
   }
 
+  /** Starts the change trigger and the periodic fallback, or cancels both when turned off. */
   fun schedule(context: Context) {
     val wm = WorkManager.getInstance(context)
     val s = settings(context)
     if (!s.enabled) {
-      wm.cancelUniqueWork(WORK)
+      wm.cancelUniqueWork(WORK_PERIODIC)
+      wm.cancelUniqueWork(WORK_TRIGGER)
       wm.cancelUniqueWork(WORK_NOW)
       return
     }
-    if (s.mode == "nightly") {
-      val request = OneTimeWorkRequestBuilder<PhotoBackupWorker>()
-        .setConstraints(constraints(s))
-        .setInitialDelay(millisUntil(s.time), TimeUnit.MILLISECONDS)
-        .build()
-      wm.enqueueUniqueWork(WORK, ExistingWorkPolicy.REPLACE, request)
-    } else {
-      val request = PeriodicWorkRequestBuilder<PhotoBackupWorker>(15, TimeUnit.MINUTES)
-        .setConstraints(constraints(s))
-        .build()
-      wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
-    }
+    val periodic = PeriodicWorkRequestBuilder<PhotoBackupWorker>(PERIODIC_HOURS, TimeUnit.HOURS)
+      .setConstraints(constraints(s))
+      .build()
+    wm.enqueueUniquePeriodicWork(WORK_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE, periodic)
+    enqueueTrigger(context, s, ExistingWorkPolicy.REPLACE)
   }
 
-  /** Backs up as soon as the chosen network is there, without waiting for the schedule. */
+  /**
+   * Waits for a change to the photo or video library. The worker calls this
+   * with APPEND_OR_REPLACE when it finishes, so the next change starts the next run.
+   */
+  fun enqueueTrigger(context: Context, s: Settings, policy: ExistingWorkPolicy) {
+    val request = OneTimeWorkRequestBuilder<PhotoBackupWorker>()
+      .setConstraints(
+        constraintsBuilder(s)
+          .addContentUriTrigger(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true)
+          .addContentUriTrigger(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true)
+          .setTriggerContentUpdateDelay(TRIGGER_DELAY_SECONDS, TimeUnit.SECONDS)
+          .setTriggerContentMaxDelay(TRIGGER_MAX_DELAY_MINUTES, TimeUnit.MINUTES)
+          .build(),
+      )
+      .setInputData(Data.Builder().putBoolean(INPUT_TRIGGER, true).build())
+      .build()
+    WorkManager.getInstance(context).enqueueUniqueWork(WORK_TRIGGER, policy, request)
+  }
+
+  /** Backs up as soon as the chosen network and power are there, without waiting for a change. */
   fun runNow(context: Context) {
     val s = settings(context)
     if (!s.enabled) return
@@ -122,51 +149,21 @@ object PhotoBackup {
     WorkManager.getInstance(context).enqueueUniqueWork(WORK_NOW, ExistingWorkPolicy.REPLACE, request)
   }
 
-  private fun constraints(s: Settings): Constraints = Constraints.Builder()
-    .setRequiredNetworkType(
-      when (s.network) {
-        "mobile" -> NetworkType.METERED
-        "any" -> NetworkType.CONNECTED
-        else -> NetworkType.UNMETERED
-      },
-    )
+  private fun constraintsBuilder(s: Settings): Constraints.Builder = Constraints.Builder()
+    .setRequiredNetworkType(if (s.wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+    .setRequiresCharging(s.chargingOnly)
     .setRequiresBatteryNotLow(true)
-    .build()
+
+  private fun constraints(s: Settings): Constraints = constraintsBuilder(s).build()
 
   /** True when the live connection is one the person allowed. */
-  fun networkAllowed(context: Context, network: String): Boolean {
+  fun networkAllowed(context: Context, wifiOnly: Boolean): Boolean {
     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
     if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return false
-    val wifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-      caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-    val mobile = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-    return when (network) {
-      "mobile" -> mobile
-      "any" -> wifi || mobile
-      else -> wifi
-    }
-  }
-
-  private fun parseTime(value: String): Pair<Int, Int>? {
-    val parts = value.split(":")
-    if (parts.size != 2) return null
-    val h = parts[0].toIntOrNull() ?: return null
-    val m = parts[1].toIntOrNull() ?: return null
-    return if (h in 0..23 && m in 0..59) Pair(h, m) else null
-  }
-
-  /** Milliseconds from now until the next `HH:MM`, local time. */
-  fun millisUntil(time: String, now: Calendar = Calendar.getInstance()): Long {
-    val (h, m) = parseTime(time) ?: Pair(2, 0)
-    val next = (now.clone() as Calendar).apply {
-      set(Calendar.HOUR_OF_DAY, h)
-      set(Calendar.MINUTE, m)
-      set(Calendar.SECOND, 0)
-      set(Calendar.MILLISECOND, 0)
-      if (!after(now)) add(Calendar.DAY_OF_YEAR, 1)
-    }
-    return next.timeInMillis - now.timeInMillis
+    if (!wifiOnly) return true
+    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) &&
+      (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
   }
 }
 
@@ -174,21 +171,29 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
   override fun doWork(): Result {
     val s = PhotoBackup.settings(applicationContext)
     if (!s.enabled) return Result.success()
-    if (!PhotoBackup.networkAllowed(applicationContext, s.network)) return Result.retry()
+    if (!PhotoBackup.networkAllowed(applicationContext, s.wifiOnly)) return Result.retry()
     try {
       setForegroundAsync(foregroundInfo()).get()
     } catch (e: Exception) {
       // Android refused a foreground notice (started from the background on
       // 12+): run anyway within the normal time limit; the next run resumes.
     }
+    if (isStopped) return Result.retry()
     val outcome = try {
-      NativeBackup.runPass(applicationContext.dataDir.absolutePath)
+      NativeBackup.runPass(applicationContext.dataDir.absolutePath, MediaStoreSource(applicationContext))
     } catch (e: Throwable) {
       1
     }
+    try {
+      NativeBackup.takeSummary()?.let { postResult(it) }
+    } catch (e: Throwable) {
+      // No notice is better than a failed run.
+    }
     return when (outcome) {
       0 -> {
-        if (s.mode == "nightly") PhotoBackup.schedule(applicationContext)
+        if (inputData.getBoolean(PhotoBackup.INPUT_TRIGGER, false)) {
+          PhotoBackup.enqueueTrigger(applicationContext, s, ExistingWorkPolicy.APPEND_OR_REPLACE)
+        }
         Result.success()
       }
       2 -> {
@@ -197,6 +202,38 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
       }
       else -> Result.retry()
     }
+  }
+
+  override fun onStopped() {
+    try {
+      NativeBackup.cancel()
+    } catch (e: Throwable) {
+      // The native library never loaded, so there is no run to stop.
+    }
+  }
+
+  private fun postResult(summary: String) {
+    val (title, body) = summary.split("\n", limit = 2).let { Pair(it[0], it.getOrElse(1) { "" }) }
+    val nm = NotificationManagerCompat.from(applicationContext)
+    if (!nm.areNotificationsEnabled()) return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      manager.createNotificationChannel(
+        NotificationChannel(RESULT_CHANNEL, "Backup results", NotificationManager.IMPORTANCE_DEFAULT),
+      )
+    }
+    val launch = applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
+    val tap = launch?.let {
+      PendingIntent.getActivity(applicationContext, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+    val notification = NotificationCompat.Builder(applicationContext, RESULT_CHANNEL)
+      .setContentTitle(title)
+      .setContentText(body)
+      .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+      .setContentIntent(tap)
+      .setAutoCancel(true)
+      .build()
+    nm.notify(RESULT_NOTIFICATION_ID, notification)
   }
 
   private fun foregroundInfo(): ForegroundInfo {
@@ -223,5 +260,7 @@ class PhotoBackupWorker(context: Context, params: WorkerParameters) : Worker(con
   companion object {
     private const val CHANNEL = "photo-backup"
     private const val NOTIFICATION_ID = 7302
+    private const val RESULT_CHANNEL = "backup-results"
+    private const val RESULT_NOTIFICATION_ID = 7303
   }
 }

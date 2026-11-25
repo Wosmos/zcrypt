@@ -1,9 +1,11 @@
+// Package adapters stores and fetches encrypted chunks on the storage platforms.
 package adapters
 
 import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -12,6 +14,10 @@ import (
 // 404), as opposed to a transient, rate-limit or auth failure. Download wraps it
 // so callers can tell lost data from a network blip.
 var ErrNotFound = errors.New("chunk not found on platform")
+
+// ErrRepoNotFound means a repository listing answered 404: the repo was
+// deleted, or the token lost access. It does not prove the chunks are gone.
+var ErrRepoNotFound = errors.New("repository not found or not accessible")
 
 // PlatformAdapter defines the unified interface for all platform backends.
 type PlatformAdapter interface {
@@ -85,6 +91,13 @@ type BatchDeleter interface {
 	// never-committed / 404 paths drains without a wasted commit. A rate-limit
 	// (HTTP 429) is returned as an error the caller can detect and back off on.
 	BatchDelete(ctx context.Context, repo string, remotePaths []string) error
+}
+
+// DirectDownloader is an optional interface for adapters that can mint a
+// short-lived URL for one chunk, so a client fetches the bytes from the platform
+// itself while the token stays on the server.
+type DirectDownloader interface {
+	DownloadURL(ctx context.Context, ref types.ChunkRef) (url string, expires time.Time, err error)
 }
 
 // DirectUploader is an optional interface for adapters that support presigned URL uploads.

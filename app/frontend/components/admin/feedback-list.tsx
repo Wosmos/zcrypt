@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import { useTranslations } from "next-intl";
 import { adminListFeedback } from "@/lib/api";
 import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
@@ -73,7 +74,7 @@ export function FeedbackList() {
         title: t("emptyTitle"),
         description: t("emptyDesc"),
       }}
-      rowHref={(f) => `/admin/users/${f.user_id}`}
+      rowHref={(f) => adminUserHref(f.user_id)}
       columns={[
         {
           id: "user",

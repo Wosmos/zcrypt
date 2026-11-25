@@ -32,7 +32,7 @@ pub struct ChunkRef {
 #[derive(Debug, Clone)]
 pub struct Chunk {
     pub r#ref: ChunkRef,
-    pub data: Vec<u8>,
+    pub data: bytes::Bytes,
 }
 
 /// A repository in the pool.
@@ -68,6 +68,10 @@ pub struct Progress {
     pub bytes_done: i64,
     pub bytes_total: i64,
     pub speed: f64,
+    /// Why a `Stage::Waiting` transfer is paused (`telegram_blocked` or
+    /// `allowance_used_up`); absent otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waiting: Option<String>,
 }
 
 /// Pipeline stages (superset of upload + download, same strings as the sidecar).
@@ -85,6 +89,8 @@ pub enum Stage {
     Verifying,
     Saving,
     Done,
+    /// Paused until Telegram is reachable again; see `Progress::waiting`.
+    Waiting,
 }
 
 /// Progress sink: the shells (Tauri commands) pass a closure that forwards to

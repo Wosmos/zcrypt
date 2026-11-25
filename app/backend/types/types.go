@@ -174,11 +174,15 @@ type UploadSession struct {
 	Account        string    `json:"account"`
 	RepoID         string    `json:"repo_id"`
 	RepoURL        string    `json:"repo_url"`
-	Mode           string    `json:"mode"` // "relay" (default) or "byos-direct"
+	Mode           string    `json:"mode"`             // "relay" (default) or "byos-direct"
+	Client         string    `json:"client,omitempty"` // X-Zcrypt-Client of the app that started the upload
 	UploadedChunks int       `json:"uploaded_chunks"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
 	ExpiresAt      time.Time `json:"expires_at"`
+	// RelayReserve is the declared size reserved against the transfer allowance
+	// at init; 0 for sessions whose bytes never pass through the server.
+	RelayReserve int64 `json:"-"`
 }
 
 // UploadInitRequest is the JSON body for initiating a chunked upload.
@@ -201,7 +205,9 @@ type UploadInitRequest struct {
 	Mode string `json:"mode,omitempty"`
 }
 
-// UploadCompleteRequest is the JSON body for finalizing a chunked upload.
+// UploadCompleteRequest is the JSON body for finalizing a chunked upload. Both
+// sizes are accepted for older clients and ignored: the server computes them
+// from its own chunk records.
 type UploadCompleteRequest struct {
 	EncryptedSize  int64 `json:"encrypted_size"`
 	CompressedSize int64 `json:"compressed_size"`
@@ -252,6 +258,8 @@ type RefreshToken struct {
 	Country          string
 	Region           string
 	City             string
+	// Client is the X-Zcrypt-Client marker of the app that minted this token.
+	Client string
 }
 
 // GeoLocation is where the edge in front of the backend placed a request.
@@ -354,6 +362,7 @@ type AdminUser struct {
 	LastSeenAt    *time.Time          `json:"last_seen_at"`
 	LastUserAgent string              `json:"last_user_agent"`
 	LastDevice    string              `json:"last_device"`
+	LastClient    string              `json:"last_client"`
 	SessionCount  int                 `json:"session_count"`
 	Platforms     []ConnectedPlatform `json:"platforms"`
 	// Relay24hBytes is what the user moved through the server today and
@@ -400,6 +409,15 @@ type QuotaInfo struct {
 	RelayMaxFileBytes int64 `json:"relay_max_file_bytes"`
 	// RelayResetsAt is when the monthly allowance starts over.
 	RelayResetsAt time.Time `json:"relay_resets_at"`
+	// RelayDayUsedBytes is what the user moved through the server today (UTC).
+	RelayDayUsedBytes int64 `json:"relay_day_used_bytes"`
+	// RelayDayLimitBytes is the daily allowance; 0 means none.
+	RelayDayLimitBytes int64 `json:"relay_day_limit_bytes"`
+	// RelayDayResetsAt is the next UTC midnight.
+	RelayDayResetsAt time.Time `json:"relay_day_resets_at"`
+	// RelayReservedBytes is what in-flight server uploads still promise to send;
+	// it already counts against both windows.
+	RelayReservedBytes int64 `json:"relay_reserved_bytes"`
 }
 
 // Feedback represents user-submitted feedback.
@@ -904,6 +922,8 @@ type SharedVault struct {
 	SizeLimitBytes int64 `json:"size_limit_bytes"`
 	// NeedsRotation is true after a member removal until the key is rotated.
 	NeedsRotation bool `json:"needs_rotation"`
+	// KeyGeneration counts key rotations; writes under the space key echo it.
+	KeyGeneration int `json:"key_generation"`
 	// Card stats, populated by the list endpoint.
 	MemberCount   int                  `json:"member_count"`
 	FileCount     int                  `json:"file_count"`
@@ -939,7 +959,9 @@ type SharedVaultMember struct {
 	UserID          string    `json:"user_id"`
 	Username        string    `json:"username,omitempty"`
 	Email           string    `json:"email,omitempty"`
-	Role            string    `json:"role"` // viewer, editor, admin
+	Role            string    `json:"role"`   // viewer, editor, admin
+	Status          string    `json:"status"` // active, pending (invited; no key hand-off yet)
+	InvitedBy       string    `json:"invited_by,omitempty"`
 	JoinedAt        time.Time `json:"joined_at"`
 	WrappedSpaceKey string    `json:"wrapped_space_key,omitempty"`
 	// Fingerprint of this member's published public key, for out-of-band
@@ -977,6 +999,8 @@ type SharedVaultAddMemberRequest struct {
 	Email           string `json:"email"`
 	Role            string `json:"role"` // viewer, editor, admin
 	WrappedSpaceKey string `json:"wrapped_space_key"`
+	// KeyGeneration of the sealed key; 0 skips the check (older clients).
+	KeyGeneration int `json:"key_generation,omitempty"`
 }
 
 // SharedVaultFile is a file shared into a space, carrying its CEK re-wrapped
@@ -1001,12 +1025,15 @@ type SharedVaultAddFileRequest struct {
 	FileID      string `json:"file_id"`
 	WrappedCEK  string `json:"wrapped_cek"`
 	WrappedName string `json:"wrapped_name"`
+	// KeyGeneration of the space key used; 0 skips the check (older clients).
+	KeyGeneration int `json:"key_generation,omitempty"`
 }
 
 // SharedVaultAddFilesRequest is the JSON body for adding many files to a space
 // in one call; each entry mirrors SharedVaultAddFileRequest.
 type SharedVaultAddFilesRequest struct {
-	Files []SharedVaultAddFileRequest `json:"files"`
+	Files         []SharedVaultAddFileRequest `json:"files"`
+	KeyGeneration int                         `json:"key_generation,omitempty"`
 }
 
 // SharedVaultAddFilesResult reports a batch add.
@@ -1056,6 +1083,8 @@ type SharedVaultRotateRequest struct {
 	// without them a sealed name would stay locked under the discarded key.
 	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
+	// KeyGeneration the client rotated from; 0 skips the check (older clients).
+	KeyGeneration int `json:"key_generation,omitempty"`
 }
 
 // OfflinePin represents a file pinned for offline access.

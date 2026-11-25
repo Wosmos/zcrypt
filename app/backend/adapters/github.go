@@ -2,36 +2,78 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/google/go-github/v60/github"
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/transport"
 	"github.com/zcrypt/zcrypt/types"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 )
 
+var defaultGithubRaw = transport.NewClient(transport.IdleTimeout)
+
+// githubRetryable reports whether a CreateFile error is transient and how long
+// to wait before retrying (zero means the usual backoff already applied).
+func githubRetryable(err error) (time.Duration, bool) {
+	var rl *github.RateLimitError
+	if errors.As(err, &rl) {
+		return time.Until(rl.Rate.Reset.Time), true
+	}
+	var abuse *github.AbuseRateLimitError
+	if errors.As(err, &abuse) {
+		if abuse.RetryAfter != nil {
+			return *abuse.RetryAfter, true
+		}
+		return 0, true
+	}
+	var er *github.ErrorResponse
+	if errors.As(err, &er) && er.Response != nil {
+		return 0, transport.Retryable(er.Response.StatusCode) || er.Response.StatusCode == http.StatusConflict
+	}
+	return 0, isTransientNetErr(err)
+}
+
+// isTransientNetErr reports network-level failures worth retrying.
+func isTransientNetErr(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return false
+	}
+	if transport.IsStalled(err) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	var ne net.Error
+	return errors.As(err, &ne)
+}
+
 // GithubAdapter implements PlatformAdapter for GitHub.
 type GithubAdapter struct {
 	client *github.Client
+	raw    *http.Client
 	owner  string
 	token  string
 }
 
 // NewGithubAdapter creates a GitHub adapter with the given token.
 func NewGithubAdapter(token string) (*GithubAdapter, error) {
-	httpClient := &http.Client{Timeout: 60 * time.Second}
+	httpClient := transport.NewClient(transport.IdleTimeout)
 	client := github.NewClient(httpClient).WithAuthToken(token)
 
-	user, _, err := client.Users.Get(context.Background(), "")
+	ctx, cancel := transport.Control(context.Background())
+	defer cancel()
+	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("authenticate github: %w", err)
 	}
 
 	return &GithubAdapter{
 		client: client,
+		raw:    httpClient,
 		owner:  user.GetLogin(),
 		token:  token,
 	}, nil
@@ -42,6 +84,8 @@ func (g *GithubAdapter) PlatformName() string {
 }
 
 func (g *GithubAdapter) CreateRepo(ctx context.Context, name string) (string, error) {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
 	repo := &github.Repository{
 		Name:        github.String(name),
 		Private:     github.Bool(true),
@@ -106,8 +150,14 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 
 		lastErr = err
 
-		// Retry on 409 Conflict (concurrent commit changed HEAD SHA)
-		if errResp, ok := err.(*github.ErrorResponse); ok && errResp.Response != nil && errResp.Response.StatusCode == 409 {
+		if wait, ok := githubRetryable(err); ok {
+			if wait > 0 {
+				select {
+				case <-ctx.Done():
+					return types.ChunkRef{}, ctx.Err()
+				case <-time.After(wait):
+				}
+			}
 			continue
 		}
 
@@ -130,7 +180,11 @@ func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byt
 	}
 	req.Header.Set("Authorization", "token "+g.token)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := g.raw
+	if client == nil {
+		client = defaultGithubRaw
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
@@ -149,6 +203,29 @@ func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byt
 	}
 
 	return data, nil
+}
+
+// githubLinkTTL is how long a minted raw link is trusted. GitHub's own ?token=
+// expires on its schedule; the client fetches immediately, so keep this short.
+const githubLinkTTL = 5 * time.Minute
+
+// DownloadURL returns the raw.githubusercontent.com link the Contents API mints
+// for one file: for a private repo it carries a token scoped to that path only.
+func (g *GithubAdapter) DownloadURL(ctx context.Context, ref types.ChunkRef) (string, time.Time, error) {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
+	owner, repoName := g.parseRepo(ref.Repo)
+	content, _, resp, err := g.client.Repositories.GetContents(ctx, owner, repoName, ref.RemotePath, nil)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return "", time.Time{}, fmt.Errorf("download url %s: %w", ref.RemotePath, ErrNotFound)
+		}
+		return "", time.Time{}, fmt.Errorf("download url: %w", err)
+	}
+	if content == nil || content.GetDownloadURL() == "" {
+		return "", time.Time{}, fmt.Errorf("download url %s: no link returned", ref.RemotePath)
+	}
+	return content.GetDownloadURL(), time.Now().Add(githubLinkTTL), nil
 }
 
 // parseRepo extracts owner and repo name from either:
@@ -170,6 +247,8 @@ func (g *GithubAdapter) parseRepo(repo string) (owner, name string) {
 }
 
 func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
 	owner, repoName := g.parseRepo(ref.Repo)
 
 	// Get the file SHA first.
@@ -206,6 +285,8 @@ func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 }
 
 func (g *GithubAdapter) GetRepoSize(ctx context.Context, repo string) (int64, error) {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
 	owner, repoName := g.parseRepo(repo)
 
 	r, _, err := g.client.Repositories.Get(ctx, owner, repoName)
@@ -218,6 +299,8 @@ func (g *GithubAdapter) GetRepoSize(ctx context.Context, repo string) (int64, er
 }
 
 func (g *GithubAdapter) ListChunks(ctx context.Context, repo string) ([]types.ChunkRef, error) {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
 	owner := g.owner
 	repoName := repoNameFromFull(repo)
 	if parts := strings.SplitN(repo, "/", 2); len(parts) == 2 {
@@ -232,9 +315,14 @@ func (g *GithubAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 	// exactly what chunks.remote_path stores, so a reconciliation diff matches.
 	tree, resp, err := g.client.Git.GetTree(ctx, owner, repoName, "HEAD", true)
 	if err != nil {
-		// An empty repo (no commits yet) has no tree → nothing stored, not an error.
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
+		// An empty repo (no commits yet) answers 409: nothing stored, not an error.
+		if resp != nil && resp.StatusCode == http.StatusConflict {
 			return nil, nil
+		}
+		// 404 is a deleted repo or a token that lost access; callers must not
+		// treat it as proof the chunks are gone.
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("get tree %s: %w", repo, ErrRepoNotFound)
 		}
 		return nil, fmt.Errorf("get tree: %w", err)
 	}

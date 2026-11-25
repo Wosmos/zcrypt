@@ -322,6 +322,15 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NUL
 -- same data plane. The shared managed-pool token is never used for byos-direct.
 ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'relay';
 
+-- Transfer allowance reservation: the declared bytes a relay session promised
+-- to send through the server (0 for presigned and byos-direct sessions). The
+-- unsent remainder counts against the user's daily and monthly windows.
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS relay_reserve BIGINT NOT NULL DEFAULT 0;
+-- When the session last stored a chunk. Its relay_reserve only holds allowance
+-- while it is this recent, so an abandoned upload stops blocking new ones after
+-- a day instead of for the 7 days it stays resumable.
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 -- Cross-device sync feed. Every mutation to a user's files (added / updated /
 -- deleted / moved / renamed) stamps the file with a per-user monotonic revision
 -- so any device can pull just what changed via GET /api/changes?since=<rev> and
@@ -695,6 +704,12 @@ CREATE INDEX IF NOT EXISTS idx_shared_vault_members_user ON shared_vault_members
 -- private key can open it. Empty for legacy metadata-only memberships.
 ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS wrapped_space_key TEXT NOT NULL DEFAULT '';
 
+-- 'pending' = invited, but the invitee has not published a key yet (or an
+-- owner/admin device has not sealed the space key to it). A pending member has
+-- no grant and reads nothing; completing the hand-off flips it to 'active'.
+ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS invited_by UUID REFERENCES users(id) ON DELETE SET NULL;
+
 -- Files shared into a space, each with its CEK re-wrapped under the SPACE KEY
 -- (not the owner's vault key), so any member can unwrap it with the space key
 -- and decrypt the file. wrapped_cek is opaque base64; the server never sees the
@@ -726,6 +741,11 @@ ALTER TABLE shared_vault_files ADD COLUMN IF NOT EXISTS wrapped_name TEXT NOT NU
 -- Set when a member is removed; cleared by the next key rotation. Until then new
 -- files are refused so nothing is wrapped under a key the removed member may hold.
 ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS needs_rotation BOOLEAN NOT NULL DEFAULT false;
+
+-- Bumped by every key rotation. Writes that wrap or seal the space key name the
+-- generation they used, so a device holding a key rotated away elsewhere is
+-- refused instead of storing something no current member can open.
+ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS key_generation INTEGER NOT NULL DEFAULT 1;
 
 -- Public folder share links. Mirrors single-file shares (shares table) but for a
 -- whole folder: one random folder-share key (kept only in the URL #fragment,
@@ -1090,6 +1110,13 @@ UPDATE users u SET last_seen_at = rt.created_at, last_ip_prefix = rt.ip, last_us
   FROM (SELECT DISTINCT ON (user_id) user_id, created_at, ip, user_agent
           FROM refresh_tokens ORDER BY user_id, created_at DESC) rt
  WHERE rt.user_id = u.id AND u.last_seen_at IS NULL;
+
+-- The app that started a session and the one each upload came from, as the
+-- client sent it in X-Zcrypt-Client ("web/0.2.3", "desktop-windows/0.2.3").
+-- '' for sessions and uploads from before the marker existed.
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_client TEXT NOT NULL DEFAULT '';
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT '';
 
 -- Admin list sorts and filters.
 CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at DESC);

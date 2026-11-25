@@ -21,6 +21,7 @@ import (
 	"github.com/zcrypt/zcrypt/crypto"
 	"github.com/zcrypt/zcrypt/geoip"
 	"github.com/zcrypt/zcrypt/index"
+	"github.com/zcrypt/zcrypt/netguard"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/types"
@@ -57,10 +58,18 @@ type Server struct {
 
 	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
 	authLimiter *rateLimiter
+	// appSignupLimiter caps accounts created per person per day by requests
+	// marked as the desktop or Android app, which skip Turnstile.
+	appSignupLimiter *rateLimiter
+	// stepUp counts public links made per account and network for the
+	// step-up Turnstile check (step_up.go).
+	stepUp stepUpState
 	// Failed-login limiter keyed on (email, IP): counts only failures, so a
 	// stranger's bad guesses cannot lock the owner out from their own IP.
 	loginFailLimiter *rateLimiter
 	geo              *geoip.DB
+	netGuard         *netguard.Guard
+	turnstileURL     string
 	// Per-email send limiter for reset, verification and magic-link emails,
 	// keyed on (flow, email) so one flow never starves another or login.
 	emailSendLimiter *rateLimiter
@@ -78,10 +87,14 @@ type Server struct {
 
 	// Web Push: cached signing keys, the endpoint allowlist check (a field so
 	// tests can point it at a local server) and a client that won't redirect.
-	push           pushState
-	pushHostOK     func(endpoint string) bool
-	pushHTTP       *http.Client
-	linkViewNotice *rateLimiter
+	push             pushState
+	pushHostOK       func(endpoint string) bool
+	pushHTTP         *http.Client
+	pushSink         func(userID string, msg pushMessage)
+	filesAdded       *filesAddedBatcher
+	linkViewNotice   *rateLimiter
+	keyLookupLimiter *rateLimiter
+	inviteLimiter    *rateLimiter
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
 	// from authLimiter so a 2FA login doesn't consume login-attempt budget.
@@ -210,6 +223,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		adapterErrors:         make(map[string]map[string]string),
 		pushLimiter:           newPushLimiter(defaultPushLimits(), time.Hour),
 		authLimiter:           newRateLimiter(5, 5*time.Minute),
+		appSignupLimiter:      newRateLimiter(appSignupsPerDay, 24*time.Hour),
+		stepUp:                newStepUpState(),
 		loginFailLimiter:      newRateLimiter(3, 15*time.Minute),
 		emailSendLimiter:      newRateLimiter(3, 15*time.Minute),
 		userLimiter:           newRateLimiter(600, time.Minute),
@@ -218,7 +233,10 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		releases:              newReleaseCache(),
 		pushHostOK:            isPushServiceEndpoint,
 		pushHTTP:              newPushHTTPClient(),
+		filesAdded:            newFilesAddedBatcher(filesAddedWindow),
 		linkViewNotice:        newRateLimiter(1, 10*time.Minute),
+		keyLookupLimiter:      newRateLimiter(keyLookupLimit, keyLookupWindow),
+		inviteLimiter:         newRateLimiter(inviteLimit, inviteWindow),
 		twoFAIPLimiter:        newRateLimiter(10, 5*time.Minute),
 		twoFAUserLimiter:      newRateLimiter(5, 5*time.Minute),
 		sendLimiter:           newRateLimiter(5, time.Hour),
@@ -260,6 +278,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		return s.db.SessionExists(ctx, userID, sessionID)
 	})
 	s.geo = openGeoIP(cfg.GeoIPDB)
+	s.netGuard = newNetGuard(cfg)
 	return s
 }
 
@@ -291,6 +310,12 @@ func (s *Server) signalDeletion() {
 // cached before the failed tokens are retried.
 const adapterRetryTTL = 60 * time.Second
 
+// failedAdapter marks a token whose adapter could not be built, carrying why.
+type failedAdapter struct {
+	adapters.PlatformAdapter
+	reason string
+}
+
 // getUserAdapters returns all adapters for a user (own tokens + global tokens).
 // Results are cached per userID. A map built with ≥1 failed adapter (e.g. the
 // platform is unreachable from this server) is still cached, the working
@@ -317,27 +342,46 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 	own := make(map[string]bool)
 	failures := make(map[string]string) // platform → short reason
 
-	for _, tok := range tokens {
-		// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
-		kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
-		if err != nil {
-			log.Printf("warn: derive KEK for token %s: %v", tok.ID, err)
+	// Each adapter checks its token with the platform, so build them in
+	// parallel: a cold load costs the slowest platform, not the sum. Results
+	// merge in token order, as the sequential loop did.
+	built := make([]adapters.PlatformAdapter, len(tokens))
+	var wg sync.WaitGroup
+	for i, tok := range tokens {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
+			kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
+			if err != nil {
+				log.Printf("warn: derive KEK for token %s: %v", logSafe(tok.ID), err) // #nosec G706 -- control chars stripped via logSafe
+				return
+			}
+			plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
+			if err != nil {
+				log.Printf("warn: decrypt token %s: %v", logSafe(tok.ID), err) // #nosec G706 -- control chars stripped via logSafe
+				return
+			}
+			adapter, err := createAdapter(tok.Platform, plaintext)
+			if err != nil {
+				log.Printf("warn: create adapter for %s/%s: %v", logSafe(tok.Platform), logSafe(tok.Username), err) // #nosec G706 -- control chars stripped via logSafe
+				built[i] = failedAdapter{reason: shortAdapterError(err)}
+				return
+			}
+			built[i] = adapter
+		}()
+	}
+	wg.Wait()
+
+	for i, tok := range tokens {
+		adapter := built[i]
+		if adapter == nil {
 			continue
 		}
-
-		plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
-		if err != nil {
-			log.Printf("warn: decrypt token %s: %v", tok.ID, err)
+		if f, ok := adapter.(failedAdapter); ok {
+			failures[tok.Platform] = f.reason
 			continue
 		}
-
-		adapter, err := createAdapter(tok.Platform, plaintext)
-		if err != nil {
-			log.Printf("warn: create adapter for %s/%s: %v", tok.Platform, tok.Username, err)
-			failures[tok.Platform] = shortAdapterError(err)
-			continue
-		}
-
 		username := getAdapterUsername(adapter)
 		key := tok.Platform + ":" + username
 		userAdapters[key] = adapter
@@ -549,21 +593,24 @@ func (s *Server) isOwnAdapterKey(userID, key string) bool {
 }
 
 // uploadQuota is the storage cap for an upload that lands on the user's own
-// account (own) or on the shared pool. An admin-set quota always applies; own
-// storage is otherwise unlimited; the shared pool carries the shared cap even
-// for users who also have storage of their own connected.
-func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) int64 {
+// account (own) or on the shared pool, and whether it counts only shared-pool
+// files. An admin-set quota always applies to everything; own storage is
+// otherwise unlimited; the shared cap counts only what sits on the shared pool,
+// so files on the user's own accounts never use it up. Admins run the shared
+// pool on their own tokens, so it is not capped for them, as the transfer
+// allowance isn't.
+func (s *Server) uploadQuota(ctx context.Context, userID string, own bool) (quota int64, sharedOnly bool) {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return sharedStorageQuotaBytes()
+		return sharedStorageQuotaBytes(), true
 	}
 	if user.StorageQuota != nil {
-		return *user.StorageQuota
+		return *user.StorageQuota, false
 	}
-	if own {
-		return 0
+	if own || user.Role == types.RoleAdmin {
+		return 0, false
 	}
-	return sharedStorageQuotaBytes()
+	return sharedStorageQuotaBytes(), true
 }
 
 // resolveAdapterForUser finds the right adapter for a platform:account key.
@@ -873,7 +920,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Client-side encrypted upload (chunked)
 	mux.HandleFunc("POST /api/upload/init", maxJSON(s.AuthMiddleware(s.HandleUploadInit)))
-	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", s.AuthMiddleware(s.HandleChunkUpload))
+	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", s.AuthMiddleware(idleStream(s.HandleChunkUpload)))
 	mux.HandleFunc("POST /api/upload/{sid}/presign/{idx}", maxJSON(s.AuthMiddleware(s.HandlePresignChunk)))
 	mux.HandleFunc("POST /api/upload/{sid}/confirm/{idx}", maxJSON(s.AuthMiddleware(s.HandleConfirmChunk)))
 	mux.HandleFunc("POST /api/upload/{sid}/complete", maxJSON(s.AuthMiddleware(s.HandleUploadComplete)))
@@ -884,7 +931,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Client-side decrypted download (chunked)
 	mux.HandleFunc("GET /api/files/{id}/meta", s.AuthMiddleware(uuidPathParams(s.HandleGetFileMeta, "id")))
 	mux.HandleFunc("POST /api/files/meta", maxJSON(s.AuthMiddleware(s.HandleBatchFileMeta)))
-	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(uuidPathParams(s.HandleGetChunk, "id")))
+	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(uuidPathParams(idleStream(s.HandleGetChunk), "id")))
+	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}/link", s.AuthMiddleware(uuidPathParams(s.HandleGetChunkLink, "id")))
 	mux.HandleFunc("GET /api/files/{id}/locators", s.AuthMiddleware(uuidPathParams(s.HandleGetFileLocators, "id")))
 	mux.HandleFunc("GET /api/changes", s.AuthMiddleware(s.HandleGetChanges))
 
@@ -901,7 +949,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Public share access (no auth, rate-limited)
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
-	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(s.HandleGetShareChunk))
+	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(idleStream(s.HandleGetShareChunk)))
 	mux.HandleFunc("POST /api/share/{token}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload)))
 
 	// Folder shares: public link for a whole folder (management is authed;
@@ -911,16 +959,17 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/folder-shares/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRevokeFolderShare, "id"))))
 	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
-	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(s.HandleGetFolderShareChunk))
+	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareChunkRateLimitMiddleware(idleStream(s.HandleGetFolderShareChunk)))
 	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload)))
 
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.OptionalAuthMiddleware(s.HandleSendInit))))
-	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(s.HandleSendChunkUpload))
+	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(idleStream(s.HandleSendChunkUpload)))
+	mux.HandleFunc("DELETE /api/send/{sid}", s.ShareRateLimitMiddleware(s.OptionalAuthMiddleware(s.HandleSendCancel)))
 	mux.HandleFunc("POST /api/send/{sid}/complete", maxJSON(s.ShareRateLimitMiddleware(s.HandleSendComplete)))
 	mux.HandleFunc("GET /api/send/{token}", s.ShareRateLimitMiddleware(s.HandleGetSendInfo))
 	mux.HandleFunc("GET /api/send/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetSendMeta))
-	mux.HandleFunc("GET /api/send/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetSendChunk))
+	mux.HandleFunc("GET /api/send/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(idleStream(s.HandleGetSendChunk)))
 
 	// Encrypted pads (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/pad", MaxBodyMiddleware(2<<20, s.PadRateLimitMiddleware(s.HandleCreatePad)))
@@ -1011,6 +1060,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/shared-vaults/{id}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleUpdateSharedVault, "id"))))
 	mux.HandleFunc("PATCH /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleUpdateSharedVaultMemberRole, "id", "uid"))))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleAddSharedVaultMember, "id"))))
+	mux.HandleFunc("POST /api/shared-vaults/{id}/members/{uid}/key", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleCompleteSharedVaultMember, "id", "uid"))))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleRemoveSharedVaultMember, "id", "uid"))))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleAddSharedVaultFile, "id"))))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files/batch", maxJSON(s.AuthMiddleware(uuidPathParams(s.HandleAddSharedVaultFiles, "id"))))

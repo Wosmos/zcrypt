@@ -40,6 +40,7 @@ import {
 } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
 import { ApiError } from "@/lib/http-error";
+import { PausedError, AUTO_RESUME_MAX_ATTEMPTS } from "@/lib/transport";
 import { setFilesData } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -51,6 +52,7 @@ import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import type { SidecarProgress } from "@/lib/tauri";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { WebTransferLimitCode, WebTransferLimitError } from "@/lib/web-transfer-limit";
+import { useTransferWait } from "@/store/transfer-wait";
 
 const { notifyMock, getCachedThumbnailMock } = vi.hoisted(() => ({
   notifyMock: vi.fn(async (_event: import("@/lib/notify").NotifyEvent) => true),
@@ -85,10 +87,23 @@ const byosMock = vi.hoisted(() => ({
   directTargetForResume: vi.fn(),
   resolveDirectRepo: vi.fn(),
   pushDirectChunk: vi.fn(),
+  discardDirectChunk: vi.fn(),
   disableWebDirect: vi.fn(),
+  enableWebDirect: vi.fn(),
+  directPossible: vi.fn(),
   isDirectUnreachable: vi.fn((err: unknown) => err instanceof TypeError),
+  ReconnectTelegramError: class ReconnectTelegramError extends Error {},
 }));
 vi.mock("@/lib/byos-direct", () => byosMock);
+
+const gateMock = vi.hoisted(() => ({
+  relayFitsNow: vi.fn(),
+  waitForTelegram: vi.fn(),
+  probeTelegram: vi.fn(),
+}));
+vi.mock("@/lib/relay-gate", () => ({ relayFitsNow: gateMock.relayFitsNow }));
+vi.mock("@/lib/transfer-wait", () => ({ waitForTelegram: gateMock.waitForTelegram }));
+vi.mock("@/lib/telegram-reach", () => ({ probeTelegram: gateMock.probeTelegram }));
 
 const guardMock = vi.hoisted(() => ({
   webFileLimitFor: vi.fn(),
@@ -294,6 +309,11 @@ describe("useUploadStore", () => {
     byosMock.resolveDirectRepo.mockReset();
     byosMock.pushDirectChunk.mockReset();
     byosMock.disableWebDirect.mockReset();
+    byosMock.enableWebDirect.mockReset();
+    byosMock.directPossible.mockReset().mockResolvedValue(false);
+    gateMock.relayFitsNow.mockReset().mockResolvedValue(true);
+    gateMock.waitForTelegram.mockReset().mockResolvedValue(undefined);
+    gateMock.probeTelegram.mockReset().mockResolvedValue("blocked");
     guardMock.webFileLimitFor.mockReset().mockResolvedValue(null);
     guardMock.showWebTransferLimit.mockReset();
     (initUpload as Mock).mockReset().mockResolvedValue(defaultInitResponse());
@@ -358,8 +378,7 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(initUpload).toHaveBeenCalledWith(
-        expect.objectContaining({ platform: "telegram" })
-      );
+        expect.objectContaining({ platform: "telegram" }), expect.anything());
     });
 
     it("passes platform undefined through unchanged when the picker is on Auto: the server resolves it, not a size heuristic", async () => {
@@ -368,8 +387,7 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(initUpload).toHaveBeenCalledWith(
-        expect.objectContaining({ platform: undefined })
-      );
+        expect.objectContaining({ platform: undefined }), expect.anything());
     });
   });
 
@@ -387,10 +405,9 @@ describe("useUploadStore", () => {
           chunk_count: 1,
           chunk_size: SMALL_PROFILE.chunkSize,
           folder_id: null,
-        })
-      );
+        }), expect.anything());
       expect(uploadChunk).toHaveBeenCalledTimes(1);
-      expect(completeUpload).toHaveBeenCalledWith("sess-1", 10, 10);
+      expect(completeUpload).toHaveBeenCalledWith("sess-1", 10, 10, expect.anything());
       expect(getItem(id)?.status).toBe("done");
       expect(getItem(id)?.progress).toBe(100);
       expect(toast.success).toHaveBeenCalledWith("a.txt uploaded", expect.anything());
@@ -451,11 +468,11 @@ describe("useUploadStore", () => {
       const id = queueIdFor();
       await flush();
 
-      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ chunk_count: 3 }));
+      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ chunk_count: 3 }), expect.anything());
       expect(uploadChunk).toHaveBeenCalledTimes(3);
       const indices = (uploadChunk as Mock).mock.calls.map((c) => c[1]).sort();
       expect(indices).toEqual([0, 1, 2]);
-      expect(completeUpload).toHaveBeenCalledWith("sess-1", SMALL_PROFILE.chunkSize * 3, SMALL_PROFILE.chunkSize * 3);
+      expect(completeUpload).toHaveBeenCalledWith("sess-1", SMALL_PROFILE.chunkSize * 3, SMALL_PROFILE.chunkSize * 3, expect.anything());
       expect(getItem(id)?.status).toBe("done");
     });
   });
@@ -489,6 +506,173 @@ describe("useUploadStore", () => {
 
       expect(directUploadToURL).not.toHaveBeenCalled();
       expect(confirmChunk).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("startUpload: Telegram blocked and the allowance cannot carry the file", () => {
+    const TARGET = {
+      platform: "telegram",
+      account: "vault_bot",
+      telegram: { botToken: "123:SECRET", chatId: "-100777" },
+    };
+    const REPO = { id: "repo-1", platform: "telegram", account: "vault_bot" };
+
+    beforeEach(() => {
+      byosMock.directPossible.mockResolvedValue(true);
+      byosMock.directTargetForResume.mockResolvedValue(TARGET);
+      byosMock.resolveDirectRepo.mockResolvedValue(REPO);
+      byosMock.pushDirectChunk.mockImplementation(async (_t: unknown, data: Uint8Array) => `${data.byteLength}:FID`);
+    });
+
+    it("waits for Telegram instead of using the server, then uploads directly", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      let reached = false;
+      byosMock.resolveWebDirect.mockImplementation(async () => (reached ? TARGET : null));
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      let reach: () => void = () => {};
+      gateMock.waitForTelegram.mockImplementation(
+        () =>
+          new Promise<void>((r) => {
+            reach = () => {
+              reached = true;
+              r();
+            };
+          }),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "telegram_blocked", expect.any(AbortSignal));
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(uploadChunk).not.toHaveBeenCalled();
+
+      reach();
+      await flush();
+      expect(byosMock.enableWebDirect).toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ mode: "byos-direct" }), expect.anything());
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("goes through the server when Telegram is blocked but the file fits the allowance", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(true);
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(gateMock.waitForTelegram).not.toHaveBeenCalled();
+      expect(gateMock.relayFitsNow).toHaveBeenCalledWith(10);
+      expect(uploadChunk).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not wait when Telegram answers but cannot be used for another reason", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      gateMock.probeTelegram.mockResolvedValue("ok");
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(gateMock.waitForTelegram).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the session direct and waits when the first push cannot reach Telegram and the server cannot carry it", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      byosMock.pushDirectChunk
+        .mockRejectedValueOnce(new TypeError("Network request failed"))
+        .mockImplementation(async (_t: unknown, data: Uint8Array) => `${data.byteLength}:FID`);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "telegram_blocked", expect.any(AbortSignal));
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(cancelUpload).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("waits when a later chunk loses Telegram, then carries on directly", async () => {
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ mode: "byos-direct", direct_upload: true, chunk_count: 3 }),
+      );
+      let calls = 0;
+      byosMock.pushDirectChunk.mockImplementation(async (_t: unknown, data: Uint8Array) => {
+        calls++;
+        if (calls === 2) throw new TypeError("Network request failed");
+        return `${data.byteLength}:FID`;
+      });
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("big.bin", SMALL_PROFILE.chunkSize * 3)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledTimes(1);
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("holds an upload the server turns away on the allowance, then restarts it straight to Telegram", async () => {
+      const limit = new WebTransferLimitError(
+        WebTransferLimitCode.DailyExceeded,
+        { limitBytes: 20, usedBytes: 20, resetsAt: "2026-11-20T00:00:00Z" },
+        403,
+      );
+      byosMock.resolveWebDirect.mockResolvedValueOnce(null).mockResolvedValue(TARGET);
+      (initUpload as Mock)
+        .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-relay" }))
+        .mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      (uploadChunk as Mock).mockRejectedValueOnce(limit);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal), Date.parse("2026-11-20T00:00:00Z"));
+      expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
+      expect(cancelUpload).toHaveBeenCalledWith("sess-relay");
+      expect(initUpload).toHaveBeenCalledTimes(2);
+      expect((initUpload as Mock).mock.calls[1][0]).toMatchObject({ mode: "byos-direct" });
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("still fails with the dialog when the allowance runs out and there is no Telegram of the user's own", async () => {
+      byosMock.directPossible.mockResolvedValue(false);
+      const limit = new WebTransferLimitError(WebTransferLimitCode.DailyExceeded, { limitBytes: 20 }, 403);
+      (initUpload as Mock).mockRejectedValue(limit);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(gateMock.waitForTelegram).not.toHaveBeenCalled();
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalled();
+      expect(getItem(queueIdFor())?.status).toBe("failed");
+    });
+
+    it("stops waiting when the upload is cancelled", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      byosMock.resolveWebDirect.mockResolvedValue(null);
+      gateMock.waitForTelegram.mockImplementation(
+        (_k: string, _r: string, signal: AbortSignal) =>
+          new Promise((_res, rej) =>
+            signal.addEventListener("abort", () => rej(new DOMException("Aborted", "AbortError"))),
+          ),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+      useUploadStore.getState().removeFromQueue(id);
+      await flush();
+
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(getItem(id)).toBeUndefined();
     });
   });
 
@@ -532,8 +716,7 @@ describe("useUploadStore", () => {
 
       expect(byosMock.resolveWebDirect).toHaveBeenCalledWith("telegram");
       expect(initUpload).toHaveBeenCalledWith(
-        expect.objectContaining({ platform: "telegram", mode: "byos-direct" }),
-      );
+        expect.objectContaining({ platform: "telegram", mode: "byos-direct" }), expect.anything());
       expect(byosMock.resolveDirectRepo).toHaveBeenCalledWith(TARGET);
       expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(1);
       expect(byosMock.pushDirectChunk.mock.calls[0][2]).toMatchObject({ probe: true });
@@ -543,14 +726,62 @@ describe("useUploadStore", () => {
 
       expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(3);
       expect(byosMock.pushDirectChunk.mock.calls[1][2]).not.toHaveProperty("probe");
-      expect(confirmChunk).toHaveBeenCalledWith("sess-1", 0, "chunk-sha-0", SMALL_PROFILE.chunkSize, "1:FIRST", true, PLACEMENT);
-      expect(confirmChunk).toHaveBeenCalledWith("sess-1", 2, "chunk-sha-2", SMALL_PROFILE.chunkSize, `${SMALL_PROFILE.chunkSize}:FID`, true, PLACEMENT);
+      expect(confirmChunk).toHaveBeenCalledWith("sess-1", 0, "chunk-sha-0", SMALL_PROFILE.chunkSize, "1:FIRST", true, PLACEMENT, expect.anything());
+      expect(confirmChunk).toHaveBeenCalledWith("sess-1", 2, "chunk-sha-2", SMALL_PROFILE.chunkSize, `${SMALL_PROFILE.chunkSize}:FID`, true, PLACEMENT, expect.anything());
       expect(uploadChunk).not.toHaveBeenCalled();
       expect(presignChunk).not.toHaveBeenCalled();
-      expect(completeUpload).toHaveBeenCalledWith("sess-1", SMALL_PROFILE.chunkSize * 3, SMALL_PROFILE.chunkSize * 3);
+      expect(completeUpload).toHaveBeenCalledWith("sess-1", SMALL_PROFILE.chunkSize * 3, SMALL_PROFILE.chunkSize * 3, expect.anything());
       expect(getItem(id)?.status).toBe("done");
       const persisted = JSON.parse(localStorage.getItem("zc_upl:big.bin:3072:1000:") ?? "null");
       expect(persisted).toBeNull();
+    });
+
+    it("a resume whose Telegram credentials are gone tells the person to reconnect, links to storage settings, and finishes after reconnecting", async () => {
+      const open = vi.spyOn(window, "open").mockImplementation(() => null);
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
+      const key = `zc_upl:${file.name}:${file.size}:${file.lastModified}:`;
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          sessionId: "sess-direct",
+          fileId: "file-1",
+          chunkCount: 3,
+          chunkSize: SMALL_PROFILE.chunkSize,
+          directUpload: true,
+          shouldCompress: true,
+          platform: "telegram",
+          mode: "byos-direct",
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-direct",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 3,
+        uploaded_chunks: [0],
+        completed_count: 1,
+      });
+      byosMock.directTargetForResume.mockResolvedValue(null);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe('Reconnect Telegram to finish uploading "big.bin".');
+      const [message, action] = (toast.warning as Mock).mock.calls.at(-1)!;
+      expect(message).toBe('Reconnect Telegram to finish uploading "big.bin".');
+      action.onClick();
+      expect(open).toHaveBeenCalledWith("/settings?tab=platforms", "_blank", "noopener");
+      expect(localStorage.getItem(key)).not.toBeNull();
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(byosMock.pushDirectChunk).not.toHaveBeenCalled();
+
+      byosMock.directTargetForResume.mockResolvedValue(TARGET);
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush();
+      expect(byosMock.pushDirectChunk.mock.calls.length).toBeGreaterThan(0);
+      expect(getItem(id)?.status).toBe("done");
+      open.mockRestore();
     });
 
     it("relays when the direct path is not available", async () => {
@@ -592,7 +823,7 @@ describe("useUploadStore", () => {
         ["sess-relay", 2],
       ]);
       expect(confirmChunk).not.toHaveBeenCalled();
-      expect(completeUpload).toHaveBeenCalledWith("sess-relay", expect.any(Number), expect.any(Number));
+      expect(completeUpload).toHaveBeenCalledWith("sess-relay", expect.any(Number), expect.any(Number), expect.anything());
       expect(getItem(id)?.status).toBe("done");
     });
 
@@ -662,7 +893,7 @@ describe("useUploadStore", () => {
       expect(uploadChunk).not.toHaveBeenCalled();
     });
 
-    it("continues a resumed byos-direct session directly, without a reachability fallback", async () => {
+    it("keeps a resumed byos-direct session direct: a blocked Telegram makes it wait, never relay", async () => {
       (initUpload as Mock).mockResolvedValue(
         defaultInitResponse({ resumed: true, mode: "byos-direct", direct_upload: true, session_id: "sess-old" }),
       );
@@ -683,7 +914,10 @@ describe("useUploadStore", () => {
       expect(byosMock.pushDirectChunk.mock.calls[0][2]).not.toHaveProperty("probe");
       expect(byosMock.disableWebDirect).not.toHaveBeenCalled();
       expect(cancelUpload).not.toHaveBeenCalled();
-      expect(getItem(id)?.status).toBe("failed");
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "telegram_blocked", expect.any(AbortSignal));
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(2);
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
     });
 
     it("resumes a direct session after a page reload in its original mode", async () => {
@@ -714,7 +948,7 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(initUpload).not.toHaveBeenCalled();
-      expect(confirmChunk).toHaveBeenCalledWith("sess-persisted", 0, "chunk-sha-0", 10, "10:FID", true, PLACEMENT);
+      expect(confirmChunk).toHaveBeenCalledWith("sess-persisted", 0, "chunk-sha-0", 10, "10:FID", true, PLACEMENT, expect.anything());
       expect(presignChunk).not.toHaveBeenCalled();
       expect(getItem(id)?.status).toBe("done");
     });
@@ -876,7 +1110,7 @@ describe("useUploadStore", () => {
       );
       expect(getItem(queueIdFor())).toMatchObject({
         status: "failed",
-        error: expect.stringContaining("Resets on December 1"),
+        error: expect.stringContaining("It resets on December 1"),
         limit: limit.limit,
       });
       noToasts();
@@ -1129,7 +1363,7 @@ describe("useUploadStore", () => {
       useUploadStore.getState().resumeUpload(id, "pw");
       await flush();
 
-      expect(getUploadStatus).toHaveBeenCalledWith("sess-1");
+      expect(getUploadStatus).toHaveBeenCalledWith("sess-1", expect.anything());
       // Only chunk 1 (the missing one) is re-sent on resume.
       expect((uploadChunk as Mock).mock.calls.map((c) => c[1])).toEqual([1]);
       expect(getItem(id)?.status).toBe("done");
@@ -1435,7 +1669,7 @@ describe("useUploadStore", () => {
     });
 
     it("retries a transient (5xx-shaped) error with backoff before eventually succeeding", async () => {
-      (uploadChunk as Mock).mockRejectedValueOnce(new Error("503 Service Unavailable")).mockResolvedValue(undefined);
+      (uploadChunk as Mock).mockRejectedValueOnce(new ApiError("Service Unavailable", 503)).mockResolvedValue(undefined);
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -1549,7 +1783,7 @@ describe("useUploadStore", () => {
         expect.any(Function),
         expect.anything()
       );
-      expect(completeUpload).toHaveBeenCalledWith("sess-persisted", 10, 10);
+      expect(completeUpload).toHaveBeenCalledWith("sess-persisted", 10, 10, expect.anything());
       expect(getItem(id)?.status).toBe("done");
     });
 
@@ -1830,12 +2064,10 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("paused");
     });
 
-    it("treats an escaped error whose message happens to match the pause signature as a graceful stop, never a failure", async () => {
-      // isPauseError matches purely on message text, by design (it can't tell
-      // a real abort-driven "Upload paused" from any other source of that
-      // exact string): this locks in that CONTRACT: whatever the origin,
-      // the outer catch must treat it as a stop, never call setError/toast.
-      (contentMacFile as Mock).mockRejectedValueOnce(new Error("Upload paused"));
+    it("treats an escaped PausedError as a graceful stop, never a failure", async () => {
+      // Whatever the origin, a PausedError reaching the outer catch is a stop:
+      // it must never call setError/toast.
+      (contentMacFile as Mock).mockRejectedValueOnce(new PausedError());
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -2046,6 +2278,20 @@ describe("useUploadStore", () => {
       expect(useUploadStore.getState().queue).toHaveLength(0);
     });
 
+    it("shows the allowance dialog, not raw JSON, when the engine refuses an upload", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (sidecarUpload as Mock).mockRejectedValue(new Error('api: api 403: {"error":"x","code":"relay_daily_exceeded","limit_bytes":100,"used_bytes":100,"resets_at":"2026-11-23T00:00:00Z","needed_bytes":40}'));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      const item = useUploadStore.getState().queue[0];
+      expect(item.status).toBe("failed");
+      expect(item.error).not.toContain("{");
+      expect(guardMock.showWebTransferLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "relay_daily_exceeded", neededBytes: 40 }),
+      );
+    });
+
     it("queues each picked path, streams it to the platform, and marks it done", async () => {
       const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin", "/tmp/b.bin"]);
@@ -2080,6 +2326,24 @@ describe("useUploadStore", () => {
       await flush(10);
       return { run, releases, sidecarUpload: sidecarUpload as Mock };
     }
+
+    it("marks a desktop upload waiting while the engine reports it, and clears it when it moves again", async () => {
+      const { subscribeProgress } = await import("@/lib/tauri");
+      let emit: ((p: Record<string, unknown>) => void) | undefined;
+      (subscribeProgress as Mock).mockImplementation(async (cb: typeof emit) => {
+        emit = cb;
+        return vi.fn();
+      });
+      const { run, releases } = await startGatedDesktopUpload(["/tmp/a.bin"]);
+      const id = useUploadStore.getState().queue[0].id;
+
+      emit!({ file_name: "a.bin", stage: "waiting", waiting: "allowance_used_up", bytes_done: 0, bytes_total: 5 });
+      expect(useTransferWait.getState().waits[`up:${id}`]).toBe("allowance_used_up");
+      emit!({ file_name: "a.bin", stage: "uploading", bytes_done: 2, bytes_total: 5 });
+      expect(useTransferWait.getState().waits).toEqual({});
+      for (const release of releases) release();
+      await run;
+    });
 
     it("uploads picked files concurrently instead of one after another", async () => {
       const { run, releases, sidecarUpload } = await startGatedDesktopUpload([
@@ -2433,6 +2697,35 @@ describe("useUploadStore", () => {
       expect(unlistenRetry).toHaveBeenCalled();
     });
 
+    it("on a desktop retry, shows the engine's wait without moving the bar or the stage", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockRejectedValueOnce(new Error("first failure"));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      const id = queueIdFor();
+
+      let emit: (p: SidecarProgress) => void = () => {};
+      (subscribeProgress as Mock).mockImplementation(async (cb: (p: SidecarProgress) => void) => {
+        emit = cb;
+        return vi.fn();
+      });
+      let release: () => void = () => {};
+      (sidecarUpload as Mock).mockImplementation(() => new Promise<void>((res) => (release = res)));
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush(3);
+      const before = getItem(id);
+
+      emit(progressEvent({ stage: "waiting", waiting: "telegram_blocked", bytes_done: 50, bytes_total: 100 }));
+      await flush(3);
+
+      expect(useTransferWait.getState().waits[`up:${id}`]).toBe("telegram_blocked");
+      expect(getItem(id)?.stage).toBe(before?.stage);
+      expect(getItem(id)?.progress).toBe(before?.progress);
+      release();
+      await flush(3);
+    });
+
     it("reports a non-Error core rejection on retry as a generic failure", async () => {
       const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
@@ -2544,8 +2837,7 @@ describe("useUploadStore", () => {
           sha256_scheme: "hmac_v1",
           encrypted_name: "enc:secret.txt",
           filename: "",
-        })
-      );
+        }), expect.anything());
       expect(getItem(id)?.status).toBe("done");
     });
 
@@ -2598,8 +2890,7 @@ describe("useUploadStore", () => {
           filename: "",
           encrypted_name: "enc:slow.txt",
           sha256_scheme: "hmac_v1",
-        })
-      );
+        }), expect.anything());
       expect(getItem(id)?.status).toBe("done");
     });
   });
@@ -2638,21 +2929,70 @@ describe("useUploadStore", () => {
       expect(msg).toContain("and 1 more");
       expect(msg).toContain("exceed"); // plural form: no trailing "s"
       // The one valid file still uploads.
-      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ filename: "" }));
+      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ filename: "" }), expect.anything());
     });
   });
 
   describe("getResumableUploadIds", () => {
-    it("returns the ids of failed uploads that still hold a resumable session", async () => {
-      // Init succeeds (records a resume session), then the chunk upload fails
-      // non-transiently: leaving the item failed but resumable.
-      (uploadChunk as Mock).mockRejectedValue(new Error("bad request: invalid chunk"));
+    it("returns the ids of uploads that failed transiently and still hold a resumable session", async () => {
+      (uploadChunk as Mock).mockRejectedValue(new ApiError("bad gateway", 502));
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
       await flush();
 
       expect(getItem(id)?.status).toBe("failed");
       expect(useUploadStore.getState().getResumableUploadIds()).toContain(id);
+    });
+
+    it("leaves out a permanent failure (a 403 would fail again on every focus)", async () => {
+      (uploadChunk as Mock).mockRejectedValue(new ApiError("forbidden", 403));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(useUploadStore.getState().getResumableUploadIds()).not.toContain(id);
+    });
+
+    it("stops offering an upload once its auto-resume budget is spent, and a manual retry restores it", async () => {
+      (uploadChunk as Mock).mockRejectedValue(new ApiError("bad gateway", 502));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      const store = useUploadStore.getState();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS; i++) {
+        expect(store.getResumableUploadIds()).toContain(id);
+        store.resumeUpload(id, "pw", true);
+        await flush(60);
+        expect(getItem(id)?.status).toBe("failed");
+      }
+      expect(store.getResumableUploadIds()).not.toContain(id);
+
+      store.resumeUpload(id, "pw");
+      await flush(60);
+      expect(store.getResumableUploadIds()).toContain(id);
+    });
+
+    it("keeps offering an upload whose auto-resumes each store a chunk", async () => {
+      (uploadChunk as Mock).mockImplementation(async (_sid: string, index: number) => {
+        if (index === 1) throw new ApiError("bad gateway", 502);
+        return { success: true };
+      });
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("big.bin", SMALL_PROFILE.chunkSize * 2)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      const store = useUploadStore.getState();
+      for (let i = 0; i < AUTO_RESUME_MAX_ATTEMPTS + 2; i++) {
+        store.resumeUpload(id, "pw", true);
+        await flush(60);
+        expect(getItem(id)?.status).toBe("failed");
+      }
+      vi.advanceTimersByTime(120_000);
+      expect(store.getResumableUploadIds()).toContain(id);
     });
 
     it("excludes done uploads (no resumable session)", async () => {
@@ -2932,7 +3272,7 @@ describe("useUploadStore", () => {
       let attempts = 0;
       (uploadChunk as Mock).mockImplementation(async () => {
         attempts++;
-        throw new Error("Too Many Requests");
+        throw new ApiError("Too Many Requests", 429);
       });
 
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
@@ -3664,6 +4004,380 @@ describe("useUploadStore", () => {
 
       expect(initUpload).toHaveBeenCalledTimes(1);
       expect(getItem(queueIdFor(1))?.status).toBe("paused");
+    });
+  });
+
+
+  describe("transfer reliability", () => {
+    it("a fatal chunk error cuts the chunks in flight and sends no more", async () => {
+      const signals: AbortSignal[] = [];
+      (uploadChunk as Mock).mockImplementation(
+        (_s: string, idx: number, _d: unknown, _h: string, _c: boolean, _p: unknown, signal: AbortSignal) => {
+          if (idx === 0) return Promise.reject(new ApiError("forbidden", 403));
+          signals.push(signal);
+          return new Promise((_resolve, reject) =>
+            signal.addEventListener("abort", () => reject(new PausedError())),
+          );
+        },
+      );
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 12 }));
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 12);
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe("forbidden");
+      expect((uploadChunk as Mock).mock.calls.length).toBeLessThan(12);
+      expect(signals.length).toBeGreaterThan(0);
+      expect(signals.every((sig) => sig.aborted)).toBe(true);
+      expect(completeUpload).not.toHaveBeenCalled();
+    });
+
+    it("a pause during the finalize retries stops them instead of failing the upload", async () => {
+      (completeUpload as Mock).mockRejectedValue(new ApiError("unavailable", 503));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(2);
+      const callsBefore = (completeUpload as Mock).mock.calls.length;
+      expect(callsBefore).toBeGreaterThan(0);
+
+      useUploadStore.getState().pauseUpload(id);
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect((completeUpload as Mock).mock.calls.length).toBeLessThanOrEqual(callsBefore + 1);
+    });
+
+    it("passes the run's abort signal to complete, so a pause can cut a hung finalize", async () => {
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      const signal = (completeUpload as Mock).mock.calls[0][3];
+      expect(signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("completes a resumed run with only its own totals, leaving the whole-file sizes to the server", async () => {
+      const file = makeFile("a.bin", SMALL_PROFILE.chunkSize * 2);
+      const key = `zc_upl:${file.name}:${file.size}:${file.lastModified}:`;
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          sessionId: "sess-persisted",
+          fileId: "file-1",
+          chunkCount: 2,
+          chunkSize: SMALL_PROFILE.chunkSize,
+          directUpload: false,
+          shouldCompress: true,
+          platform: "telegram",
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-persisted",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 2,
+        uploaded_chunks: [0],
+        completed_count: 1,
+      });
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect((uploadChunk as Mock).mock.calls.map((c) => c[1])).toEqual([1]);
+      expect(completeUpload).toHaveBeenCalledWith(
+        "sess-persisted",
+        SMALL_PROFILE.chunkSize,
+        SMALL_PROFILE.chunkSize,
+        expect.anything(),
+      );
+    });
+
+    it("deletes the pushed Telegram message when the server definitively refuses the confirm", async () => {
+      const TARGET = { platform: "telegram", account: "vault_bot", telegram: { botToken: "t", chatId: "c" } };
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      byosMock.resolveDirectRepo.mockResolvedValue({ id: "repo-1" });
+      byosMock.pushDirectChunk.mockResolvedValue("7:FID");
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      (confirmChunk as Mock).mockRejectedValue(new ApiError("chunk does not match", 409));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(byosMock.discardDirectChunk).toHaveBeenCalledWith(TARGET, "7:FID");
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries only the confirm after a transient failure and keeps the pushed message", async () => {
+      const TARGET = { platform: "telegram", account: "vault_bot", telegram: { botToken: "t", chatId: "c" } };
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      byosMock.resolveDirectRepo.mockResolvedValue({ id: "repo-1" });
+      byosMock.pushDirectChunk.mockResolvedValue("7:FID");
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ mode: "byos-direct", direct_upload: true }));
+      (confirmChunk as Mock).mockRejectedValueOnce(new ApiError("unavailable", 503)).mockResolvedValue(undefined);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(1);
+      expect(confirmChunk).toHaveBeenCalledTimes(2);
+      expect(byosMock.discardDirectChunk).not.toHaveBeenCalled();
+    });
+
+    it("re-presigns once when the platform refuses the upload with a 403", async () => {
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ direct_upload: true }));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "huggingface", undefined, undefined, null);
+      await flush();
+
+      const refresh = (directUploadToURL as Mock).mock.calls[0][5];
+      expect(typeof refresh).toBe("function");
+      (presignChunk as Mock).mockResolvedValueOnce({
+        upload_url: "https://cdn/fresh",
+        upload_headers: { H: "1" },
+        remote_path: "p",
+        already_exists: false,
+      });
+      expect(await refresh()).toEqual({ url: "https://cdn/fresh", headers: { H: "1" } });
+    });
+
+    it("sends the pause signal with every direct-mode control call", async () => {
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ direct_upload: true }));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "huggingface", undefined, undefined, null);
+      await flush();
+      expect((presignChunk as Mock).mock.calls[0][4]).toBeInstanceOf(AbortSignal);
+      expect((confirmChunk as Mock).mock.calls[0][7]).toBeInstanceOf(AbortSignal);
+    });
+  });
+
+  describe("rare paths in the Telegram wait, direct push and chunk loop", () => {
+    const TARGET = {
+      platform: "telegram",
+      account: "vault_bot",
+      telegram: { botToken: "123:SECRET", chatId: "-100777" },
+    };
+    const REPO = { id: "repo-1", platform: "telegram", account: "vault_bot" };
+    const directInit = () => defaultInitResponse({ mode: "byos-direct", direct_upload: true });
+    const abortRejecting = (_k: string, _r: string, signal: AbortSignal) =>
+      new Promise<void>((_res, rej) =>
+        signal.addEventListener("abort", () => rej(new DOMException("Aborted", "AbortError"))),
+      );
+    const allowanceLimit = () =>
+      new WebTransferLimitError(WebTransferLimitCode.DailyExceeded, { limitBytes: 20, usedBytes: 20 }, 403);
+
+    beforeEach(() => {
+      byosMock.directPossible.mockResolvedValue(true);
+      byosMock.directTargetForResume.mockResolvedValue(TARGET);
+      byosMock.resolveDirectRepo.mockResolvedValue(REPO);
+      byosMock.pushDirectChunk.mockImplementation(async (_t: unknown, data: Uint8Array) => `${data.byteLength}:FID`);
+    });
+
+    it("fails the upload with the wait's own error when waiting for Telegram breaks for a reason other than a cancel", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      gateMock.waitForTelegram.mockRejectedValue(new Error("poller broke"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe("poller broke");
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("stops at the pause checkpoint when the wait for Telegram ends just as the upload was paused", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      gateMock.waitForTelegram.mockImplementation(async (key: string) => {
+        useUploadStore.getState().pauseUpload(key.slice(3));
+      });
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(initUpload).not.toHaveBeenCalled();
+      expect(gateMock.waitForTelegram).toHaveBeenCalledTimes(1);
+    });
+
+    it("pauses an upload held for the allowance when the person pauses it, without showing a limit dialog", async () => {
+      (initUpload as Mock).mockRejectedValue(allowanceLimit());
+      gateMock.waitForTelegram.mockImplementation(abortRejecting);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal), undefined);
+
+      useUploadStore.getState().pauseUpload(id);
+      await flush(5);
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(getItem(id)?.stage).toBe("Paused");
+      expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a removed upload alone when its allowance hold ends in the removal", async () => {
+      (initUpload as Mock).mockRejectedValue(allowanceLimit());
+      gateMock.waitForTelegram.mockImplementation(abortRejecting);
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+
+      useUploadStore.getState().removeFromQueue(id);
+      await flush(5);
+
+      expect(getItem(id)).toBeUndefined();
+      expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not restart or report anything when the allowance hold itself breaks", async () => {
+      (initUpload as Mock).mockRejectedValue(allowanceLimit());
+      gateMock.waitForTelegram.mockRejectedValue(new Error("poller broke"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+
+      expect(initUpload).toHaveBeenCalledTimes(1);
+      expect(guardMock.showWebTransferLimit).not.toHaveBeenCalled();
+      expect(getItem(id)?.status).not.toBe("done");
+    });
+
+    it("holds an Auto-platform upload for the allowance too, asking whether any direct route exists with no platform", async () => {
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockRejectedValueOnce(allowanceLimit()).mockResolvedValue(directInit());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", undefined, undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(byosMock.directPossible).toHaveBeenCalledWith(undefined);
+      expect(gateMock.waitForTelegram).toHaveBeenCalledWith(`up:${id}`, "allowance_used_up", expect.any(AbortSignal), undefined);
+      expect(initUpload).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("still restarts straight to Telegram when dropping the refused relay session fails", async () => {
+      byosMock.resolveWebDirect.mockResolvedValueOnce(null).mockResolvedValue(TARGET);
+      (initUpload as Mock)
+        .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-relay" }))
+        .mockResolvedValue(directInit());
+      (uploadChunk as Mock).mockRejectedValueOnce(allowanceLimit());
+      (cancelUpload as Mock).mockRejectedValue(new Error("gone"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(cancelUpload).toHaveBeenCalledWith("sess-relay");
+      expect(initUpload).toHaveBeenCalledTimes(2);
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("pauses when the person pauses while the server is still opening the session", async () => {
+      (initUpload as Mock).mockImplementation(
+        (_req: unknown, signal: AbortSignal) =>
+          new Promise((_res, rej) =>
+            signal.addEventListener("abort", () => rej(new DOMException("Aborted", "AbortError"))),
+          ),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      expect(initUpload).toHaveBeenCalledTimes(1);
+
+      useUploadStore.getState().pauseUpload(id);
+      await flush(5);
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(getItem(id)?.error).toBeUndefined();
+      expect(uploadChunk).not.toHaveBeenCalled();
+    });
+
+    it("keeps the pushed Telegram message when the confirm is stopped by a pause rather than refused", async () => {
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockResolvedValue(directInit());
+      (confirmChunk as Mock).mockRejectedValue(new PausedError());
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(confirmChunk).toHaveBeenCalledTimes(1);
+      expect(byosMock.discardDirectChunk).not.toHaveBeenCalled();
+    });
+
+    it("gives up after five waits when the first push never reaches Telegram and the server cannot carry the file", async () => {
+      gateMock.relayFitsNow.mockResolvedValue(false);
+      byosMock.resolveWebDirect.mockResolvedValue(TARGET);
+      (initUpload as Mock).mockResolvedValue(directInit());
+      byosMock.pushDirectChunk.mockRejectedValue(new TypeError("Network request failed"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(gateMock.waitForTelegram).toHaveBeenCalledTimes(5);
+      expect(byosMock.pushDirectChunk).toHaveBeenCalledTimes(6);
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe("Network request failed");
+    });
+
+    it("stops reading chunks once a pause lands while the next chunk is being read", async () => {
+      (initUpload as Mock).mockResolvedValue(
+        defaultInitResponse({ chunk_count: 3, chunk_size: SMALL_PROFILE.chunkSize }),
+      );
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
+      const realSlice = file.slice.bind(file);
+      let reads = 0;
+      vi.spyOn(file, "slice").mockImplementation((...args: Parameters<Blob["slice"]>) => {
+        const part = realSlice(...args);
+        const realRead = part.arrayBuffer.bind(part);
+        part.arrayBuffer = async () => {
+          reads++;
+          if (reads === 1) useUploadStore.getState().pauseUpload(queueIdFor());
+          return realRead();
+        };
+        return part;
+      });
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(reads).toBe(1);
+      expect(getItem(id)?.status).toBe("paused");
+      expect(uploadChunk).not.toHaveBeenCalled();
+      expect(completeUpload).not.toHaveBeenCalled();
+    });
+
+    it("says nothing about reconnecting Telegram for a resume the person already removed", async () => {
+      const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
+      localStorage.setItem(
+        `zc_upl:${file.name}:${file.size}:${file.lastModified}:`,
+        JSON.stringify({
+          sessionId: "sess-direct",
+          fileId: "file-1",
+          chunkCount: 3,
+          chunkSize: SMALL_PROFILE.chunkSize,
+          directUpload: true,
+          shouldCompress: true,
+          platform: "telegram",
+          mode: "byos-direct",
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-direct",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 3,
+        uploaded_chunks: [0],
+        completed_count: 1,
+      });
+      let release!: (v: null) => void;
+      byosMock.directTargetForResume.mockReturnValue(new Promise<null>((r) => (release = r)));
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+
+      useUploadStore.getState().removeFromQueue(id);
+      release(null);
+      await flush(5);
+
+      expect(getItem(id)).toBeUndefined();
+      expect(toast.warning).not.toHaveBeenCalled();
     });
   });
 

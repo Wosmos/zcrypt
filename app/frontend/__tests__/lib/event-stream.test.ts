@@ -272,3 +272,21 @@ describe("subscribeEvents", () => {
     expect(late.closed).toBe(true);
   });
 });
+
+describe("a hidden window", () => {
+  it("keeps the stream open so notifications still arrive", async () => {
+    const got: string[] = [];
+    sub({ memberLeft: (e) => got.push(e.data) });
+    await settle();
+    const source = latest();
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("blur"));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(source.closed).toBe(false);
+    expect(created()).toHaveLength(1);
+    source.emit("memberLeft", "x");
+    expect(got).toEqual(["x"]);
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+  });
+});

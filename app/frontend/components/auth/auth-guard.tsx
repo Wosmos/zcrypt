@@ -254,12 +254,20 @@ export function AuthGuard({
   }, [setTokens]);
 
   // Start the desktop sync worker as soon as tokens exist, alongside the
-  // session check rather than after it. A rotated token re-runs this.
+  // session check rather than after it. A rotated token re-runs this. The
+  // engine keeps whichever pair is newer and hands it back, so a window that
+  // reopens with the pair it saved earlier picks up the engine's rotations.
   useEffect(() => {
     if (!isTauri || !accessToken || !refreshTokenValue) return;
     const apiUrl = API_BASE || DEV_API_URL;
-    startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
-  }, [accessToken, refreshTokenValue]);
+    startSync(apiUrl, accessToken, refreshTokenValue)
+      .then((held) => {
+        if (held && held.refresh_token !== refreshTokenValue) {
+          setTokens(held.access_token, held.refresh_token);
+        }
+      })
+      .catch(() => {});
+  }, [accessToken, refreshTokenValue, setTokens]);
 
   const userId = user?.id;
   useEffect(() => {

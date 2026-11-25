@@ -37,9 +37,6 @@ impl Client {
         if status.is_success() || status.as_u16() == 404 {
             return Ok(());
         }
-        Err(ApiError::Status {
-            status: status.as_u16(),
-            body: resp.text().await.unwrap_or_default(),
-        })
+        Err(super::client::status_error(resp).await)
     }
 }

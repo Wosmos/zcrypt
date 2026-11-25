@@ -20,6 +20,7 @@ vi.mock("@/lib/api", () => api);
 vi.mock("@/store/toast", () => ({ toast }));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "s1" }),
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock("next/link", () => ({

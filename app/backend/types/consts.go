@@ -70,4 +70,9 @@ const (
 const (
 	ErrCodeRelayFileTooLarge      = "relay_file_too_large"
 	ErrCodeRelayAllowanceExceeded = "relay_allowance_exceeded"
+	ErrCodeRelayDailyExceeded     = "relay_daily_exceeded"
+	// ErrCodeRelayChunkExceedsDeclared: a chunk would carry more than the declared file size.
+	ErrCodeRelayChunkExceedsDeclared = "relay_chunk_exceeds_declared"
+	// ErrCodeSharedStorageFull: the upload would take the user past the storage cap.
+	ErrCodeSharedStorageFull = "shared_storage_full"
 )

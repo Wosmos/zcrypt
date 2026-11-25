@@ -1,27 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { SettingGroup, ValueRow } from "@/components/settings/settings-primitives";
-import { clockTime } from "@/components/settings/folder-backup";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import { ensureUserKeypair } from "@/lib/keys";
 import { toBase64 } from "@/lib/crypto";
-import { listBackupFolders, photoBackupDisable, photoBackupEnable } from "@/lib/tauri";
 import {
+  photoBackupDisable,
+  photoBackupEnable,
+  photoBackupOptions,
+  photoBackupSetOptions,
+  type PhotoOptions,
+} from "@/lib/tauri";
+import {
+  listPhotoAlbums,
   openAppSettings,
+  photoAlbumThumbnail,
   readPhotoBackup,
   requestPhotoAccess,
   runPhotoBackupNow,
   savePhotoBackup,
+  type PhotoAlbum,
   type PhotoBackupSettings,
   type PhotoBackupState,
-  type PhotoMode,
-  type PhotoNetwork,
 } from "@/lib/android-photo-backup";
-import { Clock, Image as ImageIcon, RefreshCw, Shield, Wifi } from "@/lib/icons";
+import { Image as ImageIcon, RefreshCw, Shield, Wifi, Zap } from "@/lib/icons";
 import { useKeysStore } from "@/store/keys";
 import { toast } from "@/store/toast";
 
@@ -38,7 +44,7 @@ function errorText(err: unknown, fallback: string): string {
 }
 
 function settingsOf(s: PhotoBackupState): PhotoBackupSettings {
-  return { enabled: s.enabled, mode: s.mode, time: s.time, network: s.network };
+  return { enabled: s.enabled, wifiOnly: s.wifiOnly, chargingOnly: s.chargingOnly };
 }
 
 /** A setting with its choices under the text, so nothing is cut off on a phone. */
@@ -65,14 +71,37 @@ function ChoiceRow({
   );
 }
 
-/** Android: back up the phone's photos and videos in the background. */
+/** An album's cover, fetched small from the phone once the row is on screen. */
+function Cover({ album }: { album: PhotoAlbum }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    let gone = false;
+    void Promise.resolve().then(() => {
+      if (!gone) setSrc(photoAlbumThumbnail(album.coverUri));
+    });
+    return () => {
+      gone = true;
+    };
+  }, [album.coverUri]);
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element -- a base64 thumbnail from the phone
+    <img src={src} alt="" className="h-9 w-9 rounded-xl object-cover" />
+  ) : (
+    <ImageIcon className="h-4 w-4" />
+  );
+}
+
+/** Android: back up chosen albums of the phone's photos and videos in the background. */
 export function PhotoBackup() {
   const t = useTranslations("settings.photoBackup");
-  const locale = useLocale();
   const vault = useVaultLockContext();
   const [state, setState] = useState<PhotoBackupState | null>(null);
+  const [options, setOptions] = useState<PhotoOptions | null>(null);
   const [files, setFiles] = useState<number | null>(null);
+  const [albums, setAlbums] = useState<PhotoAlbum[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const enabled = state?.enabled === true;
+  const access = state?.access;
 
   useEffect(() => {
     let gone = false;
@@ -83,24 +112,51 @@ export function PhotoBackup() {
     void Promise.resolve().then(() => {
       if (!gone) setState(readPhotoBackup());
     });
-    listBackupFolders().then(
-      (list) => {
-        if (!gone) setFiles(list.reduce((n, f) => n + f.files, 0));
-      },
-      () => {},
-    );
     return () => {
       gone = true;
       document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 
+  const loadAlbums = useCallback(() => setAlbums(listPhotoAlbums()), []);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let gone = false;
+    photoBackupOptions().then(
+      (status) => {
+        if (gone) return;
+        setOptions(status);
+        setFiles(status.files);
+      },
+      () => {},
+    );
+    if (access !== "none") void Promise.resolve().then(() => !gone && loadAlbums());
+    return () => {
+      gone = true;
+    };
+  }, [enabled, access, loadAlbums]);
+
   if (!state) return null;
 
-  const update = (next: Partial<PhotoBackupSettings>) => {
-    const merged = { ...settingsOf(state), ...next };
-    savePhotoBackup(merged);
-    setState({ ...state, ...merged });
+  const persist = async (next: PhotoOptions, on = state.enabled) => {
+    try {
+      await photoBackupSetOptions(next);
+      setOptions(next);
+      savePhotoBackup({
+        ...settingsOf(state),
+        enabled: on,
+        wifiOnly: next.wifi_only,
+        chargingOnly: next.charging_only,
+      });
+      setState((s) =>
+        s ? { ...s, enabled: on, wifiOnly: next.wifi_only, chargingOnly: next.charging_only } : s,
+      );
+      return true;
+    } catch {
+      toast.error(t("saveFailed"));
+      return false;
+    }
   };
 
   const seal = async (passphrase: string) => {
@@ -109,9 +165,15 @@ export function PhotoBackup() {
       await ensureUserKeypair(passphrase);
       const key = useKeysStore.getState().publicKey;
       if (!key) throw new Error(t("keyUnavailable"));
-      const folders = await photoBackupEnable(toBase64(key));
-      setFiles(folders.reduce((n, f) => n + f.files, 0));
-      update({ enabled: true });
+      const status = await photoBackupEnable(toBase64(key));
+      setFiles(status.files);
+      const found = listPhotoAlbums();
+      setAlbums(found);
+      const cameras = found.filter((a) => a.camera).map((a) => a.bucketId);
+      await persist(
+        { ...status, albums: status.albums ?? (cameras.length ? cameras : null) },
+        true,
+      );
       toast.success(t("turnedOn"));
     } catch (err) {
       toast.error(errorText(err, t("turnOnFailed")));
@@ -121,9 +183,9 @@ export function PhotoBackup() {
   };
 
   const turnOn = async () => {
-    const access = state.access === "none" ? await requestPhotoAccess() : state.access;
-    setState((s) => (s ? { ...s, access } : s));
-    if (access === "none") {
+    const granted = state.access === "none" ? await requestPhotoAccess() : state.access;
+    setState((s) => (s ? { ...s, access: granted } : s));
+    if (granted === "none") {
       toast.error(t("needsAccess"));
       return;
     }
@@ -134,7 +196,8 @@ export function PhotoBackup() {
     setBusy(true);
     try {
       await photoBackupDisable();
-      update({ enabled: false });
+      savePhotoBackup({ ...settingsOf(state), enabled: false });
+      setState({ ...state, enabled: false });
       toast.success(t("turnedOff"));
     } catch (err) {
       toast.error(errorText(err, t("turnOffFailed")));
@@ -143,108 +206,143 @@ export function PhotoBackup() {
     }
   };
 
-  const networkDesc: Record<PhotoNetwork, string> = {
-    wifi: t("wifiDesc"),
-    mobile: t("mobileDesc"),
-    any: t("anyDesc"),
+  const allowAll = async () => {
+    const granted = await requestPhotoAccess();
+    setState((s) => (s ? { ...s, access: granted } : s));
+    if (granted === "all") loadAlbums();
+    else openAppSettings();
+  };
+
+  const chosen = options?.albums ?? (albums ?? []).filter((a) => a.camera).map((a) => a.bucketId);
+  const toggleAlbum = (id: string, on: boolean) => {
+    if (!options) return;
+    const next = on ? [...new Set([...chosen, id])] : chosen.filter((x) => x !== id);
+    void persist({ ...options, albums: next });
   };
 
   return (
-    <SettingGroup label={t("label")} footnote={t("footnote")}>
-      <ValueRow
-        icon={<ImageIcon className="h-4 w-4" />}
-        title={t("title")}
-        subtitle={
-          state.enabled ? (files === null ? t("on") : t("status", { count: files })) : t("off")
-        }
-        trailing={
-          <Switch
-            aria-label={t("title")}
-            checked={state.enabled}
-            disabled={busy}
-            onCheckedChange={(on) => void (on ? turnOn() : turnOff())}
-          />
-        }
-      />
-      {state.enabled && (
-        <>
-          {state.access !== "all" && (
-            <ValueRow
-              icon={<Shield className="h-4 w-4" />}
-              title={state.access === "partial" ? t("partialTitle") : t("noAccessTitle")}
-              subtitle={state.access === "partial" ? t("partialDesc") : t("noAccessDesc")}
-              trailing={
-                <Button variant="secondary" size="sm" onClick={openAppSettings}>
-                  {t("allowAll")}
-                </Button>
-              }
+    <>
+      <SettingGroup label={t("label")} footnote={t("footnote")}>
+        <ValueRow
+          icon={<ImageIcon className="h-4 w-4" />}
+          title={t("title")}
+          subtitle={
+            state.enabled ? (files === null ? t("on") : t("status", { count: files })) : t("off")
+          }
+          trailing={
+            <Switch
+              aria-label={t("title")}
+              checked={state.enabled}
+              disabled={busy}
+              onCheckedChange={(on) => void (on ? turnOn() : turnOff())}
             />
-          )}
-          <ChoiceRow
-            icon={<Wifi className="h-4 w-4" />}
-            title={t("networkTitle")}
-            subtitle={networkDesc[state.network]}
-          >
-            <select
-              aria-label={t("networkTitle")}
-              value={state.network}
-              onChange={(e) => update({ network: e.target.value as PhotoNetwork })}
-              className={FIELD}
-            >
-              <option value="wifi">{t("wifi")}</option>
-              <option value="mobile">{t("mobile")}</option>
-              <option value="any">{t("any")}</option>
-            </select>
-          </ChoiceRow>
-          <ChoiceRow
-            icon={<Clock className="h-4 w-4" />}
-            title={t("scheduleTitle")}
-            subtitle={
-              state.mode === "nightly"
-                ? t("nightlyDesc", { time: clockTime(state.time, locale) })
-                : t("instantDesc")
-            }
-          >
-            <select
-              aria-label={t("scheduleTitle")}
-              value={state.mode}
-              onChange={(e) => update({ mode: e.target.value as PhotoMode })}
-              className={FIELD}
-            >
-              <option value="instant">{t("instant")}</option>
-              <option value="nightly">{t("nightly")}</option>
-            </select>
-            {state.mode === "nightly" && (
-              <input
-                type="time"
-                aria-label={t("timeLabel")}
-                value={state.time}
-                onChange={(e) => {
-                  if (e.target.value) update({ time: e.target.value });
-                }}
-                className={FIELD}
-              />
-            )}
-          </ChoiceRow>
+          }
+        />
+        {state.enabled && state.access !== "all" && (
           <ValueRow
-            icon={<RefreshCw className="h-4 w-4" />}
-            title={t("runNowTitle")}
-            subtitle={networkDesc[state.network]}
+            icon={<Shield className="h-4 w-4" />}
+            title={state.access === "partial" ? t("partialTitle") : t("noAccessTitle")}
+            subtitle={state.access === "partial" ? t("partialDesc") : t("noAccessDesc")}
             trailing={
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  runPhotoBackupNow();
-                  toast.success(t("runNowStarted"));
-                }}
-              >
-                {t("runNow")}
+              <Button variant="secondary" size="sm" onClick={() => void allowAll()}>
+                {t("allowAll")}
               </Button>
             }
           />
+        )}
+      </SettingGroup>
+      {state.enabled && (
+        <>
+          <SettingGroup label={t("albumsLabel")}>
+            {albums && albums.length === 0 && (
+              <p className="px-4 py-3 text-sm text-[var(--color-text-muted)]">{t("albumsEmpty")}</p>
+            )}
+            {(albums ?? []).map((album) => (
+              <ValueRow
+                key={album.bucketId}
+                icon={<Cover album={album} />}
+                title={album.name}
+                subtitle={t("albumCount", { count: album.count })}
+                trailing={
+                  <Switch
+                    aria-label={album.name}
+                    checked={chosen.includes(album.bucketId)}
+                    disabled={!options}
+                    onCheckedChange={(on) => toggleAlbum(album.bucketId, on)}
+                  />
+                }
+              />
+            ))}
+          </SettingGroup>
+          <SettingGroup>
+            <ChoiceRow
+              icon={<ImageIcon className="h-4 w-4" />}
+              title={t("kindsTitle")}
+              subtitle={t("kindsDesc")}
+            >
+              <select
+                aria-label={t("kindsTitle")}
+                value={options?.kinds ?? "both"}
+                disabled={!options}
+                onChange={(e) =>
+                  options &&
+                  void persist({ ...options, kinds: e.target.value as PhotoOptions["kinds"] })
+                }
+                className={FIELD}
+              >
+                <option value="photos">{t("kindsPhotos")}</option>
+                <option value="videos">{t("kindsVideos")}</option>
+                <option value="both">{t("kindsBoth")}</option>
+              </select>
+            </ChoiceRow>
+            <ValueRow
+              icon={<Wifi className="h-4 w-4" />}
+              title={t("wifiTitle")}
+              subtitle={t("wifiDesc")}
+              trailing={
+                <Switch
+                  aria-label={t("wifiTitle")}
+                  checked={options?.wifi_only ?? state.wifiOnly}
+                  disabled={!options}
+                  onCheckedChange={(on) => options && void persist({ ...options, wifi_only: on })}
+                />
+              }
+            />
+            <ValueRow
+              icon={<Zap className="h-4 w-4" />}
+              title={t("chargingTitle")}
+              subtitle={t("chargingDesc")}
+              trailing={
+                <Switch
+                  aria-label={t("chargingTitle")}
+                  checked={options?.charging_only ?? state.chargingOnly}
+                  disabled={!options}
+                  onCheckedChange={(on) =>
+                    options && void persist({ ...options, charging_only: on })
+                  }
+                />
+              }
+            />
+            <ValueRow
+              icon={<RefreshCw className="h-4 w-4" />}
+              title={t("runNowTitle")}
+              subtitle={t("runNowDesc")}
+              trailing={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    runPhotoBackupNow();
+                    toast.success(t("runNowStarted"));
+                  }}
+                >
+                  {t("runNow")}
+                </Button>
+              }
+            />
+          </SettingGroup>
         </>
       )}
-    </SettingGroup>
+    </>
   );
 }

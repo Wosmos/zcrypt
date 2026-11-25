@@ -461,3 +461,21 @@ func (db *DB) SetFolderProtection(ctx context.Context, userID, folderID, pwSalt,
 	}
 	return nil
 }
+
+// ListUserIDsWithRepos returns every user that owns at least one repo.
+func (db *DB) ListUserIDsWithRepos(ctx context.Context) ([]string, error) {
+	rows, err := db.pool.Query(ctx, `SELECT DISTINCT user_id FROM repos`)
+	if err != nil {
+		return nil, fmt.Errorf("list users with repos: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan user id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}

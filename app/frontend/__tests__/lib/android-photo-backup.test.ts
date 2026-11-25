@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
+  listPhotoAlbums,
   openAppSettings,
   PHOTO_ACCESS_EVENT,
+  photoAlbumThumbnail,
   photoBackupSupported,
   readPhotoBackup,
   requestPhotoAccess,
@@ -11,8 +13,9 @@ import {
 
 type Win = { ZcryptAndroid?: Record<string, unknown> };
 
-function install(state: string) {
+function install(state: string, extra: Record<string, unknown> = {}) {
   const bridge = {
+    ...extra,
     photoBackupState: vi.fn(() => state),
     requestPhotoAccess: vi.fn(),
     setPhotoBackup: vi.fn(),
@@ -31,7 +34,9 @@ describe("android photo backup bridge", () => {
   it("does nothing without the shell, or with an older one", async () => {
     expect(photoBackupSupported()).toBe(false);
     expect(readPhotoBackup()).toBeNull();
-    savePhotoBackup({ enabled: true, mode: "instant", time: "02:00", network: "wifi" });
+    savePhotoBackup({ enabled: true, wifiOnly: true, chargingOnly: false });
+    expect(listPhotoAlbums()).toEqual([]);
+    expect(photoAlbumThumbnail("content://x/1")).toBe("");
     runPhotoBackupNow();
     openAppSettings();
     await expect(requestPhotoAccess()).resolves.toBe("none");
@@ -41,20 +46,19 @@ describe("android photo backup bridge", () => {
   });
 
   it("reads the shell's settings and access", () => {
-    install(JSON.stringify({ enabled: true, mode: "nightly", time: "23:30", network: "mobile", access: "partial" }));
+    install(JSON.stringify({ enabled: true, wifi_only: false, charging_only: true, access: "partial" }));
     expect(photoBackupSupported()).toBe(true);
     expect(readPhotoBackup()).toEqual({
       enabled: true,
-      mode: "nightly",
-      time: "23:30",
-      network: "mobile",
+      wifiOnly: false,
+      chargingOnly: true,
       access: "partial",
     });
   });
 
   it("falls back to safe defaults for anything unexpected", () => {
-    const defaults = { enabled: false, mode: "instant", time: "02:00", network: "wifi", access: "none" };
-    install(JSON.stringify({ enabled: "yes", mode: "hourly", time: "9:00", network: "5g", access: "root" }));
+    const defaults = { enabled: false, wifiOnly: true, chargingOnly: false, access: "none" };
+    install(JSON.stringify({ enabled: "yes", wifi_only: "maybe", charging_only: 1, access: "root" }));
     expect(readPhotoBackup()).toEqual(defaults);
     install("not json");
     expect(readPhotoBackup()).toEqual(defaults);
@@ -64,9 +68,10 @@ describe("android photo backup bridge", () => {
 
   it("hands settings, a run and the settings page to the shell", () => {
     const bridge = install("{}");
-    const settings = { enabled: true, mode: "nightly" as const, time: "01:15", network: "any" as const };
-    savePhotoBackup(settings);
-    expect(bridge.setPhotoBackup).toHaveBeenCalledWith(JSON.stringify(settings));
+    savePhotoBackup({ enabled: true, wifiOnly: false, chargingOnly: true });
+    expect(bridge.setPhotoBackup).toHaveBeenCalledWith(
+      JSON.stringify({ enabled: true, wifi_only: false, charging_only: true }),
+    );
     runPhotoBackupNow();
     expect(bridge.runPhotoBackupNow).toHaveBeenCalled();
     openAppSettings();
@@ -84,5 +89,54 @@ describe("android photo backup bridge", () => {
       window.dispatchEvent(new CustomEvent(PHOTO_ACCESS_EVENT, { detail: 42 })),
     );
     await expect(requestPhotoAccess()).resolves.toBe("none");
+  });
+
+  it("lists the albums the shell reports and ignores malformed ones", () => {
+    install("{}", {
+      listPhotoAlbums: vi.fn(() =>
+        JSON.stringify([
+          { bucket_id: "1", name: "Camera", count: 12, cover_uri: "content://c/1", kind: "mixed", camera: true },
+          { bucket_id: "2", name: "WhatsApp Images", count: 3, cover_uri: "content://c/2", kind: "photos" },
+          { bucket_id: "", name: "No id" },
+          { name: "Also no id" },
+          null,
+        ]),
+      ),
+    });
+    expect(listPhotoAlbums()).toEqual([
+      { bucketId: "1", name: "Camera", count: 12, coverUri: "content://c/1", kind: "mixed", camera: true },
+      { bucketId: "2", name: "WhatsApp Images", count: 3, coverUri: "content://c/2", kind: "photos", camera: false },
+    ]);
+  });
+
+  it("falls back to empty values for album fields of the wrong type", () => {
+    install("{}", {
+      listPhotoAlbums: () => JSON.stringify([{ bucket_id: "9", name: 5, count: "x", cover_uri: null, kind: "odd" }]),
+    });
+    expect(listPhotoAlbums()).toEqual([
+      { bucketId: "9", name: "", count: 0, coverUri: "", kind: "mixed", camera: false },
+    ]);
+  });
+
+  it("gives no albums when the shell is older or answers badly", () => {
+    install("{}");
+    expect(listPhotoAlbums()).toEqual([]);
+    install("{}", { listPhotoAlbums: () => "not json" });
+    expect(listPhotoAlbums()).toEqual([]);
+    install("{}", { listPhotoAlbums: () => '{"a":1}' });
+    expect(listPhotoAlbums()).toEqual([]);
+  });
+
+  it("turns a cover thumbnail into a data URL, or nothing", () => {
+    install("{}", { photoAlbumThumbnail: vi.fn((uri: string) => (uri === "content://c/1" ? "QUJD" : "")) });
+    expect(photoAlbumThumbnail("content://c/1")).toBe("data:image/jpeg;base64,QUJD");
+    expect(photoAlbumThumbnail("content://c/2")).toBe("");
+    expect(photoAlbumThumbnail("")).toBe("");
+    install("{}", {
+      photoAlbumThumbnail: () => {
+        throw new Error("bridge");
+      },
+    });
+    expect(photoAlbumThumbnail("content://c/1")).toBe("");
   });
 });

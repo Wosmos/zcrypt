@@ -7,8 +7,10 @@
 //! file removed locally stays in the vault, and a replaced version goes to the
 //! trash. A file counts as backed up only once the server confirmed it.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 
@@ -19,7 +21,54 @@ use crate::pk1;
 
 /// A file whose size or mtime changed this recently may still be being written.
 pub const STABLE_FOR: Duration = Duration::from_secs(3);
-const MAX_REPORTED_ERRORS: usize = 20;
+pub(super) const MAX_REPORTED_ERRORS: usize = 20;
+/// A file that keeps failing is retried after 30s, doubling to an hour, and
+/// left alone after this many tries until it changes or the app restarts. A
+/// sealed upload restarts from byte 0 and re-hashes the whole file, so retrying
+/// every pass would loop forever on one bad file.
+pub(super) const MAX_FILE_ATTEMPTS: u32 = 12;
+
+struct Failing {
+    attempts: u32,
+    next_at: Instant,
+}
+
+fn failing() -> &'static Mutex<HashMap<String, Failing>> {
+    static MAP: OnceLock<Mutex<HashMap<String, Failing>>> = OnceLock::new();
+    MAP.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// A changed file is a new key, so editing it clears its backoff.
+fn retry_key(root_id: &str, f: &Found) -> String {
+    format!("{root_id}\0{}\0{}\0{}", f.rel_path, f.size, f.mtime_ns)
+}
+
+pub(super) fn attempt_due(key: &str) -> bool {
+    failing()
+        .lock()
+        .unwrap()
+        .get(key)
+        .is_none_or(|f| f.attempts < MAX_FILE_ATTEMPTS && Instant::now() >= f.next_at)
+}
+
+pub(super) fn record_failure(key: &str) -> u32 {
+    let mut map = failing().lock().unwrap();
+    if map.len() > 10_000 {
+        map.clear();
+    }
+    let entry = map.entry(key.to_string()).or_insert(Failing {
+        attempts: 0,
+        next_at: Instant::now(),
+    });
+    entry.attempts += 1;
+    entry.next_at =
+        Instant::now() + crate::transport::backoff(entry.attempts - 1, 30_000, 3_600_000);
+    entry.attempts
+}
+
+pub(super) fn clear_failure(key: &str) {
+    failing().lock().unwrap().remove(key);
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct BackupReport {
@@ -27,9 +76,21 @@ pub struct BackupReport {
     pub unchanged: u32,
     pub busy: u32,
     pub failed: u32,
+    /// Of `failed`, how many were transient (network, server busy).
+    pub transient_failures: u32,
+    /// Files skipped because an earlier failure put them on a backoff.
+    pub deferred: u32,
     /// The folder is missing (unplugged drive, renamed): nothing was done.
     pub unavailable: bool,
     pub errors: Vec<String>,
+}
+
+impl BackupReport {
+    /// Nothing got through and every failure was transient: the run should be
+    /// tried again later rather than counted as done.
+    pub fn all_transient(&self) -> bool {
+        self.failed > 0 && self.uploaded == 0 && self.transient_failures == self.failed
+    }
 }
 
 /// A regular file found under a backed-up folder.
@@ -209,6 +270,11 @@ pub async fn run_pass(ctx: &EngineContext, root: &BackupRoot) -> Result<BackupRe
             report.unchanged += 1;
             continue;
         }
+        let key = retry_key(&root.id, &f);
+        if !attempt_due(&key) {
+            report.deferred += 1;
+            continue;
+        }
         let rel_dir = f.rel_path.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
         let outcome = async {
             let folder = ensure_dir(ctx, &db, root, &public, rel_dir).await?;
@@ -224,6 +290,7 @@ pub async fn run_pass(ctx: &EngineContext, root: &BackupRoot) -> Result<BackupRe
         .await;
         match outcome {
             Ok(file_id) => {
+                clear_failure(&key);
                 db.set_backup_file(
                     &root.id,
                     &f.rel_path,
@@ -245,10 +312,28 @@ pub async fn run_pass(ctx: &EngineContext, root: &BackupRoot) -> Result<BackupRe
                 report.uploaded += 1;
             }
             Err(EngineError::Cancelled) => return Err(EngineError::Cancelled),
+            // Telegram is blocked and the relay allowance cannot carry this
+            // file: leave it for the next pass instead of counting a failure.
+            Err(EngineError::Blocked(_)) => {
+                report.deferred += 1;
+                break;
+            }
+            Err(e) if matches!(e, EngineError::Api(crate::api::ApiError::Unauthorized)) => {
+                return Err(e);
+            }
             Err(e) => {
                 report.failed += 1;
+                if e.is_transient() {
+                    report.transient_failures += 1;
+                }
+                let attempts = record_failure(&key);
                 if report.errors.len() < MAX_REPORTED_ERRORS {
-                    report.errors.push(format!("{}: {e}", f.rel_path));
+                    let note = if attempts >= MAX_FILE_ATTEMPTS {
+                        format!(" (giving up after {attempts} tries)")
+                    } else {
+                        String::new()
+                    };
+                    report.errors.push(format!("{}: {e}{note}", f.rel_path));
                 }
             }
         }
@@ -327,5 +412,79 @@ mod tests {
         };
         assert!(!is_stable(&f, 11_000_000_000));
         assert!(is_stable(&f, 14_000_000_000));
+    }
+
+    use crate::testutil::{serve, Reply};
+    use std::sync::Arc;
+
+    fn fixture(base: &str) -> (tempfile::TempDir, EngineContext, BackupRoot) {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let file = std::fs::File::create(src.join("a.txt")).unwrap();
+        std::io::Write::write_all(&mut &file, b"hello").unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(120))
+            .unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(base, "t", "r")),
+            db: Arc::new(LocalDb::open_at(&dir.path().join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+        let root = BackupRoot {
+            id: uuid::Uuid::new_v4().to_string(),
+            local_path: src.to_string_lossy().to_string(),
+            user_id: "u".into(),
+            public_key: base64::engine::general_purpose::STANDARD.encode([7u8; 32]),
+            remote_folder_id: String::new(),
+            last_scan_at: String::new(),
+        };
+        ctx.db.add_backup_root(&root).unwrap();
+        (dir, ctx, root)
+    }
+
+    #[tokio::test]
+    async fn a_signed_out_pass_returns_unauthorized_instead_of_counting_failures() {
+        let (base, _) = serve(|_, _| Reply::status(401, "")).await;
+        let (_dir, ctx, root) = fixture(&base);
+        let r = run_pass(&ctx, &root).await;
+        assert!(
+            matches!(r, Err(EngineError::Api(crate::api::ApiError::Unauthorized))),
+            "{r:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn transient_failures_are_reported_and_the_file_then_waits_out_a_backoff() {
+        let (base, hits) = serve(|_, _| Reply::status(503, "busy")).await;
+        let (_dir, ctx, root) = fixture(&base);
+        let first = run_pass(&ctx, &root).await.unwrap();
+        assert_eq!((first.failed, first.transient_failures), (1, 1));
+        assert!(first.all_transient());
+        let calls = hits.load(std::sync::atomic::Ordering::SeqCst);
+
+        let second = run_pass(&ctx, &root).await.unwrap();
+        assert_eq!((second.failed, second.deferred), (0, 1));
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), calls);
+    }
+
+    #[test]
+    fn a_file_stops_being_retried_after_twelve_failures_until_it_changes() {
+        let f = Found {
+            rel_path: "x".into(),
+            size: 1,
+            mtime_ns: 1,
+        };
+        let key = retry_key("root-give-up", &f);
+        assert!(attempt_due(&key));
+        for _ in 0..MAX_FILE_ATTEMPTS {
+            record_failure(&key);
+        }
+        assert!(!attempt_due(&key));
+        let edited = Found { mtime_ns: 2, ..f };
+        assert!(attempt_due(&retry_key("root-give-up", &edited)));
     }
 }

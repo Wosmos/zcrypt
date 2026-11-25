@@ -136,7 +136,7 @@ describe("peer key edge cases", () => {
       public_key: toBase64(x25519.keygen().publicKey),
       fingerprint: "",
     });
-    const err = await shareSpace("v1", generateSpaceKey(), "bob@x.io", "viewer").catch((e) => e);
+    const err = await shareSpace("v1", { key: generateSpaceKey(), gen: 0 }, "bob@x.io", "viewer").catch((e) => e);
     expect(err).toBeInstanceOf(KeyChangedError);
     expect((err as KeyChangedError).previous).toBe("");
     expect((err as KeyChangedError).fingerprint).toBe("NEW");

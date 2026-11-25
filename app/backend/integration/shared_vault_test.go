@@ -672,13 +672,13 @@ func TestSharedVaultRoleParity(t *testing.T) {
 	t.Run("an admin can invite viewers and editors but not admins", func(t *testing.T) {
 		id := newSpace("AdminInvites")
 		assert.Equal(t, http.StatusCreated, status(ts.invite(admin, id, "rp-newbie@example.com", "viewer")))
-		assert.Equal(t, http.StatusCreated, status(ts.invite(admin, id, "rp-newbie@example.com", "editor")))
+		assert.Equal(t, http.StatusConflict, status(ts.invite(admin, id, "rp-newbie@example.com", "editor")), "a second invite is refused, roles change through PATCH")
 		assert.Equal(t, http.StatusForbidden, status(ts.invite(admin, id, "rp-newbie@example.com", "admin")))
 	})
 
 	t.Run("an admin cannot demote an admin by re-inviting them", func(t *testing.T) {
 		id := newSpace("NoReinviteDemote")
-		assert.Equal(t, http.StatusForbidden, status(ts.invite(admin, id, "rp-admin2@example.com", "viewer")))
+		assert.Equal(t, http.StatusConflict, status(ts.invite(admin, id, "rp-admin2@example.com", "viewer")))
 		assert.Equal(t, "admin", ts.memberByEmail(owner, id, "rp-admin2@example.com").Role)
 	})
 
@@ -772,7 +772,7 @@ func TestSharedVaultRoleParity(t *testing.T) {
 		assert.Equal(t, http.StatusOK, status(ts.DELETE("/api/shared-vaults/"+id, owner)))
 	})
 
-	t.Run("only the owner can rotate the key; admins and editors cannot", func(t *testing.T) {
+	t.Run("the owner and admins can rotate the key; editors cannot", func(t *testing.T) {
 		id := newSpace("RotateRoles")
 		grants := []map[string]string{}
 		for _, m := range ts.spaceMembers(owner, id) {
@@ -780,7 +780,7 @@ func TestSharedVaultRoleParity(t *testing.T) {
 		}
 		body := map[string]interface{}{"members": grants, "files": []interface{}{}}
 		assert.Equal(t, http.StatusForbidden, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, editor)))
-		assert.Equal(t, http.StatusForbidden, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, admin)))
+		assert.Equal(t, http.StatusOK, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, admin)))
 		assert.Equal(t, http.StatusOK, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, owner)))
 	})
 
@@ -801,8 +801,26 @@ func TestSharedVaultRevocation(t *testing.T) {
 	member := ts.registerAndLogin("rv-member@example.com", "SecurePass@123!")
 	keyless := ts.registerAndLogin("rv-keyless@example.com", "SecurePass@123!")
 	_ = keyless
+	admin := ts.registerAndLogin("rv-admin@example.com", "SecurePass@123!")
 	requireStatus(t, ts.POST("/api/keys", publishKeyBody(), owner), http.StatusOK)
 	requireStatus(t, ts.POST("/api/keys", publishKeyBody(), member), http.StatusOK)
+	requireStatus(t, ts.POST("/api/keys", publishKeyBody(), admin), http.StatusOK)
+	keyGen := func(id string) int {
+		body := requireStatus(t, ts.GET("/api/shared-vaults/"+id, owner), http.StatusOK)
+		var d struct {
+			KeyGeneration int `json:"key_generation"`
+		}
+		require.NoError(t, json.Unmarshal(body, &d))
+		return d.KeyGeneration
+	}
+	codeOf := func(resp *http.Response) (int, string) {
+		defer resp.Body.Close()
+		var e struct {
+			Code string `json:"code"`
+		}
+		_ = json.NewDecoder(resp.Body).Decode(&e)
+		return resp.StatusCode, e.Code
+	}
 
 	detail := func(id string) (needs bool, members []spaceMember) {
 		body := requireStatus(t, ts.GET("/api/shared-vaults/"+id, owner), http.StatusOK)
@@ -865,6 +883,73 @@ func TestSharedVaultRevocation(t *testing.T) {
 		needs, _ := detail(id)
 		assert.False(t, needs, "rotation clears the flag")
 		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("c")}, owner), http.StatusCreated)
+	})
+
+	t.Run("writes made with a key from before a rotation are refused", func(t *testing.T) {
+		id := ts.createSpace(owner, "StaleKey", 0)
+		before := keyGen(id)
+		body := rotateBody(id, "")
+		body["key_generation"] = before
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", body, owner), http.StatusOK)
+		after := keyGen(id)
+		require.Equal(t, before+1, after, "a rotation bumps the generation")
+
+		f := ts.uploadReadyFile(owner, "stale.bin", 40)
+		add := func(gen int) *http.Response {
+			return ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("c"), "key_generation": gen}, owner)
+		}
+		st, code := codeOf(add(before))
+		assert.Equal(t, http.StatusConflict, st)
+		assert.Equal(t, "stale_space_key", code)
+		st, code = codeOf(ts.POST("/api/shared-vaults/"+id+"/files/batch", map[string]interface{}{
+			"key_generation": before,
+			"files":          []map[string]string{{"file_id": f, "wrapped_cek": b64("c")}},
+		}, owner))
+		assert.Equal(t, http.StatusConflict, st, "batch add")
+		assert.Equal(t, "stale_space_key", code)
+		st, code = codeOf(ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
+			"email": "rv-member@example.com", "role": "viewer", "wrapped_space_key": b64("old"), "key_generation": before,
+		}, owner))
+		assert.Equal(t, http.StatusConflict, st, "invite sealed with the old key")
+		assert.Equal(t, "stale_space_key", code)
+		st, code = codeOf(ts.POST("/api/shared-vaults/"+id+"/rotate", body, owner))
+		assert.Equal(t, http.StatusConflict, st, "a second rotation from the old key")
+		assert.Equal(t, "stale_space_key", code)
+		assert.Equal(t, after, keyGen(id))
+
+		requireStatus(t, add(after), http.StatusCreated)
+	})
+
+	t.Run("an admin re-keys after a member leaves, without the owner", func(t *testing.T) {
+		id := ts.createSpace(owner, "LeaveRekey", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-admin@example.com", "admin"), http.StatusCreated)
+		requireStatus(t, ts.invite(owner, id, "rv-member@example.com", "editor"), http.StatusCreated)
+		m := ts.memberByEmail(owner, id, "rv-member@example.com")
+		requireStatus(t, ts.DELETE("/api/shared-vaults/"+id+"/members/"+m.UserID, member), http.StatusOK)
+		needs, _ := detail(id)
+		require.True(t, needs, "leaving flags the space")
+
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", rotateBody(id, ""), admin), http.StatusOK)
+		needs, _ = detail(id)
+		assert.False(t, needs, "the admin's rotation clears the flag")
+	})
+
+	t.Run("a keyed invite waits for the rotation; a bad key is refused", func(t *testing.T) {
+		id := ts.createSpace(owner, "InviteGate", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-member@example.com", "viewer"), http.StatusCreated)
+		m := ts.memberByEmail(owner, id, "rv-member@example.com")
+		requireStatus(t, ts.DELETE("/api/shared-vaults/"+id+"/members/"+m.UserID, owner), http.StatusOK)
+
+		st, code := codeOf(ts.invite(owner, id, "rv-admin@example.com", "viewer"))
+		assert.Equal(t, http.StatusConflict, st)
+		assert.Equal(t, "key_rotating", code)
+
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", rotateBody(id, ""), owner), http.StatusOK)
+		st, _ = codeOf(ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
+			"email": "rv-admin@example.com", "role": "viewer", "wrapped_space_key": "not base64!",
+		}, owner))
+		assert.Equal(t, http.StatusBadRequest, st)
+		requireStatus(t, ts.invite(owner, id, "rv-admin@example.com", "viewer"), http.StatusCreated)
 	})
 
 	t.Run("rotation must re-wrap every shared file", func(t *testing.T) {

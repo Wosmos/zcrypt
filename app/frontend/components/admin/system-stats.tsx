@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -103,7 +104,7 @@ function DurabilityAlertDetails({
                     className="flex items-center justify-between gap-2 text-xs"
                   >
                     <Link
-                      href={`/admin/users/${user.user_id}`}
+                      href={adminUserHref(user.user_id)}
                       className="min-w-0 flex-1 rounded-md hover:text-[var(--color-accent)]"
                     >
                       <div className="font-medium text-[var(--color-text)]">{user.username}</div>

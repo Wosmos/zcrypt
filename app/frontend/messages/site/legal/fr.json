@@ -34,7 +34,7 @@
         "l2": "Un nom d'affichage et une photo de profil facultatifs, stockés sous forme d'image intégrée.",
         "l3": "Si vous activez la connexion à deux facteurs : le secret de l'authentificateur et des codes de secours hachés. Si vous vous connectez avec Google ou GitHub : l'identifiant de compte du fournisseur.",
         "l4": "Sessions : pour chaque appareil connecté, un jeton d'actualisation haché, une adresse IP raccourcie (dernière partie retirée : /24 pour IPv4, /48 pour IPv6) et l'agent utilisateur du navigateur. Vous pouvez les consulter et déconnecter des appareils dans les Paramètres.",
-        "l4b": "Localisation approximative : à partir de l’adresse IP de vos requêtes, nous déduisons un pays, une région et une ville, et nous les conservons avec votre compte (où vous vous êtes inscrit et où vous vous êtes connecté pour la dernière fois). Nous l’utilisons pour la sécurité, pour repérer les connexions inhabituelles et pour des statistiques agrégées par pays. La recherche se fait sur notre propre serveur, dans une copie intégrée d’une base de données gratuite : votre adresse IP n’est donc envoyée à personne d’autre pour cela. L’IP conservée avec chaque session reste raccourcie, comme ci-dessus.",
+        "l4b": "Localisation approximative : nous déterminons un pays, une région et une ville pour tes requêtes et les enregistrons avec ton compte (lieu d’inscription et de dernière connexion). Ils viennent de la localisation que Cloudflare, notre fournisseur réseau, joint à chaque requête ou, à défaut, d’une recherche sur notre propre serveur dans une copie intégrée d’une base de données gratuite, pour laquelle ton adresse IP n’est envoyée nulle part ailleurs. Nous l’utilisons pour la sécurité, pour repérer les connexions inhabituelles, et pour des statistiques agrégées par pays. L’IP conservée avec chaque session reste raccourcie, comme indiqué plus haut.",
         "h2": "Fichiers et partage",
         "l5": "Par fichier : taille chiffrée, nombre de blocs, horodatages, dossier où il se trouve, nom scellé et clé enveloppée qui le déverrouille. Par bloc : l'endroit où la pièce chiffrée est stockée.",
         "l6": "Spaces : qui en est membre et son rôle. Liens de partage : nombre de vues, expiration et mot de passe facultatif haché avec bcrypt.",
@@ -47,7 +47,7 @@
         "l11": "Avis et retours : votre texte, votre note et votre nom d'affichage. Un avis n'est affiché publiquement que si vous l'autorisez et qu'il est approuvé.",
         "l12": "Dead-man switch, si vous en configurez un : l'e-mail et le nom d'un contact, votre message et un délai. Ces éléments sont stockés sans chiffrement et envoyés par e-mail à votre contact par notre serveur si vous cessez de vous manifester.",
         "h5": "Non collecté",
-        "l13": "Nous n'utilisons pas de traceurs publicitaires ou marketing. Nous n'utilisons pas Google Analytics, Sentry, PostHog ou des outils similaires. Le site web utilise Vercel Web Analytics pour des statistiques agrégées de pages vues."
+        "l13": "Nous n'utilisons pas de traceurs publicitaires ou marketing. Nous n'utilisons pas Google Analytics, Sentry, PostHog ou des outils similaires. Le site web utilise Cloudflare Web Analytics pour des statistiques agrégées de pages vues."
       },
       "s4": {
         "t": "Vos comptes de stockage, et les nôtres",
@@ -60,8 +60,8 @@
         "t": "Qui d'autre traite des données",
         "p1": "Ces services traitent des données pour notre compte. Nous ne listons que ceux qui existent aujourd'hui.",
         "l1": "<strong>Neon</strong> : notre base de données PostgreSQL (AWS, us-east-1). Elle contient tout ce qui figure dans les sections ci-dessus, mais aucun contenu de fichier.",
-        "l2": "<strong>Vercel</strong> : héberge le site web et l'application web, et fournit Web Analytics.",
-        "l3": "<strong>Notre serveur backend</strong>, accessible via <strong>Cloudflare</strong>. Cloudflare voit le trafic vers notre API et nous indique votre pays, que nous utilisons uniquement pour suggérer une langue et que nous ne stockons pas. L'hébergeur du serveur peut changer avec le temps.",
+        "l2": "<strong>Cloudflare</strong> : héberge le site web et l'application web, et fournit Web Analytics.",
+        "l3": "<strong>Notre serveur</strong>. Le site lui parle directement ; les applications de bureau et Android passent par <strong>Cloudflare</strong>, qui nous indique la position approximative de chaque requête (pays, région et ville). Sinon, nous cherchons l'adresse dans la base de localisation gratuite de DB-IP, sur notre propre serveur. Nous utilisons cette position pour proposer une langue et l'enregistrons comme ta position approximative, comme décrit plus haut. L'hébergeur du serveur peut changer avec le temps.",
         "l4": "<strong>Resend</strong> : envoie nos e-mails : vérification, liens de connexion magiques, réinitialisations de mot de passe, avis de nouvel appareil, avis de suppression de compte et messages du dead-man switch. Il voit l'adresse du destinataire et le message.",
         "l5": "<strong>Google et GitHub</strong>, uniquement si vous choisissez de vous connecter avec eux.",
         "l6": "<strong>GitHub, GitLab, Hugging Face et Telegram</strong>, en tant que plateformes de stockage (ci-dessus).",

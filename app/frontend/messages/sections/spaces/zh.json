@@ -57,12 +57,21 @@
       "dismiss": "关闭"
     },
     "invites": {
-      "errorNoSharing": "暂时无法邀请此地址。请检查拼写。如果地址正确，对方需要先注册 zcrypt 账户并解锁一次保险库，然后你才能邀请。",
       "errorGeneric": "添加成员失败",
+      "errorRotating": "有人离开后，这个 Space 的密钥正在更换。请稍后再试。",
       "errorNoKey": "此空间没有可共享的密钥（它早于加密共享功能）。",
       "adminOwnerOnly": "只有所有者可以授予管理员权限。",
       "adding": "正在添加...",
-      "placeholder": "邮箱或用户名"
+      "placeholder": "邮箱地址",
+      "errorNotFound": "没有 zcrypt 账户使用这个邮箱。",
+      "errorRateLimited": "查询过多，请几分钟后再试。",
+      "errorInvalidEmail": "请输入有效的邮箱。",
+      "errorSelf": "这是你自己。",
+      "errorAlreadyMember": "已是成员。",
+      "errorAlreadyInvited": "已邀请。",
+      "errorForbidden": "只有所有者或管理员可以邀请。",
+      "pendingNote": "已邀请。对方解锁保险库后即可加入。",
+      "invitedAs": "已邀请 {email} 为{role}"
     },
     "keyChange": {
       "declined": "已取消：未批准对方变更后的加密密钥。",
@@ -152,7 +161,7 @@
       "addFiles": "添加文件",
       "settings": "设置",
       "rotationBanner": "有成员被移除。必须轮换空间密钥，才能让其保留的任何副本失效。",
-      "rotationAsk": "请让所有者进行轮换；在此之前暂停添加文件。",
+      "rotationAsk": "所有者或管理员下次打开 zcrypt 时会自动轮换；在此之前暂停添加文件。",
       "rotateKey": "轮换密钥",
       "unlockToFinish": "解锁你的保险库以完成文件添加。",
       "addingProgress": "正在添加 {done}/{total, plural, other {# 个文件}}…",
@@ -254,7 +263,8 @@
       "typeAria": "输入空间名称以确认",
       "rotateConfirmTitle": "要轮换此 Space 的密钥吗？",
       "rotateConfirmDesc": "每个文件都会用新密钥重新加密，并重新分享给当前成员。较大的 Space 可能需要一些时间。",
-      "rotateConfirm": "轮换密钥"
+      "rotateConfirm": "轮换密钥",
+      "pending": "待加入"
     },
     "share": {
       "title": "共享文件",

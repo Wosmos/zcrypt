@@ -22,11 +22,14 @@ import { useFolderStore } from "@/store/folders";
 import { useConnectivityStore } from "@/store/connectivity";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useInterruptedDownloads } from "@/hooks/useInterruptedDownloads";
 import { FILES_DRAG_MIME, useDragMove } from "@/hooks/useDragMove";
 import { toast } from "@/store/toast";
 import { useTransferDockStore } from "@/store/transfer-dock";
 import { RETRY_TRANSFERS_EVENT } from "@/lib/service-worker";
 import { showWebTransferLimit } from "@/lib/web-transfer-guard";
+import { tryAgainNow } from "@/lib/transfer-wait";
+import { useTransferWait } from "@/store/transfer-wait";
 import { ChevronDown, Lock, X } from "@/lib/icons";
 import { cn, extOf, formatBytes, isImageFile, isVideoFile } from "@/lib/utils";
 import {
@@ -40,6 +43,7 @@ import {
 } from "@/lib/transfer-progress";
 import { TransferItem, TransferState, type TransferEntry } from "./transfer-item";
 import { ProgressRing, TONE, type Segment } from "./transfer-parts";
+import { AUTO_RESUME_TICK_MS } from "@/lib/transport";
 import {
   BatchBlock,
   DropOverlay,
@@ -120,6 +124,7 @@ function droppedIds(dt: DataTransfer): string[] {
 export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const t = useTranslations("app.transfer");
   const ta = useTranslations("app");
+  useInterruptedDownloads();
   const isPhone = useIsMobile();
   const canHover = useIsMobile("(hover: hover)");
   const online = useConnectivityStore((s) => s.online);
@@ -207,7 +212,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
       for (const id of getResumableUploadIds()) {
         const pass = silentUploadPassword(id);
-        if (pass) resumeUpload(id, pass);
+        if (pass) resumeUpload(id, pass, true);
       }
       autoResumeDownloads();
     };
@@ -216,7 +221,9 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", resumeInterrupted);
+    const timer = setInterval(onVisible, AUTO_RESUME_TICK_MS);
     return () => {
+      clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", resumeInterrupted);
     };
@@ -233,9 +240,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     return () => clearInterval(timer);
   }, [downloading]);
 
+  const waits = useTransferWait((s) => s.waits);
+
   const entries = useMemo<TransferEntry[]>(() => {
     const up = uploadQueue.map<TransferEntry>((item) => {
       const key = `up:${item.id}`;
+      const waiting = waits[key];
       const folderId = getItemFolderId(item.id);
       const total = item.totalBytes ?? item.file.size;
       const etaSeconds =
@@ -248,9 +258,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         direction: "upload",
         name: item.file.name,
         fileId: item.fileId,
-        state: uploadState(item),
+        state:
+          waiting && uploadState(item) === TransferState.Active
+            ? TransferState.Queued
+            : uploadState(item),
         view: describeUpload(
-          { ...item, etaSeconds },
+          { ...item, etaSeconds, waiting },
           { online, folderName: folderName(folderId), prevBar: bars[key], noPlatformText },
         ),
         sizeBytes: item.file.size,
@@ -265,6 +278,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     });
     const down = downloadQueue.map<TransferEntry>((item) => {
       const key = `dl:${item.id}`;
+      const waiting = waits[key];
       const etaSeconds = remainingFromElapsed(item.startedAt, item.progress, now);
       return {
         key,
@@ -272,9 +286,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         direction: "download",
         name: item.filename,
         fileId: item.fileId === "zip" ? undefined : item.fileId,
-        state: downloadState(item.status),
+        state:
+          waiting && downloadState(item.status) === TransferState.Active
+            ? TransferState.Queued
+            : downloadState(item.status),
         view: describeDownload(
-          { ...item, etaSeconds },
+          { ...item, etaSeconds, waiting },
           { online, folderName: "", prevBar: bars[key], noPlatformText },
         ),
         sizeBytes: item.fileSize,
@@ -285,7 +302,17 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     return [...up, ...down].sort(
       (a, b) => STATE_RANK[a.state] - STATE_RANK[b.state] || b.startedAt - a.startedAt,
     );
-  }, [uploadQueue, downloadQueue, online, folderName, noPlatformText, getItemFolderId, bars, now]);
+  }, [
+    uploadQueue,
+    downloadQueue,
+    online,
+    folderName,
+    noPlatformText,
+    getItemFolderId,
+    bars,
+    now,
+    waits,
+  ]);
 
   useEffect(() => {
     recordBars(Object.fromEntries(entries.map((e) => [e.key, e.view.bar])));
@@ -361,6 +388,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           retryDownload(id, pass, resolveFilePasswordGlobal),
         );
     },
+    onTryAgain: () => void tryAgainNow(),
     onNeedsApp: (id: string) => {
       const item = uploadQueue.find((u) => u.id === id);
       if (item?.limit)
@@ -452,6 +480,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     active: sentenceList.filter((e) => e.state === TransferState.Active).length,
     waiting: sentenceList.filter((e) => e.state === TransferState.Queued).length,
     paused: sentenceList.filter((e) => e.state === TransferState.Paused).length,
+    blocked: sentenceList.filter((e) => e.view.phase === "waiting").length,
     photos: sentenceList.length > 0 && sentenceList.every((e) => isPhoto(e.name)),
     folderName: folderName(mainFolder),
     online,

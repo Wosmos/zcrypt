@@ -271,6 +271,11 @@ const (
 	stagedElsewhereFor = 6 * time.Hour
 )
 
+// syncChunkMaxDuration is the safety-net bound on one chunk's platform calls:
+// the idle rule ends a stalled transfer, this ends anything else that hangs the
+// single sync goroutine.
+var syncChunkMaxDuration = 30 * time.Minute
+
 // syncOneChunk pushes one staged chunk to its platform. It returns the upload
 // error (nil otherwise) so the caller can pause a platform that is failing as a
 // whole; every other failure is already recorded against the chunk.
@@ -355,8 +360,11 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	// create. A 404 delete is a harmless no-op, and the git adapters treat it as
 	// success. Telegram is skipped: its planned path is a filename, not a message
 	// locator, so there is nothing to delete and re-upload just makes a new message.
+	upCtx, cancelUp := context.WithTimeout(ctx, syncChunkMaxDuration)
+	defer cancelUp()
+
 	if isRetry && chunk.Platform != types.PlatformTelegram {
-		if delErr := adapter.Delete(ctx, types.ChunkRef{
+		if delErr := adapter.Delete(upCtx, types.ChunkRef{
 			Platform:   chunk.Platform,
 			Account:    chunk.Account,
 			Repo:       chunk.Repo,
@@ -385,7 +393,7 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	defer releaseRepo()
 
 	// Upload to git platform
-	ref, err := adapter.Upload(ctx, chunk.Repo, types.Chunk{
+	ref, err := adapter.Upload(upCtx, chunk.Repo, types.Chunk{
 		Ref: types.ChunkRef{
 			FileID:     chunk.FileID,
 			Index:      chunk.Index,
@@ -426,7 +434,12 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		}
 	}
 
-	// Delete staging file
+	// A batch-commit platform (HuggingFace) is not durable until commitAndVerify
+	// confirms the commit, so its staging copy stays for a re-push; the commit
+	// step removes it.
+	if _, batch := adapter.(adapters.BatchCommitter); batch && rows > 0 {
+		return nil
+	}
 	if err := os.Remove(stagingPath); err != nil {
 		fmt.Printf("sync-worker: warn: remove staging file %s: %v\n", stagingPath, err)
 	}

@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
-import { sendInit, SendInitError, sendChunkUpload, sendComplete } from "@/lib/api";
+import { sendInit, SendInitError, sendChunkUpload, sendComplete, sendCancel } from "@/lib/api";
 import { sealText, keyFromBytes } from "@/lib/sealed";
+import { runWithConcurrency } from "@/lib/concurrent";
 import { useCopyFeedback } from "@/hooks/useCopyFeedback";
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ExpirySelector } from "./shared/expiry-selector";
@@ -33,7 +34,13 @@ export function SendTool() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loginRequired, setLoginRequired] = useState(false);
   const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
-  const abortRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const openSessionRef = useRef<string | null>(null);
+  const dropOpenSession = useCallback(() => {
+    const id = openSessionRef.current;
+    openSessionRef.current = null;
+    if (id) void sendCancel(id);
+  }, []);
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -54,7 +61,9 @@ export function SendTool() {
 
   const handleUpload = useCallback(async () => {
     if (!selectedFile) return;
-    abortRef.current = false;
+    abortRef.current?.abort();
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     setState("uploading");
     setErrorMsg("");
 
@@ -84,49 +93,89 @@ export function SendTool() {
       // The filename rides sealed under the same link key as the bytes, the
       // server never learns what was sent, only that something was.
       const nameKey = await keyFromBytes(keyBytes);
-      const session = await sendInit({
-        filename: await sealText(selectedFile.name, nameKey),
-        original_size: selectedFile.size,
-        sha256: await sealText(fileHash, nameKey),
-        salt: toBase64(salt),
-        chunk_count: chunkCount,
-        burn_after_read: burnAfterRead,
-        expires_hours: expiryHours,
-      });
+      const session = await sendInit(
+        {
+          filename: await sealText(selectedFile.name, nameKey),
+          original_size: selectedFile.size,
+          sha256: await sealText(fileHash, nameKey),
+          salt: toBase64(salt),
+          chunk_count: chunkCount,
+          burn_after_read: burnAfterRead,
+          expires_hours: expiryHours,
+        },
+        ctl.signal,
+      );
 
-      if (abortRef.current) return;
+      // Cancelled while the session was being made: drop it on the server too.
+      if (ctl.signal.aborted) {
+        void sendCancel(session.session_id);
+        return;
+      }
+      openSessionRef.current = session.session_id;
 
+      const { getDeviceProfile } = await import("@/lib/device-profile");
+      const depth = Math.min(getDeviceProfile().workers * 3, 12);
+      const failCtl = new AbortController();
+      const runSignal = AbortSignal.any([ctl.signal, failCtl.signal]);
+      const sent = new Array<number>(chunkCount).fill(0);
+      const sizes = new Array<number>(chunkCount).fill(0);
+      let finished = 0;
+      const report = () => {
+        const total = sizes.reduce((a, b) => a + b, 0) || 1;
+        const moved = sent.reduce((a, b) => a + b, 0);
+        setProgress({
+          stage: t("send.uploadingChunk", {
+            n: Math.min(finished + 1, chunkCount),
+            total: chunkCount,
+          }),
+          percent: 3 + Math.round((moved / total) * 89),
+        });
+      };
       for (let i = 0; i < chunkCount; i++) {
-        if (abortRef.current) return;
-        const start = i * CS;
-        const end = Math.min(start + CS, selectedFile.size);
-        const slice = selectedFile.slice(start, end);
-        const plaintext = new Uint8Array(await slice.arrayBuffer());
+        sizes[i] = Math.min(CS, selectedFile.size - i * CS);
+      }
+      report();
 
-        setProgress({
-          stage: t("send.encryptingChunk", { n: i + 1, total: chunkCount }),
-          percent: 3 + Math.round((i / chunkCount) * 42),
-        });
-        const encrypted = await encryptChunk(keyBytes, plaintext);
-        const chunkHash = await sha256Hex(encrypted);
-
-        setProgress({
-          stage: t("send.uploadingChunk", { n: i + 1, total: chunkCount }),
-          percent: 45 + Math.round((i / chunkCount) * 47),
-        });
-        await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false);
+      try {
+        await runWithConcurrency(
+          chunkCount,
+          depth,
+          async (i) => {
+            const slice = selectedFile.slice(i * CS, Math.min(i * CS + CS, selectedFile.size));
+            const plaintext = new Uint8Array(await slice.arrayBuffer());
+            const encrypted = await encryptChunk(keyBytes, plaintext);
+            const chunkHash = await sha256Hex(encrypted);
+            await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false, {
+              signal: runSignal,
+              onProgress: (n) => {
+                sent[i] = Math.min(n, sizes[i]);
+                report();
+              },
+            });
+            sent[i] = sizes[i];
+            finished++;
+            report();
+          },
+          runSignal,
+        );
+      } catch (err) {
+        failCtl.abort();
+        throw err;
       }
 
-      if (abortRef.current) return;
+      if (ctl.signal.aborted) return;
 
       setProgress({ stage: t("send.finalizing"), percent: 95 });
-      await sendComplete(session.session_id);
+      await sendComplete(session.session_id, ctl.signal);
+      openSessionRef.current = null;
 
       const url = `${window.location.origin}/send/${session.token}#key=${keyPassphrase}`;
       setShareUrl(url);
       setProgress({ stage: t("send.done"), percent: 100 });
       setState("done");
     } catch (err) {
+      if (ctl.signal.aborted) return;
+      dropOpenSession();
       let msg = t("send.failed");
       if (err instanceof SendInitError && (err as any).status === 429) {
         if ((err as any).loginRequired) {
@@ -146,10 +195,20 @@ export function SendTool() {
       setLoginRequired(false);
       setState("error");
     }
-  }, [selectedFile, burnAfterRead, expiryHours, t]);
+  }, [selectedFile, burnAfterRead, expiryHours, t, dropOpenSession]);
+
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    dropOpenSession();
+    setState("idle");
+    setProgress({ stage: "", percent: 0 });
+    setErrorMsg("");
+  }, [dropOpenSession]);
 
   const handleReset = useCallback(() => {
-    abortRef.current = true;
+    abortRef.current?.abort();
+    dropOpenSession();
     setState("idle");
     setSelectedFile(null);
     setShareUrl("");
@@ -157,7 +216,7 @@ export function SendTool() {
     setErrorMsg("");
     setLoginRequired(false);
     reset();
-  }, [reset]);
+  }, [reset, dropOpenSession]);
 
   const handleRetry = useCallback(() => {
     setState("idle");
@@ -222,6 +281,11 @@ export function SendTool() {
               percent={easeProgress(progress.percent)}
               transitionClassName="transition-all duration-500 ease-in-out"
             />
+            <div className="flex justify-end pt-3">
+              <Button variant="ghost" size="sm" onClick={handleCancel}>
+                {t("common.cancel")}
+              </Button>
+            </div>
           </div>
         </>
       )}

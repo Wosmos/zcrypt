@@ -95,6 +95,8 @@ func main() {
 	defer cancel()
 	server.StartCleanupWorker(ctx)
 	server.StartSyncWorker(ctx)
+	server.StartScheduledVerify(ctx)
+	server.StartNetGuard(ctx)
 
 	// Graceful shutdown on SIGINT/SIGTERM
 	var srv *http.Server // set after routes are configured
@@ -189,8 +191,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password, X-Download-Ticket")
-		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed, X-Next-Cursor, X-Request-ID")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password, X-Download-Ticket, X-Zcrypt-Client, X-Turnstile-Token")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed, X-Next-Cursor, X-Request-ID, Retry-After")
 		// Let the browser (and the desktop webview) cache a preflight for 10
 		// minutes instead of sending an OPTIONS before every authed request.
 		w.Header().Set("Access-Control-Max-Age", "600")

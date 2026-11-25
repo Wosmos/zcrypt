@@ -501,7 +501,7 @@
       "title": "Connect your storage",
       "description": "zcrypt doesn't sell you storage: you bring an account you already have. Connect a backend once and your encrypted files live there, under your control.",
       "tgTitle": "Telegram from the browser",
-      "tgP1": "When you upload from the web app to your own Telegram, the browser sends each encrypted chunk straight to Telegram with your bot token. Nothing passes through zcrypt's server, so these uploads don't count toward your web transfers or the 2 GB file limit. If a direct upload fails, zcrypt falls back to sending it through the server, and those bytes do count.",
+      "tgP1": "When you upload from the web app to your own Telegram, the browser sends each encrypted chunk straight to Telegram with your bot token. Nothing passes through zcrypt's server, so these uploads don't count toward your web transfers or the 2 GB file limit. If your network can't reach Telegram, zcrypt sends the upload through the server only while it fits your allowance, and those bytes do count. Otherwise the upload waits and carries on by itself once Telegram answers.",
       "tgP2": "Telegram is blocked in some countries and on some networks. When the browser can't reach it, a banner tells you so. Turn on a VPN and uploads go direct again. Without one they still work, but they pass through the server and count toward your web transfers."
     },
     "contributing": {
@@ -650,7 +650,7 @@
       "title": "Desktop app",
       "description": "A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption.",
       "directTitle": "Direct uploads and opening the app",
-      "directP1": "The desktop app uploads straight from your computer to your own storage. Nothing passes through zcrypt's server, so there is no file-size limit and no monthly web transfer allowance. Storage you connected on the web is picked up automatically: the app copies those tokens into your computer's keychain once per session, so you never connect anything twice.",
+      "directP1": "The desktop app uploads straight from your computer to your own storage whenever your network can reach it, so those uploads have no file-size limit and don't count toward your web transfer allowance. If your network blocks your storage (Telegram, for example), the app sends the transfer through zcrypt's server only while it fits your allowance, and otherwise waits until the storage answers. Storage you connected on the web is picked up automatically: the app copies those tokens into your computer's keychain once per session, so you never connect anything twice.",
       "directP2": "From the browser, <strong>Open the desktop app</strong> uses the <code>zcrypt://open</code> link to start the app, or to bring it to the front if it is already running. Only one copy runs at a time, so opening it again just focuses the window. The browser can't pass files to the app: drop them into the app window. If nothing opens, the download page opens in a new tab instead.",
       "winWarnTitle": "Windows may say it protected your PC",
       "winWarnBody": "If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet."
@@ -1622,7 +1622,11 @@
       "limR8": "Maximum size of the PostgreSQL connection pool. Default 25.",
       "limR9": "GitHub <code>owner/name</code> that download links and update checks read releases from. Default <code>Wosmos/zcrypt</code>.",
       "limR10": "Frontend. The GitHub repository the site links to and reads releases from, as <code>owner/name</code> or a full URL. Defaults to the zcrypt repository.",
-      "limR11": "Frontend. The contact and support address shown on the site."
+      "limR11": "Frontend. The contact and support address shown on the site.",
+      "limR12": "Web transfers each user gets per UTC day, in bytes. Default 5368709120 (5 GiB). Admins are exempt. <code>0</code> means unlimited.",
+      "limR13": "Device Transfer bytes one sending network may pass through the server per UTC day. Default 5368709120 (5 GiB).",
+      "limR14": "How often stored chunks are checked on their platform, as a Go duration such as <code>6h</code>. Default 6h. <code>off</code> turns the check off.",
+      "limR15": "Shared secret your web front end's <code>/api</code> proxy sends. Only next to it does the server trust the visitor address and location headers. Set the same value on the proxy."
     },
     "send": {
       "toc": {
@@ -1948,7 +1952,7 @@
       "p87": "Component",
       "p88": "Where it runs",
       "p89": "<strong>Frontend</strong>",
-      "p90": "Vercel (Next.js)",
+      "p90": "Cloudflare Workers (Next.js)",
       "p91": "<strong>Backend</strong>",
       "p92": "Distroless Docker image on a cloud Linux VM (provider-agnostic)",
       "p93": "<strong>Database</strong>",
@@ -2150,7 +2154,7 @@
         "too-large": "File too large for a platform",
         "disconnected": "Platform disconnected or token expired",
         "rate-limited": "Rate limited",
-        "web-limits": "Web upload limits and Telegram"
+        "web-limits": "Web transfer limits and Telegram"
       },
       "p1": "If decryption keeps failing or you land in a unlock/Retry loop, the most likely cause is a passphrase that doesn't match the one a file was encrypted with, a typo, a different keyboard layout, or an old passphrase. zcrypt can't tell you the passphrase is wrong before it tries to decrypt, because there's nothing readable on the server to check it against.",
       "p2": "Re-enter the passphrase carefully: watch for caps lock and trailing spaces.",
@@ -2192,11 +2196,11 @@
       "a38": "Rate limited",
       "title": "Troubleshooting",
       "description": "The handful of issues people hit most, and how to clear them. Most have a simple cause: the wrong key, a transient network hiccup, or a platform limit doing its job.",
-      "wlTitle": "Web upload limits and Telegram",
-      "wlP1": "Uploads from the web app have limits because they pass through zcrypt's server. The desktop app has none.",
-      "wlL1": "<strong>Too big for a web upload.</strong> A single file over 2 GB can't be uploaded from the browser. Upload it from the desktop app instead.",
-      "wlL2": "<strong>You've used your web transfers this month.</strong> The 20 GB monthly allowance is used up. It starts over on the 1st of the month (UTC), and Settings, Storage shows the date. Until then, use the desktop app, which doesn't count. Downloads are never blocked.",
-      "wlL3": "<strong>Telegram looks blocked.</strong> Your network or country blocks Telegram. Turn on a VPN and retry. Uploads still work without one, but they pass through the server and count toward your web transfers.",
+      "wlTitle": "Web transfer limits and Telegram",
+      "wlP1": "Storage isn't capped. What passes through zcrypt's server is: there's a daily and a monthly transfer allowance, plus a size cap per file. Settings, Storage, Usage & limits shows your numbers. Anything that goes straight between your device and your own storage doesn't count. The web, desktop and Android apps all go straight whenever your network can reach your storage.",
+      "wlL1": "<strong>Too big for the browser.</strong> A file over the per-file cap can't go through the server. Send it to Hugging Face or your own Telegram, which the browser reaches directly, or use the desktop app.",
+      "wlL2": "<strong>Not enough allowance left.</strong> Uploads and downloads through the server count, and so do people downloading your share links. A transfer that won't fit what's left stops before it starts and says when the allowance resets: today's at midnight UTC, the month's on the 1st. A transfer that runs out partway waits and carries on by itself when the allowance resets, or sooner if it can reach your own storage directly.",
+      "wlL3": "<strong>Telegram looks blocked.</strong> Your network or country blocks Telegram. If the rest of the transfer fits your allowance, it goes through the server instead. If not, it pauses and asks you to turn on a VPN, then carries on by itself as soon as Telegram answers. <strong>Try again</strong> checks right away.",
       "wlP2": "If <strong>Open the desktop app</strong> takes you to the download page even though the app is installed, open the app once yourself and try again. Older versions of the app can't be opened from the browser, so update it if that still doesn't work. You can always open the app yourself and drop the file there."
     },
     "uploading": {
@@ -2210,7 +2214,7 @@
         "parallel": "Parallel, and mobile-friendly",
         "folders": "Folder-aware uploads",
         "next": "Where to go next",
-        "limits": "Web limits and the desktop app",
+        "limits": "Limits when you go through our server",
         "whole-folder": "Uploading a whole folder"
       },
       "p1": "By the time an upload begins, the file is split into chunks on your device, and each chunk has been compressed with zstd and encrypted with AES-256-GCM (see <l1>How it works</l1>). What gets sent is a sequence of encrypted chunks: the server receives only ciphertext.",
@@ -2260,10 +2264,10 @@
       "a45": "Where to go next",
       "title": "Uploading",
       "description": "Files are compressed, encrypted, and chunked on your device, then streamed to your storage one chunk at a time. The upload survives refreshes, drops, and even a switch to another device, and it lands exactly where you are in your drive.",
-      "limitsTitle": "Web limits and the desktop app",
-      "limitsP1": "Whatever the web app sends through zcrypt's server has limits: one file can be up to <strong>2 GB</strong>, and each account gets <strong>20 GB of web transfers per month</strong>. Uploads count, and so do downloads. The meter is in <strong>Settings, Storage</strong> and starts over on the 1st of each month (UTC).",
-      "limitsP2": "Uploads that go straight from your browser to your storage skip the server, so they are never limited or counted. That covers Hugging Face and your own Telegram (see <l1>Connect storage</l1>). The desktop app always uploads this way, so it has no limits at all.",
-      "limitsP3": "When an upload is over a limit, you get a message with an <strong>Open the desktop app</strong> button. The browser can't hand the file to the app, so open the app and drop the file there. The button always tries the app first, and if nothing opens, the download page opens in a new tab, so uploads already running here keep going.",
+      "limitsTitle": "Limits when you go through our server",
+      "limitsP1": "Whatever goes through zcrypt's server has limits on every app: one file can be up to <strong>2 GB</strong>, and each account gets <strong>5 GB per day</strong> and <strong>20 GB per month</strong> of transfer allowance, whichever runs out first. Uploads count, and so do downloads. The meters are in <strong>Settings, Storage, Usage & limits</strong>.",
+      "limitsP2": "Uploads that go straight from your device to your own storage skip the server, so they are never limited or counted, in the browser, the desktop app and Android alike. That covers Hugging Face and your own Telegram (see <l1>Connect storage</l1>). If your network blocks Telegram, the app uses our server only while the rest fits your allowance, and otherwise waits for a VPN. See <l2>Limits & transfer allowance</l2>.",
+      "limitsP3": "When the server turns an upload away, you get a message that says which window ran out and when it starts over. If you have your own Telegram connected, the upload waits and continues straight to it as soon as it can be reached.",
       "wholeFolderTitle": "Uploading a whole folder",
       "wholeFolderP1": "To upload a folder with everything in it, choose <strong>Upload a folder</strong> in the Upload dialog, or drop the folder onto the dialog or the vault. zcrypt recreates its folders inside the folder you are viewing, every name encrypted in your browser like a folder you make yourself, and each file lands in its own folder.",
       "wholeFolderP2": "Uploading the same folder again fills the folders that are already there instead of making copies, and files already in place are skipped. System files such as <code>.DS_Store</code> and <code>Thumbs.db</code> are left out.",
@@ -2349,7 +2353,7 @@
       "title": "Web app",
       "description": "The zcrypt web app is the full product in a browser tab: a real encrypted drive with client-side encryption, a single session lock, and an optional way to stay unlocked on a device you trust.",
       "limTitle": "Limits in the browser",
-      "limP1": "What the web app sends through zcrypt's server is limited: 2 GB per file and 20 GB of web transfers per month. Uploads straight to your own Telegram or Hugging Face don't count, and the desktop app has no limits. Details are in <l1>Uploading</l1>.",
+      "limP1": "What goes through zcrypt's server is limited on every app: 2 GB per file, 5 GB per day and 20 GB per month. Uploads and downloads straight to your own storage don't count. Details are in <l1>Uploading</l1>.",
       "themeTitle": "Your theme on every device",
       "themeP1": "Your color theme and light or dark mode belong to your account. Pick them once in <strong>Settings</strong>, <strong>Appearance</strong>, and they follow you to every browser, the desktop app and the Android app where you sign in. A change shows up on your other devices straight away, custom colors included.",
       "themeP2": "To give one device its own look, turn off <strong>Same theme on all my devices</strong> on that device. It keeps its theme while your other devices follow your account, and turning the switch back on picks up your account's theme again. People who share a device each get their own theme when they sign in, never the previous person's."
@@ -2678,6 +2682,10 @@
       "glossary": {
         "title": "Glossary",
         "desc": "Terms used across zcrypt, defined."
+      },
+      "limits": {
+        "title": "Limits & transfer allowance",
+        "desc": "What zcrypt caps, what it doesn't, and what counts."
       }
     },
     "quick": {
@@ -2734,6 +2742,38 @@
       },
       "breadcrumb": "Breadcrumb",
       "pagination": "Pagination"
+    },
+    "limits": {
+      "title": "Limits & transfer allowance",
+      "description": "Your own storage is yours and zcrypt doesn't cap it. What is capped is what passes through our server, with a daily and a monthly transfer allowance.",
+      "toc": {
+        "own": "Your storage is yours",
+        "allowance": "The transfer allowance",
+        "counts": "What counts",
+        "blocked": "When Telegram is blocked",
+        "where": "Where to see your usage",
+        "next": "Where to go next"
+      },
+      "p1": "Files you keep on your own Telegram, GitHub, GitLab or Hugging Face live in your space, and zcrypt doesn't cap them. If you use zcrypt's shared storage instead, it has its own size quota, shown in your settings.",
+      "a1": "Your storage is yours",
+      "a2": "The transfer allowance",
+      "p2": "Think of it as a usage limit. Storage isn't capped, but what passes through our server is. There are two windows and whichever runs out first wins: <strong>5 GB per day</strong>, which starts over at midnight UTC, and <strong>20 GB per month</strong>, which starts over on the 1st (UTC). One file can be up to <strong>2 GB</strong> through our server. These are the defaults on zcrypt's own server; a self-hosted server sets its own.",
+      "p3": "Uploads in progress reserve the bytes they still need, so two big uploads can't both claim the last of your allowance. Admins have no limits.",
+      "a3": "What counts",
+      "p4": "Uploads and downloads that go through our server, in the browser, the desktop app or Android.",
+      "p5": "People downloading your share links and shared folders. Those count against you, the owner.",
+      "a4": "Free: straight to your own storage",
+      "p6": "Anything that goes straight between your device and your own Telegram, GitHub, GitLab or Hugging Face never touches our server, so it doesn't count. That is true on every app: web, desktop and Android.",
+      "a5": "When Telegram is blocked",
+      "p7": "Every app tries your own Telegram directly first. Some networks and countries block it. When that happens:",
+      "p8": "If the rest of the transfer fits what is left of your allowance, and the file is within the per-file limit, it goes through our server.",
+      "p9": "If it doesn't fit, the transfer pauses and asks you to turn on a VPN. zcrypt checks Telegram every 10 seconds and carries on by itself the moment it answers. Try again checks right now. Cancel still works.",
+      "p10": "If the server turns a transfer away halfway because the allowance ran out, it pauses the same way and continues straight to Telegram once it can be reached.",
+      "a6": "Where to see your usage",
+      "p11": "<l1>Settings, Storage, Usage & limits</l1> shows both meters with their reset times, the per-file limit, what is reserved for uploads in progress and what is left. When less than a tenth is left, a notice appears above your files.",
+      "a7": "Where to go next",
+      "p12": "<l1>Uploading: direct uploads and web limits</l1>",
+      "p13": "<l1>Transfer manager: pause, resume and retry</l1>"
     }
   }
 }

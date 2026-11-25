@@ -5,16 +5,24 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 
+# Unit tests go too: the build type-checks them, and some import the web-only pages.
+WEB_ONLY=(app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin" app/frontend/__tests__)
+if [ -n "$(git status --porcelain -- "${WEB_ONLY[@]}")" ]; then
+  echo "error: uncommitted changes in the web-only routes; commit or stash them first (they are deleted and restored from git)" >&2
+  exit 1
+fi
+restore_web_routes() { git -C "$REPO" checkout -- "${WEB_ONLY[@]}"; }
+trap restore_web_routes EXIT
+
 echo "== [1/5] remove web-only dynamic routes for static export =="
-rm -rf app/frontend/app/s
-rm -rf "app/frontend/app/pad/[token]"
-rm -rf "app/frontend/app/send/[token]"
-rm -rf "app/frontend/app/(app)/admin/users/[id]"
+rm -rf "${WEB_ONLY[@]}"
 
 echo "== [2/5] build frontend static export =="
 # Backend origin: DESKTOP_API_URL env, else the LOCAL gitignored
 # scripts/desktop.env (see scripts/desktop.env.example). Never baked in-repo.
-[ -f "$REPO/scripts/desktop.env" ] && source "$REPO/scripts/desktop.env"
+if [ -z "${DESKTOP_API_URL:-}" ] && [ -f "$REPO/scripts/desktop.env" ]; then
+  source "$REPO/scripts/desktop.env"
+fi
 : "${DESKTOP_API_URL:?Set DESKTOP_API_URL or create scripts/desktop.env from scripts/desktop.env.example}"
 echo "baking backend origin: $DESKTOP_API_URL"
 cd app/frontend
@@ -25,7 +33,8 @@ bun run build
 
 echo "== [3/5] restore web-only routes from git (keep tree clean) =="
 cd "$REPO"
-git checkout -- app/frontend/app/s "app/frontend/app/pad/[token]" "app/frontend/app/send/[token]" "app/frontend/app/(app)/admin/users/[id]"
+restore_web_routes
+trap - EXIT
 
 echo "== [4/5] prepare frontend-dist =="
 rm -rf app/desktop/frontend-dist
@@ -40,10 +49,11 @@ cat > index.html << 'HTMLEOF'
 <body></body>
 </html>
 HTMLEOF
+bash "$REPO/scripts/check-native-bundle.sh" "$REPO/app/desktop/frontend-dist"
 
 echo "== [5/5] cargo tauri build (release bundle) =="
 cd "$REPO/app/desktop/src-tauri"
-cargo tauri build
+ZCRYPT_API_URL="$DESKTOP_API_URL" cargo tauri build
 
 echo "== DONE. Bundle output: =="
 find "$REPO/app/desktop/src-tauri/target/release/bundle" -name "*.dmg" -o -name "*.app" 2>/dev/null

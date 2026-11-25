@@ -213,6 +213,22 @@ docker run -p 8080:8080 \\
               <code key="v">NEXT_PUBLIC_CONTACT_EMAIL</code>,
               <T key="docs.self-hosting.limR11" k="docs.self-hosting.limR11" />,
             ],
+            [
+              <code key="v">ZCRYPT_RELAY_DAILY_BYTES</code>,
+              <T key="docs.self-hosting.limR12" k="docs.self-hosting.limR12" />,
+            ],
+            [
+              <code key="v">ZCRYPT_TRANSFER_IP_DAILY_BYTES</code>,
+              <T key="docs.self-hosting.limR13" k="docs.self-hosting.limR13" />,
+            ],
+            [
+              <code key="v">ZCRYPT_VERIFY_INTERVAL</code>,
+              <T key="docs.self-hosting.limR14" k="docs.self-hosting.limR14" />,
+            ],
+            [
+              <code key="v">ZCRYPT_PROXY_SECRET</code>,
+              <T key="docs.self-hosting.limR15" k="docs.self-hosting.limR15" />,
+            ],
           ]}
         />
         <DocP>

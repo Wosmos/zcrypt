@@ -57,12 +57,21 @@
       "dismiss": "Fermer"
     },
     "invites": {
-      "errorNoSharing": "Impossible d'inviter cette adresse pour l'instant. Vérifiez l'orthographe. Si elle est correcte, la personne doit avoir un compte zcrypt et déverrouiller son coffre une fois avant que vous puissiez l'inviter.",
       "errorGeneric": "Échec de l’ajout du membre",
+      "errorRotating": "La clé de ce Space est en cours de changement après un départ. Réessaie dans un instant.",
       "errorNoKey": "Cet espace n’a pas de clé que vous puissiez partager (il date d’avant le partage chiffré).",
       "adminOwnerOnly": "Seul le propriétaire peut accorder le rôle d’administrateur.",
       "adding": "Ajout...",
-      "placeholder": "E-mail ou nom d’utilisateur"
+      "placeholder": "Adresse e-mail",
+      "errorNotFound": "Aucun compte zcrypt n'utilise cet e-mail.",
+      "errorRateLimited": "Trop de recherches. Réessayez dans quelques minutes.",
+      "errorInvalidEmail": "Saisissez un e-mail valide.",
+      "errorSelf": "C'est vous.",
+      "errorAlreadyMember": "Déjà membre.",
+      "errorAlreadyInvited": "Déjà invité.",
+      "errorForbidden": "Seul le propriétaire ou un admin peut inviter.",
+      "pendingNote": "Invité. Il rejoindra dès qu'il déverrouillera son coffre.",
+      "invitedAs": "{email} invité comme {role}"
     },
     "keyChange": {
       "declined": "Annulé : la clé de chiffrement modifiée de cette personne n’a pas été approuvée.",
@@ -152,7 +161,7 @@
       "addFiles": "Ajouter des fichiers",
       "settings": "Paramètres",
       "rotationBanner": "Un membre a été retiré. La clé de l’espace doit être renouvelée pour bloquer toute copie conservée.",
-      "rotationAsk": "Demandez au propriétaire de l’effectuer ; l’ajout de fichiers est suspendu d’ici là.",
+      "rotationAsk": "Elle est renouvelée automatiquement la prochaine fois que le propriétaire ou un administrateur ouvre zcrypt ; l’ajout de fichiers est suspendu d’ici là.",
       "rotateKey": "Renouveler la clé",
       "unlockToFinish": "Déverrouillez votre coffre pour terminer l’ajout des fichiers.",
       "addingProgress": "Ajout de {done} sur {total, plural, one {# fichier} other {# fichiers}}…",
@@ -254,7 +263,8 @@
       "typeAria": "Saisissez le nom de l’espace pour confirmer",
       "rotateConfirmTitle": "Renouveler la clé de ce Space ?",
       "rotateConfirmDesc": "Chaque fichier est rechiffré avec une nouvelle clé et partagé à nouveau avec les membres actuels. Cela peut prendre du temps dans un grand Space.",
-      "rotateConfirm": "Renouveler la clé"
+      "rotateConfirm": "Renouveler la clé",
+      "pending": "En attente"
     },
     "share": {
       "title": "Partager le fichier",

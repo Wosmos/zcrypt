@@ -30,6 +30,7 @@ type testServer struct {
 	*httptest.Server
 	db  *index.DB
 	srv *cmd.Server
+	hub *pipeline.ProgressEmitter
 	t   *testing.T
 }
 
@@ -90,7 +91,7 @@ func setupTestServerWith(t *testing.T, mutate func(*config.Config)) *testServer 
 	ts := httptest.NewServer(buildMux(server))
 	t.Cleanup(ts.Close)
 
-	return &testServer{Server: ts, db: db, srv: server, t: t}
+	return &testServer{Server: ts, db: db, srv: server, hub: progress, t: t}
 }
 
 // enableMockStorage attaches an in-memory storage adapter to the given user so
@@ -235,7 +236,7 @@ func cleanDB(t *testing.T, db *index.DB) {
 	ctx := context.Background()
 	// Delete in dependency order (FK constraints)
 	tables := []string{
-		"audit_events", "admin_email_campaigns", "upload_sessions", "chunks", "files",
+		"audit_events", "admin_email_campaigns", "pending_deletions", "send_transfers", "upload_sessions", "chunks", "files",
 		"platform_tokens", "refresh_tokens", "email_tokens", "users",
 	}
 	for _, table := range tables {

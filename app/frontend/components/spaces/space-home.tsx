@@ -162,7 +162,9 @@ export function SpaceHome() {
           if (!row) continue;
           setDownloading((prev) => new Set(prev).add(fid));
           try {
-            await downloadSpaceFile(detail, fid, row.wrappedCek, row.name);
+            await downloadSpaceFile(detail, fid, row.wrappedCek, row.name, {
+              fileSize: row.size ?? 0,
+            });
           } catch (err) {
             toast.error(
               `${midTrunc(row.name, 24, 8)}: ${err instanceof Error ? err.message : t("home.downloadFailed")}`,
@@ -270,12 +272,15 @@ export function SpaceHome() {
   const limitBytes = detail.size_limit_bytes ?? 0;
   const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
   const addBlocked = needsRotation || overLimit;
-  const members = (detail.members ?? []).map((m) => ({
-    user_id: m.user_id,
-    username: m.username || m.email || t("shared.member"),
-    has_avatar: m.has_avatar,
-    avatar_version: m.avatar_version,
-  }));
+  const members = (detail.members ?? [])
+    .filter((m) => m.status !== "pending")
+    .map((m) => ({
+      user_id: m.user_id,
+      username: m.username || m.email || t("shared.member"),
+      email: m.email,
+      has_avatar: m.has_avatar,
+      avatar_version: m.avatar_version,
+    }));
   const allSelected = ids.length > 0 && ids.every((x) => selected.has(x));
   const selectMode = selected.size > 0;
   const inFlight = job && job.status !== SpaceAddStatus.Done ? job : null;

@@ -58,6 +58,9 @@ export function useFriendlyError() {
   const t = useTranslations("ui.connection");
   return (err: unknown, fallback: string): string => {
     if (isNetworkFailure(err)) return t("requestFailed");
+    const code = (err as { code?: unknown } | null)?.code;
+    if (code === "network_blocked") return t("networkBlocked");
+    if (code === "bot_check_failed") return t("botCheckFailed");
     return err instanceof Error && err.message ? err.message : fallback;
   };
 }

@@ -164,7 +164,9 @@
         "choose": "选择保存位置",
         "paused": "已暂停",
         "offline": "等待 Wi-Fi",
-        "stopped": "已停止"
+        "stopped": "已停止",
+        "waitingTelegram": "此网络屏蔽了 Telegram。打开 VPN 后会自动继续。",
+        "waitingAllowance": "传输额度已用完。打开 VPN 直接发送到 Telegram，会自动继续。"
       },
       "time": {
         "fewSeconds": "几秒",
@@ -201,9 +203,11 @@
         "saved": "{count} 个已保存到 {folder}。",
         "savedSomeFailed": "{count} 个已保存到 {folder}。{failed} 个无法发送。",
         "allFailed": "{failed} 个无法发送。",
+        "allDownloadsFailed": "{failed} 个无法下载。",
         "downloaded": "已下载 {count} 个。",
         "downloadedSomeFailed": "已下载 {count} 个。{failed} 个无法下载。",
-        "needsApp": "{count} 个文件需要桌面应用。"
+        "needsApp": "{count} 个文件需要桌面应用。",
+        "blocked": "有 {count} 个文件在等待 Telegram。打开 VPN 后会自动继续。"
       },
       "legend": {
         "done": "已完成",
@@ -228,9 +232,11 @@
       "orb": "传输，还剩 {left} 个。点按打开，长按暂停或继续。",
       "needsApp": {
         "tooBig": "太大，无法在浏览器中上传",
-        "allowance": "本月网页传输额度已用完",
-        "action": "使用应用"
-      }
+        "allowance": "超出本月传输额度",
+        "action": "使用应用",
+        "daily": "超出今天的传输额度"
+      },
+      "tryAgain": "重试"
     },
     "tokens": {
       "expired": "已过期",
@@ -911,6 +917,9 @@
     "toasts": {
       "restartUpload": "无法继续之前对“{name}”的上传，将在 {platform} 上重新开始。",
       "directResumeElsewhere": "“{name}”原本直接上传到你自己的 {platform}，无法在此浏览器中完成。请移除后重新上传。",
+      "reconnectTelegram": "重新连接 Telegram 以完成上传“{name}”。",
+      "reconnectTelegramAction": "打开存储设置",
+      "downloadInterrupted": "已因页面重新加载而中断：{names}。页面重新加载后无法继续下载，请重新开始。",
       "andMore": "等另外 {count} 个",
       "tooBig": "{names} 超过了单个文件 {limit} 的上限（{count} 个）。",
       "uploaded": "{name} 已上传",
@@ -934,12 +943,16 @@
       "zipWrongPassword": "此 ZIP 中的文件夹密码错误。请重试并重新输入。",
       "zipFilesLabel": "{count} 个文件 (ZIP)",
       "webFileTooLarge": "超过 {limit} 的文件无法通过浏览器上传。大文件请使用桌面应用：速度更快，可在后台持续传输，且没有大小限制。",
-      "webAllowanceUsed": "你本月 {limit} 的网页传输额度已用完。将于 {date} 重置。桌面应用没有限制。",
-      "webAllowanceUsedNoDate": "你本月 {limit} 的网页传输额度已用完。桌面应用没有限制。",
+      "webAllowanceUsed": "你本月 {limit} 的传输额度已用完。将于 {date} 重置。直接发往你自己存储的内容不计入。",
+      "webAllowanceUsedNoDate": "你本月 {limit} 的传输额度已用完。直接发往你自己存储的内容不计入。",
       "getDesktopApp": "获取桌面应用",
       "openDesktopApp": "打开桌面应用",
       "desktopAppMissing": "无法打开桌面应用。还没有安装？",
-      "downloadDesktopApp": "下载桌面应用"
+      "downloadDesktopApp": "下载桌面应用",
+      "webDailyUsed": "你今天 {limit} 的传输额度已用完。将于 {time} 重置。直接发往你自己存储的内容不计入。",
+      "webDailyUsedNoTime": "你今天 {limit} 的传输额度已用完。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。",
+      "webDailyShort": "这需要通过我们的服务器传输 {needed}，但今天的 {limit} 额度只剩 {left}。额度在 {time} 重置。桌面应用直接从你的存储下载，不计入额度。",
+      "webAllowanceShort": "这需要通过我们的服务器传输 {needed}，但本月的 {limit} 额度只剩 {left}。额度在 {date} 重置。桌面应用直接从你的存储下载，不计入额度。"
     },
     "l10n": {
       "justNow": "刚刚",
@@ -1033,22 +1046,50 @@
       "newSignIn": "你的账户有新的登录",
       "newSignInBody": "{device}。不是你？请在设置中将其退出。",
       "inviteReceived": "你被邀请加入 {space}",
+      "inviteReceivedBy": "{name} 把你添加到了「{space}」",
       "inviteReceivedBody": "打开 zcrypt 接受或拒绝。",
       "linkViewed": "有人打开了你的链接",
       "storageFull": "你的存储空间已满",
       "storageFullBody": "新的上传会等待，直到你释放空间或连接自己的账户。",
       "view": "查看",
       "retry": "重试",
-      "open": "打开"
+      "open": "打开",
+      "invitePending": "{name} 邀请你加入一个空间",
+      "invitePendingBody": "解锁你的保险库即可加入。",
+      "memberJoined": "{name} 加入了「{space}」",
+      "memberLeft": "{name} 退出了「{space}」",
+      "memberRemoved": "你已被移出「{space}」",
+      "roleChanged": "你在「{space}」中的角色现为{role}",
+      "spaceDeleted": "「{space}」已被删除",
+      "filesAdded": "{name} 向「{space}」添加了 {count} 个文件",
+      "someone": "有人",
+      "aSpace": "一个空间",
+      "backupTitle": "zcrypt 备份",
+      "backupFilesOne": "已备份 {n} 个文件",
+      "backupFilesOther": "已备份 {n} 个文件",
+      "backupFromOne": "已从 {folder} 备份 {n} 个文件",
+      "backupFromOther": "已从 {folder} 备份 {n} 个文件",
+      "backupPhotosOne": "已备份 {n} 张照片",
+      "backupPhotosOther": "已备份 {n} 张照片",
+      "backupSignedOut": "备份已停止：请重新登录",
+      "backupOffline": "备份已暂停：无网络连接",
+      "backupFailedOne": "备份无法上传 {n} 个文件",
+      "backupFailedOther": "备份无法上传 {n} 个文件",
+      "role": {
+        "owner": "所有者",
+        "admin": "管理员",
+        "editor": "编辑者",
+        "viewer": "查看者"
+      }
     },
     "webLimit": {
       "tooBigTitle": "文件太大，无法在浏览器中上传",
       "tooBigManyTitle": "{count} 个文件太大，无法在浏览器中上传",
       "tooBigBody": "{name} 的大小为 {size}。浏览器上传会经过我们的服务器，因此上限为 {limit}。桌面应用会把文件直接发送到你的存储，没有大小限制。",
       "capBody": "浏览器上传会经过我们的服务器，因此上限为 {limit}。桌面应用会把文件直接发送到你的存储，没有大小限制。",
-      "allowanceTitle": "本月的网页传输额度已用完",
-      "allowanceBody": "已用 {used}，共 {limit}。将于 {date} 重置。桌面应用没有限制。",
-      "allowanceBodyNoDate": "已用 {used}，共 {limit}。桌面应用没有限制。",
+      "allowanceTitle": "本月的传输额度已用完",
+      "allowanceBody": "已用 {used}，共 {limit}。将于 {date} 重置。直接发往你自己存储的内容不计入。",
+      "allowanceBodyNoDate": "已用 {used}，共 {limit}。直接发往你自己存储的内容不计入。",
       "hint": "打开应用，然后把{count, plural, other {文件}}拖进去。",
       "more": "还有 {count} 个",
       "open": "打开桌面应用",
@@ -1056,7 +1097,28 @@
       "get": "获取桌面应用",
       "missing": "没有看到？获取桌面应用",
       "missingNote": "没有打开任何内容，这台设备上可能还没有安装应用。",
-      "notNow": "以后再说"
+      "notNow": "以后再说",
+      "dailyTitle": "今天的传输额度已用完",
+      "dailyBody": "今天已用 {used}，共 {limit}。将于 {time} 重置。直接发往你自己存储的内容不计入。",
+      "dailyBodyNoTime": "今天已用 {used}，共 {limit}。将于 UTC 午夜重置。直接发往你自己存储的内容不计入。",
+      "dailyShortTitle": "今天的额度不够了",
+      "allowanceShortTitle": "本月的额度不够了",
+      "dailyShortBody": "这需要通过我们的服务器传输 {needed}，今天的 {limit} 额度还剩 {left}。额度在 {time} 重置。桌面应用直接从你的存储下载，不计入额度。",
+      "allowanceShortBody": "这需要通过我们的服务器传输 {needed}，本月的 {limit} 额度还剩 {left}。额度在 {date} 重置。桌面应用直接从你的存储下载，不计入额度。"
+    },
+    "lowAllowance": {
+      "title": "你的传输额度快用完了",
+      "bodyDaily": "今天的额度只剩 {remaining}。将于 {time} 重置。直接上传到你自己的存储不占用额度。",
+      "bodyDailyNoTime": "今天的额度只剩 {remaining}。将于 UTC 午夜重置。直接上传到你自己的存储不占用额度。",
+      "bodyMonthly": "本月的额度只剩 {remaining}。将于 {date} 重置。直接上传到你自己的存储不占用额度。",
+      "bodyMonthlyNoDate": "本月的额度只剩 {remaining}。直接上传到你自己的存储不占用额度。",
+      "seeUsage": "查看用量"
+    },
+    "humanCheck": {
+      "title": "快速验证",
+      "body": "你在短时间内创建了很多链接。确认你是真人后，链接就会创建。",
+      "checking": "正在验证…",
+      "cancel": "取消"
     }
   }
 }

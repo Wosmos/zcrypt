@@ -27,7 +27,7 @@ import { useTour } from "@/components/onboarding/tour-provider";
 import { BugReportDialog } from "@/components/feedback/bug-report-dialog";
 import { ReviewDialog } from "@/components/feedback/review-dialog";
 import { UserAvatar, useCurrentUserAvatar } from "@/components/ui/user-avatar";
-import { Role } from "@/types";
+import { showsAdmin } from "@/lib/build-target";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 
@@ -48,7 +48,7 @@ export function AvatarDropdown() {
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
 
   const me = useCurrentUserAvatar();
-  const isAdmin = user?.role === Role.Admin;
+  const isAdmin = showsAdmin(user?.role);
   const isDark = resolvedTheme === "dark";
 
   useClickOutside(dropdownRef, () => setOpen(false), open);

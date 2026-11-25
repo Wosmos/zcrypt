@@ -1,5 +1,6 @@
 "use client";
 
+import { adminUserHref } from "@/lib/admin-routes";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -171,7 +172,7 @@ function ReportDrawer({
                   <dd className="mt-0.5 break-words font-medium text-[var(--color-text-secondary)]">
                     {report.user_id ? (
                       <Link
-                        href={`/admin/users/${report.user_id}`}
+                        href={adminUserHref(report.user_id)}
                         className="underline-offset-2 hover:underline"
                       >
                         {report.username || report.email}
@@ -326,7 +327,7 @@ export function BugReports() {
                   label: t("openUser"),
                   icon: User,
                   separatorBefore: true,
-                  onSelect: () => router.push(`/admin/users/${r.user_id}`),
+                  onSelect: () => router.push(adminUserHref(r.user_id ?? "")),
                 },
               ]
             : []),

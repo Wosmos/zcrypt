@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Download, Eye } from "@/lib/icons";
 import type { Shield } from "@/lib/icons";
-import { formatBytes } from "@/lib/utils";
+import { formatSizeBand } from "@/lib/utils";
 import {
   DownloadCompletePanel,
   MediaPreview,
@@ -107,6 +107,7 @@ export function TokenProgressStates({
   onSave,
   previewExtras,
   doneExtras,
+  onCancel,
 }: {
   pageState: ViewerState;
   loadingMessage: string;
@@ -118,6 +119,7 @@ export function TokenProgressStates({
   onSave: () => void;
   previewExtras?: ReactNode;
   doneExtras?: ReactNode;
+  onCancel?: () => void;
 }) {
   return (
     <>
@@ -129,6 +131,7 @@ export function TokenProgressStates({
           fileSize={info.file_size}
           stage={progress.stage}
           percent={progress.percent}
+          onCancel={onCancel}
         />
       )}
 
@@ -173,7 +176,9 @@ function TokenPreviewPanel({
       <MediaPreview previewType={previewType} previewUrl={previewUrl} name={name} onSave={onSave} />
       <div className="px-5 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
         <p className="text-[10px] text-[var(--color-text-muted)]">
-          {t("pub.decryptedInBrowser", { size: formatBytes(size) })}
+          {t("pub.decryptedInBrowser", {
+            size: t("token.sizeUpTo", { size: formatSizeBand(size) }),
+          })}
         </p>
         {children}
       </div>

@@ -42,6 +42,7 @@ type ReconcileReport struct {
 	Repos        []RepoReconcileReport `json:"repos"`
 	TotalOrphans int                   `json:"total_orphans"`
 	TotalMissing int                   `json:"total_missing"`
+	DamagedFiles int                   `json:"damaged_files"`
 	Note         string                `json:"note"`
 }
 
@@ -69,6 +70,7 @@ func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (Recon
 		return report, fmt.Errorf("list repos: %w", err)
 	}
 
+	damaged := map[string]bool{}
 	for _, repo := range repos {
 		rr := RepoReconcileReport{
 			RepoID:   repo.ID,
@@ -129,6 +131,9 @@ func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (Recon
 			rr.Error = fmt.Sprintf("diff missing chunks: %v", derr)
 		} else {
 			rr.MissingCount = len(d.Missing)
+			for _, c := range d.Missing {
+				damaged[c.FileID] = true
+			}
 			for i, c := range d.Missing {
 				if i == orphanSampleCap {
 					break
@@ -141,6 +146,19 @@ func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (Recon
 			report.TotalMissing += rr.MissingCount
 		}
 		report.Repos = append(report.Repos, rr)
+	}
+
+	if len(damaged) > 0 {
+		ids := make([]string, 0, len(damaged))
+		for id := range damaged {
+			ids = append(ids, id)
+		}
+		changed, err := s.db.MarkFilesDamaged(ctx, ids)
+		if err != nil {
+			return report, fmt.Errorf("mark damaged files: %w", err)
+		}
+		report.DamagedFiles = len(ids)
+		s.emitFileChanges(ctx, userID, changed, "updated")
 	}
 
 	return report, nil

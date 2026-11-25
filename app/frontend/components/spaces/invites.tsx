@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { loadSpaceKey, shareSpace } from "@/lib/spaces";
+import { ApiError } from "@/lib/http-error";
+import type { InviteResult } from "@/lib/api";
+import { inviteToSpace, loadSpaceKey } from "@/lib/spaces";
 import { withKeyConfirm, KeyChangeDeclinedError } from "@/components/spaces/key-change";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { SpaceRole, type SharedVault, type SharedVaultMember } from "@/types";
+import { SpaceRole, type SharedVault } from "@/types";
 
 export function inviteRoles(isOwner: boolean): SpaceRole[] {
   return isOwner
@@ -30,13 +32,36 @@ export class NoSpaceKeyError extends Error {
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
+const INVITE_ERRORS: Record<string, string> = {
+  not_found: "invites.errorNotFound",
+  rate_limited: "invites.errorRateLimited",
+  invalid_email: "invites.errorInvalidEmail",
+  self_invite: "invites.errorSelf",
+  already_member: "invites.errorAlreadyMember",
+  already_invited: "invites.errorAlreadyInvited",
+  forbidden: "invites.errorForbidden",
+  key_rotating: "invites.errorRotating",
+};
+
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+
 export function inviteErrorMessage(err: unknown, t: Translate): string {
   if (err instanceof KeyChangeDeclinedError) return t("keyChange.declined");
   if (err instanceof NoSpaceKeyError) return t("invites.errorNoKey");
-  const msg = err instanceof Error ? err.message : "";
-  if (/no user|not found|404|published key/i.test(msg)) return t("invites.errorNoSharing");
-  if (/only the owner/i.test(msg)) return msg;
-  return t("invites.errorGeneric");
+  const key = err instanceof ApiError ? INVITE_ERRORS[err.code] : undefined;
+  return t(key ?? "invites.errorGeneric");
+}
+
+/** What the inviter hears after a successful invite: the member is active, or waits for their vault. */
+export function inviteSuccessMessage(
+  result: InviteResult,
+  email: string,
+  role: SpaceRole,
+  t: Translate,
+): string {
+  return result.status === "pending"
+    ? t("invites.pendingNote")
+    : t("invites.invitedAs", { email, role: t(`role.${role}`) });
 }
 
 /** Seal the space key to one invitee, confirming a changed peer key if needed. */
@@ -44,13 +69,12 @@ export async function inviteMember(
   vault: SharedVault,
   email: string,
   role: SpaceRole,
-): Promise<SharedVaultMember> {
-  const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) {
+): Promise<InviteResult> {
+  if (!(await loadSpaceKey(vault))) {
     throw new NoSpaceKeyError();
   }
   return withKeyConfirm(email, (acceptChangedKeys) =>
-    shareSpace(vault.id, spaceKey, email, role, { acceptChangedKeys }),
+    inviteToSpace(vault, email, role, { acceptChangedKeys }),
   );
 }
 
@@ -113,6 +137,10 @@ export function InviteForm({
   const submit = async () => {
     const value = email.trim();
     if (!value) return;
+    if (!EMAIL_SHAPE.test(value)) {
+      setError(t("invites.errorInvalidEmail"));
+      return;
+    }
     setPending(true);
     setError("");
     const res = await onSubmit(value, role);
@@ -126,7 +154,7 @@ export function InviteForm({
     <div className="space-y-2">
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
-          type="text"
+          type="email"
           inputMode="email"
           autoComplete="off"
           value={email}

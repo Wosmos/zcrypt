@@ -21,11 +21,26 @@ export function parseErrorBody(body: string): string {
  *  without re-parsing the response. */
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Seconds the server asked to wait (Retry-After), 0 when it sent none. */
+  retryAfter: number;
+  /** The server's machine-readable `reason` (chunk_pending, chunk_missing), "" when none. */
+  reason: string;
+  /** The server's machine-readable `code` (no_key, already_member, ...), "" when none. */
+  code: string;
+  constructor(message: string, status: number, retryAfter = 0, reason = "", code = "") {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.retryAfter = retryAfter;
+    this.reason = reason;
+    this.code = code;
   }
+}
+
+/** Seconds from a numeric Retry-After header, 0 when absent or not a number. */
+export function retryAfterSeconds(value: string | null | undefined): number {
+  const n = Number(value?.trim());
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 /** Statuses worth retrying: request timeout, rate limit, and any server error.
@@ -37,7 +52,38 @@ export function isRetryableStatus(status: number): boolean {
 
 /** Read a non-ok response body and throw an ApiError carrying the server message + status. */
 export async function throwResponseError(res: Response): Promise<never> {
-  throw new ApiError(parseErrorBody(await res.text()), res.status);
+  throw apiErrorFrom(res, await res.text());
+}
+
+/** The ApiError for a failed response whose body was already read. */
+export function apiErrorFrom(res: Response, body: string): ApiError {
+  return new ApiError(
+    parseErrorBody(body),
+    res.status,
+    retryAfterSeconds(res.headers?.get?.("Retry-After")),
+    parseErrorReason(body),
+    parseErrorCode(body),
+  );
+}
+
+/** The server's `code` field from a JSON error body, "" when absent. */
+export function parseErrorCode(body: string): string {
+  try {
+    const code = JSON.parse(body).code;
+    return typeof code === "string" ? code : "";
+  } catch {
+    return "";
+  }
+}
+
+/** The server's `reason` field from a JSON error body, "" when absent. */
+export function parseErrorReason(body: string): string {
+  try {
+    const reason = JSON.parse(body).reason;
+    return typeof reason === "string" ? reason : "";
+  } catch {
+    return "";
+  }
 }
 
 /**

@@ -6,8 +6,7 @@ import { Logo } from "@/components/ui/logo";
 import { GITHUB_REPO } from "@/lib/config";
 import { ArrowUpRight, BookOpen, Github } from "@/lib/icons";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
-
-const COPYRIGHT_YEAR = new Date().getFullYear();
+import { currentYear } from "@/lib/utils";
 
 const GITHUB_REPO_URL = GITHUB_REPO;
 
@@ -101,6 +100,7 @@ function FooterNavLink({
 
 export function MarketingFooter() {
   const t = useTranslations("marketing.footer");
+  const year = currentYear();
   return (
     <footer className="relative z-[2] mt-28 px-5 sm:px-[50px]">
       {/* Cyan glow bleeding up from behind the footer box */}
@@ -184,8 +184,8 @@ export function MarketingFooter() {
           </div>
 
           <div className="pb-safe flex flex-col items-start gap-4 border-t border-[var(--color-border)] pt-8 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center">
-            <p className="text-[0.82rem] text-[var(--color-text-muted)]">
-              {t("copyright", { year: COPYRIGHT_YEAR })}
+            <p className="text-[0.82rem] text-[var(--color-text-muted)]" suppressHydrationWarning>
+              {t("copyright", { year })}
             </p>
 
             <a

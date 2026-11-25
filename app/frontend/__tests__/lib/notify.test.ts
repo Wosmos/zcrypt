@@ -178,6 +178,9 @@ describe("describeNotification", () => {
       area: "sharing",
       url: "/spaces",
     });
+    expect(N.describeNotification({ type: "inviteReceived", space: "Trips", name: "Wasif" }, true).title).toBe(
+      "Wasif added you to Trips",
+    );
     expect(N.describeNotification({ type: "linkViewed", name: "Lease.pdf" }, true)).toMatchObject({
       title: "Someone opened your link",
       body: "Lease.pdf",
@@ -519,5 +522,22 @@ describe("needsHomeScreenInstall", () => {
     setUA(IPHONE);
     vi.stubGlobal("matchMedia", undefined);
     expect(N.needsHomeScreenInstall()).toBe(true);
+  });
+});
+
+describe("Space notices", () => {
+  it("describes each Space event with its url and a shared, quiet tag", () => {
+    const cases: Array<[Parameters<typeof N.describeNotification>[0], string]> = [
+      [{ type: "memberJoined", name: "Wasif", space: "Trip" }, "Wasif joined Trip"],
+      [{ type: "memberRemoved", space: "Trip" }, "You were removed from Trip"],
+      [{ type: "roleChanged", space: "Trip", role: "editor" }, "Your role in Trip is now Editor"],
+      [{ type: "spaceDeleted", space: "Trip" }, "Trip was deleted"],
+      [{ type: "filesAdded", name: "Wasif", space: "Trip", count: 12 }, "Wasif added 12 files to Trip"],
+    ];
+    for (const [event, title] of cases) {
+      expect(N.describeNotification(event, true)).toMatchObject({ title, area: "sharing", url: "/spaces", renotify: false });
+    }
+    expect(N.eventTag("memberJoined", { space_id: "s1", user_id: "u2" })).toBe("zcrypt-memberJoined-s1-u2");
+    expect(N.eventTag("newSignIn")).toBe("zcrypt-sign-in");
   });
 });

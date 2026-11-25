@@ -86,4 +86,60 @@ describe("noticeCopy", () => {
     });
     expect(copy.hint).toBeUndefined();
   });
+
+  it("explains the daily window with the time it starts over", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.DailyExceeded,
+      limitBytes: 3 * MB,
+      usedBytes: 3 * MB,
+      resetsAt: "2026-11-20T00:00:00Z",
+      files: [],
+    });
+    expect(copy.title).toEqual({ key: "dailyTitle" });
+    expect(copy.body.key).toBe("dailyBody");
+    expect(copy.body.values).toMatchObject({ used: "3 MB", limit: "3 MB" });
+    expect(copy.body.values?.time).toMatch(/12:00 AM/);
+  });
+
+  it("drops the time when the server sent none", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.DailyExceeded,
+      limitBytes: 3 * MB,
+      files: [],
+    });
+    expect(copy.body.key).toBe("dailyBodyNoTime");
+  });
+
+  it("says what a download needed and what is left when it was stopped before starting", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.DailyExceeded,
+      limitBytes: 60 * MB,
+      usedBytes: 51 * MB,
+      resetsAt: "2026-11-20T00:00:00Z",
+      neededBytes: 14 * MB,
+      files: [],
+    });
+    expect(copy.title).toEqual({ key: "dailyShortTitle" });
+    expect(copy.body.key).toBe("dailyShortBody");
+    expect(copy.body.values).toMatchObject({ needed: "14 MB", left: "9 MB", limit: "60 MB" });
+  });
+
+  it("says the same for the monthly allowance, counting nothing used when the server sent no figure", () => {
+    const copy = noticeCopy({
+      code: WebTransferLimitCode.AllowanceExceeded,
+      limitBytes: 20 * MB,
+      resetsAt: "2026-12-01T00:00:00Z",
+      neededBytes: 5 * MB,
+      files: [],
+    });
+    expect(copy.title).toEqual({ key: "allowanceShortTitle" });
+    expect(copy.body.key).toBe("allowanceShortBody");
+    expect(copy.body.values).toMatchObject({ needed: "5 MB", left: "20 MB", limit: "20 MB" });
+    expect(copy.body.values?.date).toBe("December 1");
+  });
+
+  it("does not use the short copy for a per-file cap even when a size was needed", () => {
+    const copy = noticeCopy({ ...tooBig, neededBytes: 5 * MB, resetsAt: "2026-12-01T00:00:00Z", files: [] });
+    expect(copy.title).toEqual({ key: "tooBigTitle" });
+  });
 });

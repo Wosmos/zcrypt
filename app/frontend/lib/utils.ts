@@ -73,6 +73,14 @@ export function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+/** A public size band (1-2-5 ladder in decimal bytes) reads as a round number: 50 MB, not 47.7 MB. */
+export function formatSizeBand(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(Math.floor(Math.log10(bytes) / 3), sizes.length - 1);
+  return `${parseFloat((bytes / 1000 ** i).toFixed(1))} ${sizes[i]}`;
+}
+
 type RelativeUnit = "minute" | "hour" | "day";
 
 function relativeAgo(count: number, unit: RelativeUnit): string {
@@ -901,6 +909,9 @@ export function concatChunks(chunks: Uint8Array[]): Uint8Array {
   return out;
 }
 
+/** Revoking right after click() can cancel a large save the browser has not started reading. */
+export const BLOB_URL_REVOKE_DELAY_MS = 60_000;
+
 /** Trigger a browser "save as": createObjectURL -> hidden <a download> -> click
  *  -> revoke. For a Uint8Array the bytes are copied into a FRESH ArrayBuffer so
  *  the Blob gets contiguous, offset-free bytes (matches the app/f hand-roll).
@@ -923,5 +934,10 @@ export function saveBlob(name: string, data: Blob | BlobPart | Uint8Array, mime?
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
+}
+
+/** This year, read when called: a Worker's clock reads 1970 at module load. */
+export function currentYear(): number {
+  return new Date().getFullYear();
 }

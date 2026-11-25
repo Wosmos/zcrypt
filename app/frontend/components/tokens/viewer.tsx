@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { AlertTriangle, Music, CheckCircle2, Download, File, Eye } from "@/lib/icons";
-import { formatBytes, easeProgress } from "@/lib/utils";
+import { formatSizeBand, easeProgress } from "@/lib/utils";
 
 /**
  * Presentational shells shared by the public token viewers (s / send / pad).
@@ -96,7 +96,7 @@ export function TokenFileHeader({
         <div className="min-w-0">
           <p className="text-sm font-semibold truncate">{fileName}</p>
           <p className="text-xs text-[var(--color-text-muted)]">
-            {formatBytes(fileSize)}
+            {t("token.sizeUpTo", { size: formatSizeBand(fileSize) })}
             {previewType !== "none" && (
               <span className="ml-1.5 text-[var(--color-accent)]">
                 &middot;{" "}
@@ -120,12 +120,15 @@ export function ViewerDecryptProgress({
   fileSize,
   stage,
   percent,
+  onCancel,
 }: {
   fileName: string;
   fileSize: number;
   stage: string;
   percent: number;
+  onCancel?: () => void;
 }) {
+  const t = useTranslations("tools");
   return (
     <>
       <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
@@ -135,7 +138,9 @@ export function ViewerDecryptProgress({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">{fileName}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(fileSize)}</p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {t("token.sizeUpTo", { size: formatSizeBand(fileSize) })}
+            </p>
           </div>
         </div>
       </div>
@@ -151,6 +156,13 @@ export function ViewerDecryptProgress({
               style={{ width: `${easeProgress(percent)}%` }}
             />
           </div>
+          {onCancel && (
+            <div className="flex justify-end pt-2">
+              <Button variant="ghost" size="sm" onClick={onCancel}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </>

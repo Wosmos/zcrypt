@@ -5,7 +5,9 @@ import { CommandPalette } from "@/components/ui/command-palette";
 import { VaultLockProvider } from "@/components/providers/vault-lock-provider";
 import { AppScope } from "@/components/providers/app-scope";
 import { AppTransfers } from "@/components/transfer/app-transfers";
+import { LowAllowanceNotice } from "@/components/dashboard/low-allowance-notice";
 import { WebTransferLimitDialog } from "@/components/upload/web-transfer-limit-dialog";
+import { HumanCheckDialog } from "@/components/system/human-check-dialog";
 import { FileEventsBridge } from "@/components/providers/file-events-bridge";
 import { BackgroundAlerts } from "@/components/providers/background-alerts";
 import { SpaceAddsStrip, SpaceAddsGuard } from "@/components/share/space-adds-strip";
@@ -57,6 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <div className="mx-auto max-w-9xl px-3 pb-3 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
                     <AccountDeletionBanner />
+                    <LowAllowanceNotice />
                     {children}
                   </div>
                 </main>
@@ -66,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <AppTransfers />
               <MiniPlayer />
               <WebTransferLimitDialog />
+              <HumanCheckDialog />
               <FileEventsBridge />
               <BackgroundAlerts />
               <ReviewPrompt />

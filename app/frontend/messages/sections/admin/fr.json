@@ -408,7 +408,9 @@
         "admin_review_status": "Avis modéré",
         "admin_send_platform_change": "Plateforme d'envoi modifiée",
         "admin_role_change_denied": "Changement de rôle refusé",
-        "admin_user_delete_denied": "Suppression d'utilisateur refusée"
+        "admin_user_delete_denied": "Suppression d'utilisateur refusée",
+        "session_client_changed": "Appli changée, session terminée",
+        "network_blocked": "Bloqué : réseau cloud"
       },
       "colEvent": "Événement",
       "deletedAccount": "un compte supprimé",

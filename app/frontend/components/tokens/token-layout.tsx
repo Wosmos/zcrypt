@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import "@/components/marketing/landing/base.css";
 import { tr } from "@/store/translate";
+import { TOKEN_SHELL_PARAMS } from "@/lib/route-shell";
 
-// Under `output: export` (the Tauri desktop build) Next 16 requires at least
-// one concrete param per dynamic segment; an empty array is rejected with
-// "missing generateStaticParams()". These share pages are fully client-rendered
-// (token read from the URL at runtime) and are stripped from the desktop bundle
-// anyway, so a single throwaway shell satisfies the export. Only the export
-// build's `layout.export.tsx` exports it: on Vercel any generateStaticParams
-// stores every distinct token URL as its own ISR page.
-const TOKEN_STATIC_PARAMS = [{ token: "placeholder" }];
-
+// Every token is served by the one prerendered `/<base>/_` page (see
+// lib/route-shell); the token is read from the URL at runtime.
 export function generateStaticParams() {
-  return TOKEN_STATIC_PARAMS;
+  return TOKEN_SHELL_PARAMS;
 }
 
 export function tokenMetadata(title: string): Metadata {
@@ -38,7 +32,8 @@ export function formatShortExpiry(expiresAt: string): string {
 export function TokenViewerMain({ children }: { children: ReactNode }) {
   return (
     <main className="pv2 min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4 pt-safe pb-safe px-safe">
-      {children}
+      {/* The page reads its token with useSearchParams, which needs a boundary. */}
+      <Suspense>{children}</Suspense>
     </main>
   );
 }

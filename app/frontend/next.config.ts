@@ -21,22 +21,28 @@ const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 //  - 'wasm-unsafe-eval' is required by the zstd + sql.js WebAssembly modules.
 //  - connect-src must include the cross-origin API + its WebSocket origin
 //    (device-to-device transfer) + Vercel analytics + the Telegram Bot API
-//    (reachability check and direct uploads to the user's own bot).
+//    (reachability check and direct uploads to the user's own bot) + the
+//    Hugging Face LFS bucket that presigned direct uploads PUT to.
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const DEV_API_URL = "http://localhost:8080";
 const apiWss = apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
+// Direct chunk downloads: GitHub raw links and Hugging Face's signed CDN links.
+const PLATFORM_DOWNLOAD_HOSTS =
+  "https://raw.githubusercontent.com https://*.hf.co https://*.huggingface.co";
+const HF_LFS_HOSTS =
+  "https://hf-hub-lfs-us-east-1.s3-accelerate.amazonaws.com https://hf-hub-lfs-us-east-1.s3.us-east-1.amazonaws.com";
 const cspValue = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org https://va.vercel-scripts.com https://vitals.vercel-insights.com`
+  `connect-src 'self' ${apiUrl} ${apiWss} https://api.telegram.org ${HF_LFS_HOSTS} ${PLATFORM_DOWNLOAD_HOSTS} https://cloudflareinsights.com`
     .replace(/\s+/g, " ")
     .trim(),
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
-  "frame-src 'self' blob:",
+  "frame-src 'self' blob: https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -49,7 +55,10 @@ const cspHeaderKey =
     : "Content-Security-Policy";
 
 const nextConfig: NextConfig = {
-  env: { NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "" },
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "",
+    NEXT_PUBLIC_NATIVE_BUILD: isTauriExport ? "1" : "",
+  },
   reactCompiler: true,
   turbopack: {},
   pageExtensions: [
@@ -145,7 +154,7 @@ const nextConfig: NextConfig = {
       // production it makes www.zcrypt.cloud/api/* a STABLE front for the
       // backend: native desktop/Android builds bake this hostname (which we
       // own) instead of a Railway-generated one, so when the backend moves the
-      // fix is a Vercel env change + redeploy, never a rebuild of shipped
+      // fix is a NEXT_PUBLIC_API_URL change + redeploy, never a rebuild of shipped
       // apps. (The web app itself keeps calling NEXT_PUBLIC_API_URL directly;
       // WebSocket upgrades are not proxied by rewrites, so the web transfer
       // tool also stays on the direct origin.)
@@ -157,6 +166,32 @@ const nextConfig: NextConfig = {
         });
       }
       return rules;
+    },
+    // Every id is served by its route's one prerendered `/_` page (lib/route-shell).
+    async redirects() {
+      const noId = [{ type: "query" as const, key: "id" }];
+      return [
+        // Share links keep their #key fragment across the redirect.
+        ...["s", "f", "send", "pad"].map((base) => ({
+          source: `/${base}/:token((?!_$)[^/]+)`,
+          missing: noId,
+          destination: `/${base}/_?id=:token`,
+          permanent: false,
+        })),
+        ...["", "/add", "/settings"].map((sub) => ({
+          // Not the shell id `_` itself, nor the /spaces/new page.
+          source: sub ? `/spaces/:id([^/_][^/]*|_[^/]+)${sub}` : "/spaces/:id((?!new$|_$)[^/]+)",
+          missing: noId,
+          destination: `/spaces/_${sub}?id=:id`,
+          permanent: false,
+        })),
+        {
+          source: "/admin/users/:id((?!_$)[^/]+)",
+          missing: noId,
+          destination: "/admin/users/_?id=:id",
+          permanent: false,
+        },
+      ];
     },
   }),
 };

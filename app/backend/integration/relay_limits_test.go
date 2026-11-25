@@ -17,10 +17,14 @@ import (
 )
 
 type relayQuota struct {
-	RelayUsedBytes    int64     `json:"relay_used_bytes"`
-	RelayLimitBytes   int64     `json:"relay_limit_bytes"`
-	RelayMaxFileBytes int64     `json:"relay_max_file_bytes"`
-	RelayResetsAt     time.Time `json:"relay_resets_at"`
+	RelayUsedBytes     int64     `json:"relay_used_bytes"`
+	RelayLimitBytes    int64     `json:"relay_limit_bytes"`
+	RelayMaxFileBytes  int64     `json:"relay_max_file_bytes"`
+	RelayResetsAt      time.Time `json:"relay_resets_at"`
+	RelayDayUsedBytes  int64     `json:"relay_day_used_bytes"`
+	RelayDayLimitBytes int64     `json:"relay_day_limit_bytes"`
+	RelayDayResetsAt   time.Time `json:"relay_day_resets_at"`
+	RelayReservedBytes int64     `json:"relay_reserved_bytes"`
 }
 
 type relayRefusal struct {
@@ -130,8 +134,9 @@ func TestRelayFileTooLargeOnlyRefusesRelay(t *testing.T) {
 	requireStatus(t, ts.byosInit(directToken, types.PlatformTelegram, 2000, "db-"+tag), http.StatusOK)
 }
 
-func TestRelayAllowanceRefusesUploadsButNeverDownloads(t *testing.T) {
-	t.Setenv("ZCRYPT_RELAY_MONTHLY_BYTES", "200")
+func TestRelayMonthlyAllowanceRefusesUploadsAndDownloads(t *testing.T) {
+	t.Setenv("ZCRYPT_RELAY_MONTHLY_BYTES", "300")
+	t.Setenv("ZCRYPT_RELAY_DAILY_BYTES", "0")
 	ts := setupTestServer(t)
 	tag := relayTag()
 	email := "relay-month-" + tag + "@example.com"
@@ -146,13 +151,13 @@ func TestRelayAllowanceRefusesUploadsButNeverDownloads(t *testing.T) {
 	require.NoError(t, json.Unmarshal(requireStatus(t, ts.relayInit(token, 50, "mb-"+tag), http.StatusForbidden), &refusal))
 	assert.Equal(t, types.ErrCodeRelayAllowanceExceeded, refusal.Code)
 	assert.Equal(t, int64(256), refusal.UsedBytes)
-	assert.Equal(t, int64(200), refusal.LimitBytes)
+	assert.Equal(t, int64(300), refusal.LimitBytes)
 	y, m, _ := time.Now().UTC().Date()
 	assert.True(t, refusal.ResetsAt.Equal(time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)), refusal.ResetsAt.String())
 
-	body := requireStatus(t, ts.GET("/api/files/"+fileID+"/chunks/0", token), http.StatusOK)
-	assert.Equal(t, relayChunk(128), body, "downloads keep working past the allowance")
-	assert.Equal(t, int64(384), ts.relayQuotaOf(token).RelayUsedBytes, "and are still counted")
+	require.NoError(t, json.Unmarshal(requireStatus(t, ts.GET("/api/files/"+fileID+"/chunks/0", token), http.StatusForbidden), &refusal))
+	assert.Equal(t, types.ErrCodeRelayAllowanceExceeded, refusal.Code, "a download that would pass the month is refused")
+	assert.Equal(t, int64(256), ts.relayQuotaOf(token).RelayUsedBytes, "and is not counted")
 }
 
 func TestRelayShareDownloadCountsAgainstOwner(t *testing.T) {
@@ -199,18 +204,25 @@ func TestRelayLimitsExemptAdmins(t *testing.T) {
 func TestRelayQuotaFields(t *testing.T) {
 	t.Setenv("ZCRYPT_RELAY_MAX_FILE_BYTES", "")
 	t.Setenv("ZCRYPT_RELAY_MONTHLY_BYTES", "")
+	t.Setenv("ZCRYPT_RELAY_DAILY_BYTES", "")
 	ts := setupTestServer(t)
 	token := ts.registerAndLogin("relay-quota-"+relayTag()+"@example.com", newTestPassword())
 	q := ts.relayQuotaOf(token)
 	assert.Zero(t, q.RelayUsedBytes)
 	assert.Equal(t, int64(20)<<30, q.RelayLimitBytes)
 	assert.Equal(t, int64(2)<<30, q.RelayMaxFileBytes)
-	y, m, _ := time.Now().UTC().Date()
+	assert.Equal(t, int64(5)<<30, q.RelayDayLimitBytes)
+	assert.Zero(t, q.RelayDayUsedBytes)
+	assert.Zero(t, q.RelayReservedBytes)
+	y, m, d := time.Now().UTC().Date()
 	assert.True(t, q.RelayResetsAt.Equal(time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)), q.RelayResetsAt.String())
+	assert.True(t, q.RelayDayResetsAt.Equal(time.Date(y, m, d+1, 0, 0, 0, 0, time.UTC)), q.RelayDayResetsAt.String())
 
 	t.Setenv("ZCRYPT_RELAY_MAX_FILE_BYTES", "0")
 	t.Setenv("ZCRYPT_RELAY_MONTHLY_BYTES", "0")
+	t.Setenv("ZCRYPT_RELAY_DAILY_BYTES", "0")
 	q = ts.relayQuotaOf(token)
+	assert.Zero(t, q.RelayDayLimitBytes, "0 means none")
 	assert.Zero(t, q.RelayLimitBytes, "0 means unlimited")
 	assert.Zero(t, q.RelayMaxFileBytes, "0 means unlimited")
 }

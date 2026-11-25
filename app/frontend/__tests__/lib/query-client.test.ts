@@ -209,18 +209,20 @@ describe("queryPersister (IndexedDB)", () => {
 });
 
 describe("revalidateRestored", () => {
-  it("marks restored files, folders and analytics stale and leaves other classes fresh", async () => {
+  it("marks restored files, folders, analytics and quota stale and leaves other classes fresh", async () => {
     queryClient.clear();
     queryClient.setQueryData(["files"], []);
     queryClient.setQueryData(["folders", "root"], []);
     queryClient.setQueryData(["analytics", "insights", "7d"], {});
     queryClient.setQueryData(["quota"], {});
+    queryClient.setQueryData(["platforms"], []);
     await revalidateRestored();
     const stale = (k: unknown[]) => queryClient.getQueryState(k)?.isInvalidated;
     expect(stale(["files"])).toBe(true);
     expect(stale(["folders", "root"])).toBe(true);
     expect(stale(["analytics", "insights", "7d"])).toBe(true);
-    expect(stale(["quota"])).toBe(false);
+    expect(stale(["quota"])).toBe(true);
+    expect(stale(["platforms"])).toBe(false);
     queryClient.clear();
   });
 });

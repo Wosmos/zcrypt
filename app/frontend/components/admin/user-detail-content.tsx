@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { resolveRouteId } from "@/lib/route-shell";
 import Link from "next/link";
 import {
   adminGetPlans,
@@ -141,7 +142,9 @@ function useExportLabels() {
 export function AdminUserDetailContent() {
   const t = useTranslations("admin.userDetail");
   const tr = useTranslations("admin.report");
-  const { id } = useParams<{ id: string }>();
+  const { id: param } = useParams<{ id: string }>();
+  const search = useSearchParams();
+  const id = resolveRouteId(param, search.toString());
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const exportLabels = useExportLabels();

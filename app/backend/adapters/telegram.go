@@ -10,7 +10,6 @@ import (
 	"log"
 	"math"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/transport"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -67,27 +67,11 @@ func NewTelegramAdapter(token string) (*TelegramAdapter, error) {
 	botToken := strings.TrimSpace(parts[0])
 	chatID := strings.TrimSpace(parts[1])
 
-	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		TLSHandshakeTimeout:   30 * time.Second,
-		ResponseHeaderTimeout: 120 * time.Second,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		MaxIdleConns:        10,
-		IdleConnTimeout:     90 * time.Second,
-		MaxIdleConnsPerHost: 4,
-	}
-
 	adapter := &TelegramAdapter{
 		botToken: botToken,
 		chatID:   chatID,
 		apiBase:  telegramAPIBase,
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   0, // no overall timeout, uploads can be large
-		},
+		client:   transport.NewClient(transport.IdleTimeout),
 	}
 
 	// Validate bot token via getMe
@@ -319,6 +303,20 @@ func (t *TelegramAdapter) validateChat() error {
 	return nil
 }
 
+// telegramTransient is a retryable Bot API answer: 408, 429 or 5xx.
+type telegramTransient struct {
+	status int
+	after  time.Duration
+	msg    string
+}
+
+func (e *telegramTransient) Error() string {
+	if e.msg != "" {
+		return e.msg
+	}
+	return fmt.Sprintf("sendDocument returned %d", e.status)
+}
+
 // sendDocumentWithRetry uploads a document with exponential backoff retries.
 func (t *TelegramAdapter) sendDocumentWithRetry(ctx context.Context, data []byte, filename string) (int64, string, error) {
 	var lastErr error
@@ -342,7 +340,17 @@ func (t *TelegramAdapter) sendDocumentWithRetry(ctx context.Context, data []byte
 		lastErr = err
 		errStr := err.Error()
 
-		// Retry on transient errors or rate limits
+		var te *telegramTransient
+		if errors.As(err, &te) {
+			if te.after > 0 {
+				select {
+				case <-ctx.Done():
+					return 0, "", ctx.Err()
+				case <-time.After(te.after):
+				}
+			}
+			continue
+		}
 		if isRetryable(err) || strings.Contains(errStr, "429") || strings.Contains(errStr, "500") {
 			continue
 		}
@@ -407,12 +415,22 @@ func (t *TelegramAdapter) sendDocument(ctx context.Context, data []byte, filenam
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
+		if transport.Retryable(resp.StatusCode) {
+			return 0, "", &telegramTransient{status: resp.StatusCode, after: transport.RetryAfter(0, resp.Header)}
+		}
 		return 0, "", fmt.Errorf("decode sendDocument: %w", err)
 	}
 
 	if !result.OK {
 		if result.Parameters.RetryAfter > 0 {
-			return 0, "", fmt.Errorf("429 rate limited (retry after %ds): %s", result.Parameters.RetryAfter, result.Description)
+			return 0, "", &telegramTransient{
+				status: http.StatusTooManyRequests,
+				after:  time.Duration(result.Parameters.RetryAfter) * time.Second,
+				msg:    fmt.Sprintf("429 rate limited (retry after %ds): %s", result.Parameters.RetryAfter, result.Description),
+			}
+		}
+		if transport.Retryable(resp.StatusCode) {
+			return 0, "", &telegramTransient{status: resp.StatusCode, after: transport.RetryAfter(0, resp.Header), msg: fmt.Sprintf("sendDocument %d: %s", resp.StatusCode, result.Description)}
 		}
 		return 0, "", fmt.Errorf("sendDocument failed: %s", result.Description)
 	}
@@ -441,14 +459,29 @@ func (t *TelegramAdapter) openFile(ctx context.Context, fileID string) (io.ReadC
 	if dlResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(dlResp.Body)
 		_ = dlResp.Body.Close()
+		if dlResp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("download part: %w", ErrNotFound)
+		}
 		return nil, fmt.Errorf("download returned %d: %s", dlResp.StatusCode, string(body))
 	}
 
 	return dlResp.Body, nil
 }
 
+// telegramFileGone reports a getFile answer that says the file no longer
+// exists (Bot API replies 400 "wrong file_id" or 404 "file not found").
+func telegramFileGone(status int, desc string) bool {
+	if status != http.StatusBadRequest && status != http.StatusNotFound {
+		return false
+	}
+	d := strings.ToLower(desc)
+	return strings.Contains(d, "file_id") || strings.Contains(d, "file not found") || strings.Contains(d, "not found")
+}
+
 // getFile resolves a file_id to its download path and stored size.
 func (t *TelegramAdapter) getFile(ctx context.Context, fileID string) (string, int64, error) {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
 	getFileURL := fmt.Sprintf("%s?file_id=%s", t.apiURL("getFile"), fileID)
 	req, err := http.NewRequestWithContext(ctx, "GET", getFileURL, nil)
 	if err != nil {
@@ -473,6 +506,9 @@ func (t *TelegramAdapter) getFile(ctx context.Context, fileID string) (string, i
 		return "", 0, fmt.Errorf("decode getFile: %w", err)
 	}
 	if !result.OK {
+		if telegramFileGone(resp.StatusCode, result.Description) {
+			return "", 0, fmt.Errorf("getFile failed: %s: %w", result.Description, ErrNotFound)
+		}
 		return "", 0, fmt.Errorf("getFile failed: %s", result.Description)
 	}
 	return result.Result.FilePath, result.Result.FileSize, nil
@@ -503,6 +539,8 @@ func (t *TelegramAdapter) VerifyChunk(ctx context.Context, ref types.ChunkRef) e
 
 // deleteMessage deletes a message from the chat.
 func (t *TelegramAdapter) deleteMessage(ctx context.Context, messageID int64) error {
+	ctx, cancel := transport.Control(ctx)
+	defer cancel()
 	payload := map[string]interface{}{
 		"chat_id":    t.chatID,
 		"message_id": messageID,

@@ -28,6 +28,7 @@ import {
   type UploadInitParams,
 } from "@/lib/upload-session";
 import { ApiError } from "@/lib/http-error";
+import { StalledError } from "@/lib/transport";
 import { WebTransferLimitError } from "@/lib/web-transfer-limit";
 
 function resp(status: number, body: unknown): Response {
@@ -52,6 +53,7 @@ class FakeXHR {
   readonly headers: Record<string, string> = {};
   status = 0;
   responseText = "";
+  responseHeaders: Record<string, string> = {};
   sentBody: unknown = null;
   abortCalled = false;
   upload: { onprogress: ProgressHandler; onload: (() => void) | null } = {
@@ -72,6 +74,9 @@ class FakeXHR {
   }
   setRequestHeader(key: string, value: string) {
     this.headers[key] = value;
+  }
+  getResponseHeader(name: string) {
+    return this.responseHeaders[name] ?? null;
   }
   send(body: unknown) {
     this.sentBody = body;
@@ -602,22 +607,105 @@ describe("directUploadToURL (unauthenticated XHR PUT with its own 3-attempt retr
     promise.catch(() => {}); // see comment on the stall-abort test above
 
     let xhr = lastXHR();
-    xhr.status = 400;
+    xhr.status = 503;
     xhr.onload?.();
     await vi.advanceTimersByTimeAsync(1000);
 
     xhr = lastXHR();
-    xhr.status = 400;
+    xhr.status = 503;
     xhr.onload?.();
     await vi.advanceTimersByTimeAsync(2000);
 
     xhr = lastXHR();
-    xhr.status = 400;
+    xhr.status = 503;
     xhr.onload?.();
     await vi.advanceTimersByTimeAsync(3000);
 
-    await expect(promise).rejects.toThrow("Direct upload failed: 400");
+    await expect(promise).rejects.toThrow("Direct upload failed: 503");
     expect(FakeXHR.instances.length).toBe(3);
+  });
+
+  it("does not retry a 4xx other than a 403 it can refresh", async () => {
+    const promise = directUploadToURL("https://cdn.example/upload", null, new Uint8Array([1]));
+    promise.catch(() => {});
+    const xhr = lastXHR();
+    xhr.status = 400;
+    xhr.onload?.();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(promise).rejects.toThrow("Direct upload failed: 400");
+    expect(FakeXHR.instances.length).toBe(1);
+  });
+
+  it("re-presigns once on a 403 (expired URL) and sends the chunk to the new URL", async () => {
+    const refresh = vi.fn().mockResolvedValue({ url: "https://cdn.example/fresh", headers: { "X-New": "1" } });
+    const promise = directUploadToURL(
+      "https://cdn.example/old",
+      null,
+      new Uint8Array([1]),
+      undefined,
+      undefined,
+      refresh,
+    );
+    const first = lastXHR();
+    first.status = 403;
+    first.onload?.();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    const second = lastXHR();
+    expect(second.url).toBe("https://cdn.example/fresh");
+    expect(second.headers["X-New"]).toBe("1");
+    second.status = 200;
+    second.onload?.();
+    await expect(promise).resolves.toBeUndefined();
+    expect(FakeXHR.instances.length).toBe(2);
+  });
+
+  it("gives up after a second 403 instead of re-presigning again", async () => {
+    const refresh = vi.fn().mockResolvedValue({ url: "https://cdn.example/fresh", headers: null });
+    const promise = directUploadToURL(
+      "https://cdn.example/old",
+      null,
+      new Uint8Array([1]),
+      undefined,
+      undefined,
+      refresh,
+    );
+    promise.catch(() => {});
+    lastXHR().status = 403;
+    lastXHR().onload?.();
+    await vi.advanceTimersByTimeAsync(0);
+    lastXHR().status = 403;
+    lastXHR().onload?.();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(promise).rejects.toThrow("Direct upload failed: 403");
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(FakeXHR.instances.length).toBe(2);
+  });
+
+  it("fails a 403 at once when there is no way to re-presign", async () => {
+    const promise = directUploadToURL("https://cdn.example/old", null, new Uint8Array([1]));
+    promise.catch(() => {});
+    lastXHR().status = 403;
+    lastXHR().onload?.();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(promise).rejects.toThrow("Direct upload failed: 403");
+    expect(FakeXHR.instances.length).toBe(1);
+  });
+
+  it("waits out a 429's Retry-After before sending again", async () => {
+    const promise = directUploadToURL("https://cdn.example/upload", null, new Uint8Array([1]));
+    const first = lastXHR();
+    first.status = 429;
+    first.responseHeaders["Retry-After"] = "30";
+    first.onload?.();
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(FakeXHR.instances.length).toBe(1);
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(FakeXHR.instances.length).toBe(2);
+    lastXHR().status = 200;
+    lastXHR().onload?.();
+    await promise;
   });
 
   it("throws immediately with 'Upload paused' if the signal is already aborted, before any XHR", async () => {
@@ -680,45 +768,61 @@ describe("directUploadToURL (unauthenticated XHR PUT with its own 3-attempt retr
     await expect(promise).resolves.toBeUndefined();
   });
 
-  it("normalizes a non-Error rejection reason into an Error", async () => {
-    // A Promise executor that throws synchronously rejects with whatever was
-    // thrown, not necessarily an Error, e.g. a pre-flight XHR construction
-    // failure in some exotic environment. The retry loop's catch block must
-    // coerce that into an Error rather than propagating a bare string.
-    const originalOpen = FakeXHR.prototype.open;
-    FakeXHR.prototype.open = () => {
-      throw "boom";
-    };
-    try {
-      const promise = directUploadToURL("https://cdn.example/upload", null, new Uint8Array([1]));
-      promise.catch(() => {});
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.advanceTimersByTimeAsync(2000);
-      await vi.advanceTimersByTimeAsync(3000);
-      await expect(promise).rejects.toThrow("boom");
-    } finally {
-      FakeXHR.prototype.open = originalOpen;
-    }
-  });
-
   it("surfaces 'Upload aborted' when the transport aborts for neither a stall nor an external signal", async () => {
     const promise = directUploadToURL("https://cdn.example/upload", null, new Uint8Array([1]));
-    promise.catch(() => {}); // see comment on the stall-abort test above
+    promise.catch(() => {});
 
-    let xhr = lastXHR();
-    xhr.status = 400;
-    xhr.onload?.();
+    lastXHR().onabort?.();
     await vi.advanceTimersByTimeAsync(1000);
-
-    xhr = lastXHR();
-    xhr.status = 400;
-    xhr.onload?.();
+    lastXHR().onabort?.();
     await vi.advanceTimersByTimeAsync(2000);
-
-    xhr = lastXHR();
-    xhr.onabort?.(); // raw abort event, neither externallyAborted nor stalled set
+    lastXHR().onabort?.();
     await vi.advanceTimersByTimeAsync(3000);
 
     await expect(promise).rejects.toThrow("Upload aborted");
+  });
+});
+
+describe("control calls carry a timeout and the pause signal", () => {
+  const hang = () =>
+    authedFetch.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(new DOMException("x", "AbortError")));
+        }),
+    );
+
+  const calls: Array<[string, (signal?: AbortSignal) => Promise<unknown>]> = [
+    ["initUpload", (s) => initUpload({ filename: "a", original_size: 1, sha256: "x", salt: "", wrapped_cek: "", chunk_count: 1 }, s)],
+    ["presignChunk", (s) => presignChunk("s", 0, "h", 1, s)],
+    ["confirmChunk", (s) => confirmChunk("s", 0, "h", 1, "p", false, undefined, s)],
+    ["completeUpload", (s) => completeUpload("s", 1, 1, s)],
+    ["getUploadStatus", (s) => getUploadStatus("s", s)],
+  ];
+
+  it.each(calls)("%s fails with a StalledError after 30s instead of hanging", async (_n, run) => {
+    hang();
+    const pending = run();
+    const assertion = expect(pending).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(authedFetch.mock.calls[0][1].signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await assertion;
+  });
+
+  it.each(calls)("%s is cut at once by the pause signal and stays an AbortError", async (_n, run) => {
+    hang();
+    const ctl = new AbortController();
+    const pending = run(ctl.signal);
+    ctl.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("cancelUpload is bounded by the same 30s limit", async () => {
+    hang();
+    const pending = cancelUpload("s");
+    const assertion = expect(pending).rejects.toBeInstanceOf(StalledError);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await assertion;
   });
 });

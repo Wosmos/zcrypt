@@ -154,18 +154,36 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 
 	ctx := r.Context()
 
 	var req struct {
-		Email    string `json:"email"`
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Force    bool   `json:"force"` // bypass breach warning
+		Email          string `json:"email"`
+		Username       string `json:"username"`
+		Password       string `json:"password"`
+		Force          bool   `json:"force"` // bypass breach warning
+		TurnstileToken string `json:"turnstile_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
 		return
+	}
+	if s.refuseBot(w, r, req.TurnstileToken) {
+		return
+	}
+	appSignupKey := ""
+	if isNativeClient(r) && !s.devMode {
+		appSignupKey = s.personIP(r)
+		if s.appSignupLimiter.exceeded(appSignupKey) {
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{
+				"error": "Too many accounts were created from this network today. Try again tomorrow, or sign up on the website.",
+				"code":  "app_signup_limit",
+			})
+			return
+		}
 	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
@@ -231,6 +249,9 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"registration failed, please try again"}`, http.StatusInternalServerError)
 		return
 	}
+	if appSignupKey != "" {
+		s.appSignupLimiter.record(appSignupKey)
+	}
 	s.recordSignupLocation(ctx, r, user.ID)
 
 	// Send verification email if SMTP configured (async to avoid blocking response)
@@ -270,15 +291,22 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"too many login attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 
 	ctx := r.Context()
 
 	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email          string `json:"email"`
+		Password       string `json:"password"`
+		TurnstileToken string `json:"turnstile_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if s.refuseBot(w, r, req.TurnstileToken) {
 		return
 	}
 
@@ -374,6 +402,10 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
+
 	rt, err := s.validRefreshToken(ctx, refreshTokenCandidates(r))
 	if err != nil {
 		internalError(w, "refresh token lookup", err)
@@ -381,6 +413,10 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 	if rt == nil {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	if s.endSwappedSession(w, r, rt) {
 		return
 	}
 
@@ -465,13 +501,20 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 // HandleForgotPassword sends a password reset email.
 func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 	ctx := r.Context()
 
 	var req struct {
-		Email string `json:"email"`
+		Email          string `json:"email"`
+		TurnstileToken string `json:"turnstile_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if s.refuseBot(w, r, req.TurnstileToken) {
 		return
 	}
 
@@ -1379,14 +1422,21 @@ func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 
 	ctx := r.Context()
 
 	var req struct {
-		Email string `json:"email"`
+		Email          string `json:"email"`
+		TurnstileToken string `json:"turnstile_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if s.refuseBot(w, r, req.TurnstileToken) {
 		return
 	}
 
@@ -1443,6 +1493,9 @@ func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 
 // HandleMagicLinkVerify validates a magic link token and logs the user in.
 func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 	ctx := r.Context()
 
 	var req struct {
@@ -1704,6 +1757,7 @@ func (s *Server) newTokenPair(r *http.Request, user *types.User, sessionID strin
 		SessionID:        sessionID,
 		SessionStartedAt: startedAt,
 		Decoy:            decoy,
+		Client:           clientMarker(r),
 	}
 	loc := s.visitorLocation(r)
 	rt.Country, rt.Region, rt.City = loc.Country, loc.Region, loc.City

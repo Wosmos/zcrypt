@@ -32,6 +32,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { wipeDecryptedPlaintext } from "@/lib/decrypt-cache";
+import * as tgDownload from "@/lib/telegram-download";
 import { Role, type AuthUser } from "@/types";
 import {
   cachedPlatformCredentials,
@@ -295,6 +296,20 @@ describe("useAuthStore", () => {
       expect(wipe).toHaveBeenCalledTimes(1);
       expect(queryClient.getQueryData(["files"])).toBeUndefined();
       wipe.mockRestore();
+    });
+
+    it("clearAuth and an account switch drop Telegram download state", () => {
+      const paths = vi.spyOn(tgDownload, "clearTelegramFilePaths");
+      const direct = vi.spyOn(tgDownload, "resetTelegramUnreachable");
+      useAuthStore.getState().setUser(USER);
+      useAuthStore.getState().setUser({ ...USER, id: "user-2" });
+      expect(paths).toHaveBeenCalledTimes(1);
+      expect(direct).toHaveBeenCalledTimes(1);
+      useAuthStore.getState().clearAuth();
+      expect(paths).toHaveBeenCalledTimes(2);
+      expect(direct).toHaveBeenCalledTimes(2);
+      paths.mockRestore();
+      direct.mockRestore();
     });
 
     it("clearAuth forgets the cached identity and wipes the query cache", () => {

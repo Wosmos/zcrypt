@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
@@ -71,7 +71,7 @@ export function FolderDetailsDrawer({
   const [revokeTarget, setRevokeTarget] = useState<FolderShareLink | null>(null);
   const [revoking, setRevoking] = useState(false);
 
-  const handleRevoke = useCallback(async () => {
+  const handleRevoke = async () => {
     if (!revokeTarget) return;
     setRevoking(true);
     try {
@@ -84,7 +84,7 @@ export function FolderDetailsDrawer({
       setRevoking(false);
       setRevokeTarget(null);
     }
-  }, [revokeTarget, folderId]);
+  };
 
   // Discover the subtree (lazy, when the drawer opens for a folder).
   useEffect(() => {

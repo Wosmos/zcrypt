@@ -69,6 +69,9 @@ func (s *Server) HandleBackgroundSession(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusForbidden, "not available")
 		return
 	}
+	if s.refuseCloudNetwork(w, r) {
+		return
+	}
 	userID := GetUserID(r)
 	if !s.authLimiter.allow("background|" + userID) {
 		writeError(w, http.StatusTooManyRequests, "too many requests, try again later")
@@ -199,7 +202,7 @@ func (s *Server) notifyNewDevice(ctx context.Context, r *http.Request, user *typ
 		return
 	}
 	device, location, baseURL, to := describeUserAgent(ua), anonIP(s.clientIP(r)), s.baseURL(r), user.Email
-	s.pushToUser(user.ID, pushMessage{Type: "newSignIn", Data: map[string]string{"device": device}, URL: "/settings?tab=sessions"})
+	s.notifyUser(user.ID, userEvent{Type: "newSignIn", Data: map[string]string{"device": device}, URL: "/settings?tab=sessions"})
 
 	send := s.newDeviceMailer
 	if send == nil {

@@ -45,10 +45,18 @@ func (e *QuotaExceededError) Error() string {
 	return fmt.Sprintf("storage quota exceeded (%d bytes used)", e.Used)
 }
 
+// sharedFilesOnly narrows a files query to files not stored on one of the
+// user's own connected accounts, which the shared-pool cap must not count.
+const sharedFilesOnly = ` AND NOT EXISTS (
+	SELECT 1 FROM chunks c
+	JOIN platform_tokens t ON t.user_id = files.user_id AND t.platform = c.platform AND t.username = c.account AND NOT t.is_global
+	WHERE c.file_id = files.id)`
+
 // InsertFileWithinQuota inserts f only if the user's usage plus f.OriginalSize
-// stays within quota. A per-user advisory lock serialises the check and the
-// insert, so concurrent inits cannot each pass against the same headroom.
-func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types.FileMetadata, quota int64) error {
+// stays within quota; sharedOnly counts only files on the shared pool. A
+// per-user advisory lock serialises the check and the insert, so concurrent
+// inits cannot each pass against the same headroom.
+func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types.FileMetadata, quota int64, sharedOnly bool) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -58,11 +66,12 @@ func (db *DB) InsertFileWithinQuota(ctx context.Context, userID string, f *types
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('quota:' || $1, 0))`, userID); err != nil {
 		return fmt.Errorf("lock quota: %w", err)
 	}
+	q := `SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`
+	if sharedOnly {
+		q += sharedFilesOnly
+	}
 	var used int64
-	if err := tx.QueryRow(ctx,
-		`SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $1 AND status IN ('complete', 'uploading')`,
-		userID,
-	).Scan(&used); err != nil {
+	if err := tx.QueryRow(ctx, q, userID).Scan(&used); err != nil {
 		return fmt.Errorf("storage used: %w", err)
 	}
 	if used+f.OriginalSize > quota {
@@ -1003,13 +1012,17 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 
 // CreateUploadSession creates a new upload session and returns its ID.
 func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
+	return insertUploadSession(ctx, db.pool, s)
+}
+
+func insertUploadSession(ctx context.Context, q relayQuerier, s *types.UploadSession) (string, error) {
 	var id string
-	err := db.pool.QueryRow(ctx,
-		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+	err := q.QueryRow(ctx,
+		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode, client, relay_reserve)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		 RETURNING id`,
 		s.UserID, s.FileID, s.Filename, s.EncryptedName, s.OriginalSize, s.Salt, s.SHA256, sha256SchemeOrDefault(s.SHA256Scheme), s.ChunkCount, s.ChunkSize,
-		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode),
+		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode), s.Client, s.RelayReserve,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("create upload session: %w", err)
@@ -1022,11 +1035,11 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size,
-		        platform, account, repo_id, repo_url, mode, uploaded_chunks, status, created_at, expires_at
+		        platform, account, repo_id, repo_url, mode, uploaded_chunks, status, created_at, expires_at, relay_reserve
 		 FROM upload_sessions WHERE id = $1 AND user_id = $2`,
 		sessionID, userID,
 	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.EncryptedName, &s.OriginalSize, &s.Salt, &s.SHA256, &s.SHA256Scheme, &s.ChunkCount, &s.ChunkSize,
-		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.Mode, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
+		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.Mode, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt, &s.RelayReserve)
 	if err != nil {
 		return nil, fmt.Errorf("get upload session: %w", err)
 	}
@@ -1095,11 +1108,15 @@ func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]ty
 
 // IncrementSessionChunks atomically increments the uploaded_chunks counter and
 // returns the new count, so concurrent uploaders can compute progress from the
-// post-increment value instead of a stale read.
+// post-increment value instead of a stale read. Each chunk also pushes the
+// session's expiry out to 7 days from now, so an upload that keeps progressing
+// never expires under it.
 func (db *DB) IncrementSessionChunks(ctx context.Context, sessionID string) (int, error) {
 	var uploaded int
 	err := db.pool.QueryRow(ctx,
-		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1 WHERE id = $1 RETURNING uploaded_chunks`,
+		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1, last_active_at = NOW(),
+		        expires_at = GREATEST(expires_at, NOW() + INTERVAL '7 days')
+		 WHERE id = $1 RETURNING uploaded_chunks`,
 		sessionID,
 	).Scan(&uploaded)
 	if err != nil {
@@ -1497,9 +1514,9 @@ func (db *DB) CountStuckChunks(ctx context.Context, maxAttempts int) (int, error
 func (db *DB) GetChunkByID(ctx context.Context, chunkID string) (*types.ChunkRef, error) {
 	c := &types.ChunkRef{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed
 		 FROM chunks WHERE chunk_id = $1`, chunkID,
-	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
+	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed, &c.Committed)
 	if err != nil {
 		return nil, fmt.Errorf("get chunk by id: %w", err)
 	}
@@ -1547,26 +1564,27 @@ func (db *DB) CleanExpiredSessions(ctx context.Context) (int, error) {
 	return int(tag.RowsAffected()), nil
 }
 
-// UpdateFileSizes updates the compressed and encrypted sizes for a file.
-func (db *DB) UpdateFileSizes(ctx context.Context, fileID string, compressedSize, encryptedSize int64) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE files SET compressed_size = $1, encrypted_size = $2 WHERE id = $3`,
-		compressedSize, encryptedSize, fileID,
-	)
-	if err != nil {
-		return fmt.Errorf("update file sizes: %w", err)
-	}
-	return nil
-}
+// aesGCMEnvelope is the fixed overhead each stored chunk adds to its payload:
+// the 12-byte IV plus the 16-byte tag (docs/CRYPTO_FORMAT.md).
+const aesGCMEnvelope = 28
 
-// UpdateFileOriginalSizeVerified updates the encrypted_size field with server-verified total
-// to ensure quota calculations use actual uploaded data, not client-claimed values.
-func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string, verifiedEncryptedSize int64) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE files SET encrypted_size = $1 WHERE id = $2`,
-		verifiedEncryptedSize, fileID,
-	)
-	return err
+// UpdateFileSizesFromChunks sets a file's encrypted and compressed sizes from the
+// chunk rows the server stored, ignoring whatever the client reported. A stored
+// chunk is its payload (zstd output when compressed, else the plaintext) plus the
+// envelope, so compressed_size is the stored total minus the envelope per chunk.
+func (db *DB) UpdateFileSizesFromChunks(ctx context.Context, fileID string) (int64, error) {
+	var encrypted int64
+	err := db.pool.QueryRow(ctx,
+		`WITH s AS (SELECT COALESCE(SUM(size), 0) AS total, COUNT(*) AS n FROM chunks WHERE file_id = $1)
+		 UPDATE files SET encrypted_size = s.total, compressed_size = GREATEST(s.total - $2 * s.n, 0)
+		 FROM s WHERE files.id = $1
+		 RETURNING files.encrypted_size`,
+		fileID, int64(aesGCMEnvelope),
+	).Scan(&encrypted)
+	if err != nil {
+		return 0, fmt.Errorf("update file sizes from chunks: %w", err)
+	}
+	return encrypted, nil
 }
 
 // ── Share queries ──

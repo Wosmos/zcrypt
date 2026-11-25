@@ -24,6 +24,7 @@ use crate::adapters;
 use crate::api::types::{ConfirmChunkRequest, UploadInitRequest, UploadInitResponse};
 use crate::compression;
 use crate::crypto;
+use crate::localdb::LocalDb;
 use crate::types::{Chunk, ChunkRef, Progress, RepoInfo, Stage, UploadMode};
 
 use super::pipeline::{self, ProcessedChunk};
@@ -71,6 +72,7 @@ fn session_layout(
 }
 
 /// How an upload protects the file's key and name.
+#[derive(Clone, Copy)]
 pub enum Sealing<'a> {
     /// The normal vault formats, from the vault (or folder) passphrase.
     Vault(&'a str),
@@ -97,6 +99,121 @@ pub async fn run(
     .map(|_| ())
 }
 
+/// Where an upload reads its bytes from: a path, or an already open file such
+/// as one Android's media library handed over (no path exists to reopen).
+#[derive(Clone, Copy)]
+pub enum UploadSource<'a> {
+    Path(&'a std::path::Path),
+    Open {
+        file: &'a std::fs::File,
+        name: &'a str,
+        id: &'a str,
+    },
+}
+
+impl UploadSource<'_> {
+    fn name(&self) -> String {
+        match self {
+            Self::Path(p) => p
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "file".to_string()),
+            Self::Open { name, .. } => name.to_string(),
+        }
+    }
+
+    async fn stamp(&self) -> Result<(super::local_upload::SourceStamp, i64), EngineError> {
+        match self {
+            Self::Path(p) => {
+                let size = tokio::fs::metadata(p).await?.len() as i64;
+                Ok((super::local_upload::SourceStamp::of(p).await?, size))
+            }
+            Self::Open { file, .. } => Ok((
+                super::local_upload::SourceStamp::of_file(file)?,
+                file.metadata()?.len() as i64,
+            )),
+        }
+    }
+
+    async fn ensure_unchanged(
+        &self,
+        stamp: super::local_upload::SourceStamp,
+    ) -> Result<(), EngineError> {
+        match self {
+            Self::Path(p) => stamp.ensure_unchanged(p).await,
+            Self::Open { file, .. } => {
+                if super::local_upload::SourceStamp::of_file(file)? == stamp {
+                    Ok(())
+                } else {
+                    Err(EngineError::Io(std::io::Error::new(
+                        std::io::ErrorKind::Interrupted,
+                        "source file changed during upload, retry once it stops changing",
+                    )))
+                }
+            }
+        }
+    }
+
+    /// A reader positioned at byte 0.
+    async fn open(&self) -> Result<tokio::fs::File, EngineError> {
+        match self {
+            Self::Path(p) => Ok(tokio::fs::File::open(p).await?),
+            Self::Open { file, .. } => {
+                let mut f = tokio::fs::File::from_std(file.try_clone()?);
+                f.seek(std::io::SeekFrom::Start(0)).await?;
+                Ok(f)
+            }
+        }
+    }
+}
+
+/// What a sealed backup keeps between attempts at one file: the content key and
+/// its content MAC. The device holds no private key, so without this a failed
+/// attempt could neither continue its server session (the key is gone) nor skip
+/// re-hashing (the MAC is keyed by the content key). It only ever covers a file
+/// that is still in plaintext on this device, and is dropped on success, cancel,
+/// or any change to the file.
+struct SealedAttempt {
+    cek: [u8; crypto::KEY_SIZE],
+    mac: String,
+}
+
+impl SealedAttempt {
+    fn key(source: &UploadSource<'_>) -> String {
+        match source {
+            UploadSource::Path(p) => format!("sealed_attempt:{}", p.display()),
+            UploadSource::Open { name, id, .. } => format!("sealed_attempt:open:{id}:{name}"),
+        }
+    }
+
+    fn load(db: &LocalDb, key: &str, token: &str) -> Option<Self> {
+        let raw = db.setting(key).ok().flatten()?;
+        let mut parts = raw.splitn(3, '|');
+        let (saved, cek, mac) = (parts.next()?, parts.next()?, parts.next()?);
+        if saved != token {
+            return None;
+        }
+        let cek: [u8; crypto::KEY_SIZE] = base64::engine::general_purpose::STANDARD
+            .decode(cek)
+            .ok()?
+            .try_into()
+            .ok()?;
+        Some(Self {
+            cek,
+            mac: mac.to_string(),
+        })
+    }
+
+    fn save(&self, db: &LocalDb, key: &str, token: &str) {
+        let cek = base64::engine::general_purpose::STANDARD.encode(self.cek);
+        let _ = db.set_setting(key, &format!("{token}|{cek}|{}", self.mac));
+    }
+
+    fn clear(db: &LocalDb, key: &str) {
+        let _ = db.set_setting(key, "");
+    }
+}
+
 /// Uploads one file with the given sealing and returns its backend file id.
 pub async fn run_sealed(
     ctx: &EngineContext,
@@ -105,13 +222,117 @@ pub async fn run_sealed(
     platform: Option<String>,
     folder_id: Option<String>,
 ) -> Result<String, EngineError> {
+    run_sealed_from(
+        ctx,
+        UploadSource::Path(file_path),
+        sealing,
+        platform,
+        folder_id,
+    )
+    .await
+}
+
+/// [`run_sealed`] for any [`UploadSource`].
+///
+/// Plane policy (see `gate.rs`): direct first; Telegram unreachable means relay
+/// if the whole file fits the allowance, else wait. A server session is bound
+/// to the plane it was created on and a relay session cannot take direct
+/// chunks (or the reverse), so the plane only changes at a session boundary:
+/// the old session is cancelled and the file starts over on the new plane.
+/// Direct to direct (Telegram went away mid-file, then came back) keeps the
+/// session and resumes from the chunks already stored. Vault uploads wait in
+/// place; sealed backups return `Blocked` so the pass skips the file.
+pub async fn run_sealed_from(
+    ctx: &EngineContext,
+    source: UploadSource<'_>,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+) -> Result<String, EngineError> {
+    use super::gate::Gate;
+    let foreground = matches!(sealing, Sealing::Vault(_));
+    let (_, file_size) = source.stamp().await?;
+    let notify =
+        foreground.then(|| Gate::waiting_progress(ctx, String::new(), source.name(), file_size));
+    let gate = Gate::live(ctx, notify, file_size);
+    run_gated(ctx, &gate, source, sealing, platform, folder_id).await
+}
+
+async fn run_gated(
+    ctx: &EngineContext,
+    gate: &super::gate::Gate,
+    source: UploadSource<'_>,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+) -> Result<String, EngineError> {
+    use super::gate;
+    use crate::reach::TELEGRAM_ORIGIN;
+    let (_, file_size) = source.stamp().await?;
+    let mut session: Option<String> = None;
+    let mut last_mode: Option<UploadMode> = None;
+    let mut force_direct = false;
+    loop {
+        let plane = if force_direct {
+            super::choose_plane(&ctx.creds)
+        } else {
+            gate.pick_plane(&ctx.creds, file_size).await?
+        };
+        force_direct = false;
+        if last_mode.is_some_and(|m| m != plane.0) {
+            if let Some(id) = session.take() {
+                let _ = ctx.client.cancel_upload(&id).await;
+            }
+        }
+        last_mode = Some(plane.0);
+        let telegram_direct = plane.1 == Some(crate::types::Platform::Telegram);
+        let has_telegram =
+            super::choose_plane(&ctx.creds).1 == Some(crate::types::Platform::Telegram);
+        match attempt(
+            ctx,
+            source,
+            sealing,
+            platform.clone(),
+            folder_id.clone(),
+            plane,
+            &mut session,
+        )
+        .await
+        {
+            Err(e) if telegram_direct && gate::is_direct_unreachable(&e) => {
+                gate.env.mark_blocked(TELEGRAM_ORIGIN);
+            }
+            Err(e)
+                if plane.0 == UploadMode::Relay
+                    && has_telegram
+                    && gate::is_allowance_refusal(&e) =>
+            {
+                if let Some(id) = session.take() {
+                    let _ = ctx.client.cancel_upload(&id).await;
+                }
+                // Telegram back: go there. Allowance back: the relay again.
+                force_direct = gate
+                    .wait_reachable(gate::WAIT_ALLOWANCE_USED_UP, TELEGRAM_ORIGIN)
+                    .await?
+                    == gate::Woke::Reachable;
+            }
+            other => return other,
+        }
+    }
+}
+
+async fn attempt(
+    ctx: &EngineContext,
+    source: UploadSource<'_>,
+    sealing: Sealing<'_>,
+    platform: Option<String>,
+    folder_id: Option<String>,
+    plane: (UploadMode, Option<crate::types::Platform>),
+    session_slot: &mut Option<String>,
+) -> Result<String, EngineError> {
     let t0 = Instant::now();
-    let file_name = file_path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "file".to_string());
-    let stamp = super::local_upload::SourceStamp::of(file_path).await?;
-    let file_size = tokio::fs::metadata(file_path).await?.len() as i64;
+    let file_name = source.name();
+    let (stamp, file_size) = source.stamp().await?;
     let mut chunk_size = ctx.profile.chunk_size as i64;
     let mut chunk_count = count_chunks(file_size, chunk_size);
     let total = AtomicU32::new(chunk_count as u32);
@@ -126,6 +347,7 @@ pub async fn run_sealed(
             bytes_done: bytes,
             bytes_total: file_size,
             speed: 0.0,
+            waiting: None,
         });
     };
 
@@ -137,6 +359,14 @@ pub async fn run_sealed(
     // the original envelope and discards this fresh one, so re-streamed chunks
     // MUST use the original CEK or the file becomes undecryptable.
     let mut cek = crypto::generate_cek();
+    let attempt_key = matches!(sealing, Sealing::PublicKey(_)).then(|| SealedAttempt::key(&source));
+    let stamp_token = stamp.token();
+    let cached = attempt_key
+        .as_deref()
+        .and_then(|k| SealedAttempt::load(&ctx.db, k, &stamp_token));
+    if let Some(a) = &cached {
+        cek = a.cek;
+    }
     let keys = match &sealing {
         Sealing::Vault(passphrase) => Some(super::upload_keys(ctx, passphrase).await?),
         Sealing::PublicKey(_) => None,
@@ -157,22 +387,34 @@ pub async fn run_sealed(
     let hfn = file_name.clone();
     let mut last_emit = 0i64;
     let step = (file_size / 100).max(1);
-    let content_mac = super::local_upload::hash_file_progress(file_path, hasher, |done| {
-        if done - last_emit >= step {
-            last_emit = done;
-            (progress)(Progress {
-                file_id: String::new(),
-                file_name: hfn.clone(),
-                stage: Stage::Hashing,
-                chunks_done: 0,
-                chunks_total: chunk_count as u32,
-                bytes_done: done,
-                bytes_total: file_size,
-                speed: 0.0,
-            });
+    let content_mac = if let Some(a) = &cached {
+        a.mac.clone()
+    } else {
+        super::local_upload::hash_open_progress(source.open().await?, hasher, |done| {
+            if done - last_emit >= step {
+                last_emit = done;
+                (progress)(Progress {
+                    file_id: String::new(),
+                    file_name: hfn.clone(),
+                    stage: Stage::Hashing,
+                    chunks_done: 0,
+                    chunks_total: chunk_count as u32,
+                    bytes_done: done,
+                    bytes_total: file_size,
+                    speed: 0.0,
+                    waiting: None,
+                });
+            }
+        })
+        .await?
+    };
+    if let (Some(k), None) = (attempt_key.as_deref(), &cached) {
+        SealedAttempt {
+            cek,
+            mac: content_mac.clone(),
         }
-    })
-    .await?;
+        .save(&ctx.db, k, &stamp_token);
+    }
     emit(Stage::DerivingKey, 0, 0);
     let salt = crypto::generate_salt();
     let b64 = base64::engine::general_purpose::STANDARD;
@@ -199,7 +441,7 @@ pub async fn run_sealed(
 
     // Init (or resume) the backend session. Relay leaves mode empty; byos-direct
     // sends the chosen platform so the server makes a metadata-only session.
-    let (mode, plat) = super::choose_plane(&ctx.creds);
+    let (mode, plat) = plane;
     let plat = plat.map(|p| p.to_string()).unwrap_or_default();
     let byos = mode == UploadMode::ByosDirect;
     let req = UploadInitRequest {
@@ -219,9 +461,9 @@ pub async fn run_sealed(
     }
     .with_identity_scheme(encrypted_name, content_mac, scheme);
     let mut resp = ctx.client.init_upload(&req).await?;
-    if resp.resumed && matches!(sealing, Sealing::PublicKey(_)) {
-        // A sealed backup can't recover an earlier session's key (it holds no
-        // private key), so it never resumes: start the file over.
+    if resp.resumed && matches!(sealing, Sealing::PublicKey(_)) && cached.is_none() {
+        // A sealed backup holds no private key, so it can only continue a
+        // session whose key it kept (`SealedAttempt`). Any other: start over.
         ctx.client.cancel_upload(&resp.session_id).await?;
         resp = ctx.client.init_upload(&req).await?;
         if resp.resumed {
@@ -253,6 +495,7 @@ pub async fn run_sealed(
         }
     }
     let session_id = resp.session_id;
+    *session_slot = Some(session_id.clone());
     let backend_id = resp.file_id;
     let direct = resp.direct_upload;
 
@@ -263,34 +506,41 @@ pub async fn run_sealed(
     // stored envelope → an undecryptable file. Recover the original CEK from the
     // file-meta envelope (exactly as the browser did on resume).
     let have: HashSet<i64> = if resp.resumed {
-        let meta = ctx.client.get_file_meta(&backend_id).await?;
-        let orig_salt = b64
-            .decode(&meta.salt)
-            .map_err(|e| EngineError::Other(format!("resume: bad stored salt: {e}")))?;
-        let orig_wrapped = crypto::WrappedKey::parse(&meta.wrapped_cek)?
-            .ok_or_else(|| EngineError::Other("resume: stored file has no envelope".into()))?;
-        let Sealing::Vault(passphrase) = sealing else {
-            return Err(EngineError::Other(
-                "backup: resumed session without a vault key".into(),
-            ));
-        };
-        if orig_wrapped.is_mk1() {
-            super::ensure_master_key(ctx, passphrase).await?;
+        match sealing {
+            Sealing::Vault(passphrase) => {
+                let meta = ctx.client.get_file_meta(&backend_id).await?;
+                let orig_salt = b64
+                    .decode(&meta.salt)
+                    .map_err(|e| EngineError::Other(format!("resume: bad stored salt: {e}")))?;
+                let orig_wrapped =
+                    crypto::WrappedKey::parse(&meta.wrapped_cek)?.ok_or_else(|| {
+                        EngineError::Other("resume: stored file has no envelope".into())
+                    })?;
+                if orig_wrapped.is_mk1() {
+                    super::ensure_master_key(ctx, passphrase).await?;
+                }
+                let pass = passphrase.to_string();
+                let mut recovered = tokio::task::spawn_blocking(move || {
+                    crypto::resolve_file_key(&pass, &orig_salt, Some(&orig_wrapped))
+                })
+                .await
+                .map_err(join_err)??;
+                if recovered.len() != cek.len() {
+                    recovered.zeroize();
+                    return Err(EngineError::Other(
+                        "resume: recovered key has wrong length (wrong passphrase?)".into(),
+                    ));
+                }
+                cek.copy_from_slice(&recovered);
+                recovered.zeroize();
+            }
+            Sealing::PublicKey(_) if cached.is_some() => {}
+            Sealing::PublicKey(_) => {
+                return Err(EngineError::Other(
+                    "backup: resumed session without its key".into(),
+                ));
+            }
         }
-        let pass = passphrase.to_string();
-        let mut recovered = tokio::task::spawn_blocking(move || {
-            crypto::resolve_file_key(&pass, &orig_salt, Some(&orig_wrapped))
-        })
-        .await
-        .map_err(join_err)??;
-        if recovered.len() != cek.len() {
-            recovered.zeroize();
-            return Err(EngineError::Other(
-                "resume: recovered key has wrong length (wrong passphrase?)".into(),
-            ));
-        }
-        cek.copy_from_slice(&recovered);
-        recovered.zeroize();
 
         ctx.client
             .upload_status(&session_id)
@@ -330,7 +580,7 @@ pub async fn run_sealed(
     let should_compress = compression::should_compress(&file_name);
     let level = ctx.profile.zstd_level;
     let mut join: tokio::task::JoinSet<()> = tokio::task::JoinSet::new();
-    let mut f = tokio::fs::File::open(file_path).await?;
+    let mut f = source.open().await?;
     let t_upload = Instant::now();
 
     for idx in 0..chunk_count {
@@ -347,8 +597,14 @@ pub async fn run_sealed(
         // Acquire BEFORE reading so at most `conc` chunks' bytes are ever
         // resident. This is the RAM window. Reads are serialized (one at a
         // time, here in the loop); encrypt+upload run concurrently in tasks.
-        let permit = sem.clone().acquire_owned().await.expect("semaphore");
-        let slot = window.clone().acquire_owned().await.expect("semaphore");
+        let Some(permit) = acquire_or_cancel(&sem, &ctx.cancel).await else {
+            set_err(&first_err, EngineError::Cancelled);
+            break;
+        };
+        let Some(slot) = acquire_or_cancel(&window, &ctx.cancel).await else {
+            set_err(&first_err, EngineError::Cancelled);
+            break;
+        };
         let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
         f.seek(std::io::SeekFrom::Start((idx * chunk_size) as u64))
             .await?;
@@ -385,7 +641,7 @@ pub async fn run_sealed(
             enc_total.fetch_add(processed.encrypted.len() as i64, Ordering::Relaxed);
             comp_total.fetch_add(processed.compressed_size as i64, Ordering::Relaxed);
 
-            match upload_one_retrying(
+            match upload_one(
                 &ctx,
                 &session_id,
                 idx,
@@ -407,6 +663,7 @@ pub async fn run_sealed(
                         bytes_done: (n as i64) * (file_size / chunk_count.max(1)),
                         bytes_total: file_size,
                         speed: 0.0,
+                        waiting: None,
                     });
                 }
                 Err(e) => set_err(&first_err, e),
@@ -414,11 +671,33 @@ pub async fn run_sealed(
         });
     }
     cek.zeroize();
-    while join.join_next().await.is_some() {}
-    if let Some(e) = first_err.lock().unwrap().take() {
+    loop {
+        tokio::select! {
+            joined = join.join_next() => {
+                if joined.is_none() {
+                    break;
+                }
+            }
+            _ = ctx.cancel.cancelled() => {
+                join.abort_all();
+                while join.join_next().await.is_some() {}
+                set_err(&first_err, EngineError::Cancelled);
+                break;
+            }
+        }
+    }
+    if ctx.cancel.is_cancelled() {
+        set_err(&first_err, EngineError::Cancelled);
+    }
+    let failure = first_err.lock().unwrap().take();
+    if let Some(e) = failure {
         // A user-requested cancel is not a failure. Return quietly without the
         // alarming FAILED diagnostics line below.
         if matches!(e, EngineError::Cancelled) {
+            let _ = ctx.client.cancel_upload(&session_id).await;
+            if let Some(k) = attempt_key.as_deref() {
+                SealedAttempt::clear(&ctx.db, k);
+            }
             eprintln!(
                 "zcrypt stream upload {file_name}: cancelled at {}/{chunk_count} chunks",
                 done.load(Ordering::SeqCst)
@@ -444,7 +723,11 @@ pub async fn run_sealed(
         return Err(e);
     }
 
-    stamp.ensure_unchanged(file_path).await?;
+    if ctx.cancel.is_cancelled() {
+        let _ = ctx.client.cancel_upload(&session_id).await;
+        return Err(EngineError::Cancelled);
+    }
+    source.ensure_unchanged(stamp).await?;
     ctx.client
         .complete_upload(
             &session_id,
@@ -452,6 +735,9 @@ pub async fn run_sealed(
             comp_total.load(Ordering::Relaxed),
         )
         .await?;
+    if let Some(k) = attempt_key.as_deref() {
+        SealedAttempt::clear(&ctx.db, k);
+    }
     emit(Stage::Done, chunk_count as u32, file_size);
 
     // Timing line so a real upload prints where the wall-clock actually went.
@@ -465,46 +751,24 @@ pub async fn run_sealed(
     Ok(backend_id)
 }
 
-/// `upload_one` with bounded retry: a single transient blip (dropped
-/// connection, 5xx, timeout) on ONE chunk must not kill a multi-minute upload.
-/// The browser pipeline retried every chunk; so does the download path. Safe to
-/// retry: the backend dedups by chunk index (a re-sent chunk returns
-/// `duplicate:true`), so a partially-succeeded chunk isn't double-counted.
-/// "upload session is not active" is terminal for this session (retrying the
-/// same dead session is pointless): surfaced immediately so the caller can
-/// re-init/resume instead.
-async fn upload_one_retrying(
-    ctx: &EngineContext,
-    session_id: &str,
-    idx: i64,
-    p: &ProcessedChunk,
-    direct: bool,
-    repo: Option<&RepoInfo>,
-    platform: &str,
-) -> Result<(), EngineError> {
-    let mut last: Option<EngineError> = None;
-    for attempt in 0..4u32 {
-        // A cancel while a chunk is mid-retry should abort now, not burn the
-        // remaining backoff attempts against a transfer the user has stopped.
-        if ctx.cancel.is_cancelled() {
-            return Err(EngineError::Cancelled);
-        }
-        match upload_one(ctx, session_id, idx, p, direct, repo, platform).await {
-            Ok(()) => return Ok(()),
-            Err(e) if e.to_string().contains("upload session is not active") => return Err(e),
-            Err(e) => last = Some(e),
-        }
-        if attempt < 3 {
-            tokio::time::sleep(std::time::Duration::from_millis(500 << attempt)).await;
-        }
+async fn acquire_or_cancel(
+    sem: &Arc<tokio::sync::Semaphore>,
+    cancel: &super::CancelToken,
+) -> Option<tokio::sync::OwnedSemaphorePermit> {
+    tokio::select! {
+        p = sem.clone().acquire_owned() => Some(p.expect("semaphore")),
+        _ = cancel.cancelled() => None,
     }
-    Err(last.unwrap_or_else(|| EngineError::Other(format!("chunk {idx}: no upload attempts"))))
 }
 
 /// Fire ONE already-encrypted chunk (bytes in RAM) at its destination. Three
 /// planes, same as `sync::push_chunk*` but byte-based (no staging file): byos
 /// (user's own token, direct to platform), presigned direct (HuggingFace LFS),
-/// or relay (server stages + forwards).
+/// or relay (server stages + forwards). Each stage retries only transient
+/// failures (a single blip on ONE chunk must not kill a multi-minute upload)
+/// and is raced against cancel. Retrying a stage is safe: the backend dedups by
+/// chunk index, and a confirm retry reuses the bytes already pushed instead of
+/// pushing them again.
 async fn upload_one(
     ctx: &EngineContext,
     session_id: &str,
@@ -527,74 +791,87 @@ async fn upload_one(
             compressed: p.compressed,
             ..ChunkRef::default()
         };
-        let uploaded = adapter
-            .upload(
-                &repo.url,
-                Chunk {
-                    r#ref: cref,
-                    data: p.encrypted.clone(),
-                },
-            )
-            .await
-            .map_err(|e| EngineError::Other(format!("upload chunk {idx}: {e}")))?;
-        ctx.client
-            .confirm_chunk(
-                session_id,
-                idx,
-                &ConfirmChunkRequest {
-                    sha256: p.sha256.clone(),
-                    size: p.encrypted.len() as i64,
-                    remote_path: uploaded.remote_path,
-                    compressed: p.compressed,
-                    platform: platform.to_string(),
-                    account: creds.account,
-                    repo_id: repo.id.clone(),
-                    committed: true,
-                },
-            )
-            .await?;
-        Ok(())
+        let uploaded = super::retry_transient(&ctx.cancel, 4, || async {
+            adapter
+                .upload(
+                    &repo.url,
+                    Chunk {
+                        r#ref: cref.clone(),
+                        data: p.encrypted.clone(),
+                    },
+                )
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
+        super::confirm_chunk(
+            ctx,
+            session_id,
+            idx,
+            &ConfirmChunkRequest {
+                sha256: p.sha256.clone(),
+                size: p.encrypted.len() as i64,
+                remote_path: uploaded.remote_path.clone(),
+                compressed: p.compressed,
+                platform: platform.to_string(),
+                account: creds.account,
+                repo_id: repo.id.clone(),
+                committed: true,
+            },
+            Some((adapter.as_ref(), &uploaded)),
+        )
+        .await
     } else if direct {
         // HuggingFace LFS presigned: presign -> external PUT -> confirm.
-        let presign = ctx
-            .client
-            .presign_chunk(session_id, idx, &p.sha256, p.encrypted.len() as i64)
-            .await?;
-        if !presign.already_exists {
+        let presign = super::retry_transient(&ctx.cancel, 4, || async {
             ctx.client
-                .direct_upload_to_url(
-                    &presign.upload_url,
-                    &presign.upload_headers,
-                    p.encrypted.clone(),
-                )
-                .await?;
-        }
-        ctx.client
-            .confirm_chunk(
-                session_id,
-                idx,
-                &ConfirmChunkRequest {
-                    sha256: p.sha256.clone(),
-                    size: p.encrypted.len() as i64,
-                    remote_path: presign.remote_path,
-                    compressed: p.compressed,
-                    ..Default::default()
-                },
-            )
+                .presign_chunk(session_id, idx, &p.sha256, p.encrypted.len() as i64)
+                .await
+                .map_err(EngineError::from)
+        })
+        .await?;
+        if !presign.already_exists {
+            super::retry_transient(&ctx.cancel, 4, || async {
+                ctx.client
+                    .direct_upload_to_url(
+                        &presign.upload_url,
+                        &presign.upload_headers,
+                        p.encrypted.clone(),
+                    )
+                    .await
+                    .map_err(EngineError::from)
+            })
             .await?;
-        Ok(())
+        }
+        super::confirm_chunk(
+            ctx,
+            session_id,
+            idx,
+            &ConfirmChunkRequest {
+                sha256: p.sha256.clone(),
+                size: p.encrypted.len() as i64,
+                remote_path: presign.remote_path,
+                compressed: p.compressed,
+                ..Default::default()
+            },
+            None,
+        )
+        .await
     } else {
         // Relay: the server stages + pushes to the platform.
-        ctx.client
-            .upload_chunk(
-                session_id,
-                idx,
-                p.encrypted.clone(),
-                &p.sha256,
-                p.compressed,
-            )
-            .await?;
-        Ok(())
+        super::retry_transient(&ctx.cancel, 4, || async {
+            ctx.client
+                .upload_chunk(
+                    session_id,
+                    idx,
+                    p.encrypted.clone(),
+                    &p.sha256,
+                    p.compressed,
+                )
+                .await
+                .map_err(EngineError::from)
+        })
+        .await
     }
 }
 
@@ -611,6 +888,19 @@ fn join_err(e: tokio::task::JoinError) -> EngineError {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn same_named_media_items_get_distinct_attempt_keys() {
+        let f = std::fs::File::open(std::env::current_exe().unwrap()).unwrap();
+        let open = |id| {
+            SealedAttempt::key(&UploadSource::Open {
+                file: &f,
+                name: "IMG_0001.jpg",
+                id,
+            })
+        };
+        assert_ne!(open("external_primary:1"), open("external_primary:2"));
+    }
+
     use super::*;
 
     const MIB: i64 = 1024 * 1024;
@@ -661,5 +951,357 @@ mod tests {
             session_layout(100 * MIB, 10 * MIB, 10, &resumed(16 * MIB, 9)),
             None
         );
+    }
+
+    use crate::testutil::{serve, Reply};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn cancel_mid_chunk_stops_fast_cancels_the_session_and_skips_complete() {
+        let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+        let record = seen.clone();
+        let (base, _) = serve(move |_, req| {
+            record
+                .lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.path));
+            match (req.method.as_str(), req.path.as_str()) {
+                ("POST", "/api/upload/init") => {
+                    Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+                }
+                ("PUT", _) => Reply::Hang,
+                _ => Reply::status(200, "{}"),
+            }
+        })
+        .await;
+
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let cancel = crate::engines::CancelToken::new();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(&base, "t", "r")),
+            db: Arc::new(crate::localdb::LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: cancel.clone(),
+            vault_passphrase: None,
+        };
+        let trip = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(600)).await;
+            trip.cancel();
+        });
+
+        let started = Instant::now();
+        let r = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
+        assert!(started.elapsed() < Duration::from_secs(5));
+
+        let calls = seen.lock().unwrap().clone();
+        assert!(
+            calls.iter().any(|c| c == "DELETE /api/upload/s1"),
+            "{calls:?}"
+        );
+        assert!(!calls.iter().any(|c| c.contains("/complete")), "{calls:?}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn a_403_on_a_relay_chunk_is_sent_once_not_four_times() {
+        let (base, hits) = serve(|_, req| match (req.method.as_str(), req.path.as_str()) {
+            ("POST", "/api/upload/init") => {
+                Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+            }
+            ("PUT", _) => Reply::status(403, "forbidden"),
+            _ => Reply::status(200, "{}"),
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new(&base, "t", "r")),
+            db: Arc::new(crate::localdb::LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        };
+        let r = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(r.is_err());
+        // init + one PUT + the session cancel is not sent on a plain failure
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn sealed_ctx(base: &str, dir: &std::path::Path) -> EngineContext {
+        EngineContext {
+            client: Arc::new(crate::api::Client::new(base, "t", "r")),
+            db: Arc::new(crate::localdb::LocalDb::open_at(&dir.join("db.sqlite")).unwrap()),
+            profile: crate::profiles::NORMAL,
+            progress: Arc::new(|_p| {}),
+            creds: crate::engines::no_creds(),
+            cancel: Default::default(),
+            vault_passphrase: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_sealed_upload_resumes_with_its_key_and_hash_instead_of_starting_over() {
+        let inits: Arc<Mutex<Vec<String>>> = Arc::default();
+        let calls: Arc<Mutex<Vec<String>>> = Arc::default();
+        let puts = Arc::new(AtomicU32::new(0));
+        let (i, c, p) = (inits.clone(), calls.clone(), puts.clone());
+        let (base, _) = serve(move |_, req| {
+            c.lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.path));
+            match (req.method.as_str(), req.path.as_str()) {
+                ("POST", "/api/upload/init") => {
+                    let mut seen = i.lock().unwrap();
+                    seen.push(String::from_utf8_lossy(&req.body).to_string());
+                    if seen.len() == 1 {
+                        Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+                    } else {
+                        Reply::status(200, r#"{"session_id":"s1","file_id":"f1","resumed":true}"#)
+                    }
+                }
+                ("PUT", _) => {
+                    if p.fetch_add(1, Ordering::SeqCst) == 0 {
+                        Reply::status(403, "forbidden")
+                    } else {
+                        Reply::status(200, r#"{"success":true}"#)
+                    }
+                }
+                ("GET", "/api/upload/s1/status") => Reply::status(200, r#"{"uploaded_chunks":[]}"#),
+                ("POST", "/api/upload/s1/complete") => {
+                    Reply::status(200, r#"{"success":true,"file_id":"f1"}"#)
+                }
+                _ => Reply::status(200, "{}"),
+            }
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let ctx = sealed_ctx(&base, &dir);
+
+        let first = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(first.is_err());
+        let second = run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None).await;
+        assert!(second.is_ok(), "{second:?}");
+
+        let bodies = inits.lock().unwrap().clone();
+        let mac = |b: &str| {
+            serde_json::from_str::<serde_json::Value>(b).unwrap()["sha256"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(bodies.len(), 2);
+        assert_eq!(
+            mac(&bodies[0]),
+            mac(&bodies[1]),
+            "the content MAC is reused, so the server matches the session"
+        );
+        let seen = calls.lock().unwrap().clone();
+        assert!(
+            !seen.iter().any(|c| c.starts_with("DELETE")),
+            "the resumed session is kept: {seen:?}"
+        );
+        assert!(seen.iter().any(|c| c.contains("/complete")), "{seen:?}");
+        let key = format!("sealed_attempt:{}", file.display());
+        assert_eq!(
+            ctx.db.setting(&key).unwrap().as_deref(),
+            Some(""),
+            "a finished upload drops the saved key"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn a_changed_file_does_not_reuse_the_saved_key_and_a_foreign_resume_starts_over() {
+        let inits: Arc<Mutex<Vec<String>>> = Arc::default();
+        let calls: Arc<Mutex<Vec<String>>> = Arc::default();
+        let (i, c) = (inits.clone(), calls.clone());
+        let (base, _) = serve(move |_, req| {
+            c.lock()
+                .unwrap()
+                .push(format!("{} {}", req.method, req.path));
+            match (req.method.as_str(), req.path.as_str()) {
+                ("POST", "/api/upload/init") => {
+                    let mut seen = i.lock().unwrap();
+                    seen.push(String::from_utf8_lossy(&req.body).to_string());
+                    Reply::status(200, r#"{"session_id":"s1","file_id":"f1"}"#)
+                }
+                ("PUT", _) => Reply::status(403, "forbidden"),
+                _ => Reply::status(200, "{}"),
+            }
+        })
+        .await;
+        let dir = std::env::temp_dir().join(format!("zcrypt-su-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.bin");
+        std::fs::write(&file, vec![5u8; 4096]).unwrap();
+        let ctx = sealed_ctx(&base, &dir);
+
+        assert!(
+            run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None)
+                .await
+                .is_err()
+        );
+        std::fs::write(&file, vec![6u8; 8192]).unwrap();
+        assert!(
+            run_sealed(&ctx, &file, Sealing::PublicKey([7u8; 32]), None, None)
+                .await
+                .is_err()
+        );
+
+        let bodies = inits.lock().unwrap().clone();
+        let mac = |b: &str| {
+            serde_json::from_str::<serde_json::Value>(b).unwrap()["sha256"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        assert_ne!(mac(&bodies[0]), mac(&bodies[1]));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    mod plane {
+        use super::*;
+        use crate::engines::gate::fake::{gate, FakeEnv};
+        use crate::engines::{CredProvider, PlatformCreds};
+        use crate::testutil::{serve, Reply};
+        use std::sync::atomic::Ordering::SeqCst;
+        use std::time::Duration;
+
+        fn tg() -> CredProvider {
+            Arc::new(|p| {
+                (p == "telegram").then(|| PlatformCreds {
+                    token: "t".into(),
+                    account: "a".into(),
+                })
+            })
+        }
+
+        fn token() -> String {
+            let b = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+            format!("{}.{}.sig", b.encode("{}"), b.encode(r#"{"sub":"u1"}"#))
+        }
+
+        fn ctx(base: &str) -> (tempfile::TempDir, EngineContext, std::path::PathBuf) {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("a.bin");
+            std::fs::write(&file, b"hello").unwrap();
+            let ctx = EngineContext {
+                client: Arc::new(crate::api::Client::new(base, &token(), "r")),
+                db: Arc::new(LocalDb::open_at(&dir.path().join("db.sqlite")).unwrap()),
+                profile: crate::profiles::NORMAL,
+                progress: Arc::new(|_p| {}),
+                creds: tg(),
+                cancel: Default::default(),
+                vault_passphrase: None,
+            };
+            (dir, ctx, file)
+        }
+
+        #[tokio::test]
+        async fn blocked_and_over_allowance_never_reaches_the_server() {
+            let (base, hits) = serve(|_, _| Reply::status(500, "x")).await;
+            let (_d, ctx, file) = ctx(&base);
+            let g = gate(FakeEnv::new(false, false), None);
+            let r = run_gated(
+                &ctx,
+                &g,
+                UploadSource::Path(&file),
+                Sealing::Vault("p"),
+                None,
+                None,
+            )
+            .await;
+            assert!(matches!(r, Err(EngineError::Blocked(_))), "{r:?}");
+            assert_eq!(hits.load(SeqCst), 0);
+        }
+
+        #[tokio::test]
+        async fn blocked_but_fitting_goes_through_the_relay() {
+            let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+            let b = bodies.clone();
+            let (base, _) = serve(move |_, req| {
+                if req.path.contains("upload/init") {
+                    b.lock()
+                        .unwrap()
+                        .push(String::from_utf8_lossy(&req.body).into());
+                }
+                Reply::status(400, "stop")
+            })
+            .await;
+            let (_d, ctx, file) = ctx(&base);
+            let g = gate(FakeEnv::new(false, true), None);
+            let _ = run_gated(
+                &ctx,
+                &g,
+                UploadSource::Path(&file),
+                Sealing::Vault("p"),
+                None,
+                None,
+            )
+            .await;
+            let b = bodies.lock().unwrap();
+            assert!(!b.is_empty());
+            assert!(!b[0].contains("byos-direct"), "{}", b[0]);
+        }
+
+        #[tokio::test]
+        async fn a_refused_relay_waits_then_resumes_direct_when_telegram_returns() {
+            let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+            let b = bodies.clone();
+            let (base, _) = serve(move |_, req| {
+                if !req.path.contains("upload/init") {
+                    return Reply::status(404, "");
+                }
+                let mut b = b.lock().unwrap();
+                b.push(String::from_utf8_lossy(&req.body).into());
+                if b.len() == 1 {
+                    Reply::status(403, r#"{"error":"x","code":"relay_daily_exceeded"}"#)
+                } else {
+                    Reply::status(400, "stop")
+                }
+            })
+            .await;
+            let (_d, ctx, file) = ctx(&base);
+            let env = FakeEnv::new(false, true);
+            let seen = Arc::new(Mutex::new(Vec::<&'static str>::new()));
+            let s = seen.clone();
+            let g = gate(
+                env.clone(),
+                Some(Arc::new(move |r| s.lock().unwrap().push(r))),
+            );
+            let e2 = env.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                e2.reachable.store(true, SeqCst);
+            });
+            let _ = run_gated(
+                &ctx,
+                &g,
+                UploadSource::Path(&file),
+                Sealing::Vault("p"),
+                None,
+                None,
+            )
+            .await;
+            assert!(seen.lock().unwrap().contains(&"allowance_used_up"));
+            let b = bodies.lock().unwrap();
+            assert!(!b[0].contains("byos-direct"));
+            assert!(b[1].contains("byos-direct"), "{}", b[1]);
+        }
     }
 }
