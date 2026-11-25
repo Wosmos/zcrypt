@@ -34,6 +34,8 @@ func getOAuthProviderConfig(cfg *config.Config, provider string) *config.OAuthPr
 	}
 }
 
+const oauthStateCookie = "oauth_state"
+
 // HandleOAuthStart initiates the OAuth flow by redirecting to the provider.
 // GET /api/auth/oauth/{provider}
 func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
@@ -74,11 +76,14 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		state = "desktop:" + session + ":" + challenge + ":" + state
 	}
 
-	// Set state in cookie (HttpOnly, SameSite=Lax for OAuth redirect)
+	// Set state in cookie (HttpOnly, SameSite=Lax for OAuth redirect). Scoped to
+	// the site domain like the session cookie, so a sign-in started on the bare
+	// domain still finds it at the callback on www.
 	http.SetCookie(w, &http.Cookie{
-		Name:     "oauth_state",
+		Name:     oauthStateCookie,
 		Value:    state,
 		Path:     "/",
+		Domain:   s.cfg.RefreshCookieDomain(),
 		MaxAge:   600, // 10 minutes
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -113,7 +118,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify state cookie
-	stateCookie, err := r.Cookie("oauth_state")
+	stateCookie, err := r.Cookie(oauthStateCookie)
 	if err != nil || stateCookie.Value == "" {
 		s.oauthError(w, r, "missing state", false, "")
 		return
@@ -140,16 +145,20 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clear state cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "oauth_state",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
-	})
+	// Clear state cookie, both the domain-wide one and any host-only one an
+	// older start left behind.
+	for _, domain := range []string{"", s.cfg.RefreshCookieDomain()} {
+		http.SetCookie(w, &http.Cookie{
+			Name:     oauthStateCookie,
+			Value:    "",
+			Path:     "/",
+			Domain:   domain,
+			MaxAge:   -1,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+		})
+	}
 
 	// Check for provider error
 	if errStr := r.URL.Query().Get("error"); errStr != "" {
