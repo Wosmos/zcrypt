@@ -146,11 +146,8 @@ func (s *Server) relayUploadAllowed(w http.ResponseWriter, r *http.Request, user
 	return true
 }
 
-func (s *Server) relayQuota(ctx context.Context, userID string, admin bool, info *types.QuotaInfo) {
-	t, err := s.db.RelayTotals(ctx, userID)
-	if err != nil {
-		log.Printf("quota: relay usage for user %s: %v", userID, err) //nolint:gosec // database id from the verified session
-	}
+// fillRelayQuota sets the transfer-allowance fields of info; admins get no limits.
+func fillRelayQuota(t index.RelayTotals, admin bool, info *types.QuotaInfo) {
 	now := time.Now()
 	info.RelayUsedBytes = t.Month
 	info.RelayDayUsedBytes = t.Day

@@ -655,34 +655,34 @@ func sharedStorageQuotaBytes() int64 {
 }
 
 // getEffectiveQuota returns the effective storage quota in bytes for a user,
-// where 0 means unlimited.
-//
-// Three cases, in priority order:
-//  1. An explicit per-user admin override always wins, including an override
-//     of 0 to grant somebody unlimited shared storage.
-//  2. A user with at least one personal token is unlimited. They are spending
-//     their own platform quota.
-//  3. Everyone else is on the shared pool and gets sharedStorageQuotaBytes.
+// where 0 means unlimited. A failed lookup falls back to the shared cap, never
+// to unlimited.
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		// Fail closed onto the shared cap. Failing open here would hand an
-		// unbounded allowance to any request whose user lookup hiccuped.
 		return sharedStorageQuotaBytes()
 	}
-
 	if user.StorageQuota != nil {
 		return *user.StorageQuota
 	}
-
 	hasPersonal, err := s.db.UserHasPersonalTokens(ctx, userID)
 	if err != nil {
 		return sharedStorageQuotaBytes()
 	}
-	if hasPersonal {
-		return 0 // their own account, their own quota
-	}
+	return effectiveQuota(nil, user.Role, hasPersonal)
+}
 
+// effectiveQuota is the storage quota shown to a user, 0 = unlimited:
+//  1. an admin-set quota always wins, including 0;
+//  2. own storage connected, or an admin (who runs the shared pool), is unlimited;
+//  3. everyone else gets the shared cap.
+func effectiveQuota(override *int64, role types.Role, hasPersonal bool) int64 {
+	if override != nil {
+		return *override
+	}
+	if hasPersonal || role == types.RoleAdmin {
+		return 0
+	}
 	return sharedStorageQuotaBytes()
 }
 

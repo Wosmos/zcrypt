@@ -672,48 +672,40 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
 
-	usedFn := s.db.GetUserStorageUsed
-	if IsDecoy(r) {
-		usedFn = s.db.GetDecoyStorageUsed
-	}
-	used, err := usedFn(ctx, userID)
+	// Adapters come from memory once built; a cold build waits on the
+	// platforms, so it runs alongside the database read.
+	canUpload := make(chan bool, 1)
+	go func() {
+		userAdapters, _ := s.getUserAdapters(ctx, userID)
+		canUpload <- len(userAdapters) > 0
+	}()
+
+	snap, err := s.db.QuotaSnapshot(ctx, userID, IsDecoy(r))
 	if err != nil {
-		internalError(w, "quota: storage used", err)
+		<-canUpload
+		internalError(w, "quota: snapshot", err)
 		return
 	}
 
-	hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
-
-	// Storage on your own account is unlimited. Shared storage is capped, so
-	// report the real numbers: the dashboard banner and the upload UI both
-	// need to know how much room is actually left before they let someone
-	// start a transfer that will be refused.
-	quota := s.getEffectiveQuota(ctx, userID)
-
-	plan := types.PlanFree
-	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil {
-		if user.Plan != "" {
-			plan = user.Plan
-		}
+	plan := snap.Plan
+	if plan == "" {
+		plan = types.PlanFree
 	}
-
-	// Check if user can upload (has any adapters, personal or global/managed)
-	userAdapters, _ := s.getUserAdapters(ctx, userID)
-	canUpload := len(userAdapters) > 0
+	quota := effectiveQuota(snap.StorageQuota, snap.Role, snap.HasPersonal)
 
 	info := types.QuotaInfo{
-		UsedBytes:            used,
+		UsedBytes:            snap.UsedBytes,
 		QuotaBytes:           quota, // 0 = unlimited (own storage connected)
-		HasPersonalKey:       hasPersonal,
+		HasPersonalKey:       snap.HasPersonal,
 		IsUnlimited:          quota == 0,
 		Plan:                 plan,
 		MaxConcurrentUploads: 0, // 0 = unlimited
 		MaxSpaceBatchFiles:   s.maxSpaceBatchFiles(ctx, plan),
 		MaxFileSize:          maxUploadBytes(), // per-file cap enforced by HandleUploadInit
-		CanUpload:            canUpload,
+		CanUpload:            <-canUpload,
 		AllowsBYOB:           true,
 	}
-	s.relayQuota(ctx, userID, IsAdmin(r), &info)
+	fillRelayQuota(snap.Relay, IsAdmin(r), &info)
 
 	writeJSON(w, http.StatusOK, info)
 }
