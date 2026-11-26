@@ -91,8 +91,8 @@ type relayQuerier interface {
 // after it last stored a chunk.
 const relayReserveIdle = `INTERVAL '24 hours'`
 
-const relayTotalsSQL = `
-SELECT
+// relayTotalsCols are the day, month and reserved byte columns for user $1.
+const relayTotalsCols = `
   COALESCE((SELECT SUM(up_bytes + down_bytes) FROM relay_usage WHERE user_id = $1 AND day = ` + relayToday + `), 0)::bigint,
   COALESCE((SELECT SUM(up_bytes + down_bytes) FROM relay_usage WHERE user_id = $1 AND day >= ` + relayMonthStart + `), 0)::bigint,
   (COALESCE((SELECT SUM(GREATEST(us.relay_reserve - COALESCE(c.recv, 0), 0))
@@ -104,6 +104,8 @@ SELECT
                FROM send_transfers st
                LEFT JOIN LATERAL (SELECT SUM(size) AS recv FROM send_chunks WHERE transfer_id = st.id) c ON TRUE
               WHERE st.user_id = $1 AND st.status = 'uploading' AND st.expires_at > NOW()), 0))::bigint`
+
+const relayTotalsSQL = `SELECT` + relayTotalsCols
 
 func relayTotals(ctx context.Context, q relayQuerier, userID string) (RelayTotals, error) {
 	var t RelayTotals
