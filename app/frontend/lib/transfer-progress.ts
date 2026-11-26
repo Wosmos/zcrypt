@@ -7,7 +7,8 @@
 
 import { WebTransferLimitCode, type WebTransferLimit } from "@/lib/web-transfer-limit";
 import { WaitReason } from "@/store/transfer-wait";
-import { DownloadStatus, UploadStatus } from "@/types";
+import { DownloadStatus, TransferPath, UploadStatus } from "@/types";
+import { platformName } from "@/lib/platforms";
 
 export type TransferDirection = "upload" | "download";
 
@@ -343,4 +344,23 @@ export function translateLabel(t: Translate, label: TransferLabel): string {
   for (const [k, v] of Object.entries(label.values))
     values[k] = typeof v === "object" ? translateLabel(t, v) : v;
   return t(label.key, values);
+}
+
+/**
+ * Where a transfer's bytes go, for the row's second line: always "here" for
+ * the crypto, then straight to the user's storage, straight to the platform
+ * through a signed link, or through zcrypt's server. Null until known.
+ */
+export function pathLabel(
+  direction: TransferDirection,
+  path: TransferPath | undefined,
+  platform?: string,
+): TransferLabel | null {
+  if (!path) return null;
+  const dir = direction === "upload" ? "up" : "down";
+  if (path === TransferPath.Server) return { key: `path.${dir}Server` };
+  const kind = path === TransferPath.Direct ? "Direct" : "Link";
+  return platform
+    ? { key: `path.${dir}${kind}`, values: { platform: platformName(platform) } }
+    : { key: `path.${dir}${kind}Unnamed` };
 }

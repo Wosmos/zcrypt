@@ -701,6 +701,22 @@
         "title": "When Telegram is blocked",
         "body": "Every app tries your own Telegram directly first. If your network blocks it, we use our server only while the rest of the transfer fits your allowance. If it doesn't fit, the transfer pauses and asks you to turn on a VPN, then continues by itself."
       }
+    },
+    "filePaths": {
+      "title": "How your files travel",
+      "footnote": "Each transfer also shows the way it actually went, under its name.",
+      "encryption": "Encryption",
+      "encryptionHere": "In this browser, on this device. Nothing readable leaves it.",
+      "ownStorage": "Your own storage",
+      "ownStorageYes": "Connected: {names}",
+      "ownStorageNo": "Not connected, so uploads use zcrypt's shared storage",
+      "telegram": "Telegram from this network",
+      "telegramChecking": "Checking…",
+      "telegramReachable": "Reachable: transfers go straight to your Telegram",
+      "telegramBlocked": "Blocked here: transfers go through zcrypt's server",
+      "key": "Storage key in this tab",
+      "keyLoaded": "Loaded in memory for this tab only, never saved",
+      "keyNotLoaded": "Not loaded. Fetched only when a transfer needs it"
     }
   }
 }

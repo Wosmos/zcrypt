@@ -2,9 +2,15 @@
 
 import { memo, type ComponentType } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Monitor, Pause, Play, StopCircle, X, type IconProps } from "@/lib/icons";
+import { Check, Lock, Monitor, Pause, Play, StopCircle, X, type IconProps } from "@/lib/icons";
 import { cn, formatBytes } from "@/lib/utils";
-import { translateLabel, type TransferPhase, type TransferView } from "@/lib/transfer-progress";
+import {
+  pathLabel,
+  translateLabel,
+  type TransferPhase,
+  type TransferView,
+} from "@/lib/transfer-progress";
+import type { TransferPath } from "@/types";
 import { TONE, TransferThumb } from "./transfer-parts";
 
 /** What a transfer row is doing, uploads and downloads alike. */
@@ -38,6 +44,9 @@ export interface TransferEntry {
   totalBytes?: number;
   rateBps?: number;
   etaSeconds?: number;
+  /** How the bytes travel and to which platform, once known. */
+  path?: TransferPath;
+  platform?: string;
   startedAt: number;
   /** Destination folder of an upload (null = vault root). */
   folderId?: string | null;
@@ -200,6 +209,7 @@ function TransferItemBase({
   const settled = failed || done || needsApp;
   const { phase, bar } = entry.view;
   const held = phase === "waiting" && !settled;
+  const route = failed || needsApp ? null : pathLabel(entry.direction, entry.path, entry.platform);
   const retryLabel = entry.direction === "upload" && entry.desktop ? t("resumeUpload") : t("retry");
   const retry = () =>
     entry.direction === "upload"
@@ -271,6 +281,15 @@ function TransferItemBase({
             {done && entry.sizeBytes ? ` · ${formatBytes(entry.sizeBytes)}` : ""}
           </span>
         </div>
+        {route && (
+          <p
+            data-transfer-path={entry.path}
+            className="mt-0.5 flex items-center gap-1 text-[11px] leading-snug text-[var(--color-text-muted)]"
+          >
+            <Lock className="h-3 w-3 flex-none" weight="bold" aria-hidden="true" />
+            <span className="truncate">{translateLabel(t, route)}</span>
+          </p>
+        )}
       </div>
       {failed && (
         <button

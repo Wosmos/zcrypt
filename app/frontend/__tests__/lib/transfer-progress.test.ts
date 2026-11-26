@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  pathLabel,
   batchSentence,
   bytePair,
   describeDownload,
@@ -422,5 +423,23 @@ describe("transfers held while Telegram is blocked or the allowance is used up",
     };
     expect(batchSentence(counts)).toEqual({ key: "batch.blocked", values: { count: 2 } });
     expect(batchSentence({ ...counts, blocked: 0 }).key).toBe("batch.waiting");
+  });
+});
+
+describe("pathLabel", () => {
+  it("is empty until the path is known", () => {
+    expect(pathLabel("upload", undefined)).toBeNull();
+  });
+  it("names the user's own platform for a direct upload", () => {
+    expect(pathLabel("upload", "direct", "telegram")).toEqual({
+      key: "path.upDirect",
+      values: { platform: "Telegram" },
+    });
+  });
+  it("says through zcrypt's server for a relayed download, whatever the platform", () => {
+    expect(pathLabel("download", "server", "telegram")).toEqual({ key: "path.downServer" });
+  });
+  it("falls back to an unnamed label when the platform is unknown", () => {
+    expect(pathLabel("download", "link")).toEqual({ key: "path.downLinkUnnamed" });
   });
 });

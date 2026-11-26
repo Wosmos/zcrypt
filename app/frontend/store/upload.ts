@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { tr } from "@/store/translate";
 import {
   UploadMode,
+  TransferPath,
   UploadStatus,
   type FileMetadata,
   type RepoInfo,
@@ -214,6 +215,7 @@ interface UploadStore {
   addToQueue: (file: File) => string;
   addBatchToQueue: (files: File[]) => { file: File; id: string }[];
   setFileId: (id: string, fileId: string) => void;
+  setPath: (id: string, path: TransferPath, platform?: string) => void;
   updateStatus: (
     id: string,
     status: UploadStatus,
@@ -958,6 +960,13 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       }
       byos = { target: direct, repo: await resolveDirectRepo(direct) };
     }
+    useUploadStore
+      .getState()
+      .setPath(
+        id,
+        byos ? TransferPath.Direct : useDirectUpload ? TransferPath.Link : TransferPath.Server,
+        byos?.target.platform ?? itemMeta.get(id)?.platform,
+      );
 
     // Chunk pipeline. TWO-STAGE BACKPRESSURE:
     //   RELAY:  [worker] -> [upload to server] -> [server relays to platform]
@@ -1583,6 +1592,12 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   setFileId: (id, fileId) => {
     set((state) => ({
       queue: state.queue.map((item) => (item.id === id ? { ...item, fileId } : item)),
+    }));
+  },
+
+  setPath: (id, path, platform) => {
+    set((state) => ({
+      queue: state.queue.map((item) => (item.id === id ? { ...item, path, platform } : item)),
     }));
   },
 

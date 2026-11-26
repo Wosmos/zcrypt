@@ -44,11 +44,13 @@ interface RowInner {
   icon?: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
+  /** Let the subtitle wrap instead of cutting it to one line. */
+  wrapSubtitle?: boolean;
   /** Right-aligned trailing content (value text, badge, switch, chevron). */
   trailing?: ReactNode;
 }
 
-function RowBody({ icon, title, subtitle, trailing }: RowInner) {
+function RowBody({ icon, title, subtitle, trailing, wrapSubtitle }: RowInner) {
   return (
     <>
       {icon && (
@@ -59,7 +61,12 @@ function RowBody({ icon, title, subtitle, trailing }: RowInner) {
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-[var(--color-text)]">{title}</span>
         {subtitle && (
-          <span className="mt-0.5 block truncate text-xs text-[var(--color-text-muted)]">
+          <span
+            className={cn(
+              "mt-0.5 block text-xs text-[var(--color-text-muted)]",
+              !wrapSubtitle && "truncate",
+            )}
+          >
             {subtitle}
           </span>
         )}
@@ -124,13 +131,14 @@ export function ButtonRow({
 }
 
 /** A static row that carries a value or control (no navigation). */
-export function ValueRow({ icon, title, subtitle, trailing }: RowInner) {
+export function ValueRow({ icon, title, subtitle, trailing, wrapSubtitle }: RowInner) {
   return (
     <div className="group flex items-center gap-3 px-4 py-3">
       <RowBody
         icon={icon}
         title={title}
         subtitle={subtitle}
+        wrapSubtitle={wrapSubtitle}
         trailing={<span className="flex-shrink-0">{trailing}</span>}
       />
     </div>

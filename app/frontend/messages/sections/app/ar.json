@@ -236,7 +236,19 @@
         "action": "استخدم التطبيق",
         "daily": "تجاوز حصة النقل لهذا اليوم"
       },
-      "tryAgain": "حاول مرة أخرى"
+      "tryAgain": "حاول مرة أخرى",
+      "path": {
+        "upDirect": "مُشفَّر هنا · مباشرة إلى {platform} الخاص بك",
+        "upDirectUnnamed": "مُشفَّر هنا · مباشرة إلى تخزينك",
+        "upLink": "مُشفَّر هنا · مباشرة إلى {platform}",
+        "upLinkUnnamed": "مُشفَّر هنا · مباشرة إلى التخزين",
+        "upServer": "مُشفَّر هنا · عبر خادم zcrypt",
+        "downDirect": "فُكّ تشفيره هنا · مباشرة من {platform} الخاص بك",
+        "downDirectUnnamed": "فُكّ تشفيره هنا · مباشرة من تخزينك",
+        "downLink": "فُكّ تشفيره هنا · مباشرة من {platform}",
+        "downLinkUnnamed": "فُكّ تشفيره هنا · مباشرة من التخزين",
+        "downServer": "فُكّ تشفيره هنا · عبر خادم zcrypt"
+      }
     },
     "tokens": {
       "expired": "منتهي الصلاحية",

@@ -701,6 +701,22 @@
         "title": "Telegram 被屏蔽时",
         "body": "每个应用都会先直接连接你自己的 Telegram。如果网络屏蔽了它，只有在传输剩余部分不超出你的额度时，我们才会改走服务器。超出时传输会暂停并提示你打开 VPN，之后自动继续。"
       }
+    },
+    "filePaths": {
+      "title": "你的文件如何传输",
+      "footnote": "每次传输的名称下方也会显示它实际走的路径。",
+      "encryption": "加密",
+      "encryptionHere": "在这个浏览器里、这台设备上完成。任何可读内容都不会离开它。",
+      "ownStorage": "你自己的存储",
+      "ownStorageYes": "已连接：{names}",
+      "ownStorageNo": "未连接，因此上传使用 zcrypt 的共享存储",
+      "telegram": "从此网络访问 Telegram",
+      "telegramChecking": "检查中…",
+      "telegramReachable": "可访问：传输直接到达你的 Telegram",
+      "telegramBlocked": "此处被屏蔽：传输经由 zcrypt 服务器",
+      "key": "此标签页中的存储密钥",
+      "keyLoaded": "仅为此标签页加载到内存，从不保存",
+      "keyNotLoaded": "未加载。只在传输需要时获取"
     }
   }
 }

@@ -701,6 +701,22 @@
         "title": "Cuando Telegram está bloqueado",
         "body": "Cada app prueba primero tu propio Telegram de forma directa. Si tu red lo bloquea, usamos nuestro servidor solo mientras el resto de la transferencia quepa en tu cupo. Si no cabe, la transferencia se pausa y te pide activar una VPN; después continúa sola."
       }
+    },
+    "filePaths": {
+      "title": "Cómo viajan tus archivos",
+      "footnote": "Cada transferencia también muestra, bajo su nombre, el camino que realmente siguió.",
+      "encryption": "Cifrado",
+      "encryptionHere": "En este navegador, en este dispositivo. Nada legible sale de él.",
+      "ownStorage": "Tu propio almacenamiento",
+      "ownStorageYes": "Conectado: {names}",
+      "ownStorageNo": "No conectado, así que las subidas usan el almacenamiento compartido de zcrypt",
+      "telegram": "Telegram desde esta red",
+      "telegramChecking": "Comprobando…",
+      "telegramReachable": "Accesible: las transferencias van directo a tu Telegram",
+      "telegramBlocked": "Bloqueado aquí: las transferencias pasan por el servidor de zcrypt",
+      "key": "Clave de almacenamiento en esta pestaña",
+      "keyLoaded": "Cargada en memoria solo para esta pestaña, nunca se guarda",
+      "keyNotLoaded": "No cargada. Se obtiene solo cuando una transferencia la necesita"
     }
   }
 }

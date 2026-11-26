@@ -701,6 +701,22 @@
         "title": "Quand Telegram est bloqué",
         "body": "Chaque application essaie d'abord votre propre Telegram en direct. Si votre réseau le bloque, nous n'utilisons notre serveur que tant que le reste du transfert tient dans votre quota. Sinon, le transfert se met en pause et vous demande d'activer un VPN, puis reprend tout seul."
       }
+    },
+    "filePaths": {
+      "title": "Comment voyagent tes fichiers",
+      "footnote": "Chaque transfert affiche aussi, sous son nom, le chemin réellement pris.",
+      "encryption": "Chiffrement",
+      "encryptionHere": "Dans ce navigateur, sur cet appareil. Rien de lisible n'en sort.",
+      "ownStorage": "Ton propre stockage",
+      "ownStorageYes": "Connecté : {names}",
+      "ownStorageNo": "Non connecté, donc les envois utilisent le stockage partagé de zcrypt",
+      "telegram": "Telegram depuis ce réseau",
+      "telegramChecking": "Vérification…",
+      "telegramReachable": "Accessible : les transferts vont directement vers ton Telegram",
+      "telegramBlocked": "Bloqué ici : les transferts passent par le serveur de zcrypt",
+      "key": "Clé de stockage dans cet onglet",
+      "keyLoaded": "Chargée en mémoire pour cet onglet uniquement, jamais enregistrée",
+      "keyNotLoaded": "Non chargée. Récupérée seulement quand un transfert en a besoin"
     }
   }
 }

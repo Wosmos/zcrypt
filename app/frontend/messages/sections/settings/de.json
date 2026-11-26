@@ -701,6 +701,22 @@
         "title": "Wenn Telegram gesperrt ist",
         "body": "Jede App versucht zuerst dein eigenes Telegram direkt. Sperrt dein Netzwerk es, nutzen wir unseren Server nur, solange der Rest der Übertragung in dein Kontingent passt. Passt er nicht, pausiert die Übertragung und bittet dich um ein VPN, danach geht sie von selbst weiter."
       }
+    },
+    "filePaths": {
+      "title": "Wie deine Dateien reisen",
+      "footnote": "Jede Übertragung zeigt unter ihrem Namen auch den Weg, den sie tatsächlich genommen hat.",
+      "encryption": "Verschlüsselung",
+      "encryptionHere": "In diesem Browser, auf diesem Gerät. Nichts Lesbares verlässt es.",
+      "ownStorage": "Dein eigener Speicher",
+      "ownStorageYes": "Verbunden: {names}",
+      "ownStorageNo": "Nicht verbunden, daher nutzen Uploads den geteilten Speicher von zcrypt",
+      "telegram": "Telegram aus diesem Netz",
+      "telegramChecking": "Wird geprüft…",
+      "telegramReachable": "Erreichbar: Übertragungen gehen direkt zu deinem Telegram",
+      "telegramBlocked": "Hier gesperrt: Übertragungen laufen über den zcrypt-Server",
+      "key": "Speicherschlüssel in diesem Tab",
+      "keyLoaded": "Nur für diesen Tab im Speicher geladen, nie gespeichert",
+      "keyNotLoaded": "Nicht geladen. Wird nur geholt, wenn eine Übertragung ihn braucht"
     }
   }
 }

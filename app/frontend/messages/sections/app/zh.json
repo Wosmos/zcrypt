@@ -236,7 +236,19 @@
         "action": "使用应用",
         "daily": "超出今天的传输额度"
       },
-      "tryAgain": "重试"
+      "tryAgain": "重试",
+      "path": {
+        "upDirect": "已在本机加密 · 直接传到你的 {platform}",
+        "upDirectUnnamed": "已在本机加密 · 直接传到你的存储",
+        "upLink": "已在本机加密 · 直接传到 {platform}",
+        "upLinkUnnamed": "已在本机加密 · 直接传到存储",
+        "upServer": "已在本机加密 · 经由 zcrypt 服务器",
+        "downDirect": "已在本机解密 · 直接来自你的 {platform}",
+        "downDirectUnnamed": "已在本机解密 · 直接来自你的存储",
+        "downLink": "已在本机解密 · 直接来自 {platform}",
+        "downLinkUnnamed": "已在本机解密 · 直接来自存储",
+        "downServer": "已在本机解密 · 经由 zcrypt 服务器"
+      }
     },
     "tokens": {
       "expired": "已过期",
