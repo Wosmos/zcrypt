@@ -236,7 +236,19 @@
         "action": "Usar la app",
         "daily": "Por encima del cupo de transferencia de hoy"
       },
-      "tryAgain": "Reintentar"
+      "tryAgain": "Reintentar",
+      "path": {
+        "upDirect": "Cifrado aquí · directo a tu {platform}",
+        "upDirectUnnamed": "Cifrado aquí · directo a tu almacenamiento",
+        "upLink": "Cifrado aquí · directo a {platform}",
+        "upLinkUnnamed": "Cifrado aquí · directo al almacenamiento",
+        "upServer": "Cifrado aquí · a través del servidor de zcrypt",
+        "downDirect": "Descifrado aquí · directo desde tu {platform}",
+        "downDirectUnnamed": "Descifrado aquí · directo desde tu almacenamiento",
+        "downLink": "Descifrado aquí · directo desde {platform}",
+        "downLinkUnnamed": "Descifrado aquí · directo desde el almacenamiento",
+        "downServer": "Descifrado aquí · a través del servidor de zcrypt"
+      }
     },
     "tokens": {
       "expired": "Caducado",

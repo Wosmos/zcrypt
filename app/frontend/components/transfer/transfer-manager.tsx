@@ -274,6 +274,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         startedAt: item.startedAt,
         folderId,
         desktop: item.desktop,
+        path: item.path,
+        platform: item.platform,
       };
     });
     const down = downloadQueue.map<TransferEntry>((item) => {
@@ -297,6 +299,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         sizeBytes: item.fileSize,
         etaSeconds,
         startedAt: item.startedAt,
+        path: item.path,
+        platform: item.platform,
       };
     });
     return [...up, ...down].sort(

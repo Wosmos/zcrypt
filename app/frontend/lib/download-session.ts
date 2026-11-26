@@ -16,6 +16,7 @@
 import { CEK_MAC_SCHEME, cekMacKey } from "@/lib/pk1";
 import { getFileMeta, type FileMetaResponse } from "@/lib/api";
 import { createChunkSource } from "@/lib/chunk-source";
+import type { TransferPath } from "@/types";
 import {
   resolveFileKey,
   fromBase64,
@@ -146,6 +147,8 @@ export interface DownloadOptions {
   pausing?: () => boolean;
   /** The transfer's row key (`dl:<id>`): lets a blocked Telegram or a used-up allowance hold the download instead of failing it. */
   waitKey?: string;
+  /** Told how each chunk arrived (see ChunkSourceOptions.onPath). */
+  onPath?: (path: TransferPath, platform?: string) => void;
 }
 
 /**
@@ -298,7 +301,10 @@ export async function downloadAndDecryptFile(
   const failCtl = new AbortController();
   const runSignal = signal ? AbortSignal.any([signal, failCtl.signal]) : failCtl.signal;
   let failure: { reason: unknown } | undefined;
-  const fetchChunk = createChunkSource(fileId, { waitKey: options?.waitKey });
+  const fetchChunk = createChunkSource(fileId, {
+    waitKey: options?.waitKey,
+    onPath: options?.onPath,
+  });
 
   try {
     // No entry guard here: the only caller is the fetcher loop below, which

@@ -24,7 +24,7 @@ import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { genId } from "@/lib/id";
 import { desktopAppAction } from "@/lib/open-desktop-app";
-import { DownloadStatus } from "@/types";
+import { DownloadStatus, TransferPath } from "@/types";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import {
   STREAM_TO_DISK_MIN_BYTES,
@@ -59,6 +59,9 @@ export interface DownloadItem {
   stage: string;
   error?: string;
   startedAt: number;
+  /** How the bytes travel; any chunk through the server makes the whole file "server". */
+  path?: TransferPath;
+  platform?: string;
 }
 
 // --- Throttled progress updates (same pattern as upload store) ---
@@ -346,6 +349,20 @@ interface DownloadStore {
   clearCompleted: () => void;
 }
 
+/** Record how a download's chunks arrive. The first path sticks, except that
+ *  any chunk through the server marks the file "server", so the label never
+ *  claims a direct download that wasn't. */
+export function setDownloadPath(id: string, path: TransferPath, platform?: string) {
+  useDownloadStore.setState((state) => {
+    const item = state.queue.find((i) => i.id === id);
+    if (!item || item.path === path || item.path === TransferPath.Server) return state;
+    if (item.path && path !== TransferPath.Server) return state;
+    return {
+      queue: state.queue.map((i) => (i.id === id ? { ...i, path, platform } : i)),
+    };
+  });
+}
+
 function updateProgress(id: string, status: DownloadStatus, progress?: number, stage?: string) {
   if (
     status === DownloadStatus.Done ||
@@ -403,6 +420,7 @@ function runSingleDownload(id: string): Promise<void> {
         resume: session.resume,
         pausing: () => pausedIds.has(id),
         waitKey: `dl:${id}`,
+        onPath: (path, platform) => setDownloadPath(id, path, platform),
       });
 
       if (!isCurrentRun()) return;

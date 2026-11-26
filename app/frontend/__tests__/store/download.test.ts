@@ -52,7 +52,7 @@ vi.mock("@/lib/notify", () => ({
     `reason:${kind}:${error}:${percent}`,
 }));
 
-import { useDownloadStore, canStreamToDisk } from "@/store/download";
+import { useDownloadStore, canStreamToDisk, setDownloadPath } from "@/store/download";
 import { downloadAndDecryptFile, DownloadPausedError, type DownloadOptions } from "@/lib/download-session";
 const FakeDownloadPausedError = DownloadPausedError;
 import { createZipRun, downloadAsZip, zipRefusal, ZipPausedError, type BulkDownloadFile } from "@/lib/bulk-download";
@@ -158,6 +158,15 @@ describe("useDownloadStore", () => {
       const id = firstId();
       await flush();
       expect(lastCallOptions().waitKey).toBe(`dl:${id}`);
+    });
+
+    it("records the route the pipeline reports on the download's row", async () => {
+      useDownloadStore.getState().startDownload("f1", "small.txt", 10, "pw");
+      const id = firstId();
+      await flush();
+      lastCallOptions().onPath!("link", "huggingface");
+      expect(getItem(id)?.path).toBe("link");
+      expect(getItem(id)?.platform).toBe("huggingface");
     });
 
     it("passes a space file's key resolver through to the pipeline", async () => {
@@ -2181,5 +2190,44 @@ describe("useDownloadStore", () => {
       vi.advanceTimersByTime(FAILED_BUFFER_GRACE_MS + 1);
       expect(resume!.decryptedChunks).toBeDefined();
     });
+  });
+});
+
+describe("setDownloadPath", () => {
+  const item = (path?: "direct" | "link" | "server") => ({
+    id: "p1",
+    fileId: "f",
+    filename: "a.bin",
+    fileSize: 1,
+    status: "downloading" as never,
+    progress: 0,
+    stage: "",
+    startedAt: 0,
+    path,
+  });
+  const pathOf = () => useDownloadStore.getState().queue.find((i) => i.id === "p1")?.path;
+
+  it("keeps the first path a download reports", () => {
+    useDownloadStore.setState({ queue: [item()] });
+    setDownloadPath("p1", "direct", "telegram");
+    const once = useDownloadStore.getState().queue;
+    setDownloadPath("p1", "direct", "telegram");
+    expect(useDownloadStore.getState().queue).toBe(once);
+    setDownloadPath("p1", "link");
+    expect(pathOf()).toBe("direct");
+  });
+
+  it("marks the file server as soon as any chunk went through the server, and keeps it", () => {
+    useDownloadStore.setState({ queue: [item("direct"), { ...item(), id: "p2" }] });
+    setDownloadPath("p1", "server");
+    setDownloadPath("p1", "direct", "telegram");
+    expect(pathOf()).toBe("server");
+    expect(useDownloadStore.getState().queue.find((i) => i.id === "p2")?.path).toBeUndefined();
+  });
+
+  it("ignores an unknown download", () => {
+    useDownloadStore.setState({ queue: [item()] });
+    setDownloadPath("other", "server");
+    expect(pathOf()).toBeUndefined();
   });
 });

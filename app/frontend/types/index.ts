@@ -109,6 +109,18 @@ export const UploadMode = {
 
 export type UploadMode = (typeof UploadMode)[keyof typeof UploadMode];
 
+/** How a transfer's encrypted bytes travel between this device and storage. */
+export const TransferPath = {
+  /** Straight to or from the user's own account, with their own token. */
+  Direct: "direct",
+  /** Straight to or from the platform through a short-lived signed link. */
+  Link: "link",
+  /** Through zcrypt's server, which relays them. */
+  Server: "server",
+} as const;
+
+export type TransferPath = (typeof TransferPath)[keyof typeof TransferPath];
+
 /** Lifecycle of one queued download. */
 export const DownloadStatus = {
   Queued: "queued",
@@ -151,6 +163,10 @@ export interface UploadItem {
   /** Set on a failed item the browser was not allowed to upload (too big, or
    *  over the month's web transfers). Retrying cannot help: it needs the desktop app. */
   limit?: WebTransferLimit;
+  /** How the bytes travel, once the upload session is set up. */
+  path?: TransferPath;
+  /** The storage platform the bytes go to. */
+  platform?: string;
 }
 
 export enum Role {

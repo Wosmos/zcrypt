@@ -236,7 +236,19 @@
         "action": "App nutzen",
         "daily": "Über dem heutigen Übertragungskontingent"
       },
-      "tryAgain": "Erneut versuchen"
+      "tryAgain": "Erneut versuchen",
+      "path": {
+        "upDirect": "Hier verschlüsselt · direkt zu deinem {platform}",
+        "upDirectUnnamed": "Hier verschlüsselt · direkt in deinen Speicher",
+        "upLink": "Hier verschlüsselt · direkt zu {platform}",
+        "upLinkUnnamed": "Hier verschlüsselt · direkt in den Speicher",
+        "upServer": "Hier verschlüsselt · über den zcrypt-Server",
+        "downDirect": "Hier entschlüsselt · direkt von deinem {platform}",
+        "downDirectUnnamed": "Hier entschlüsselt · direkt aus deinem Speicher",
+        "downLink": "Hier entschlüsselt · direkt von {platform}",
+        "downLinkUnnamed": "Hier entschlüsselt · direkt aus dem Speicher",
+        "downServer": "Hier entschlüsselt · über den zcrypt-Server"
+      }
     },
     "tokens": {
       "expired": "Abgelaufen",

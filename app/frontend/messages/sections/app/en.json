@@ -236,7 +236,19 @@
         "action": "Use the app",
         "daily": "Over today's transfer allowance"
       },
-      "tryAgain": "Try again"
+      "tryAgain": "Try again",
+      "path": {
+        "upDirect": "Encrypted here · straight to your {platform}",
+        "upDirectUnnamed": "Encrypted here · straight to your storage",
+        "upLink": "Encrypted here · straight to {platform}",
+        "upLinkUnnamed": "Encrypted here · straight to storage",
+        "upServer": "Encrypted here · through zcrypt's server",
+        "downDirect": "Decrypted here · straight from your {platform}",
+        "downDirectUnnamed": "Decrypted here · straight from your storage",
+        "downLink": "Decrypted here · straight from {platform}",
+        "downLinkUnnamed": "Decrypted here · straight from storage",
+        "downServer": "Decrypted here · through zcrypt's server"
+      }
     },
     "tokens": {
       "expired": "Expired",

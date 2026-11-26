@@ -8,6 +8,7 @@ import {
 import { resolveWebDirect, type DirectTarget } from "@/lib/byos-direct";
 import { sha256Hex } from "@/lib/crypto";
 import { Platform } from "@/lib/platforms";
+import { TransferPath } from "@/types";
 import {
   downloadTelegramChunk,
   markTelegramUnreachable,
@@ -55,6 +56,8 @@ export const LINK_FAILURES_BEFORE_OFF = 2;
 
 /** Options for a chunk source that may hold its transfer instead of failing. */
 export interface ChunkSourceOptions {
+  /** Told how each chunk arrived: straight from the user's storage, through a platform link, or through the server. */
+  onPath?: (path: TransferPath, platform?: string) => void;
   /**
    * The transfer's row key (`dl:<id>`). With it, a chunk stored on the user's
    * own Telegram that this network cannot reach goes through the server only
@@ -158,6 +161,7 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
               bytes.byteOffset + bytes.byteLength,
             ) as ArrayBuffer;
             fetched.add(index);
+            opts.onPath?.(TransferPath.Direct, Platform.Telegram);
             return { data, sha256: loc.sha256, compressed: loc.compressed };
           }
         } catch (err) {
@@ -180,6 +184,7 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
         const linked = await viaLink(index, signal);
         if (linked) {
           fetched.add(index);
+          opts.onPath?.(TransferPath.Link);
           return linked;
         }
         await checkServerOnly(src);
@@ -187,6 +192,7 @@ export function createChunkSource(fileId: string, opts: ChunkSourceOptions = {})
       try {
         const payload = await getFileChunk(fileId, index, signal);
         fetched.add(index);
+        opts.onPath?.(TransferPath.Server);
         return payload;
       } catch (err) {
         if (!waitKey || !isAllowanceRefusal(err)) throw err;

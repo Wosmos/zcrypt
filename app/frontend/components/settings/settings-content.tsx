@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { StoragePool } from "@/components/settings/storage-pool";
 import { WebTransfers } from "@/components/settings/web-transfers";
+import { FilePaths } from "@/components/settings/file-paths";
 import { VerifyFiles } from "@/components/settings/verify-files";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
@@ -364,6 +365,7 @@ export function SettingsContent() {
       case "storage":
         return (
           <div className="space-y-8">
+            <FilePaths />
             <RateLimits statuses={statuses} repos={repos} />
             <WebTransfers />
             <VerifyFiles />

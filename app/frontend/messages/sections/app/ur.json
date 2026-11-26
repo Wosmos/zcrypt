@@ -236,7 +236,19 @@
         "action": "ایپ استعمال کریں",
         "daily": "آج کے ٹرانسفر کوٹے سے زیادہ"
       },
-      "tryAgain": "دوبارہ کوشش کریں"
+      "tryAgain": "دوبارہ کوشش کریں",
+      "path": {
+        "upDirect": "یہیں انکرپٹ · سیدھا آپ کے {platform} پر",
+        "upDirectUnnamed": "یہیں انکرپٹ · سیدھا آپ کے اسٹوریج پر",
+        "upLink": "یہیں انکرپٹ · سیدھا {platform} پر",
+        "upLinkUnnamed": "یہیں انکرپٹ · سیدھا اسٹوریج پر",
+        "upServer": "یہیں انکرپٹ · zcrypt کے سرور کے ذریعے",
+        "downDirect": "یہیں ڈی کرپٹ · سیدھا آپ کے {platform} سے",
+        "downDirectUnnamed": "یہیں ڈی کرپٹ · سیدھا آپ کے اسٹوریج سے",
+        "downLink": "یہیں ڈی کرپٹ · سیدھا {platform} سے",
+        "downLinkUnnamed": "یہیں ڈی کرپٹ · سیدھا اسٹوریج سے",
+        "downServer": "یہیں ڈی کرپٹ · zcrypt کے سرور کے ذریعے"
+      }
     },
     "tokens": {
       "expired": "میعاد ختم",

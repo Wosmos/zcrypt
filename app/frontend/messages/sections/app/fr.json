@@ -236,7 +236,19 @@
         "action": "Utiliser l'app",
         "daily": "Quota de transfert du jour dépassé"
       },
-      "tryAgain": "Réessayer"
+      "tryAgain": "Réessayer",
+      "path": {
+        "upDirect": "Chiffré ici · directement vers ton {platform}",
+        "upDirectUnnamed": "Chiffré ici · directement vers ton stockage",
+        "upLink": "Chiffré ici · directement vers {platform}",
+        "upLinkUnnamed": "Chiffré ici · directement vers le stockage",
+        "upServer": "Chiffré ici · via le serveur de zcrypt",
+        "downDirect": "Déchiffré ici · directement depuis ton {platform}",
+        "downDirectUnnamed": "Déchiffré ici · directement depuis ton stockage",
+        "downLink": "Déchiffré ici · directement depuis {platform}",
+        "downLinkUnnamed": "Déchiffré ici · directement depuis le stockage",
+        "downServer": "Déchiffré ici · via le serveur de zcrypt"
+      }
     },
     "tokens": {
       "expired": "Expiré",

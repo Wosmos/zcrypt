@@ -428,3 +428,34 @@ describe("platform links (GitHub / Hugging Face)", () => {
     expect(m.getFileChunk).not.toHaveBeenCalled();
   });
 });
+
+describe("onPath", () => {
+  it("reports a chunk read straight from the user's own Telegram as direct", async () => {
+    const onPath = vi.fn();
+    await createChunkSource("f", { onPath })(0);
+    expect(onPath).toHaveBeenCalledWith("direct", "telegram");
+  });
+
+  it("reports a chunk relayed by the server as server", async () => {
+    m.resolveWebDirect.mockResolvedValue(null);
+    const onPath = vi.fn();
+    await createChunkSource("f", { onPath })(0);
+    expect(onPath).toHaveBeenCalledWith("server");
+  });
+
+  it("reports a chunk read through a platform link as link", async () => {
+    m.resolveWebDirect.mockResolvedValue(null);
+    m.getFileLocators.mockResolvedValue({ file_id: "f", chunks: [loc(0, { platform: "huggingface" })] });
+    m.getChunkLink.mockResolvedValue({
+      url: "https://us.aws.cdn.hf.co/x",
+      expires_at: "",
+      size: 4,
+      sha256: PLAIN_SHA,
+      compressed: true,
+    });
+    m.downloadLinkedChunk.mockImplementation(async () => PLAIN.slice().buffer);
+    const onPath = vi.fn();
+    await createChunkSource("f", { onPath })(0);
+    expect(onPath).toHaveBeenCalledWith("link");
+  });
+});
